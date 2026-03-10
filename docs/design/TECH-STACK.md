@@ -10,44 +10,70 @@ SkillDeck is a Tauri-based desktop application providing an AI agent chat interf
 
 ## Frontend
 
+### Core Framework & Build
+
 - **Framework**: React 19 with TypeScript
 - **Build Tool**: Vite 7
 - **Language**: TypeScript (strict mode enabled)
-- **UI Components**: [shadcn/ui](https://ui.shadcn.com) – a collection of reusable components that are added as source code, allowing full customization. Components follow accessibility best practices and are styled with Tailwind CSS.
-- **Icon Libraries**:
-  - [lucide-react](https://lucide.dev) – primary icon set for consistent, crisp icons
-  - [@icons-pack/react-simple-icons](https://github.com/icons-pack/react-simple-icons) – for brand and technology icons (e.g., GitHub, Twitter, Rust, etc.)
-    - **Installation**: `pnpm add @icons-pack/react-simple-icons`
-    - **Usage**: Icons are exported with the `Si` prefix and use upperCamelCase naming (e.g., `SiReact` for React, `SiAzuredevops` for Azure DevOps).
-    - **Basic example**:
-
-      ```tsx
-      import { SiReact } from "@icons-pack/react-simple-icons";
-
-      function Example() {
-        return <SiReact color="#61DAFB" size={24} />;
-      }
-      ```
-
-    - **Default brand color**: Set `color='default'` to use the icon's official brand color, or import the hex value directly (e.g., `SiReactHex`) for custom styling.
-    - **TypeScript support**: The package includes built-in type declarations.
-
-- **Styling**: Tailwind CSS with shadcn/ui's theming system; custom CSS (App.css) will be replaced by shadcn's global CSS variables defined in the Tailwind configuration.
-- **State Management**: Lightweight solution (Zustand or Jotai as mentioned in design docs) — not yet visible in current scaffolding
-- **Tauri Integration**: `@tauri-apps/api` for invoking backend commands and event handling
 - **Package Manager**: pnpm (indicated in `tauri.conf.json`)
+- **Routing**: Not required for core experience (panels are layout-based). If needed for settings/marketplace overlays, will use in-memory routing via state or simple conditional rendering.
 
-**Key Frontend Files**:
+### UI Component System
 
-- `src/App.tsx` – basic starter component with greet functionality (to be replaced with shadcn/ui components)
-- `src/main.tsx` – entry point
-- `vite.config.ts` – configured for Tauri with custom server port (1420) and HMR settings
+- **Component Library**: [shadcn/ui](https://ui.shadcn.com) – copy‑paste components owned directly in the codebase. Built on Radix UI primitives for accessibility.
+- **Styling**: Tailwind CSS with shadcn/ui's theming system; custom CSS (App.css) replaced by shadcn's global CSS variables.
+- **Icon Libraries**:
+  - [lucide-react](https://lucide.dev) – primary icon set for UI actions.
+  - [@icons-pack/react-simple-icons](https://github.com/icons-pack/react-simple-icons) – brand and technology icons (GitHub, Rust, etc.).
+    - **Installation**: `pnpm add @icons-pack/react-simple-icons`
+    - **Usage**: Icons exported with `Si` prefix (e.g., `SiReact`).
+    - **Default color**: Use `color='default'` or import `SiReactHex`.
 
 **shadcn/ui Setup**:
 
-- Project uses `pnpm dlx shadcn@latest` for CLI commands
-- Components are added via `pnpm dlx shadcn@latest add <component>` and stored in `src/components/ui`
-- Global CSS is managed in the project's main CSS file (e.g., `src/index.css`) with Tailwind directives and CSS variables
+- CLI: `pnpm dlx shadcn@latest`
+- Components stored in `src/components/ui`
+- Global CSS in `src/index.css` with Tailwind directives
+
+### Layout & Interaction
+
+- **Resizable Panels**: [react-resizable-panels](https://github.com/bvaughn/react-resizable-panels) – implements the three‑panel design with drag handles and persistence of widths.
+- **Command Menu**: [cmdk](https://github.com/pacocoursey/cmdk) – powers global search (`⌘K`) and mention picker (`@`).
+- **Drawer (optional)**: [vaul](https://github.com/emilkowalski/vaul) – if a slide‑in panel is preferred over a full overlay for marketplace/settings.
+- **Virtualization**: [react-virtuoso](https://github.com/petyosi/react-virtuoso) – virtualizes long conversation threads and skill lists to maintain performance with thousands of items.
+
+### State Management
+
+- **Server State**: [TanStack Query](https://tanstack.com/query/latest) – handles data fetching, caching, and background updates for MCP servers, skills list, conversations, and profiles.
+- **Client State**: [Zustand](https://github.com/pmndrs/zustand) – manages UI state: active conversation, panel sizes, right panel collapsed state, input drafts, active branch, etc.
+
+### Forms & Validation
+
+- **Form Handling**: [React Hook Form](https://react-hook-form.com/) – for profile creation, settings, prompt variable filling.
+- **Validation**: [zod](https://zod.dev/) + [@hookform/resolvers](https://github.com/react-hook-form/resolvers) – schema validation for forms.
+
+### AI Integration
+
+- **AI SDK**: [Vercel AI SDK 6](https://sdk.vercel.ai/docs) – provides `useChat` hook for streaming responses, tool call handling, and multi‑step agent workflows. Its **agent abstraction** includes built‑in support for **tool approval gates** (pauses the loop until user confirms), matching the design's approval UI [citation:2].
+- **Agent‑LLM Communication**: [TOON (Token‑Oriented Object Notation)](https://github.com/toon-format/toon) – compact, human‑readable format for sending structured data (tool inputs, skill contexts, conversation state) to the LLM, reducing token usage by ~40% while maintaining or improving accuracy [citation:2].
+  - **Implementation**: Use TypeScript SDK (`@toon-format/toon`) on the frontend when preparing data for Tauri commands that will be forwarded to the LLM.
+  - Wrap TOON data in markdown code blocks (```toon) to help the LLM identify the format.
+
+### Real‑time Updates & Notifications
+
+- **Toast Notifications**: [Sonner](https://sonner.emilkowal.ski/) – official toast library for shadcn/ui; used for tool approvals, skill load events, errors [citation:7].
+- **Tauri Events**: Primary real‑time mechanism – Rust core emits events (`agent:token`, `subagent:spawned`, etc.) that React listens to via `@tauri-apps/api/event`.
+
+### Data Visualization
+
+- **Charts (optional)**: [Recharts](https://recharts.org/) – for usage analytics (token consumption, cost) if implemented [citation:8].
+
+### Utilities
+
+- **Date Handling**: [date-fns](https://date-fns.org/) – formatting conversation timestamps.
+- **Class Name Composition**: `clsx` + `tailwind-merge` (via `cn()` helper) – standard shadcn/ui pattern.
+- **Variant Styling**: [class-variance-authority](https://cva.style/) – used for component variants (already part of shadcn).
+- **Accessibility Primitives**: [Radix UI](https://www.radix-ui.com/) – shadcn/ui is built on Radix, ensuring WAI‑ARIA compliance.
 
 ---
 
@@ -72,7 +98,7 @@ SkillDeck is a Tauri-based desktop application providing an AI agent chat interf
 **Architectural Layers** (as per design):
 
 1. **Rust Core** (`skilldeck-core`) – domain logic, traits for extensibility
-2. **Tauri Shell** – commands, window management, secure storage, `pg_embed` lifecycle (though SQLite may be used locally)
+2. **Tauri Shell** – commands, window management, secure storage (OS keychain)
 3. **React Frontend** – pure view layer
 
 **Plugin System**:
@@ -87,7 +113,7 @@ SkillDeck is a Tauri-based desktop application providing an AI agent chat interf
 - **Primary Database**: SQLite (inferred from `sea-orm` feature `sqlx-sqlite` and no `pg_embed` in dependencies)
 - **ORM**: SeaORM 2.0 (with `sqlx-sqlite` and `runtime-tokio-native-tls`).
   - SeaORM 2.0 is a **major release** introducing breaking changes, new features, and an improved developer experience.
-  - **Migration**: When upgrading from 1.x, refer to the official [What's New in SeaORM 2.0](https://www.sea-ql.org/SeaORM/docs/introduction/whats-new/) guide for detailed migration steps and feature highlights, including integration with SeaORM Pro, SeaQuery updates, and full-stack Rust application support.
+  - **Migration**: When upgrading from 1.x, refer to the official [What's New in SeaORM 2.0](https://www.sea-ql.org/SeaORM/docs/introduction/whats-new/) guide.
 - **Sync**: Design doc mentions optional remote PostgreSQL sync with last-write-wins strategy
 - **Schema Tables** (planned): conversations, messages, profiles, MCP servers, skills, sync state, etc. (29 tables across 10 domains)
 
@@ -107,25 +133,60 @@ SkillDeck is a Tauri-based desktop application providing an AI agent chat interf
 
 ---
 
-## Key Design Features
+## Key Design Features & Library Mapping
 
-| Feature                    | Implementation                                                                                                    |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| **Agent Loop**             | Async Rust loop with tool dispatch, streaming events via Tauri                                                    |
-| **MCP Discovery**          | Local port scanner + remote registry browser                                                                      |
-| **Skill System**           | Superpowers-compatible `SKILL.md` files with priority resolution (project > personal > superpowers > marketplace) |
-| **Profiles**               | Saved configurations with model, MCP servers, skills                                                              |
-| **Conversation Branching** | Tree structure via `parent_id` in messages; inline branch navigation                                              |
-| **Subagents**              | Concurrent agent instances with merge strategies                                                                  |
-| **Tool Approval**          | Pause loop for destructive tool calls, user approval UI                                                           |
-| **Sync**                   | Manual/auto sync with remote Postgres (planned)                                                                   |
+| Design Feature                    | Libraries Used                                       |
+| --------------------------------- | ---------------------------------------------------- |
+| **Three‑panel layout**            | `react-resizable-panels`                             |
+| **Streaming agent responses**     | AI SDK `useChat`, Tauri events                       |
+| **Tool approval UI**              | AI SDK tool approval + Sonner toasts + shadcn Dialog |
+| **Subagent cards**                | React components, Zustand for state                  |
+| **Inline branch navigation**      | Zustand + UI state in DB                             |
+| **MCP discovery & marketplace**   | TanStack Query (server state), shadcn Dialog/Sheet   |
+| **Skill management**              | TanStack Query, filesystem watcher events            |
+| **Prompt library with variables** | React Hook Form + zod + shadcn form components       |
+| **Command menu (`⌘K`)**           | `cmdk`                                               |
+| **Mention picker (`@`)**          | `cmdk` + custom logic                                |
+| **Real‑time event display**       | Tauri events + Sonner                                |
+| **Usage analytics (optional)**    | Recharts                                             |
+| **Long list virtualization**      | `react-virtuoso`                                     |
+| **Client state persistence**      | `@tauri-apps/plugin-store`                           |
+
+---
+
+## Additional Recommended Libraries
+
+### Rust (Backend)
+
+| Library                | Purpose                                            |
+| ---------------------- | -------------------------------------------------- |
+| `anyhow` / `thiserror` | Simplified error handling                          |
+| `tracing`              | Structured logging                                 |
+| `notify`               | Filesystem watching for skill directories          |
+| `glob`                 | Pattern matching for skill discovery               |
+| `uuid`                 | Generate UUIDs for database primary keys           |
+| `chrono` / `time`      | Date/time handling                                 |
+| `reqwest`              | HTTP client for remote MCP registry and model APIs |
+| `futures`              | Stream combinators                                 |
+| `config`               | Manage configuration (API keys, skill directories) |
+| `cargo-machete`        | Detect unused dependencies (dev tool)              |
+
+### Frontend (TypeScript/React) – Already covered above.
+
+### Dev Tooling
+
+| Tool                    | Purpose                                       |
+| ----------------------- | --------------------------------------------- |
+| `cargo-watch`           | Automatically run tests/lints on file changes |
+| `husky` + `lint-staged` | Git hooks for code quality                    |
+| `prettier` / `rustfmt`  | Consistent code formatting                    |
 
 ---
 
 ## Testing Strategy
 
 - **Unit Tests**: In core crate with mocked traits
-- **Integration Tests**: local Ollama
+- **Integration Tests**: Using local Ollama
 - **E2E Tests**: Tauri WebDriver for critical paths (minimal)
 
 ---
@@ -139,10 +200,20 @@ The current scaffolding is minimal (Tauri + React starter) but includes:
 - SeaORM dependency with SQLite
 - Design documents in `docs/` detailing the full vision
 
-Planned additions (from design) include the agent core, MCP discovery, skill loading, and the three-panel UI built with shadcn/ui components.
+Planned additions include the agent core, MCP discovery, skill loading, and the three‑panel UI built with the libraries listed above.
 
 ---
 
 ## Summary
 
-SkillDeck combines modern frontend tooling (React, TypeScript, Vite, shadcn/ui, lucide-react, @icons-pack/react-simple-icons) with a robust Rust backend (Tauri, Tokio, SeaORM 2.0) to deliver a high-performance, extensible AI agent desktop application. The stack prioritizes local-first data, developer extensibility via traits/plugins, and compatibility with the Superpowers skill ecosystem.
+SkillDeck combines modern frontend tooling (React 19, TypeScript, Vite) with a curated set of libraries that directly address the UX goals:
+
+- **AI SDK 6** for agent streaming and tool approval [citation:2]
+- **shadcn/ui** + **Radix** for accessible, consistent UI [citation:2][citation:10]
+- **TanStack Query** + **Zustand** for robust state management [citation:2][citation:4]
+- **react-resizable-panels** for the three‑panel layout
+- **cmdk** for command and mention experiences
+- **Sonner** for non‑intrusive notifications [citation:7]
+- **TOON** for token‑efficient LLM communication [citation:2]
+
+Together with a robust Rust backend (Tauri, Tokio, SeaORM 2.0), this stack delivers a high‑performance, extensible AI agent desktop application that is local‑first, developer‑extensible, and compatible with the Superpowers skill ecosystem.
