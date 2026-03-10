@@ -561,7 +561,7 @@ let context_str = if provider.toon_supported() {
 
 ---
 
-## Data Model (SeaORM / PostgreSQL)
+## Data Model (SeaORM)
 
 31 tables across 11 domains (new tables: workspaces, artifacts, templates). Every table earns its place by powering a specific UX feature.
 
@@ -1238,8 +1238,6 @@ Sections: **API Keys**, **Skill Sources** (shortcut to the Marketplace tab), **S
 
 **API Keys:** one entry per provider (Anthropic, OpenAI, Google, Ollama base URL). Stored in OS keychain. Validate button fires a test completion. Status indicator per provider.
 
-**Sync:** remote Postgres DSN input, test connection button, last synced timestamp, manual push/pull buttons, auto-sync toggle.
-
 **Model Pricing:** table of `model_pricing` entries, editable. Users can override pricing for models not in the default list or correct stale pricing.
 
 ---
@@ -1319,7 +1317,7 @@ pub enum CoreError {
     Model(ModelError),       // API errors, rate limits, auth failures
     Mcp(McpError),           // Transport failures, tool call errors
     Skill(SkillError),       // Parse failures, missing manifests, scan errors
-    Db(DbError),             // SeaORM/Postgres errors
+    Db(DbError),             // SeaORM errors
     Sync(SyncError),         // Remote unreachable, conflict
     Subagent(SubagentError), // Spawn failures, merge errors
     Io(IoError),             // Filesystem errors (skill dirs, attachments)
@@ -1334,7 +1332,7 @@ Errors serialize to JSON at the Tauri command boundary. UI shows human-readable 
 
 ## Testing Strategy
 
-**Unit tests** (`core/src/**/tests`) — mock dependencies for each trait. `MockModelProvider` returns scripted responses; `MockMcpTransport` simulates tool calls; `MockSkillLoader` returns canned skills. No Tauri or Postgres required.
+**Unit tests** (`core/src/**/tests`) — mock dependencies for each trait. `MockModelProvider` returns scripted responses; `MockMcpTransport` simulates tool calls; `MockSkillLoader` returns canned skills. No Tauri required.
 
 **Integration tests** (`core/tests/`) — local Ollama. Covers: profile loading, skill priority resolution, MCP tool dispatch, subagent spawn + merge, message persistence, branching, workspace detection and scoping.
 
