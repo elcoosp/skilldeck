@@ -1,6 +1,6 @@
-# Tauri AI Agent Chat — Design Document (v2)
+# Tauri AI Agent Chat — Design Document (v2.1)
 
-**Date:** 2026-03-10 (Updated with Workspace & Developer Enhancements)
+**Date:** 2026-03-12 (Consolidated with Technical Clarifications)
 **Status:** Approved
 **Audience:** Developers / power users building AI workflows
 
@@ -9,6 +9,8 @@
 ## Overview
 
 A Tauri desktop application providing an AI agent chat interface with discoverable MCP servers, a skills system compatible with the [Superpowers](https://github.com/obra/superpowers) open standard, and a full branching conversation tree. Targets developers who want complete control over their agent configurations, model choices, tool integrations, and skill composition — with all data stored locally and optional cloud sync.
+
+**Architectural Principle:** SkillDeck is a **Reactive, Event-Driven State Machine** wrapped in a desktop shell. The primary constraint is the **IPC Boundary** between Rust (source of truth) and React (projection). The system optimizes for data integrity across this boundary while maintaining a fluid UX through tiered streaming, non-blocking supervision, and graph-based orchestration.
 
 Superpowers compatibility is treated as an **external interoperability target**, not a built-in dependency. The app reads from the same filesystem conventions (`SKILL.md` manifests, priority-ordered skill directories) so that skills authored for Superpowers work without modification.
 
@@ -24,6 +26,18 @@ Three distinct layers with clean separation of concerns.
 
 Standalone library crate owning all business logic: agent loop, model abstraction, MCP client, skill engine, subagent orchestrator, filesystem watcher, sync engine, **workspace management** (detection, file scoping, .gitignore parsing), and TOON encoding layer. Zero Tauri dependency — fully testable in isolation. Exposes an async API consumed by Tauri commands.
 
+**Key Components:**
+
+- **Agent Loop:** Owns the conversation state, implements backpressure management via ring buffers and debounced emission.
+- **Model Abstraction:** Trait-based provider system.
+- **MCP Client:** Implements supervision trees for external processes.
+- **Skill Engine:** Event-driven scanner with hot-reloading support.
+- **Subagent Orchestrator:** Manages context forking and lifecycle.
+- **Workflow Executor:** `petgraph`-based DAG execution engine.
+- **Filesystem Watcher:** `notify` crate integration for skills and workspaces.
+- **Sync Engine:** Optional cloud synchronization.
+- **TOON Encoding Layer:** Boundary encoding for LLM communication.
+
 ### 2. Tauri Shell (`src-tauri`)
 
 Thin OS integration layer:
@@ -31,7 +45,7 @@ Thin OS integration layer:
 - Registers Tauri commands (React ↔ Rust bridge)
 - Secure credential storage via OS keychain
 - Registers built-in trait implementations into the core `Registry`
-- Filesystem watcher lifecycle (via `notify` crate)
+- Manages IPC error serialization (`CoreError` -> JSON Envelope)
 - Auto-update and native menus
 - Handles workspace opening dialogs and file system sandboxing
 
@@ -41,9 +55,12 @@ Pure view layer in React + TypeScript. Communicates exclusively via Tauri `invok
 
 ### Data Flow
 
+**Tiered Streaming Pipeline:**
+
 ```
 React UI ──invoke()──▶ Tauri command ──▶ Rust Core ──▶ [Model API / MCP / DB / FS / Workspace]
          ◀──events──────────────────────────────────────────────────────────────────────────
+         ◀──debounced agent:token stream (50ms batches)─────────────────────────────────────
 ```
 
 ---
@@ -106,22 +123,134 @@ A **Workspace** is a directory that the user has “opened” in SkillDeck, anal
 - **Workspace‑Level Skills**:
   - The `./.skills/` directory is scoped to the active workspace and takes **highest priority** in the resolver for conversations tied to that workspace.
 
-### Agent Loop
+### Agent Loop & Streaming Architecture
 
-Each conversation runs an agent loop with a resolved context:
+Each conversation runs an agent loop with a resolved context. The loop is a non-blocking state machine designed to handle high-velocity token streams and asynchronous user interventions.
+
+#### Tiered Streaming Pipeline
+
+To manage backpressure between the LLM provider and the UI render cycle:
+
+1.  **Ring Buffer (Rust Core):** Incoming SSE/WS tokens from the LLM are accumulated into a `String` buffer.
+2.  **Debounced Emission:** The core emits `agent:token` events in batches every **50ms** or every **10 tokens**, preventing IPC flooding.
+3.  **Payload Structure:**
+    ```rust
+    // Event: agent:token
+    pub struct TokenPayload {
+        pub conversation_id: Uuid,
+        pub message_id: Uuid,
+        pub delta: String,      // Accumulated text since last emit
+        pub is_final: bool,     // True when stream ends
+    }
+    ```
+4.  **React Consumer:** The frontend listens to `agent:token`, appends `delta` to a local Zustand store (`streamingText`), and renders via `requestAnimationFrame` to ensure smooth UI performance.
+
+#### Core Loop Logic
 
 1. **Resolve skills** — merge profile skills + conversation skill overrides using the priority resolver (workspace project > personal > superpowers > marketplace). Inject static skills into system prompt.
-2. **Encode context as TOON** — all structured data sent to the model (tool schemas, tool results, skill metadata, MCP server lists) is encoded via `toon_format::encode()` before insertion into the prompt. Free-form text (user messages, skill content bodies) is passed as-is. See [TOON Communication Format](#toon-communication-format) below.
-3. **Stream completion** via `ModelProvider::complete()`
-4. **Dispatch tool calls** — built-in tools (`loadSkill`, `spawnSubagent`, `mergeSubagentResults`) handled by core; MCP tool calls dispatched to the appropriate `McpSession`
-5. **Inject tool results** back into context as TOON-encoded blocks and continue
-6. **Emit events** for each token, tool call, subagent event, and completion
+2. **Encode context as TOON** — all structured data sent to the model is encoded via `toon_format::encode()` before insertion into the prompt. Free-form text (user messages, skill content bodies) is passed as-is.
+3. **Stream completion** via `ModelProvider::complete()`.
+4. **Dispatch tool calls** — built-in tools handled by core; MCP tool calls dispatched to the appropriate `McpSession`.
+5. **Inject tool results** back into context as TOON-encoded blocks and continue.
+6. **Emit events** for each token batch, tool call, subagent event, and completion.
 
 The loop is fully async via Tokio. Tool calls requiring user approval pause the loop and emit `agent:approval_required`.
 
+### Tool Approval Gate Mechanism
+
+Destructive tool calls pause the agent loop without blocking the Tokio runtime. This is achieved using a `oneshot` channel gate.
+
+**Rust Implementation:**
+
+```rust
+// In skilldeck-core/agent/loop.rs
+use tokio::sync::oneshot;
+
+pub struct ApprovalGate {
+    pub tool_call_id: Uuid,
+    pub tool_name: String,
+    pub input_json: Value,
+    pub response_tx: oneshot::Sender<ApprovalDecision>, // The "unpause" trigger
+}
+
+// Inside the agent loop:
+let (tx, rx) = oneshot::channel();
+let gate = ApprovalGate { tool_call_id, ..., response_tx: tx };
+
+// 1. Pause execution
+self.event_emitter.emit("agent:approval_required", gate).await;
+
+// 2. Wait for UI (non-blocking to runtime, but blocks this specific task)
+match rx.await {
+    Ok(ApprovalDecision::Approved(modified_input)) => { /* continue */ },
+    Ok(ApprovalDecision::Denied) => { /* inject error tool result */ },
+    Err(_) => { /* timeout or UI closed */ },
+}
+```
+
+**Tauri Bridge:**
+
+- The `ApprovalGate` struct is serialized and sent to React.
+- `response_tx` is stored in a `DashMap<Uuid, oneshot::Sender>` in `AppState` (cannot be serialized).
+- React calls `invoke('submit_approval', { tool_call_id, decision })`.
+- The Tauri command retrieves the sender from the map and fires the signal, unpausing the loop.
+
 ### Workflow Orchestration Patterns
 
-SkillDeck supports three primary agent workflow patterns for complex multi-step tasks, based on production best practices from teams building AI agents:
+SkillDeck supports three primary agent workflow patterns for complex multi-step tasks, based on production best practices from teams building AI agents.
+
+#### Implementation: DAG Execution Model
+
+Workflows are managed as Directed Acyclic Graphs using `petgraph`.
+
+**Graph Construction:**
+Workflow YAML config is mapped to a `petgraph::DiGraph<WorkflowStep, ()>`.
+
+- **Nodes:** Individual steps (Agent, Evaluator, Aggregator).
+- **Edges:** Dependencies.
+
+**Executor Logic:**
+
+```rust
+pub struct WorkflowExecutor {
+    graph: DiGraph<WorkflowStep, ()>,
+    state: DashMap<Uuid, StepStatus>, // StepID -> Status
+}
+
+impl WorkflowExecutor {
+    pub async fn run(&self) {
+        // Initial ready set: nodes with in-degree 0
+        let mut ready = self.get_ready_nodes();
+
+        while !ready.is_empty() {
+            // Fan-out: spawn all ready tasks concurrently
+            let mut tasks = JoinSet::new();
+            for node_id in ready.drain(..) {
+                tasks.spawn(self.execute_step(node_id));
+            }
+
+            // Fan-in: wait for batch to complete
+            while let Some(result) = tasks.join_next().await {
+                let completed_id = result.unwrap();
+                self.update_status(completed_id, Completed);
+
+                // Check if new nodes are ready (in-degree satisfied)
+                let new_ready = self.get_dependents(completed_id)
+                    .filter(|dep| self.all_dependencies_met(*dep));
+                ready.extend(new_ready);
+            }
+        }
+    }
+}
+```
+
+**Evaluator-Optimizer Loop:**
+This is a specialized sub-graph with a back-edge (cycle handled by iteration counter):
+
+1. Run Generator.
+2. Run Evaluator.
+3. If `score < threshold` AND `iterations < max`: feed feedback to Generator, increment counter, repeat.
+4. Else: Break loop, proceed to next step.
 
 #### 1. Sequential Workflows
 
@@ -367,9 +496,19 @@ When the same skill name appears in multiple sources, the highest-priority sourc
 - **Static (profile-level):** Skills in the active profile's skill list are injected into the system prompt at conversation start. These are "always-on" for the session.
 - **Dynamic (agent-invoked):** The agent can call the built-in `loadSkill` tool mid-conversation to load any available skill into the current context. This adds it to the active session's skill list and emits a `skill:loaded` event so the UI can update.
 
-**Filesystem watcher:** The `notify` crate watches all configured skill source directories. Any SKILL.md change (create, modify, delete) triggers an immediate rescan and DB upsert — skills updated on disk are live instantly, no app restart required.
+**Resolution & Hot Reloading:**
 
-### MCP Discovery
+- **Event-Driven Scanner:** `notify` crate watches all directories in `skill_source_dirs`.
+- **Debounce:** Events are debounced by 200ms to handle editor atomic writes (write to temp, rename).
+- **Resolution Pipeline:**
+  1.  Scan: Parse the `SKILL.md`.
+  2.  Shadow Resolution: Check if this skill name exists in a higher-priority directory. Update `is_shadowed` flags accordingly.
+  3.  DB Sync: Upsert `skills` table.
+  4.  Atomic Swap: Resolver updates an `Arc<RwLock<SkillRegistry>>`. The agent loop reads from this registry lock-free.
+
+### MCP Discovery & Lifecycle
+
+#### Discovery
 
 Two sources unified into `McpServerRegistry`:
 
@@ -382,6 +521,23 @@ Two sources unified into `McpServerRegistry`:
 
 - Curated metadata: name, description, transport, `config_schema`
 - One-click connect: form generated from `config_schema`, saved to DB
+
+#### Lifecycle: Supervision Tree
+
+MCP servers are external processes (stdio) or HTTP services (SSE). The Rust core manages them via a supervision tree to ensure resilience.
+
+- **Process Management:** Spawned via `tauri-plugin-shell`, wrapped in a `Supervisor` struct.
+- **Healthcheck Loop:** A background task pings the server every 30s (MCP `ping` method).
+- **Failure Handling:**
+  1.  **Crash Detection:** The `wait()` future on the child process resolves.
+  2.  **State Update:** The `McpRegistry` marks the server as `Disconnected`.
+  3.  **Agent Notification:** If a tool call to this server is pending, it returns a `TransportError`.
+  4.  **UI Toast:** Event `mcp:disconnected` is emitted.
+  5.  **Auto-Reconnect:** Supervisor attempts restart with exponential backoff (3 attempts).
+- **Tool Schema Cache:**
+  - On successful connection, we call `tools/list` and store results in `mcp_tool_cache`.
+  - If server disconnects, we keep the cache (grayed out in UI).
+  - On reconnect, we diff the new schema; if changed, we emit `mcp:tools_updated`.
 
 ### Agent Profiles
 
@@ -404,7 +560,24 @@ Per-conversation overrides use an additive delta: `op: add | remove` on top of t
 
 ### Subagents (Agent-Initiated)
 
-The agent can spawn subagents via built-in tools. Subagents are isolated agent loop instances with a forked context. They run concurrently and their results are merged back into the parent conversation as a new message (child of the spawn point in the branch tree).
+The agent can spawn subagents via built-in tools. Subagents are **forked logical contexts** running in separate `tokio::task`s, ensuring isolation from the parent context.
+
+**Context Isolation Strategy:**
+
+1.  **Fork Messages:** We create a _new_ temporary conversation context containing only:
+    - The `SpawnSubagent` prompt as the "System/User" context.
+    - A **snapshot** of the relevant Skill manifests.
+    - A **snapshot** of the relevant Tool Schemas.
+    - _Note:_ We do not copy all parent messages to prevent context bleeding.
+2.  **Session ID:** The subagent operates under a `subagent_id` (UUID). All DB inserts (messages, tool calls) are tagged with this ID.
+3.  **State Isolation:** The subagent has its own `TokenCounter`. If it exceeds its budget, it halts.
+
+**Merge Process:**
+
+- When `MergeSubagentResults` is called, we read all messages tagged with `subagent_id`.
+- We apply the merge strategy (`concat`, `summarize`, `first_wins`).
+- We insert the _final result_ as a new message in the _parent_ conversation.
+- We then archive the temporary conversation rows (soft-delete) for debugging.
 
 ```rust
 // Built-in tools available to the agent loop
@@ -421,20 +594,6 @@ pub struct MergeSubagentResults {
     pub merge_strategy: MergeStrategy, // concat | summarise | first_wins
 }
 ```
-
-Subagent lifecycle:
-
-1. `SpawnSubagent` called → core creates a new `AgentSession` with forked context, assigns `subagent_id`
-2. Subagent runs independently, emitting `subagent:token { subagent_id, text }` events
-3. Parent loop pauses at the spawn point; UI shows subagent cards in the thread
-4. `MergeSubagentResults` called → core collects outputs, applies merge strategy, injects as a new message in the parent conversation
-5. Branch tree records the fork point and the merge message as distinct nodes
-
-### Tool Approval
-
-Destructive tool calls (configurable per MCP server and per tool) pause the agent loop and emit `agent:approval_required`. The UI shows an inline approval card with the tool name, server, and full input arguments. The user can approve (loop continues), deny (tool result injected as a refusal), or edit the input before approving.
-
-The approval requirement is configured on `mcp_servers.requires_approval_tools: text[]` — a list of tool names that require approval for that server.
 
 ### Output Artifacts
 
@@ -470,9 +629,41 @@ Long conversations are managed to avoid token limits.
 
 ### TOON Communication Format
 
-All structured data injected into LLM prompts is encoded as **[TOON](https://github.com/toon-format/toon)** (Token-Oriented Object Notation) using the official [`toon_format` Rust crate](https://github.com/toon-format/toon-rust). TOON combines YAML-style indentation for nested objects with CSV-style tabular rows for uniform arrays — achieving ~40% fewer tokens than JSON while improving model retrieval accuracy (73.9% vs 69.7% on benchmark datasets).
+All structured data injected into LLM prompts is encoded as **[TOON](https://github.com/toon-format/toon)** (Token-Oriented Object Notation). The Rust crate is used directly in the core — no TypeScript boundary needed. JSON is used only for DB storage and the Tauri IPC layer.
 
-The Rust crate is used directly in the core — no TypeScript boundary needed. JSON is used only for DB storage and the Tauri IPC layer (React ↔ Rust), where human-readability and tooling compatibility matter more than token count.
+#### Boundary Encoding Pattern
+
+**Storage & IPC Layer (JSON):**
+
+- Database stores tool schemas, results, and messages in **JSONB**.
+- Tauri Commands pass data as **JSON** (serde_json).
+
+**Prompt Assembly Layer (TOON):**
+
+- The `ContextBuilder` constructs the prompt string.
+- When injecting structured data (tools, context, history), it calls `toon_format::encode(data)`.
+- The resulting string is wrapped in markdown code blocks for the LLM.
+
+**The Flow:**
+
+1.  Frontend requests agent turn (JSON over IPC).
+2.  Rust Core loads context (JSON from DB).
+3.  `ContextBuilder` converts JSON -> TOON string.
+4.  Prompt sent to Model Provider (TOON string).
+5.  Model returns text.
+6.  Tool calls parsed (if JSON format) or extracted (if TOON format).
+7.  Tool results stored in DB (JSON).
+8.  Rust Core streams raw text to Frontend.
+
+**Fallback Logic:**
+
+```rust
+let prompt = if self.provider.toon_supported() {
+    toon_encode(&context)?
+} else {
+    json_encode(&context)? // Fallback for "stupid" models
+};
+```
 
 #### What gets TOON-encoded
 
@@ -523,41 +714,72 @@ tools[2]{name,description,inputSchema}:
   write_file,Write content to a file,{type:object,properties:{path:{type:string},content:{type:string}}}
 ```
 
-#### Example: Tool call result
+---
 
-```toon
-result:
-  status: success
-  rows[3]{id,name,size_bytes,modified_at}:
-    1,main.rs,4821,2026-03-09T14:22:11Z
-    2,lib.rs,12043,2026-03-09T11:05:33Z
-    3,Cargo.toml,892,2026-03-08T09:17:44Z
-```
+## Error Propagation
 
-#### When TOON is bypassed
+Errors happen in Rust, but the user experiences them in React. We use semantic error types that survive the IPC serialization boundary.
 
-TOON is not used when:
-
-- The data is deeply nested with near-zero tabular eligibility (e.g. complex config objects) — `json-compact` is used instead, as TOON offers no token savings there
-- The model provider has a known issue parsing TOON (tracked per-provider in `ModelProvider::toon_supported() -> bool`) — falls back to `json-compact` automatically
-- Latency benchmarks on a specific local model (e.g. small Ollama models) show TOON increases total time — the fallback is configurable per profile
-
-#### Rust integration
+**Rust Error Taxonomy:**
 
 ```rust
-use toon_format::{encode, encode_value};
-use serde_json::Value;
+pub enum CoreError {
+    // Recoverable: Agent can try again or use fallback
+    ToolFailed { tool_name: String, error: String },
 
-// Encode a Vec of tool schemas before prompt insertion
-let tools_toon = encode(&tools_json)?;  // returns String
+    // User Intervention Required: Approval, auth, etc.
+    ApprovalRequired { gate: ApprovalGate },
 
-// Per-provider fallback
-let context_str = if provider.toon_supported() {
-    encode(&structured_data)?
-} else {
-    serde_json::to_string(&structured_data)?
-};
+    // Fatal: Conversation must stop
+    ModelOverloaded { retry_after: Option<u64> },
+    ContextLimitExceeded { current: usize, max: usize },
+}
 ```
+
+**IPC Transport:**
+These errors are serialized into a standard JSON format:
+
+```json
+{
+  "type": "ToolFailed",
+  "message": "read_file permission denied",
+  "recoverable": true,
+  "context": { "tool_name": "read_file" }
+}
+```
+
+**React Handling:**
+
+- **Recoverable**: Show inline error card with "Retry" button.
+- **Intervention**: Show approval dialog.
+- **Fatal**: Pause agent, show error toast, log to file.
+
+---
+
+## Testing Strategy
+
+A layered approach to handle the Rust/JS split.
+
+1.  **Unit Tests (Rust Core):**
+    - No Tauri involved.
+    - Mock `ModelProvider`, `McpTransport` using traits.
+    - Test business logic (DAG execution, TOON encoding) in isolation.
+
+2.  **Integration Tests (IPC Mocking):**
+    - **Frontend:** Mock the `api` object in `src/lib/invoke.ts`.
+      ```typescript
+      // tests/mocks/api.ts
+      export const api = {
+        get_conversations: jest.fn(() => Promise.resolve(mockConversations)),
+        send_message: jest.fn(() => Promise.resolve(mockStreamEvent)),
+      };
+      ```
+    - **Backend:** Use `tauri::test::MockRuntime` or run a minimal headless Tauri instance for critical path tests.
+
+3.  **E2E Tests (Tauri WebDriver):**
+    - Launch the actual app binary.
+    - Test user flows: "Login -> New Chat -> Message -> Receive Response".
+    - Verify database state by reading the SQLite file directly.
 
 ---
 
@@ -1234,144 +1456,11 @@ Full-screen overlay, three tabs: **MCP Servers**, **Skills**, **Skill Sources**.
 
 ### Settings Overlay
 
-Sections: **API Keys**, **Skill Sources** (shortcut to the Marketplace tab), **Sync**, **Model Pricing**, **Appearance**.
+Full-screen overlay, organized into sections:
 
-**API Keys:** one entry per provider (Anthropic, OpenAI, Google, Ollama base URL). Stored in OS keychain. Validate button fires a test completion. Status indicator per provider.
-
-**Model Pricing:** table of `model_pricing` entries, editable. Users can override pricing for models not in the default list or correct stale pricing.
-
----
-
-### Onboarding (First Run)
-
-Shown when no API key is configured:
-
-```
-Step 1/3: Add an API key
-  [Anthropic]  [OpenAI]  [Google]  [Ollama local]
-  Enter key: [_______________] [Validate]
-
-Step 2/3: Create your first profile
-  Name: [_______________]
-  Model: [claude-sonnet-4-6 ▾]
-  [Create profile]
-
-Step 3/3: You're ready
-  [Start chatting →]
-```
-
-Each step is skippable. After step 3 the app opens a new conversation with the created profile pre-selected.
-
----
-
-## Keyboard Shortcuts
-
-Global shortcuts for power users (configurable via keymap UI):
-
-| Shortcut       | Action                           |
-| -------------- | -------------------------------- |
-| `⌘K`           | Open command palette             |
-| `⌘N`           | New conversation                 |
-| `⌘W`           | Close workspace / close window   |
-| `⌘,`           | Open settings                    |
-| `⌘⇧F`          | Search (semantic)                |
-| `⌘⇧M`          | Open marketplace                 |
-| `⌘O`           | Open workspace                   |
-| `⌘P`           | Quick open (switch conversation) |
-| `⌘⇧P`          | Profile switcher                 |
-| `⌘1`/`⌘2`/`⌘3` | Switch panels focus              |
-
----
-
-## Tauri Event Bus
-
-| Event                     | Payload                                        | Consumer                              |
-| ------------------------- | ---------------------------------------------- | ------------------------------------- |
-| `agent:token`             | `{ conversation_id, text }`                    | Appended to message stream            |
-| `agent:tool_call`         | `{ tool_call_event_id, server, tool, input }`  | Renders inline tool card              |
-| `agent:tool_result`       | `{ tool_call_event_id, output, status }`       | Updates tool card                     |
-| `agent:approval_required` | `{ tool_call_event_id }`                       | Renders approval card, pauses UI      |
-| `agent:done`              | `{ conversation_id, message_id }`              | Finalizes message                     |
-| `agent:error`             | `{ conversation_id, error }`                   | Shows error state                     |
-| `subagent:spawned`        | `{ subagent_id, parent_conversation_id }`      | Renders subagent card                 |
-| `subagent:token`          | `{ subagent_id, text }`                        | Updates subagent card output          |
-| `subagent:done`           | `{ subagent_id }`                              | Shows merge/discard actions           |
-| `subagent:merged`         | `{ subagent_id, message_id }`                  | Inserts merged message                |
-| `workflow:started`        | `{ workflow_execution_id, workflow_type }`     | Renders workflow visualization        |
-| `workflow:step_started`   | `{ workflow_step_id, step_name, step_index }`  | Updates step status in DAG            |
-| `workflow:step_completed` | `{ workflow_step_id, quality_score, metrics }` | Updates step with results             |
-| `workflow:iteration`      | `{ workflow_execution_id, iteration, score }`  | Updates iteration counter (eval-opt)  |
-| `workflow:completed`      | `{ workflow_execution_id, final_score }`       | Finalizes workflow, shows summary     |
-| `workflow:stopped`        | `{ workflow_execution_id, reason }`            | Shows stopped state, reason           |
-| `skill:loaded`            | `{ conversation_id, skill_name }`              | Updates skills pill list              |
-| `skill:scan_complete`     | `{ dir_path, added, updated, removed }`        | Refreshes skill library               |
-| `mcp:discovered`          | `{ server }`                                   | Updates local server list             |
-| `title:generated`         | `{ conversation_id, title }`                   | Updates conversation title in sidebar |
-
----
-
-## Error Handling
-
-```rust
-pub enum CoreError {
-    Model(ModelError),       // API errors, rate limits, auth failures
-    Mcp(McpError),           // Transport failures, tool call errors
-    Skill(SkillError),       // Parse failures, missing manifests, scan errors
-    Db(DbError),             // SeaORM errors
-    Sync(SyncError),         // Remote unreachable, conflict
-    Subagent(SubagentError), // Spawn failures, merge errors
-    Io(IoError),             // Filesystem errors (skill dirs, attachments)
-    Plugin(PluginError),     // Reserved for v2
-    Workspace(WorkspaceError), // Workspace open/scan/access errors
-}
-```
-
-Errors serialize to JSON at the Tauri command boundary. UI shows human-readable messages with an optional "show details" toggle. MCP tool call failures are non-fatal — the error is injected as a tool result and the loop continues.
-
----
-
-## Testing Strategy
-
-**Unit tests** (`core/src/**/tests`) — mock dependencies for each trait. `MockModelProvider` returns scripted responses; `MockMcpTransport` simulates tool calls; `MockSkillLoader` returns canned skills. No Tauri required.
-
-**Integration tests** (`core/tests/`) — local Ollama. Covers: profile loading, skill priority resolution, MCP tool dispatch, subagent spawn + merge, message persistence, branching, workspace detection and scoping.
-
-**E2E tests** (Tauri WebDriver) — minimal, critical happy paths only: new chat creation, profile switch, MCP connect, skill toggle, branch navigation, subagent spawn, workspace open.
-
----
-
-## Out of Scope (v1)
-
-- Dynamic plugin loading (`.so`/`.dll`) — v2
-- CRDT-based sync conflict resolution — v2
-- Team/org sharing of profiles and skills — v2
-- Custom MCP registry hosting — v2
-- Git pull for skill updates — v2
-
----
-
-## Model Support (v1 Built-ins)
-
-| Provider         | Implementation   | Transport        |
-| ---------------- | ---------------- | ---------------- |
-| Anthropic Claude | `ClaudeProvider` | HTTPS + SSE      |
-| OpenAI GPT-4     | `OpenAiProvider` | HTTPS + SSE      |
-| Google Gemini    | `GeminiProvider` | HTTPS + SSE      |
-| Ollama (local)   | `OllamaProvider` | HTTP (localhost) |
-
----
-
-## Superpowers Compatibility Summary
-
-| Superpowers Feature                                    | Support | Notes                                                                       |
-| ------------------------------------------------------ | ------- | --------------------------------------------------------------------------- |
-| Flat skill directory (`SKILL.md` + frontmatter)        | ✅ Full | Same format, same filesystem conventions                                    |
-| Discovery via `~/.claude/skills/`                      | ✅ Full | Scanned as `superpowers` priority source                                    |
-| Dynamic skill loading (`loadSkill` tool)               | ✅ Full | Built-in tool in agent loop                                                 |
-| Subagent dispatch                                      | ✅ Full | `spawnSubagent` / `mergeSubagentResults` built-in tools                     |
-| Script execution                                       | ✅ Full | `disk_path` gives agent access to `scripts/` dir                            |
-| Priority resolution (project > personal > superpowers) | ✅ Full | `skill_source_dirs` table + resolver, with **workspace project** as highest |
-| Skill updates via git pull                             | 🔜 v2   | `source_url` stored for future update checks                                |
-| Marketplace install (git clone / tarball)              | ✅ Full | Installs into personal skills dir, watcher picks up                         |
-| **Workspace context files (CLAUDE.md, README)**        | ✅ Full | Auto-injected when workspace open                                           |
-| **File access scoping (.gitignore)**                   | ✅ Full | Sandboxed MCP filesystem with ignore support                                |
+- **General:** Theme, language, auto-update preferences.
+- **Profiles:** Manage agent profiles (create, edit, delete, set default).
+- **MCP Servers:** Configure connections, view logs, manage tool approvals.
+- **Skills:** Manage skill source directories, view resolver cache, trigger manual rescans.
+- **Sync:** Configure cloud sync backend (if enabled), view sync status.
+- **Advanced:** Debug logs, cache management, experimental features.
