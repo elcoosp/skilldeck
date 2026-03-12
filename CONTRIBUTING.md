@@ -1,263 +1,88 @@
 # Contributing to SkillDeck
 
-First off, thank you for considering contributing to SkillDeck! It's people like you that make SkillDeck such a great tool.
+First off, thank you for considering contributing to SkillDeck! It's people like you that make SkillDeck such a great tool. We welcome contributions of all kinds – not just code – including documentation, bug reports, feature suggestions, and community support.
 
-## 📜 Code of Conduct
+## Code of Conduct
 
-This project and everyone participating in it is governed by our commitment to providing a welcoming and inspiring community for all. By participating, you are expected to uphold this code. Please report unacceptable behavior to [elcoosp@gmail.com](mailto:elcoosp@gmail.com).
+This project and everyone participating in it is governed by the [SkillDeck Code of Conduct](CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code. Please report unacceptable behavior to [conduct@skilldeck.dev](mailto:conduct@skilldeck.dev).
 
-## 🤔 How Can I Contribute?
+## How Can I Contribute?
 
 ### Reporting Bugs
 
-Before creating bug reports, please check the issue list as you might find out that you don't need to create one. When you are creating a bug report, please include as many details as possible:
-
-* **Use a clear and descriptive title**
-* **Describe the exact steps to reproduce the problem**
-* **Provide specific examples to demonstrate the steps**
-* **Describe the behavior you observed and the behavior you expected**
-* **Include screenshots or animated GIFs**
-* **Include system details (OS, version)**
+- **Ensure the bug was not already reported** by searching on GitHub under [Issues](https://github.com/skilldeck/skilldeck/issues).
+- If you're unable to find an open issue addressing the problem, [open a new one](https://github.com/skilldeck/skilldeck/issues/new). Be sure to include a **title and clear description**, as much relevant information as possible, and a **code sample** or an **executable test case** demonstrating the expected behavior that is not occurring.
 
 ### Suggesting Enhancements
 
-Enhancement suggestions are tracked as GitHub issues. When creating an enhancement suggestion, include:
+- Open a new issue with a clear title and detailed description.
+- Explain why this enhancement would be useful to most SkillDeck users.
+- If you're proposing a new feature, you may want to read the [Vision Document](https://github.com/skilldeck/skilldeck/blob/main/docs/VISION.md) first to understand the project's goals.
 
-* **Use a clear and descriptive title**
-* **Provide a step-by-step description of the suggested enhancement**
-* **Provide specific examples to demonstrate the steps**
-* **Describe the current behavior and explain the behavior you expected**
-* **Explain why this enhancement would be useful**
+### Your First Code Contribution
+
+Unsure where to begin? You can start by looking through `help-wanted` and `good-first-issue` issues:
+
+- [Good first issues](https://github.com/skilldeck/skilldeck/labels/good%20first%20issue) – small changes ideal for newcomers.
+- [Help wanted issues](https://github.com/skilldeck/skilldeck/labels/help%20wanted) – a bit more involved.
 
 ### Pull Requests
 
-* Fill in the required template
-* Do not include issue numbers in the PR title
-* Include screenshots and animated GIFs in your pull request whenever possible
-* Follow the style guidelines
-* Follow the commit message convention
+1. Fork the repo and create your branch from `main`.
+2. If you've added code that should be tested, add tests.
+3. If you've changed APIs, update the documentation.
+4. Ensure the test suite passes.
+5. Make sure your code lints (Rustfmt, Clippy, ESLint, Prettier).
+6. Issue that pull request!
 
-## 🛠️ Development Setup
+## Development Setup
 
 ### Prerequisites
 
-* **Node.js 20+**
-* **pnpm 9+**
-* **Rust (latest stable)**
-* **System Dependencies** (see [Tauri Prerequisites](https://tauri.app/v1/guides/getting-started/prerequisites))
+- **Rust** (latest stable) – install via [rustup](https://rustup.rs/)
+- **Node.js** (v20 or later) – install via [nvm](https://github.com/nvm-sh/nvm) or from [nodejs.org](https://nodejs.org/)
+- **Tauri CLI** – `cargo install tauri-cli`
+- **pnpm** (package manager) – `npm install -g pnpm`
 
-### Installation
+### Building and Running
 
-1. **Fork the repository** on GitHub
-2. **Clone your fork** locally:
+1. Clone the repository:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/skilldeck.git
+   git clone https://github.com/skilldeck/skilldeck.git
    cd skilldeck
    ```
-3. **Install dependencies**:
+
+2. Install frontend dependencies:
    ```bash
    pnpm install
    ```
-4. **Run the development server**:
+
+3. Run in development mode:
    ```bash
    pnpm tauri dev
    ```
 
-## 📏 Style Guidelines
+This will start the Rust backend and the Vite dev server, and open the Tauri window.
 
-### Git Commit Messages
+### Running Tests
 
-* Use the present tense ("Add feature" not "Added feature")
-* Use the imperative mood ("Move cursor to..." not "Moves cursor to...")
-* Limit the first line to 72 characters or less
-* Reference issues and pull requests liberally after the first line
-* Consider starting the commit message with an applicable emoji:
-   * 🎨 `:art:` when improving the format/structure of the code
-   * 🐎 `:racehorse:` when improving performance
-   * 🚱 `:non-potable_water:` when plugging memory leaks
-   * 📝 `:memo:` when writing docs
-   * 🐧 `:penguin:` when fixing something on Linux
-   * 🍎 `:apple:` when fixing something on macOS
-   * 🏁 `:checkered_flag:` when fixing something on Windows
-   * 🐛 `:bug:` when fixing a bug
-   * 🔥 `:fire:` when removing code or files
-   * 💚 `:green_heart:` when fixing the CI build
-   * ✨ `:sparkles:` when adding a new feature
-   * 📌 `:pushpin:` when pinning dependencies
-   * 👷 `:construction_worker:` when adding CI build system
-   * 📈 `:chart_with_upwards_trend:` when adding analytics
-   * ♻️ `:recycle:` when refactoring code
-   * ➖ `:heavy_minus_sign:` when removing a dependency
-   * ➕ `:heavy_plus_sign:` when adding a dependency
-   * 🔧 `:wrench:` when changing configuration files
-   * 🌐 `:globe_with_meridians:` when dealing with internationalization
+- **Rust unit tests**: `cargo test --workspace`
+- **Rust integration tests**: `cargo test --test integration`
+- **React component tests**: `pnpm test`
+- **End-to-end tests**: (coming soon)
 
-**Conventional Commits Format:**
-```
-<type>(<scope>): <subject>
+### Coding Style
 
-[optional body]
+- **Rust**: We use `rustfmt` and `clippy`. Run `cargo fmt` and `cargo clippy` before committing.
+- **TypeScript/React**: We use ESLint and Prettier. Run `pnpm lint` and `pnpm format`.
 
-[optional footer]
-```
+### Project Structure
 
-**Types:**
-* `feat`: A new feature
-* `fix`: A bug fix
-* `docs`: Documentation only changes
-* `style`: Changes that do not affect the meaning of the code
-* `refactor`: A code change that neither fixes a bug nor adds a feature
-* `perf`: A code change that improves performance
-* `test`: Adding missing tests
-* `chore`: Changes to the build process or auxiliary tools
+See [ARCHITECTURE.md](ARCHITECTURE.md) for an overview of the codebase organization.
 
-### Code Style
+## Community
 
-#### TypeScript/JavaScript
+- **Discord**: [Join our Discord server](https://discord.gg/skilldeck) for real-time chat.
+- **GitHub Discussions**: Use [Discussions](https://github.com/skilldeck/skilldeck/discussions) for questions, ideas, and general conversation.
 
-We use **Biome** for formatting and linting. Configuration is in `biome.json`.
-
-```bash
-# Check for issues
-pnpm lint
-
-# Fix issues automatically
-pnpm lint:fix
-
-# Format code
-pnpm format
-```
-
-**Key conventions:**
-* Use double quotes for strings
-* Semicolons required
-* 2-space indentation
-* No unused imports or variables
-
-#### Rust
-
-We use `rustfmt` and `clippy`.
-
-```bash
-# Format code
-cargo fmt
-
-# Check for issues
-cargo clippy -- -D warnings
-```
-
-**Key conventions:**
-* Follow standard Rust naming conventions
-* Document public APIs with doc comments
-* Use `Result<T, E>` for error handling
-* Prefer `thiserror` for custom errors
-
-### Architecture Guidelines
-
-#### Three-Layer Architecture
-
-SkillDeck follows a strict three-layer architecture:
-
-```
-┌─────────────────────┐
-│    React Frontend   │  ← Pure view layer (no business logic)
-├─────────────────────┤
-│    Tauri Shell      │  ← OS integration (thin, no logic)
-├─────────────────────┤
-│    Rust Core        │  ← All business logic (Tauri-independent)
-└─────────────────────┘
-```
-
-**Rules:**
-1. Frontend communicates ONLY via IPC
-2. Tauri Shell is a thin wrapper
-3. Rust Core has zero Tauri dependencies
-4. All state owned by Rust Core
-
-#### IPC Boundary
-
-When adding features:
-
-1. **Define the command in Rust** (`src-tauri/src/commands.rs`)
-2. **Add `#[specta]` attribute** for type generation
-3. **Export types** (automatic in dev mode)
-4. **Implement frontend hook** using typed API
-
-### Testing
-
-#### Running Tests
-
-```bash
-# Run all tests
-pnpm test
-
-# Watch mode
-pnpm test:watch
-
-# With UI
-pnpm test:ui
-
-# Rust tests
-cargo test
-
-# Rust tests for core only
-cargo test --package skilldeck-core
-```
-
-#### Writing Tests
-
-* **Unit tests**: For pure logic and utility functions
-* **Component tests**: For React components (Browser Mode)
-* **Integration tests**: For IPC commands and workflows
-
-**Naming conventions:**
-* Unit tests: `*.unit.test.ts`
-* Browser tests: `*.browser.test.tsx`
-
-### Branch Naming
-
-Use descriptive branch names:
-
-* `feat/your-feature-name` - for new features
-* `fix/your-bug-fix` - for bug fixes
-* `docs/what-youre-documenting` - for documentation
-* `refactor/what-youre-refactoring` - for refactoring
-* `test/what-youre-testing` - for tests
-
-## 🌐 Internationalization
-
-SkillDeck uses **Lingui** for internationalization:
-
-```bash
-# Extract messages from source code
-pnpm i18n:extract
-
-# Compile messages for runtime
-pnpm i18n:compile
-```
-
-### Adding a New Language
-
-1. Add the locale to `lingui.config.ts`
-2. Run `pnpm i18n:extract`
-3. Translate messages in `src/locales/{locale}/messages.po`
-4. Run `pnpm i18n:compile`
-
-## 🔒 Security
-
-- **Never commit API keys or secrets**
-- **Never commit sensitive user data**
-- Use the OS keychain for credential storage
-- Report security issues privately to [elcoosp@gmail.com](mailto:elcoosp@gmail.com)
-
-## 📚 Additional Resources
-
-- [Tauri Documentation](https://tauri.app)
-- [React Documentation](https://react.dev)
-- [Rust Book](https://doc.rust-lang.org/book/)
-- [Lingui Documentation](https://lingui.dev/)
-- [SeaORM Documentation](https://www.sea-ql.org/SeaORM/)
-
----
-
-Thank you for contributing! 🙏
+Thank you for contributing! 🚀
