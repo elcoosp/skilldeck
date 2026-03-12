@@ -1,0 +1,8 @@
+# These owners will be the default owners for everything in the repo.
+*       @elcoosp
+
+# Rust core business logic
+/src-tauri/skilldeck-core/ @elcoosp
+
+# Frontend UI
+/src/ @elcoosp

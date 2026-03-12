@@ -9,14 +9,19 @@
     "Zustand",
     "Vitest",
     "Lefthook",
-    "Shadcn"
+    "Shadcn",
+    "lingui",
+    "vite"
   ],
   "ignorePaths": [
     "Cargo.toml",
+    ".vscode",
     "biome.json",
+    "issues-mapping.json",
     "lefthook.yml",
     "package.json",
     "node_modules/**",
+    ".github/**",
     "pnpm-lock.yaml",
     "dist/**",
     "target/**",

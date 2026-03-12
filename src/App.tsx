@@ -1,39 +1,44 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/core";
-import "./App.css";
+import { Trans } from '@lingui/react/macro'
+import { invoke } from '@tauri-apps/api/core'
+import { useState } from 'react'
+import reactLogo from './assets/react.svg'
+import './App.css'
 
 function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+  const [greetMsg, setGreetMsg] = useState('')
+  const [name, setName] = useState('')
 
   async function greet() {
     // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
+    setGreetMsg(await invoke('greet', { name }))
   }
 
   return (
     <main className="container">
-      <h1>Welcome to Tauri + React</h1>
+      <h1>
+        <Trans>Welcome to Tauri + React</Trans>
+      </h1>
 
       <div className="row">
-        <a href="https://vite.dev" target="_blank">
+        <a href="https://vite.dev" target="_blank" rel="noopener">
           <img src="/vite.svg" className="logo vite" alt="Vite logo" />
         </a>
-        <a href="https://tauri.app" target="_blank">
+        <a href="https://tauri.app" target="_blank" rel="noopener">
           <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
         </a>
-        <a href="https://react.dev" target="_blank">
+        <a href="https://react.dev" target="_blank" rel="noopener">
           <img src={reactLogo} className="logo react" alt="React logo" />
         </a>
       </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
+      <p>
+        <Trans>Click on the Tauri, Vite, and React logos to learn more.</Trans>
+      </p>
 
       <form
         className="row"
         onSubmit={(e) => {
-          e.preventDefault();
-          greet();
+          e.preventDefault()
+          greet()
         }}
       >
         <input
@@ -45,7 +50,7 @@ function App() {
       </form>
       <p>{greetMsg}</p>
     </main>
-  );
+  )
 }
 
-export default App;
+export default App
