@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "packageManager": "pnpm@10.32.1",
   "scripts": {
     "dev": "vite",
     "build": "lingui compile && tsc && vite build",
@@ -22,7 +23,8 @@
     "i18n:compile": "lingui compile --typescript",
     "i18n": "pnpm i18n:extract && pnpm i18n:compile",
     "issues:gen": "pnpx @elcoosp-ai/seedling gen",
-    "issues:sync": "pnpx @elcoosp-ai/seedling sync --repo elcoosp/skilldeck --dir ./docs/issues"
+    "issues:sync": "pnpx @elcoosp-ai/seedling sync --repo elcoosp/skilldeck --dir ./docs/issues",
+    "release": "git-cliff -o CHANGELOG.md"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.2.8",
@@ -73,10 +75,13 @@
     "@types/node": "^25.4.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.0",
     "@vitejs/plugin-react-swc": "^4.3.0",
     "@vitest/browser": "^4.1.0",
+    "@vitest/browser-playwright": "^4.1.0",
     "@vitest/ui": "^4.0.18",
     "cspell": "^9.7.0",
+    "git-cliff": "^2.12.0",
     "lefthook": "^2.1.4",
     "playwright": "^1.58.2",
     "typescript": "~5.9.3",

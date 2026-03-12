@@ -13,7 +13,8 @@
     "lingui",
     "vite",
     "fontsource",
-    "avenir"
+    "avenir",
+    "endfor"
   ],
   "ignorePaths": [
     "Cargo.toml",
