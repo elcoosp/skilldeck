@@ -5,16 +5,20 @@ on:
     branches: [main]
   push:
     branches: [main]
+    # Trigger releases on version tags (e.g., v1.0.0)
     tags:
       - 'v*'
 
+# Cancel in-progress runs on the same branch
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always
+  # Fix Node.js 20 deprecation warning
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   # ==========================================
   # 1. SECURITY AUDIT
@@ -59,7 +63,6 @@ jobs:
           node-version: 20
           cache: "pnpm"
 
-      # FIX: Added System Dependencies
       - name: Install System Dependencies (Linux Only)
         run: |
           sudo apt-get update
@@ -94,9 +97,39 @@ jobs:
         run: cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
 
   # ==========================================
-  # 3. UNIT TESTS (Playwright)
+  # 3. RUST UNIT TESTS (Nextest)
   # ==========================================
-  test:
+  test-rust:
+    needs: [lint]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install System Dependencies (Linux Only)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+
+      - name: Run Rust Tests
+        run: cargo nextest run --manifest-path src-tauri/Cargo.toml
+
+  # ==========================================
+  # 4. FRONTEND TESTS (Playwright)
+  # ==========================================
+  test-frontend:
     needs: [lint]
     runs-on: ubuntu-latest
     steps:
@@ -126,10 +159,10 @@ jobs:
         run: pnpm test
 
   # ==========================================
-  # 4. BUILD ARTIFACTS (Matrix)
+  # 5. BUILD ARTIFACTS (Matrix)
   # ==========================================
   build:
-    needs: [security, lint, test]
+    needs: [security, test-rust, test-frontend]
     strategy:
       fail-fast: false
       matrix:
@@ -179,7 +212,7 @@ jobs:
         run: cargo build --manifest-path src-tauri/Cargo.toml --release
 
   # ==========================================
-  # 5. E2E TESTS (WebDriver)
+  # 6. E2E TESTS (WebDriver)
   # ==========================================
   e2e-test:
     needs: [build]
@@ -243,7 +276,7 @@ jobs:
           APP_BINARY_PATH: ${{ github.workspace }}/src-tauri/target/release/${{ matrix.os == 'windows-latest' && 'your-app-name.exe' || 'your-app-name' }}
 
   # ==========================================
-  # 6. RELEASE (Triggered by Tag)
+  # 7. RELEASE (Triggered by Tag)
   # ==========================================
   release:
     needs: [build]
@@ -300,7 +333,7 @@ jobs:
           prerelease: false
 
   # ==========================================
-  # 7. CHANGELOG (Triggered by Release)
+  # 8. CHANGELOG (Triggered by Release)
   # ==========================================
   changelog:
     needs: release
