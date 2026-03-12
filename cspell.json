@@ -11,7 +11,9 @@
     "Lefthook",
     "Shadcn",
     "lingui",
-    "vite"
+    "vite",
+    "fontsource",
+    "avenir"
   ],
   "ignorePaths": [
     "Cargo.toml",

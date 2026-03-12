@@ -5,11 +5,18 @@
     "clientKind": "git",
     "useIgnoreFile": true
   },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  },
   "linter": {
     "enabled": true,
     "rules": {
       "recommended": true,
-      "style": { "noNonNullAssertion": "off" },
+      "style": {
+        "noNonNullAssertion": "off"
+      },
       "complexity": {
         "noExtraBooleanCast": "error",
         "noUselessCatch": "error",
