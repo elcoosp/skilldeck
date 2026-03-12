@@ -11,7 +11,7 @@ keywords = ["ai", "tauri", "desktop", "llm", "orchestration"]
 categories = ["development-tools", "gui"]
 
 [workspace]
-members = ["skilldeck-core", "."]
+members = ["skilldeck-core", ".", "migration"]
 resolver = "2"
 
 [lib]

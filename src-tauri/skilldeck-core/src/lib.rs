@@ -1,14 +1,127 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
+//! # skilldeck-core
+//!
+//! The core library for SkillDeck — all business logic, zero Tauri dependency.
+//!
+//! ## Architecture
+//!
+//! - [`error`]     — Core error taxonomy
+//! - [`db`]        — SQLite connection and migrations
+//! - [`models`]    — SeaORM entity models
+//! - [`traits`]    — Dependency inversion interfaces
+//! - [`providers`] — Model provider implementations
+//! - [`skills`]    — Skill loading, resolution, and watching
+//! - [`mcp`]       — MCP client and supervision
+//! - [`agent`]     — Agent loop and tool dispatch
+//! - [`workflow`]  — Workflow execution engine
+//! - [`workspace`] — Workspace detection and context
+//! - [`events`]    — IPC event types
+
+pub mod error;
+pub mod db;
+pub mod models;
+pub mod traits;
+pub mod providers;
+pub mod skills;
+pub mod mcp;
+pub mod agent;
+pub mod workflow;
+pub mod workspace;
+pub mod toon;
+pub mod search;
+pub mod events;
+
+// Re-export commonly used types.
+pub use error::CoreError;
+pub use events::AgentEvent;
+pub use traits::{
+    CompletionChunk, CompletionRequest, CompletionStream, ModelProvider,
+    McpCallResult, McpServerConfig, McpSession, McpTool, McpTransport,
+    Skill, SkillLoader, SkillSource,
+    Database,
+};
+pub use db::{open_db, SqliteDatabase};
+
+use std::sync::Arc;
+
+/// Top-level runtime registry that wires together all subsystems.
+///
+/// Constructed once at application startup and shared via [`Arc`] throughout
+/// the Tauri shell.
+pub struct Registry {
+    pub db: Arc<dyn Database>,
+    pub mcp_registry: Arc<mcp::McpRegistry>,
+    pub skill_registry: Arc<skills::SkillRegistry>,
+    providers: dashmap::DashMap<String, Arc<dyn ModelProvider>>,
+}
+
+impl Registry {
+    /// Create a new registry backed by `db`.
+    pub fn new(db: impl Database + 'static) -> Self {
+        Self {
+            db: Arc::new(db),
+            providers: dashmap::DashMap::new(),
+            mcp_registry: Arc::new(mcp::McpRegistry::new()),
+            skill_registry: Arc::new(skills::SkillRegistry::new()),
+        }
+    }
+
+    /// Register a model provider.
+    pub fn register_provider(&self, provider: impl ModelProvider + 'static) {
+        let id = provider.id().to_string();
+        self.providers.insert(id, Arc::new(provider));
+    }
+
+    /// Retrieve a model provider by its ID.
+    pub fn get_provider(&self, id: &str) -> Option<Arc<dyn ModelProvider>> {
+        self.providers.get(id).map(|r| Arc::clone(r.value()))
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use async_trait::async_trait;
+
+    struct MockDb;
+
+    #[async_trait]
+    impl Database for MockDb {
+        async fn connection(&self) -> Result<&sea_orm::DatabaseConnection, CoreError> {
+            Err(CoreError::NotImplemented {
+                feature: "MockDb::connection".into(),
+            })
+        }
+    }
 
     #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
+    fn registry_creation_compiles() {
+        let _registry = Registry::new(MockDb);
+    }
+
+    #[test]
+    fn provider_round_trip() {
+        use crate::traits::{CompletionRequest, CompletionStream};
+        use async_trait::async_trait;
+
+        struct NoopProvider;
+
+        #[async_trait]
+        impl ModelProvider for NoopProvider {
+            fn id(&self) -> &str { "noop" }
+            fn display_name(&self) -> &str { "Noop" }
+            async fn list_models(&self) -> Result<Vec<String>, CoreError> { Ok(vec![]) }
+            async fn complete(&self, _: CompletionRequest) -> Result<String, CoreError> {
+                Err(CoreError::NotImplemented { feature: "complete".into() })
+            }
+            async fn stream(&self, _: CompletionRequest) -> Result<CompletionStream, CoreError> {
+                Err(CoreError::NotImplemented { feature: "stream".into() })
+            }
+            async fn health_check(&self) -> Result<(), CoreError> { Ok(()) }
+        }
+
+        let registry = Registry::new(MockDb);
+        registry.register_provider(NoopProvider);
+        assert!(registry.get_provider("noop").is_some());
+        assert!(registry.get_provider("missing").is_none());
     }
 }

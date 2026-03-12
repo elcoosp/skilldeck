@@ -7,7 +7,7 @@ edition = "2024"
 tokio = { version = "1", features = ["full"] }
 
 # Database (SeaORM 2.x with SQLite)
-sea-orm = { version = "1", features = ["sqlx-sqlite", "runtime-tokio-native-tls", "macros"] }
+sea-orm = { version = "2.0.0-rc.37", features = ["sqlx-sqlite", "runtime-tokio-native-tls", "macros"] }
 
 # Serialization
 serde = { version = "1", features = ["derive"] }
@@ -40,3 +40,4 @@ config = "0.15"
 
 # Traits
 async-trait = "0.1"
+serde_yaml = "0.9.34"
