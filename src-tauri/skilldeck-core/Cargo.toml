@@ -4,3 +4,39 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+tokio = { version = "1", features = ["full"] }
+
+# Database (SeaORM 2.x with SQLite)
+sea-orm = { version = "1", features = ["sqlx-sqlite", "runtime-tokio-native-tls", "macros"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Data Types & Time
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+
+# HTTP Client
+reqwest = { version = "0.12", features = ["json", "stream"] }
+
+# Async Utilities
+futures = "0.3"
+
+# Graph Engine (for Workflows)
+petgraph = "0.6"
+dashmap = "6"
+
+# Error Handling & Logging
+anyhow = "1"
+thiserror = "2"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+# Filesystem & Config
+notify = "7"
+glob = "0.3"
+config = "0.15"
+
+# Traits
+async-trait = "0.1"

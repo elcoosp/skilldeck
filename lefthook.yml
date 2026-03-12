@@ -1,0 +1,18 @@
+pre-commit:
+  parallel: true
+  commands:
+    # Biome commands (using local install)
+    check:
+      run: pnpm exec biome check --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
+    fmt:
+      run: pnpm exec biome format --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
+    # Override CSpell to use local install
+    cspell:
+      run: pnpm exec cspell {staged_files}
+
+commit-msg:
+  parallel: true
+  commands:
+    # Override Commitlint to use local install
+    commitlint:
+      run: pnpm exec commitlint --edit ./.git/COMMIT_EDITMSG

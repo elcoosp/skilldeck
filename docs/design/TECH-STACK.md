@@ -15,14 +15,14 @@ SkillDeck is a Tauri-based desktop application providing an AI agent chat interf
 - **Framework**: React 19 with TypeScript
 - **Build Tool**: Vite 7
 - **Language**: TypeScript (strict mode enabled)
-- **Package Manager**: pnpm (indicated in `tauri.conf.json`)
-- **Routing**: Not required for core experience (panels are layout-based). If needed for settings/marketplace overlays, will use in-memory routing via state or simple conditional rendering.
+- **Package Manager**: pnpm
+- **Routing**: React Router DOM v7 (for layout-based routing if needed, otherwise in-memory state).
 
 ### Testing
 
 - **Test Runner**: [Vitest](https://vitest.dev/) – A Vite-native unit test framework with fast watch mode, built-in TypeScript support, and Jest-compatible API.
+- **Environment**: **Vitest Browser Mode**. Tests run in a real browser environment (Chromium, Firefox, WebKit) using `@vitest/browser` and `playwright` for maximum reliability and real user interaction simulation.
 - **Configuration**: Vitest configured in `vite.config.ts` alongside Vite, sharing the same transform pipeline.
-- **React Testing Library**: [@testing-library/react](https://testing-library.com/react) – For testing React components in a user-centric way.
 - **Coverage**: Vitest provides built-in coverage reports via `v8` or `istanbul`.
 
 ### UI Component System
@@ -106,6 +106,16 @@ SkillDeck is a Tauri-based desktop application providing an AI agent chat interf
 - **Focus Management**: [react-focus-lock](https://github.com/theKashey/react-focus-lock) – for modals and dialogs to trap focus.
 - **Vim‑style Input (optional)**: [@uiw/react-textarea-code-editor](https://uiwjs.github.io/react-textarea-code-editor/) – can be integrated for Vim mode in the input area; not required for v1.
 
+### Quality Control (Dev Tooling)
+
+| Tool                          | Purpose                                                                        |
+| :---------------------------- | :----------------------------------------------------------------------------- |
+| **Biome**                     | Unified linter and formatter for JS/TS/JSON/CSS. Replaces ESLint and Prettier. |
+| **Lefthook**                  | Fast, powerful Git hooks manager. Replaces Husky.                              |
+| **Commitlint**                | Lints commit messages to enforce Conventional Commits standard.                |
+| **CSpell**                    | Code spell checker to catch typos in documentation and code.                   |
+| **@elcoosp-configs/lefthook** | Shared presets for Lefthook configuration (Biome, CSpell, Commitlint).         |
+
 ---
 
 ## Backend (Rust)
@@ -129,7 +139,7 @@ SkillDeck is a Tauri-based desktop application providing an AI agent chat interf
 **Additional Rust Crates**:
 
 | Library                 | Purpose                                                                       |
-| ----------------------- | ----------------------------------------------------------------------------- |
+| :---------------------- | :---------------------------------------------------------------------------- |
 | `anyhow` / `thiserror`  | Simplified error handling                                                     |
 | `tracing`               | Structured logging                                                            |
 | `notify`                | Filesystem watching for skill directories                                     |
@@ -174,7 +184,7 @@ SkillDeck is a Tauri-based desktop application providing an AI agent chat interf
 - **Build Commands**:
   - `pnpm dev` – runs Vite dev server
   - `pnpm build` – builds frontend
-  - `pnpm test` – runs Vitest tests
+  - `pnpm test` – runs Vitest tests (Browser Mode)
   - `pnpm test:ui` – runs Vitest with UI
   - `pnpm coverage` – runs Vitest with coverage
   - `cargo tauri dev` – runs Tauri dev with frontend
@@ -182,6 +192,10 @@ SkillDeck is a Tauri-based desktop application providing an AI agent chat interf
   - `tauri.conf.json` – Tauri app config (product name, identifier, windows, icons)
   - `tsconfig.json` – TypeScript config (bundler mode, React JSX)
   - `vite.config.ts` – Vite config tailored for Tauri, also includes Vitest configuration
+  - `biome.json` – Biome configuration (Linting & Formatting)
+  - `lefthook.yml` – Lefthook configuration (Git Hooks)
+  - `commitlint.config.js` – Commitlint configuration
+  - `cspell.json` – CSpell configuration
 - **Rust Workspace**: Managed via `Cargo.toml` in root of `src-tauri` with workspace members
 
 ---
@@ -189,7 +203,7 @@ SkillDeck is a Tauri-based desktop application providing an AI agent chat interf
 ## Key Design Features & Library Mapping
 
 | Design Feature                      | Libraries Used                                      |
-| ----------------------------------- | --------------------------------------------------- |
+| :---------------------------------- | :-------------------------------------------------- |
 | **Three‑panel layout**              | `react-resizable-panels`                            |
 | **Streaming agent responses**       | Tauri events                                        |
 | **Tool approval UI**                | Sonner toasts + shadcn Dialog                       |
@@ -213,7 +227,10 @@ SkillDeck is a Tauri-based desktop application providing an AI agent chat interf
 | **Debouncing / Throttling**         | `use-debounce`                                      |
 | **Workflow performance monitoring** | TanStack Query + Recharts (trends/analytics)        |
 | **Internationalization**            | Lingui (`@lingui/core`, `@lingui/react`, CLI, Vite) |
-| **Frontend testing**                | Vitest + React Testing Library                      |
+| **Frontend testing**                | **Vitest (Browser Mode) + Playwright**              |
+| **Linting & Formatting**            | **Biome**                                           |
+| **Git Hooks**                       | **Lefthook**                                        |
+| **Commit Linting**                  | **Commitlint**                                      |
 | **Vector search (semantic)**        | `sqlite-vss` (Rust) or in‑memory with `ndarray`     |
 
 ---
@@ -226,11 +243,10 @@ SkillDeck is a Tauri-based desktop application providing an AI agent chat interf
 
 ### Dev Tooling
 
-| Tool                    | Purpose                                       |
-| ----------------------- | --------------------------------------------- |
-| `cargo-watch`           | Automatically run tests/lints on file changes |
-| `husky` + `lint-staged` | Git hooks for code quality                    |
-| `prettier` / `rustfmt`  | Consistent code formatting                    |
+| Tool            | Purpose                                       |
+| :-------------- | :-------------------------------------------- |
+| `cargo-watch`   | Automatically run tests/lints on file changes |
+| `cargo-machete` | Detect unused Rust dependencies               |
 
 ---
 
@@ -238,10 +254,10 @@ SkillDeck is a Tauri-based desktop application providing an AI agent chat interf
 
 - **Unit Tests**:
   - Rust: In core crate with mocked traits
-  - Frontend: Vitest for component and utility tests
+  - Frontend: Vitest for component and utility tests (Browser Mode)
 - **Integration Tests**:
   - Rust: Using local Ollama for agent workflows
-  - Frontend: Vitest with React Testing Library for integration of components with state
+  - Frontend: Vitest with `@vitest/browser` for integration of components with state in a real browser environment
 - **E2E Tests**: Tauri WebDriver for critical paths (minimal)
 - **Coverage**: Vitest provides coverage reports; Rust uses `tarpaulin` or `grcov`.
 
@@ -394,6 +410,9 @@ workflow:
 
 SkillDeck combines modern frontend tooling (React 19, TypeScript, Vite) with a curated set of libraries that directly address the UX goals:
 
+- **Biome** for fast, unified linting and formatting.
+- **Lefthook** for efficient, managed Git hooks.
+- **Vitest Browser Mode** for reliable, real-environment testing.
 - **shadcn/ui** + **Radix** for accessible, consistent UI
 - **TanStack Query** + **Zustand** for robust state management
 - **react-resizable-panels** for the three‑panel layout
@@ -402,7 +421,6 @@ SkillDeck combines modern frontend tooling (React 19, TypeScript, Vite) with a c
 - **TOON** for token‑efficient LLM communication
 - **@xyflow/react** for workflow DAG visualization
 - **Lingui** for internationalization
-- **Vitest** + **React Testing Library** for fast, reliable frontend testing
 - **fuse.js** for fuzzy search (marketplace, skill picker)
 - **react-diff-viewer** for skill comparison
 - **react-markdown** for SKILL.md preview
@@ -411,7 +429,7 @@ SkillDeck combines modern frontend tooling (React 19, TypeScript, Vite) with a c
 - **petgraph** + **dashmap** for workflow orchestration in Rust
 - **sqlite-vss** (optional) for vector‑based semantic search
 
-Together with a robust Rust backend (Tauri, Tokio, SeaORM 2.0), this stack delivers a high‑performance, extensible AI agent desktop application that is local‑first, developer‑extensible, and compatible with the Superpowers skill ecosystem.
+Together with a robust Rust backend (Tauri, Tokio, SeaORM 2.0), this stack delivers a high-performance, extensible AI agent desktop application that is local‑first, developer‑extensible, and compatible with the Superpowers skill ecosystem.
 
 ### Workflow Pattern Support
 
@@ -427,88 +445,45 @@ All patterns are composable, monitorable, and cost-tracked at the per-step level
 
 ## Gap Analysis & Recommendations
 
-### Missing Dependencies to Add
+### ✅ Fully Covered
 
-#### Frontend
+- Core agent loop with streaming
+- Three‑panel UI with resizable layout
+- MCP server discovery and integration
+- Skill system with priority resolution
+- Workspace context and file scoping
+- Branching conversations
+- TOON format for token efficiency
+- Tool approval flows
+- Real‑time event bus
+- Internationalization (Lingui)
+- **Linting & Formatting (Biome)**
+- **Git Hooks (Lefthook)**
+- **Frontend testing (Vitest Browser Mode)**
+- Fuzzy search (fuse.js)
+- Skill diff view (react-diff-viewer)
+- SKILL.md preview (react-markdown)
+- Keyboard shortcuts (react-hotkeys-hook)
+- Debouncing (use-debounce)
+- Focus management (react-focus-lock)
+- Workflow DAG visualization (@xyflow/react)
+- Workflow graph execution (petgraph + dashmap)
+- Semantic search (sqlite‑vss or in‑memory)
 
-1. **`@xyflow/react`** – Required for workflow DAG visualization (not yet in package.json)
-   ```bash
-   pnpm add @xyflow/react
-   ```
-2. **`yaml`** – Parse YAML frontmatter in skill files (unless using `gray-matter` which includes it)
-   ```bash
-   pnpm add yaml
-   ```
-3. **`@tanstack/react-virtual`** – Alternative to react-virtuoso if sticking with TanStack ecosystem (current choice: `react-virtuoso` is fine).
-4. **`@lingui/core`, `@lingui/react`, `@lingui/cli`, `@lingui/vite-plugin`, `@lingui/macro`** – For internationalization
-   ```bash
-   pnpm add @lingui/core @lingui/react
-   pnpm add -D @lingui/cli @lingui/vite-plugin @lingui/macro
-   ```
-5. **Vitest and related packages** – Already part of Vite ecosystem; install with:
-   ```bash
-   pnpm add -D vitest @vitest/ui @testing-library/react @testing-library/jest-dom jsdom
-   ```
-6. **`fuse.js`** – Fuzzy search for marketplace and mention picker
-   ```bash
-   pnpm add fuse.js
-   ```
-7. **`react-diff-viewer`** – For comparing shadowed skills
-   ```bash
-   pnpm add react-diff-viewer
-   ```
-8. **`react-markdown`** – For SKILL.md preview
-   ```bash
-   pnpm add react-markdown
-   ```
-9. **`react-hotkeys-hook`** – Keyboard shortcuts
-   ```bash
-   pnpm add react-hotkeys-hook
-   ```
-10. **`use-debounce`** – Debouncing inputs
-    ```bash
-    pnpm add use-debounce
-    ```
-11. **`react-focus-lock`** – Focus trapping for modals
-    ```bash
-    pnpm add react-focus-lock
-    ```
+### ⚠️ Needs Addition (Libraries)
 
-#### Rust Backend
+_All previously identified libraries have been integrated._
 
-1. **`petgraph`** – Graph algorithms for workflow DAG execution
-   ```toml
-   petgraph = "0.6"
-   ```
-2. **`dashmap`** – Concurrent hash map for workflow state tracking
-   ```toml
-   dashmap = "5.5"
-   ```
-3. **`rayon`** – Data parallelism for parallel workflow execution (optional optimization)
-   ```toml
-   rayon = "1.8"
-   ```
-4. **`sqlite-vss`** – Vector search extension (optional but recommended for semantic search)
-   ```toml
-   sqlite-vss = { git = "https://github.com/asg017/sqlite-vss" } # or crates.io when available
-   ```
+### 🔄 Needs Design Refinement (from UX design)
 
-### Architecture Considerations (from UX Design)
+- Workflow Execution Isolation – Each subagent gets a forked conversation context; separate tool call authorization scopes; memory limits.
+- Workflow Cancellation & Cleanup – Implement `AbortHandle` pattern; store partial results; emit cancellation events.
+- Workflow Retry Logic – Per-step retry with exponential backoff; dead letter queue.
+- Nested Workflow Depth Limits – Hard limit of 5 levels; warning at 3; track total active subagents.
+- Workflow Result Caching – Hash + cache with TTL; UI indicator for cached results.
+- Workflow Templates & Library – Add `workflow_templates` table; marketplace integration; one‑click save as template.
 
-- **Workflow Execution Isolation** – Each subagent gets a forked conversation context; separate tool call authorization scopes; memory limits.
-- **Workflow Cancellation & Cleanup** – Implement `AbortHandle` pattern; store partial results; emit cancellation events.
-- **Workflow Retry Logic** – Per-step retry with exponential backoff; dead letter queue.
-- **Nested Workflow Depth Limits** – Hard limit of 5 levels; warning at 3; track total active subagents.
-- **Workflow Result Caching** – Hash + cache with TTL; UI indicator for cached results.
-- **Workflow Templates & Library** – Add `workflow_templates` table; marketplace integration; one‑click save as template.
-
-### Testing Additions Needed
-
-- Unit tests for workflow graph cycle detection, parallel aggregation, evaluator‑optimizer edge cases.
-- Integration tests for sequential/parallel/eval‑opt workflows, cancellation, nested workflows.
-- Performance tests for parallel subagents, large workflows, database throughput.
-
-### Documentation Gaps
+### 📚 Needs Documentation
 
 - Workflow authoring guide (patterns, best practices, debugging).
 - Workflow debugging guide (reading DAG, interpreting scores).
@@ -530,7 +505,7 @@ All patterns are composable, monitorable, and cost-tracked at the per-step level
 - Tool approval flows
 - Real‑time event bus
 - Internationalization (Lingui)
-- Frontend testing (Vitest + RTL)
+- Frontend testing (Vitest + Browser Mode)
 - Fuzzy search (fuse.js)
 - Skill diff view (react-diff-viewer)
 - SKILL.md preview (react-markdown)
@@ -541,39 +516,33 @@ All patterns are composable, monitorable, and cost-tracked at the per-step level
 - Workflow graph execution (petgraph + dashmap)
 - Semantic search (sqlite‑vss or in‑memory)
 
-### ⚠️ Needs Addition (Libraries) – all listed above are now added.
-
-### 🔄 Needs Design Refinement (from UX design) – see Architecture Considerations.
-
-### 📚 Needs Documentation – see Documentation Gaps.
-
 ---
 
 ## Action Items
 
 ### Immediate (Pre‑v1)
 
-1. Add all missing frontend and Rust dependencies (fuse.js, react-diff-viewer, react-markdown, react-hotkeys-hook, use-debounce, react-focus-lock, petgraph, dashmap, sqlite‑vss).
-2. Add Lingui and configure Vite plugin.
-3. Add Vitest and configure in `vite.config.ts`.
-4. Implement workflow execution core in Rust.
-5. Add workflow database tables and migrations.
-6. Create workflow visualization components.
-7. Add workflow events to event bus.
-8. Implement basic workflow tests (Rust + Vitest).
+1.  Add all missing frontend and Rust dependencies (fuse.js, react-diff-viewer, react-markdown, react-hotkeys-hook, use-debounce, react-focus-lock, petgraph, dashmap, sqlite‑vss).
+2.  Add Lingui and configure Vite plugin.
+3.  Add Vitest and configure in `vite.config.ts`.
+4.  Implement workflow execution core in Rust.
+5.  Add workflow database tables and migrations.
+6.  Create workflow visualization components.
+7.  Add workflow events to event bus.
+8.  Implement basic workflow tests (Rust + Vitest).
 
 ### Short‑term (v1.1)
 
-1. Add workflow cancellation with UI.
-2. Implement workflow result caching.
-3. Add retry logic for failed steps.
-4. Create workflow authoring documentation.
-5. Add workflow templates to marketplace.
+1.  Add workflow cancellation with UI.
+2.  Implement workflow result caching.
+3.  Add retry logic for failed steps.
+4.  Create workflow authoring documentation.
+5.  Add workflow templates to marketplace.
 
 ### Long‑term (v2+)
 
-1. Visual workflow editor.
-2. Workflow A/B testing.
-3. Workflow scheduling.
-4. Advanced analytics dashboard.
-5. Multi‑tenant workflow sharing.
+1.  Visual workflow editor.
+2.  Workflow A/B testing.
+3.  Workflow scheduling.
+4.  Advanced analytics dashboard.
+5.  Multi‑tenant workflow sharing.

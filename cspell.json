@@ -1,0 +1,25 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "words": [
+    "WCAG",
+    "elcoosp",
+    "SkillDeck",
+    "Tauri",
+    "Zustand",
+    "Vitest",
+    "Lefthook",
+    "Shadcn"
+  ],
+  "ignorePaths": [
+    "Cargo.toml",
+    "biome.json",
+    "lefthook.yml",
+    "package.json",
+    "node_modules/**",
+    "pnpm-lock.yaml",
+    "dist/**",
+    "target/**",
+    "src-tauri/target/**"
+  ]
+}
