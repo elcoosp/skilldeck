@@ -1,18 +1,20 @@
 [package]
 name = "skilldeck"
 version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+description = "Local-first AI Orchestration for Developers"
+authors = ["elcoosp"]
 edition = "2021"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/elcoosp/skilldeck"
+readme = "../README.md"
+keywords = ["ai", "tauri", "desktop", "llm", "orchestration"]
+categories = ["development-tools", "gui"]
+
 [workspace]
 members = ["skilldeck-core", "."]
 resolver = "2"
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
-# The `_lib` suffix may seem redundant but it is necessary
-# to make the lib name unique and wouldn't conflict with the bin name.
-# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
 name = "skilldeck_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
