@@ -1,5 +1,5 @@
 {
-  "planPath": "./plans/v1.md",
+  "planPath": "./docs/plans/v1.md",
   "specsDir": "./docs/specs",
   "issuesDir": "./docs/issues",
   "mappingFile": "./.issues-mapping.json",
