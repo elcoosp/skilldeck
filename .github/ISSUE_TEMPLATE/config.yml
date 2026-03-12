@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📖 Documentation
+    url: https://github.com/elcoosp/skilldeck#readme
+    about: Check the README for usage information
+  - name: 💬 Discussions
+    url: https://github.com/elcoosp/skilldeck/discussions
+    about: Ask questions and discuss with the community

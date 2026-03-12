@@ -15,7 +15,10 @@
     "fontsource",
     "avenir",
     "endfor",
-    "specta"
+    "specta",
+    "youre",
+    "thiserror",
+    "clippy"
   ],
   "ignorePaths": [
     "Cargo.toml",
