@@ -1,0 +1,18 @@
+{
+  "planPath": "./plans/v1.md",
+  "specsDir": "./docs/specs",
+  "issuesDir": "./docs/issues",
+  "mappingFile": "./.issues-mapping.json",
+  "github": {
+    "owner": "elcoosp",
+    "repo": "skilldeck"
+  },
+  "llm": {
+    "model": "glm-5:cloud",
+    "temperature": 0.2
+  },
+  "assignees": [
+    { "username": "elcoosp", "role": "backend" },
+    { "username": "elcoosp", "role": "frontend" }
+  ]
+}

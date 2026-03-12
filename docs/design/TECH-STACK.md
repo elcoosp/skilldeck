@@ -63,7 +63,6 @@ SkillDeck is a Tauri-based desktop application providing an AI agent chat interf
 
 ### AI Integration
 
-- **AI SDK**: [Vercel AI SDK 6](https://sdk.vercel.ai/docs) – provides `useChat` hook for streaming responses, tool call handling, and multi‑step agent workflows. Its **agent abstraction** includes built‑in support for **tool approval gates** (pauses the loop until user confirms), matching the design's approval UI.
 - **Agent‑LLM Communication**: [TOON (Token‑Oriented Object Notation)](https://github.com/toon-format/toon) – compact, human‑readable format for sending structured data (tool inputs, skill contexts, conversation state) to the LLM, reducing token usage by ~40% while maintaining or improving accuracy.
   - **Implementation**: Use TypeScript SDK (`@toon-format/toon`) on the frontend when preparing data for Tauri commands that will be forwarded to the LLM.
   - Wrap TOON data in markdown code blocks (```toon) to help the LLM identify the format.
@@ -129,22 +128,22 @@ SkillDeck is a Tauri-based desktop application providing an AI agent chat interf
 
 **Additional Rust Crates**:
 
-| Library                | Purpose                                            |
-| ---------------------- | -------------------------------------------------- |
-| `anyhow` / `thiserror` | Simplified error handling                          |
-| `tracing`              | Structured logging                                 |
-| `notify`               | Filesystem watching for skill directories          |
-| `glob`                 | Pattern matching for skill discovery               |
-| `uuid`                 | Generate UUIDs for database primary keys           |
-| `chrono` / `time`      | Date/time handling                                 |
-| `reqwest`              | HTTP client for remote MCP registry and model APIs |
-| `futures`              | Stream combinators and async utilities             |
-| `config`               | Manage configuration (API keys, skill directories) |
-| `cargo-machete`        | Detect unused dependencies (dev tool)              |
-| `petgraph`             | Graph data structures for workflow DAG execution   |
-| `dashmap`              | Concurrent HashMap for workflow state tracking     |
-| `rayon` (optional)     | Data parallelism for parallel workflow execution   |
-| `sqlite-vss` (optional)| Vector search extension for SQLite – for semantic search across conversations |
+| Library                 | Purpose                                                                       |
+| ----------------------- | ----------------------------------------------------------------------------- |
+| `anyhow` / `thiserror`  | Simplified error handling                                                     |
+| `tracing`               | Structured logging                                                            |
+| `notify`                | Filesystem watching for skill directories                                     |
+| `glob`                  | Pattern matching for skill discovery                                          |
+| `uuid`                  | Generate UUIDs for database primary keys                                      |
+| `chrono` / `time`       | Date/time handling                                                            |
+| `reqwest`               | HTTP client for remote MCP registry and model APIs                            |
+| `futures`               | Stream combinators and async utilities                                        |
+| `config`                | Manage configuration (API keys, skill directories)                            |
+| `cargo-machete`         | Detect unused dependencies (dev tool)                                         |
+| `petgraph`              | Graph data structures for workflow DAG execution                              |
+| `dashmap`               | Concurrent HashMap for workflow state tracking                                |
+| `rayon` (optional)      | Data parallelism for parallel workflow execution                              |
+| `sqlite-vss` (optional) | Vector search extension for SQLite – for semantic search across conversations |
 
 **Architectural Layers** (as per design):
 
@@ -189,33 +188,33 @@ SkillDeck is a Tauri-based desktop application providing an AI agent chat interf
 
 ## Key Design Features & Library Mapping
 
-| Design Feature                      | Libraries Used                                       |
-| ----------------------------------- | ---------------------------------------------------- |
-| **Three‑panel layout**              | `react-resizable-panels`                             |
-| **Streaming agent responses**       | AI SDK `useChat`, Tauri events                       |
-| **Tool approval UI**                | AI SDK tool approval + Sonner toasts + shadcn Dialog |
-| **Subagent cards**                  | React components, Zustand for state                  |
-| **Workflow orchestration**          | Core Rust orchestrator + Tauri events                |
-| **Workflow DAG visualization**      | `@xyflow/react` + Zustand                            |
-| **Inline branch navigation**        | Zustand + UI state in DB                             |
-| **MCP discovery & marketplace**     | TanStack Query (server state), shadcn Dialog/Sheet   |
-| **Skill management**                | TanStack Query, filesystem watcher events            |
-| **Prompt library with variables**   | React Hook Form + zod + shadcn form components       |
-| **Command menu (`⌘K`)**             | `cmdk`                                               |
-| **Mention picker (`@`)**            | `cmdk` + `fuse.js` (fuzzy skill search)              |
-| **Fuzzy search (marketplace)**      | `fuse.js`                                            |
-| **Skill diff view**                 | `react-diff-viewer`                                  |
-| **SKILL.md preview**                | `react-markdown`                                     |
-| **Real‑time event display**         | Tauri events + Sonner                                |
-| **Usage analytics (charts)**        | Recharts                                             |
-| **Long list virtualization**        | `react-virtuoso`                                     |
-| **Client state persistence**        | `@tauri-apps/plugin-store`                           |
-| **Keyboard shortcuts**              | `react-hotkeys-hook`                                 |
-| **Debouncing / Throttling**         | `use-debounce`                                       |
-| **Workflow performance monitoring** | TanStack Query + Recharts (trends/analytics)         |
-| **Internationalization**            | Lingui (`@lingui/core`, `@lingui/react`, CLI, Vite)  |
-| **Frontend testing**                | Vitest + React Testing Library                        |
-| **Vector search (semantic)**        | `sqlite-vss` (Rust) or in‑memory with `ndarray`      |
+| Design Feature                      | Libraries Used                                      |
+| ----------------------------------- | --------------------------------------------------- |
+| **Three‑panel layout**              | `react-resizable-panels`                            |
+| **Streaming agent responses**       | Tauri events                                        |
+| **Tool approval UI**                | Sonner toasts + shadcn Dialog                       |
+| **Subagent cards**                  | React components, Zustand for state                 |
+| **Workflow orchestration**          | Core Rust orchestrator + Tauri events               |
+| **Workflow DAG visualization**      | `@xyflow/react` + Zustand                           |
+| **Inline branch navigation**        | Zustand + UI state in DB                            |
+| **MCP discovery & marketplace**     | TanStack Query (server state), shadcn Dialog/Sheet  |
+| **Skill management**                | TanStack Query, filesystem watcher events           |
+| **Prompt library with variables**   | React Hook Form + zod + shadcn form components      |
+| **Command menu (`⌘K`)**             | `cmdk`                                              |
+| **Mention picker (`@`)**            | `cmdk` + `fuse.js` (fuzzy skill search)             |
+| **Fuzzy search (marketplace)**      | `fuse.js`                                           |
+| **Skill diff view**                 | `react-diff-viewer`                                 |
+| **SKILL.md preview**                | `react-markdown`                                    |
+| **Real‑time event display**         | Tauri events + Sonner                               |
+| **Usage analytics (charts)**        | Recharts                                            |
+| **Long list virtualization**        | `react-virtuoso`                                    |
+| **Client state persistence**        | `@tauri-apps/plugin-store`                          |
+| **Keyboard shortcuts**              | `react-hotkeys-hook`                                |
+| **Debouncing / Throttling**         | `use-debounce`                                      |
+| **Workflow performance monitoring** | TanStack Query + Recharts (trends/analytics)        |
+| **Internationalization**            | Lingui (`@lingui/core`, `@lingui/react`, CLI, Vite) |
+| **Frontend testing**                | Vitest + React Testing Library                      |
+| **Vector search (semantic)**        | `sqlite-vss` (Rust) or in‑memory with `ndarray`     |
 
 ---
 
@@ -228,7 +227,7 @@ SkillDeck is a Tauri-based desktop application providing an AI agent chat interf
 ### Dev Tooling
 
 | Tool                    | Purpose                                       |
-| ----------------------  | --------------------------------------------- |
+| ----------------------- | --------------------------------------------- |
 | `cargo-watch`           | Automatically run tests/lints on file changes |
 | `husky` + `lint-staged` | Git hooks for code quality                    |
 | `prettier` / `rustfmt`  | Consistent code formatting                    |
@@ -395,7 +394,6 @@ workflow:
 
 SkillDeck combines modern frontend tooling (React 19, TypeScript, Vite) with a curated set of libraries that directly address the UX goals:
 
-- **AI SDK 6** for agent streaming and tool approval
 - **shadcn/ui** + **Radix** for accessible, consistent UI
 - **TanStack Query** + **Zustand** for robust state management
 - **react-resizable-panels** for the three‑panel layout
