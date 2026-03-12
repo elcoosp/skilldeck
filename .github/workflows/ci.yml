@@ -23,6 +23,9 @@ jobs:
   # ==========================================
   security:
     runs-on: ubuntu-latest
+    permissions:
+      checks: write
+      issues: write
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -33,11 +36,12 @@ jobs:
 
       - name: Audit Node Dependencies
         run: pnpm audit --prod
-        continue-on-error: true # Set to false if you want to block on moderate vulnerabilities
+        continue-on-error: true
 
       - name: Audit Rust Dependencies
         uses: rustsec/audit-check@v2
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           working-directory: src-tauri
 
   # ==========================================
@@ -121,7 +125,7 @@ jobs:
   # 4. BUILD ARTIFACTS (Matrix)
   # ==========================================
   build:
-    needs: [security, lint, test] # Depends on Security, Lint, and Test
+    needs: [security, lint, test]
     strategy:
       fail-fast: false
       matrix:
@@ -142,7 +146,6 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      # --- Performance Optimization: Caching ---
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
         with:
@@ -156,7 +159,6 @@ jobs:
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.3
 
-      # --- System Dependencies (Linux) ---
       - name: Install System Dependencies (Linux Only)
         if: matrix.os == 'ubuntu-latest'
         run: |
@@ -286,12 +288,6 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Enable Code Signing (See docs for setup)
-          # APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          # APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          # APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          # WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
-          # WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'App ${{ github.ref_name }}'
