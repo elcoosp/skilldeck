@@ -14,7 +14,8 @@
     "vite",
     "fontsource",
     "avenir",
-    "endfor"
+    "endfor",
+    "specta"
   ],
   "ignorePaths": [
     "Cargo.toml",

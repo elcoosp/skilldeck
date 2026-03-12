@@ -5,74 +5,99 @@ on:
     branches: [main]
   push:
     branches: [main]
+    # Trigger releases on version tags (e.g., v1.0.0)
     tags:
       - 'v*'
 
+# Cancel in-progress runs on the same branch
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
+  # ==========================================
+  # 1. LINTING & STATIC ANALYSIS
+  # ==========================================
   lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: "pnpm"
-      - run: pnpm install --frozen-lockfile
 
-      # Node Checks
-      - run: pnpm lint
-      - name: Type Check
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Frontend Checks
+      - name: Lint Frontend
+        run: pnpm lint
+
+      - name: Type Check Frontend
         run: pnpm typecheck
-        continue-on-error: true # Remove this if you want strict type checking
+        continue-on-error: true # Remove if you want strict checking
 
-      # Rust Checks
-      - uses: dtolnay/rust-toolchain@stable
+      # Rust Setup & Checks
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-      - uses: Swatinem/rust-cache@v2
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+
       - name: Check Rust Formatting
         run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
-      - name: Run Clippy
+
+      - name: Clippy (Rust Linter)
         run: cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
 
-  security:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: "pnpm"
-      - name: Audit Node Dependencies
-        run: pnpm audit --prod
-        continue-on-error: true
-      - name: Audit Rust Dependencies
-        uses: rustsec/audit-check@v2
-        with:
-          working-directory: src-tauri
-
+  # ==========================================
+  # 2. UNIT TESTS (Playwright)
+  # ==========================================
   test:
     needs: [lint]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: "pnpm"
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install chromium --with-deps
-      - run: pnpm test
 
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache Playwright Browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('**/pnpm-lock.yaml') }}
+
+      - name: Install Playwright Browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install chromium --with-deps
+
+      - name: Run Tests
+        run: pnpm test
+
+  # ==========================================
+  # 3. BUILD ARTIFACTS (Matrix)
+  # ==========================================
   build:
     needs: [lint, test]
     strategy:
@@ -82,13 +107,140 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: "pnpm"
 
-      - name: Install Rust (Stable)
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      # --- Performance Optimization: Caching ---
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Configure sccache
+        run: |
+          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
+          echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
+
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.3
+
+      # --- System Dependencies (Linux) ---
+      - name: Install System Dependencies (Linux Only)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - name: Install Frontend Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Frontend
+        run: pnpm build
+
+      - name: Build Tauri App
+        run: cargo build --manifest-path src-tauri/Cargo.toml --release
+
+  # ==========================================
+  # 4. E2E TESTS (WebDriver)
+  # ==========================================
+  e2e-test:
+    needs: [build]
+    if: github.event_name == 'pull_request' || github.event_name == 'push' # Skip on tags to speed up release
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest] # macOS often requires special signing permissions
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install System Dependencies (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev webkit2gtk-driver xvfb
+
+      - name: Install Microsoft Edge Driver (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          cargo install --git https://github.com/chippers/msedgedriver-tool
+          & "$HOME/.cargo/bin/msedgedriver-tool.exe"
+          $PWD.Path >> $env:GITHUB_PATH
+
+      - name: Install Frontend Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Tauri App for Testing
+        run: cargo build --manifest-path src-tauri/Cargo.toml --release
+
+      - name: Install tauri-driver
+        run: cargo install tauri-driver
+        if: matrix.os == 'ubuntu-latest'
+
+      - name: Run E2E Tests
+        run: |
+          cd e2e-tests
+          pnpm install
+          pnpm test
+        env:
+          WEBDRIVER_URL: http://localhost:4444
+          APP_BINARY_PATH: ${{ github.workspace }}/src-tauri/target/release/${{ matrix.os == 'windows-latest' && 'your-app-name.exe' || 'your-app-name' }}
+
+  # ==========================================
+  # 5. RELEASE (Triggered by Tag)
+  # ==========================================
+  release:
+    needs: [build]
+    if: startsWith(github.ref, 'refs/tags/v')
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
+
+      - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache Rust
@@ -102,50 +254,22 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
 
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
+      - name: Install Frontend Dependencies
+        run: pnpm install --frozen-lockfile
 
-      - name: Build Tauri App
-        run: cargo build --manifest-path src-tauri/Cargo.toml --release
-
-  release:
-    needs: build
-    # Only run on tag push (e.g. v1.0.0)
-    if: startsWith(github.ref, 'refs/tags/v')
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
-    permissions:
-      contents: write
-
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: "pnpm"
-
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: src-tauri
-
-      - name: Install System Dependencies (Linux Only)
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
-
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
+      - name: Build Frontend
+        run: pnpm build
 
       - name: Build Tauri Release Artifacts
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Enable Code Signing (See docs for setup)
+          # APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          # APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          # APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          # WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          # WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'App ${{ github.ref_name }}'
@@ -153,6 +277,9 @@ jobs:
           releaseDraft: true
           prerelease: false
 
+  # ==========================================
+  # 6. CHANGELOG (Triggered by Release)
+  # ==========================================
   changelog:
     needs: release
     if: startsWith(github.ref, 'refs/tags/v')

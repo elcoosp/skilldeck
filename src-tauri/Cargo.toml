@@ -30,5 +30,6 @@ serde_json = "1"
 skilldeck-core = { path = "skilldeck-core" }
 tauri-plugin-store = "2.4.2"
 tauri-plugin-keychain = "2.0.2"
-specta = "1.0.5"
+specta = "2.0.0-rc.23"
+tauri-specta = { version = "1.0.2", features = ["typescript"] }
 specta-typescript = "0.0.10"
