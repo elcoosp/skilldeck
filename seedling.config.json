@@ -1,6 +1,6 @@
 {
   "planPath": "./docs/plans/v1.md",
-  "specsDir": "./docs/specs",
+  "specsDir": "./docs/spec",
   "issuesDir": "./docs/issues",
   "mappingFile": "./.issues-mapping.json",
   "github": {
