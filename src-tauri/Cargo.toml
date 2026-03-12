@@ -28,6 +28,6 @@ sea-orm = { version = "2.0.0-rc.37", features = ["sqlx-sqlite", "runtime-tokio-n
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 skilldeck-core = { path = "skilldeck-core" }
-specta = "2.0.0-rc.23"
-tauri-specta = { version = "1.0.2", features = ["typescript"] }
-specta-typescript = "0.0.10"
+specta = "2.0.0-rc.22"
+tauri-specta = { version = "2.0.0-rc.21", features = ["typescript"] }
+specta-typescript = "0.0.9"
