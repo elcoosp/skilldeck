@@ -5,12 +5,9 @@ on:
     branches: [main]
   push:
     branches: [main]
-  # Trigger releases on version tags
-  push:
     tags:
       - 'v*'
 
-# 1. Concurrency: Cancel previous runs
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -30,7 +27,8 @@ jobs:
       # Node Checks
       - run: pnpm lint
       - name: Type Check
-        run: pnpm typecheck || echo "No typecheck script found"
+        run: pnpm typecheck
+        continue-on-error: true # Remove this if you want strict type checking
 
       # Rust Checks
       - uses: dtolnay/rust-toolchain@stable
@@ -55,7 +53,7 @@ jobs:
           cache: "pnpm"
       - name: Audit Node Dependencies
         run: pnpm audit --prod
-        continue-on-error: true # Don't fail the build for moderate warnings unless strict
+        continue-on-error: true
       - name: Audit Rust Dependencies
         uses: rustsec/audit-check@v2
         with:
@@ -110,9 +108,9 @@ jobs:
       - name: Build Tauri App
         run: cargo build --manifest-path src-tauri/Cargo.toml --release
 
-  # RELEASE JOB: Only runs on tags (e.g., v1.0.0)
   release:
     needs: build
+    # Only run on tag push (e.g. v1.0.0)
     if: startsWith(github.ref, 'refs/tags/v')
     strategy:
       fail-fast: false
@@ -120,7 +118,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     permissions:
-      contents: write # Required for creating releases
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -148,10 +146,6 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Optional: Enable code signing
-          # APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          # APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          # APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'App ${{ github.ref_name }}'
