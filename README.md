@@ -98,7 +98,7 @@ graph TB
 - [Rust](https://www.rust-lang.org/tools/install) (Edition 2024)
 - [Node.js](https://nodejs.org/) (v24+)
 - [pnpm](https://pnpm.io/installation)
-- System dependencies for Tauri (see [Prerequisites](https://tauri.app/v1/guides/getting-started/prerequisites))
+- System dependencies for Tauri (see [Prerequisites](https://tauri.app/start/prerequisites/))
 
 ### Installation
 
