@@ -3,14 +3,16 @@
 //! Handles SQLite initialization, WAL mode, PRAGMAs, and migration execution.
 
 use sea_orm::{ConnectOptions, ConnectionTrait, Database, DatabaseConnection, Statement};
+use sea_orm_migration::migrator::MigratorTrait;
 use std::time::Duration;
 use tracing::info;
 
 use crate::CoreError;
+use migration::Migrator; // <-- import the migration crate
 
 /// Opens a SQLite database, applies PRAGMAs for WAL + safety, and optionally
 /// runs pending migrations.
-pub async fn open_db(url: &str, _run_migrations: bool) -> Result<DatabaseConnection, CoreError> {
+pub async fn open_db(url: &str, run_migrations: bool) -> Result<DatabaseConnection, CoreError> {
     let db_url = if url == ":memory:" {
         "sqlite::memory:".to_owned()
     } else {
@@ -39,6 +41,16 @@ pub async fn open_db(url: &str, _run_migrations: bool) -> Result<DatabaseConnect
 
     apply_pragmas(&db).await?;
     info!("Database connection established with WAL mode");
+
+    if run_migrations {
+        info!("Running database migrations...");
+        Migrator::up(&db, None)
+            .await
+            .map_err(|e| CoreError::DatabaseMigration {
+                message: format!("Migration failed: {e}"),
+            })?;
+        info!("Database migrations completed");
+    }
 
     Ok(db)
 }

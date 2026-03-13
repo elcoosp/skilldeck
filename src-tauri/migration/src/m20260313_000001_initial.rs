@@ -1,9 +1,10 @@
 //! Initial migration: all 35 database tables for SkillDeck v1.
 //!
-//! Uses SeaORM 2.0 migration API (`sea_orm_migration::schema::*` helpers).
+//! Uses SeaORM 2.0 migration API and ActiveModel for seed data.
 
-use sea_orm::{ConnectionTrait, DatabaseBackend, Statement};
+use sea_orm::{ConnectionTrait, DatabaseBackend, Iden, Statement};
 use sea_orm_migration::{prelude::*, schema::*};
+use skilldeck_models::*;
 use uuid::Uuid;
 
 #[derive(DeriveMigrationName)]
@@ -13,8 +14,7 @@ pub struct Migration;
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         // =====================================================================
-        // CORE TABLES
-        // (Workspaces first — Conversations has an optional FK to it)
+        // CORE TABLES (using schema::* helpers)
         // =====================================================================
 
         // workspaces
@@ -365,7 +365,6 @@ impl MigrationTrait for Migration {
 
         // =====================================================================
         // PROFILE CONFIGURATION TABLES
-        // (after mcp_servers which profile_mcps references)
         // =====================================================================
 
         // profile_mcps
@@ -1143,23 +1142,26 @@ impl MigrationTrait for Migration {
             .await?;
 
         // =====================================================================
-        // SEED DATA
+        // SEED DATA USING ACTIVE MODEL
         // =====================================================================
 
-        // Default profile
-        manager
-            .get_connection()
-            .execute_raw(Statement::from_string(
-                DatabaseBackend::Sqlite,
-                format!(
-                    "INSERT INTO profiles (id, name, model_provider, model_id, is_default, created_at, updated_at) \
-                     VALUES ('{}', 'Default', 'claude', 'claude-sonnet-4-5', 1, datetime('now'), datetime('now'))",
-                    Uuid::nil()
-                ),
-            ))
-            .await?;
+        let db = manager.get_connection();
 
-        // Skill source directories
+        // 1. Default profile
+        let default_profile = profiles::ActiveModel {
+            id: Set(Uuid::nil()),
+            name: Set("Default".to_owned()),
+            description: Set(None),
+            model_provider: Set("claude".to_owned()),
+            model_id: Set("claude-sonnet-4-5".to_owned()),
+            model_params: Set(None),
+            is_default: Set(true),
+            created_at: Set(chrono::Utc::now()),
+            updated_at: Set(chrono::Utc::now()),
+        };
+        default_profile.insert(db).await?;
+
+        // 2. Skill source directories
         let source_dirs = [
             ("workspace", ".skilldeck/skills", 1_i32),
             ("personal", "~/.skilldeck/skills", 2),
@@ -1170,19 +1172,18 @@ impl MigrationTrait for Migration {
         for (idx, (source_type, path, priority)) in source_dirs.iter().enumerate() {
             let id = Uuid::parse_str(&format!("00000000-0000-0000-0000-00000000000{}", idx + 1))
                 .unwrap();
-            manager
-                .get_connection()
-                .execute_raw(Statement::from_string(
-                    DatabaseBackend::Sqlite,
-                    format!(
-                        "INSERT INTO skill_source_dirs (id, source_type, path, priority, enabled, created_at) \
-                         VALUES ('{id}', '{source_type}', '{path}', {priority}, 1, datetime('now'))"
-                    ),
-                ))
-                .await?;
+            let source_dir = skill_source_dirs::ActiveModel {
+                id: Set(id),
+                source_type: Set((*source_type).to_owned()),
+                path: Set((*path).to_owned()),
+                priority: Set(*priority),
+                enabled: Set(true),
+                created_at: Set(chrono::Utc::now()),
+            };
+            source_dir.insert(db).await?;
         }
 
-        // Model pricing seed data
+        // 3. Model pricing
         let pricing = [
             (
                 "claude",
@@ -1202,18 +1203,17 @@ impl MigrationTrait for Migration {
         {
             let id =
                 Uuid::parse_str(&format!("10000000-0000-0000-0000-00000000000{}", i + 1)).unwrap();
-            manager
-                .get_connection()
-                .execute_raw(Statement::from_string(
-                    DatabaseBackend::Sqlite,
-                    format!(
-                        "INSERT INTO model_pricing \
-                         (id, model_provider, model_id, input_cost_per_1k_tokens, output_cost_per_1k_tokens, \
-                          cache_read_cost_per_1k_tokens, cache_write_cost_per_1k_tokens, valid_from) \
-                         VALUES ('{id}', '{provider}', '{model}', {input_c}, {output_c}, {cache_r}, {cache_w}, datetime('now'))"
-                    ),
-                ))
-                .await?;
+            let pricing = model_pricing::ActiveModel {
+                id: Set(id),
+                model_provider: Set((*provider).to_owned()),
+                model_id: Set((*model).to_owned()),
+                input_cost_per_1k_tokens: Set(*input_c),
+                output_cost_per_1k_tokens: Set(*output_c),
+                cache_read_cost_per_1k_tokens: Set(Some(*cache_r)),
+                cache_write_cost_per_1k_tokens: Set(Some(*cache_w)),
+                valid_from: Set(chrono::Utc::now()),
+            };
+            pricing.insert(db).await?;
         }
 
         Ok(())
@@ -1573,18 +1573,7 @@ enum UsageEvents {
     CostCents,
     CreatedAt,
 }
-#[derive(DeriveIden)]
-enum ModelPricing {
-    Table,
-    Id,
-    ModelProvider,
-    ModelId,
-    InputCostPer1kTokens,
-    OutputCostPer1kTokens,
-    CacheReadCostPer1kTokens,
-    CacheWriteCostPer1kTokens,
-    ValidFrom,
-}
+// Note: ModelPricing uses manual Iden impl (see below)
 #[derive(DeriveIden)]
 enum WorkspaceState {
     Table,
@@ -1652,4 +1641,35 @@ enum SyncWatermarks {
     TableName,
     LastSyncedVersion,
     UpdatedAt,
+}
+
+// =============================================================================
+// Manual Iden implementation for ModelPricing (SeaORM 2.0 style)
+// =============================================================================
+pub enum ModelPricing {
+    Table,
+    Id,
+    ModelProvider,
+    ModelId,
+    InputCostPer1kTokens,
+    OutputCostPer1kTokens,
+    CacheReadCostPer1kTokens,
+    CacheWriteCostPer1kTokens,
+    ValidFrom,
+}
+
+impl Iden for ModelPricing {
+    fn unquoted(&self) -> &str {
+        match self {
+            ModelPricing::Table => "model_pricing",
+            ModelPricing::Id => "id",
+            ModelPricing::ModelProvider => "model_provider",
+            ModelPricing::ModelId => "model_id",
+            ModelPricing::InputCostPer1kTokens => "input_cost_per_1k_tokens",
+            ModelPricing::OutputCostPer1kTokens => "output_cost_per_1k_tokens",
+            ModelPricing::CacheReadCostPer1kTokens => "cache_read_cost_per_1k_tokens",
+            ModelPricing::CacheWriteCostPer1kTokens => "cache_write_cost_per_1k_tokens",
+            ModelPricing::ValidFrom => "valid_from",
+        }
+    }
 }

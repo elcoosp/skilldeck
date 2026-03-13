@@ -113,6 +113,7 @@ impl Registry {
 mod tests {
     use super::*;
     use async_trait::async_trait;
+    use futures::stream;
 
     struct MockDb;
 
@@ -132,8 +133,7 @@ mod tests {
 
     #[test]
     fn provider_round_trip() {
-        use crate::traits::{CompletionRequest, CompletionStream};
-        use async_trait::async_trait;
+        use crate::traits::{CompletionRequest, CompletionStream, ModelInfo};
 
         struct NoopProvider;
 
@@ -145,21 +145,21 @@ mod tests {
             fn display_name(&self) -> &str {
                 "Noop"
             }
-            async fn list_models(&self) -> Result<Vec<String>, CoreError> {
+            fn supports_toon(&self) -> bool {
+                false
+            }
+
+            async fn list_models(&self) -> Result<Vec<ModelInfo>, CoreError> {
                 Ok(vec![])
             }
-            async fn complete(&self, _: CompletionRequest) -> Result<String, CoreError> {
-                Err(CoreError::NotImplemented {
-                    feature: "complete".into(),
-                })
-            }
-            async fn stream(&self, _: CompletionRequest) -> Result<CompletionStream, CoreError> {
-                Err(CoreError::NotImplemented {
-                    feature: "stream".into(),
-                })
-            }
-            async fn health_check(&self) -> Result<(), CoreError> {
-                Ok(())
+
+            async fn complete(
+                &self,
+                _request: CompletionRequest,
+            ) -> Result<CompletionStream, CoreError> {
+                // Return an empty stream
+                let empty: CompletionStream = Box::pin(stream::empty());
+                Ok(empty)
             }
         }
 

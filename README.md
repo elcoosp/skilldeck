@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/brand/logo.svg" alt="SkillDeck Logo" width="200"/>
+</p>
+
 # SkillDeck
 
 **Local-first AI Orchestration for Developers**
@@ -185,8 +189,6 @@ Future versions (v2+) will explore cloud sync and visual workflow editors.
 
 Detailed specifications are available in the `/docs` directory:
 
-- [Product Vision](docs/vision.md)
-- [Architecture Design](docs/archi-design.md)
-- [Technical Requirements](docs/srs.md)
-
----
+- [Product Vision](docs/spec/vision.md)
+- [Architecture Design](docs/design/archi-design.md)
+- [Technical Requirements](docs/spec/srs.md)
