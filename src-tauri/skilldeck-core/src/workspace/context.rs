@@ -51,7 +51,7 @@ impl ContextLoader {
         // Load context files
         let context_files = Self::load_context_files(&root, project_type).await?;
 
-        // Check for skill directory
+        // Check for skill directory (workspace-local first, then global ~/.agents/skills)
         let skill_directory = Self::find_skill_directory(&root).await;
 
         // Check for git
@@ -80,7 +80,7 @@ impl ContextLoader {
     ) -> Result<Vec<ContextFile>, CoreError> {
         let mut files = Vec::new();
 
-        // Priority order for context files – removed "readme.md" to avoid duplicate loads on case‑insensitive systems
+        // Priority order for context files
         let context_specs = vec![("CLAUDE.md", 100), ("README.md", 50), ("README", 40)];
 
         for (name, priority) in context_specs {
@@ -135,16 +135,32 @@ impl ContextLoader {
         }
     }
 
+    /// Locate a skills directory.
+    ///
+    /// Search order:
+    /// 1. Workspace-local `.skilldeck/skills/`
+    /// 2. Workspace-local `.claude/skills/`
+    /// 3. Global `~/.agents/skills/`
     async fn find_skill_directory(root: &Path) -> Option<PathBuf> {
-        let candidates = vec![
+        // 1. Workspace-local directories (highest priority)
+        let local_candidates = [
             root.join(".skilldeck").join("skills"),
             root.join(".claude").join("skills"),
         ];
 
-        for candidate in candidates {
+        for candidate in &local_candidates {
             if candidate.exists() && candidate.is_dir() {
-                info!("Found skill directory: {:?}", candidate);
-                return Some(candidate);
+                info!("Found workspace skill directory: {:?}", candidate);
+                return Some(candidate.clone());
+            }
+        }
+
+        // 2. Global ~/.agents/skills directory
+        if let Some(home) = dirs_next::home_dir() {
+            let global_candidate = home.join(".agents").join("skills");
+            if global_candidate.exists() && global_candidate.is_dir() {
+                info!("Found global skill directory: {:?}", global_candidate);
+                return Some(global_candidate);
             }
         }
 
@@ -219,7 +235,6 @@ mod tests {
 
         let ctx: WorkspaceContext = ContextLoader::load(dir.path()).await.unwrap();
         assert!(ctx.gitignore_patterns.contains(&"node_modules".to_string()));
-        // Help compiler with closure type
         assert!(
             !ctx.gitignore_patterns
                 .iter()

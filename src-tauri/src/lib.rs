@@ -17,6 +17,7 @@ use commands::{
     export::export_conversation,
     mcp::{connect_mcp_server, disconnect_mcp_server, list_mcp_servers},
     messages::{list_messages, resolve_tool_approval, send_message},
+    ollama::list_ollama_models,
     profiles::{create_profile, delete_profile, list_profiles, update_profile},
     settings::{delete_api_key, list_api_keys, set_api_key, validate_api_key},
     skills::{list_skills, toggle_skill},
@@ -89,7 +90,9 @@ pub fn run() {
             // workspaces
             open_workspace,
             close_workspace,
-            list_workspaces
+            list_workspaces,
+            // ollama
+            list_ollama_models
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
