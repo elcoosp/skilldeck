@@ -77,3 +77,5 @@ We need to implement Tauri commands for API key management (via OS keychain) and
 
 - **Complexity:** Medium
 - **Effort:** 1d
+
+**Completion Note:** No Tauri commands present.

@@ -10,7 +10,7 @@ assignees:
   - elcoosp
 references:
   - ../plans/v1.md#8-chunk-5-skill-system
-state: open
+state: closed
 createdAt: '2026-03-12T13:53:55.307Z'
 priority: must
 effort: 0.5d
@@ -53,20 +53,20 @@ We need to implement the skill scanner that traverses configured skill source di
 
 ## Acceptance Criteria
 
-- [ ] Scans configured directories recursively
-- [ ] Discovers all SKILL.md files
-- [ ] Skips symlinks with warning
-- [ ] Returns list of skill paths
-- [ ] Integration tests verify symlink skipping
+- [x] Scans configured directories recursively
+- [x] Discovers all SKILL.md files
+- [x] Skips symlinks with warning
+- [x] Returns list of skill paths
+- [x] Integration tests verify symlink skipping
 
 ## Testing Requirements
 
 **Integration tests:**
-- `scanner_discovers_skills` — Skills are discovered
-- `scanner_skips_symlinks` — Symlinks are skipped
+- [x] `scanner_discovers_skills` — Skills are discovered
+- [x] `scanner_skips_symlinks` — Symlinks are skipped
 
 **Security tests:**
-- `symlink_skill_directory_is_skipped` — Symlink outside workspace is skipped
+- [x] `symlink_skill_directory_is_skipped` — Symlink outside workspace is skipped
 
 ## Dependencies
 
@@ -77,3 +77,5 @@ We need to implement the skill scanner that traverses configured skill source di
 
 - **Complexity:** Low
 - **Effort:** 0.5d
+
+**Completion Note:** Scanner is implemented with tests. Uses `tokio::fs` for async traversal.

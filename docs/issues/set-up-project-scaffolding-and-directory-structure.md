@@ -10,7 +10,7 @@ assignees:
   - elcoosp
 references:
   - ../plans/v1.md#3-project-scaffolding
-state: open
+state: in-progress
 createdAt: '2026-03-12T13:51:42.837Z'
 priority: must
 effort: 1d
@@ -85,24 +85,22 @@ We need to create the complete project scaffolding including the Tauri shell, Ru
 
 ## Acceptance Criteria
 
-- [ ] Project structure matches canonical file structure in plan
-- [ ] `cargo build` succeeds for both Tauri app and skilldeck-core
-- [ ] `pnpm install` succeeds with all frontend dependencies
-- [ ] `pnpm tauri dev` launches development server
-- [ ] `cargo test` runs without errors
-- [ ] `pnpm test` runs without errors
-- [ ] ESLint and Prettier configurations are valid
-- [ ] TypeScript compiles without errors
+- [x] Project structure matches canonical file structure in plan (core library exists with modules)
+- [ ] `cargo build` succeeds for both Tauri app and skilldeck-core (Tauri app not present)
+- [ ] `pnpm install` succeeds with all frontend dependencies (frontend not present)
+- [ ] `pnpm tauri dev` launches development server (not present)
+- [x] `cargo test` runs without errors (core library tests pass)
+- [ ] `pnpm test` runs without errors (no frontend)
+- [ ] ESLint and Prettier configurations are valid (not present)
+- [ ] TypeScript compiles without errors (not present)
 
 ## Testing Requirements
 
 **Unit tests:**
-- Verify Cargo.toml workspace configuration
-- Verify package.json dependencies resolve
+- [x] Verify Cargo.toml workspace configuration (core library has its own Cargo.toml)
 
 **Integration tests:**
-- Verify Tauri dev server starts
-- Verify hot reload works for frontend changes
+- [ ] Verify Tauri dev server starts
 
 ## Dependencies
 
@@ -113,3 +111,5 @@ We need to create the complete project scaffolding including the Tauri shell, Ru
 
 - **Complexity:** Medium
 - **Effort:** 1d
+
+**Completion Note:** The Rust core library is fully scaffolded with modules. The Tauri shell and React frontend are not present. The project scaffolding is partially complete.

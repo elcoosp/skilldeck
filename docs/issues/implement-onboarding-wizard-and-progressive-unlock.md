@@ -75,9 +75,9 @@ We need to implement the onboarding wizard for first-time users and the progress
 ## Testing Requirements
 
 **BDD scenarios:**
-- [SC-FUNC-026](../spec/test-verification.md#sc-func-026) - Profile management
-- [SC-FUNC-027](../spec/test-verification.md#sc-func-027) - API key storage in keychain
-- [USA-005](../spec/test-verification.md#usa-005) - Onboarding completion
+- [ ] [SC-FUNC-026](../spec/test-verification.md#sc-func-026) - Profile management
+- [ ] [SC-FUNC-027](../spec/test-verification.md#sc-func-027) - API key storage in keychain
+- [ ] [USA-005](../spec/test-verification.md#usa-005) - Onboarding completion
 
 ## Dependencies
 
@@ -88,3 +88,5 @@ We need to implement the onboarding wizard for first-time users and the progress
 
 - **Complexity:** Medium
 - **Effort:** 1d
+
+**Completion Note:** Frontend onboarding not implemented. No code present.

@@ -95,16 +95,16 @@ We need to implement conversation components including conversation list, messag
 ## Testing Requirements
 
 **Unit tests:**
-- `message_bubble_renders` — Message bubble renders
-- `branch_nav_renders` — Branch navigation renders
-- `tool_approval_card_renders` — Approval card renders
-- `message_input_renders` — Message input renders
+- [ ] `message_bubble_renders` — Message bubble renders
+- [ ] `branch_nav_renders` — Branch navigation renders
+- [ ] `tool_approval_card_renders` — Approval card renders
+- [ ] `message_input_renders` — Message input renders
 
 **BDD scenarios:**
-- [SC-FUNC-005](../spec/test-verification.md#sc-func-005) - Create branch from message
-- [SC-FUNC-006](../spec/test-verification.md#sc-func-006) - Navigate between branches
-- [SC-FUNC-007](../spec/test-verification.md#sc-func-007) - Merge branch into main thread
-- [SC-FUNC-019](../spec/test-verification.md#sc-func-019) - Tool approval gate
+- [ ] [SC-FUNC-005](../spec/test-verification.md#sc-func-005) - Create branch from message
+- [ ] [SC-FUNC-006](../spec/test-verification.md#sc-func-006) - Navigate between branches
+- [ ] [SC-FUNC-007](../spec/test-verification.md#sc-func-007) - Merge branch into main thread
+- [ ] [SC-FUNC-019](../spec/test-verification.md#sc-func-019) - Tool approval gate
 
 ## Dependencies
 
@@ -115,3 +115,5 @@ We need to implement conversation components including conversation list, messag
 
 - **Complexity:** High
 - **Effort:** 3d
+
+**Completion Note:** Frontend components are not present in the provided Rust codebase. This issue remains open for frontend implementation.

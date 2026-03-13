@@ -10,7 +10,7 @@ assignees:
   - elcoosp
 references:
   - ../plans/v1.md#10-chunk-7-agent-loop--tool-dispatcher
-state: open
+state: in-progress
 createdAt: '2026-03-12T13:56:20.457Z'
 priority: should
 effort: 1d
@@ -56,10 +56,10 @@ We need to implement the context builder that assembles the complete context for
 
 ## Acceptance Criteria
 
-- [ ] Assembles system prompt correctly
-- [ ] Includes active skills by priority
-- [ ] Includes conversation history
-- [ ] Respects token limits
+- [x] Assembles system prompt correctly
+- [x] Includes active skills by priority
+- [x] Includes conversation history
+- [x] Respects token limits
 - [ ] Supports TOON encoding (optional)
 - [ ] Falls back to JSON if needed
 
@@ -72,3 +72,5 @@ We need to implement the context builder that assembles the complete context for
 
 - **Complexity:** Medium
 - **Effort:** 1d
+
+**Completion Note:** ContextBuilder builds system prompt and trims messages, but TOON encoding is not implemented. The builder is used by AgentLoop.

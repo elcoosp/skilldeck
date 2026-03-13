@@ -82,8 +82,8 @@ We need to implement the Tauri shell that initializes the application, manages s
 ## Testing Requirements
 
 **Integration tests:**
-- `app_initializes` — App starts correctly
-- `commands_registered` — Commands are available
+- [ ] `app_initializes` — App starts correctly
+- [ ] `commands_registered` — Commands are available
 
 ## Dependencies
 
@@ -94,3 +94,5 @@ We need to implement the Tauri shell that initializes the application, manages s
 
 - **Complexity:** Medium
 - **Effort:** 1d
+
+**Completion Note:** Tauri shell is not present in the provided codebase. The core library has a `Registry` struct, but no Tauri integration.

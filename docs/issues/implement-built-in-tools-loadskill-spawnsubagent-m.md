@@ -75,15 +75,15 @@ We need to implement the three built-in tools that the agent can call without us
 ## Testing Requirements
 
 **Unit tests:**
-- `load_skill_success` — Skill is loaded
-- `load_skill_not_found` — Error if skill not found
-- `spawn_subagent` — Subagent is spawned
-- `merge_results` — Results are merged
+- [ ] `load_skill_success` — Skill is loaded
+- [ ] `load_skill_not_found` — Error if skill not found
+- [ ] `spawn_subagent` — Subagent is spawned
+- [ ] `merge_results` — Results are merged
 
 **BDD scenarios:**
-- [SC-FUNC-035](../spec/test-verification.md#sc-func-035) - loadSkill built-in tool
-- [SC-FUNC-036](../spec/test-verification.md#sc-func-036) - spawnSubagent built-in tool
-- [SC-FUNC-037](../spec/test-verification.md#sc-func-037) - mergeSubagentResults built-in tool
+- [ ] [SC-FUNC-035](../spec/test-verification.md#sc-func-035) - loadSkill built-in tool
+- [ ] [SC-FUNC-036](../spec/test-verification.md#sc-func-036) - spawnSubagent built-in tool
+- [ ] [SC-FUNC-037](../spec/test-verification.md#sc-func-037) - mergeSubagentResults built-in tool
 
 ## Dependencies
 
@@ -94,3 +94,5 @@ We need to implement the three built-in tools that the agent can call without us
 
 - **Complexity:** Medium
 - **Effort:** 1d
+
+**Completion Note:** Tool definitions are present in `built_in_tools.rs`, but implementations are stubs returning dummy JSON. Actual logic for skill loading, subagent spawning, and result merging is not implemented.

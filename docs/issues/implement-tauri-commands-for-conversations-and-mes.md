@@ -78,9 +78,9 @@ We need to implement Tauri commands for creating, listing, and managing conversa
 ## Testing Requirements
 
 **BDD scenarios:**
-- [SC-FUNC-001](../spec/test-verification.md#sc-func-001) - Create conversation
-- [SC-FUNC-002](../spec/test-verification.md#sc-func-002) - Select conversation
-- [SC-FUNC-003](../spec/test-verification.md#sc-func-003) - Send message and receive streaming response
+- [ ] [SC-FUNC-001](../spec/test-verification.md#sc-func-001) - Create conversation
+- [ ] [SC-FUNC-002](../spec/test-verification.md#sc-func-002) - Select conversation
+- [ ] [SC-FUNC-003](../spec/test-verification.md#sc-func-003) - Send message and receive streaming response
 
 ## Dependencies
 
@@ -91,3 +91,5 @@ We need to implement Tauri commands for creating, listing, and managing conversa
 
 - **Complexity:** Medium
 - **Effort:** 1d
+
+**Completion Note:** No Tauri commands are present in the provided codebase. The core library does not include Tauri-specific code.

@@ -10,7 +10,7 @@ assignees:
   - elcoosp
 references:
   - ../plans/v1.md#7-chunk-4-model-providers
-state: open
+state: closed
 createdAt: '2026-03-12T13:51:42.846Z'
 priority: should
 effort: 0.5d
@@ -61,22 +61,22 @@ We need to implement the OpenAI provider that connects to OpenAI's API, handles 
 
 ## Acceptance Criteria
 
-- [ ] Provider implements ModelProvider trait
-- [ ] Streaming completion works correctly
-- [ ] Exponential backoff retry is implemented
-- [ ] Error classification is correct
-- [ ] Model listing returns available models
-- [ ] Unit tests verify message conversion
-- [ ] Unit tests verify tool conversion
+- [x] Provider implements ModelProvider trait
+- [x] Streaming completion works correctly
+- [x] Exponential backoff retry is implemented
+- [x] Error classification is correct
+- [x] Model listing returns available models
+- [x] Unit tests verify message conversion
+- [x] Unit tests verify tool conversion
 
 ## Testing Requirements
 
 **Unit tests:**
-- `provider_id` — Provider returns correct ID and display name
-- `message_conversion` — Messages convert to OpenAI format
-- `tool_conversion` — Tools convert to OpenAI format
-- `list_models` — Model listing works
-- `custom_base_url` — Custom base URL works
+- [x] `provider_id` — Provider returns correct ID and display name
+- [x] `message_conversion` — Messages convert to OpenAI format
+- [x] `tool_conversion` — Tools convert to OpenAI format
+- [x] `list_models` — Model listing works
+- [x] `custom_base_url` — Custom base URL works
 
 ## Dependencies
 
@@ -87,3 +87,5 @@ We need to implement the OpenAI provider that connects to OpenAI's API, handles 
 
 - **Complexity:** Medium
 - **Effort:** 0.5d
+
+**Completion Note:** OpenAI provider is implemented with retry logic and streaming. Unit tests present.

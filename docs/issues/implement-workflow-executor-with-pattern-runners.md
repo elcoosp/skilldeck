@@ -10,7 +10,7 @@ assignees:
   - elcoosp
 references:
   - ../plans/v1.md#11-chunk-8-workflow-engine
-state: open
+state: in-progress
 createdAt: '2026-03-12T13:56:20.462Z'
 priority: should
 effort: 2d
@@ -74,30 +74,30 @@ We need to implement the workflow executor that runs workflows according to thei
 
 ## Acceptance Criteria
 
-- [ ] Executes sequential workflows correctly
-- [ ] Executes parallel workflows with JoinSet
-- [ ] Executes evaluator-optimizer loops
-- [ ] Blocks dependent steps on failure
-- [ ] Emits workflow events
-- [ ] Manages step state
-- [ ] Unit tests verify execution
-- [ ] Integration tests verify patterns
+- [x] Executes sequential workflows correctly (with placeholder sleep)
+- [x] Executes parallel workflows with JoinSet (with placeholder sleep)
+- [x] Executes evaluator-optimizer loops (with placeholder sleep)
+- [x] Blocks dependent steps on failure (logic present)
+- [x] Emits workflow events (via channel)
+- [x] Manages step state
+- [x] Unit tests verify execution (using placeholder sleep)
+- [ ] Integration tests verify patterns (missing actual agent calls)
 
 ## Testing Requirements
 
 **Unit tests:**
-- `executor_creates_workflow` — Workflow is created
+- [x] `executor_creates_workflow` — Workflow is created
 
 **Integration tests:**
-- `sequential_execution` — Steps execute in order
-- `parallel_execution` — Independent steps run concurrently
-- `evaluator_optimizer` — Loop iterates correctly
+- [ ] `sequential_execution` — Steps execute in order
+- [ ] `parallel_execution` — Independent steps run concurrently
+- [ ] `evaluator_optimizer` — Loop iterates correctly
 
 **BDD scenarios:**
-- [SC-FUNC-021](../spec/test-verification.md#sc-func-021) - Define workflow with DAG
-- [SC-FUNC-022](../spec/test-verification.md#sc-func-022) - Execute sequential workflow
-- [SC-FUNC-023](../spec/test-verification.md#sc-func-023) - Execute parallel workflow
-- [SC-FUNC-025](../spec/test-verification.md#sc-func-025) - Evaluator-optimizer pattern
+- [ ] [SC-FUNC-021](../spec/test-verification.md#sc-func-021) - Define workflow with DAG
+- [ ] [SC-FUNC-022](../spec/test-verification.md#sc-func-022) - Execute sequential workflow
+- [ ] [SC-FUNC-023](../spec/test-verification.md#sc-func-023) - Execute parallel workflow
+- [ ] [SC-FUNC-025](../spec/test-verification.md#sc-func-025) - Evaluator-optimizer pattern
 
 ## Dependencies
 
@@ -108,3 +108,5 @@ We need to implement the workflow executor that runs workflows according to thei
 
 - **Complexity:** High
 - **Effort:** 2d
+
+**Completion Note:** Workflow executor and pattern runners are implemented with placeholder sleeps. The actual step execution (calling subagents or agent loops) is not wired up. The structure is complete, but integration with real execution is missing.

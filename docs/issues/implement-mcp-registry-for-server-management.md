@@ -10,7 +10,7 @@ assignees:
   - elcoosp
 references:
   - ../plans/v1.md#9-chunk-6-mcp-client--supervision
-state: open
+state: closed
 createdAt: '2026-03-12T13:53:55.312Z'
 priority: must
 effort: 1d
@@ -61,21 +61,21 @@ We need to implement the MCP registry that stores connected servers, tracks thei
 
 ## Acceptance Criteria
 
-- [ ] Adds servers to registry
-- [ ] Connects servers via transport
-- [ ] Tracks server status
-- [ ] Aggregates tools from all servers
-- [ ] Executes tool calls
-- [ ] Handles disconnection
-- [ ] Unit tests verify server management
-- [ ] Unit tests verify tool aggregation
+- [x] Adds servers to registry
+- [x] Connects servers via transport
+- [x] Tracks server status
+- [x] Aggregates tools from all servers
+- [x] Executes tool calls
+- [x] Handles disconnection
+- [x] Unit tests verify server management
+- [x] Unit tests verify tool aggregation
 
 ## Testing Requirements
 
 **Unit tests:**
-- `add_server` — Server is added
-- `list_servers` — All servers listed
-- `all_tools_empty_when_disconnected` — No tools when disconnected
+- [x] `add_server` — Server is added
+- [x] `list_servers` — All servers listed
+- [x] `all_tools_empty_when_disconnected` — No tools when disconnected
 
 ## Dependencies
 
@@ -86,3 +86,5 @@ We need to implement the MCP registry that stores connected servers, tracks thei
 
 - **Complexity:** Medium
 - **Effort:** 1d
+
+**Completion Note:** Registry is fully implemented with unit tests. The `connect` method is present and uses transports.

@@ -10,7 +10,7 @@ assignees:
   - elcoosp
 references:
   - ../plans/v1.md#10-chunk-7-agent-loop--tool-dispatcher
-state: open
+state: in-progress
 createdAt: '2026-03-12T13:56:20.456Z'
 priority: must
 effort: 2d
@@ -85,29 +85,29 @@ We need to implement the agent loop that orchestrates the conversation flow: rec
 
 ## Acceptance Criteria
 
-- [ ] Agent loop processes user messages
-- [ ] Context is built with skills and history
-- [ ] Model provider is called correctly
-- [ ] Tokens are streamed with 50ms debounce
-- [ ] Tool calls are handled
-- [ ] Responses are persisted
-- [ ] Errors are handled with suggested actions
-- [ ] Cancellation is supported
-- [ ] Unit tests verify configuration
-- [ ] Integration tests verify streaming
+- [x] Agent loop processes user messages
+- [x] Context is built with skills and history
+- [x] Model provider is called correctly
+- [x] Tokens are streamed with 50ms debounce
+- [x] Tool calls are handled
+- [ ] Responses are persisted (persistence not in loop)
+- [x] Errors are handled with suggested actions
+- [ ] Cancellation is supported (cancel method not implemented)
+- [x] Unit tests verify configuration
+- [ ] Integration tests verify streaming (missing)
 
 ## Testing Requirements
 
 **Unit tests:**
-- `config_default` — Default configuration is valid
+- [x] `config_default` — Default configuration is valid
 
 **Integration tests:**
-- `agent_loop_processes_message` — Message is processed
-- `agent_loop_handles_tool_call` — Tool call is handled
+- [ ] `agent_loop_processes_message` — Message is processed
+- [ ] `agent_loop_handles_tool_call` — Tool call is handled
 
 **BDD scenarios:**
-- [SC-FUNC-003](../spec/test-verification.md#sc-func-003) - Send message and receive streaming response
-- [SC-FUNC-004](../spec/test-verification.md#sc-func-004) - Model provider error handling
+- [ ] [SC-FUNC-003](../spec/test-verification.md#sc-func-003) - Send message and receive streaming response
+- [ ] [SC-FUNC-004](../spec/test-verification.md#sc-func-004) - Model provider error handling
 
 ## Dependencies
 
@@ -118,3 +118,5 @@ We need to implement the agent loop that orchestrates the conversation flow: rec
 
 - **Complexity:** High
 - **Effort:** 2d
+
+**Completion Note:** Agent loop is implemented with streaming, debouncing, and tool handling. Missing: message persistence, cancellation, and integration tests. Several `unwrap()` calls need error handling (see code review). The loop is functional but requires final polish.

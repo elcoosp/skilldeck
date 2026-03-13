@@ -81,3 +81,5 @@ We need to implement Tauri commands for profile management, skill management, an
 
 - **Complexity:** Medium
 - **Effort:** 1d
+
+**Completion Note:** No Tauri commands present.

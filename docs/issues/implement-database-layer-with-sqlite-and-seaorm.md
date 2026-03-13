@@ -11,7 +11,7 @@ assignees:
   - elcoosp
 references:
   - ../plans/v1.md#5-chunk-2-database-layer
-state: open
+state: in-progress
 createdAt: '2026-03-12T13:51:42.844Z'
 priority: must
 effort: 2d
@@ -76,23 +76,23 @@ We need to implement the database connection management with SQLite WAL mode, cr
 
 ## Acceptance Criteria
 
-- [ ] Database opens successfully with `:memory:` option
-- [ ] All 35 tables are created with correct schema
-- [ ] Foreign key constraints are properly defined
-- [ ] WAL mode is enabled and verified
-- [ ] Integrity check passes
-- [ ] Database statistics can be retrieved
-- [ ] Migrations can be run on startup
-- [ ] Seed data is inserted correctly
+- [x] Database opens successfully with `:memory:` option
+- [ ] All 35 tables are created with correct schema (entities exist but migrations missing)
+- [ ] Foreign key constraints are properly defined (in entities)
+- [x] WAL mode is enabled and verified
+- [x] Integrity check passes
+- [x] Database statistics can be retrieved
+- [ ] Migrations can be run on startup (not implemented)
+- [ ] Seed data is inserted correctly (not implemented)
 
 ## Testing Requirements
 
 **Unit tests:**
-- `db_opens_in_memory` — Database opens with in-memory mode
-- `db_migration_runs` — Initial migration creates all tables
-- `db_integrity_check` — Integrity check passes
-- `db_stats` — Statistics can be retrieved
-- `wal_mode_enabled` — WAL mode is verified
+- [x] `db_opens_in_memory` — Database opens with in-memory mode
+- [ ] `db_migration_runs` — Initial migration creates all tables (missing)
+- [x] `db_integrity_check` — Integrity check passes
+- [x] `db_stats` — Statistics can be retrieved
+- [x] `wal_mode_enabled` — WAL mode is verified
 
 ## Dependencies
 
@@ -103,3 +103,5 @@ We need to implement the database connection management with SQLite WAL mode, cr
 
 - **Complexity:** High
 - **Effort:** 2d
+
+**Completion Note:** Connection management and entities are implemented. Migrations are missing (no migration files). The database layer is partially complete.

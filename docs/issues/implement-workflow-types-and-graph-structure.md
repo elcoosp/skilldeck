@@ -10,7 +10,7 @@ assignees:
   - elcoosp
 references:
   - ../plans/v1.md#11-chunk-8-workflow-engine
-state: open
+state: closed
 createdAt: '2026-03-12T13:56:20.461Z'
 priority: should
 effort: 1d
@@ -76,22 +76,22 @@ We need to implement the workflow type system including workflow definitions, st
 
 ## Acceptance Criteria
 
-- [ ] WorkflowDefinition serializes/deserializes correctly
-- [ ] WorkflowPattern enum covers all patterns
-- [ ] Graph validates for cycles
-- [ ] Graph provides topological order
-- [ ] Graph provides dependencies
-- [ ] Graph provides dependents
-- [ ] Unit tests verify cycle detection
-- [ ] Unit tests verify execution order
+- [x] WorkflowDefinition serializes/deserializes correctly
+- [x] WorkflowPattern enum covers all patterns
+- [x] Graph validates for cycles
+- [x] Graph provides topological order
+- [x] Graph provides dependencies
+- [x] Graph provides dependents
+- [x] Unit tests verify cycle detection
+- [x] Unit tests verify execution order
 
 ## Testing Requirements
 
 **Unit tests:**
-- `valid_graph` — Valid workflow creates graph
-- `execution_order` — Topological order is correct
-- `dependencies` — Dependencies are returned
-- `cycle_detection` — Cycles are detected
+- [x] `valid_graph` — Valid workflow creates graph
+- [x] `execution_order` — Topological order is correct
+- [x] `dependencies` — Dependencies are returned
+- [x] `cycle_detection` — Cycles are detected
 
 ## Dependencies
 
@@ -102,3 +102,5 @@ We need to implement the workflow type system including workflow definitions, st
 
 - **Complexity:** Medium
 - **Effort:** 1d
+
+**Completion Note:** Workflow types and graph are fully implemented with petgraph and tests.

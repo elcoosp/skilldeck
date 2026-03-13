@@ -87,3 +87,5 @@ We need to implement the right panel tabs for session management (active skills,
 
 - **Complexity:** Medium
 - **Effort:** 2d
+
+**Completion Note:** Frontend right panel tabs not implemented.

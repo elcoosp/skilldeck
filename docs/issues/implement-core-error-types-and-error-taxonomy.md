@@ -10,7 +10,7 @@ assignees:
   - elcoosp
 references:
   - ../plans/v1.md#4-chunk-1-core-error-types--utilities
-state: open
+state: closed
 createdAt: '2026-03-12T13:51:42.843Z'
 priority: must
 effort: 1d
@@ -66,21 +66,21 @@ We need a comprehensive error type that covers all failure modes in the system: 
 
 ## Acceptance Criteria
 
-- [ ] All error variants have descriptive messages with context
-- [ ] `is_retryable()` correctly identifies transient errors
-- [ ] `error_code()` returns unique codes for each variant
-- [ ] `suggested_action()` provides actionable guidance for common errors
-- [ ] All `From` implementations convert external errors appropriately
-- [ ] Unit tests verify error code consistency
-- [ ] Unit tests verify retryable classification
-- [ ] Unit tests verify suggested actions for common errors
+- [x] All error variants have descriptive messages with context
+- [x] `is_retryable()` correctly identifies transient errors
+- [x] `error_code()` returns unique codes for each variant
+- [x] `suggested_action()` provides actionable guidance for common errors
+- [x] All `From` implementations convert external errors appropriately
+- [x] Unit tests verify error code consistency
+- [x] Unit tests verify retryable classification
+- [x] Unit tests verify suggested actions for common errors
 
 ## Testing Requirements
 
 **Unit tests:**
-- `error_code_consistency` — Every variant has a unique error code
-- `retryable_classification` — Retryable errors are correctly identified
-- `suggested_action_present_for_common_errors` — Common errors have suggested actions
+- [x] `error_code_consistency` — Every variant has a unique error code
+- [x] `retryable_classification` — Retryable errors are correctly identified
+- [x] `suggested_action_present_for_common_errors` — Common errors have suggested actions
 
 ## Dependencies
 
@@ -91,3 +91,5 @@ We need a comprehensive error type that covers all failure modes in the system: 
 
 - **Complexity:** Medium
 - **Effort:** 1d
+
+**Completion Note:** Fully implemented with comprehensive error taxonomy and helper methods. Code review found no missing variants.

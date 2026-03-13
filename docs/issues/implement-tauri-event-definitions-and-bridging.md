@@ -10,7 +10,7 @@ assignees:
   - elcoosp
 references:
   - ../plans/v1.md#13-chunk-10-tauri-shell--commands--events
-state: open
+state: in-progress
 createdAt: '2026-03-12T13:59:50.857Z'
 priority: must
 effort: 0.5d
@@ -68,12 +68,12 @@ We need to define all event types for agent events, MCP events, and workflow eve
 
 ## Acceptance Criteria
 
-- [ ] All event types are defined
-- [ ] Events serialize to JSON correctly
-- [ ] Events are emitted from agent loop
-- [ ] Events are emitted from MCP supervisor
-- [ ] Events are emitted from workflow executor
-- [ ] Frontend can subscribe to events
+- [x] All event types are defined (AgentEvent in core/events.rs, WorkflowEvent in workflow/types.rs)
+- [x] Events serialize to JSON correctly
+- [ ] Events are emitted from agent loop (they are sent to a channel, but not yet to Tauri)
+- [ ] Events are emitted from MCP supervisor (not yet)
+- [ ] Events are emitted from workflow executor (they are sent to a channel)
+- [ ] Frontend can subscribe to events (requires Tauri bridging)
 
 ## Dependencies
 
@@ -84,3 +84,5 @@ We need to define all event types for agent events, MCP events, and workflow eve
 
 - **Complexity:** Low
 - **Effort:** 0.5d
+
+**Completion Note:** Event types are defined in core. The agent loop, workflow executor, etc., send events to internal channels, but Tauri emission is not implemented. The bridging layer is missing.

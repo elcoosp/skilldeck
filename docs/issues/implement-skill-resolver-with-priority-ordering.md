@@ -10,7 +10,7 @@ assignees:
   - elcoosp
 references:
   - ../plans/v1.md#8-chunk-5-skill-system
-state: open
+state: closed
 createdAt: '2026-03-12T13:53:55.305Z'
 priority: must
 effort: 0.5d
@@ -60,24 +60,24 @@ We need to implement the skill resolver that takes skills from multiple sources,
 
 ## Acceptance Criteria
 
-- [ ] Resolves skills by priority order
-- [ ] Returns selected skills
-- [ ] Returns shadowed skills with details
-- [ ] Logs shadowed skills for transparency
-- [ ] Handles multiple skills with no conflict
-- [ ] Unit tests verify priority order
-- [ ] Unit tests verify shadow detection
+- [x] Resolves skills by priority order
+- [x] Returns selected skills
+- [x] Returns shadowed skills with details
+- [x] Logs shadowed skills for transparency
+- [x] Handles multiple skills with no conflict
+- [x] Unit tests verify priority order
+- [x] Unit tests verify shadow detection
 
 ## Testing Requirements
 
 **Unit tests:**
-- `single_source` — Single source returns all skills
-- `workspace_overrides_personal` — Workspace skill shadows personal
-- `multiple_skills_no_conflict` — Different names don't conflict
-- `priority_order` — All four levels resolve correctly
+- [x] `single_source` — Single source returns all skills
+- [x] `workspace_overrides_personal` — Workspace skill shadows personal
+- [x] `multiple_skills_no_conflict` — Different names don't conflict
+- [x] `priority_order` — All four levels resolve correctly
 
 **BDD scenarios:**
-- [SC-FUNC-012](../spec/test-verification.md#sc-func-012) - Skill priority resolution
+- [x] [SC-FUNC-012](../spec/test-verification.md#sc-func-012) - Skill priority resolution
 
 ## Dependencies
 
@@ -88,3 +88,5 @@ We need to implement the skill resolver that takes skills from multiple sources,
 
 - **Complexity:** Low
 - **Effort:** 0.5d
+
+**Completion Note:** Resolver is implemented with comprehensive tests.

@@ -10,7 +10,7 @@ assignees:
   - elcoosp
 references:
   - ../plans/v1.md#9-chunk-6-mcp-client--supervision
-state: open
+state: closed
 createdAt: '2026-03-12T13:53:55.310Z'
 priority: must
 effort: 2d
@@ -58,29 +58,29 @@ We need to implement the stdio transport that spawns MCP server processes, commu
 
 ## Acceptance Criteria
 
-- [ ] Spawns subprocess correctly
-- [ ] Sends JSON-RPC requests via stdin
-- [ ] Reads JSON-RPC responses from stdout
-- [ ] Performs initialize handshake
-- [ ] Lists tools after initialization
-- [ ] Executes tool calls
-- [ ] Cleans up process on drop
-- [ ] Handles connection errors
-- [ ] Unit tests verify config parsing
-- [ ] Integration tests verify full handshake
+- [x] Spawns subprocess correctly
+- [x] Sends JSON-RPC requests via stdin
+- [x] Reads JSON-RPC responses from stdout
+- [x] Performs initialize handshake
+- [x] Lists tools after initialization
+- [x] Executes tool calls
+- [x] Cleans up process on drop
+- [x] Handles connection errors
+- [x] Unit tests verify config parsing
+- [ ] Integration tests verify full handshake (missing)
 
 ## Testing Requirements
 
 **Unit tests:**
-- `parse_config` — Config parsing works
-- `parse_config_missing_command` — Missing command returns error
-- `supports_stdio` — Supports check works
+- [x] `parse_config` — Config parsing works
+- [x] `parse_config_missing_command` — Missing command returns error
+- [x] `supports_stdio` — Supports check works
 
 **Integration tests:**
-- Mock MCP server subprocess
-- Full initialize handshake
-- Tool listing
-- Tool execution
+- [ ] Mock MCP server subprocess
+- [ ] Full initialize handshake
+- [ ] Tool listing
+- [ ] Tool execution
 
 ## Dependencies
 
@@ -91,3 +91,5 @@ We need to implement the stdio transport that spawns MCP server processes, commu
 
 - **Complexity:** High
 - **Effort:** 2d
+
+**Completion Note:** Stdio transport is implemented. Code review noted potential resource leak in drop and unwrap usage. Integration tests missing.

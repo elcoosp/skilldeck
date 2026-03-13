@@ -80,10 +80,10 @@ We need to implement the layout components including the app shell, left panel (
 ## Testing Requirements
 
 **Unit tests:**
-- `app_shell_renders` — App shell renders
-- `left_panel_renders` — Left panel renders
-- `center_panel_renders` — Center panel renders
-- `right_panel_renders` — Right panel renders
+- [ ] `app_shell_renders` — App shell renders
+- [ ] `left_panel_renders` — Left panel renders
+- [ ] `center_panel_renders` — Center panel renders
+- [ ] `right_panel_renders` — Right panel renders
 
 ## Dependencies
 
@@ -94,3 +94,5 @@ We need to implement the layout components including the app shell, left panel (
 
 - **Complexity:** Medium
 - **Effort:** 2d
+
+**Completion Note:** Frontend layout components not present.

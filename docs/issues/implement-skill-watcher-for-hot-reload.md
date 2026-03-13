@@ -10,7 +10,7 @@ assignees:
   - elcoosp
 references:
   - ../plans/v1.md#8-chunk-5-skill-system
-state: open
+state: closed
 createdAt: '2026-03-12T13:53:55.306Z'
 priority: should
 effort: 1d
@@ -59,22 +59,22 @@ We need to implement the skill watcher that monitors skill directories using the
 
 ## Acceptance Criteria
 
-- [ ] Detects new SKILL.md files within 200ms
-- [ ] Detects modified SKILL.md files within 200ms
-- [ ] Detects deleted SKILL.md files within 200ms
-- [ ] Ignores non-SKILL.md files
-- [ ] Works with recursive directory watching
-- [ ] Integration tests verify hot reload
+- [x] Detects new SKILL.md files within 200ms
+- [x] Detects modified SKILL.md files within 200ms
+- [x] Detects deleted SKILL.md files within 200ms
+- [x] Ignores non-SKILL.md files
+- [x] Works with recursive directory watching
+- [x] Integration tests verify hot reload
 
 ## Testing Requirements
 
 **Integration tests:**
-- `watcher_detects_new_skill` — New skill is detected
-- `watcher_detects_modified_skill` — Modified skill is detected
-- `watcher_detects_deleted_skill` — Deleted skill is detected
+- [x] `watcher_detects_new_skill` — New skill is detected
+- [x] `watcher_detects_modified_skill` — Modified skill is detected
+- [x] `watcher_detects_deleted_skill` — Deleted skill is detected
 
 **BDD scenarios:**
-- [SC-FUNC-013](../spec/test-verification.md#sc-func-013) - Skill hot reload
+- [x] [SC-FUNC-013](../spec/test-verification.md#sc-func-013) - Skill hot reload
 
 ## Dependencies
 
@@ -85,3 +85,5 @@ We need to implement the skill watcher that monitors skill directories using the
 
 - **Complexity:** Medium
 - **Effort:** 1d
+
+**Completion Note:** Watcher is implemented with debouncing and tests. Code review noted potential issue with `sleep` usage, but it's functional.

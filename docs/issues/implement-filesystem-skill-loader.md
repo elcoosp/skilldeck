@@ -10,7 +10,7 @@ assignees:
   - elcoosp
 references:
   - ../plans/v1.md#8-chunk-5-skill-system
-state: open
+state: closed
 createdAt: '2026-03-12T13:53:55.304Z'
 priority: must
 effort: 1d
@@ -73,31 +73,31 @@ Skill content in Markdown format.
 
 ## Acceptance Criteria
 
-- [ ] Parses valid SKILL.md files correctly
-- [ ] Extracts name, description, triggers from frontmatter
-- [ ] Computes content hash for change detection
-- [ ] Returns error for missing frontmatter
-- [ ] Returns error for invalid YAML
-- [ ] Returns error for missing name field
-- [ ] Handles BOM in file content
-- [ ] Unit tests verify parsing
-- [ ] Unit tests verify hash computation
-- [ ] Integration tests verify file loading
+- [x] Parses valid SKILL.md files correctly
+- [x] Extracts name, description, triggers from frontmatter
+- [x] Computes content hash for change detection
+- [x] Returns error for missing frontmatter
+- [x] Returns error for invalid YAML
+- [x] Returns error for missing name field
+- [x] Handles BOM in file content
+- [x] Unit tests verify parsing
+- [x] Unit tests verify hash computation
+- [x] Integration tests verify file loading
 
 ## Testing Requirements
 
 **Unit tests:**
-- `parse_valid_skill` — Valid SKILL.md parses correctly
-- `parse_missing_frontmatter` — Missing frontmatter returns error
-- `parse_missing_name` — Missing name returns error
-- `parse_invalid_yaml` — Invalid YAML returns error
-- `load_from_filesystem` — Load from filesystem works
-- `load_nonexistent` — Nonexistent skill returns error
-- `skill_hash_computation` — Hash is computed correctly
+- [x] `parse_valid_skill` — Valid SKILL.md parses correctly
+- [x] `parse_missing_frontmatter` — Missing frontmatter returns error
+- [x] `parse_missing_name` — Missing name returns error
+- [x] `parse_invalid_yaml` — Invalid YAML returns error
+- [x] `load_from_filesystem` — Load from filesystem works
+- [x] `load_nonexistent` — Nonexistent skill returns error
+- [x] `skill_hash_computation` — Hash is computed correctly
 
 **BDD scenarios:**
-- [SC-FUNC-010](../spec/test-verification.md#sc-func-010) - Discover skills from filesystem
-- [SC-FUNC-011](../spec/test-verification.md#sc-func-011) - Symlink safety
+- [x] [SC-FUNC-010](../spec/test-verification.md#sc-func-010) - Discover skills from filesystem
+- [x] [SC-FUNC-011](../spec/test-verification.md#sc-func-011) - Symlink safety
 
 ## Dependencies
 
@@ -108,3 +108,5 @@ Skill content in Markdown format.
 
 - **Complexity:** Medium
 - **Effort:** 1d
+
+**Completion Note:** Fully implemented with tests. One minor issue: `name` extraction from manifest could be more robust, but works.

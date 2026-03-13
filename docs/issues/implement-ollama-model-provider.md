@@ -10,7 +10,7 @@ assignees:
   - elcoosp
 references:
   - ../plans/v1.md#7-chunk-4-model-providers
-state: open
+state: closed
 createdAt: '2026-03-12T13:51:42.847Z'
 priority: should
 effort: 0.5d
@@ -52,19 +52,19 @@ We need to implement the Ollama provider that connects to local Ollama instances
 
 ## Acceptance Criteria
 
-- [ ] Provider implements ModelProvider trait
-- [ ] Streaming completion works correctly
-- [ ] No retry on errors
-- [ ] TOON support flag is false
-- [ ] Model listing returns available models
-- [ ] Unit tests verify provider creation
-- [ ] Unit tests verify default port
+- [x] Provider implements ModelProvider trait
+- [x] Streaming completion works correctly
+- [x] No retry on errors
+- [x] TOON support flag is false
+- [x] Model listing returns available models
+- [x] Unit tests verify provider creation
+- [x] Unit tests verify default port
 
 ## Testing Requirements
 
 **Unit tests:**
-- `provider_id` — Provider returns correct ID and display name
-- `default_port` — Default port is 11434
+- [x] `provider_id` — Provider returns correct ID and display name
+- [x] `default_port` — Default port is 11434
 
 ## Dependencies
 
@@ -75,3 +75,5 @@ We need to implement the Ollama provider that connects to local Ollama instances
 
 - **Complexity:** Low
 - **Effort:** 0.5d
+
+**Completion Note:** Ollama provider is implemented using the OpenAI provider wrapper.
