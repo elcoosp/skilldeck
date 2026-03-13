@@ -69,6 +69,7 @@ impl FilesystemSkillLoader {
             name,
             description,
             content_md: body.to_string(),
+            is_active: true, // default active
             manifest,
             disk_path: Some(path),
             source,
@@ -154,6 +155,7 @@ mod tests {
         assert_eq!(s.description, "A test");
         assert!(s.content_md.contains("Hello"));
         assert!(s.content_hash.is_some());
+        assert!(s.is_active);
     }
 
     #[test]
@@ -165,58 +167,79 @@ mod tests {
 
     #[test]
     fn parse_missing_frontmatter_err() {
-        assert!(FilesystemSkillLoader::parse(
-            "# No front",
-            PathBuf::from("/x"),
-            "t".into()
-        )
-        .is_err());
+        assert!(
+            FilesystemSkillLoader::parse("# No front", PathBuf::from("/x"), "t".into()).is_err()
+        );
     }
 
     #[test]
     fn parse_missing_name_err() {
-        assert!(FilesystemSkillLoader::parse(
-            "---\ndescription: no name\n---\nbody",
-            PathBuf::from("/x"),
-            "t".into()
-        )
-        .is_err());
+        assert!(
+            FilesystemSkillLoader::parse(
+                "---\ndescription: no name\n---\nbody",
+                PathBuf::from("/x"),
+                "t".into()
+            )
+            .is_err()
+        );
     }
 
     #[test]
     fn same_body_same_hash() {
-        let h1 = FilesystemSkillLoader::parse("---\nname: s\n---\nbody", PathBuf::from("/a"), "t".into())
-            .unwrap().content_hash;
-        let h2 = FilesystemSkillLoader::parse("---\nname: s\nextra: yes\n---\nbody", PathBuf::from("/b"), "t".into())
-            .unwrap().content_hash;
+        let h1 = FilesystemSkillLoader::parse(
+            "---\nname: s\n---\nbody",
+            PathBuf::from("/a"),
+            "t".into(),
+        )
+        .unwrap()
+        .content_hash;
+        let h2 = FilesystemSkillLoader::parse(
+            "---\nname: s\nextra: yes\n---\nbody",
+            PathBuf::from("/b"),
+            "t".into(),
+        )
+        .unwrap()
+        .content_hash;
         assert_eq!(h1, h2);
     }
 
     #[tokio::test]
     async fn load_from_filesystem() {
         let (_tmp, path) = create_skill_dir("test-skill");
-        let s = FilesystemSkillLoader.load(&SkillSource::Filesystem(path)).await.unwrap();
+        let s = FilesystemSkillLoader
+            .load(&SkillSource::Filesystem(path))
+            .await
+            .unwrap();
         assert_eq!(s.name, "test-skill");
+        assert!(s.is_active);
     }
 
     #[tokio::test]
     async fn load_nonexistent_err() {
-        assert!(FilesystemSkillLoader
-            .load(&SkillSource::Filesystem(PathBuf::from("/nonexistent")))
-            .await
-            .is_err());
+        assert!(
+            FilesystemSkillLoader
+                .load(&SkillSource::Filesystem(PathBuf::from("/nonexistent")))
+                .await
+                .is_err()
+        );
     }
 
     #[tokio::test]
     async fn exists_true_when_present() {
         let (_tmp, path) = create_skill_dir("e-skill");
-        assert!(FilesystemSkillLoader.exists(&SkillSource::Filesystem(path)).await);
+        assert!(
+            FilesystemSkillLoader
+                .exists(&SkillSource::Filesystem(path))
+                .await
+        );
     }
 
     #[tokio::test]
     async fn exists_false_when_absent() {
-        assert!(!FilesystemSkillLoader
-            .exists(&SkillSource::Filesystem(PathBuf::from("/no/such/dir")))
-            .await);
+        assert!(
+            !FilesystemSkillLoader
+                .exists(&SkillSource::Filesystem(PathBuf::from("/no/such/dir")))
+                .await
+        );
     }
 }

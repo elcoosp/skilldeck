@@ -3,8 +3,8 @@
 //! When the same skill name appears in multiple source directories, the
 //! highest-priority source wins: workspace > personal > superpowers > marketplace.
 
-use std::collections::HashMap;
 use crate::traits::Skill;
+use std::collections::HashMap;
 
 /// Source priority — lower index = higher priority.
 const SOURCE_PRIORITY: &[&str] = &["workspace", "personal", "superpowers", "marketplace"];
@@ -88,6 +88,7 @@ mod tests {
     fn make(name: &str, source: &str) -> Skill {
         Skill {
             name: name.into(),
+            is_active: true,
             description: "test".into(),
             content_md: "content".into(),
             manifest: Default::default(),

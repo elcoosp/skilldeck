@@ -18,6 +18,7 @@ pub struct Skill {
     pub name: String,
     pub description: String,
     pub content_md: String,
+    pub is_active: bool,
     #[serde(default)]
     pub manifest: SkillManifest,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -47,6 +48,7 @@ impl Skill {
             name,
             description,
             content_md,
+            is_active: true, // default to active
             manifest: SkillManifest::default(),
             disk_path: None,
             source,
@@ -76,17 +78,38 @@ mod tests {
 
     #[test]
     fn skill_creation() {
-        let skill = Skill::new("test-skill".into(), "A test skill".into(), "# Test\nDo something.".into(), "local".into());
+        let skill = Skill::new(
+            "test-skill".into(),
+            "A test skill".into(),
+            "# Test\nDo something.".into(),
+            "local".into(),
+        );
         assert_eq!(skill.name, "test-skill");
         assert!(skill.disk_path.is_none());
         assert!(skill.content_hash.is_none());
+        assert!(skill.is_active);
     }
 
     #[test]
     fn skill_hash_computation() {
-        let s1 = Skill::new("test".into(), String::new(), "content".into(), "local".into());
-        let s2 = Skill::new("test".into(), String::new(), "content".into(), "local".into());
-        let s3 = Skill::new("test".into(), String::new(), "different".into(), "local".into());
+        let s1 = Skill::new(
+            "test".into(),
+            String::new(),
+            "content".into(),
+            "local".into(),
+        );
+        let s2 = Skill::new(
+            "test".into(),
+            String::new(),
+            "content".into(),
+            "local".into(),
+        );
+        let s3 = Skill::new(
+            "test".into(),
+            String::new(),
+            "different".into(),
+            "local".into(),
+        );
         let h1 = s1.compute_hash();
         assert_eq!(h1.len(), 64);
         assert_eq!(h1, s2.compute_hash());
