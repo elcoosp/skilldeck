@@ -10,7 +10,7 @@ assignees:
   - elcoosp
 references:
   - ../plans/v1.md#13-chunk-10-tauri-shell--commands--events
-state: open
+state: closed
 createdAt: '2026-03-12T13:59:50.856Z'
 priority: must
 effort: 1d
@@ -66,11 +66,11 @@ We need to implement Tauri commands for profile management, skill management, an
 
 ## Acceptance Criteria
 
-- [ ] All profile commands work
-- [ ] All skill commands work
-- [ ] All MCP commands work
-- [ ] Errors are handled gracefully
-- [ ] Commands are type-safe
+- [x] All profile commands work
+- [x] All skill commands work
+- [x] All MCP commands work
+- [x] Errors are handled gracefully
+- [x] Commands are type-safe
 
 ## Dependencies
 
@@ -82,4 +82,4 @@ We need to implement Tauri commands for profile management, skill management, an
 - **Complexity:** Medium
 - **Effort:** 1d
 
-**Completion Note:** No Tauri commands present.
+**Completion Note:** All commands are implemented in `src-tauri/src/commands/profiles.rs`, `skills.rs`, and `mcp.rs`. They are used by the frontend hooks.

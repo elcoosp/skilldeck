@@ -10,7 +10,7 @@ assignees:
   - elcoosp
 references:
   - ../plans/v1.md#16-chunk-13-tests--unit--integration
-state: open
+state: in-progress
 createdAt: '2026-03-12T13:59:50.862Z'
 priority: must
 effort: 3d
@@ -58,15 +58,15 @@ We need to write unit tests for all Rust core modules including error types, dat
 
 ## Acceptance Criteria
 
-- [ ] Error type tests pass
+- [x] Error type tests pass
 - [ ] Database tests pass
 - [ ] Provider tests pass
-- [ ] MCP types tests pass
-- [ ] Skill loader tests pass
-- [ ] Skill resolver tests pass
+- [x] MCP types tests pass
+- [x] Skill loader tests pass
+- [x] Skill resolver tests pass
 - [ ] Agent loop tests pass
-- [ ] Workflow graph tests pass
-- [ ] Workspace detector tests pass
+- [x] Workflow graph tests pass
+- [x] Workspace detector tests pass
 - [ ] Line coverage ≥ 80%
 - [ ] Branch coverage ≥ 70%
 
@@ -100,3 +100,5 @@ We need to write unit tests for all Rust core modules including error types, dat
 
 - **Complexity:** Medium
 - **Effort:** 3d
+
+**Completion Note:** Many unit tests exist for core modules, but coverage is incomplete. Some modules (like providers, database) lack comprehensive tests.

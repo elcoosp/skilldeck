@@ -10,7 +10,7 @@ assignees:
   - elcoosp
 references:
   - ../plans/v1.md#3-project-scaffolding
-state: in-progress
+state: closed
 createdAt: '2026-03-12T13:51:42.837Z'
 priority: must
 effort: 1d
@@ -97,32 +97,31 @@ We need to create the complete project scaffolding including the Tauri shell, Ru
 - ✅ Rust core library (`skilldeck-core`) is scaffolded with module stubs (error, agent, mcp, skills, workflow, workspace, etc.)
 - ✅ Migration crate (`migration`) exists and contains the initial migration with all 35 tables
 - ✅ Core library builds successfully (`cargo test` passes)
-- ❌ Tauri shell (`src-tauri`) is not yet created
-- ❌ React frontend is not yet created
-- ❌ Root configuration files (package.json, biome.json, lefthook.yml, etc.) are not yet present
+- ✅ Tauri shell (`src-tauri`) is fully implemented
+- ✅ React frontend is fully implemented with all configuration files
 
 ## Acceptance Criteria
 
 - [x] Rust core library exists with proper module structure
 - [x] Migration crate exists with initial migration
-- [ ] Tauri shell exists with workspace configuration
-- [ ] React frontend exists with all necessary configuration files
-- [ ] `cargo build` succeeds for both Tauri app and skilldeck-core (Tauri app not present)
-- [ ] `pnpm install` succeeds with all frontend dependencies (frontend not present)
-- [ ] `pnpm tauri dev` launches development server (not present)
+- [x] Tauri shell exists with workspace configuration
+- [x] React frontend exists with all necessary configuration files
+- [x] `cargo build` succeeds for both Tauri app and skilldeck-core
+- [x] `pnpm install` succeeds with all frontend dependencies
+- [x] `pnpm tauri dev` launches development server
 - [x] `cargo test` runs without errors (core library tests pass)
-- [ ] `pnpm test` runs without errors (no frontend)
-- [ ] Biome configuration is valid (not yet added)
-- [ ] TypeScript compiles without errors (not present)
+- [x] `pnpm test` runs without errors
+- [x] Biome configuration is valid
+- [x] TypeScript compiles without errors
 
 ## Testing Requirements
 
 **Unit tests:**
-- [x] Verify Cargo.toml workspace configuration (core library has its own Cargo.toml)
+- [x] Verify Cargo.toml workspace configuration
 - [x] Verify migration crate compiles (as part of `cargo test`)
 
 **Integration tests:**
-- [ ] Verify Tauri dev server starts
+- [x] Verify Tauri dev server starts
 
 ## Dependencies
 
@@ -132,6 +131,6 @@ We need to create the complete project scaffolding including the Tauri shell, Ru
 ## Effort Estimate
 
 - **Complexity:** Medium
-- **Effort:** 1d (partial completion)
+- **Effort:** 1d (completed)
 
-**Completion Note:** The Rust core library and migration crate are fully scaffolded. The Tauri shell, React frontend, and root configuration files remain to be added. The project scaffolding is partially complete; future issues will add the missing components along with dev tooling (Biome, Lefthook, etc.).
+**Completion Note:** The project scaffolding is complete. All core components (Rust core, Tauri shell, React frontend) are implemented and configured.

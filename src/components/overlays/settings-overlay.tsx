@@ -1,13 +1,12 @@
 /**
  * SettingsOverlay — modal dialog with tabbed sections covering API keys,
  * profiles, tool approval policies, and theme preferences.
- *
- * Keeps logic thin: every mutation delegates to invoke() or useSettingsStore.
  */
 
 import { useState } from 'react'
-import { Eye, EyeOff, Key, Layers, ShieldCheck, Sun, X } from 'lucide-react'
+import { Eye, EyeOff, Key, Layers, Plus, ShieldCheck, Star, Sun, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import { useUIStore } from '@/store/ui'
 import { useSettingsStore } from '@/store/settings'
@@ -15,9 +14,14 @@ import {
   setApiKey,
   deleteApiKey,
   validateApiKey,
-  listApiKeys
+  listApiKeys,
+  listProfiles,
+  createProfile,
+  deleteProfile,
+  setDefaultProfile,
+  listOllamaModels
 } from '@/lib/invoke'
-import { useQuery } from '@tanstack/react-query'
+import type { Profile } from '@/lib/invoke'
 
 type SettingsTab = 'apikeys' | 'profiles' | 'approvals' | 'appearance'
 
@@ -223,17 +227,194 @@ function ApiKeysTab() {
 // ── Profiles tab ──────────────────────────────────────────────────────────────
 
 function ProfilesTab() {
+  const qc = useQueryClient()
+  const [showNew, setShowNew] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [newProvider, setNewProvider] = useState('ollama')
+  const [newModel, setNewModel] = useState('')
+
+  const { data: profiles = [], isLoading } = useQuery({
+    queryKey: ['profiles'],
+    queryFn: listProfiles
+  })
+
+  const { data: ollamaModels = [] } = useQuery({
+    queryKey: ['available-models', 'ollama'],
+    queryFn: listOllamaModels
+  })
+
+  const createMut = useMutation({
+    mutationFn: () =>
+      createProfile(newName.trim(), newProvider, newModel.trim() || defaultModel()),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['profiles'] })
+      toast.success('Profile created')
+      setShowNew(false)
+      setNewName('')
+      setNewModel('')
+      setNewProvider('ollama')
+    },
+    onError: (e: unknown) => toast.error(String(e))
+  })
+
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => deleteProfile(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['profiles'] })
+      toast.success('Profile deleted')
+    },
+    onError: (e: unknown) => toast.error(String(e))
+  })
+
+  const defaultMut = useMutation({
+    mutationFn: (id: string) => setDefaultProfile(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['profiles'] })
+      toast.success('Default profile updated')
+    },
+    onError: (e: unknown) => toast.error(String(e))
+  })
+
+  const PROVIDER_OPTIONS = [
+    { id: 'ollama', label: 'Ollama (local)' },
+    { id: 'claude', label: 'Anthropic (Claude)' },
+    { id: 'openai', label: 'OpenAI' }
+  ]
+
+  function defaultModel() {
+    if (newProvider === 'ollama') return ollamaModels[0]?.id ?? 'llama3.2:latest'
+    if (newProvider === 'claude') return 'claude-sonnet-4-5'
+    if (newProvider === 'openai') return 'gpt-4o'
+    return ''
+  }
+
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-base font-semibold mb-0.5">Profiles</h2>
-        <p className="text-sm text-muted-foreground">
-          Each profile pairs a name with a model provider and ID.
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h2 className="text-base font-semibold mb-0.5">Profiles</h2>
+          <p className="text-sm text-muted-foreground">
+            Each profile pairs a name with a model provider and ID.
+          </p>
+        </div>
+        <button
+          onClick={() => setShowNew((v) => !v)}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+        >
+          <Plus className="size-3" />
+          New
+        </button>
       </div>
-      <p className="text-sm text-muted-foreground italic">
-        Profile management coming in v1.1.
-      </p>
+
+      {/* New profile form */}
+      {showNew && (
+        <div className="rounded-lg border border-border p-3 space-y-2 bg-muted/30">
+          <input
+            placeholder="Profile name"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            className="w-full h-7 rounded-md border border-input bg-background px-2.5 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          />
+          <select
+            value={newProvider}
+            onChange={(e) => { setNewProvider(e.target.value); setNewModel('') }}
+            className="w-full h-7 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          >
+            {PROVIDER_OPTIONS.map((p) => (
+              <option key={p.id} value={p.id}>{p.label}</option>
+            ))}
+          </select>
+          {newProvider === 'ollama' ? (
+            <select
+              value={newModel || defaultModel()}
+              onChange={(e) => setNewModel(e.target.value)}
+              className="w-full h-7 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            >
+              {ollamaModels.map((m) => (
+                <option key={m.id} value={m.id}>{m.id}</option>
+              ))}
+            </select>
+          ) : (
+            <input
+              placeholder={`Model ID (e.g. ${defaultModel()})`}
+              value={newModel}
+              onChange={(e) => setNewModel(e.target.value)}
+              className="w-full h-7 rounded-md border border-input bg-background px-2.5 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            />
+          )}
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={() => createMut.mutate()}
+              disabled={!newName.trim() || createMut.isPending}
+              className="px-3 h-7 rounded-md text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {createMut.isPending ? 'Creating…' : 'Create'}
+            </button>
+            <button
+              onClick={() => setShowNew(false)}
+              className="px-3 h-7 rounded-md text-xs font-medium border border-border hover:bg-muted transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Profile list */}
+      {isLoading ? (
+        <div className="flex justify-center py-6">
+          <div className="size-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+        </div>
+      ) : profiles.length === 0 ? (
+        <p className="text-sm text-muted-foreground italic">No profiles yet.</p>
+      ) : (
+        <div className="space-y-2">
+          {profiles.map((p) => (
+            <div
+              key={p.id}
+              className={cn(
+                'flex items-center gap-3 rounded-lg border px-3 py-2.5',
+                p.is_default ? 'border-primary/40 bg-primary/5' : 'border-border'
+              )}
+            >
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-medium truncate">{p.name}</span>
+                  {p.is_default && (
+                    <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded-full shrink-0">
+                      default
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground truncate">
+                  {p.model_provider} · {p.model_id}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-1 shrink-0">
+                {!p.is_default && (
+                  <button
+                    onClick={() => defaultMut.mutate(p.id)}
+                    disabled={defaultMut.isPending}
+                    title="Set as default"
+                    className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground disabled:opacity-50"
+                  >
+                    <Star className="size-3.5" />
+                  </button>
+                )}
+                <button
+                  onClick={() => deleteMut.mutate(p.id)}
+                  disabled={deleteMut.isPending}
+                  title="Delete profile"
+                  className="p-1.5 rounded hover:bg-destructive/10 transition-colors text-muted-foreground hover:text-destructive disabled:opacity-50"
+                >
+                  <Trash2 className="size-3.5" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -245,27 +426,27 @@ const APPROVAL_FIELDS: Array<{
   label: string
   description: string
 }> = [
-  {
-    key: 'autoApproveReads',
-    label: 'Auto-approve file reads',
-    description: 'Skip the approval dialog for read-only filesystem tools'
-  },
-  {
-    key: 'autoApproveWrites',
-    label: 'Auto-approve file writes',
-    description: 'Skip approval for file creation and modification'
-  },
-  {
-    key: 'autoApproveShell',
-    label: 'Auto-approve shell commands',
-    description: 'Never require approval for shell execution (⚠ dangerous)'
-  },
-  {
-    key: 'autoApproveHttpRequests',
-    label: 'Auto-approve HTTP requests',
-    description: 'Skip approval for outbound HTTP tool calls'
-  }
-]
+    {
+      key: 'autoApproveReads',
+      label: 'Auto-approve file reads',
+      description: 'Skip the approval dialog for read-only filesystem tools'
+    },
+    {
+      key: 'autoApproveWrites',
+      label: 'Auto-approve file writes',
+      description: 'Skip approval for file creation and modification'
+    },
+    {
+      key: 'autoApproveShell',
+      label: 'Auto-approve shell commands',
+      description: 'Never require approval for shell execution (⚠ dangerous)'
+    },
+    {
+      key: 'autoApproveHttpRequests',
+      label: 'Auto-approve HTTP requests',
+      description: 'Skip approval for outbound HTTP tool calls'
+    }
+  ]
 
 function ApprovalsTab() {
   const toolApprovals = useSettingsStore((s) => s.toolApprovals)

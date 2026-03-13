@@ -75,3 +75,5 @@ We need to write BDD tests for critical user journeys including conversation cre
 
 - **Complexity:** High
 - **Effort:** 3d
+
+**Completion Note:** No BDD tests are present in the codebase.

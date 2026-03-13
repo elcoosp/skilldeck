@@ -10,7 +10,7 @@ assignees:
   - elcoosp
 references:
   - ../plans/v1.md#16-chunk-13-tests--unit--integration
-state: open
+state: in-progress
 createdAt: '2026-03-12T13:59:50.862Z'
 priority: must
 effort: 3d
@@ -91,3 +91,5 @@ We need to write integration tests that verify end-to-end workflows including ag
 
 - **Complexity:** High
 - **Effort:** 3d
+
+**Completion Note:** Some integration tests exist (e.g., `agent_loop_tests.rs`, `skill_loader_tests.rs`, `workflow_executor_tests.rs`) but are not comprehensive. Many are stubs or use placeholder sleeps.

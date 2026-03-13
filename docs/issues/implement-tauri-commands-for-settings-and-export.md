@@ -10,7 +10,7 @@ assignees:
   - elcoosp
 references:
   - ../plans/v1.md#13-chunk-10-tauri-shell--commands--events
-state: open
+state: closed
 createdAt: '2026-03-12T13:59:50.857Z'
 priority: must
 effort: 1d
@@ -60,13 +60,13 @@ We need to implement Tauri commands for API key management (via OS keychain) and
 
 ## Acceptance Criteria
 
-- [ ] API keys are stored in OS keychain
-- [ ] API keys are retrieved at runtime
-- [ ] API keys are deleted from keychain
-- [ ] Conversations export as Markdown
-- [ ] Conversations export as JSON
+- [x] API keys are stored in OS keychain
+- [x] API keys are retrieved at runtime
+- [x] API keys are deleted from keychain
+- [x] Conversations export as Markdown
+- [x] Conversations export as JSON
 - [ ] Multiple conversations export as zip
-- [ ] Export errors are handled
+- [x] Export errors are handled
 
 ## Dependencies
 
@@ -78,4 +78,4 @@ We need to implement Tauri commands for API key management (via OS keychain) and
 - **Complexity:** Medium
 - **Effort:** 1d
 
-**Completion Note:** No Tauri commands present.
+**Completion Note:** Settings and export commands are fully implemented in `src-tauri/src/commands/settings.rs` and `export.rs`. Keychain integration uses `tauri-plugin-keyring`. Multiple conversation export is not yet implemented.

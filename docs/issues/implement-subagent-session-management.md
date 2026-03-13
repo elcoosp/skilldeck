@@ -10,7 +10,7 @@ assignees:
   - elcoosp
 references:
   - ../plans/v1.md#11-chunk-8-workflow-engine
-state: closed
+state: in-progress
 createdAt: '2026-03-12T13:56:20.465Z'
 priority: should
 effort: 1d
@@ -70,12 +70,12 @@ We need to implement subagent session management that creates isolated agent ses
 ## Acceptance Criteria
 
 - [x] Spawns subagent with isolated message history (session tracking implemented)
-- [x] Tracks subagent status
-- [x] Displays subagent result card (frontend not implemented)
+- [ ] Tracks subagent status
+- [ ] Displays subagent result card (frontend not implemented)
 - [x] Supports merge operation (merge/discard methods exist)
 - [x] Supports discard operation
-- [x] Handles subagent errors
-- [x] Preserves session for audit
+- [ ] Handles subagent errors
+- [ ] Preserves session for audit
 - [x] Unit tests verify lifecycle
 
 ## Testing Requirements

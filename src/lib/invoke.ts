@@ -263,3 +263,15 @@ export async function listWorkspaces(): Promise<Workspace[]> {
 export async function listOllamaModels(): Promise<OllamaModelInfo[]> {
   return invoke('list_ollama_models')
 }
+
+// ============================================================================
+// Profiles — extra
+// ============================================================================
+
+/**
+ * Promote a profile to be the default, demoting all others.
+ * The default profile is used for every new conversation.
+ */
+export async function setDefaultProfile(id: UUID): Promise<void> {
+  return invoke('set_default_profile', { id })
+}

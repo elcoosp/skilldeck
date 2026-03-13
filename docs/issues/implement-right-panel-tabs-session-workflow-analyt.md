@@ -10,7 +10,7 @@ assignees:
   - elcoosp
 references:
   - ../plans/v1.md#15-chunk-12-react-frontend--components
-state: open
+state: in-progress
 createdAt: '2026-03-12T13:59:50.860Z'
 priority: should
 effort: 2d
@@ -70,8 +70,8 @@ We need to implement the right panel tabs for session management (active skills,
 
 ## Acceptance Criteria
 
-- [ ] Session tab shows active skills
-- [ ] Session tab shows MCP servers
+- [x] Session tab shows active skills
+- [x] Session tab shows MCP servers
 - [ ] Workflow tab shows DAG
 - [ ] Workflow tab shows step status
 - [ ] Analytics tab shows token usage
@@ -88,4 +88,4 @@ We need to implement the right panel tabs for session management (active skills,
 - **Complexity:** Medium
 - **Effort:** 2d
 
-**Completion Note:** Frontend right panel tabs not implemented.
+**Completion Note:** The right panel exists and contains SessionTab, SkillsTab, and McpTab. Workflow and Analytics tabs are not yet implemented. Token counter is not present.

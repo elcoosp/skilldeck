@@ -10,7 +10,7 @@ assignees:
   - elcoosp
 references:
   - ../plans/v1.md#10-chunk-7-agent-loop--tool-dispatcher
-state: open
+state: in-progress
 createdAt: '2026-03-12T13:56:20.458Z'
 priority: should
 effort: 1d
