@@ -143,6 +143,72 @@ pub async fn resolve_tool_approval(
 
 // ── Internal helper ───────────────────────────────────────────────────────────
 
+/// Resolve which provider and model ID to use for a conversation.
+///
+/// Lookup order:
+/// 1. Read the conversation's profile from the DB.
+/// 2. If the profile's provider is registered in the registry, use it.
+/// 3. Otherwise fall back to `"ollama"` with its first available model.
+///
+/// Returns `(provider_id, model_id)`.
+async fn resolve_provider_and_model(state: &AppState, conversation_id: &str) -> (String, String) {
+    use skilldeck_models::{conversations::Entity as Conversations, profiles::Entity as Profiles};
+
+    const FALLBACK_PROVIDER: &str = "ollama";
+    const FALLBACK_MODEL: &str = "llama3.2:latest";
+
+    // Try to read conversation → profile from DB.
+    let Ok(db) = state.registry.db.connection().await else {
+        return (FALLBACK_PROVIDER.into(), FALLBACK_MODEL.into());
+    };
+    let Ok(conv_uuid) = Uuid::parse_str(conversation_id) else {
+        return (FALLBACK_PROVIDER.into(), FALLBACK_MODEL.into());
+    };
+
+    let conv = Conversations::find_by_id(conv_uuid)
+        .one(db)
+        .await
+        .ok()
+        .flatten();
+
+    let profile = if let Some(c) = conv {
+        Profiles::find_by_id(c.profile_id)
+            .one(db)
+            .await
+            .ok()
+            .flatten()
+    } else {
+        None
+    };
+
+    let Some(profile) = profile else {
+        return (FALLBACK_PROVIDER.into(), FALLBACK_MODEL.into());
+    };
+
+    // Use the profile's provider if it's registered; otherwise fall back.
+    if state
+        .registry
+        .get_provider(&profile.model_provider)
+        .is_some()
+    {
+        (profile.model_provider, profile.model_id)
+    } else {
+        tracing::warn!(
+            "Provider '{}' not registered (no API key?), falling back to {}",
+            profile.model_provider,
+            FALLBACK_PROVIDER
+        );
+        // Pick the first available ollama model, or the known fallback.
+        let model = skilldeck_core::providers::OllamaProvider::fetch_installed_models()
+            .await
+            .into_iter()
+            .next()
+            .map(|m| m.id)
+            .unwrap_or_else(|| FALLBACK_MODEL.into());
+        (FALLBACK_PROVIDER.into(), model)
+    }
+}
+
 /// Drive the `AgentLoop` and forward every event to the Tauri bus.
 ///
 /// This function runs on a background Tokio task and never panics — all errors
@@ -156,20 +222,33 @@ async fn run_agent_loop(
     use skilldeck_core::agent::tool_dispatcher::ToolDispatcher;
     use tokio::sync::mpsc;
 
-    // Resolve profile + provider for this conversation.
-    let provider = match state.registry.get_provider("claude") {
+    // Resolve provider + model from the conversation's profile.
+    let (provider_id, model_id) = resolve_provider_and_model(&state, &conversation_id).await;
+
+    let provider = match state.registry.get_provider(&provider_id) {
         Some(p) => p,
         None => {
             let _ = app.emit(
                 "agent-event",
                 AgentEvent::Error {
                     conversation_id: conversation_id.clone(),
-                    message: "No model provider registered".to_string(),
+                    message: format!(
+                        "No model provider registered for '{}'. \
+                         Add an API key in Settings or install Ollama.",
+                        provider_id
+                    ),
                 },
             );
             return;
         }
     };
+
+    tracing::info!(
+        "Agent loop: conversation={} provider={} model={}",
+        conversation_id,
+        provider_id,
+        model_id
+    );
 
     let (tx, mut rx) = mpsc::channel::<Result<AgentLoopEvent, skilldeck_core::CoreError>>(128);
 
@@ -178,13 +257,8 @@ async fn run_agent_loop(
         Arc::clone(&state.approval_gate),
     ));
 
-    let agent = AgentLoop::new(
-        provider,
-        "claude-sonnet-4-5".to_string(),
-        AgentLoopConfig::default(),
-        tx,
-    )
-    .with_dispatcher(dispatcher);
+    let agent = AgentLoop::new(provider, model_id, AgentLoopConfig::default(), tx)
+        .with_dispatcher(dispatcher);
 
     // Run the loop concurrently while we drain the event channel.
     let conv_id_for_loop = conversation_id.clone();

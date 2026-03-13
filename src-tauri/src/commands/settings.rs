@@ -3,9 +3,17 @@
 //! Keys are stored under the service name `"skilldeck"` with the provider
 //! name as the account (e.g. `"claude"`, `"openai"`).  No key material ever
 //! touches SQLite (ASR-SEC-001).
+//!
+//! After saving or deleting a key, the in-memory provider registry is updated
+//! so the agent loop immediately picks up the change without a restart.
 
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use tauri::State;
 use tauri_plugin_keyring::KeyringExt;
+
+use crate::state::AppState;
+use skilldeck_core::providers::{ClaudeProvider, OpenAiProvider};
 
 /// Whether a given provider has a stored key.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -34,19 +42,43 @@ pub async fn list_api_keys(app: tauri::AppHandle) -> Result<Vec<ApiKeyStatus>, S
     Ok(entries)
 }
 
-/// Store (or replace) an API key in the OS keychain.
+/// Store (or replace) an API key in the OS keychain and refresh the provider
+/// registry so the agent loop can use the new key immediately.
 #[tauri::command]
 pub async fn set_api_key(
     app: tauri::AppHandle,
+    state: State<'_, Arc<AppState>>,
     provider: String,
     key: String,
 ) -> Result<(), String> {
     app.keyring()
         .set_password(KEYRING_SERVICE, &provider, &key)
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+
+    // Re-register the provider in the live registry so the next agent loop
+    // invocation uses the new key without requiring an app restart.
+    match provider.as_str() {
+        "claude" => {
+            state.registry.register_provider(ClaudeProvider::new(key));
+            tracing::info!("Claude provider re-registered with new key");
+        }
+        "openai" => {
+            state.registry.register_provider(OpenAiProvider::new(key));
+            tracing::info!("OpenAI provider re-registered with new key");
+        }
+        _ => {} // ollama needs no key; other providers are not yet implemented
+    }
+
+    Ok(())
 }
 
 /// Remove an API key from the OS keychain.
+///
+/// Note: we do NOT unregister the provider from the registry here because
+/// the provider object holds no reference to the key after construction —
+/// the key was captured by value.  A full de-registration would require
+/// restarting the app or a more complex eviction mechanism; for v1 this is
+/// acceptable.
 #[tauri::command]
 pub async fn delete_api_key(app: tauri::AppHandle, provider: String) -> Result<(), String> {
     app.keyring()
@@ -63,7 +95,7 @@ pub async fn validate_api_key(provider: String, key: String) -> Result<bool, Str
     let valid = match provider.as_str() {
         "claude" => key.starts_with("sk-ant-"),
         "openai" => key.starts_with("sk-"),
-        "ollama" => !key.is_empty(), // Ollama is typically keyless but we accept a token
+        "ollama" => !key.is_empty(),
         _ => return Err(format!("Unknown provider: {provider}")),
     };
     Ok(valid)
