@@ -69,8 +69,11 @@ pub fn start_watcher(
 
         loop {
             tokio::select! {
-                Some(event) = event_rx.recv() => {
-                    pending.push(event);
+                Some(res) = event_rx.recv() => {
+                    match res {
+                        Ok(event) => pending.push(event),
+                        Err(e) => warn!("File watcher error: {}", e),
+                    }
                     if debounce_timer.is_none() {
                         debounce_timer = Some(tokio::time::Instant::now() + Duration::from_millis(200));
                     }
