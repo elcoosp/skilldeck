@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/brand/logo.svg" alt="SkillDeck Logo" width="200"/>
+  <img src="https://raw.githubusercontent.com/elcoosp/skilldeck/main/docs/brand/logo.svg" alt="SkillDeck Logo" width="200"/>
 </p>
 
 # SkillDeck
@@ -110,7 +110,7 @@ graph TB
 1. **Clone the repository:**
 
    ```bash
-   git clone https://github.com/your-org/skilldeck.git
+   git clone https://github.com/elcoosp/skilldeck.git
    cd skilldeck
    ```
 
@@ -189,6 +189,6 @@ Future versions (v2+) will explore cloud sync and visual workflow editors.
 
 Detailed specifications are available in the `/docs` directory:
 
-- [Product Vision](docs/spec/vision.md)
-- [Architecture Design](docs/design/archi-design.md)
-- [Technical Requirements](docs/spec/srs.md)
+- [Product Vision](docs/vision.md)
+- [Architecture Design](docs/archi-design.md)
+- [Technical Requirements](docs/srs.md)
