@@ -87,7 +87,7 @@ We welcome your input! Join the discussion on [GitHub Discussions](https://githu
 
 ## 🔌 Phase 4: Ecosystem & Developer Integrations
 
-**Target:** Q1 2027  
+**Target:** Q1 2026  
 **Theme:** Make SkillDeck a central part of the developer’s toolkit by deepening integrations and strengthening the skill/MCP ecosystem.
 
 | ID | Feature | Description | Dependencies | Effort |
@@ -106,7 +106,7 @@ We welcome your input! Join the discussion on [GitHub Discussions](https://githu
 
 ## 📊 Phase 5: Analytics & Advanced Capabilities
 
-**Target:** Q2 2027+  
+**Target:** Q2 2026+  
 **Theme:** Provide deep insights into usage and unlock cutting‑edge AI features for power users.
 
 | ID | Feature | Description | Dependencies | Effort |
@@ -127,8 +127,8 @@ We welcome your input! Join the discussion on [GitHub Discussions](https://githu
 Q2 2026 – Phase 1: Memory Foundation & UX Quick Wins
 Q3 2026 – Phase 2: Intelligent Memory & Personalization
 Q4 2026 – Phase 3: Advanced Workflows & Multi‑Agent Power
-Q1 2027 – Phase 4: Ecosystem & Developer Integrations
-Q2 2027+ – Phase 5: Analytics & Advanced Capabilities
+Q1 2026 – Phase 4: Ecosystem & Developer Integrations
+Q2 2026+ – Phase 5: Analytics & Advanced Capabilities
 ```
 
 *Note: This timeline assumes a small core team with community contributions. Milestones may shift based on contributor availability and feedback.*

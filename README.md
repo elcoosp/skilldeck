@@ -95,7 +95,7 @@ graph TB
 ## 🚀 Getting Started (Try It in 5 Minutes)
 
 ### Prerequisites
-- [Rust](https://www.rust-lang.org/tools/install) (Edition 2021)
+- [Rust](https://www.rust-lang.org/tools/install) (Edition 2024)
 - [Node.js](https://nodejs.org/) (v18+)
 - [pnpm](https://pnpm.io/installation)
 - System dependencies for Tauri (see [Prerequisites](https://tauri.app/v1/guides/getting-started/prerequisites))
@@ -197,13 +197,13 @@ We’re building SkillDeck in the open. Here’s the exact state of development 
 ### What This Means for You
 - **If you want a fully functional desktop app today:** The frontend and Tauri integration are not yet built. You can only interact with the Rust core via CLI or tests.
 - **If you want to contribute:** Perfect timing! The core architecture is solid, and there’s plenty of high‑impact work left – frontend, Tauri commands, testing, and polishing the remaining core features.
-- **If you’re evaluating SkillDeck for future use:** The vision is clear, the foundation is strong, and we’re shipping rapidly. Watch the repo or join our [Discord](https://discord.gg/...) to stay updated.
+- **If you’re evaluating SkillDeck for future use:** The vision is clear, the foundation is strong, and we’re shipping rapidly. Watch the repo to stay updated.
 
 ---
 
 ## 🗺️ Roadmap (v2 and Beyond)
 
-Our detailed [v2 roadmap](v2-roadmap.md) outlines five strategic phases through 2027. The table above reflects the current progress toward that vision. We’re committed to local‑first stability and workflow orchestration as the top priorities.
+Our detailed [v2 roadmap](docs/design/v2-roadmap.md) outlines five strategic phases through 2026. The table above reflects the current progress toward that vision. We’re committed to local‑first stability and workflow orchestration as the top priorities.
 
 ---
 
@@ -211,7 +211,7 @@ Our detailed [v2 roadmap](v2-roadmap.md) outlines five strategic phases through 
 
 We welcome contributors of all skill levels! Here’s how you can help:
 - Pick an open issue from the table above or from our [issue tracker](docs/issues/).
-- Join the discussion on [GitHub Discussions](https://github.com/bmad-code-org/skilldeck/discussions) or [Discord](https://discord.gg/...).
+- Join the discussion on [GitHub Discussions](https://github.com/elcoosp/skilldeck/discussions).
 - Review the [architecture design](docs/design/archi-design.md) and [product vision](docs/spec/vision.md) to understand the big picture.
 - Submit a PR – we review promptly and provide guidance.
 
