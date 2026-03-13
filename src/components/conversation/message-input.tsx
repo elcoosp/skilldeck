@@ -1,10 +1,11 @@
 /**
  * Message input — auto-growing textarea with draft persistence, slash commands,
- * skill mention (@), and file reference (#) entry points.
+ * skill mention (@), file reference (#) entry points, and file attachments.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { AtSign, Hash, Paperclip, Send, StopCircle } from 'lucide-react'
+import { AtSign, Hash, Paperclip, Send, StopCircle, X } from 'lucide-react'
+import { open } from '@tauri-apps/plugin-dialog'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
@@ -16,9 +17,15 @@ interface MessageInputProps {
   conversationId: UUID
 }
 
+interface FileChip {
+  path: string
+  name: string
+}
+
 export function MessageInput({ conversationId }: MessageInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [isComposing, setIsComposing] = useState(false)
+  const [selectedFiles, setSelectedFiles] = useState<FileChip[]>([])
 
   const draft = useUIStore((s) => s.drafts[conversationId] ?? '')
   const setDraft = useUIStore((s) => s.setDraft)
@@ -53,28 +60,47 @@ export function MessageInput({ conversationId }: MessageInputProps) {
     textareaRef.current?.focus()
   }, [conversationId])
 
+  const pickFiles = useCallback(async () => {
+    const selected = await open({
+      multiple: true,
+      directory: false,
+      filters: [{ name: 'All Files', extensions: ['*'] }]
+    })
+    if (!selected) return
+    const paths = Array.isArray(selected) ? selected : [selected]
+    const newFiles = paths.map(p => ({
+      path: p,
+      name: p.split('/').pop() || p
+    }))
+    setSelectedFiles(prev => [...prev, ...newFiles])
+  }, [])
+
+  const removeFile = useCallback((pathToRemove: string) => {
+    setSelectedFiles(prev => prev.filter(f => f.path !== pathToRemove))
+  }, [])
+
   const submit = useCallback(async () => {
-    const trimmed = content.trim()
-    if (!trimmed || isComposing || isRunning) return
+    let finalContent = content.trim()
+
+    // Append file tags
+    for (const file of selectedFiles) {
+      finalContent += `\n<file path="${file.path}" />`
+    }
+
+    if (!finalContent.trim() || isComposing || isRunning) return
 
     setContent('')
+    setSelectedFiles([])
     clearDraft(conversationId)
 
     try {
-      await sendMutation.mutateAsync(trimmed)
+      await sendMutation.mutateAsync(finalContent)
     } catch (err) {
       // Restore content so the user doesn't lose it.
-      setContent(trimmed)
+      setContent(finalContent)
       console.error('Failed to send message:', err)
     }
-  }, [
-    content,
-    isComposing,
-    isRunning,
-    conversationId,
-    clearDraft,
-    sendMutation
-  ])
+  }, [content, selectedFiles, isComposing, isRunning, conversationId, clearDraft, sendMutation])
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey && !isComposing) {
@@ -85,6 +111,26 @@ export function MessageInput({ conversationId }: MessageInputProps) {
 
   return (
     <div className="p-3 space-y-2">
+      {/* File chips */}
+      {selectedFiles.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {selectedFiles.map(file => (
+            <div
+              key={file.path}
+              className="inline-flex items-center gap-1 bg-muted/70 text-xs rounded-full px-2 py-0.5"
+            >
+              <span className="max-w-[120px] truncate">{file.name}</span>
+              <button
+                onClick={() => removeFile(file.path)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X className="size-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="relative flex items-end gap-2 rounded-xl border border-input bg-background shadow-sm focus-within:ring-2 focus-within:ring-ring/50 px-3 py-2">
         <Textarea
           ref={textareaRef}
@@ -105,7 +151,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
           size="icon-sm"
           className="shrink-0 mb-0.5"
           onClick={isRunning ? undefined : submit}
-          disabled={(!content.trim() && !isRunning) || sendMutation.isPending}
+          disabled={(!content.trim() && selectedFiles.length === 0 && !isRunning) || sendMutation.isPending}
           aria-label={isRunning ? 'Stop' : 'Send'}
         >
           {isRunning ? (
@@ -122,11 +168,21 @@ export function MessageInput({ conversationId }: MessageInputProps) {
           <AtSign className="size-3" />
           Skill
         </Button>
-        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs gap-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 px-2 text-xs gap-1"
+          onClick={pickFiles}
+        >
           <Hash className="size-3" />
           File
         </Button>
-        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs gap-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 px-2 text-xs gap-1"
+          onClick={pickFiles}
+        >
           <Paperclip className="size-3" />
           Attach
         </Button>

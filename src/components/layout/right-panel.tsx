@@ -7,9 +7,12 @@ import { Cpu, Layers, Zap } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSkills } from '@/hooks/use-skills'
 import { useMcpServers } from '@/hooks/use-mcp'
+import { useConversations } from '@/hooks/use-conversations'
+import { useProfiles } from '@/hooks/use-profiles'
 import { useUIStore } from '@/store/ui'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 type Tab = 'session' | 'skills' | 'mcp'
 
@@ -59,12 +62,46 @@ export function RightPanel() {
 // ── Session tab ───────────────────────────────────────────────────────────────
 
 function SessionTab({ conversationId }: { conversationId: string | null }) {
+  const { data: conversations } = useConversations()
+  const { data: profiles } = useProfiles()
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null)
+
   if (!conversationId) {
     return (
       <div className="p-4 text-xs text-muted-foreground">
         No active conversation.
       </div>
     )
+  }
+
+  const conversation = conversations?.find(c => c.id === conversationId)
+  if (!conversation) {
+    return <div className="p-4 text-xs text-muted-foreground">Loading conversation...</div>
+  }
+
+  const profile = profiles?.find(p => p.id === conversation.profile_id)
+  if (!profile) {
+    return <div className="p-4 text-xs text-muted-foreground">Profile not found.</div>
+  }
+
+  // Hardcoded model lists per provider (v1; can be replaced with dynamic fetch)
+  const modelsByProvider: Record<string, string[]> = {
+    claude: ['claude-3-5-sonnet', 'claude-3-opus', 'claude-3-haiku'],
+    openai: ['gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo'],
+    ollama: ['llama3.2', 'llama3.1', 'codellama']
+  }
+  const availableModels = modelsByProvider[profile.model_provider] || [profile.model_id]
+
+  const handleModelChange = (newModel: string) => {
+    // This would trigger an update to the profile or conversation override.
+    // For now, we just log.
+    console.log('Model changed to', newModel)
+    // TODO: persist change via mutation
+  }
+
+  const handleProfileChange = (newProfileId: string) => {
+    setSelectedProfileId(newProfileId)
+    // TODO: change conversation's profile via mutation
   }
 
   return (
@@ -76,6 +113,62 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
         <p className="text-xs font-mono text-muted-foreground break-all">
           {conversationId}
         </p>
+      </section>
+
+      <section className="space-y-3">
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          Profile & Model
+        </h3>
+
+        {/* Profile switcher */}
+        {profiles && profiles.length > 1 && (
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Profile</label>
+            <Select
+              value={profile.id}
+              onValueChange={handleProfileChange}
+            >
+              <SelectTrigger className="h-7 text-xs">
+                <SelectValue placeholder="Select profile" />
+              </SelectTrigger>
+              <SelectContent>
+                {profiles.map(p => (
+                  <SelectItem key={p.id} value={p.id} className="text-xs">
+                    {p.name} {p.is_default ? '(default)' : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {/* Model provider (read-only) */}
+        <div className="space-y-1">
+          <label className="text-xs text-muted-foreground">Provider</label>
+          <div className="text-xs font-medium px-2 py-1 rounded bg-muted/50">
+            {profile.model_provider}
+          </div>
+        </div>
+
+        {/* Model selector */}
+        <div className="space-y-1">
+          <label className="text-xs text-muted-foreground">Model</label>
+          <Select
+            value={profile.model_id}
+            onValueChange={handleModelChange}
+          >
+            <SelectTrigger className="h-7 text-xs">
+              <SelectValue placeholder="Select model" />
+            </SelectTrigger>
+            <SelectContent>
+              {availableModels.map(m => (
+                <SelectItem key={m} value={m} className="text-xs">
+                  {m}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </section>
     </div>
   )

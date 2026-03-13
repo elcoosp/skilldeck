@@ -3,7 +3,7 @@
 //! This module wires together:
 //! - `AppState` initialization (DB + Registry + ApprovalGate)
 //! - All IPC command handlers
-//! - Tauri plugins (keyring, shell, store)
+//! - Tauri plugins (keyring, shell, store, dialog)
 //! - Tracing subscriber
 
 mod commands;
@@ -20,7 +20,7 @@ use commands::{
     profiles::{create_profile, delete_profile, list_profiles, update_profile},
     settings::{delete_api_key, list_api_keys, set_api_key, validate_api_key},
     skills::{list_skills, toggle_skill},
-    workspaces::{close_workspace, open_workspace},
+    workspaces::{close_workspace, list_workspaces, open_workspace},
 };
 use state::AppState;
 use std::sync::Arc;
@@ -44,6 +44,7 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_keyring::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init()) // <-- new
         // Async setup: build AppState before any command can run.
         .setup(|app| {
             let handle = app.handle().clone();
@@ -88,6 +89,7 @@ pub fn run() {
             // workspaces
             open_workspace,
             close_workspace,
+            list_workspaces
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

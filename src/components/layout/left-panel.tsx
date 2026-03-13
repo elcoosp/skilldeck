@@ -1,20 +1,28 @@
 /**
- * Left panel — conversation list, search, new chat.
+ * Left panel — conversation list, search, new chat, workspace switcher.
  */
 
-import { FolderOpen, Plus, Search, Settings } from 'lucide-react'
+import { FolderOpen, Plus, Search, Settings, ChevronDown } from 'lucide-react'
+import { open } from '@tauri-apps/plugin-dialog'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { ConversationItem } from '@/components/conversation/conversation-item'
 import {
   useConversations,
   useCreateConversation
 } from '@/hooks/use-conversations'
 import { useProfiles } from '@/hooks/use-profiles'
+import { useWorkspaces, useOpenWorkspace } from '@/hooks/use-workspaces'
 import { useUIStore } from '@/store/ui'
-import { openWorkspace } from '@/lib/invoke'
-import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 
 export function LeftPanel() {
   const searchQuery = useUIStore((s) => s.searchQuery)
@@ -22,12 +30,17 @@ export function LeftPanel() {
   const setSettingsOpen = useUIStore((s) => s.setSettingsOpen)
   const activeConversationId = useUIStore((s) => s.activeConversationId)
   const setActiveConversation = useUIStore((s) => s.setActiveConversation)
+  const activeWorkspaceId = useUIStore((s) => s.activeWorkspaceId)
+  const setActiveWorkspace = useUIStore((s) => s.setActiveWorkspace)
 
   const { data: conversations, isLoading } = useConversations()
   const { data: profiles } = useProfiles()
+  const { data: workspaces = [] } = useWorkspaces()
+  const openWorkspace = useOpenWorkspace()
   const createConversation = useCreateConversation()
 
   const defaultProfile = profiles?.find((p) => p.is_default) ?? profiles?.[0]
+  const activeWorkspace = workspaces.find(w => w.id === activeWorkspaceId)
 
   const filtered = conversations?.filter((c) =>
     searchQuery
@@ -45,11 +58,34 @@ export function LeftPanel() {
 
   const handleOpenWorkspace = async () => {
     try {
-      // Tauri dialog to pick directory is handled by the opener plugin
-      await openWorkspace('.')
-      toast.success('Workspace opened')
+      const selected = await open({
+        directory: true,
+        multiple: false,
+        title: 'Select workspace folder'
+      })
+      if (!selected) return
+
+      const workspace = await openWorkspace.mutateAsync(selected)
+      setActiveWorkspace(workspace.id)
+      toast.success(`Workspace opened: ${workspace.name}`)
     } catch (err) {
       toast.error(`Could not open workspace: ${err}`)
+    }
+  }
+
+  const handleSwitchWorkspace = async (workspace: typeof workspaces[0]) => {
+    if (!workspace.is_open) {
+      // Reopen closed workspace
+      try {
+        const reopened = await openWorkspace.mutateAsync(workspace.path)
+        setActiveWorkspace(reopened.id)
+        toast.success(`Switched to ${reopened.name}`)
+      } catch (err) {
+        toast.error(`Failed to open workspace: ${err}`)
+      }
+    } else {
+      setActiveWorkspace(workspace.id)
+      toast.success(`Switched to ${workspace.name}`)
     }
   }
 
@@ -116,8 +152,44 @@ export function LeftPanel() {
         </div>
       </ScrollArea>
 
-      {/* Footer */}
-      <div className="p-3 border-t border-border shrink-0">
+      {/* Footer with workspace switcher */}
+      <div className="p-3 border-t border-border shrink-0 space-y-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full justify-between"
+            >
+              <span className="truncate">
+                {activeWorkspace ? activeWorkspace.name : 'No workspace'}
+              </span>
+              <ChevronDown className="size-3.5 opacity-50" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-[--radix-dropdown-menu-trigger-width]">
+            {workspaces.length === 0 ? (
+              <DropdownMenuItem disabled>No workspaces yet</DropdownMenuItem>
+            ) : (
+              workspaces.map(w => (
+                <DropdownMenuItem
+                  key={w.id}
+                  onClick={() => handleSwitchWorkspace(w)}
+                  className={cn(
+                    'flex items-center justify-between',
+                    w.id === activeWorkspaceId && 'bg-accent'
+                  )}
+                >
+                  <span className="truncate">{w.name}</span>
+                  {!w.is_open && (
+                    <span className="text-[10px] text-muted-foreground ml-2">(closed)</span>
+                  )}
+                </DropdownMenuItem>
+              ))
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         <Button
           variant="outline"
           size="sm"
@@ -125,7 +197,7 @@ export function LeftPanel() {
           onClick={handleOpenWorkspace}
         >
           <FolderOpen className="size-3.5 mr-1.5" />
-          Open Workspace
+          Open another workspace
         </Button>
       </div>
     </div>

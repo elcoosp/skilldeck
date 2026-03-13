@@ -15,6 +15,10 @@ interface PanelSizes {
 }
 
 interface UIState {
+  // ── Active workspace ──────────────────────────────────────────────────
+  activeWorkspaceId: string | null
+  setActiveWorkspace: (id: string | null) => void
+
   // ── Active conversation ──────────────────────────────────────────────────
   activeConversationId: string | null
   setActiveConversation: (id: string | null) => void
@@ -60,6 +64,10 @@ interface UIState {
 export const useUIStore = create<UIState>()(
   persist(
     (set) => ({
+      // Active workspace
+      activeWorkspaceId: null,
+      setActiveWorkspace: (id) => set({ activeWorkspaceId: id }),
+
       // Active conversation
       activeConversationId: null,
       setActiveConversation: (id) => set({ activeConversationId: id }),

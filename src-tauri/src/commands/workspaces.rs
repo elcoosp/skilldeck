@@ -1,6 +1,8 @@
 //! Workspace Tauri commands.
 
-use sea_orm::{ActiveModelTrait, ActiveValue::Set, EntityTrait};
+use sea_orm::{
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, QueryFilter, QueryOrder,
+};
 use serde::Serialize;
 use std::{path::PathBuf, sync::Arc};
 use tauri::State;
@@ -19,7 +21,8 @@ pub struct WorkspaceData {
     pub is_open: bool,
 }
 
-/// Detect and open a workspace at the given path, persisting it in the DB.
+/// Detect and open a workspace at the given path.
+/// If the workspace already exists in the DB, it is reopened (updated) instead of inserted.
 #[tauri::command]
 pub async fn open_workspace(
     state: State<'_, Arc<AppState>>,
@@ -38,33 +41,56 @@ pub async fn open_workspace(
         .await
         .map_err(|e| e.to_string())?;
 
-    let id = Uuid::new_v4();
     let now = chrono::Utc::now().fixed_offset();
 
-    // Extract a display name from the last component of the path.
-    let name = context
-        .root
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("workspace")
-        .to_string();
+    // Check if a workspace with this path already exists.
+    let existing = Workspaces::find()
+        .filter(workspaces::Column::Path.eq(&path))
+        .one(db)
+        .await
+        .map_err(|e| e.to_string())?;
 
-    let model = workspaces::ActiveModel {
-        id: Set(id),
-        path: Set(path.clone()),
-        name: Set(name.clone()),
-        project_type: Set(Some(context.project_type.to_string())),
-        is_open: Set(true),
-        created_at: Set(now),
-        last_opened_at: Set(Some(now)),
-        ..Default::default()
+    let (id, is_new) = if let Some(row) = existing {
+        let id = row.id.clone();
+        // Reopen: update is_open and last_opened_at
+        let mut active: workspaces::ActiveModel = row.into();
+        active.is_open = Set(true);
+        active.last_opened_at = Set(Some(now));
+        active.update(db).await.map_err(|e| e.to_string())?;
+        (id, false)
+    } else {
+        // Insert new workspace
+        let id = Uuid::new_v4();
+        let name = context
+            .root
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("workspace")
+            .to_string();
+
+        let model = workspaces::ActiveModel {
+            id: Set(id),
+            path: Set(path.clone()),
+            name: Set(name.clone()),
+            project_type: Set(Some(context.project_type.to_string())),
+            is_open: Set(true),
+            created_at: Set(now),
+            last_opened_at: Set(Some(now)),
+            ..Default::default()
+        };
+        model.insert(db).await.map_err(|e| e.to_string())?;
+        (id, true)
     };
-    model.insert(db).await.map_err(|e| e.to_string())?;
 
     Ok(WorkspaceData {
         id: id.to_string(),
         path,
-        name,
+        name: context
+            .root
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("workspace")
+            .to_string(),
         project_type: context.project_type.to_string(),
         is_open: true,
     })
@@ -93,4 +119,32 @@ pub async fn close_workspace(state: State<'_, Arc<AppState>>, id: String) -> Res
     active.update(db).await.map_err(|e| e.to_string())?;
 
     Ok(())
+}
+/// List all workspaces (both open and closed)
+#[tauri::command]
+pub async fn list_workspaces(
+    state: State<'_, Arc<AppState>>,
+) -> Result<Vec<WorkspaceData>, String> {
+    let db = state
+        .registry
+        .db
+        .connection()
+        .await
+        .map_err(|e| e.to_string())?;
+    let rows = Workspaces::find()
+        .order_by_desc(workspaces::Column::LastOpenedAt)
+        .all(db)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(rows
+        .into_iter()
+        .map(|r| WorkspaceData {
+            id: r.id.to_string(),
+            path: r.path,
+            name: r.name,
+            project_type: r.project_type.unwrap_or_else(|| "generic".to_string()),
+            is_open: r.is_open,
+        })
+        .collect())
 }

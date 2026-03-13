@@ -25,6 +25,7 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 tauri-plugin-shell = "2"
+tauri-plugin-dialog = "2"
 tokio = { version = "1", features = ["full"] }
 sea-orm = { version = "2.0.0-rc.37", features = ["sqlx-sqlite", "runtime-tokio-native-tls"] }
 serde = { version = "1", features = ["derive"] }

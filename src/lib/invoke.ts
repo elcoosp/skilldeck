@@ -236,3 +236,7 @@ export async function openWorkspace(path: string): Promise<Workspace> {
 export async function closeWorkspace(id: UUID): Promise<void> {
   return invoke('close_workspace', { id })
 }
+
+export async function listWorkspaces(): Promise<Workspace[]> {
+  return invoke('list_workspaces')
+}
