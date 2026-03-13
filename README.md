@@ -8,7 +8,7 @@
 
 [![Status](https://img.shields.io/badge/Status-Draft-yellow.svg)](https://shields.io/)
 [![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey.svg)](https://shields.io/)
-[![License](https://img.shields.io/badge/License-MIT%20or%20Apache%202.0-blue.svg)](https://shields.io/)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://shields.io/)
 
 SkillDeck is a privacy-respecting desktop application that transforms AI from a single chat partner into a coordinated team of specialized collaborators. Built with Tauri and Rust, it offers branching conversations, filesystem-based composable skills, and multi-agent workflow orchestration — all running locally on your machine.
 
@@ -100,7 +100,7 @@ graph TB
 
 ### Prerequisites
 
-- [Rust](https://www.rust-lang.org/tools/install) (Edition 2021)
+- [Rust](https://www.rust-lang.org/tools/install) (Edition 2024)
 - [Node.js](https://nodejs.org/) (v18+)
 - [pnpm](https://pnpm.io/installation)
 - System dependencies for Tauri (see [Prerequisites](https://tauri.app/v1/guides/getting-started/prerequisites))
