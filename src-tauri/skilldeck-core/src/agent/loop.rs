@@ -1,3 +1,4 @@
+// File: skilldeck-core/src/agent/loop.rs
 //! Core agent loop implementation.
 //!
 //! 1. Receive user message
@@ -18,8 +19,8 @@ use crate::{
     CoreError,
     agent::tool_dispatcher::ToolDispatcher,
     traits::{
-        ChatMessage, CompletionChunk, CompletionRequest, MessageRole, ModelParams,
-        ModelProvider, ToolCall, ToolDefinition,
+        ChatMessage, CompletionChunk, CompletionRequest, MessageRole, ModelParams, ModelProvider,
+        ToolCall, ToolDefinition,
     },
 };
 
@@ -55,7 +56,11 @@ pub struct AgentLoopConfig {
 
 impl Default for AgentLoopConfig {
     fn default() -> Self {
-        Self { debounce_ms: 50, max_context_messages: 100, max_tool_iterations: 10 }
+        Self {
+            debounce_ms: 50,
+            max_context_messages: 100,
+            max_tool_iterations: 10,
+        }
     }
 }
 
@@ -120,9 +125,14 @@ impl AgentLoop {
     }
 
     /// Run the agent loop for a single user turn.
+    /// Returns the list of **new** messages added during this turn,
+    /// excluding the initial user message (which is already persisted).
     #[instrument(skip(self), fields(model = %self.model_id))]
-    pub async fn run(mut self, user_message: String) -> Result<(), CoreError> {
+    pub async fn run(mut self, user_message: String) -> Result<Vec<ChatMessage>, CoreError> {
         info!("Agent loop starting");
+
+        // Record length before adding user message.
+        let before_user_len = self.messages.len();
 
         self.messages.push(ChatMessage {
             role: MessageRole::User,
@@ -130,12 +140,18 @@ impl AgentLoop {
             name: None,
         });
 
+        // Record length after adding user message – we will return messages added after this point.
+        let after_user_len = self.messages.len();
+
         let mut iteration = 0u32;
 
         loop {
             iteration += 1;
             if iteration > self.config.max_tool_iterations {
-                warn!("Max tool iterations ({}) reached", self.config.max_tool_iterations);
+                warn!(
+                    "Max tool iterations ({}) reached",
+                    self.config.max_tool_iterations
+                );
                 break;
             }
 
@@ -150,20 +166,26 @@ impl AgentLoop {
             });
 
             if result.tool_calls.is_empty() {
-                let _ = self.tx.send(Ok(AgentLoopEvent::Done {
-                    input_tokens: result.input_tokens,
-                    output_tokens: result.output_tokens,
-                    cache_read_tokens: result.cache_read_tokens,
-                    cache_write_tokens: result.cache_write_tokens,
-                })).await;
+                let _ = self
+                    .tx
+                    .send(Ok(AgentLoopEvent::Done {
+                        input_tokens: result.input_tokens,
+                        output_tokens: result.output_tokens,
+                        cache_read_tokens: result.cache_read_tokens,
+                        cache_write_tokens: result.cache_write_tokens,
+                    }))
+                    .await;
                 break;
             }
 
             // Execute each tool call and feed results back as Tool messages.
             for tool_call in result.tool_calls {
-                let _ = self.tx.send(Ok(AgentLoopEvent::ToolCall {
-                    tool_call: tool_call.clone(),
-                })).await;
+                let _ = self
+                    .tx
+                    .send(Ok(AgentLoopEvent::ToolCall {
+                        tool_call: tool_call.clone(),
+                    }))
+                    .await;
 
                 let tool_result = self.execute_tool(&tool_call).await;
                 let content = match tool_result {
@@ -183,7 +205,11 @@ impl AgentLoop {
         }
 
         info!("Agent loop completed after {} iteration(s)", iteration);
-        Ok(())
+
+        // Return only the messages added **after** the user message (assistant + tool messages).
+        // The user message is already persisted by the Tauri command.
+        let new_messages = self.messages[after_user_len..].to_vec();
+        Ok(new_messages)
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -241,21 +267,34 @@ impl AgentLoop {
                     buffer.push_str(&token);
 
                     if last_emit.elapsed() >= debounce || buffer.len() > 100 {
-                        let _ = self.tx.send(Ok(AgentLoopEvent::Token { delta: buffer.clone() })).await;
+                        let _ = self
+                            .tx
+                            .send(Ok(AgentLoopEvent::Token {
+                                delta: buffer.clone(),
+                            }))
+                            .await;
                         buffer.clear();
                         last_emit = Instant::now();
                     }
                 }
                 CompletionChunk::ToolCall { tool_call } => {
                     if !buffer.is_empty() {
-                        let _ = self.tx.send(Ok(AgentLoopEvent::Token { delta: buffer.clone() })).await;
+                        let _ = self
+                            .tx
+                            .send(Ok(AgentLoopEvent::Token {
+                                delta: buffer.clone(),
+                            }))
+                            .await;
                         buffer.clear();
                     }
                     tool_calls.push(tool_call);
                 }
-                CompletionChunk::Done { input_tokens: it, output_tokens: ot,
-                    cache_read_tokens: crt, cache_write_tokens: cwt } =>
-                {
+                CompletionChunk::Done {
+                    input_tokens: it,
+                    output_tokens: ot,
+                    cache_read_tokens: crt,
+                    cache_write_tokens: cwt,
+                } => {
                     input_tokens = it;
                     output_tokens = ot;
                     cache_read_tokens = crt;
@@ -265,11 +304,20 @@ impl AgentLoop {
         }
 
         if !buffer.is_empty() {
-            let _ = self.tx.send(Ok(AgentLoopEvent::Token { delta: buffer })).await;
+            let _ = self
+                .tx
+                .send(Ok(AgentLoopEvent::Token { delta: buffer }))
+                .await;
         }
 
-        Ok(StreamResult { content, tool_calls, input_tokens, output_tokens,
-            cache_read_tokens, cache_write_tokens })
+        Ok(StreamResult {
+            content,
+            tool_calls,
+            input_tokens,
+            output_tokens,
+            cache_read_tokens,
+            cache_write_tokens,
+        })
     }
 
     async fn execute_tool(&self, tool_call: &ToolCall) -> Result<serde_json::Value, CoreError> {

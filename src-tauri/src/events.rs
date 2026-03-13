@@ -1,3 +1,4 @@
+// File: src-tauri/src/events.rs
 //! Typed IPC event payloads emitted from Rust to the React frontend.
 //!
 //! All event names use kebab-case and match the listeners in `src/lib/events.ts`.
@@ -34,6 +35,10 @@ pub enum AgentEvent {
     Error {
         conversation_id: String,
         message: String,
+    },
+    /// New messages have been persisted to the database.
+    Persisted {
+        conversation_id: String,
     },
 }
 

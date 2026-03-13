@@ -1,3 +1,4 @@
+// File: src-tauri/src/commands/messages.rs
 //! Message Tauri commands.
 //!
 //! `send_message` is the critical hot-path: it persists the user turn,
@@ -15,6 +16,7 @@ use uuid::Uuid;
 
 use crate::{events::AgentEvent, state::AppState};
 use skilldeck_core::agent::{AgentLoop, AgentLoopConfig, AgentLoopEvent};
+use skilldeck_models::conversations::{self, Entity as Conversations};
 use skilldeck_models::messages::{self, Entity as Messages};
 
 /// Serialisable message returned to the frontend.
@@ -220,6 +222,7 @@ async fn run_agent_loop(
     app: tauri::AppHandle,
 ) {
     use skilldeck_core::agent::tool_dispatcher::ToolDispatcher;
+    use skilldeck_core::traits::ChatMessage;
     use tokio::sync::mpsc;
 
     // Resolve provider + model from the conversation's profile.
@@ -257,7 +260,68 @@ async fn run_agent_loop(
         Arc::clone(&state.approval_gate),
     ));
 
+    // Load existing messages to provide history.
+    let db = match state.registry.db.connection().await {
+        Ok(conn) => conn,
+        Err(e) => {
+            let _ = app.emit(
+                "agent-event",
+                AgentEvent::Error {
+                    conversation_id: conversation_id.clone(),
+                    message: format!("Failed to get database connection: {}", e),
+                },
+            );
+            return;
+        }
+    };
+    let conv_uuid = match Uuid::parse_str(&conversation_id) {
+        Ok(u) => u,
+        Err(e) => {
+            let _ = app.emit(
+                "agent-event",
+                AgentEvent::Error {
+                    conversation_id: conversation_id.clone(),
+                    message: format!("Invalid conversation ID: {}", e),
+                },
+            );
+            return;
+        }
+    };
+    let history_rows = match Messages::find()
+        .filter(messages::Column::ConversationId.eq(conv_uuid))
+        .order_by_asc(messages::Column::CreatedAt)
+        .all(db)
+        .await
+    {
+        Ok(rows) => rows,
+        Err(e) => {
+            let _ = app.emit(
+                "agent-event",
+                AgentEvent::Error {
+                    conversation_id: conversation_id.clone(),
+                    message: format!("Failed to load message history: {}", e),
+                },
+            );
+            return;
+        }
+    };
+
+    let history = history_rows
+        .into_iter()
+        .map(|m| ChatMessage {
+            role: match m.role.as_str() {
+                "user" => skilldeck_core::traits::MessageRole::User,
+                "assistant" => skilldeck_core::traits::MessageRole::Assistant,
+                "tool" => skilldeck_core::traits::MessageRole::Tool,
+                _ => skilldeck_core::traits::MessageRole::System,
+            },
+            content: m.content,
+            name: None,
+        })
+        .collect();
+
     let agent = AgentLoop::new(provider, model_id, AgentLoopConfig::default(), tx)
+        .with_history(history)
         .with_dispatcher(dispatcher);
 
     // Run the loop concurrently while we drain the event channel.
@@ -298,18 +362,82 @@ async fn run_agent_loop(
         let _ = app.emit("agent-event", tauri_event);
     }
 
-    // Propagate any loop-level error.
-    if let Err(e) = loop_handle.await.unwrap_or_else(|e| {
+    // Loop has finished. Retrieve new messages and persist them.
+    let loop_result = loop_handle.await.unwrap_or_else(|e| {
         Err(skilldeck_core::CoreError::Internal {
             message: e.to_string(),
         })
-    }) {
-        let _ = app.emit(
-            "agent-event",
-            AgentEvent::Error {
-                conversation_id: conv_id_for_loop,
-                message: e.to_string(),
-            },
-        );
+    });
+
+    match loop_result {
+        Ok(new_messages) => {
+            let db = match state.registry.db.connection().await {
+                Ok(conn) => conn,
+                Err(e) => {
+                    let _ = app.emit(
+                        "agent-event",
+                        AgentEvent::Error {
+                            conversation_id: conversation_id.clone(),
+                            message: format!("Failed to get DB connection for persistence: {}", e),
+                        },
+                    );
+                    return;
+                }
+            };
+            let now = chrono::Utc::now().fixed_offset();
+
+            // Insert each new message.
+            for msg in new_messages {
+                let role_str = match msg.role {
+                    skilldeck_core::traits::MessageRole::User => "user",
+                    skilldeck_core::traits::MessageRole::Assistant => "assistant",
+                    skilldeck_core::traits::MessageRole::Tool => "tool",
+                    skilldeck_core::traits::MessageRole::System => "system",
+                };
+                let msg_id = Uuid::new_v4();
+                let active = messages::ActiveModel {
+                    id: Set(msg_id),
+                    conversation_id: Set(conv_uuid),
+                    role: Set(role_str.to_string()),
+                    content: Set(msg.content),
+                    created_at: Set(now),
+                    ..Default::default()
+                };
+                if let Err(e) = active.insert(db).await {
+                    let _ = app.emit(
+                        "agent-event",
+                        AgentEvent::Error {
+                            conversation_id: conversation_id.clone(),
+                            message: format!("Failed to persist message: {}", e),
+                        },
+                    );
+                    // Continue trying to persist other messages.
+                }
+            }
+
+            // Update conversation's updated_at timestamp.
+            if let Ok(Some(conv)) = Conversations::find_by_id(conv_uuid).one(db).await {
+                let mut active: conversations::ActiveModel = conv.into();
+                active.updated_at = Set(now);
+                let _ = active.update(db).await;
+            }
+
+            // Emit persisted event to notify frontend to refresh.
+            let _ = app.emit(
+                "agent-event",
+                AgentEvent::Persisted {
+                    conversation_id: conversation_id.clone(),
+                },
+            );
+        }
+        Err(e) => {
+            let _ = app.emit(
+                "agent-event",
+                AgentEvent::Error {
+                    conversation_id: conversation_id.clone(),
+                    message: e.to_string(),
+                },
+            );
+        }
     }
 }
