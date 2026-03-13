@@ -325,56 +325,64 @@ impl ModelProvider for ClaudeProvider {
         // upon permanent failure or exhausted retries.
         let response = retry(backoff, operation).await?;
 
-        let stream = response.bytes_stream().filter_map(
-            move |result: Result<Bytes, reqwest::Error>| async move {
-                match result {
-                    Ok(bytes) => {
-                        let text = String::from_utf8_lossy(&bytes);
-                        let mut chunks = Vec::new();
+        // Use flat_map so every SSE line in a single byte chunk is emitted
+        // as its own stream item. The old filter_map + chunks.into_iter().next()
+        // silently dropped all tokens after the first in each network read.
+        let stream =
+            response
+                .bytes_stream()
+                .flat_map(move |result: Result<Bytes, reqwest::Error>| {
+                    let items: Vec<Result<CompletionChunk, CoreError>> = match result {
+                        Ok(bytes) => {
+                            let text = String::from_utf8_lossy(&bytes);
+                            let mut chunks = Vec::new();
 
-                        for line in text.lines() {
-                            if let Some(data) = line.strip_prefix("data: ") {
-                                if data == "[DONE]" {
-                                    continue;
-                                }
-                                if let Ok(event) = serde_json::from_str::<ClaudeEvent>(data) {
-                                    if let Some(delta) = &event.delta
-                                        && let Some(text) = &delta.text
-                                            && !text.is_empty() {
-                                                chunks.push(Ok(CompletionChunk::Token {
-                                                    content: text.clone(),
+                            for line in text.lines() {
+                                if let Some(data) = line.strip_prefix("data: ") {
+                                    if data == "[DONE]" {
+                                        continue;
+                                    }
+                                    if let Ok(event) = serde_json::from_str::<ClaudeEvent>(data) {
+                                        if let Some(delta) = &event.delta {
+                                            if let Some(text) = &delta.text {
+                                                if !text.is_empty() {
+                                                    chunks.push(Ok(CompletionChunk::Token {
+                                                        content: text.clone(),
+                                                    }));
+                                                }
+                                            }
+                                        }
+                                        if event.event_type == "message_stop" {
+                                            let usage = event
+                                                .message
+                                                .as_ref()
+                                                .and_then(|m| m.usage.as_ref())
+                                                .or(event.usage.as_ref());
+                                            if let Some(usage) = usage {
+                                                chunks.push(Ok(CompletionChunk::Done {
+                                                    input_tokens: usage.input_tokens,
+                                                    output_tokens: usage.output_tokens,
+                                                    cache_read_tokens: usage
+                                                        .cache_read_input_tokens
+                                                        .unwrap_or(0),
+                                                    cache_write_tokens: usage
+                                                        .cache_creation_input_tokens
+                                                        .unwrap_or(0),
                                                 }));
                                             }
-                                    if event.event_type == "message_stop"
-                                        && let Some(usage) = event
-                                            .message
-                                            .as_ref()
-                                            .and_then(|m| m.usage.as_ref())
-                                            .or(event.usage.as_ref())
-                                        {
-                                            chunks.push(Ok(CompletionChunk::Done {
-                                                input_tokens: usage.input_tokens,
-                                                output_tokens: usage.output_tokens,
-                                                cache_read_tokens: usage
-                                                    .cache_read_input_tokens
-                                                    .unwrap_or(0),
-                                                cache_write_tokens: usage
-                                                    .cache_creation_input_tokens
-                                                    .unwrap_or(0),
-                                            }));
                                         }
+                                    }
                                 }
                             }
+                            chunks
                         }
-                        chunks.into_iter().next()
-                    }
-                    Err(e) => Some(Err(CoreError::ModelConnection {
-                        provider: "claude".to_string(),
-                        message: e.to_string(),
-                    })),
-                }
-            },
-        );
+                        Err(e) => vec![Err(CoreError::ModelConnection {
+                            provider: "claude".to_string(),
+                            message: e.to_string(),
+                        })],
+                    };
+                    futures::stream::iter(items)
+                });
 
         Ok(Box::pin(stream))
     }

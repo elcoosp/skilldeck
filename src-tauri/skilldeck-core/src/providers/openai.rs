@@ -294,65 +294,73 @@ impl ModelProvider for OpenAiProvider {
         // The retry function returns Result<Response, CoreError>.
         let response = retry(backoff, operation).await?;
 
-        let stream = response.bytes_stream().filter_map(
-            move |result: Result<Bytes, reqwest::Error>| async move {
-                match result {
-                    Ok(bytes) => {
-                        let text = String::from_utf8_lossy(&bytes);
-                        for line in text.lines() {
-                            if let Some(data) = line.strip_prefix("data: ") {
-                                if data == "[DONE]" {
-                                    continue;
-                                }
-                                if let Ok(chunk) = serde_json::from_str::<OpenAiChunk>(data) {
-                                    if let Some(choice) = chunk.choices.first() {
-                                        if let Some(content) = &choice.delta.content
-                                            && !content.is_empty() {
-                                                return Some(Ok(CompletionChunk::Token {
-                                                    content: content.clone(),
-                                                }));
-                                            }
-                                        if let Some(tool_calls) = &choice.delta.tool_calls
-                                            && let Some(tc) = tool_calls.first() {
-                                                return Some(Ok(CompletionChunk::ToolCall {
-                                                    tool_call: ToolCall {
-                                                        id: tc.id.clone(),
-                                                        r#type: tc.r#type.clone(),
-                                                        function: FunctionCall {
-                                                            name: tc.function.name.clone(),
-                                                            arguments: tc
-                                                                .function
-                                                                .arguments
-                                                                .clone(),
-                                                        },
-                                                    },
-                                                }));
-                                            }
+        // Use flat_map so every SSE line in a single byte chunk is emitted
+        // as its own stream item. filter_map can only yield one item per chunk,
+        // silently dropping all subsequent lines.
+        let stream =
+            response
+                .bytes_stream()
+                .flat_map(move |result: Result<Bytes, reqwest::Error>| {
+                    let items: Vec<Result<CompletionChunk, CoreError>> = match result {
+                        Ok(bytes) => {
+                            let text = String::from_utf8_lossy(&bytes);
+                            let mut chunks = Vec::new();
+                            for line in text.lines() {
+                                if let Some(data) = line.strip_prefix("data: ") {
+                                    if data == "[DONE]" {
+                                        continue;
                                     }
-                                    if let Some(usage) = &chunk.usage {
-                                        return Some(Ok(CompletionChunk::Done {
-                                            input_tokens: usage.prompt_tokens,
-                                            output_tokens: usage.completion_tokens,
-                                            cache_read_tokens: usage
-                                                .prompt_tokens_details
-                                                .as_ref()
-                                                .map(|d| d.cached_tokens)
-                                                .unwrap_or(0),
-                                            cache_write_tokens: 0,
-                                        }));
+                                    if let Ok(chunk) = serde_json::from_str::<OpenAiChunk>(data) {
+                                        if let Some(choice) = chunk.choices.first() {
+                                            if let Some(content) = &choice.delta.content {
+                                                if !content.is_empty() {
+                                                    chunks.push(Ok(CompletionChunk::Token {
+                                                        content: content.clone(),
+                                                    }));
+                                                }
+                                            }
+                                            if let Some(tool_calls) = &choice.delta.tool_calls {
+                                                if let Some(tc) = tool_calls.first() {
+                                                    chunks.push(Ok(CompletionChunk::ToolCall {
+                                                        tool_call: ToolCall {
+                                                            id: tc.id.clone(),
+                                                            r#type: tc.r#type.clone(),
+                                                            function: FunctionCall {
+                                                                name: tc.function.name.clone(),
+                                                                arguments: tc
+                                                                    .function
+                                                                    .arguments
+                                                                    .clone(),
+                                                            },
+                                                        },
+                                                    }));
+                                                }
+                                            }
+                                        }
+                                        if let Some(usage) = &chunk.usage {
+                                            chunks.push(Ok(CompletionChunk::Done {
+                                                input_tokens: usage.prompt_tokens,
+                                                output_tokens: usage.completion_tokens,
+                                                cache_read_tokens: usage
+                                                    .prompt_tokens_details
+                                                    .as_ref()
+                                                    .map(|d| d.cached_tokens)
+                                                    .unwrap_or(0),
+                                                cache_write_tokens: 0,
+                                            }));
+                                        }
                                     }
                                 }
                             }
+                            chunks
                         }
-                        None
-                    }
-                    Err(e) => Some(Err(CoreError::ModelConnection {
-                        provider: "openai".to_string(),
-                        message: e.to_string(),
-                    })),
-                }
-            },
-        );
+                        Err(e) => vec![Err(CoreError::ModelConnection {
+                            provider: "openai".to_string(),
+                            message: e.to_string(),
+                        })],
+                    };
+                    futures::stream::iter(items)
+                });
 
         Ok(Box::pin(stream))
     }
