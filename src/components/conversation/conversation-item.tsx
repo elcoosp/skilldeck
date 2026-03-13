@@ -3,7 +3,7 @@
  */
 
 import { useState } from 'react'
-import { formatDistanceToNow, parseISO, isValid } from 'date-fns'
+import { formatDistanceToNow } from 'date-fns'
 import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -44,17 +44,17 @@ export function ConversationItem({
     setIsRenaming(false)
   }
 
-  // Safely compute relative time
+  // Safely compute relative time – fallback to raw date or empty string
   const relativeTime = (() => {
     try {
-      const date = typeof conversation.updated_at === 'string'
-        ? parseISO(conversation.updated_at)
-        : new Date(conversation.updated_at)
-      return isValid(date)
-        ? formatDistanceToNow(date, { addSuffix: true })
-        : 'Invalid date'
+      const date = new Date(conversation.updated_at)
+      if (isNaN(date.getTime())) {
+        // If date is invalid, return a fallback
+        return 'recently'
+      }
+      return formatDistanceToNow(date, { addSuffix: true })
     } catch {
-      return 'Invalid date'
+      return 'recently'
     }
   })()
 

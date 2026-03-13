@@ -4,6 +4,7 @@
 
 import { useState } from 'react'
 import { Cpu, Layers, Zap } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import { useSkills } from '@/hooks/use-skills'
 import { useMcpServers } from '@/hooks/use-mcp'
@@ -12,7 +13,14 @@ import { useProfiles } from '@/hooks/use-profiles'
 import { useUIStore } from '@/store/ui'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
+import { listApiKeys, listOllamaModels } from '@/lib/invoke'
 
 type Tab = 'session' | 'skills' | 'mcp'
 
@@ -61,10 +69,43 @@ export function RightPanel() {
 
 // ── Session tab ───────────────────────────────────────────────────────────────
 
+/** Fetch available models for a provider.
+ *
+ * For Ollama, calls the `list_ollama_models` Tauri command (which runs
+ * `ollama list` on the Rust side) so the dropdown reflects what is actually
+ * installed locally.  For other providers the list is static for now.
+ */
+function useAvailableModels(provider: string) {
+  return useQuery({
+    queryKey: ['available-models', provider],
+    queryFn: async (): Promise<string[]> => {
+      if (provider === 'ollama') {
+        const models = await listOllamaModels()
+        return models.map((m) => m.id)
+      }
+      if (provider === 'claude') {
+        return ['claude-sonnet-4-5', 'claude-opus-4', 'claude-3-5-sonnet']
+      }
+      if (provider === 'openai') {
+        return ['gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo']
+      }
+      return []
+    },
+    staleTime: 60_000
+  })
+}
+
 function SessionTab({ conversationId }: { conversationId: string | null }) {
   const { data: conversations } = useConversations()
   const { data: profiles } = useProfiles()
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null)
+
+  // Check which providers have API keys registered
+  const { data: keyStatuses = [] } = useQuery({
+    queryKey: ['api-keys'],
+    queryFn: listApiKeys,
+    staleTime: 30_000
+  })
 
   if (!conversationId) {
     return (
@@ -74,35 +115,35 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
     )
   }
 
-  const conversation = conversations?.find(c => c.id === conversationId)
+  const conversation = conversations?.find((c) => c.id === conversationId)
   if (!conversation) {
-    return <div className="p-4 text-xs text-muted-foreground">Loading conversation...</div>
+    return (
+      <div className="p-4 text-xs text-muted-foreground">
+        Loading conversation...
+      </div>
+    )
   }
 
-  const profile = profiles?.find(p => p.id === conversation.profile_id)
+  const profile = profiles?.find((p) => p.id === conversation.profile_id)
   if (!profile) {
-    return <div className="p-4 text-xs text-muted-foreground">Profile not found.</div>
+    return (
+      <div className="p-4 text-xs text-muted-foreground">
+        Profile not found.
+      </div>
+    )
   }
 
-  // Hardcoded model lists per provider (v1; can be replaced with dynamic fetch)
-  const modelsByProvider: Record<string, string[]> = {
-    claude: ['claude-3-5-sonnet', 'claude-3-opus', 'claude-3-haiku'],
-    openai: ['gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo'],
-    ollama: ['llama3.2', 'llama3.1', 'codellama']
-  }
-  const availableModels = modelsByProvider[profile.model_provider] || [profile.model_id]
+  // Determine the effective provider: if the profile's provider has no key,
+  // fall back to ollama (which is keyless by default).
+  const hasKeyForProvider = (provider: string) =>
+    keyStatuses.find((k) => k.provider === provider)?.has_key ?? false
 
-  const handleModelChange = (newModel: string) => {
-    // This would trigger an update to the profile or conversation override.
-    // For now, we just log.
-    console.log('Model changed to', newModel)
-    // TODO: persist change via mutation
-  }
+  const effectiveProvider =
+    hasKeyForProvider(profile.model_provider)
+      ? profile.model_provider
+      : 'ollama'
 
-  const handleProfileChange = (newProfileId: string) => {
-    setSelectedProfileId(newProfileId)
-    // TODO: change conversation's profile via mutation
-  }
+  const isUsingFallback = effectiveProvider !== profile.model_provider
 
   return (
     <div className="p-4 space-y-4">
@@ -126,13 +167,13 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
             <label className="text-xs text-muted-foreground">Profile</label>
             <Select
               value={profile.id}
-              onValueChange={handleProfileChange}
+              onValueChange={(v) => setSelectedProfileId(v)}
             >
               <SelectTrigger className="h-7 text-xs">
                 <SelectValue placeholder="Select profile" />
               </SelectTrigger>
               <SelectContent>
-                {profiles.map(p => (
+                {profiles.map((p) => (
                   <SelectItem key={p.id} value={p.id} className="text-xs">
                     {p.name} {p.is_default ? '(default)' : ''}
                   </SelectItem>
@@ -142,34 +183,68 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
           </div>
         )}
 
-        {/* Model provider (read-only) */}
+        {/* Model provider */}
         <div className="space-y-1">
           <label className="text-xs text-muted-foreground">Provider</label>
-          <div className="text-xs font-medium px-2 py-1 rounded bg-muted/50">
-            {profile.model_provider}
+          <div className="text-xs font-medium px-2 py-1 rounded bg-muted/50 flex items-center gap-1.5">
+            {effectiveProvider}
+            {isUsingFallback && (
+              <span className="text-[10px] text-amber-500 font-normal">
+                (no API key — using Ollama)
+              </span>
+            )}
           </div>
         </div>
 
-        {/* Model selector */}
-        <div className="space-y-1">
-          <label className="text-xs text-muted-foreground">Model</label>
-          <Select
-            value={profile.model_id}
-            onValueChange={handleModelChange}
-          >
-            <SelectTrigger className="h-7 text-xs">
-              <SelectValue placeholder="Select model" />
-            </SelectTrigger>
-            <SelectContent>
-              {availableModels.map(m => (
-                <SelectItem key={m} value={m} className="text-xs">
-                  {m}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {/* Model selector — populated dynamically */}
+        <ModelSelector provider={effectiveProvider} currentModelId={profile.model_id} />
       </section>
+    </div>
+  )
+}
+
+function ModelSelector({
+  provider,
+  currentModelId
+}: {
+  provider: string
+  currentModelId: string
+}) {
+  const { data: models = [], isLoading } = useAvailableModels(provider)
+
+  // Track the user's in-session selection separately from the profile value.
+  // Initialise to currentModelId; once models load we correct it if the
+  // profile's model isn't in the fetched list (e.g. ollama fallback).
+  const [selected, setSelected] = useState(currentModelId)
+
+  const displayModels = models.length > 0 ? models : [currentModelId]
+  const safeSelected = displayModels.includes(selected)
+    ? selected
+    : displayModels[0]
+
+  const handleModelChange = (newModel: string) => {
+    setSelected(newModel)
+    // TODO: persist via profile update mutation
+    console.log('Model changed to', newModel)
+  }
+
+  return (
+    <div className="space-y-1">
+      <label className="text-xs text-muted-foreground">
+        Model {isLoading && <span className="opacity-50">(loading…)</span>}
+      </label>
+      <Select value={safeSelected} onValueChange={handleModelChange}>
+        <SelectTrigger className="h-7 text-xs">
+          <SelectValue placeholder="Select model" />
+        </SelectTrigger>
+        <SelectContent>
+          {displayModels.map((m) => (
+            <SelectItem key={m} value={m} className="text-xs">
+              {m}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   )
 }
@@ -240,7 +315,8 @@ function SkillsTab() {
       {skills.length === 0 && (
         <p className="text-xs text-muted-foreground">
           No skills loaded. Add skills to{' '}
-          <code className="text-xs">.skilldeck/skills/</code> in your workspace.
+          <code className="text-xs">.skilldeck/skills/</code> in your workspace
+          or to <code className="text-xs">~/.agents/skills/</code> globally.
         </p>
       )}
     </div>

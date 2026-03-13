@@ -73,6 +73,14 @@ export interface Workspace {
   is_open: boolean
 }
 
+/** A single model returned by the `list_ollama_models` command. */
+export interface OllamaModelInfo {
+  /** The model identifier as reported by `ollama list`, e.g. `"llama3.2:latest"`. */
+  id: string
+  /** Human-readable display name (may equal `id` for locally-pulled models). */
+  name: string
+}
+
 // ============================================================================
 // Conversations
 // ============================================================================
@@ -239,4 +247,19 @@ export async function closeWorkspace(id: UUID): Promise<void> {
 
 export async function listWorkspaces(): Promise<Workspace[]> {
   return invoke('list_workspaces')
+}
+
+// ============================================================================
+// Ollama
+// ============================================================================
+
+/**
+ * Return the list of models currently installed in Ollama.
+ *
+ * Calls the `list_ollama_models` Tauri command which runs `ollama list` on the
+ * Rust side.  Falls back to a minimal default list if Ollama is not running or
+ * not installed, so the UI always has something to display.
+ */
+export async function listOllamaModels(): Promise<OllamaModelInfo[]> {
+  return invoke('list_ollama_models')
 }
