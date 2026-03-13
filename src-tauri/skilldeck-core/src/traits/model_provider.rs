@@ -1,4 +1,4 @@
-//! Model provider abstraction.
+//! Model Provider trait and related types.
 
 use async_trait::async_trait;
 use futures::Stream;
@@ -7,74 +7,197 @@ use std::pin::Pin;
 
 use crate::CoreError;
 
-/// A single chunk yielded during streaming completion.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CompletionChunk {
-    /// Incremental text delta (may be empty for non-text events).
-    pub delta: String,
-    /// True when this is the final chunk in the stream.
-    pub is_final: bool,
-    /// Approximate input tokens consumed (populated on final chunk only).
-    pub input_tokens: Option<u32>,
-    /// Approximate output tokens generated (populated on final chunk only).
-    pub output_tokens: Option<u32>,
-}
+pub type CompletionStream = Pin<Box<dyn Stream<Item = Result<CompletionChunk, CoreError>> + Send>>;
 
-/// A pinned async stream of completion chunks.
-pub type CompletionStream =
-    Pin<Box<dyn Stream<Item = Result<CompletionChunk, CoreError>> + Send + 'static>>;
-
-/// A message in the conversation history.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ConversationMessage {
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ChatMessage {
     pub role: MessageRole,
     pub content: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
 }
 
-/// Role of a conversation participant.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum MessageRole {
     System,
     User,
     Assistant,
+    Tool,
 }
 
-/// Request payload sent to a model provider.
+impl std::fmt::Display for MessageRole {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MessageRole::System    => write!(f, "system"),
+            MessageRole::User      => write!(f, "user"),
+            MessageRole::Assistant => write!(f, "assistant"),
+            MessageRole::Tool      => write!(f, "tool"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CompletionRequest {
-    /// The model identifier (e.g. `"claude-3-5-sonnet-20241022"`).
-    pub model: String,
-    /// System prompt injected before the conversation.
-    pub system: Option<String>,
-    /// Full conversation history.
-    pub messages: Vec<ConversationMessage>,
-    /// Maximum tokens to generate.
-    pub max_tokens: u32,
-    /// Sampling temperature (0.0–1.0).
-    pub temperature: Option<f32>,
-    /// Whether to stream the response.
-    pub stream: bool,
+pub struct ToolDefinition {
+    pub name: String,
+    pub description: String,
+    pub input_schema: serde_json::Value,
 }
 
-/// Abstraction over AI model providers (Claude, OpenAI, Ollama, …).
-#[async_trait]
-pub trait ModelProvider: Send + Sync + 'static {
-    /// Unique provider identifier (e.g. `"claude"`, `"openai"`, `"ollama"`).
-    fn id(&self) -> &str;
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolCall {
+    pub id: String,
+    #[serde(default = "default_tool_type")]
+    pub r#type: String,
+    pub function: FunctionCall,
+}
 
-    /// Human-readable display name.
+fn default_tool_type() -> String { "function".to_string() }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FunctionCall {
+    pub name: String,
+    pub arguments: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ModelParams {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub temperature: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_tokens: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_p: Option<f32>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub stop: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CompletionRequest {
+    pub messages: Vec<ChatMessage>,
+    pub system: Option<String>,
+    pub tools: Vec<ToolDefinition>,
+    pub model_params: ModelParams,
+    pub model_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum CompletionChunk {
+    Token { content: String },
+    ToolCall { tool_call: ToolCall },
+    Done {
+        input_tokens: u32,
+        output_tokens: u32,
+        cache_read_tokens: u32,
+        cache_write_tokens: u32,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompletionResult {
+    pub content: String,
+    pub tool_calls: Vec<ToolCall>,
+    pub usage: TokenUsage,
+    pub model: String,
+    pub finish_reason: FinishReason,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct TokenUsage {
+    pub input_tokens: u32,
+    pub output_tokens: u32,
+    pub cache_read_tokens: u32,
+    pub cache_write_tokens: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FinishReason {
+    Stop,
+    ToolCalls,
+    Length,
+    ContentFilter,
+    Error,
+}
+
+/// Information about a specific model.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModelInfo {
+    pub id: String,
+    pub name: String,
+    pub context_length: u32,
+    pub max_output_tokens: u32,
+    pub capabilities: ModelCapabilities,
+}
+
+/// Capabilities supported by a model.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ModelCapabilities {
+    pub function_calling: bool,
+    pub vision: bool,
+    pub code_execution: bool,
+    pub prompt_caching: bool,
+}
+
+#[async_trait]
+pub trait ModelProvider: Send + Sync {
+    fn id(&self) -> &str;
     fn display_name(&self) -> &str;
 
-    /// List of model identifiers available via this provider.
-    async fn list_models(&self) -> Result<Vec<String>, CoreError>;
+    fn supports_toon(&self) -> bool { true }
 
-    /// Non-streaming completion. Returns the full response text.
-    async fn complete(&self, request: CompletionRequest) -> Result<String, CoreError>;
+    async fn list_models(&self) -> Result<Vec<ModelInfo>, CoreError>;
 
-    /// Streaming completion. Yields chunks as they arrive.
-    async fn stream(&self, request: CompletionRequest) -> Result<CompletionStream, CoreError>;
+    async fn complete(
+        &self,
+        request: CompletionRequest,
+    ) -> Result<CompletionStream, CoreError>;
 
-    /// Check provider health (API reachable, credentials valid).
-    async fn health_check(&self) -> Result<(), CoreError>;
+    async fn complete_sync(
+        &self,
+        request: CompletionRequest,
+    ) -> Result<CompletionResult, CoreError> {
+        use futures::StreamExt;
+
+        let stream = self.complete(request).await?;
+        let collected = stream.collect::<Vec<_>>().await;
+
+        let mut content = String::new();
+        let mut tool_calls = Vec::new();
+        let mut usage = TokenUsage::default();
+
+        for chunk in collected.into_iter().flatten() {
+            match chunk {
+                CompletionChunk::Token { content: token } => content.push_str(&token),
+                CompletionChunk::ToolCall { tool_call } => tool_calls.push(tool_call),
+                CompletionChunk::Done {
+                    input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
+                } => {
+                    usage = TokenUsage { input_tokens, output_tokens, cache_read_tokens, cache_write_tokens };
+                }
+            }
+        }
+
+        let finish_reason = if tool_calls.is_empty() { FinishReason::Stop } else { FinishReason::ToolCalls };
+
+        Ok(CompletionResult { content, tool_calls, usage, model: String::new(), finish_reason })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn completion_chunk_token_round_trips() {
+        let chunk = CompletionChunk::Token { content: "Hello".to_string() };
+        let json = serde_json::to_string(&chunk).unwrap();
+        assert!(json.contains("token"));
+        let decoded: CompletionChunk = serde_json::from_str(&json).unwrap();
+        match decoded {
+            CompletionChunk::Token { content } => assert_eq!(content, "Hello"),
+            _ => panic!("Wrong variant"),
+        }
+    }
 }

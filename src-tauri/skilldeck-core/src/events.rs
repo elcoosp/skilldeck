@@ -1,4 +1,8 @@
 //! Event types emitted from the Rust core to the React frontend via Tauri IPC.
+//!
+//! `WorkflowEvent` is re-exported here for convenience even though it lives in
+//! the workflow module — the executor emits it on an internal channel.
+pub use crate::workflow::types::WorkflowEvent;
 
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;

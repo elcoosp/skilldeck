@@ -1,7 +1,9 @@
-//! Model provider implementations (Claude, OpenAI, Ollama).
-//!
-//! Stubs — to be filled in Chunk 4 (Model Providers).
+//! AI model provider implementations.
 
 pub mod claude;
-pub mod openai;
 pub mod ollama;
+pub mod openai;
+
+pub use claude::ClaudeProvider;
+pub use ollama::OllamaProvider;
+pub use openai::OpenAiProvider;

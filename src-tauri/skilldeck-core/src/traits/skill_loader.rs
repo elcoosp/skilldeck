@@ -1,4 +1,4 @@
-//! Skill loading abstraction.
+//! Skill Loader trait and related types.
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -6,57 +6,105 @@ use std::path::PathBuf;
 
 use crate::CoreError;
 
-/// Priority tier determining skill resolution order.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum SkillSource {
-    /// Built-in skills shipped with SkillDeck (lowest priority).
-    Builtin = 0,
-    /// User-level skills in `~/.skilldeck/skills/`.
-    User = 1,
-    /// Workspace-level skills in `<project>/.skilldeck/skills/` (highest priority).
-    Workspace = 2,
-}
-
-/// Metadata parsed from a SKILL.md frontmatter block.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SkillMetadata {
-    /// Skill name (used as the lookup key).
-    pub name: String,
-    /// Short description shown in the UI.
-    pub description: Option<String>,
-    /// Semantic version string.
-    pub version: Option<String>,
-    /// Author name or email.
-    pub author: Option<String>,
-    /// Arbitrary tags for filtering/search.
-    pub tags: Vec<String>,
+pub enum SkillSource {
+    Filesystem(PathBuf),
+    Database(uuid::Uuid),
+    Remote(String),
 }
 
-/// A fully loaded skill (frontmatter + body).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Skill {
-    /// Parsed metadata from YAML frontmatter.
-    pub metadata: SkillMetadata,
-    /// Markdown body of the skill file (the system prompt content).
-    pub body: String,
-    /// Absolute path to the source file.
-    pub path: PathBuf,
-    /// Source tier (builtin / user / workspace).
-    pub source: SkillSource,
-    /// SHA-256 hex digest of the file contents.
-    pub content_hash: String,
+    pub name: String,
+    pub description: String,
+    pub content_md: String,
+    #[serde(default)]
+    pub manifest: SkillManifest,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub disk_path: Option<PathBuf>,
+    pub source: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content_hash: Option<String>,
 }
 
-/// Loads skills from a given source directory.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct SkillManifest {
+    #[serde(default)]
+    pub version: String,
+    #[serde(default)]
+    pub author: String,
+    #[serde(default)]
+    pub triggers: Vec<String>,
+    #[serde(default)]
+    pub requires: Vec<String>,
+    #[serde(flatten)]
+    pub extra: serde_json::Map<String, serde_json::Value>,
+}
+
+impl Skill {
+    pub fn new(name: String, description: String, content_md: String, source: String) -> Self {
+        Self {
+            name,
+            description,
+            content_md,
+            manifest: SkillManifest::default(),
+            disk_path: None,
+            source,
+            content_hash: None,
+        }
+    }
+
+    pub fn compute_hash(&self) -> String {
+        use sha2::{Digest, Sha256};
+        let mut hasher = Sha256::new();
+        hasher.update(self.content_md.as_bytes());
+        hasher.update(self.name.as_bytes());
+        format!("{:x}", hasher.finalize())
+    }
+}
+
 #[async_trait]
-pub trait SkillLoader: Send + Sync + 'static {
-    /// Return all skills found under the configured source directory.
-    async fn load_all(&self) -> Result<Vec<Skill>, CoreError>;
+pub trait SkillLoader: Send + Sync {
+    async fn load(&self, source: &SkillSource) -> Result<Skill, CoreError>;
+    async fn exists(&self, source: &SkillSource) -> bool;
+    async fn modified_at(&self, source: &SkillSource) -> Option<std::time::SystemTime>;
+}
 
-    /// Load a single skill by its file path.
-    async fn load_one(&self, path: &std::path::Path) -> Result<Skill, CoreError>;
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    /// The source tier this loader serves.
-    fn source(&self) -> SkillSource;
+    #[test]
+    fn skill_creation() {
+        let skill = Skill::new("test-skill".into(), "A test skill".into(), "# Test\nDo something.".into(), "local".into());
+        assert_eq!(skill.name, "test-skill");
+        assert!(skill.disk_path.is_none());
+        assert!(skill.content_hash.is_none());
+    }
+
+    #[test]
+    fn skill_hash_computation() {
+        let s1 = Skill::new("test".into(), String::new(), "content".into(), "local".into());
+        let s2 = Skill::new("test".into(), String::new(), "content".into(), "local".into());
+        let s3 = Skill::new("test".into(), String::new(), "different".into(), "local".into());
+        let h1 = s1.compute_hash();
+        assert_eq!(h1.len(), 64);
+        assert_eq!(h1, s2.compute_hash());
+        assert_ne!(h1, s3.compute_hash());
+    }
+
+    #[test]
+    fn skill_manifest_default() {
+        let m = SkillManifest::default();
+        assert!(m.version.is_empty());
+        assert!(m.triggers.is_empty());
+    }
+
+    #[test]
+    fn skill_source_serialization() {
+        let source = SkillSource::Filesystem(PathBuf::from("/skills/my-skill"));
+        let json = serde_json::to_string(&source).unwrap();
+        assert!(json.contains("Filesystem"));
+        assert!(json.contains("/skills/my-skill"));
+    }
 }

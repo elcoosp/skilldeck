@@ -1,8 +1,13 @@
-//! Agent loop, context building, tool dispatch, and subagent support.
+//! Agent engine: loop, tool dispatch, context building, subagents.
 
-pub mod r#loop;
-pub mod context_builder;
 pub mod built_in_tools;
-pub mod tool_dispatcher;
-pub mod approval_gate;
+pub mod context_builder;
+pub mod r#loop;
 pub mod subagent;
+pub mod tool_dispatcher;
+
+pub use built_in_tools::all as all_built_in_tools;
+pub use context_builder::ContextBuilder;
+pub use r#loop::{AgentLoop, AgentLoopConfig, AgentLoopEvent};
+pub use subagent::{SubagentManager, SubagentSession, SubagentStatus};
+pub use tool_dispatcher::{ApprovalGate, ApprovalResult, ToolDispatcher};

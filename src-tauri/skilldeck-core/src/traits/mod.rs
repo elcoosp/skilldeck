@@ -1,16 +1,23 @@
 //! Dependency Inversion Principle (DIP) trait definitions.
-//!
-//! All major subsystem boundaries are expressed as traits here, enabling:
-//! - Testability via mock implementations
-//! - Provider extensibility (Claude, OpenAI, Ollama, …)
-//! - Transport extensibility (stdio, SSE, …)
 
-pub mod model_provider;
-pub mod mcp_transport;
-pub mod skill_loader;
 pub mod database;
+pub mod mcp_transport;
+pub mod model_provider;
+pub mod skill_loader;
+pub mod sync_backend;
 
-pub use model_provider::{CompletionChunk, CompletionRequest, CompletionStream, ModelProvider};
-pub use mcp_transport::{McpCallResult, McpServerConfig, McpSession, McpTool, McpTransport};
-pub use skill_loader::{Skill, SkillLoader, SkillSource};
-pub use database::Database;
+pub use database::{Database, SeaOrmDatabase};
+pub use mcp_transport::{
+    McpCallResult, McpCapabilities, McpContent, McpResource,
+    McpServerConfig, McpSession, McpSessionInner, McpTool, McpTransport,
+};
+pub use model_provider::{
+    ChatMessage, CompletionChunk, CompletionRequest, CompletionResult,
+    CompletionStream, FinishReason, FunctionCall, MessageRole, ModelCapabilities,
+    ModelInfo, ModelParams, ModelProvider, TokenUsage, ToolCall, ToolDefinition,
+};
+pub use skill_loader::{Skill, SkillLoader, SkillManifest, SkillSource};
+pub use sync_backend::{
+    Changeset, ConflictResolution, NoOpSyncBackend, PushResult, SyncBackend,
+    SyncConflict, SyncOperation, SyncRecord,
+};

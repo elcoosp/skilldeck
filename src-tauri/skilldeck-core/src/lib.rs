@@ -16,30 +16,62 @@
 //! - [`workspace`] — Workspace detection and context
 //! - [`events`]    — IPC event types
 
-pub mod error;
-pub mod db;
-pub mod models;
-pub mod traits;
-pub mod providers;
-pub mod skills;
-pub mod mcp;
 pub mod agent;
+pub mod db;
+pub mod error;
+pub mod events;
+pub mod mcp;
+pub mod models;
+pub mod providers;
+pub mod search;
+pub mod skills;
+pub mod toon;
+pub mod traits;
 pub mod workflow;
 pub mod workspace;
-pub mod toon;
-pub mod search;
-pub mod events;
 
 // Re-export commonly used types.
+pub use db::{SqliteDatabase, open_db};
 pub use error::CoreError;
 pub use events::AgentEvent;
 pub use traits::{
-    CompletionChunk, CompletionRequest, CompletionStream, ModelProvider,
-    McpCallResult, McpServerConfig, McpSession, McpTool, McpTransport,
-    Skill, SkillLoader, SkillSource,
+    // model provider
+    ChatMessage,
+    CompletionChunk,
+    CompletionRequest,
+    CompletionResult,
+    CompletionStream,
+    // database
     Database,
+    FinishReason,
+    FunctionCall,
+    // mcp
+    McpCallResult,
+    McpCapabilities,
+    McpContent,
+    McpResource,
+    McpServerConfig,
+    McpSession,
+    McpTool,
+    McpTransport,
+    MessageRole,
+    ModelCapabilities,
+    ModelInfo,
+    ModelParams,
+    ModelProvider,
+    // sync (v2 stub)
+    NoOpSyncBackend,
+    SeaOrmDatabase,
+    // skills
+    Skill,
+    SkillLoader,
+    SkillManifest,
+    SkillSource,
+    SyncBackend,
+    TokenUsage,
+    ToolCall,
+    ToolDefinition,
 };
-pub use db::{open_db, SqliteDatabase};
 
 use std::sync::Arc;
 
@@ -107,16 +139,28 @@ mod tests {
 
         #[async_trait]
         impl ModelProvider for NoopProvider {
-            fn id(&self) -> &str { "noop" }
-            fn display_name(&self) -> &str { "Noop" }
-            async fn list_models(&self) -> Result<Vec<String>, CoreError> { Ok(vec![]) }
+            fn id(&self) -> &str {
+                "noop"
+            }
+            fn display_name(&self) -> &str {
+                "Noop"
+            }
+            async fn list_models(&self) -> Result<Vec<String>, CoreError> {
+                Ok(vec![])
+            }
             async fn complete(&self, _: CompletionRequest) -> Result<String, CoreError> {
-                Err(CoreError::NotImplemented { feature: "complete".into() })
+                Err(CoreError::NotImplemented {
+                    feature: "complete".into(),
+                })
             }
             async fn stream(&self, _: CompletionRequest) -> Result<CompletionStream, CoreError> {
-                Err(CoreError::NotImplemented { feature: "stream".into() })
+                Err(CoreError::NotImplemented {
+                    feature: "stream".into(),
+                })
             }
-            async fn health_check(&self) -> Result<(), CoreError> { Ok(()) }
+            async fn health_check(&self) -> Result<(), CoreError> {
+                Ok(())
+            }
         }
 
         let registry = Registry::new(MockDb);
