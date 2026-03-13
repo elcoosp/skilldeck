@@ -273,12 +273,11 @@ impl crate::traits::McpSessionInner for StdioSessionInner {
 
 impl Drop for StdioSessionInner {
     fn drop(&mut self) {
-        if let Ok(mut guard) = self.child.try_lock() {
-            if let Some(mut child) = guard.take() {
+        if let Ok(mut guard) = self.child.try_lock()
+            && let Some(mut child) = guard.take() {
                 let _ = child.start_kill();
                 warn!("Killed MCP server process on drop");
             }
-        }
     }
 }
 

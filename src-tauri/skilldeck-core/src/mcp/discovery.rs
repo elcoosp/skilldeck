@@ -22,8 +22,8 @@ pub async fn discover_servers() -> Vec<DiscoveredServer> {
     let mut found = Vec::new();
 
     // 1. Read ~/.config/skilldeck/mcp_servers.json
-    if let Some(config_path) = default_config_path() {
-        if config_path.exists() {
+    if let Some(config_path) = default_config_path()
+        && config_path.exists() {
             match load_config_file(&config_path).await {
                 Ok(mut servers) => {
                     debug!(
@@ -38,7 +38,6 @@ pub async fn discover_servers() -> Vec<DiscoveredServer> {
                 }
             }
         }
-    }
 
     found
 }

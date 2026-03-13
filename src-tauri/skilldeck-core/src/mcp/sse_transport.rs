@@ -113,14 +113,13 @@ impl SseSessionInner {
         }
 
         for line in body.lines() {
-            if let Some(data) = line.strip_prefix("data: ") {
-                if let Ok(resp) = serde_json::from_str::<JsonRpcResponse>(data) {
+            if let Some(data) = line.strip_prefix("data: ")
+                && let Ok(resp) = serde_json::from_str::<JsonRpcResponse>(data) {
                     if let Some(err) = &resp.error {
                         return Err(CoreError::McpJsonRpc { code: err.code, message: err.message.clone() });
                     }
                     return Ok(resp);
                 }
-            }
         }
 
         Err(CoreError::McpJsonRpc { code: -32603, message: "No valid JSON-RPC response in SSE stream".into() })

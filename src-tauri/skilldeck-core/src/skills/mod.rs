@@ -13,6 +13,12 @@ pub use watcher::{SkillWatchEvent, start_watcher};
 // Temporary stub – replace with real implementation later
 pub struct SkillRegistry;
 
+impl Default for SkillRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SkillRegistry {
     pub fn new() -> Self {
         Self

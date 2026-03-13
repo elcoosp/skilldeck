@@ -306,15 +306,14 @@ impl ModelProvider for OpenAiProvider {
                                 }
                                 if let Ok(chunk) = serde_json::from_str::<OpenAiChunk>(data) {
                                     if let Some(choice) = chunk.choices.first() {
-                                        if let Some(content) = &choice.delta.content {
-                                            if !content.is_empty() {
+                                        if let Some(content) = &choice.delta.content
+                                            && !content.is_empty() {
                                                 return Some(Ok(CompletionChunk::Token {
                                                     content: content.clone(),
                                                 }));
                                             }
-                                        }
-                                        if let Some(tool_calls) = &choice.delta.tool_calls {
-                                            if let Some(tc) = tool_calls.first() {
+                                        if let Some(tool_calls) = &choice.delta.tool_calls
+                                            && let Some(tc) = tool_calls.first() {
                                                 return Some(Ok(CompletionChunk::ToolCall {
                                                     tool_call: ToolCall {
                                                         id: tc.id.clone(),
@@ -329,7 +328,6 @@ impl ModelProvider for OpenAiProvider {
                                                     },
                                                 }));
                                             }
-                                        }
                                     }
                                     if let Some(usage) = &chunk.usage {
                                         return Some(Ok(CompletionChunk::Done {

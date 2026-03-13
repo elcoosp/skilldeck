@@ -106,13 +106,13 @@ impl ContextLoader {
         // Project-specific files
         match project_type {
             ProjectType::Rust => {
-                Self::try_load(&root, "Cargo.toml", 30, &mut files).await;
+                Self::try_load(root, "Cargo.toml", 30, &mut files).await;
             }
             ProjectType::Node => {
-                Self::try_load(&root, "package.json", 30, &mut files).await;
+                Self::try_load(root, "package.json", 30, &mut files).await;
             }
             ProjectType::Python => {
-                Self::try_load(&root, "pyproject.toml", 30, &mut files).await;
+                Self::try_load(root, "pyproject.toml", 30, &mut files).await;
             }
             _ => {}
         }

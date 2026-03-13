@@ -338,17 +338,15 @@ impl ModelProvider for ClaudeProvider {
                                     continue;
                                 }
                                 if let Ok(event) = serde_json::from_str::<ClaudeEvent>(data) {
-                                    if let Some(delta) = &event.delta {
-                                        if let Some(text) = &delta.text {
-                                            if !text.is_empty() {
+                                    if let Some(delta) = &event.delta
+                                        && let Some(text) = &delta.text
+                                            && !text.is_empty() {
                                                 chunks.push(Ok(CompletionChunk::Token {
                                                     content: text.clone(),
                                                 }));
                                             }
-                                        }
-                                    }
-                                    if event.event_type == "message_stop" {
-                                        if let Some(usage) = event
+                                    if event.event_type == "message_stop"
+                                        && let Some(usage) = event
                                             .message
                                             .as_ref()
                                             .and_then(|m| m.usage.as_ref())
@@ -365,7 +363,6 @@ impl ModelProvider for ClaudeProvider {
                                                     .unwrap_or(0),
                                             }));
                                         }
-                                    }
                                 }
                             }
                         }
