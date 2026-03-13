@@ -153,7 +153,7 @@ export function LeftPanel() {
       </ScrollArea>
 
       {/* Footer with workspace switcher */}
-      <div className="p-3 border-t border-border shrink-0 space-y-2">
+      <div className="p-3 border-t border-border shrink-0 min-w-0 space-y-2">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -164,7 +164,7 @@ export function LeftPanel() {
               <span className="truncate">
                 {activeWorkspace ? activeWorkspace.name : 'No workspace'}
               </span>
-              <ChevronDown className="size-3.5 opacity-50" />
+              <ChevronDown className="size-3.5 opacity-50 shrink-0" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-[--radix-dropdown-menu-trigger-width]">
@@ -182,7 +182,7 @@ export function LeftPanel() {
                 >
                   <span className="truncate">{w.name}</span>
                   {!w.is_open && (
-                    <span className="text-[10px] text-muted-foreground ml-2">(closed)</span>
+                    <span className="text-[10px] text-muted-foreground ml-2 shrink-0">(closed)</span>
                   )}
                 </DropdownMenuItem>
               ))
@@ -195,9 +195,10 @@ export function LeftPanel() {
           size="sm"
           className="w-full"
           onClick={handleOpenWorkspace}
+          title="Open another workspace"
         >
-          <FolderOpen className="size-3.5 mr-1.5" />
-          Open another workspace
+          <FolderOpen className="size-3.5 mr-1.5 shrink-0" />
+          <span className="truncate">Open another workspace</span>
         </Button>
       </div>
     </div>
