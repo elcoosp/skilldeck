@@ -2,7 +2,8 @@
 //!
 //! Uses SeaORM 2.0 migration API and ActiveModel for seed data.
 
-use sea_orm::{ConnectionTrait, DatabaseBackend, Iden, Statement};
+use chrono::Utc;
+use sea_orm::{ActiveModelTrait, Iden, Set};
 use sea_orm_migration::{prelude::*, schema::*};
 use skilldeck_models::*;
 use uuid::Uuid;
@@ -1156,8 +1157,8 @@ impl MigrationTrait for Migration {
             model_id: Set("claude-sonnet-4-5".to_owned()),
             model_params: Set(None),
             is_default: Set(true),
-            created_at: Set(chrono::Utc::now()),
-            updated_at: Set(chrono::Utc::now()),
+            created_at: Set(Utc::now().into()),
+            updated_at: Set(Utc::now().into()),
         };
         default_profile.insert(db).await?;
 
@@ -1178,7 +1179,7 @@ impl MigrationTrait for Migration {
                 path: Set((*path).to_owned()),
                 priority: Set(*priority),
                 enabled: Set(true),
-                created_at: Set(chrono::Utc::now()),
+                created_at: Set(Utc::now().into()),
             };
             source_dir.insert(db).await?;
         }
@@ -1211,7 +1212,7 @@ impl MigrationTrait for Migration {
                 output_cost_per_1k_tokens: Set(*output_c),
                 cache_read_cost_per_1k_tokens: Set(Some(*cache_r)),
                 cache_write_cost_per_1k_tokens: Set(Some(*cache_w)),
-                valid_from: Set(chrono::Utc::now()),
+                valid_from: Set(Utc::now().into()),
             };
             pricing.insert(db).await?;
         }

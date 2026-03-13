@@ -11,3 +11,4 @@ sea-orm-migration = "2.0.0-rc.37"
 uuid = "1.22.0"
 tokio = { version = "1", features = ["full"] }
 skilldeck-models = { path = "../skilldeck-models" }
+chrono = { version = "0.4", features = ["serde"] }

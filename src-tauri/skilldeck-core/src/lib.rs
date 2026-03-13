@@ -21,7 +21,6 @@ pub mod db;
 pub mod error;
 pub mod events;
 pub mod mcp;
-pub mod models;
 pub mod providers;
 pub mod search;
 pub mod skills;

@@ -80,13 +80,8 @@ impl ContextLoader {
     ) -> Result<Vec<ContextFile>, CoreError> {
         let mut files = Vec::new();
 
-        // Priority order for context files
-        let context_specs = vec![
-            ("CLAUDE.md", 100),
-            ("README.md", 50),
-            ("readme.md", 50),
-            ("README", 40),
-        ];
+        // Priority order for context files – removed "readme.md" to avoid duplicate loads on case‑insensitive systems
+        let context_specs = vec![("CLAUDE.md", 100), ("README.md", 50), ("README", 40)];
 
         for (name, priority) in context_specs {
             let path = root.join(name);

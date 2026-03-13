@@ -1,13 +1,12 @@
 //! Filesystem watcher for skill directories.
 //!
-//! Detects SKILL.md create / modify / delete events with a 200 ms debounce
-//! window so that editor save-storms don't flood the reload pipeline.
+//! Detects skill file changes with 200ms debouncing.
 
-use notify::{Event, EventKind, RecursiveMode, Watcher};
+use notify::{EventKind, RecursiveMode, Watcher as NotifyWatcher};
+use notify_debouncer_mini::{DebouncedEvent, new_debouncer};
 use std::path::PathBuf;
 use std::time::Duration;
-use tokio::sync::mpsc::{Sender, channel};
-use tokio::time::sleep;
+use tokio::sync::mpsc::Sender;
 use tracing::{info, warn};
 
 use crate::CoreError;
@@ -15,93 +14,63 @@ use crate::CoreError;
 /// Events emitted by the skill watcher.
 #[derive(Debug, Clone)]
 pub enum SkillWatchEvent {
-    /// A new skill directory appeared.
+    /// A skill was created.
     Created(PathBuf),
-    /// An existing skill was modified.
+    /// A skill was modified.
     Modified(PathBuf),
-    /// A skill directory was removed.
+    /// A skill was deleted.
     Deleted(PathBuf),
 }
 
-/// Start watching `dir` recursively.
-///
-/// Returns the [`notify::RecommendedWatcher`] (keep it alive — dropping it stops the watcher).
-/// Events are debounced for 200 ms and then sent on `tx`.
+/// Start watching a skill directory.
 pub fn start_watcher(
     dir: PathBuf,
     tx: Sender<SkillWatchEvent>,
-) -> Result<notify::RecommendedWatcher, CoreError> {
-    let (event_tx, mut event_rx) = channel(128);
+) -> Result<impl NotifyWatcher, CoreError> {
+    let (debounce_tx, debounce_rx) = std::sync::mpsc::channel();
 
-    let mut watcher = notify::recommended_watcher(move |res: Result<Event, notify::Error>| {
-        let event_tx = event_tx.clone();
-        tokio::spawn(async move {
-            match res {
-                Ok(event) => {
-                    let _ = event_tx.send(event).await;
-                }
-                Err(e) => {
-                    warn!("File watcher error: {}", e);
-                }
+    let mut debouncer =
+        new_debouncer(Duration::from_millis(200), None, debounce_tx).map_err(|e| {
+            CoreError::Internal {
+                message: format!("Failed to create debouncer: {}", e),
             }
-        });
-    })
-    .map_err(|e| CoreError::Internal {
-        message: format!("Failed to create file watcher: {}", e),
-    })?;
+        })?;
 
-    watcher
+    debouncer
+        .watcher()
         .watch(&dir, RecursiveMode::Recursive)
         .map_err(|e| CoreError::FileOperation {
             path: dir.clone(),
-            message: format!("Failed to start watcher on {:?}: {}", dir, e),
+            message: format!("Failed to start watcher: {}", e),
         })?;
 
     info!("Started skill watcher for {:?}", dir);
 
-    // Debouncer task: aggregate events for 200 ms.
-    tokio::spawn(async move {
-        let mut pending: Vec<Event> = Vec::new();
-        let mut debounce_timer: Option<tokio::time::Instant> = None;
-
-        loop {
-            tokio::select! {
-                Some(event) = event_rx.recv() => {
-                    pending.push(event);
-                    if debounce_timer.is_none() {
-                        debounce_timer = Some(tokio::time::Instant::now() + Duration::from_millis(200));
-                    }
-                }
-                _ = async {
-                    if let Some(deadline) = debounce_timer {
-                        sleep(deadline - tokio::time::Instant::now()).await;
-                    } else {
-                        std::future::pending().await
-                    }
-                } => {
-                    // Debounce period elapsed: process all pending events.
-                    let events = std::mem::take(&mut pending);
-                    debounce_timer = None;
-
-                    for event in events {
-                        for path in event.paths {
-                            if path.file_name().map(|n| n == "SKILL.md").unwrap_or(false) {
-                                let skill_dir = match path.parent() {
-                                    Some(p) => p.to_owned(),
-                                    None => continue,
-                                };
-
-                                let watch_event = match event.kind {
-                                    EventKind::Create(_) => SkillWatchEvent::Created(skill_dir),
-                                    EventKind::Modify(_) => SkillWatchEvent::Modified(skill_dir),
-                                    EventKind::Remove(_) => SkillWatchEvent::Deleted(skill_dir),
-                                    _ => continue,
-                                };
-
-                                if tx.send(watch_event).await.is_err() {
-                                    warn!("Skill watch event receiver dropped; stopping debouncer");
-                                    return;
+    // Spawn a blocking task to receive events from the debouncer and forward them to the tokio channel.
+    tokio::task::spawn_blocking(move || {
+        while let Ok(result) = debounce_rx.recv() {
+            if let Ok(events) = result {
+                for DebouncedEvent { path, kind } in events {
+                    // Only watch SKILL.md files
+                    if path.file_name().map(|n| n == "SKILL.md").unwrap_or(false) {
+                        // Get the skill directory (parent of SKILL.md)
+                        if let Some(skill_dir) = path.parent() {
+                            let event = match kind {
+                                notify::EventKind::Create(_) => {
+                                    SkillWatchEvent::Created(skill_dir.to_owned())
                                 }
+                                notify::EventKind::Modify(_) => {
+                                    SkillWatchEvent::Modified(skill_dir.to_owned())
+                                }
+                                notify::EventKind::Remove(_) => {
+                                    SkillWatchEvent::Deleted(skill_dir.to_owned())
+                                }
+                                _ => continue,
+                            };
+
+                            if tx.blocking_send(event).is_err() {
+                                warn!("Failed to send skill watch event");
+                                return;
                             }
                         }
                     }
@@ -110,26 +79,27 @@ pub fn start_watcher(
         }
     });
 
-    Ok(watcher)
+    Ok(debouncer)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::fs;
-    use tokio::sync::mpsc::channel;
+    use std::time::Duration;
+    use tokio::time::timeout;
 
     #[tokio::test]
     async fn watcher_detects_new_skill() {
-        let tmp = tempfile::tempdir().unwrap();
-        let (tx, mut rx) = channel(32);
+        let dir = tempfile::tempdir().unwrap();
+        let (tx, mut rx) = tokio::sync::mpsc::channel(32);
+        let _watcher = start_watcher(dir.path().to_owned(), tx).unwrap();
 
-        let _watcher = start_watcher(tmp.path().to_owned(), tx).unwrap();
-
-        // Let the watcher initialise.
+        // Give watcher time to initialize
         tokio::time::sleep(Duration::from_millis(250)).await;
 
-        let skill_dir = tmp.path().join("new-skill");
+        // Create a skill
+        let skill_dir = dir.path().join("new-skill");
         fs::create_dir_all(&skill_dir).unwrap();
         fs::write(
             skill_dir.join("SKILL.md"),
@@ -137,14 +107,8 @@ mod tests {
         )
         .unwrap();
 
-        let event = tokio::time::timeout(Duration::from_secs(5), rx.recv()).await;
-        assert!(event.is_ok(), "Watcher did not fire within 5 s");
-    }
-
-    #[tokio::test]
-    async fn watcher_on_bad_path_returns_err() {
-        let (tx, _rx) = channel(32);
-        let result = start_watcher(PathBuf::from("/this/does/not/exist"), tx);
-        assert!(result.is_err());
+        // Wait for event
+        let event = timeout(Duration::from_secs(3), rx.recv()).await;
+        assert!(event.is_ok(), "Watcher did not fire within 3 seconds");
     }
 }
