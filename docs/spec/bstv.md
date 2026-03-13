@@ -1,18 +1,4 @@
----
-
-## 📋 Behavioral Specification & Test Verification — SkillDeck v1
-
-| Field | Value |
-|-------|-------|
-| Project | SkillDeck v1 |
-| Document | Behavioral Specification & Test Verification Plan |
-| Version | 0.1 (Draft) |
-| Date | 2025-01-15 |
-| Author | Project Lead, assisted by AI |
-| Status | Draft — Pending Review |
-| References | SkillDeck v1 Vision (v0.1), BRS/StRS (v0.1), SRS (v0.1), Architecture (v0.1) |
-
----
+# 📋 Behavioral Specification & Test Verification — SkillDeck v1
 
 ## 1. Mental Model: Levels 4–5 in a Modern Stack
 

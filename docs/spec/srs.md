@@ -1,18 +1,4 @@
----
-
-## 📋 Software Requirements Specification — SkillDeck v1
-
-| Field | Value |
-|-------|-------|
-| Project | SkillDeck v1 |
-| Document | Software Requirements Specification (SRS) |
-| Version | 0.1 (Draft) |
-| Date | 2025-01-15 |
-| Author | Project Lead, assisted by AI |
-| Status | Draft — Pending Review |
-| References | SkillDeck v1 Vision Document (v0.1), BRS/StRS (v0.1) |
-
----
+# 📋 Software Requirements Specification — SkillDeck v1
 
 ## 1. Introduction & Scope
 

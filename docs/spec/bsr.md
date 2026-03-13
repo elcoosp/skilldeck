@@ -1,18 +1,4 @@
----
-
-## 📋 Business & Stakeholder Requirements Specification — SkillDeck v1
-
-| Field | Value |
-|-------|-------|
-| Project | SkillDeck v1 |
-| Document | Business & Stakeholder Requirements Specification (BRS/StRS) |
-| Version | 0.1 (Draft) |
-| Date | 2025-01-15 |
-| Author | Project Lead, assisted by AI |
-| Status | Draft — Pending Review |
-| References | SkillDeck v1 Vision Document (v0.1) |
-
----
+# 📋 Business & Stakeholder Requirements Specification — SkillDeck v1
 
 ## 1. Business Context
 

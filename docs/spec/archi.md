@@ -1,18 +1,4 @@
----
-
-## 📋 Architecture & Design Specification — SkillDeck v1
-
-| Field | Value |
-|-------|-------|
-| Project | SkillDeck v1 |
-| Document | Architecture & Design Specification |
-| Version | 0.1 (Draft) |
-| Date | 2025-01-15 |
-| Author | Project Lead, assisted by AI |
-| Status | Draft — Pending Review |
-| References | SkillDeck v1 Vision (v0.1), BRS/StRS (v0.1), SRS (v0.1), Implementation Plan (v1.0) |
-
----
+# 📋 Architecture & Design Specification — SkillDeck v1
 
 ## 1. Context & Scope
 
