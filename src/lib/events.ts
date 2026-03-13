@@ -1,3 +1,4 @@
+// File: src/lib/events.ts
 /**
  * Typed Tauri event listeners.
  *
@@ -20,6 +21,7 @@ export type AgentEventType =
   | 'tool_result'
   | 'done'
   | 'error'
+  | 'persisted'   // <-- new
 
 export interface AgentEvent {
   type: AgentEventType
@@ -36,6 +38,7 @@ export interface AgentEvent {
   output_tokens?: number
   /** `error` variant */
   message?: string
+  /** `persisted` variant carries no extra fields */
 }
 
 export interface ToolCallInfo {

@@ -1,3 +1,4 @@
+// File: src/hooks/use-agent-stream.ts
 /**
  * useAgentStream — subscribe to Tauri agent-event channel for a given
  * conversation and drive streaming text + running state in the UI store.
@@ -7,11 +8,13 @@
  */
 
 import { useEffect, useRef } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { onAgentEvent } from '@/lib/events'
 import { useUIStore } from '@/store/ui'
 import type { AgentEvent } from '@/lib/events'
 
 export function useAgentStream(conversationId: string | null) {
+  const queryClient = useQueryClient()
   const appendStreamingText = useUIStore((s) => s.appendStreamingText)
   const clearStreamingText = useUIStore((s) => s.clearStreamingText)
   const setAgentRunning = useUIStore((s) => s.setAgentRunning)
@@ -64,6 +67,12 @@ export function useAgentStream(conversationId: string | null) {
           setAgentRunning(conversationId, false)
           clearStreamingText(conversationId)
           break
+
+        case 'persisted':
+          // New messages have been saved to the database; refetch.
+          queryClient.invalidateQueries({ queryKey: ['messages', conversationId] })
+          queryClient.invalidateQueries({ queryKey: ['conversations'] })
+          break
       }
     }
 
@@ -77,7 +86,7 @@ export function useAgentStream(conversationId: string | null) {
       pendingBuffer.current = ''
       unlisten?.()
     }
-  }, [conversationId, appendStreamingText, clearStreamingText, setAgentRunning])
+  }, [conversationId, appendStreamingText, clearStreamingText, setAgentRunning, queryClient])
 
   const streamingText = useUIStore(
     (s) => s.streamingText[conversationId ?? ''] ?? ''

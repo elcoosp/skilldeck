@@ -1,3 +1,4 @@
+// src/components/conversation/message-input.tsx
 /**
  * Message input — auto-growing textarea with draft persistence, slash commands,
  * skill mention (@), file reference (#) entry points, and file attachments.
@@ -142,7 +143,8 @@ export function MessageInput({ conversationId }: MessageInputProps) {
           placeholder={isRunning ? 'Agent is running…' : 'Type a message…'}
           disabled={isRunning}
           className={cn(
-            'flex-1 min-h-[36px] max-h-[200px] resize-none border-0 shadow-none p-0 bg-transparent focus-visible:ring-0 text-sm'
+            'flex-1 min-h-[36px] max-h-[200px] resize-none border-0 shadow-none bg-transparent focus-visible:ring-0 text-sm',
+            'leading-6 py-2 px-0 overflow-y-hidden' // Added overflow-y-hidden to prevent scrollbar when empty
           )}
           rows={1}
         />
