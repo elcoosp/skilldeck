@@ -5565,6 +5565,7 @@ name = "skilldeck"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "dashmap",
  "sea-orm",
  "serde",
  "serde_json",
@@ -5581,6 +5582,7 @@ dependencies = [
  "tauri-plugin-store",
  "tauri-specta",
  "tokio",
+ "tokio-util",
  "tracing",
  "tracing-subscriber",
  "uuid",
@@ -5615,6 +5617,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
+ "tokio-util",
  "tracing",
  "tracing-subscriber",
  "uuid",

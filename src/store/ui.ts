@@ -59,11 +59,32 @@ interface UIState {
   // ── Progressive unlock stage (persisted) ─────────────────────────────────
   unlockStage: number
   setUnlockStage: (stage: number) => void
+
+  /** Whether the user has completed the first-run onboarding wizard */
+  onboardingComplete: boolean
+  setOnboardingComplete: (complete: boolean) => void
 }
 
 export const useUIStore = create<UIState>()(
   persist(
     (set) => ({
+      onboardingComplete: (() => {
+        // Initialise from localStorage so the wizard only shows once.
+        try {
+          return localStorage.getItem('skilldeck-onboarding-complete') === 'true'
+        } catch {
+          return false
+        }
+      })(),
+      setOnboardingComplete: (complete) => {
+        try {
+          localStorage.setItem('skilldeck-onboarding-complete', String(complete))
+        } catch {
+          // ignore
+        }
+        set({ onboardingComplete: complete })
+      },
+
       // Active workspace
       activeWorkspaceId: null,
       setActiveWorkspace: (id) => set({ activeWorkspaceId: id }),

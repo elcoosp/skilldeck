@@ -1,18 +1,16 @@
 //! Evaluator-Optimizer workflow pattern.
 //!
-//! Alternates between a *generator* step and an *evaluator* step.  If the
-//! evaluator marks the result as passing, the workflow completes; otherwise
-//! the generator is re-run up to `max_iterations` times.
-//!
-//! In v1 the actual model calls are stubs — the iteration bookkeeping and
-//! event emission are the production-grade parts.
+//! Alternates between a *generator* step and an *evaluator* step. The
+//! evaluator's output is parsed for a `PASS` / `FAIL` signal (or falls back
+//! to checking completion status). On PASS the loop exits; on FAIL the
+//! generator is re-run up to `MAX_ITERATIONS` times.
 
 use tokio::sync::mpsc::Sender;
 use tracing::info;
 
 use super::{
     graph::WorkflowGraph,
-    sequential::execute_step,
+    sequential::{StepExecutionContext, execute_step},
     types::{StepStatus, WorkflowEvent, WorkflowState},
 };
 use crate::CoreError;
@@ -22,30 +20,28 @@ const MAX_ITERATIONS: u32 = 5;
 
 /// Evaluate-and-optimise execution.
 ///
-/// Assumes the definition has at least two steps: the *first* is treated as
-/// the generator and the *last* as the evaluator.  All other steps are run
-/// sequentially before the eval loop begins (setup steps).
+/// Convention (v1): the *last* step in `order` is the evaluator; everything
+/// before it is setup steps (run once) + generator (re-run each cycle).
 pub async fn execute(
     state: &mut WorkflowState,
     _graph: &WorkflowGraph,
     order: &[String],
     tx: &Sender<WorkflowEvent>,
+    ctx: Option<&StepExecutionContext>,
 ) -> Result<(), CoreError> {
     if order.is_empty() {
         return Ok(());
     }
 
-    // Split: everything but the last step is "setup + generator", the last is
-    // the "evaluator".  Simple convention for v1.
-    let (setup_and_gen, evaluator) = order.split_at(order.len().saturating_sub(1));
-    let evaluator_id = evaluator.first().map(String::as_str);
+    let (setup_and_gen, evaluator_slice) = order.split_at(order.len().saturating_sub(1));
+    let evaluator_id = evaluator_slice.first().map(String::as_str);
 
-    // Run setup steps once.
+    // Run setup steps once (all but the last of setup_and_gen).
     for step_id in setup_and_gen
         .iter()
         .take(setup_and_gen.len().saturating_sub(1))
     {
-        execute_step(state, step_id, tx).await?;
+        execute_step(state, step_id, tx, ctx).await?;
     }
 
     let generator_id = setup_and_gen.last().map(String::as_str);
@@ -57,17 +53,15 @@ pub async fn execute(
             info!("EvalOpt: max iterations ({}) reached", MAX_ITERATIONS);
             break;
         }
-
         info!("EvalOpt: iteration {}/{}", iteration, MAX_ITERATIONS);
 
-        // Run generator.
+        // Run generator — reset state so execute_step re-runs it.
         if let Some(gen_id) = generator_id {
-            // Reset to allow re-run.
             if let Some(step) = state.steps.iter_mut().find(|s| s.id == gen_id) {
                 step.status = StepStatus::Pending;
                 step.result = None;
             }
-            execute_step(state, gen_id, tx).await?;
+            execute_step(state, gen_id, tx, ctx).await?;
         }
 
         // Run evaluator.
@@ -76,23 +70,37 @@ pub async fn execute(
                 step.status = StepStatus::Pending;
                 step.result = None;
             }
-            execute_step(state, eval_id, tx).await?;
+            execute_step(state, eval_id, tx, ctx).await?;
 
-            // In production: parse evaluator output to decide whether to
-            // continue.  For v1, always exit after the first successful eval.
+            // Parse the evaluator output for PASS/FAIL signal.
             let passed = state
                 .steps
                 .iter()
                 .find(|s| s.id == eval_id)
-                .map(|s| s.status == StepStatus::Completed)
+                .map(|s| {
+                    if let Some(ref result) = s.result {
+                        // Accept "PASS" anywhere in output (case-insensitive).
+                        // If not present and not "FAIL", assume pass on first success.
+                        let upper = result.to_uppercase();
+                        if upper.contains("PASS") {
+                            return true;
+                        }
+                        if upper.contains("FAIL") {
+                            return false;
+                        }
+                    }
+                    // Default: pass when step completed successfully.
+                    s.status == StepStatus::Completed
+                })
                 .unwrap_or(false);
 
             if passed {
                 info!("EvalOpt: evaluator passed on iteration {}", iteration);
                 break;
             }
+            info!("EvalOpt: evaluator did not pass, re-running generator");
         } else {
-            // No evaluator step — treat as done after one generation pass.
+            // No evaluator — single generation pass.
             break;
         }
     }
@@ -157,9 +165,18 @@ mod tests {
         let graph = WorkflowGraph::new();
         let mut state = make_eval_opt_state();
         let order = vec!["gen".to_string(), "eval".to_string()];
-        execute(&mut state, &graph, &order, &tx).await.unwrap();
-        // Both steps should have been run at least once.
+        execute(&mut state, &graph, &order, &tx, None)
+            .await
+            .unwrap();
         let eval_step = state.steps.iter().find(|s| s.id == "eval").unwrap();
         assert_eq!(eval_step.status, StepStatus::Completed);
+    }
+
+    #[tokio::test]
+    async fn eval_opt_empty_order_is_noop() {
+        let (tx, _rx) = tokio::sync::mpsc::channel(4);
+        let graph = WorkflowGraph::new();
+        let mut state = make_eval_opt_state();
+        execute(&mut state, &graph, &[], &tx, None).await.unwrap();
     }
 }

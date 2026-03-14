@@ -6,13 +6,14 @@
 //! 3. Call model provider (streaming)
 //! 4. Debounce token emission (50 ms / 100-char buffer)
 //! 5. Handle tool calls via ToolDispatcher
-//! 6. Repeat until no tool calls
+//! 6. Repeat until no tool calls or cancellation
 
 use futures::StreamExt;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio::time::Instant;
+use tokio_util::sync::CancellationToken;
 use tracing::{error, info, instrument, warn};
 
 use crate::{
@@ -26,31 +27,29 @@ use crate::{
 
 // ── Internal event type (loop → caller) ──────────────────────────────────────
 
-/// Events emitted by an [`AgentLoop`] over its mpsc channel.
 #[derive(Debug, Clone)]
 pub enum AgentLoopEvent {
-    /// A streamed token delta.
-    Token { delta: String },
-    /// A tool call was initiated.
-    ToolCall { tool_call: ToolCall },
-    /// The loop completed successfully.
+    Token {
+        delta: String,
+    },
+    ToolCall {
+        tool_call: ToolCall,
+    },
     Done {
         input_tokens: u32,
         output_tokens: u32,
         cache_read_tokens: u32,
         cache_write_tokens: u32,
     },
+    Cancelled,
 }
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone)]
 pub struct AgentLoopConfig {
-    /// Token debounce interval in ms.
     pub debounce_ms: u64,
-    /// Maximum messages to include in context window.
     pub max_context_messages: usize,
-    /// Maximum consecutive tool-call iterations.
     pub max_tool_iterations: u32,
 }
 
@@ -72,11 +71,12 @@ pub struct AgentLoop {
     model_id: String,
     system_prompt: Option<String>,
     messages: Vec<ChatMessage>,
-    /// Skill markdown content injected into the system prompt.
     skills: Vec<String>,
     tools: Vec<ToolDefinition>,
     dispatcher: Option<Arc<ToolDispatcher>>,
     tx: mpsc::Sender<Result<AgentLoopEvent, CoreError>>,
+    /// Cancellation token — set by `cancel()` or passed in from outside.
+    cancel_token: CancellationToken,
 }
 
 impl AgentLoop {
@@ -96,6 +96,7 @@ impl AgentLoop {
             tools: Vec::new(),
             dispatcher: None,
             tx,
+            cancel_token: CancellationToken::new(),
         }
     }
 
@@ -124,15 +125,26 @@ impl AgentLoop {
         self
     }
 
+    /// Wire an external cancellation token so the parent can cancel this loop.
+    pub fn with_cancel_token(mut self, token: CancellationToken) -> Self {
+        self.cancel_token = token;
+        self
+    }
+
+    /// Return a child token that the caller can use to cancel this loop.
+    pub fn cancellation_token(&self) -> CancellationToken {
+        self.cancel_token.child_token()
+    }
+
+    /// Cancel the running loop.  Safe to call from any thread / task.
+    pub fn cancel(&self) {
+        self.cancel_token.cancel();
+    }
+
     /// Run the agent loop for a single user turn.
-    /// Returns the list of **new** messages added during this turn,
-    /// excluding the initial user message (which is already persisted).
     #[instrument(skip(self), fields(model = %self.model_id))]
     pub async fn run(mut self, user_message: String) -> Result<Vec<ChatMessage>, CoreError> {
         info!("Agent loop starting");
-
-        // Record length before adding user message.
-        let before_user_len = self.messages.len();
 
         self.messages.push(ChatMessage {
             role: MessageRole::User,
@@ -140,12 +152,19 @@ impl AgentLoop {
             name: None,
         });
 
-        // Record length after adding user message – we will return messages added after this point.
         let after_user_len = self.messages.len();
-
         let mut iteration = 0u32;
 
         loop {
+            // Check cancellation at the top of each iteration.
+            if self.cancel_token.is_cancelled() {
+                info!("Agent loop cancelled");
+                let _ = self.tx.send(Ok(AgentLoopEvent::Cancelled)).await;
+                return Err(CoreError::Cancelled {
+                    operation: "agent-loop".into(),
+                });
+            }
+
             iteration += 1;
             if iteration > self.config.max_tool_iterations {
                 warn!(
@@ -156,8 +175,24 @@ impl AgentLoop {
             }
 
             let request = self.build_request()?;
-            let stream = self.provider.complete(request).await?;
-            let result = self.process_stream(stream).await?;
+
+            let stream = tokio::select! {
+                res = self.provider.complete(request) => res?,
+                _ = self.cancel_token.cancelled() => {
+                    info!("Agent loop cancelled during provider call");
+                    let _ = self.tx.send(Ok(AgentLoopEvent::Cancelled)).await;
+                    return Err(CoreError::Cancelled { operation: "agent-loop:complete".into() });
+                }
+            };
+
+            let result = tokio::select! {
+                res = self.process_stream(stream) => res?,
+                _ = self.cancel_token.cancelled() => {
+                    info!("Agent loop cancelled during stream processing");
+                    let _ = self.tx.send(Ok(AgentLoopEvent::Cancelled)).await;
+                    return Err(CoreError::Cancelled { operation: "agent-loop:stream".into() });
+                }
+            };
 
             self.messages.push(ChatMessage {
                 role: MessageRole::Assistant,
@@ -178,12 +213,21 @@ impl AgentLoop {
                 break;
             }
 
-            // Execute each tool call and feed results back as Tool messages.
             for tool_call in result.tool_calls {
+                if self.cancel_token.is_cancelled() {
+                    let _ = self.tx.send(Ok(AgentLoopEvent::Cancelled)).await;
+                    return Err(CoreError::Cancelled {
+                        operation: "agent-loop:tool".into(),
+                    });
+                }
+
+                // FIX 2: Give the compiler an explicit type for the clone so it
+                // can resolve the ToolCall variant without ambiguity (E0282).
+                let tool_call_clone: ToolCall = tool_call.clone();
                 let _ = self
                     .tx
                     .send(Ok(AgentLoopEvent::ToolCall {
-                        tool_call: tool_call.clone(),
+                        tool_call: tool_call_clone,
                     }))
                     .await;
 
@@ -205,14 +249,9 @@ impl AgentLoop {
         }
 
         info!("Agent loop completed after {} iteration(s)", iteration);
-
-        // Return only the messages added **after** the user message (assistant + tool messages).
-        // The user message is already persisted by the Tauri command.
         let new_messages = self.messages[after_user_len..].to_vec();
         Ok(new_messages)
     }
-
-    // ── Helpers ───────────────────────────────────────────────────────────────
 
     fn build_request(&self) -> Result<CompletionRequest, CoreError> {
         let mut system_parts = Vec::new();
@@ -354,5 +393,16 @@ mod tests {
     fn agent_loop_event_is_clone() {
         let e = AgentLoopEvent::Token { delta: "hi".into() };
         let _ = e.clone();
+    }
+
+    #[test]
+    fn cancellation_token_propagates() {
+        let (tx, _rx) = mpsc::channel(1);
+        let provider: Arc<dyn ModelProvider> =
+            Arc::new(crate::providers::OllamaProvider::new(11434));
+        let agent = AgentLoop::new(provider, "test".into(), AgentLoopConfig::default(), tx);
+        let child = agent.cancellation_token();
+        agent.cancel();
+        assert!(child.is_cancelled());
     }
 }

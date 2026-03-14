@@ -335,6 +335,9 @@ async fn run_agent_loop(
                 conversation_id: conversation_id.clone(),
                 delta,
             },
+            Ok(AgentLoopEvent::Cancelled) => AgentEvent::Cancelled {
+                conversation_id: conversation_id.clone(),
+            },
             Ok(AgentLoopEvent::ToolCall { tool_call }) => AgentEvent::ToolCall {
                 conversation_id: conversation_id.clone(),
                 tool_call: crate::events::AgentToolCall {

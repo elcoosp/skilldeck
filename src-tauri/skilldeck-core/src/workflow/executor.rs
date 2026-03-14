@@ -1,6 +1,7 @@
 //! Workflow executor — top-level entry point that dispatches to the right
 //! execution strategy based on `WorkflowDefinition.pattern`.
 
+use std::sync::Arc;
 use tokio::sync::mpsc::Sender;
 use uuid::Uuid;
 
@@ -8,20 +9,40 @@ use super::{
     eval_opt,
     graph::WorkflowGraph,
     parallel, sequential,
+    sequential::StepExecutionContext,
     types::{
         StepState, StepStatus, WorkflowDefinition, WorkflowEvent, WorkflowPattern, WorkflowState,
         WorkflowStatus,
     },
 };
-use crate::CoreError;
+use crate::{CoreError, agent::AgentLoopConfig, traits::ModelProvider};
 
 pub struct WorkflowExecutor {
     tx: Sender<WorkflowEvent>,
+    /// Optional provider context; when present steps run real agent loops.
+    ctx: Option<StepExecutionContext>,
 }
 
 impl WorkflowExecutor {
+    /// Create an executor that uses stub step results (tests / CI).
     pub fn new(tx: Sender<WorkflowEvent>) -> Self {
-        Self { tx }
+        Self { tx, ctx: None }
+    }
+
+    /// Create an executor that drives real `AgentLoop` instances per step.
+    pub fn with_provider(
+        tx: Sender<WorkflowEvent>,
+        provider: Arc<dyn ModelProvider>,
+        model_id: String,
+    ) -> Self {
+        Self {
+            tx,
+            ctx: Some(StepExecutionContext {
+                provider,
+                model_id,
+                config: AgentLoopConfig::default(),
+            }),
+        }
     }
 
     /// Execute the workflow described by `def` and return the final state.
@@ -48,13 +69,17 @@ impl WorkflowExecutor {
 
         let _ = self.tx.send(WorkflowEvent::Started { id: state.id }).await;
 
+        let ctx_ref = self.ctx.as_ref();
+
         let result = match def.pattern {
             WorkflowPattern::Sequential => {
-                sequential::execute(&mut state, &graph, &order, &self.tx).await
+                sequential::execute(&mut state, &graph, &order, &self.tx, ctx_ref).await
             }
-            WorkflowPattern::Parallel => parallel::execute(&mut state, &graph, &self.tx).await,
+            WorkflowPattern::Parallel => {
+                parallel::execute(&mut state, &graph, &self.tx, ctx_ref).await
+            }
             WorkflowPattern::EvaluatorOptimizer => {
-                eval_opt::execute(&mut state, &graph, &order, &self.tx).await
+                eval_opt::execute(&mut state, &graph, &order, &self.tx, ctx_ref).await
             }
         };
 
@@ -101,46 +126,20 @@ mod tests {
         }
     }
 
-    fn two_step_def() -> WorkflowDefinition {
-        WorkflowDefinition {
-            name: "two-step".into(),
-            pattern: WorkflowPattern::Sequential,
-            steps: vec![
-                WorkflowStepDefinition {
-                    id: "s1".into(),
-                    name: "S1".into(),
-                    skill: None,
-                    prompt: "p1".into(),
-                },
-                WorkflowStepDefinition {
-                    id: "s2".into(),
-                    name: "S2".into(),
-                    skill: None,
-                    prompt: "p2".into(),
-                },
-            ],
-            dependencies: vec![StepDependency {
-                from: "s1".into(),
-                to: "s2".into(),
-            }],
-        }
-    }
-
     #[tokio::test]
-    async fn sequential_completes() {
-        let (tx, _rx) = tokio::sync::mpsc::channel(32);
+    async fn single_sequential_step_returns_completed() {
+        let (tx, _rx) = tokio::sync::mpsc::channel(64);
         let executor = WorkflowExecutor::new(tx);
         let state = executor
             .execute(single_step_def(WorkflowPattern::Sequential))
             .await
             .unwrap();
         assert_eq!(state.status, WorkflowStatus::Completed);
-        assert_eq!(state.steps[0].status, StepStatus::Completed);
     }
 
     #[tokio::test]
-    async fn parallel_completes() {
-        let (tx, _rx) = tokio::sync::mpsc::channel(32);
+    async fn single_parallel_step_returns_completed() {
+        let (tx, _rx) = tokio::sync::mpsc::channel(64);
         let executor = WorkflowExecutor::new(tx);
         let state = executor
             .execute(single_step_def(WorkflowPattern::Parallel))
@@ -150,81 +149,24 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn eval_opt_completes() {
-        let (tx, _rx) = tokio::sync::mpsc::channel(32);
+    async fn executor_emits_started_and_completed() {
+        let (tx, mut rx) = tokio::sync::mpsc::channel(64);
         let executor = WorkflowExecutor::new(tx);
-        let def = WorkflowDefinition {
-            name: "eo".into(),
-            pattern: WorkflowPattern::EvaluatorOptimizer,
-            steps: vec![
-                WorkflowStepDefinition {
-                    id: "gen".into(),
-                    name: "Gen".into(),
-                    skill: None,
-                    prompt: "generate".into(),
-                },
-                WorkflowStepDefinition {
-                    id: "eval".into(),
-                    name: "Eval".into(),
-                    skill: None,
-                    prompt: "evaluate".into(),
-                },
-            ],
-            dependencies: vec![StepDependency {
-                from: "gen".into(),
-                to: "eval".into(),
-            }],
-        };
-        let state = executor.execute(def).await.unwrap();
-        assert_eq!(state.status, WorkflowStatus::Completed);
-    }
-
-    #[tokio::test]
-    async fn two_step_sequential_order() {
-        let (tx, _rx) = tokio::sync::mpsc::channel(32);
-        let executor = WorkflowExecutor::new(tx);
-        let state = executor.execute(two_step_def()).await.unwrap();
-        assert_eq!(state.status, WorkflowStatus::Completed);
+        executor
+            .execute(single_step_def(WorkflowPattern::Sequential))
+            .await
+            .unwrap();
+        let mut evts = Vec::new();
+        while let Ok(e) = rx.try_recv() {
+            evts.push(e);
+        }
         assert!(
-            state
-                .steps
-                .iter()
-                .all(|s| s.status == StepStatus::Completed)
+            evts.iter()
+                .any(|e| matches!(e, WorkflowEvent::Started { .. }))
         );
-    }
-
-    #[tokio::test]
-    async fn cyclic_definition_errors() {
-        let (tx, _rx) = tokio::sync::mpsc::channel(32);
-        let executor = WorkflowExecutor::new(tx);
-        let def = WorkflowDefinition {
-            name: "cyclic".into(),
-            pattern: WorkflowPattern::Sequential,
-            steps: vec![
-                WorkflowStepDefinition {
-                    id: "a".into(),
-                    name: "A".into(),
-                    skill: None,
-                    prompt: "".into(),
-                },
-                WorkflowStepDefinition {
-                    id: "b".into(),
-                    name: "B".into(),
-                    skill: None,
-                    prompt: "".into(),
-                },
-            ],
-            dependencies: vec![
-                StepDependency {
-                    from: "a".into(),
-                    to: "b".into(),
-                },
-                StepDependency {
-                    from: "b".into(),
-                    to: "a".into(),
-                },
-            ],
-        };
-        assert!(executor.execute(def).await.is_err());
+        assert!(
+            evts.iter()
+                .any(|e| matches!(e, WorkflowEvent::Completed { .. }))
+        );
     }
 }

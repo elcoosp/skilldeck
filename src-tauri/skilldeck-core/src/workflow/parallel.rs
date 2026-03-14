@@ -1,7 +1,4 @@
 //! Parallel workflow execution — dependency-ready steps run concurrently.
-//!
-//! Uses a JoinSet to fan-out independent steps and a loop that drains
-//! completions and enqueues newly-unblocked steps.
 
 use std::collections::HashSet;
 use tokio::sync::mpsc::Sender;
@@ -10,6 +7,7 @@ use tracing::{error, info};
 
 use super::{
     graph::WorkflowGraph,
+    sequential::{StepExecutionContext, run_step_with_agent_pub},
     types::{StepStatus, WorkflowEvent, WorkflowState},
 };
 use crate::CoreError;
@@ -19,14 +17,20 @@ pub async fn execute(
     state: &mut WorkflowState,
     graph: &WorkflowGraph,
     tx: &Sender<WorkflowEvent>,
+    ctx: Option<&StepExecutionContext>,
 ) -> Result<(), CoreError> {
     let mut pending: HashSet<String> = state.steps.iter().map(|s| s.id.clone()).collect();
-    let mut join_set: JoinSet<Result<String, String>> = JoinSet::new();
+
+    let step_defs: std::collections::HashMap<String, (String, Option<String>)> = state
+        .definition
+        .steps
+        .iter()
+        .map(|s| (s.id.clone(), (s.prompt.clone(), s.skill.clone())))
+        .collect();
+
+    let mut join_set: JoinSet<Result<(String, String), (String, String)>> = JoinSet::new();
 
     loop {
-        // Find steps whose dependencies have all completed.
-        // Collect a temporary `Vec<&str>` for the readiness check,
-        // then convert the returned `Vec<&str>` into owned `Vec<String>`.
         let ready: Vec<String> = {
             let pending_vec: Vec<&str> = pending.iter().map(String::as_str).collect();
             graph
@@ -42,7 +46,6 @@ pub async fn execute(
             if let Some(step) = state.steps.iter_mut().find(|s| s.id == *step_id) {
                 step.status = StepStatus::Running;
             }
-
             let _ = tx
                 .send(WorkflowEvent::StepStarted {
                     workflow_id: state.id,
@@ -51,36 +54,56 @@ pub async fn execute(
                 .await;
 
             let id = step_id.to_string();
+            let (prompt, skill) = step_defs
+                .get(step_id)
+                .cloned()
+                .unwrap_or_else(|| (format!("Execute step {}", step_id), None));
+            let ctx_clone = ctx.cloned();
+
             join_set.spawn(async move {
-                // Placeholder: real impl would call an AgentLoop subagent.
-                tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
-                Ok::<_, String>(id)
+                let result = if let Some(ref c) = ctx_clone {
+                    run_step_with_agent_pub(&prompt, skill.as_deref(), c).await
+                } else {
+                    Ok(format!("step {} completed", id))
+                };
+                match result {
+                    Ok(out) => Ok((id, out)),
+                    Err(e) => Err((id, e.to_string())),
+                }
             });
         }
 
-        // All steps launched — wait for any one to finish.
         match join_set.join_next().await {
-            None => break, // no tasks running and pending is empty
-            Some(Ok(Ok(step_id))) => {
+            None => break,
+            Some(Ok(Ok((step_id, output)))) => {
                 info!("Parallel: step '{}' completed", step_id);
                 if let Some(step) = state.steps.iter_mut().find(|s| s.id == step_id) {
                     step.status = StepStatus::Completed;
-                    step.result = Some(format!("step {} completed", step_id));
-                    let _ = tx
-                        .send(WorkflowEvent::StepCompleted {
-                            workflow_id: state.id,
-                            step_id: step.id.clone(),
-                            result: step.result.clone(),
-                        })
-                        .await;
+                    step.result = Some(output.clone());
                 }
+                let _ = tx
+                    .send(WorkflowEvent::StepCompleted {
+                        workflow_id: state.id,
+                        step_id: step_id.clone(),
+                        result: Some(output),
+                    })
+                    .await;
             }
-            Some(Ok(Err(e))) => {
-                error!("Parallel step failed: {}", e);
+            Some(Ok(Err((step_id, err)))) => {
+                error!("Parallel: step '{}' failed: {}", step_id, err);
+                if let Some(step) = state.steps.iter_mut().find(|s| s.id == step_id) {
+                    step.status = StepStatus::Failed;
+                    step.error = Some(err.clone());
+                }
+                let _ = tx
+                    .send(WorkflowEvent::StepFailed {
+                        workflow_id: state.id,
+                        step_id: step_id.clone(),
+                        error: err,
+                    })
+                    .await;
             }
-            Some(Err(e)) => {
-                error!("JoinSet error: {}", e);
-            }
+            Some(Err(e)) => error!("JoinSet error: {}", e),
         }
 
         if pending.is_empty() && join_set.is_empty() {
@@ -109,7 +132,7 @@ mod tests {
                         id: id.into(),
                         name: id.into(),
                         skill: None,
-                        prompt: "".into(),
+                        prompt: format!("Do {id}"),
                     })
                     .collect(),
                 dependencies: vec![],
@@ -131,9 +154,9 @@ mod tests {
     #[tokio::test]
     async fn parallel_completes_independent_steps() {
         let (tx, _rx) = tokio::sync::mpsc::channel(64);
-        let graph = WorkflowGraph::new(); // no edges → all independent
+        let graph = WorkflowGraph::new();
         let mut state = make_state(&["x", "y", "z"]);
-        execute(&mut state, &graph, &tx).await.unwrap();
+        execute(&mut state, &graph, &tx, None).await.unwrap();
         for step in &state.steps {
             assert_eq!(
                 step.status,

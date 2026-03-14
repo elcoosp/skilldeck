@@ -1,12 +1,21 @@
 //! MCP server supervisor — health monitoring and exponential-backoff restart.
+//!
+//! The supervisor runs as a long-lived Tokio task. On each tick it inspects
+//! every server in the registry and, for those in `Error` state whose
+//! backoff timer has elapsed, attempts a real `registry.connect()` call with
+//! the stored configuration.  Servers that succeed transition back to
+//! `Connected`; those that fail increment their attempt counter until
+//! `max_attempts` is reached, at which point they are promoted to `Failed`
+//! and no further retries are made.
 
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
-use tracing::{info, warn};
+use tracing::{error, info, warn};
 
 use crate::mcp::registry::{McpRegistry, ServerStatus};
+use crate::traits::McpServerConfig;
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -46,7 +55,11 @@ struct RestartState {
 
 impl RestartState {
     fn new(initial_delay: Duration) -> Self {
-        Self { attempts: 0, next_delay: initial_delay, last_attempt: Instant::now() }
+        Self {
+            attempts: 0,
+            next_delay: initial_delay,
+            last_attempt: Instant::now(),
+        }
     }
 
     /// Record a failure and return the delay that was *used* (i.e. the one
@@ -76,8 +89,13 @@ impl RestartState {
 #[derive(Debug)]
 pub enum SupervisorCommand {
     Stop,
+    /// Manually trigger a reconnect attempt for `id`, resetting the backoff.
     Restart(uuid::Uuid),
+    /// Reset the backoff counter for `id` without triggering an immediate connect.
     Reset(uuid::Uuid),
+    /// Register (or update) the stored config for `id` so the supervisor can
+    /// reconnect autonomously.
+    RegisterConfig(uuid::Uuid, McpServerConfig),
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -91,32 +109,63 @@ pub fn start_supervisor(
 
     tokio::spawn(async move {
         let mut states: HashMap<uuid::Uuid, RestartState> = HashMap::new();
+        // Configs stored by `RegisterConfig` commands so we can reconnect.
+        let mut configs: HashMap<uuid::Uuid, McpServerConfig> = HashMap::new();
         let mut tick = tokio::time::interval(config.check_interval);
 
         loop {
             tokio::select! {
                 _ = tick.tick() => {
-                    for server in registry.list() {
+                    // Collect ids + statuses first to avoid holding the
+                    // registry lock across the async connect call.
+                    let servers = registry.list();
+
+                    for server in servers {
                         match server.status {
                             ServerStatus::Error => {
                                 let state = states.entry(server.id)
                                     .or_insert_with(|| RestartState::new(config.initial_delay));
 
                                 if state.attempts >= config.max_attempts {
-                                    warn!("Server '{}' exceeded max restart attempts ({}); giving up",
-                                        server.name, config.max_attempts);
+                                    warn!(
+                                        "Server '{}' exceeded max restart attempts ({}); marking Failed",
+                                        server.name, config.max_attempts
+                                    );
+                                    registry.mark_failed(server.id);
                                     continue;
                                 }
 
-                                if state.ready_to_retry() {
-                                    info!("Attempting restart of server '{}'", server.name);
-                                    let delay = state.record_failure(&config);
-                                    info!("Next restart of '{}' in {:?}", server.name, delay);
-                                    // Actual reconnect would be: registry.connect(server.id, config).await
-                                    // Deferred to Chunk 10 where commands carry full configs.
+                                if !state.ready_to_retry() {
+                                    continue;
+                                }
+
+                                // Only attempt if we have the config stored.
+                                let Some(server_config) = configs.get(&server.id).cloned() else {
+                                    warn!(
+                                        "No config stored for server '{}'; cannot reconnect automatically",
+                                        server.name
+                                    );
+                                    continue;
+                                };
+
+                                info!("Supervisor: attempting reconnect of '{}'", server.name);
+                                let delay = state.record_failure(&config);
+                                info!("Next reconnect of '{}' in {:?}", server.name, delay);
+
+                                match registry.connect(server.id, server_config).await {
+                                    Ok(()) => {
+                                        info!("Supervisor: '{}' reconnected successfully", server.name);
+                                        if let Some(s) = states.get_mut(&server.id) {
+                                            s.reset(&config);
+                                        }
+                                    }
+                                    Err(e) => {
+                                        error!("Supervisor: reconnect of '{}' failed: {}", server.name, e);
+                                    }
                                 }
                             }
                             ServerStatus::Connected => {
+                                // Reset backoff on healthy servers.
                                 if let Some(state) = states.get_mut(&server.id) {
                                     state.reset(&config);
                                 }
@@ -132,12 +181,25 @@ pub fn start_supervisor(
                             info!("MCP supervisor stopping");
                             break;
                         }
+                        SupervisorCommand::RegisterConfig(id, server_config) => {
+                            configs.insert(id, server_config);
+                        }
                         SupervisorCommand::Restart(id) => {
                             if let Some(server) = registry.get(id) {
                                 info!("Manual restart requested for '{}'", server.name);
-                            }
-                            if let Some(state) = states.get_mut(&id) {
-                                state.reset(&config);
+
+                                // Reset backoff so the next tick retries immediately.
+                                states.entry(id)
+                                    .or_insert_with(|| RestartState::new(config.initial_delay))
+                                    .reset(&config);
+
+                                // Attempt reconnect right now if config is available.
+                                if let Some(server_config) = configs.get(&id).cloned() {
+                                    match registry.connect(id, server_config).await {
+                                        Ok(()) => info!("Manual reconnect of '{}' succeeded", server.name),
+                                        Err(e) => error!("Manual reconnect of '{}' failed: {}", server.name, e),
+                                    }
+                                }
                             }
                         }
                         SupervisorCommand::Reset(id) => {
@@ -182,7 +244,11 @@ mod tests {
 
     #[test]
     fn restart_state_caps_at_max_delay() {
-        let cfg = SupervisorConfig { max_delay: Duration::from_secs(10), multiplier: 2.0, ..Default::default() };
+        let cfg = SupervisorConfig {
+            max_delay: Duration::from_secs(10),
+            multiplier: 2.0,
+            ..Default::default()
+        };
         let mut s = RestartState::new(cfg.initial_delay);
         for _ in 0..10 {
             s.record_failure(&cfg);
@@ -196,5 +262,19 @@ mod tests {
         let tx = start_supervisor(registry, SupervisorConfig::default());
         tx.send(SupervisorCommand::Stop).await.unwrap();
         // No panic = success.
+    }
+
+    #[tokio::test]
+    async fn register_config_command_accepted() {
+        let registry = Arc::new(McpRegistry::new());
+        let tx = start_supervisor(registry, SupervisorConfig::default());
+        let cfg = McpServerConfig {
+            transport: "stdio".into(),
+            config: serde_json::json!({"command": "echo"}),
+        };
+        tx.send(SupervisorCommand::RegisterConfig(uuid::Uuid::new_v4(), cfg))
+            .await
+            .unwrap();
+        tx.send(SupervisorCommand::Stop).await.unwrap();
     }
 }

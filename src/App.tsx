@@ -1,14 +1,16 @@
 /**
  * App root — wires React Query, applies persisted theme, mounts AppShell.
- *
- * Intentionally thin: all layout and logic lives in AppShell and below.
+ * Shows the OnboardingWizard on first run.
  */
 
 import { useEffect } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import './App.css'
 import { AppShell } from '@/components/layout/app-shell'
+import { OnboardingWizard } from '@/components/overlays/onboarding-wizard'
 import { useSettingsStore } from '@/store/settings'
+import { useUIStore } from '@/store/ui'
+import { useMcpEvents } from '@/hooks/use-mcp-events'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -36,11 +38,30 @@ function ThemeSync() {
   return null
 }
 
+/** Global Tauri event listeners that must run for the lifetime of the app. */
+function GlobalEventListeners() {
+  // Keep mcp-servers query fresh whenever MCP lifecycle events arrive.
+  useMcpEvents()
+  return null
+}
+
+function AppContent() {
+  const onboardingComplete = useUIStore((s) => s.onboardingComplete)
+
+  return (
+    <>
+      <GlobalEventListeners />
+      <AppShell />
+      {!onboardingComplete && <OnboardingWizard />}
+    </>
+  )
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeSync />
-      <AppShell />
+      <AppContent />
     </QueryClientProvider>
   )
 }

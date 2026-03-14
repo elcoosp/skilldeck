@@ -7,7 +7,7 @@ use uuid::Uuid;
 use crate::{
     CoreError,
     mcp::McpServerConfig,
-    traits::{McpCapabilities, McpCallResult as McpToolResult, McpSession, McpTool},
+    traits::{McpCallResult as McpToolResult, McpCapabilities, McpSession, McpTool},
 };
 
 // ── Status ────────────────────────────────────────────────────────────────────
@@ -18,6 +18,7 @@ pub enum ServerStatus {
     Connecting,
     Connected,
     Error,
+    /// Terminal state: max restart attempts exceeded; no more retries.
     Failed,
 }
 
@@ -53,48 +54,67 @@ impl Clone for LiveServer {
 
 pub struct McpRegistry {
     servers: DashMap<Uuid, LiveServer>,
+    /// Stored configs keyed by server id, used by the supervisor to reconnect.
+    pub stored_configs: DashMap<Uuid, McpServerConfig>,
     transports: Vec<Box<dyn crate::traits::McpTransport>>,
 }
 
 impl McpRegistry {
     pub fn new() -> Self {
-        Self { servers: DashMap::new(), transports: vec![] }
+        Self {
+            servers: DashMap::new(),
+            stored_configs: DashMap::new(),
+            transports: vec![],
+        }
     }
 
     pub fn register_transport(&mut self, transport: impl crate::traits::McpTransport + 'static) {
         self.transports.push(Box::new(transport));
     }
 
-    /// Register a server without connecting yet.
-    pub fn add_server(&self, name: String, _config: McpServerConfig) -> Uuid {
+    /// Register a server without connecting yet, storing the config for later reconnects.
+    pub fn add_server(&self, name: String, config: McpServerConfig) -> Uuid {
         let id = Uuid::new_v4();
-        self.servers.insert(id, LiveServer {
+        self.stored_configs.insert(id, config);
+        self.servers.insert(
             id,
-            name,
-            status: ServerStatus::Disconnected,
-            session: None,
-            error_count: 0,
-            last_error: None,
-            tools: Vec::new(),
-            capabilities: McpCapabilities::default(),
-        });
+            LiveServer {
+                id,
+                name,
+                status: ServerStatus::Disconnected,
+                session: None,
+                error_count: 0,
+                last_error: None,
+                tools: Vec::new(),
+                capabilities: McpCapabilities::default(),
+            },
+        );
         id
     }
 
-    /// Connect a previously-registered server.
+    /// Connect a previously-registered server, storing the config for future reconnects.
     pub async fn connect(&self, id: Uuid, config: McpServerConfig) -> Result<(), CoreError> {
-        // Mark as connecting
+        // Persist config so the supervisor can reconnect autonomously.
+        self.stored_configs.insert(id, config.clone());
+
+        // Mark as connecting.
         {
-            let mut entry = self.servers.get_mut(&id)
+            let mut entry = self
+                .servers
+                .get_mut(&id)
                 .ok_or(CoreError::McpServerNotFound { server_id: id })?;
             entry.status = ServerStatus::Connecting;
         }
 
-        let server_name = self.servers.get(&id)
+        let server_name = self
+            .servers
+            .get(&id)
             .map(|s| s.name.clone())
             .ok_or(CoreError::McpServerNotFound { server_id: id })?;
 
-        let transport = self.transports.iter()
+        let transport = self
+            .transports
+            .iter()
             .find(|t| t.supports(&config))
             .ok_or_else(|| CoreError::InvalidConfiguration {
                 message: format!("No transport registered for type: {}", config.transport),
@@ -129,6 +149,14 @@ impl McpRegistry {
         }
     }
 
+    /// Promote a server to `Failed` — supervisor calls this when max attempts exceeded.
+    pub fn mark_failed(&self, id: Uuid) {
+        if let Some(mut entry) = self.servers.get_mut(&id) {
+            entry.session = None;
+            entry.status = ServerStatus::Failed;
+        }
+    }
+
     pub fn get(&self, id: Uuid) -> Option<LiveServer> {
         self.servers.get(&id).map(|s| s.clone())
     }
@@ -144,7 +172,10 @@ impl McpRegistry {
             .filter(|s| s.status == ServerStatus::Connected)
             .flat_map(|s| {
                 let name = s.name.clone();
-                s.tools.iter().map(move |t| (name.clone(), t.clone())).collect::<Vec<_>>()
+                s.tools
+                    .iter()
+                    .map(move |t| (name.clone(), t.clone()))
+                    .collect::<Vec<_>>()
             })
             .collect()
     }
@@ -156,14 +187,18 @@ impl McpRegistry {
         tool_name: &str,
         arguments: serde_json::Value,
     ) -> Result<McpToolResult, CoreError> {
-        let entry = self.servers.iter()
+        let entry = self
+            .servers
+            .iter()
             .find(|s| s.name == server_name && s.status == ServerStatus::Connected)
             .ok_or_else(|| CoreError::McpToolNotFound {
                 server_name: server_name.to_string(),
                 tool_name: tool_name.to_string(),
             })?;
 
-        let session = entry.session.as_ref()
+        let session = entry
+            .session
+            .as_ref()
             .ok_or_else(|| CoreError::McpDisconnected {
                 server_name: server_name.to_string(),
                 message: "No active session".to_string(),
@@ -174,7 +209,9 @@ impl McpRegistry {
 }
 
 impl Default for McpRegistry {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[cfg(test)]
@@ -184,37 +221,90 @@ mod tests {
     #[test]
     fn add_server_disconnected() {
         let r = McpRegistry::new();
-        let id = r.add_server("test-server".into(), McpServerConfig {
-            transport: "stdio".into(),
-            config: serde_json::json!({}),
-        });
+        let id = r.add_server(
+            "test-server".into(),
+            McpServerConfig {
+                transport: "stdio".into(),
+                config: serde_json::json!({}),
+            },
+        );
         let s = r.get(id).unwrap();
         assert_eq!(s.name, "test-server");
         assert_eq!(s.status, ServerStatus::Disconnected);
     }
 
     #[test]
+    fn add_server_stores_config() {
+        let r = McpRegistry::new();
+        let cfg = McpServerConfig {
+            transport: "stdio".into(),
+            config: serde_json::json!({"cmd": "echo"}),
+        };
+        let id = r.add_server("s".into(), cfg.clone());
+        assert!(r.stored_configs.get(&id).is_some());
+    }
+
+    #[test]
     fn list_servers() {
         let r = McpRegistry::new();
-        r.add_server("s1".into(), McpServerConfig { transport: "stdio".into(), config: serde_json::json!({}) });
-        r.add_server("s2".into(), McpServerConfig { transport: "sse".into(), config: serde_json::json!({}) });
+        r.add_server(
+            "s1".into(),
+            McpServerConfig {
+                transport: "stdio".into(),
+                config: serde_json::json!({}),
+            },
+        );
+        r.add_server(
+            "s2".into(),
+            McpServerConfig {
+                transport: "sse".into(),
+                config: serde_json::json!({}),
+            },
+        );
         assert_eq!(r.list().len(), 2);
     }
 
     #[test]
     fn all_tools_empty_when_disconnected() {
         let r = McpRegistry::new();
-        r.add_server("s".into(), McpServerConfig { transport: "stdio".into(), config: serde_json::json!({}) });
+        r.add_server(
+            "s".into(),
+            McpServerConfig {
+                transport: "stdio".into(),
+                config: serde_json::json!({}),
+            },
+        );
         assert!(r.all_tools().is_empty());
     }
 
     #[test]
     fn disconnect_clears_session() {
         let r = McpRegistry::new();
-        let id = r.add_server("s".into(), McpServerConfig { transport: "stdio".into(), config: serde_json::json!({}) });
+        let id = r.add_server(
+            "s".into(),
+            McpServerConfig {
+                transport: "stdio".into(),
+                config: serde_json::json!({}),
+            },
+        );
         r.disconnect(id);
         let s = r.get(id).unwrap();
         assert_eq!(s.status, ServerStatus::Disconnected);
         assert!(s.session.is_none());
+    }
+
+    #[test]
+    fn mark_failed_transitions_to_failed() {
+        let r = McpRegistry::new();
+        let id = r.add_server(
+            "s".into(),
+            McpServerConfig {
+                transport: "stdio".into(),
+                config: serde_json::json!({}),
+            },
+        );
+        r.mark_failed(id);
+        let s = r.get(id).unwrap();
+        assert_eq!(s.status, ServerStatus::Failed);
     }
 }

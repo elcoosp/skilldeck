@@ -1,10 +1,14 @@
 /**
  * Main application shell — three-panel resizable layout.
  *
- * Implements the ASR-STR-002 IPC-only architecture: React owns zero business
- * logic; every data operation goes through invoke() or event listeners.
+ * Keyboard shortcuts (2.3):
+ *   Cmd/Ctrl+K          → Command palette
+ *   Cmd/Ctrl+Shift+,    → Settings
+ *   Cmd/Ctrl+N          → New conversation (delegated via store)
+ *   Escape              → Close open overlays
  */
 
+import { useCallback, useEffect } from 'react'
 import { Group, Panel, Separator } from 'react-resizable-panels'
 import { Toaster } from 'sonner'
 import { useHotkeys } from 'react-hotkeys-hook'
@@ -19,13 +23,37 @@ export function AppShell() {
   const panelSizes = useUIStore((s) => s.panelSizes)
   const setPanelSizes = useUIStore((s) => s.setPanelSizes)
   const setCommandPaletteOpen = useUIStore((s) => s.setCommandPaletteOpen)
+  const setSettingsOpen = useUIStore((s) => s.setSettingsOpen)
   const settingsOpen = useUIStore((s) => s.settingsOpen)
+  const commandPaletteOpen = useUIStore((s) => s.commandPaletteOpen)
 
-  // Global keyboard shortcuts
+  // ── Keyboard shortcuts ────────────────────────────────────────────────────
+
+  // Cmd/Ctrl+K — command palette
   useHotkeys('meta+k, ctrl+k', (e) => {
     e.preventDefault()
     setCommandPaletteOpen(true)
   })
+
+  // Cmd/Ctrl+Shift+, — settings
+  useHotkeys('meta+shift+comma, ctrl+shift+comma', (e) => {
+    e.preventDefault()
+    setSettingsOpen(true)
+  })
+
+  // Escape — close topmost overlay
+  useHotkeys(
+    'escape',
+    (e) => {
+      e.preventDefault()
+      if (commandPaletteOpen) {
+        setCommandPaletteOpen(false)
+      } else if (settingsOpen) {
+        setSettingsOpen(false)
+      }
+    },
+    { enableOnFormTags: true }
+  )
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-background text-foreground">
@@ -54,7 +82,7 @@ export function AppShell() {
 
         <Separator className="w-px bg-border hover:bg-primary/30 transition-colors cursor-col-resize" />
 
-        {/* Right — session info / workflow / analytics */}
+        {/* Right — session info / skills / mcp / workflow / analytics */}
         <Panel
           defaultSize={`${panelSizes.right}px`}
           minSize="18%"

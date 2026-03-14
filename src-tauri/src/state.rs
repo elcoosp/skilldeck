@@ -1,18 +1,17 @@
 //! Application state management.
-//!
-//! `AppState` is constructed once during Tauri setup and shared via `Arc`
-//! across every command handler.  It intentionally holds *only* things that
-//! cannot live inside `skilldeck-core`'s `Registry` — i.e. OS-level concerns
-//! such as the approval gate (oneshot channels) and the keyring handle.
 
+use dashmap::DashMap;
 use std::{env::home_dir, sync::Arc};
 use tauri::Manager;
 use tauri_plugin_keyring::KeyringExt;
+use tokio_util::sync::CancellationToken;
+
 use tracing::{info, warn};
 
 use skilldeck_core::{
     agent::tool_dispatcher::ApprovalGate,
     db::open_db,
+    mcp::supervisor::{start_supervisor, SupervisorCommand, SupervisorConfig},
     providers::{ClaudeProvider, OllamaProvider, OpenAiProvider},
     skills::{scanner, watcher::start_registry_watcher},
     workspace::ContextLoader,
@@ -27,12 +26,13 @@ pub struct AppState {
     pub registry: Arc<Registry>,
     /// Async approval gate: suspends agent tasks awaiting user approval.
     pub approval_gate: Arc<ApprovalGate>,
+    /// MCP supervisor command channel (used to register configs and trigger restarts).
+    pub supervisor_tx: tokio::sync::mpsc::Sender<SupervisorCommand>,
+    /// Per-conversation cancellation tokens so callers can abort agent loops.
+    pub agent_cancel_tokens: Arc<DashMap<String, CancellationToken>>,
 }
 
 impl AppState {
-    /// Build `AppState` from a running `AppHandle`.
-    ///
-    /// Called exactly once inside the Tauri `setup` closure.
     pub async fn initialize(app: &tauri::AppHandle) -> Result<Self, Box<dyn std::error::Error>> {
         let data_dir = app.path().app_data_dir()?;
         std::fs::create_dir_all(&data_dir)?;
@@ -43,13 +43,9 @@ impl AppState {
 
         let conn = open_db(&db_url, true).await?;
         let db = SeaOrmDatabase::new(conn);
-
         let registry = Arc::new(Registry::new(db));
 
-        // ── Register model providers based on stored API keys ─────────────────
-        //
-        // `get_password` returns `Result<String, _>` — Err means no key stored.
-        // Ollama is always registered as a keyless local fallback.
+        // ── Register model providers ──────────────────────────────────────────
         let keyring = app.keyring();
 
         match keyring.get_password(KEYRING_SERVICE, "claude") {
@@ -70,29 +66,44 @@ impl AppState {
             Err(_) => warn!("No OpenAI API key stored — not registering"),
         }
 
-        // Ollama is always available — no key required.
         info!("Registering Ollama provider (port 11434)");
         registry.register_provider(OllamaProvider::new(11434));
 
         let approval_gate = Arc::new(ApprovalGate::new());
+
+        // ── Start MCP supervisor ──────────────────────────────────────────────
+        let supervisor_tx = start_supervisor(
+            Arc::clone(&registry.mcp_registry),
+            SupervisorConfig::default(),
+        );
+
+        // ── Re-register stored MCP server configs with the supervisor ─────────
+        // The registry's stored_configs map is populated when servers are added.
+        // We push each config into the supervisor so it can reconnect on error.
+        for entry in registry.mcp_registry.stored_configs.iter() {
+            let _ = supervisor_tx.try_send(SupervisorCommand::RegisterConfig(
+                *entry.key(),
+                entry.value().clone(),
+            ));
+        }
+
+        let agent_cancel_tokens = Arc::new(DashMap::new());
+
         let state = Self {
             registry,
             approval_gate,
+            supervisor_tx,
+            agent_cancel_tokens,
         };
 
-        // ── Seed a default Ollama profile if the DB has none ──────────────────
-        //
-        // On a fresh install there are no profiles, so "New Chat" would fail
-        // immediately with "No profile found". We create one pointing at the
-        // local Ollama instance so the app is usable out of the box.
         state.ensure_default_profile().await;
+
         let workspace_root = std::env::current_dir().unwrap_or_else(|_| data_dir.clone());
         let ctx = ContextLoader::load(&workspace_root).await;
 
         let skill_dirs = match ctx {
             Ok(ref c) => c.skill_directories.clone(),
             Err(_) => {
-                // Even if context loading fails, still try the global path.
                 if let Some(home) = home_dir() {
                     let global = home.join(".agents").join("skills");
                     if global.exists() {
@@ -126,7 +137,6 @@ impl AppState {
                 match start_registry_watcher(
                     path.clone(),
                     label.clone(),
-                    // SkillRegistry needs to be Arc-wrapped, or expose an Arc clone method
                     Arc::clone(&state.registry.skill_registry),
                 ) {
                     Ok(w) => {
@@ -140,10 +150,20 @@ impl AppState {
                 }
             }
         }
+
         Ok(state)
     }
 
-    /// Create a default Ollama profile if no profiles exist yet.
+    /// Cancel an in-flight agent loop for the given conversation.
+    pub fn cancel_agent(&self, conversation_id: &str) {
+        if let Some(token) = self.agent_cancel_tokens.get(conversation_id) {
+            token.cancel();
+        }
+        self.agent_cancel_tokens.remove(conversation_id);
+        // Also cancel any pending tool approvals for this conversation.
+        self.approval_gate.cancel_all();
+    }
+
     async fn ensure_default_profile(&self) {
         use sea_orm::{ActiveModelTrait, ActiveValue::Set, EntityTrait};
         use skilldeck_models::profiles;
@@ -166,7 +186,6 @@ impl AppState {
             return;
         }
 
-        // Pick the first installed Ollama model, fall back to a known default.
         let model_id = OllamaProvider::fetch_installed_models()
             .await
             .into_iter()

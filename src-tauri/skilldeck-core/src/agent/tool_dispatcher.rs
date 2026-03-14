@@ -1,8 +1,12 @@
 //! Tool dispatcher — routes ToolCall events to built-ins, MCP servers, or
 //! through an approval gate for external side-effecting tools.
+//!
+//! Auto-approve categories read from `AutoApproveConfig` let the user opt out
+//! of the gate for low-risk tool classes (reads, http, etc.) as required by
+//! the plan task 1.3.
 
-use std::sync::Arc;
 use serde_json::Value;
+use std::sync::Arc;
 use tokio::sync::oneshot;
 
 use crate::{
@@ -31,7 +35,9 @@ pub struct ApprovalGate {
 
 impl ApprovalGate {
     pub fn new() -> Self {
-        Self { pending: dashmap::DashMap::new() }
+        Self {
+            pending: dashmap::DashMap::new(),
+        }
     }
 
     /// Suspend the calling task until the frontend resolves the approval.
@@ -72,7 +78,75 @@ impl ApprovalGate {
 }
 
 impl Default for ApprovalGate {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// ── Auto-approve config ───────────────────────────────────────────────────────
+
+/// Categories of MCP tool calls that can be auto-approved without user interaction.
+///
+/// Populated from the frontend `ToolApprovalSettings` Zustand store via the
+/// `set_auto_approve_config` Tauri command (or loaded from stored settings at
+/// startup). Matching is done by inspecting the tool name prefix/suffix against
+/// known patterns for each category.
+#[derive(Debug, Clone, Default)]
+pub struct AutoApproveConfig {
+    /// Auto-approve all read-like tools (list_*, read_*, get_*, fetch_*).
+    pub reads: bool,
+    /// Auto-approve all write-like tools (write_*, create_*, update_*, put_*).
+    pub writes: bool,
+    /// Auto-approve all SQL SELECT tools (query_*, select_*, search_*).
+    pub selects: bool,
+    /// Auto-approve all mutation tools (insert_*, delete_*, patch_*, mutate_*).
+    pub mutations: bool,
+    /// Auto-approve all HTTP request tools (http_*, request_*, fetch_*).
+    pub http_requests: bool,
+    /// Auto-approve all shell/exec tools (run_*, exec_*, shell_*, bash_*).
+    pub shell: bool,
+}
+
+impl AutoApproveConfig {
+    /// Return true if `tool_name` falls into a category the user has auto-approved.
+    pub fn is_auto_approved(&self, tool_name: &str) -> bool {
+        let n = tool_name.to_lowercase();
+
+        if self.reads && matches_any_prefix(&n, &["list_", "read_", "get_", "fetch_", "show_"]) {
+            return true;
+        }
+        if self.writes && matches_any_prefix(&n, &["write_", "create_", "update_", "put_", "set_"])
+        {
+            return true;
+        }
+        if self.selects && matches_any_prefix(&n, &["query_", "select_", "search_", "find_"]) {
+            return true;
+        }
+        if self.mutations
+            && matches_any_prefix(&n, &["insert_", "delete_", "patch_", "mutate_", "remove_"])
+        {
+            return true;
+        }
+        if self.http_requests
+            && matches_any_prefix(&n, &["http_", "request_", "call_", "post_", "download_"])
+        {
+            return true;
+        }
+        if self.shell
+            && matches_any_prefix(
+                &n,
+                &["run_", "exec_", "shell_", "bash_", "cmd_", "execute_"],
+            )
+        {
+            return true;
+        }
+
+        false
+    }
+}
+
+fn matches_any_prefix(s: &str, prefixes: &[&str]) -> bool {
+    prefixes.iter().any(|p| s.starts_with(p))
 }
 
 // ── Dispatcher ────────────────────────────────────────────────────────────────
@@ -83,27 +157,39 @@ const BUILTIN_TOOLS: &[&str] = &["loadSkill", "spawnSubagent", "mergeSubagentRes
 pub struct ToolDispatcher {
     mcp_registry: Arc<McpRegistry>,
     approval_gate: Arc<ApprovalGate>,
+    /// Auto-approve policy; updated at runtime via `set_auto_approve`.
+    auto_approve: Arc<tokio::sync::RwLock<AutoApproveConfig>>,
 }
 
 impl ToolDispatcher {
     pub fn new(mcp_registry: Arc<McpRegistry>, approval_gate: Arc<ApprovalGate>) -> Self {
-        Self { mcp_registry, approval_gate }
+        Self {
+            mcp_registry,
+            approval_gate,
+            auto_approve: Arc::new(tokio::sync::RwLock::new(AutoApproveConfig::default())),
+        }
+    }
+
+    /// Replace the auto-approve config (called when user changes settings).
+    pub async fn set_auto_approve(&self, config: AutoApproveConfig) {
+        *self.auto_approve.write().await = config;
     }
 
     /// Route a tool call to the right handler and return a JSON result.
     pub async fn dispatch(&self, tool_call: &ToolCall) -> Result<Value, CoreError> {
         let name = &tool_call.function.name;
-        let args: Value = serde_json::from_str(&tool_call.function.arguments)
-            .unwrap_or(Value::Null);
+        let args: Value =
+            serde_json::from_str(&tool_call.function.arguments).unwrap_or(Value::Null);
 
-        // 1. Try built-ins first.
+        // 1. Try built-ins first — they never go through the gate.
         if let Some(result) = self.dispatch_builtin(name, &args) {
             return result;
         }
 
-        // 2. Gate external tools.
-        if self.needs_approval(name) {
-            let approval = self.approval_gate
+        // 2. Check if this tool needs approval.
+        if self.needs_approval(name).await {
+            let approval = self
+                .approval_gate
                 .request_approval(tool_call.id.clone(), name.clone(), args.clone())
                 .await?;
 
@@ -144,15 +230,17 @@ impl ToolDispatcher {
 
     async fn dispatch_mcp(&self, tool_name: &str, args: &Value) -> Result<Value, CoreError> {
         let tools = self.mcp_registry.all_tools();
-        let (server_name, _) = tools
-            .iter()
-            .find(|(_, t)| t.name == tool_name)
-            .ok_or_else(|| CoreError::McpToolNotFound {
-                server_name: String::new(),
-                tool_name: tool_name.to_string(),
-            })?;
+        let (server_name, _) =
+            tools
+                .iter()
+                .find(|(_, t)| t.name == tool_name)
+                .ok_or_else(|| CoreError::McpToolNotFound {
+                    server_name: String::new(),
+                    tool_name: tool_name.to_string(),
+                })?;
 
-        let result: McpCallResult = self.mcp_registry
+        let result: McpCallResult = self
+            .mcp_registry
             .call_tool(server_name, tool_name, args.clone())
             .await?;
 
@@ -161,8 +249,16 @@ impl ToolDispatcher {
         })
     }
 
-    fn needs_approval(&self, tool_name: &str) -> bool {
-        !BUILTIN_TOOLS.contains(&tool_name)
+    /// Return true if this tool call must be sent to the approval gate.
+    ///
+    /// Built-in tools always bypass the gate. Then we check the auto-approve
+    /// config; only if neither applies does the gate run.
+    pub async fn needs_approval(&self, tool_name: &str) -> bool {
+        if BUILTIN_TOOLS.contains(&tool_name) {
+            return false;
+        }
+        let cfg = self.auto_approve.read().await;
+        !cfg.is_auto_approved(tool_name)
     }
 }
 
@@ -174,19 +270,58 @@ mod tests {
         ToolDispatcher::new(Arc::new(McpRegistry::new()), Arc::new(ApprovalGate::new()))
     }
 
-    #[test]
-    fn builtin_tools_skip_approval() {
+    #[tokio::test]
+    async fn builtin_tools_skip_approval() {
         let d = make_dispatcher();
-        assert!(!d.needs_approval("loadSkill"));
-        assert!(!d.needs_approval("spawnSubagent"));
-        assert!(!d.needs_approval("mergeSubagentResults"));
+        assert!(!d.needs_approval("loadSkill").await);
+        assert!(!d.needs_approval("spawnSubagent").await);
+        assert!(!d.needs_approval("mergeSubagentResults").await);
     }
 
-    #[test]
-    fn external_tools_need_approval() {
+    #[tokio::test]
+    async fn external_tools_need_approval_by_default() {
         let d = make_dispatcher();
-        assert!(d.needs_approval("read_file"));
-        assert!(d.needs_approval("execute_shell"));
+        assert!(d.needs_approval("read_file").await);
+        assert!(d.needs_approval("execute_shell").await);
+    }
+
+    #[tokio::test]
+    async fn auto_approve_reads_skips_gate() {
+        let d = make_dispatcher();
+        d.set_auto_approve(AutoApproveConfig {
+            reads: true,
+            ..Default::default()
+        })
+        .await;
+        assert!(!d.needs_approval("read_file").await);
+        assert!(!d.needs_approval("get_contents").await);
+        // Writes still need approval.
+        assert!(d.needs_approval("write_file").await);
+    }
+
+    #[tokio::test]
+    async fn auto_approve_shell_skips_gate() {
+        let d = make_dispatcher();
+        d.set_auto_approve(AutoApproveConfig {
+            shell: true,
+            ..Default::default()
+        })
+        .await;
+        assert!(!d.needs_approval("run_command").await);
+        assert!(!d.needs_approval("exec_process").await);
+        assert!(!d.needs_approval("bash_script").await);
+    }
+
+    #[tokio::test]
+    async fn auto_approve_http_skips_gate() {
+        let d = make_dispatcher();
+        d.set_auto_approve(AutoApproveConfig {
+            http_requests: true,
+            ..Default::default()
+        })
+        .await;
+        assert!(!d.needs_approval("http_get").await);
+        assert!(!d.needs_approval("post_data").await);
     }
 
     #[tokio::test]
@@ -207,7 +342,6 @@ mod tests {
     #[test]
     fn approval_gate_cancel_all_clears_pending() {
         let gate = ApprovalGate::new();
-        // No pending approvals — cancel_all is a no-op.
         gate.cancel_all();
         assert!(gate.pending.is_empty());
     }
@@ -215,7 +349,24 @@ mod tests {
     #[test]
     fn approval_gate_resolve_unknown_id_errors() {
         let gate = ApprovalGate::new();
-        let result = gate.resolve("nonexistent", ApprovalResult::Approved { edited_input: None });
+        let result = gate.resolve(
+            "nonexistent",
+            ApprovalResult::Approved { edited_input: None },
+        );
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn auto_approve_config_prefix_matching() {
+        let cfg = AutoApproveConfig {
+            reads: true,
+            shell: true,
+            ..Default::default()
+        };
+        assert!(cfg.is_auto_approved("list_files"));
+        assert!(cfg.is_auto_approved("read_contents"));
+        assert!(cfg.is_auto_approved("run_command"));
+        assert!(!cfg.is_auto_approved("write_file"));
+        assert!(!cfg.is_auto_approved("delete_row"));
     }
 }
