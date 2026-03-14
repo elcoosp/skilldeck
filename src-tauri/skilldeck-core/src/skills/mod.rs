@@ -22,7 +22,7 @@ pub struct SkillRegistry {
     /// Resolved skills after applying priority rules.
     resolved: Arc<RwLock<ResolvedSkills>>,
     /// Map of source directory paths to their watchers (for cleanup).
-    watchers: DashMap<PathBuf, notify::RecommendedWatcher>,
+    pub watchers: DashMap<PathBuf, notify::RecommendedWatcher>,
 }
 
 impl Default for SkillRegistry {
@@ -45,9 +45,10 @@ impl SkillRegistry {
     }
 
     /// Registers a source and its raw skills, then re-resolves all skills.
-    pub fn register_source(&self, source: String, skills: Vec<Skill>) {
+    pub async fn register_source(&self, source: String, skills: Vec<Skill>) {
+        // ← now async
         self.raw_skills.insert(source, skills);
-        let _ = self.reload(); // ignore errors, just re-resolve
+        let _ = self.reload().await;
     }
 
     /// Loads a skill from a source directory (e.g., after a file watch event).
@@ -74,20 +75,21 @@ impl SkillRegistry {
             self.raw_skills.insert(source.to_string(), vec![skill]);
         }
 
-        self.reload()?;
+        self.reload().await?;
         Ok(())
     }
 
     /// Removes a skill from a source (e.g., after a delete event) and re‑resolves.
-    pub fn remove_skill_from_source(&self, source: &str, skill_name: &str) {
+    pub async fn remove_skill_from_source(&self, source: &str, skill_name: &str) {
+        // ← now async
         if let Some(mut entry) = self.raw_skills.get_mut(source) {
             entry.retain(|s| s.name != skill_name);
-            let _ = self.reload(); // ignore resolution errors
+            let _ = self.reload().await;
         }
     }
 
     /// Re‑resolves all skills from all sources.
-    fn reload(&self) -> Result<(), CoreError> {
+    async fn reload(&self) -> Result<(), CoreError> {
         let sources: Vec<(String, Vec<Skill>)> = self
             .raw_skills
             .iter()
@@ -95,7 +97,7 @@ impl SkillRegistry {
             .collect();
 
         let resolved = resolver::resolve(sources);
-        let mut guard = self.resolved.blocking_write();
+        let mut guard = self.resolved.write().await; // ← was blocking_write()
         *guard = resolved;
 
         debug!(

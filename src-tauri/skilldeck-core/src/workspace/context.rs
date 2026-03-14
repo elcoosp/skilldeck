@@ -18,8 +18,8 @@ pub struct WorkspaceContext {
     pub project_type: ProjectType,
     /// Loaded context files.
     pub context_files: Vec<ContextFile>,
-    /// Skill directory path.
-    pub skill_directory: Option<PathBuf>,
+    /// Skill directories path.
+    pub skill_directories: Vec<(String, PathBuf)>,
     /// Whether this is a git repository.
     pub is_git_repo: bool,
     /// Gitignore patterns.
@@ -52,7 +52,7 @@ impl ContextLoader {
         let context_files = Self::load_context_files(&root, project_type).await?;
 
         // Check for skill directory (workspace-local first, then global ~/.agents/skills)
-        let skill_directory = Self::find_skill_directory(&root).await;
+        let skill_directories = Self::find_skill_directories(&root).await;
 
         // Check for git
         let is_git_repo = root.join(".git").exists();
@@ -68,7 +68,7 @@ impl ContextLoader {
             root,
             project_type,
             context_files,
-            skill_directory,
+            skill_directories,
             is_git_repo,
             gitignore_patterns,
         })
@@ -141,31 +141,35 @@ impl ContextLoader {
     /// 1. Workspace-local `.skilldeck/skills/`
     /// 2. Workspace-local `.claude/skills/`
     /// 3. Global `~/.agents/skills/`
-    async fn find_skill_directory(root: &Path) -> Option<PathBuf> {
-        // 1. Workspace-local directories (highest priority)
-        let local_candidates = [
-            root.join(".skilldeck").join("skills"),
-            root.join(".claude").join("skills"),
-        ];
+    /// Returns all discovered skill directories with their source labels,
+    /// in priority order: workspace-local first, then global.
+    async fn find_skill_directories(root: &Path) -> Vec<(String, PathBuf)> {
+        let mut found = Vec::new();
 
-        for candidate in &local_candidates {
+        let local_candidates = [
+            ("workspace", root.join(".skilldeck").join("skills")),
+            ("workspace", root.join(".claude").join("skills")),
+        ];
+        for (label, candidate) in &local_candidates {
             if candidate.exists() && candidate.is_dir() {
                 info!("Found workspace skill directory: {:?}", candidate);
-                return Some(candidate.clone());
+                found.push((label.to_string(), candidate.clone()));
+                break; // only need one local source
             }
         }
 
-        // 2. Global ~/.agents/skills directory
         if let Some(home) = dirs_next::home_dir() {
-            let global_candidate = home.join(".agents").join("skills");
-            if global_candidate.exists() && global_candidate.is_dir() {
-                info!("Found global skill directory: {:?}", global_candidate);
-                return Some(global_candidate);
+            let global = home.join(".agents").join("skills");
+            if global.exists() && global.is_dir() {
+                info!("Found global skill directory: {:?}", global);
+                found.push(("personal".to_string(), global));
             }
         }
 
-        debug!("No skill directory found");
-        None
+        if found.is_empty() {
+            debug!("No skill directory found");
+        }
+        found
     }
 
     async fn load_gitignore(root: &Path) -> Result<Vec<String>, CoreError> {
@@ -249,9 +253,11 @@ mod tests {
         fs::create_dir_all(&skill_dir).unwrap();
 
         let ctx: WorkspaceContext = ContextLoader::load(dir.path()).await.unwrap();
-        assert_eq!(ctx.skill_directory, Some(skill_dir));
+        assert!(
+            ctx.skill_directories
+                .contains(&("workspace".to_string(), skill_dir))
+        );
     }
-
     #[tokio::test]
     async fn skill_directory_claude_fallback() {
         let dir = TempDir::new().unwrap();
@@ -259,9 +265,11 @@ mod tests {
         fs::create_dir_all(&skill_dir).unwrap();
 
         let ctx: WorkspaceContext = ContextLoader::load(dir.path()).await.unwrap();
-        assert_eq!(ctx.skill_directory, Some(skill_dir));
+        assert!(
+            ctx.skill_directories
+                .contains(&("workspace".to_string(), skill_dir))
+        );
     }
-
     #[tokio::test]
     async fn rust_project_loads_cargo_toml() {
         let dir = TempDir::new().unwrap();
@@ -283,7 +291,7 @@ mod tests {
                 content: "# My Crate".into(),
                 priority: 50,
             }],
-            skill_directory: None,
+            skill_directories: vec![],
             is_git_repo: false,
             gitignore_patterns: vec![],
         };
@@ -292,14 +300,13 @@ mod tests {
         assert!(s.contains("README.md"));
         assert!(s.contains("My Crate"));
     }
-
     #[test]
     fn build_context_string_empty_files() {
         let ctx = WorkspaceContext {
             root: PathBuf::from("/workspace"),
             project_type: ProjectType::Generic,
             context_files: vec![],
-            skill_directory: None,
+            skill_directories: vec![],
             is_git_repo: false,
             gitignore_patterns: vec![],
         };

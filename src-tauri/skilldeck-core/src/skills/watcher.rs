@@ -5,6 +5,7 @@
 
 use notify::{Event, EventKind, RecursiveMode, Watcher};
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc::{Sender, channel};
 use tracing::{info, warn};
@@ -14,11 +15,11 @@ use crate::CoreError;
 /// Events emitted by the skill watcher.
 #[derive(Debug, Clone)]
 pub enum SkillWatchEvent {
-    /// A new skill directory appeared.
+    /// A new skill directory appeared or a SKILL.md was created inside it.
     Created(PathBuf),
     /// An existing skill was modified.
     Modified(PathBuf),
-    /// A skill directory was removed.
+    /// A skill directory / SKILL.md was removed.
     Deleted(PathBuf),
 }
 
@@ -34,7 +35,7 @@ pub fn start_watcher(
     let (raw_tx, raw_rx) = std::sync::mpsc::channel();
 
     let mut watcher = notify::recommended_watcher(move |res: Result<Event, notify::Error>| {
-        // This runs in a thread spawned by notify – no tokio context.
+        // This runs in a thread spawned by notify — no tokio context.
         let _ = raw_tx.send(res); // Ignore error if receiver is gone.
     })
     .map_err(|e| CoreError::Internal {
@@ -53,16 +54,16 @@ pub fn start_watcher(
     // Async channel for the debouncer task.
     let (event_tx, mut event_rx) = channel(128);
 
-    // Spawn a blocking thread that forwards raw events to the async channel.
+    // Spawn a blocking thread that forwards raw notify events into the async channel.
     std::thread::spawn(move || {
         while let Ok(res) = raw_rx.recv() {
             if event_tx.blocking_send(res).is_err() {
-                break; // receiver dropped, exit thread.
+                break; // receiver dropped — exit thread
             }
         }
     });
 
-    // Debouncer task: aggregate events for 200 ms.
+    // Debouncer task: aggregate events for 200 ms then flush.
     tokio::spawn(async move {
         let mut pending: Vec<Event> = Vec::new();
         let mut debounce_timer: Option<tokio::time::Instant> = None;
@@ -75,41 +76,116 @@ pub fn start_watcher(
                         Err(e) => warn!("File watcher error: {}", e),
                     }
                     if debounce_timer.is_none() {
-                        debounce_timer = Some(tokio::time::Instant::now() + Duration::from_millis(200));
+                        debounce_timer =
+                            Some(tokio::time::Instant::now() + Duration::from_millis(200));
                     }
                 }
                 _ = async {
                     if let Some(deadline) = debounce_timer {
                         tokio::time::sleep_until(deadline).await;
                     } else {
-                        std::future::pending().await
+                        std::future::pending::<()>().await
                     }
                 } => {
-                    // Debounce period elapsed: process all pending events.
+                    // Debounce period elapsed — process all pending events.
                     let events = std::mem::take(&mut pending);
                     debounce_timer = None;
 
                     for event in events {
+                        // Capture kind *before* consuming paths — avoids a
+                        // partial-move compile error on `event`.
+                        let kind = event.kind;
+
                         for path in event.paths {
-                            if path.file_name().map(|n| n == "SKILL.md").unwrap_or(false) {
-                                let skill_dir = match path.parent() {
-                                    Some(p) => p.to_owned(),
-                                    None => continue,
-                                };
+                            if !path.file_name().map(|n| n == "SKILL.md").unwrap_or(false) {
+                                continue;
+                            }
 
-                                let watch_event = match event.kind {
-                                    EventKind::Create(_) => SkillWatchEvent::Created(skill_dir),
-                                    EventKind::Modify(_) => SkillWatchEvent::Modified(skill_dir),
-                                    EventKind::Remove(_) => SkillWatchEvent::Deleted(skill_dir),
-                                    _ => continue,
-                                };
+                            let skill_dir = match path.parent() {
+                                Some(p) => p.to_owned(),
+                                None => continue,
+                            };
 
-                                if tx.send(watch_event).await.is_err() {
-                                    warn!("Skill watch event receiver dropped; stopping debouncer");
-                                    return;
-                                }
+                            let watch_event = match kind {
+                                EventKind::Create(_) => SkillWatchEvent::Created(skill_dir),
+                                EventKind::Modify(_) => SkillWatchEvent::Modified(skill_dir),
+                                EventKind::Remove(_) => SkillWatchEvent::Deleted(skill_dir),
+                                _ => continue,
+                            };
+
+                            if tx.send(watch_event).await.is_err() {
+                                warn!("Skill watch event receiver dropped; stopping debouncer");
+                                return;
                             }
                         }
+                    }
+                }
+            }
+        }
+    });
+
+    Ok(watcher)
+}
+
+/// Convenience: start a watcher for `dir` and drive all events directly into
+/// `registry`, using `source_label` to identify which skill source is affected.
+///
+/// The returned watcher must be kept alive for as long as hot-reload is desired
+/// (dropping it unregisters the OS watch). Typically stored in
+/// `SkillRegistry::watchers`.
+///
+/// ```rust,ignore
+/// // In AppState::initialize, after register_source:
+/// for (label, path) in &skill_dirs {
+///     if let Ok(w) = start_registry_watcher(path.clone(), label.clone(), Arc::clone(&registry)) {
+///         registry.watchers.insert(path.clone(), w);
+///     }
+/// }
+/// ```
+pub fn start_registry_watcher(
+    dir: PathBuf,
+    source_label: String,
+    registry: Arc<super::SkillRegistry>,
+) -> Result<notify::RecommendedWatcher, CoreError> {
+    let (tx, mut rx) = channel::<SkillWatchEvent>(128);
+
+    let watcher = start_watcher(dir, tx)?;
+
+    tokio::spawn(async move {
+        while let Some(event) = rx.recv().await {
+            match event {
+                SkillWatchEvent::Created(skill_dir) | SkillWatchEvent::Modified(skill_dir) => {
+                    if let Err(e) = registry
+                        .load_skill_from_source(&source_label, skill_dir.clone())
+                        .await
+                    {
+                        warn!(
+                            "Hot-reload failed for {:?} (source '{}'): {}",
+                            skill_dir, source_label, e
+                        );
+                    } else {
+                        info!(
+                            "Hot-reloaded skill from {:?} (source '{}')",
+                            skill_dir, source_label
+                        );
+                    }
+                }
+                SkillWatchEvent::Deleted(skill_dir) => {
+                    // Derive the skill name from the directory name — mirrors
+                    // how the loader stores it.
+                    let skill_name = skill_dir
+                        .file_name()
+                        .map(|n| n.to_string_lossy().to_string())
+                        .unwrap_or_default();
+
+                    if !skill_name.is_empty() {
+                        registry
+                            .remove_skill_from_source(&source_label, &skill_name)
+                            .await;
+                        info!(
+                            "Removed skill '{}' from source '{}' after delete",
+                            skill_name, source_label
+                        );
                     }
                 }
             }
@@ -152,5 +228,84 @@ mod tests {
         let (tx, _rx) = channel(32);
         let result = start_watcher(PathBuf::from("/this/does/not/exist"), tx);
         assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn watcher_detects_modification() {
+        let tmp = tempfile::tempdir().unwrap();
+        let skill_dir = tmp.path().join("existing-skill");
+        fs::create_dir_all(&skill_dir).unwrap();
+        fs::write(
+            skill_dir.join("SKILL.md"),
+            "---\nname: existing-skill\n---\ncontent",
+        )
+        .unwrap();
+
+        let (tx, mut rx) = channel(32);
+        let _watcher = start_watcher(tmp.path().to_owned(), tx).unwrap();
+
+        tokio::time::sleep(Duration::from_millis(250)).await;
+
+        // Modify the existing SKILL.md.
+        fs::write(
+            skill_dir.join("SKILL.md"),
+            "---\name: existing-skill\n---\nupdated content",
+        )
+        .unwrap();
+
+        let event = tokio::time::timeout(Duration::from_secs(5), rx.recv()).await;
+        assert!(
+            event.is_ok(),
+            "Watcher did not fire on modification within 5 s"
+        );
+        let event = event.unwrap().unwrap();
+        // Some platforms report modification as a Create event; both are acceptable for reload.
+        assert!(
+            matches!(
+                event,
+                SkillWatchEvent::Modified(_) | SkillWatchEvent::Created(_)
+            ),
+            "Expected Modified or Created event, got {:?}",
+            event
+        );
+    }
+
+    #[tokio::test]
+    async fn watcher_detects_deletion() {
+        let tmp = tempfile::tempdir().unwrap();
+        let skill_dir = tmp.path().join("doomed-skill");
+        fs::create_dir_all(&skill_dir).unwrap();
+        let skill_md = skill_dir.join("SKILL.md");
+        fs::write(&skill_md, "---\nname: doomed-skill\n---\ncontent").unwrap();
+
+        let (tx, mut rx) = channel(32);
+        let _watcher = start_watcher(tmp.path().to_owned(), tx).unwrap();
+
+        tokio::time::sleep(Duration::from_millis(250)).await;
+
+        // Delete the file
+        fs::remove_file(&skill_md).unwrap();
+
+        // Wait specifically for a Deleted event, ignoring any other events that may arrive.
+        let mut deleted_found = false;
+        let timeout = Duration::from_secs(5);
+        let start = tokio::time::Instant::now();
+        while start.elapsed() < timeout {
+            tokio::select! {
+                Some(event) = rx.recv() => {
+                    if matches!(event, SkillWatchEvent::Deleted(_)) {
+                        deleted_found = true;
+                        break;
+                    }
+                    // Otherwise continue waiting.
+                }
+                _ = tokio::time::sleep(Duration::from_millis(10)) => {}
+            }
+        }
+        assert!(
+            deleted_found,
+            "No Deleted event received within {} seconds",
+            timeout.as_secs()
+        );
     }
 }

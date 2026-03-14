@@ -22,15 +22,21 @@ pub async fn scan_directory(root: &PathBuf) -> Result<Vec<Skill>, CoreError> {
     let mut skills = Vec::new();
     let loader = FilesystemSkillLoader;
 
-    let mut read_dir = fs::read_dir(root).await.map_err(|e| CoreError::FileOperation {
-        path: root.clone(),
-        message: format!("Cannot read skill directory: {}", e),
-    })?;
+    let mut read_dir = fs::read_dir(root)
+        .await
+        .map_err(|e| CoreError::FileOperation {
+            path: root.clone(),
+            message: format!("Cannot read skill directory: {}", e),
+        })?;
 
-    while let Some(entry) = read_dir.next_entry().await.map_err(|e| CoreError::FileOperation {
-        path: root.clone(),
-        message: format!("Error iterating directory: {}", e),
-    })? {
+    while let Some(entry) = read_dir
+        .next_entry()
+        .await
+        .map_err(|e| CoreError::FileOperation {
+            path: root.clone(),
+            message: format!("Error iterating directory: {}", e),
+        })?
+    {
         let entry_path = entry.path();
         if !entry_path.is_dir() {
             continue;
@@ -42,7 +48,10 @@ pub async fn scan_directory(root: &PathBuf) -> Result<Vec<Skill>, CoreError> {
             continue;
         }
 
-        match loader.load(&SkillSource::Filesystem(entry_path.clone())).await {
+        match loader
+            .load(&SkillSource::Filesystem(entry_path.clone()))
+            .await
+        {
             Ok(skill) => {
                 debug!("Loaded skill '{}' from {:?}", skill.name, entry_path);
                 skills.push(skill);
@@ -60,9 +69,7 @@ pub async fn scan_directory(root: &PathBuf) -> Result<Vec<Skill>, CoreError> {
 ///
 /// Returns `(source_label, skills)` pairs suitable for feeding into
 /// [`crate::skills::resolver::resolve`].
-pub async fn scan_directories(
-    roots: &[(String, PathBuf)],
-) -> Vec<(String, Vec<Skill>)> {
+pub async fn scan_directories(roots: &[(String, PathBuf)]) -> Vec<(String, Vec<Skill>)> {
     let mut results = Vec::new();
 
     for (label, path) in roots {
@@ -72,7 +79,10 @@ pub async fn scan_directories(
                 results.push((label.clone(), skills));
             }
             Err(e) => {
-                warn!("Could not scan skill directory '{}' ({:?}): {}", label, path, e);
+                warn!(
+                    "Could not scan skill directory '{}' ({:?}): {}",
+                    label, path, e
+                );
                 results.push((label.clone(), vec![]));
             }
         }
