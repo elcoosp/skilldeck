@@ -288,6 +288,15 @@ function ProfilesTab() {
     return ''
   }
 
+  // Helper to safely render provider name (handles both string and object)
+  const getProviderName = (provider: string | { id: string; name: string }) => {
+    if (typeof provider === 'string') {
+      const found = PROVIDER_OPTIONS.find(p => p.id === provider)
+      return found ? found.label : provider
+    }
+    return provider.name || provider.id
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-start justify-between">
@@ -331,7 +340,8 @@ function ProfilesTab() {
               className="w-full h-7 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
             >
               {ollamaModels.map((m) => (
-                <option key={m.id} value={m.id}>{m.id}</option>
+                // m.id is value, m.name is label for better UX
+                <option key={m.id} value={m.id}>{m.name || m.id}</option>
               ))}
             </select>
           ) : (
@@ -387,7 +397,8 @@ function ProfilesTab() {
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground truncate">
-                  {p.model_provider} · {p.model_id}
+                  {/* FIX: Handle object or string for model_provider */}
+                  {getProviderName(p.model_provider)} · {p.model_id}
                 </p>
               </div>
 
