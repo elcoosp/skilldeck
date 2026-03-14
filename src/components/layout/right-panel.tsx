@@ -34,6 +34,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { listApiKeys, listOllamaModels } from '@/lib/invoke'
+import { McpTab } from './mcp-tab'
 
 type Tab = 'session' | 'skills' | 'mcp' | 'workflow' | 'analytics'
 
@@ -58,31 +59,22 @@ export function RightPanel() {
             key={id}
             onClick={() => setActiveTab(id)}
             className={cn(
-              'group flex items-center justify-center gap-0 px-0 py-2.5 text-xs font-medium',
-              'transition-colors duration-150',
-              // Each button starts at equal flex share; grows to fit the label on hover
-              'flex-1 overflow-hidden',
+              'group flex items-center justify-center gap-0 px-2 py-2.5 text-xs font-medium',
+              'transition-all duration-200',
+              'overflow-hidden min-w-0',
+              // Remove flex-1, use min-w instead so hovered tab can grow freely
+              'flex-none',
               activeTab === id
                 ? 'text-foreground border-b-2 border-primary -mb-px'
                 : 'text-muted-foreground hover:text-foreground',
             )}
           >
             <Icon className="size-3.5 shrink-0" />
-
-            {/*
-              Label container:
-              - max-w-0  → collapsed (hidden, takes no space)
-              - group-hover:max-w-[5rem] → expands to fit the longest label
-              - overflow-hidden + whitespace-nowrap → clips during transition
-              - opacity-0 / group-hover:opacity-100 → fades in
-              - ml-0 / group-hover:ml-1 → small gap appears as text expands
-              All transitions are timed together so the push is smooth.
-            */}
             <span
               className={cn(
                 'whitespace-nowrap overflow-hidden',
-                'max-w-0 group-hover:max-w-[5rem]',
-                'ml-0 group-hover:ml-1',
+                'max-w-0 group-hover:max-w-32',
+                'ml-0 group-hover:ml-1.5',
                 'opacity-0 group-hover:opacity-100',
                 'transition-[max-width,margin-left,opacity] duration-200 ease-in-out',
               )}
@@ -338,46 +330,6 @@ function SkillsTab() {
   )
 }
 
-// ── MCP tab ───────────────────────────────────────────────────────────────────
-
-function McpTab() {
-  const { data: servers = [], isLoading } = useMcpServers()
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center py-8">
-        <div className="size-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-      </div>
-    )
-  }
-
-  return (
-    <div className="p-3 space-y-2">
-      {servers.length === 0 ? (
-        <p className="text-xs text-muted-foreground">No MCP servers configured.</p>
-      ) : (
-        servers.map((server) => (
-          <div key={server.id} className="p-2 rounded-md border border-border">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-medium">{server.name}</span>
-              <Badge
-                variant={server.status === 'connected' ? 'default' : 'secondary'}
-                className="text-xs"
-              >
-                {server.status}
-              </Badge>
-            </div>
-            {server.tools.length > 0 && (
-              <p className="text-xs text-muted-foreground">
-                {server.tools.length} tool{server.tools.length !== 1 ? 's' : ''}
-              </p>
-            )}
-          </div>
-        ))
-      )}
-    </div>
-  )
-}
 
 // ── Workflow tab ──────────────────────────────────────────────────────────────
 

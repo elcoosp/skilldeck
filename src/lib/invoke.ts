@@ -45,7 +45,14 @@ export interface Skill {
   source: string
   is_active: boolean
 }
-
+export type AddMcpServerParams = {
+  name: string
+  transport: 'stdio' | 'sse'
+  command?: string                     // stdio only — executable, e.g. "npx"
+  args?: string[]                      // stdio only — e.g. ["-y", "@mcp/server-fs"]
+  url?: string                         // sse only — e.g. "http://localhost:8080/sse"
+  env?: Record<string, string>         // optional env vars for the subprocess
+}
 export interface McpServer {
   id: UUID
   name: string
@@ -185,7 +192,13 @@ export async function toggleSkill(
 // ============================================================================
 // MCP
 // ============================================================================
+export async function addMcpServer(params: AddMcpServerParams): Promise<UUID> {
+  return invoke('add_mcp_server', params)
+}
 
+export async function removeMcpServer(id: UUID): Promise<void> {
+  return invoke('remove_mcp_server', { id })
+}
 export async function listMcpServers(): Promise<McpServer[]> {
   return invoke('list_mcp_servers')
 }

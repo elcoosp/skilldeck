@@ -6,7 +6,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   listMcpServers,
   connectMcpServer,
-  disconnectMcpServer
+  disconnectMcpServer,
+  addMcpServer,
+  removeMcpServer,
+  type AddMcpServerParams,
 } from '@/lib/invoke'
 import type { UUID } from '@/lib/types'
 
@@ -32,6 +35,24 @@ export function useDisconnectMcpServer() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: UUID) => disconnectMcpServer(id),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ['mcp-servers'] })
+  })
+}
+
+export function useAddMcpServer() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (params: AddMcpServerParams) => addMcpServer(params),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ['mcp-servers'] })
+  })
+}
+
+export function useRemoveMcpServer() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: UUID) => removeMcpServer(id),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ['mcp-servers'] })
   })
