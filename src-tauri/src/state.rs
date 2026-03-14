@@ -5,7 +5,7 @@
 //! cannot live inside `skilldeck-core`'s `Registry` — i.e. OS-level concerns
 //! such as the approval gate (oneshot channels) and the keyring handle.
 
-use std::sync::Arc;
+use std::{env::home_dir, sync::Arc};
 use tauri::Manager;
 use tauri_plugin_keyring::KeyringExt;
 use tracing::{info, warn};
@@ -14,6 +14,8 @@ use skilldeck_core::{
     agent::tool_dispatcher::ApprovalGate,
     db::open_db,
     providers::{ClaudeProvider, OllamaProvider, OpenAiProvider},
+    skills::{scanner, watcher::start_registry_watcher},
+    workspace::ContextLoader,
     Registry, SeaOrmDatabase,
 };
 
@@ -84,7 +86,60 @@ impl AppState {
         // immediately with "No profile found". We create one pointing at the
         // local Ollama instance so the app is usable out of the box.
         state.ensure_default_profile().await;
+        let workspace_root = std::env::current_dir().unwrap_or_else(|_| data_dir.clone());
+        let ctx = ContextLoader::load(&workspace_root).await;
 
+        let skill_dirs = match ctx {
+            Ok(ref c) => c.skill_directories.clone(),
+            Err(_) => {
+                // Even if context loading fails, still try the global path.
+                if let Some(home) = home_dir() {
+                    let global = home.join(".agents").join("skills");
+                    if global.exists() {
+                        vec![("personal".to_string(), global)]
+                    } else {
+                        vec![]
+                    }
+                } else {
+                    vec![]
+                }
+            }
+        };
+
+        if skill_dirs.is_empty() {
+            warn!("No skill directories found — skills will not be loaded");
+        } else {
+            let scanned = scanner::scan_directories(&skill_dirs).await;
+            for (label, skills) in scanned {
+                info!(
+                    "Registering {} skills from source '{}'",
+                    skills.len(),
+                    label
+                );
+                state
+                    .registry
+                    .skill_registry
+                    .register_source(label, skills)
+                    .await;
+            }
+            for (label, path) in &skill_dirs {
+                match start_registry_watcher(
+                    path.clone(),
+                    label.clone(),
+                    // SkillRegistry needs to be Arc-wrapped, or expose an Arc clone method
+                    Arc::clone(&state.registry.skill_registry),
+                ) {
+                    Ok(w) => {
+                        state
+                            .registry
+                            .skill_registry
+                            .watchers
+                            .insert(path.clone(), w);
+                    }
+                    Err(e) => warn!("Could not start watcher for '{}': {}", label, e),
+                }
+            }
+        }
         Ok(state)
     }
 

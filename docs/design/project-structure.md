@@ -211,7 +211,7 @@ src/
 │   │   ├── center-panel.tsx            # Message thread + input
 │   │   └── right-panel.tsx             # Context/insights tabs (Session, Workflow, Analytics)
 │   ├── conversation/
-│   │   ├── conversation-list.tsx       # Virtualized list (react‑virtuoso)
+│   │   ├── conversation-list.tsx       # Virtualized list (@tanstack/react-virtual)
 │   │   ├── conversation-item.tsx       # Single row in sidebar
 │   │   ├── message-thread.tsx          # Virtualized message thread
 │   │   ├── message-bubble.tsx          # User/assistant/system message with markdown

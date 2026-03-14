@@ -1542,8 +1542,8 @@ PRAGMA foreign_keys=ON;
 | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Context**            | Conversations can have 500+ messages. Rendering all messages would cause performance issues.                                                                                 |
 | **Decision Drivers**   | ASR-PERF-002 (60fps UI), REQ-PERF-003 (16ms response), REQ-PERF-005 (load conversations < 2s)                                                                                |
-| **Considered Options** | **A. react-virtuoso for virtualized lists** — chosen; **B. react-window** — less feature-rich; **C. Pagination without virtualization** — worse UX                           |
-| **Decision**           | Adopt Option A: Use react-virtuoso for message threads and conversation lists.                                                                                               |
+| **Considered Options** | **A. @tanstack/react-virtual for virtualized lists** — chosen; **B. react-window** — less feature-rich; **C. Pagination without virtualization** — worse UX                           |
+| **Decision**           | Adopt Option A: Use @tanstack/react-virtual for message threads and conversation lists.                                                                                               |
 | **Consequences**       | (+) Smooth scrolling for large conversations; (+) Reduced DOM size; (+) Built-in infinite scroll; (–) Additional library dependency; (–) Some complexity for dynamic heights |
 | **Status**             | Accepted                                                                                                                                                                     |
 | **Traceability**       | ASR-PERF-002, REQ-PERF-003                                                                                                                                                   |

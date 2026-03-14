@@ -107,8 +107,6 @@ export function MessageBubble({ message, isStreaming = false }: MessageBubblePro
   return (
     <motion.div
       className={cn('flex gap-3 max-w-full', isUser && 'flex-row-reverse')}
-      // Opacity-only fade on mount — no translate/scale which would cause Virtuoso
-      // to measure the wrong item height and stutter the scroll.
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.25, ease: 'easeOut' }}

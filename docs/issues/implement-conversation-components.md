@@ -52,7 +52,7 @@ We need to implement conversation components including conversation list, messag
 - `src/components/conversation/message-input.tsx` — Message input with enhancements
 
 **ConversationList:**
-- Virtualized list using react-virtuoso
+- Virtualized list using @tanstack/react-virtual
 - Search/filter functionality
 - Active conversation highlighting
 

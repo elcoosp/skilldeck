@@ -3,7 +3,7 @@
  */
 
 import { useState } from 'react'
-import { Cpu, Layers, Zap } from 'lucide-react'
+import { Cpu, Layers, Zap, ChevronDown, ChevronUp } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import { useSkills } from '@/hooks/use-skills'
@@ -56,7 +56,7 @@ export function RightPanel() {
       </div>
 
       {/* Tab content */}
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 min-h-0">
         {activeTab === 'session' && (
           <SessionTab conversationId={activeConversationId} />
         )}
@@ -251,6 +251,57 @@ function ModelSelector({
 
 // ── Skills tab ────────────────────────────────────────────────────────────────
 
+function SkillItem({ skill, isActive }: { skill: any; isActive: boolean }) {
+  const [expanded, setExpanded] = useState(false)
+  const hasDescription = !!skill.description
+
+  return (
+    // overflow-hidden clips any child that tries to escape horizontally.
+    // w-full ensures it fills the parent column, not its content width.
+    <div
+      className={cn(
+        "flex items-start gap-2 p-2 rounded-md w-full overflow-hidden",
+        isActive ? "bg-muted/50" : "opacity-50"
+      )}
+    >
+      <div
+        className={cn(
+          "size-1.5 rounded-full mt-1.5 shrink-0",
+          isActive ? "bg-green-500" : "bg-muted-foreground"
+        )}
+      />
+      {/* w-0 + min-w-0 + flex-1: forces the flex child to shrink below its
+          text content width. Without w-0 the flex algorithm uses max-content
+          as the floor, so truncate never triggers. */}
+      <div className="flex-1 min-w-0 w-0">
+        <p className="text-xs font-medium truncate">{skill.name}</p>
+        {hasDescription && (
+          <div className="flex items-start gap-1 mt-0.5 w-full">
+            <p
+              className={cn(
+                "text-xs text-muted-foreground flex-1 min-w-0 w-0",
+                expanded ? "break-words whitespace-normal" : "truncate"
+              )}
+            >
+              {skill.description}
+            </p>
+            <button
+              type="button"
+              onClick={() => setExpanded(!expanded)}
+              className="shrink-0 mt-0.5 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {expanded ? (
+                <ChevronUp className="size-3.5" />
+              ) : (
+                <ChevronDown className="size-3.5" />
+              )}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
 function SkillsTab() {
   const { data: skills = [], isLoading } = useSkills()
 
@@ -274,18 +325,7 @@ function SkillsTab() {
           </h3>
           <div className="space-y-1">
             {active.map((s) => (
-              <div
-                key={s.name}
-                className="flex items-start gap-2 p-2 rounded-md bg-muted/50"
-              >
-                <div className="size-1.5 rounded-full bg-green-500 mt-1.5 shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-xs font-medium truncate">{s.name}</p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {s.description}
-                  </p>
-                </div>
-              </div>
+              <SkillItem key={s.name} skill={s} isActive={true} />
             ))}
           </div>
         </section>
@@ -298,15 +338,7 @@ function SkillsTab() {
           </h3>
           <div className="space-y-1">
             {inactive.map((s) => (
-              <div
-                key={s.name}
-                className="flex items-start gap-2 p-2 rounded-md opacity-50"
-              >
-                <div className="size-1.5 rounded-full bg-muted-foreground mt-1.5 shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-xs font-medium truncate">{s.name}</p>
-                </div>
-              </div>
+              <SkillItem key={s.name} skill={s} isActive={false} />
             ))}
           </div>
         </section>

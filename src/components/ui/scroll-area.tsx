@@ -2,29 +2,30 @@ import * as React from 'react'
 import { ScrollArea as ScrollAreaPrimitive } from 'radix-ui'
 import { cn } from '@/lib/utils'
 
-function ScrollArea({
-  className,
-  children,
-  ...props
-}: React.ComponentProps<typeof ScrollAreaPrimitive.Root>) {
-  return (
-    <ScrollAreaPrimitive.Root
-      data-slot="scroll-area"
-      className={cn('relative', className)}
-      {...props}
+const ScrollArea = React.forwardRef<
+  React.ElementRef<typeof ScrollAreaPrimitive.Viewport>,
+  React.ComponentProps<typeof ScrollAreaPrimitive.Root>
+>(({ className, children, ...props }, ref) => (
+  <ScrollAreaPrimitive.Root
+    data-slot="scroll-area"
+    className={cn('relative overflow-hidden', className)}
+    {...props}
+  >
+    <ScrollAreaPrimitive.Viewport
+      ref={ref}
+      data-slot="scroll-area-viewport"
+      className="size-full rounded-[inherit] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1 overflow-x-hidden"
     >
-      <ScrollAreaPrimitive.Viewport
-        data-slot="scroll-area-viewport"
-        className="size-full rounded-[inherit] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1"
-      >
-        {children}
-      </ScrollAreaPrimitive.Viewport>
-      <ScrollBar />
-      <ScrollAreaPrimitive.Corner />
-    </ScrollAreaPrimitive.Root>
-  )
-}
+      {children}
+    </ScrollAreaPrimitive.Viewport>
+    <ScrollBar />
+    <ScrollAreaPrimitive.Corner />
+  </ScrollAreaPrimitive.Root>
+))
 
+ScrollArea.displayName = 'ScrollArea'
+
+// ScrollBar remains unchanged
 function ScrollBar({
   className,
   orientation = 'vertical',
@@ -37,8 +38,6 @@ function ScrollBar({
       orientation={orientation}
       className={cn(
         'flex touch-none select-none p-px',
-        // Radix sets data-state="visible" while scrolling, "hidden" when idle.
-        // We use that to fade the entire track in/out — no track is shown at rest.
         'transition-opacity duration-300 ease-in-out',
         'data-[state=visible]:opacity-100 data-[state=hidden]:opacity-0',
         orientation === 'vertical'

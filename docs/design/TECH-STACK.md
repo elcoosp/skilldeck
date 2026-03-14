@@ -1,6 +1,6 @@
 # SkillDeck Tech Stack
 
-This document outlines the technology stack and architectural decisions for the SkillDeck project, derived from codebase exploration and design documentation (see `ux-design.md`).
+This document outlines the technology stack and architectural decisions for the SkillDeck project, derived from codebase exploration and design documentation (see `ux-design.md`). It reflects the actual dependencies as defined in `package.json` and `Cargo.toml`.
 
 ## Overview
 
@@ -13,10 +13,10 @@ SkillDeck is a Tauri-based desktop application providing an AI agent chat interf
 ### Core Framework & Build
 
 - **Framework**: React 19 with TypeScript
-- **Build Tool**: Vite 7
+- **Build Tool**: Vite 7 (using `@vitejs/plugin-react-swc` for fast SWC-based compilation)
 - **Language**: TypeScript (strict mode enabled)
 - **Package Manager**: pnpm
-- **Routing**: React Router DOM v7 (for layout-based routing if needed, otherwise in-memory state).
+- **Routing**: React Router DOM v7 (for layout-based routing)
 
 ### Testing
 
@@ -28,44 +28,38 @@ SkillDeck is a Tauri-based desktop application providing an AI agent chat interf
 ### UI Component System
 
 - **Component Library**: [shadcn/ui](https://ui.shadcn.com) – copy‑paste components owned directly in the codebase. Built on Radix UI primitives for accessibility.
-- **Styling**: Tailwind CSS with shadcn/ui's theming system; custom CSS (App.css) replaced by shadcn's global CSS variables.
+- **Styling**: Tailwind CSS v4 with `@tailwindcss/vite` plugin; shadcn/ui's theming system via CSS variables.
+- **Animations**: [framer-motion](https://www.framer.com/motion/) – used for smooth transitions and micro-interactions.
 - **Icon Libraries**:
   - [lucide-react](https://lucide.dev) – primary icon set for UI actions.
   - [@icons-pack/react-simple-icons](https://github.com/icons-pack/react-simple-icons) – brand and technology icons (GitHub, Rust, etc.).
-    - **Installation**: `pnpm add @icons-pack/react-simple-icons`
-    - **Usage**: Icons exported with `Si` prefix (e.g., `SiReact`).
-    - **Default color**: Use `color='default'` or import `SiReactHex`.
+- **Fonts**: [@fontsource/poppins](https://fontsource.org/fonts/poppins) – Poppins font family.
 
 **shadcn/ui Setup**:
 
 - CLI: `pnpm dlx shadcn@latest`
 - Components stored in `src/components/ui`
-- Global CSS in `src/index.css` with Tailwind directives
+- Global CSS in `src/App.css` with Tailwind directives
 
 ### Layout & Interaction
 
 - **Resizable Panels**: [react-resizable-panels](https://github.com/bvaughn/react-resizable-panels) – implements the three‑panel design with drag handles and persistence of widths.
 - **Command Menu**: [cmdk](https://github.com/pacocoursey/cmdk) – powers global search (`⌘K`) and mention picker (`@`).
-- **Drawer (optional)**: [vaul](https://github.com/emilkowalski/vaul) – if a slide‑in panel is preferred over a full overlay for marketplace/settings.
-- **Virtualization**: [react-virtuoso](https://github.com/petyosi/react-virtuoso) – virtualizes long conversation threads, skill lists, and marketplace results to maintain performance with thousands of items.
+- **Virtualization**:
+  - [@tanstack/react-virtual](https://tanstack.com/virtual) – virtualizes long conversation threads, skill lists, and marketplace results.
 - **Keyboard Shortcuts**: [react-hotkeys-hook](https://github.com/JohannesKlauss/react-hotkeys-hook) – declarative keyboard shortcut bindings, supports customizability and conflict detection.
-- **Debouncing / Throttling**: [use-debounce](https://github.com/xnimorz/use-debounce) or `lodash.debounce` – for search inputs, auto-save drafts, and resize handlers.
+- **Debouncing / Throttling**: [use-debounce](https://github.com/xnimorz/use-debounce) – for search inputs, auto-save drafts, and resize handlers.
+- **Focus Management**: [react-focus-lock](https://github.com/theKashey/react-focus-lock) – for modals and dialogs to trap focus.
 
 ### State Management
 
 - **Server State**: [TanStack Query](https://tanstack.com/query/latest) – handles data fetching, caching, and background updates for MCP servers, skills list, conversations, and profiles.
 - **Client State**: [Zustand](https://github.com/pmndrs/zustand) – manages UI state: active conversation, panel sizes, right panel collapsed state, input drafts, active branch, feature unlock progress, etc.
 
-### Forms & Validation
-
-- **Form Handling**: [React Hook Form](https://react-hook-form.com/) – for profile creation, settings, prompt variable filling.
-- **Validation**: [zod](https://zod.dev/) + [@hookform/resolvers](https://github.com/react-hook-form/resolvers) – schema validation for forms.
-
 ### AI Integration
 
 - **Agent‑LLM Communication**: [TOON (Token‑Oriented Object Notation)](https://github.com/toon-format/toon) – compact, human‑readable format for sending structured data (tool inputs, skill contexts, conversation state) to the LLM, reducing token usage by ~40% while maintaining or improving accuracy.
-  - **Implementation**: Use TypeScript SDK (`@toon-format/toon`) on the frontend when preparing data for Tauri commands that will be forwarded to the LLM.
-  - Wrap TOON data in markdown code blocks (```toon) to help the LLM identify the format.
+  - *Note*: The TypeScript SDK (`@toon-format/toon`) is not yet installed; planned for future integration.
 
 ### Real‑time Updates & Notifications
 
@@ -76,35 +70,31 @@ SkillDeck is a Tauri-based desktop application providing an AI agent chat interf
 
 - **Charts**: [Recharts](https://recharts.org/) – for usage analytics (token consumption, cost trends, model usage).
 - **Workflow DAG Visualization**: [@xyflow/react](https://reactflow.dev/) (formerly react-flow) – interactive directed acyclic graph (DAG) visualization for workflow execution monitoring. Shows sequential, parallel, and evaluator-optimizer patterns with real-time step status, metrics, and connections.
-  - **Installation**: `pnpm add @xyflow/react`
-  - **Use case**: Right panel workflow visualization showing step dependencies, execution status, quality scores, and performance metrics.
-  - **Features**: Auto-layout, zoom/pan, minimap, collapsible step groups for nested workflows.
 
 ### Internationalization
 
-- **Library**: [Lingui](https://lingui.dev/) – A powerful internationalization framework for JavaScript projects. Chosen for its React support, rich-text capabilities, and excellent tooling (CLI, Vite plugin, ESLint plugin).
-- **Core Package**: `@lingui/core` – Core intl functionality for any JavaScript project.
-- **React Integration**: `@lingui/react` with macro support (`@lingui/react/macro`) for seamless component-based translations, including React Server Components (RSC).
-- **Message Format**: Uses ICU MessageFormat for plurals, genders, and selects, ensuring proper localization.
+- **Library**: [Lingui](https://lingui.dev/) – A powerful internationalization framework for JavaScript projects. Chosen for its React support, rich-text capabilities, and excellent tooling (CLI, Vite plugin, SWC plugin).
+- **Core Package**: `@lingui/core` – Core intl functionality.
+- **React Integration**: `@lingui/react` with macro support (`@lingui/macro`) for seamless component-based translations.
+- **Message Format**: ICU MessageFormat for plurals, genders, and selects.
 - **Workflow**: Messages are extracted using the Lingui CLI, compiled into catalogs, and loaded dynamically. The Vite plugin compiles catalogs on the fly during development.
-- **AI Translation Ready**: Lingui's format allows adding descriptions to messages, providing context for AI-powered translations.
-- **Storage**: Translations stored in JSON or PO files, compatible with most translation platforms.
-- **Installation**: `pnpm add @lingui/core @lingui/react` and `pnpm add -D @lingui/cli @lingui/vite-plugin @lingui/macro`
+- **Storage**: Translations stored in JSON or PO files.
 
 ### Marketplace & Search
 
 - **Fuzzy Search**: [fuse.js](https://fusejs.io/) – client-side fuzzy search for skill marketplace, command palette, and mention picker.
 - **Diff Viewer**: [react-diff-viewer](https://github.com/praneshr/react-diff-viewer) – side‑by‑side diff for comparing shadowed skills (workspace vs personal versions).
-- **Markdown Rendering**: [react-markdown](https://github.com/remarkjs/react-markdown) – for previewing `SKILL.md` content in the marketplace detail view.
+- **Markdown Rendering**:
+  - [react-markdown](https://github.com/remarkjs/react-markdown) – for previewing `SKILL.md` content.
+  - **Enhanced Pipeline**: Uses `remark-gfm` (GitHub Flavored Markdown), `rehype-highlight` (syntax highlighting), and `shiki` via `@shikijs/rehype` for rich code block rendering.
+  - **Unified**: `unified` with `remark-parse`, `remark-rehype`, and `rehype-stringify` for custom processing.
 
 ### Utilities
 
 - **Date Handling**: [date-fns](https://date-fns.org/) – formatting conversation timestamps.
 - **Class Name Composition**: `clsx` + `tailwind-merge` (via `cn()` helper) – standard shadcn/ui pattern.
-- **Variant Styling**: [class-variance-authority](https://cva.style/) – used for component variants (already part of shadcn).
-- **Accessibility Primitives**: [Radix UI](https://www.radix-ui.com/) – shadcn/ui is built on Radix, ensuring WAI‑ARIA compliance.
-- **Focus Management**: [react-focus-lock](https://github.com/theKashey/react-focus-lock) – for modals and dialogs to trap focus.
-- **Vim‑style Input (optional)**: [@uiw/react-textarea-code-editor](https://uiwjs.github.io/react-textarea-code-editor/) – can be integrated for Vim mode in the input area; not required for v1.
+- **Variant Styling**: [class-variance-authority](https://cva.style/) – used for component variants.
+- **Accessibility Primitives**: [Radix UI](https://www.radix-ui.com/) – shadcn/ui is built on Radix, ensuring WAI‑ARIA compliance (via the `radix-ui` meta‑package).
 
 ### Quality Control (Dev Tooling)
 
@@ -125,6 +115,8 @@ SkillDeck is a Tauri-based desktop application providing an AI agent chat interf
 - **Workspace Structure**:
   - `src-tauri` – main Tauri application shell
   - `skilldeck-core` – separate library crate for business logic (agent loop, MCP, skills, workflows, etc.)
+  - `skilldeck-models` – shared data models and database entities
+  - `migration` – SeaORM migration crate
 
 **Key Dependencies**:
 | Crate | Purpose |
@@ -132,28 +124,38 @@ SkillDeck is a Tauri-based desktop application providing an AI agent chat interf
 | `tauri` | Core Tauri framework |
 | `tauri-plugin-opener` | Open files/URLs |
 | `tauri-plugin-shell` | Execute shell commands (MCP stdio) |
+| `tauri-plugin-dialog` | Native dialog boxes |
+| `tauri-plugin-store` | Persistent key-value store |
+| `tauri-plugin-keyring` | Secure credential storage (OS keychain) |
 | `tokio` | Async runtime (full features) |
 | `sea-orm` | ORM with SQLite support (`sqlx-sqlite`) |
 | `serde` / `serde_json` | Serialization |
+| `specta` / `tauri-specta` | Type-safe Tauri commands with TypeScript generation |
+| `tracing` | Structured logging |
 
 **Additional Rust Crates**:
 
 | Library                 | Purpose                                                                       |
 | :---------------------- | :---------------------------------------------------------------------------- |
 | `anyhow` / `thiserror`  | Simplified error handling                                                     |
-| `tracing`               | Structured logging                                                            |
-| `notify`                | Filesystem watching for skill directories                                     |
-| `glob`                  | Pattern matching for skill discovery                                          |
-| `uuid`                  | Generate UUIDs for database primary keys                                      |
-| `chrono` / `time`       | Date/time handling                                                            |
-| `reqwest`               | HTTP client for remote MCP registry and model APIs                            |
-| `futures`               | Stream combinators and async utilities                                        |
+| `async-trait`           | Async trait support                                                           |
+| `backoff`               | Exponential backoff for retries                                               |
+| `bytes`                 | Efficient buffer handling                                                     |
+| `chrono`                | Date/time handling                                                            |
 | `config`                | Manage configuration (API keys, skill directories)                            |
-| `cargo-machete`         | Detect unused dependencies (dev tool)                                         |
-| `petgraph`              | Graph data structures for workflow DAG execution                              |
 | `dashmap`               | Concurrent HashMap for workflow state tracking                                |
-| `rayon` (optional)      | Data parallelism for parallel workflow execution                              |
-| `sqlite-vss` (optional) | Vector search extension for SQLite – for semantic search across conversations |
+| `dirs-next`             | Platform‑specific directories                                                 |
+| `futures`               | Stream combinators and async utilities                                        |
+| `glob`                  | Pattern matching for skill discovery                                          |
+| `notify`                | Filesystem watching for skill directories                                     |
+| `notify-debouncer-mini` | Debounced filesystem events                                                   |
+| `petgraph`              | Graph data structures for workflow DAG execution                              |
+| `reqwest`               | HTTP client for remote MCP registry and model APIs                            |
+| `serde_yaml`            | YAML serialization (skill workflow frontmatter)                               |
+| `sha2`                  | Hashing for content‑addressable caching                                       |
+| `uuid`                  | Generate UUIDs for database primary keys                                      |
+| `sea-orm-migration`     | Migration support                                                             |
+| `tempfile`              | Temporary files (dev)                                                         |
 
 **Architectural Layers** (as per design):
 
@@ -170,12 +172,11 @@ SkillDeck is a Tauri-based desktop application providing an AI agent chat interf
 
 ## Database
 
-- **Primary Database**: SQLite (inferred from `sea-orm` feature `sqlx-sqlite` and no `pg_embed` in dependencies)
+- **Primary Database**: SQLite
 - **ORM**: SeaORM 2.0 (with `sqlx-sqlite` and `runtime-tokio-native-tls`).
   - SeaORM 2.0 is a **major release** introducing breaking changes, new features, and an improved developer experience.
-  - **Migration**: When upgrading from 1.x, refer to the official [What's New in SeaORM 2.0](https://www.sea-ql.org/SeaORM/docs/introduction/whats-new/) guide.
-- **Schema Tables** (planned): conversations, messages, profiles, MCP servers, skills, sync state, workflow executions, workflow steps, message_embeddings (for semantic search), tool_approvals, etc. (29+ tables across 10 domains).
-- **Vector Search** (optional): `sqlite-vss` extension for efficient semantic search over message embeddings. If not available, fallback to in‑memory cosine similarity with `ndarray`.
+- **Schema Tables** (planned): conversations, messages, profiles, MCP servers, skills, sync state, workflow executions, workflow steps, message_embeddings, tool_approvals, etc.
+- **Vector Search** (optional): `sqlite-vss` extension for efficient semantic search over message embeddings (not yet added; fallback to in‑memory cosine similarity with `ndarray` planned).
 
 ---
 
@@ -189,14 +190,15 @@ SkillDeck is a Tauri-based desktop application providing an AI agent chat interf
   - `pnpm coverage` – runs Vitest with coverage
   - `cargo tauri dev` – runs Tauri dev with frontend
 - **Configuration Files**:
-  - `tauri.conf.json` – Tauri app config (product name, identifier, windows, icons)
+  - `tauri.conf.json` – Tauri app config
   - `tsconfig.json` – TypeScript config (bundler mode, React JSX)
-  - `vite.config.ts` – Vite config tailored for Tauri, also includes Vitest configuration
-  - `biome.json` – Biome configuration (Linting & Formatting)
-  - `lefthook.yml` – Lefthook configuration (Git Hooks)
+  - `vite.config.ts` – Vite + Vitest config
+  - `biome.json` – Biome configuration
+  - `lefthook.yml` – Lefthook configuration
   - `commitlint.config.js` – Commitlint configuration
   - `cspell.json` – CSpell configuration
-- **Rust Workspace**: Managed via `Cargo.toml` in root of `src-tauri` with workspace members
+  - `lingui.config.ts` – Lingui configuration
+- **Rust Workspace**: Managed via top‑level `Cargo.toml` with workspace members
 
 ---
 
@@ -211,68 +213,28 @@ SkillDeck is a Tauri-based desktop application providing an AI agent chat interf
 | **Workflow orchestration**          | Core Rust orchestrator + Tauri events               |
 | **Workflow DAG visualization**      | `@xyflow/react` + Zustand                           |
 | **Inline branch navigation**        | Zustand + UI state in DB                            |
-| **MCP discovery & marketplace**     | TanStack Query (server state), shadcn Dialog/Sheet  |
+| **MCP discovery & marketplace**     | TanStack Query, shadcn Dialog/Sheet                  |
 | **Skill management**                | TanStack Query, filesystem watcher events           |
-| **Prompt library with variables**   | React Hook Form + zod + shadcn form components      |
+| **Prompt library with variables**   | *(planned: React Hook Form + zod)*                  |
 | **Command menu (`⌘K`)**             | `cmdk`                                              |
 | **Mention picker (`@`)**            | `cmdk` + `fuse.js` (fuzzy skill search)             |
 | **Fuzzy search (marketplace)**      | `fuse.js`                                           |
 | **Skill diff view**                 | `react-diff-viewer`                                 |
-| **SKILL.md preview**                | `react-markdown`                                    |
+| **SKILL.md preview**                | `react-markdown` + remark/rehype plugins + `shiki` |
 | **Real‑time event display**         | Tauri events + Sonner                               |
 | **Usage analytics (charts)**        | Recharts                                            |
-| **Long list virtualization**        | `react-virtuoso`                                    |
+| **Long list virtualization**        | `@tanstack/react-virtual`         |
 | **Client state persistence**        | `@tauri-apps/plugin-store`                          |
 | **Keyboard shortcuts**              | `react-hotkeys-hook`                                |
 | **Debouncing / Throttling**         | `use-debounce`                                      |
 | **Workflow performance monitoring** | TanStack Query + Recharts (trends/analytics)        |
 | **Internationalization**            | Lingui (`@lingui/core`, `@lingui/react`, CLI, Vite) |
-| **Frontend testing**                | **Vitest (Browser Mode) + Playwright**              |
-| **Linting & Formatting**            | **Biome**                                           |
-| **Git Hooks**                       | **Lefthook**                                        |
-| **Commit Linting**                  | **Commitlint**                                      |
-| **Vector search (semantic)**        | `sqlite-vss` (Rust) or in‑memory with `ndarray`     |
-
----
-
-## Additional Recommended Libraries
-
-### Rust (Backend) – already covered above.
-
-### Frontend (TypeScript/React) – already covered above.
-
-### Dev Tooling
-
-| Tool            | Purpose                                       |
-| :-------------- | :-------------------------------------------- |
-| `cargo-watch`   | Automatically run tests/lints on file changes |
-| `cargo-machete` | Detect unused Rust dependencies               |
-
----
-
-## Testing Strategy
-
-- **Unit Tests**:
-  - Rust: In core crate with mocked traits
-  - Frontend: Vitest for component and utility tests (Browser Mode)
-- **Integration Tests**:
-  - Rust: Using local Ollama for agent workflows
-  - Frontend: Vitest with `@vitest/browser` for integration of components with state in a real browser environment
-- **E2E Tests**: Tauri WebDriver for critical paths (minimal)
-- **Coverage**: Vitest provides coverage reports; Rust uses `tarpaulin` or `grcov`.
-
----
-
-## Current State vs. Design
-
-The current scaffolding is minimal (Tauri + React starter) but includes:
-
-- Workspace setup with `skilldeck-core`
-- Basic Tauri commands (`greet` in `lib.rs`)
-- SeaORM dependency with SQLite
-- Design documents in `docs/` detailing the full vision
-
-Planned additions include the agent core, MCP discovery, skill loading, and the three‑panel UI built with the libraries listed above.
+| **Animations**                      | `framer-motion`                                     |
+| **Frontend testing**                | Vitest (Browser Mode) + Playwright                   |
+| **Linting & Formatting**            | Biome                                               |
+| **Git Hooks**                       | Lefthook                                            |
+| **Commit Linting**                  | Commitlint                                          |
+| **Vector search (semantic)**        | *(planned: `sqlite-vss` or in‑memory `ndarray`)*    |
 
 ---
 
@@ -351,7 +313,7 @@ impl WorkflowExecutor {
 
 ### Skill Workflow Configuration
 
-Skills declare workflows via YAML frontmatter, parsed by `SkillLoader`:
+Skills declare workflows via YAML frontmatter, parsed by `SkillLoader` (using `serde_yaml`):
 
 ```yaml
 ---
@@ -378,7 +340,7 @@ workflow:
 
 **Validation:**
 
-- Zod schema validates workflow config structure
+- Zod schema (planned) will validate workflow config structure
 - Rust-side validation checks skill references exist
 - Cycle detection prevents infinite loops in dependencies
 
@@ -406,73 +368,38 @@ workflow:
 
 ---
 
-## Summary
-
-SkillDeck combines modern frontend tooling (React 19, TypeScript, Vite) with a curated set of libraries that directly address the UX goals:
-
-- **Biome** for fast, unified linting and formatting.
-- **Lefthook** for efficient, managed Git hooks.
-- **Vitest Browser Mode** for reliable, real-environment testing.
-- **shadcn/ui** + **Radix** for accessible, consistent UI
-- **TanStack Query** + **Zustand** for robust state management
-- **react-resizable-panels** for the three‑panel layout
-- **cmdk** for command and mention experiences
-- **Sonner** for non‑intrusive notifications
-- **TOON** for token‑efficient LLM communication
-- **@xyflow/react** for workflow DAG visualization
-- **Lingui** for internationalization
-- **fuse.js** for fuzzy search (marketplace, skill picker)
-- **react-diff-viewer** for skill comparison
-- **react-markdown** for SKILL.md preview
-- **react-hotkeys-hook** for declarative keyboard shortcuts
-- **use-debounce** for input debouncing
-- **petgraph** + **dashmap** for workflow orchestration in Rust
-- **sqlite-vss** (optional) for vector‑based semantic search
-
-Together with a robust Rust backend (Tauri, Tokio, SeaORM 2.0), this stack delivers a high-performance, extensible AI agent desktop application that is local‑first, developer‑extensible, and compatible with the Superpowers skill ecosystem.
-
-### Workflow Pattern Support
-
-The stack fully supports the three production-proven workflow patterns:
-
-- **Sequential workflows** for dependent multi-stage tasks
-- **Parallel workflows** for concurrent execution and aggregation
-- **Evaluator-optimizer workflows** for iterative quality refinement
-
-All patterns are composable, monitorable, and cost-tracked at the per-step level.
-
----
-
 ## Gap Analysis & Recommendations
 
-### ✅ Fully Covered
+### ✅ Fully Covered (Current Dependencies)
 
-- Core agent loop with streaming
+- Core agent loop with streaming (Tauri events)
 - Three‑panel UI with resizable layout
-- MCP server discovery and integration
-- Skill system with priority resolution
-- Workspace context and file scoping
-- Branching conversations
-- TOON format for token efficiency
-- Tool approval flows
+- MCP server discovery and integration (planned backend)
+- Skill system with priority resolution (planned)
+- Workspace context and file scoping (planned)
+- Branching conversations (planned)
 - Real‑time event bus
 - Internationalization (Lingui)
-- **Linting & Formatting (Biome)**
-- **Git Hooks (Lefthook)**
-- **Frontend testing (Vitest Browser Mode)**
+- Frontend testing (Vitest + Browser Mode)
 - Fuzzy search (fuse.js)
 - Skill diff view (react-diff-viewer)
-- SKILL.md preview (react-markdown)
+- SKILL.md preview (react-markdown + remark/rehype + shiki)
 - Keyboard shortcuts (react-hotkeys-hook)
 - Debouncing (use-debounce)
 - Focus management (react-focus-lock)
 - Workflow DAG visualization (@xyflow/react)
 - Workflow graph execution (petgraph + dashmap)
-- Semantic search (sqlite‑vss or in‑memory)
+- Animations (framer-motion)
+- Virtualization (@tanstack/react-virtual)
+- Type-safe Tauri commands (specta)
 
-### ⚠️ Needs Addition (Libraries)
+### ⚠️ Needs Addition (Libraries Not Yet Installed)
 
-_All previously identified libraries have been integrated._
+- **TOON SDK** (`@toon-format/toon`) – planned for token‑efficient LLM communication.
+- **React Hook Form** + **zod** – for form handling and validation (profile creation, settings, prompt variables).
+- **sqlite-vss** – optional vector search extension for semantic search (fallback to `ndarray` in‑memory).
+- **rayon** – optional data parallelism for parallel workflow steps (may be added later for performance).
+- **vaul** – optional drawer component (if slide‑in panel is preferred over overlay for marketplace/settings).
 
 ### 🔄 Needs Design Refinement (from UX design)
 
@@ -491,45 +418,17 @@ _All previously identified libraries have been integrated._
 
 ---
 
-## Final Tech Stack Completeness Check
-
-### ✅ Fully Covered
-
-- Core agent loop with streaming
-- Three‑panel UI with resizable layout
-- MCP server discovery and integration
-- Skill system with priority resolution
-- Workspace context and file scoping
-- Branching conversations
-- TOON format for token efficiency
-- Tool approval flows
-- Real‑time event bus
-- Internationalization (Lingui)
-- Frontend testing (Vitest + Browser Mode)
-- Fuzzy search (fuse.js)
-- Skill diff view (react-diff-viewer)
-- SKILL.md preview (react-markdown)
-- Keyboard shortcuts (react-hotkeys-hook)
-- Debouncing (use-debounce)
-- Focus management (react-focus-lock)
-- Workflow DAG visualization (@xyflow/react)
-- Workflow graph execution (petgraph + dashmap)
-- Semantic search (sqlite‑vss or in‑memory)
-
----
-
 ## Action Items
 
 ### Immediate (Pre‑v1)
 
-1.  Add all missing frontend and Rust dependencies (fuse.js, react-diff-viewer, react-markdown, react-hotkeys-hook, use-debounce, react-focus-lock, petgraph, dashmap, sqlite‑vss).
-2.  Add Lingui and configure Vite plugin.
-3.  Add Vitest and configure in `vite.config.ts`.
-4.  Implement workflow execution core in Rust.
-5.  Add workflow database tables and migrations.
-6.  Create workflow visualization components.
-7.  Add workflow events to event bus.
-8.  Implement basic workflow tests (Rust + Vitest).
+1.  Add missing frontend dependencies: `react-hook-form`, `zod`, `@hookform/resolvers`, `@toon-format/toon`.
+2.  Add missing Rust dependencies: `rayon` (optional), `sqlite-vss` (optional), `ndarray` (fallback).
+3.  Implement workflow execution core in Rust (petgraph, dashmap).
+4.  Add workflow database tables and migrations.
+5.  Create workflow visualization components.
+6.  Add workflow events to event bus.
+7.  Implement basic workflow tests (Rust + Vitest).
 
 ### Short‑term (v1.1)
 

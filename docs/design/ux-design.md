@@ -268,7 +268,7 @@ Persistent three-panel design using `react-resizable-panels`:
 - Folder dropdown (organize conversations)
 - Search icon (⌘⇧F for semantic search)
 
-**Conversation List (Virtualized with react-virtuoso):**
+**Conversation List (Virtualized with @tanstack/react-virtual):**
 
 **Grouping:**
 
@@ -3122,7 +3122,7 @@ Saved: 4.2 MB
 
 #### **Virtualization**
 
-**react-virtuoso for long lists:**
+**@tanstack/react-virtual for long lists:**
 - **Conversation list** (left panel): Renders only visible ~50 items, scrolls smoothly with 10,000+ conversations
 - **Message stream** (center panel): Virtualizes long conversations (1,000+ messages)
 - **Skill marketplace**: Handles unlimited skill cards without lag
@@ -3502,7 +3502,7 @@ SkillDeck is designed to be usable by everyone, including people using assistive
 - react-resizable-panels (three-panel layout)
 - cmdk (command palette, mention picker)
 - @xyflow/react (workflow DAG)
-- react-virtuoso (long lists)
+- @tanstack/react-virtual (long lists)
 - Sonner (toast notifications)
 - Radix UI primitives (via shadcn)
 - Tailwind CSS (styling)
