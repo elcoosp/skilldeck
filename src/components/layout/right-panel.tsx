@@ -19,12 +19,12 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import { useSkills } from '@/hooks/use-skills'
-import { useMcpServers } from '@/hooks/use-mcp'
 import { useConversations } from '@/hooks/use-conversations'
 import { useProfiles } from '@/hooks/use-profiles'
 import { useUIStore } from '@/store/ui'
+
+import { BouncingDots } from '@/components/ui/bouncing-dots';
 import { useWorkflowEvents } from '@/hooks/use-workflow-events'
-import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Select,
@@ -290,7 +290,7 @@ function SkillsTab() {
   if (isLoading) {
     return (
       <div className="flex justify-center py-8">
-        <div className="size-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+        <BouncingDots />
       </div>
     )
   }
