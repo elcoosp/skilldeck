@@ -142,7 +142,7 @@ export function useSyncRegistry() {
 
 // ── Sources ───────────────────────────────────────────────────────────────────
 
-export function useSkillSources() {
+export function useSkillsSources() {
   return useQuery({
     queryKey: ['skills', 'sources'],
     queryFn: listSkillSources,

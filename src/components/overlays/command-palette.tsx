@@ -15,7 +15,7 @@ import {
   useConversations,
   useCreateConversation
 } from '@/hooks/use-conversations'
-import { useSkills } from '@/hooks/use-skills'
+import { useAllSkills } from '@/hooks/use-skills'
 import { useProfiles } from '@/hooks/use-profiles'
 
 export function CommandPalette() {
@@ -25,7 +25,7 @@ export function CommandPalette() {
   const setSettingsOpen = useUIStore((s) => s.setSettingsOpen)
 
   const { data: conversations = [] } = useConversations()
-  const { data: skills = [] } = useSkills()
+  const { skills = [] } = useAllSkills()
   const { data: profiles = [] } = useProfiles()
   const createConversation = useCreateConversation()
 

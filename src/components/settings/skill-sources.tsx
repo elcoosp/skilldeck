@@ -16,13 +16,13 @@ import { Input } from '@/components/ui/input'
 import {
   useAddSkillSource,
   useRemoveSkillSource,
-  useSkillSources
+  useSkillsSources
 } from '@/hooks/use-skills'
 import type { SkillSourceInfo } from '@/lib/invoke'
 import { cn } from '@/lib/utils'
 
 export function SkillSources() {
-  const { data: sources = [], isLoading } = useSkillSources()
+  const { data: sources = [], isLoading } = useSkillsSources()
   const addSource = useAddSkillSource()
   const removeSource = useRemoveSkillSource()
 
