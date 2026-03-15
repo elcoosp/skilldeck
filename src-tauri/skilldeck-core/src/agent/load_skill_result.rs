@@ -3,10 +3,11 @@
 use serde::{Deserialize, Serialize};
 
 /// Format of the skill content returned by `loadSkill`.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum SkillContentFormat {
     /// Plain text (markdown) content.
+    #[default]
     Text,
     /// Toon-encoded content.
     Toon,
