@@ -235,7 +235,8 @@ impl ToolDispatcher {
                 match self.skill_registry.get_skill(skill_name).await {
                     Some(skill) => {
                         let (content, format) = if self.supports_toon {
-                            let encoded = toon::encode(&serde_json::json!(skill.content_md), None);
+                            let encoded =
+                                toon_rust::encode(&serde_json::json!(skill.content_md), None);
                             (encoded, SkillContentFormat::Toon)
                         } else {
                             (skill.content_md.clone(), SkillContentFormat::Text)

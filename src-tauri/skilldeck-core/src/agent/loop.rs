@@ -258,7 +258,7 @@ impl AgentLoop {
                             let final_content = match load_result.format {
                                 SkillContentFormat::Toon => {
                                     // Decode the Toon back to the original markdown
-                                    match toon::decode(&load_result.content, None) {
+                                    match toon_rust::decode(&load_result.content, None) {
                                         Ok(value) => value
                                             .as_str()
                                             .unwrap_or(&load_result.content)
@@ -320,8 +320,13 @@ impl AgentLoop {
                     message: format!("Failed to serialize tools: {}", e),
                 })?;
 
-            let encoded = toon::encode(&tools_json, Some(toon::EncodeOptions::default()));
-            Some(encoded) // toon::encode is infallible (returns String)
+            match toon_rust::encode(&tools_json, Some(&toon_rust::EncodeOptions::default())) {
+                Ok(encoded) => Some(encoded),
+                Err(e) => {
+                    tracing::error!("Failed to encode tools as Toon: {}", e);
+                    None // fall back to regular tools
+                }
+            }
         } else {
             None
         };

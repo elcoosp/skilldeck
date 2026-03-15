@@ -370,11 +370,11 @@ async fn run_agent_loop(
                 .map(|(name, desc)| serde_json::json!({ "name": name, "description": desc }))
                 .collect();
 
-            let toon_catalog = toon::encode(
+            let toon_catalog = toon_rust::encode(
                 &serde_json::json!({ "skills": skills_json }),
-                Some(toon::EncodeOptions {
-                    delimiter: toon::Delimiter::Tab,
-                    key_folding: toon::KeyFolding::Safe,
+                Some(toon_rust::EncodeOptions {
+                    delimiter: toon_rust::Delimiter::Tab,
+                    key_folding: toon_rust::KeyFolding::Safe,
                     ..Default::default()
                 }),
             )
