@@ -5,7 +5,7 @@ use sea_orm_migration::prelude::*;
 mod m20260313_000001_initial;
 mod m20260314_000002_add_user_preferences;
 mod m20260315_000003_add_platform_growth_tables;
-
+mod m20260316_000004_create_registry_skills_cache;
 pub struct Migrator;
 
 #[async_trait::async_trait]
@@ -14,6 +14,7 @@ impl MigratorTrait for Migrator {
         vec![
             Box::new(m20260313_000001_initial::Migration),
             Box::new(m20260314_000002_add_user_preferences::Migration),
+            Box::new(m20260315_000003_add_platform_growth_tables::Migration),
             Box::new(m20260315_000003_add_platform_growth_tables::Migration),
         ]
     }

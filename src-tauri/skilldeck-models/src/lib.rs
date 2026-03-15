@@ -25,6 +25,7 @@ pub mod profile_skills;
 pub mod profiles;
 pub mod prompt_variables;
 pub mod prompts;
+pub mod registry_skills;
 pub mod skill_source_dirs; // <-- add
 pub mod skills;
 pub mod subagent_sessions;

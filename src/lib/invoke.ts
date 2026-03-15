@@ -45,6 +45,7 @@ export interface Skill {
   source: string
   is_active: boolean
 }
+
 export type AddMcpServerParams = {
   name: string
   transport: 'stdio' | 'sse'
@@ -53,6 +54,7 @@ export type AddMcpServerParams = {
   url?: string // sse only — e.g. "http://localhost:8080/sse"
   env?: Record<string, string> // optional env vars for the subprocess
 }
+
 export interface McpServer {
   id: UUID
   name: string
@@ -192,6 +194,7 @@ export async function toggleSkill(
 // ============================================================================
 // MCP
 // ============================================================================
+
 export async function addMcpServer(payload: AddMcpServerParams): Promise<UUID> {
   return invoke('add_mcp_server', { payload })
 }
@@ -199,6 +202,7 @@ export async function addMcpServer(payload: AddMcpServerParams): Promise<UUID> {
 export async function removeMcpServer(id: UUID): Promise<void> {
   return invoke('remove_mcp_server', { id })
 }
+
 export async function listMcpServers(): Promise<McpServer[]> {
   return invoke('list_mcp_servers')
 }
@@ -287,4 +291,156 @@ export async function listOllamaModels(): Promise<OllamaModelInfo[]> {
  */
 export async function setDefaultProfile(id: UUID): Promise<void> {
   return invoke('set_default_profile', { id })
+}
+
+// ============================================================================
+// Skills marketplace & linting (new)
+// ============================================================================
+
+// ── Lint types ──────────────────────────────────────────────────────────────
+
+export interface LintLocation {
+  file: string
+  line?: number
+  column?: number
+}
+
+export interface LintWarning {
+  rule_id: string
+  severity: 'off' | 'info' | 'warning' | 'error'
+  message: string
+  location?: LintLocation
+  /** UX: present when a one-click fix is possible */
+  suggested_fix?: string
+}
+
+// ── Registry skill type ─────────────────────────────────────────────────────
+
+export interface RegistrySkill {
+  id: string
+  name: string
+  description: string
+  source: string
+  sourceUrl?: string
+  version?: string
+  author?: string
+  license?: string
+  tags: string[]
+  category?: string
+  lintWarnings: LintWarning[]
+  /** 1–5; drives TrustBadge colour */
+  securityScore: number
+  qualityScore: number
+  /** "author" | "llm_enrichment" — drives AI tag badge */
+  metadataSource: string
+  content: string
+  createdAt: string
+  updatedAt: string
+}
+
+// ── Local skill source ──────────────────────────────────────────────────────
+
+export interface SkillSourceInfo {
+  id: string
+  sourceType: string
+  path: string
+  label?: string
+}
+
+// ── Install types ───────────────────────────────────────────────────────────
+
+export type InstallTarget = 'personal' | 'workspace'
+
+export interface InstallResult {
+  skillName: string
+  installedPath: string
+  target: InstallTarget
+}
+
+export interface DiffResult {
+  diff: string
+  hasChanges: boolean
+}
+
+// ── Lint commands ───────────────────────────────────────────────────────────
+
+export async function lintSkill(
+  path: string,
+  workspaceConfigPath?: string
+): Promise<LintWarning[]> {
+  return invoke('lint_skill', { path, workspaceConfigPath })
+}
+
+export async function lintAllLocalSources(): Promise<
+  Record<string, LintWarning[]>
+> {
+  return invoke('lint_all_local_sources')
+}
+
+export async function getLintRules(): Promise<string[]> {
+  return invoke('get_lint_rules')
+}
+
+export async function disableLintRule(
+  ruleId: string,
+  scope: 'global' | 'workspace'
+): Promise<void> {
+  return invoke('disable_lint_rule', { ruleId, scope })
+}
+
+// ── Installation commands ───────────────────────────────────────────────────
+
+export async function installSkill(
+  skillName: string,
+  skillContent: string,
+  target: InstallTarget
+): Promise<InstallResult> {
+  return invoke('install_skill', { skillName, skillContent, target })
+}
+
+export async function uninstallSkill(
+  skillName: string,
+  target: InstallTarget
+): Promise<void> {
+  return invoke('uninstall_skill', { skillName, target })
+}
+
+export async function diffSkillVersions(
+  localPath: string,
+  registryContent: string
+): Promise<DiffResult> {
+  return invoke('diff_skill_versions', { localPath, registryContent })
+}
+
+// ── Source management commands ──────────────────────────────────────────────
+
+export async function listSkillSources(): Promise<SkillSourceInfo[]> {
+  return invoke('list_skill_sources')
+}
+
+export async function addSkillSource(
+  sourceType: string,
+  path: string,
+  label?: string
+): Promise<string> {
+  return invoke('add_skill_source', { sourceType, path, label })
+}
+
+export async function removeSkillSource(id: string): Promise<void> {
+  return invoke('remove_skill_source', { id })
+}
+
+// ── Registry API (via platform proxy) ───────────────────────────────────────
+
+export async function fetchRegistrySkills(params?: {
+  category?: string
+  search?: string
+  tags?: string[]
+  page?: number
+}): Promise<RegistrySkill[]> {
+  return invoke('fetch_registry_skills', { params: params ?? {} })
+}
+
+export async function syncRegistrySkills(): Promise<number> {
+  return invoke('sync_registry_skills')
 }

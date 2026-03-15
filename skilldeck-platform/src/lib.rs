@@ -9,3 +9,4 @@ pub mod error;
 pub mod growth;
 pub mod middleware;
 pub mod preferences;
+pub mod skills;
