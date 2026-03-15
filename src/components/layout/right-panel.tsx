@@ -85,14 +85,19 @@ export function RightPanel() {
         ))}
       </div>
 
-      {/* Tab content */}
-      <ScrollArea className="flex-1 min-h-0">
-        {activeTab === 'session' && <SessionTab conversationId={activeConversationId} />}
-        {activeTab === 'skills' && <SkillsTab />}
-        {activeTab === 'mcp' && <McpTab />}
-        {activeTab === 'workflow' && <WorkflowTab />}
-        {activeTab === 'analytics' && <AnalyticsTab />}
-      </ScrollArea>
+      {/* Tab content — McpTab owns its own scroll; all others share the ScrollArea */}
+      {activeTab === 'mcp' ? (
+        <div className="flex-1 min-h-0 overflow-hidden w-full min-w-0">
+          <McpTab />
+        </div>
+      ) : (
+        <ScrollArea className="flex-1 min-h-0">
+          {activeTab === 'session' && <SessionTab conversationId={activeConversationId} />}
+          {activeTab === 'skills' && <SkillsTab />}
+          {activeTab === 'workflow' && <WorkflowTab />}
+          {activeTab === 'analytics' && <AnalyticsTab />}
+        </ScrollArea>
+      )}
     </div>
   )
 }

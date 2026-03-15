@@ -56,7 +56,7 @@ export function CommandPalette() {
         <Command className="[&_[cmdk-input-wrapper]]:border-b [&_[cmdk-input-wrapper]]:border-border">
           <Command.Input
             autoFocus
-            placeholder="Search conversations, skills, actions…"
+            placeholder="Search conversations, skills, actions… (⌘K)"   // <-- added shortcut hint
             className="w-full bg-transparent px-4 py-3 text-sm outline-none placeholder:text-muted-foreground"
           />
 

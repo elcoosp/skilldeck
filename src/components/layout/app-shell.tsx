@@ -1,17 +1,14 @@
 /**
  * Main application shell — three-panel resizable layout.
  *
- * Keyboard shortcuts (2.3):
- *   Cmd/Ctrl+K          → Command palette
- *   Cmd/Ctrl+Shift+,    → Settings
- *   Cmd/Ctrl+N          → New conversation (delegated via store)
- *   Escape              → Close open overlays
+ * Implements the ASR-STR-002 IPC-only architecture: React owns zero business
+ * logic; every data operation goes through invoke() or event listeners.
  */
 
-import { useCallback, useEffect } from 'react'
 import { Group, Panel, Separator } from 'react-resizable-panels'
 import { Toaster } from 'sonner'
 import { useHotkeys } from 'react-hotkeys-hook'
+import { useEffect } from 'react'
 import { LeftPanel } from './left-panel'
 import { CenterPanel } from './center-panel'
 import { RightPanel } from './right-panel'
@@ -25,35 +22,33 @@ export function AppShell() {
   const setCommandPaletteOpen = useUIStore((s) => s.setCommandPaletteOpen)
   const setSettingsOpen = useUIStore((s) => s.setSettingsOpen)
   const settingsOpen = useUIStore((s) => s.settingsOpen)
-  const commandPaletteOpen = useUIStore((s) => s.commandPaletteOpen)
 
-  // ── Keyboard shortcuts ────────────────────────────────────────────────────
-
-  // Cmd/Ctrl+K — command palette
+  // Global keyboard shortcuts (declarative hooks)
   useHotkeys('meta+k, ctrl+k', (e) => {
     e.preventDefault()
     setCommandPaletteOpen(true)
   })
 
-  // Cmd/Ctrl+Shift+, — settings
-  useHotkeys('meta+shift+comma, ctrl+shift+comma', (e) => {
+  useHotkeys('meta+,, ctrl+,', (e) => {
     e.preventDefault()
     setSettingsOpen(true)
   })
 
-  // Escape — close topmost overlay
-  useHotkeys(
-    'escape',
-    (e) => {
-      e.preventDefault()
-      if (commandPaletteOpen) {
-        setCommandPaletteOpen(false)
-      } else if (settingsOpen) {
-        setSettingsOpen(false)
+  // Native fallback – guarantees shortcuts work even if the hook fails
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setCommandPaletteOpen(true)
       }
-    },
-    { enableOnFormTags: true }
-  )
+      if ((e.metaKey || e.ctrlKey) && e.key === ',') {
+        e.preventDefault()
+        setSettingsOpen(true)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [setCommandPaletteOpen, setSettingsOpen])
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-background text-foreground">
@@ -82,7 +77,7 @@ export function AppShell() {
 
         <Separator className="w-px bg-border hover:bg-primary/30 transition-colors cursor-col-resize" />
 
-        {/* Right — session info / skills / mcp / workflow / analytics */}
+        {/* Right — session info / workflow / analytics */}
         <Panel
           defaultSize={`${panelSizes.right}px`}
           minSize="18%"

@@ -192,8 +192,8 @@ export async function toggleSkill(
 // ============================================================================
 // MCP
 // ============================================================================
-export async function addMcpServer(params: AddMcpServerParams): Promise<UUID> {
-  return invoke('add_mcp_server', params)
+export async function addMcpServer(payload: AddMcpServerParams): Promise<UUID> {
+  return invoke('add_mcp_server', { payload })
 }
 
 export async function removeMcpServer(id: UUID): Promise<void> {

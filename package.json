@@ -49,7 +49,7 @@
     "@tanstack/react-virtual": "^3.13.22",
     "@tauri-apps/api": "^2.10.1",
     "@tauri-apps/plugin-dialog": "^2.6.0",
-    "@tauri-apps/plugin-opener": "^2.5.3",
+    "@tauri-apps/plugin-opener": "~2",
     "@xyflow/react": "^12.10.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
