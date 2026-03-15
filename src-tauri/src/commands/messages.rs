@@ -10,7 +10,7 @@ use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, QueryFilter, QueryOrder,
 };
 use serde::Serialize;
-use specta::specta;
+use specta::{Type, specta};
 use std::sync::Arc;
 use tauri::{Emitter, State};
 use uuid::Uuid;
@@ -21,7 +21,7 @@ use skilldeck_models::conversations::{self, Entity as Conversations};
 use skilldeck_models::messages::{self, Entity as Messages};
 
 /// Serialisable message returned to the frontend.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Type)]
 pub struct MessageData {
     pub id: String,
     pub conversation_id: String,

@@ -5,7 +5,7 @@
 
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use specta::specta;
+use specta::{Type, specta};
 use std::{collections::HashMap, sync::Arc};
 use tauri::State;
 use tauri_plugin_keyring::KeyringExt;
@@ -33,19 +33,19 @@ pub struct GistInfo {
     pub description: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Type)]
 struct CreateGistRequest {
     description: String,
     public: bool,
     files: HashMap<String, GistFileBody>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Type)]
 struct GistFileBody {
     content: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Type)]
 struct GitHubGistResponse {
     id: String,
     url: String,

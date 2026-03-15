@@ -8,6 +8,7 @@
 use reqwest::{Client, StatusCode};
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
+use specta::Type;
 use thiserror::Error;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
@@ -43,18 +44,7 @@ impl PlatformError {
 
 // ── Request / response DTOs ───────────────────────────────────────────────────
 
-#[derive(Debug, Serialize)]
-pub struct RegisterRequest {
-    pub client_id: Uuid,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct RegisterResponse {
-    pub user_id: Uuid,
-    pub api_key: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Type)]
 pub struct PlatformPreferences {
     pub email: Option<String>,
     pub email_verified: bool,
@@ -66,7 +56,7 @@ pub struct PlatformPreferences {
     pub analytics_opt_in: bool,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Type)]
 pub struct UpdatePreferencesRequest {
     pub email: Option<String>,
     pub nudge_frequency: Option<String>,
@@ -77,7 +67,7 @@ pub struct UpdatePreferencesRequest {
     pub analytics_opt_in: Option<bool>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Type)]
 pub struct ReferralCode {
     pub id: Uuid,
     pub code: String,
@@ -86,7 +76,7 @@ pub struct ReferralCode {
     pub created_at: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Type)]
 pub struct ReferralStats {
     pub code: ReferralCode,
     pub total_signups: i64,
@@ -94,7 +84,7 @@ pub struct ReferralStats {
     pub rewards_earned: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Type)]
 pub struct PendingNudge {
     pub id: Uuid,
     pub message: String,
@@ -103,10 +93,21 @@ pub struct PendingNudge {
     pub created_at: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Type)]
 pub struct ActivityEventRequest {
     pub event_type: String,
     pub metadata: serde_json::Value,
+}
+
+#[derive(Debug, Serialize, Deserialize, Type)]
+pub struct RegisterRequest {
+    pub client_id: Uuid,
+}
+
+#[derive(Debug, Serialize, Deserialize, Type)]
+pub struct RegisterResponse {
+    pub user_id: Uuid,
+    pub api_key: String,
 }
 
 // ── Client ────────────────────────────────────────────────────────────────────
@@ -190,10 +191,10 @@ impl PlatformClient {
         let mut delay = std::time::Duration::from_millis(100);
         for attempt in 0..3 {
             // Check cancellation before each attempt
-            if let Some(ref token) = cancel
-                && token.is_cancelled()
-            {
-                return Err(PlatformError::Cancelled);
+            if let Some(ref token) = cancel {
+                if token.is_cancelled() {
+                    return Err(PlatformError::Cancelled);
+                }
             }
             let future = f();
             let result = if let Some(ref token) = cancel {
@@ -236,10 +237,10 @@ impl PlatformClient {
     {
         let mut delay = std::time::Duration::from_millis(100);
         for attempt in 0..3 {
-            if let Some(ref token) = cancel
-                && token.is_cancelled()
-            {
-                return Err(PlatformError::Cancelled);
+            if let Some(ref token) = cancel {
+                if token.is_cancelled() {
+                    return Err(PlatformError::Cancelled);
+                }
             }
             let future = f();
             let result = if let Some(ref token) = cancel {
@@ -453,7 +454,7 @@ impl PlatformClient {
         };
         match self.retry(fut, cancel).await {
             Ok(v) => Ok(v),
-            Err(PlatformError::Http { status: 204, .. }) => Ok(vec![]),
+            Err(PlatformError::Http { status, .. }) if status == 204 => Ok(vec![]),
             Err(e) => Err(e),
         }
     }
@@ -483,7 +484,7 @@ impl PlatformClient {
     /// Send an analytics event.  Only called when the user has opted in.
     pub async fn send_activity_event(
         &self,
-        event_type: impl Into<String>,
+        event_type: impl Into<String> + Clone,
         metadata: serde_json::Value,
         cancel: Option<CancellationToken>,
     ) -> Result<(), PlatformError> {
@@ -495,10 +496,10 @@ impl PlatformClient {
         // Manual retry loop with cancellation
         let mut delay = std::time::Duration::from_millis(100);
         for attempt in 0..3 {
-            if let Some(ref token) = cancel
-                && token.is_cancelled()
-            {
-                return Err(PlatformError::Cancelled);
+            if let Some(ref token) = cancel {
+                if token.is_cancelled() {
+                    return Err(PlatformError::Cancelled);
+                }
             }
             let req = ActivityEventRequest {
                 event_type: event_type_str.clone(),

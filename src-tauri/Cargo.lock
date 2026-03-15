@@ -5704,6 +5704,8 @@ dependencies = [
  "serde_yaml",
  "sha2",
  "skilldeck-models",
+ "specta",
+ "tauri-specta",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
@@ -5726,6 +5728,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
+ "specta",
  "thiserror 2.0.18",
  "toml 0.8.2",
  "walkdir",
@@ -5820,9 +5823,13 @@ version = "2.0.0-rc.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ab7f01e9310a820edd31c80fde3cae445295adde21a3f9416517d7d65015b971"
 dependencies = [
+ "chrono",
  "paste",
+ "serde",
+ "serde_json",
  "specta-macros",
  "thiserror 1.0.69",
+ "uuid",
 ]
 
 [[package]]
@@ -6626,7 +6633,20 @@ dependencies = [
  "specta",
  "specta-typescript",
  "tauri",
+ "tauri-specta-macros",
  "thiserror 2.0.18",
+]
+
+[[package]]
+name = "tauri-specta-macros"
+version = "2.0.0-rc.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7a4aa93823e07859546aa796b8a5d608190cd8037a3a5dce3eb63d491c34bda8"
+dependencies = [
+ "heck 0.5.0",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
 ]
 
 [[package]]

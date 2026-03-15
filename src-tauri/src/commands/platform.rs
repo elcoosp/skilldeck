@@ -2,7 +2,7 @@
 //!
 //! All commands that call the platform first check that platform features are
 //! enabled and that credentials have been initialised.
-use specta::specta;
+use specta::{Type, specta};
 
 use std::sync::Arc;
 use tauri::State;
@@ -110,7 +110,7 @@ pub async fn get_platform_preferences(
         .map_err(map_err)
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Type)]
 pub struct UpdatePrefsPayload {
     pub email: Option<String>,
     pub nudge_frequency: Option<String>,
@@ -238,7 +238,7 @@ pub async fn get_pending_nudges(
 
 // ── Activity events ───────────────────────────────────────────────────────────
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Type)]
 pub struct ActivityEventPayload {
     pub event_type: String,
     pub metadata: Option<serde_json::Value>,

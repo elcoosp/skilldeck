@@ -4,7 +4,7 @@ use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, QueryFilter, QueryOrder,
 };
 use serde::Serialize;
-use specta::specta;
+use specta::{Type, specta};
 use std::{path::PathBuf, sync::Arc};
 use tauri::State;
 use uuid::Uuid;
@@ -13,7 +13,7 @@ use crate::state::AppState;
 use skilldeck_core::workspace::context::ContextLoader;
 use skilldeck_models::workspaces::{self, Entity as Workspaces};
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Type)]
 pub struct WorkspaceData {
     pub id: String,
     pub path: String,

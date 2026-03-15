@@ -26,8 +26,8 @@ use tauri::Manager;
 use tracing_subscriber::{EnvFilter, fmt};
 
 // Specta bindings export
-use specta::collect_types;
-use tauri_specta::{js, ts};
+use specta_typescript::Typescript;
+use tauri_specta::{Builder, collect_commands, collect_events};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -40,98 +40,95 @@ pub fn run() {
         )
         .init();
 
-    // Build invoke handler with specta for TypeScript bindings
-    let (invoke_handler, register_events) = {
-        // Collect all commands with their specta types
-        let builder = ts::builder()
-            .commands(tauri_specta::collect_commands![
-                // skills — registry sync
-                sync_registry_skills,
-                fetch_registry_skills,
-                // conversations
-                create_conversation,
-                list_conversations,
-                delete_conversation,
-                rename_conversation,
-                // messages
-                list_messages,
-                send_message,
-                resolve_tool_approval,
-                // profiles
-                list_profiles,
-                create_profile,
-                update_profile,
-                delete_profile,
-                // settings / keys
-                list_api_keys,
-                set_api_key,
-                delete_api_key,
-                validate_api_key,
-                // skills — basic
-                list_skills,
-                toggle_skill,
-                // skills — lint
-                lint_skill,
-                lint_all_local_sources,
-                get_lint_rules,
-                disable_lint_rule,
-                // skills — installation
-                install_skill,
-                uninstall_skill,
-                diff_skill_versions,
-                // skills — source management
-                list_skill_sources,
-                add_skill_source,
-                remove_skill_source,
-                // mcp
-                list_mcp_servers,
-                connect_mcp_server,
-                disconnect_mcp_server,
-                add_mcp_server,
-                remove_mcp_server,
-                // export
-                export_conversation,
-                // gist
-                share_skill_as_gist,
-                share_workflow_as_gist,
-                import_skill_from_gist,
-                import_workflow_from_gist,
-                export_conversation_as_markdown,
-                has_github_token,
-                set_github_token,
-                // workspaces
-                open_workspace,
-                close_workspace,
-                list_workspaces,
-                // ollama
-                list_ollama_models,
-                // platform
-                ensure_platform_registration,
-                get_platform_preferences,
-                update_platform_preferences,
-                get_pending_nudges,
-                send_activity_event,
-                get_referral_stats,
-                create_referral_code,
-                resend_verification_email,
-                export_gdpr_data,
-                delete_platform_account,
-                // agent
-                cancel_agent,
-                // settings
-                test_api_connection,
-            ])
-            .events(tauri_specta::collect_events![
-                AgentEvent,
-                McpEvent,
-                WorkflowEvent
-            ]);
+    // Build Tauri Specta builder with all commands and events
+    let builder = Builder::<tauri::Wry>::new()
+        .commands(collect_commands![
+            // skills — registry sync
+            sync_registry_skills,
+            fetch_registry_skills,
+            // conversations
+            create_conversation,
+            list_conversations,
+            delete_conversation,
+            rename_conversation,
+            // messages
+            list_messages,
+            send_message,
+            resolve_tool_approval,
+            // profiles
+            list_profiles,
+            create_profile,
+            update_profile,
+            delete_profile,
+            set_default_profile,
+            // settings / keys
+            list_api_keys,
+            set_api_key,
+            delete_api_key,
+            validate_api_key,
+            // skills — basic
+            list_skills,
+            toggle_skill,
+            // skills — lint
+            lint_skill,
+            lint_all_local_sources,
+            get_lint_rules,
+            disable_lint_rule,
+            // skills — installation
+            install_skill,
+            uninstall_skill,
+            diff_skill_versions,
+            // skills — source management
+            list_skill_sources,
+            add_skill_source,
+            remove_skill_source,
+            // mcp
+            list_mcp_servers,
+            connect_mcp_server,
+            disconnect_mcp_server,
+            add_mcp_server,
+            remove_mcp_server,
+            // export
+            export_conversation,
+            // gist
+            share_skill_as_gist,
+            share_workflow_as_gist,
+            import_skill_from_gist,
+            import_workflow_from_gist,
+            export_conversation_as_markdown,
+            has_github_token,
+            set_github_token,
+            // workspaces
+            open_workspace,
+            close_workspace,
+            list_workspaces,
+            // ollama
+            list_ollama_models,
+            // platform
+            ensure_platform_registration,
+            get_platform_preferences,
+            update_platform_preferences,
+            get_pending_nudges,
+            send_activity_event,
+            get_referral_stats,
+            create_referral_code,
+            resend_verification_email,
+            export_gdpr_data,
+            delete_platform_account,
+            // agent
+            cancel_agent,
+            // settings
+            test_api_connection,
+        ])
+        .events(collect_events![AgentEvent, McpEvent, WorkflowEvent]);
 
-        #[cfg(debug_assertions)]
-        let builder = builder.path("../src/bindings.ts");
+    #[cfg(debug_assertions)]
+    builder
+        .export(Typescript::default(), "../src/bindings.ts")
+        .expect("Failed to export TypeScript bindings");
 
-        builder.build().unwrap()
-    };
+    // Build the invoke handler and event registration function
+    let (invoke_handler, register_events) = builder.build().unwrap();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())

@@ -2,13 +2,13 @@
 //!
 //! These are thin wrappers that invoke the Ollama CLI or HTTP API to fetch
 //! runtime information such as the list of locally installed models.
-use specta::specta;
+use specta::{Type, specta};
 
 use serde::Serialize;
 use skilldeck_core::providers::ollama::OllamaProvider;
 
 /// A minimal model descriptor returned to the frontend.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Type)]
 pub struct OllamaModelInfo {
     pub id: String,
     pub name: String,

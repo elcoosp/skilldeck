@@ -4,12 +4,14 @@
 //! regardless of registry changes.
 
 use anyhow::{Result, bail};
+use serde::{Deserialize, Serialize};
+use specta::Type;
 use std::fs;
 use std::path::PathBuf;
 use tracing::info;
 
 /// Target location for installing a skill.
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum InstallTarget {
     /// `~/.agents/skills/<name>/`
@@ -19,7 +21,7 @@ pub enum InstallTarget {
 }
 
 /// Result returned after a successful installation.
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, Serialize, Type)]
 pub struct InstallResult {
     pub skill_name: String,
     pub installed_path: String,

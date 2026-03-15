@@ -4,17 +4,16 @@
 //! - sync_registry_skills
 //! - fetch_registry_skills
 //! - lint commands, installation, source management, etc.
-use specta::specta;
-
-use std::collections::HashMap;
-use std::path::PathBuf;
-use std::sync::Arc;
 
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, Condition, EntityTrait, QueryFilter,
     QueryOrder,
 };
 use serde::{Deserialize, Serialize};
+use specta::{Type, specta};
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::sync::Arc;
 use tauri::State;
 use uuid::Uuid;
 
@@ -24,7 +23,7 @@ use skilldeck_lint::{LintConfig, LintWarning, lint_skill as do_lint};
 
 // ── Existing commands (list/toggle) ───────────────────────────────────────────
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Type)]
 pub struct SkillInfo {
     pub name: String,
     pub description: String,
@@ -195,7 +194,7 @@ pub async fn uninstall_skill(skill_name: String, target: InstallTarget) -> Resul
 
 // ── Diff / conflict resolution ────────────────────────────────────────────────
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Type)]
 pub struct DiffResult {
     pub diff: String,
     pub has_changes: bool,
@@ -255,7 +254,7 @@ fn produce_simple_diff(old: &str, new: &str) -> String {
 
 // ── Lint config management ────────────────────────────────────────────────────
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum ConfigScope {
     Global,
@@ -317,7 +316,7 @@ pub async fn disable_lint_rule(
 
 // ── Source management ─────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct SkillSourceInfo {
     pub id: String,
     pub source_type: String, // "local_path" | "registry"
@@ -408,7 +407,7 @@ pub async fn remove_skill_source(
 
 // ── Registry sync commands ────────────────────────────────────────────────────
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct RegistrySkillData {
     pub id: String,
@@ -530,3 +529,4 @@ pub async fn fetch_registry_skills(
     let skills = query.all(db).await.map_err(|e| e.to_string())?; // Fixed: `db` not `&db`
     Ok(skills.into_iter().map(Into::into).collect())
 }
+

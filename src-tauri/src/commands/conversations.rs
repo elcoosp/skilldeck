@@ -9,7 +9,7 @@ use sea_orm::{
     QuerySelect,
 };
 use serde::Serialize;
-use specta::Type;
+use specta::{Type, specta};
 use std::sync::Arc;
 use tauri::State;
 use uuid::Uuid;

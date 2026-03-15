@@ -1,6 +1,6 @@
 // src-tauri/src/commands/mcp.rs
 //! Tauri commands for MCP server management.
-use specta::specta;
+use specta::{Type, specta};
 
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -12,14 +12,14 @@ use skilldeck_core::CoreError;
 
 // ── Shared response types ─────────────────────────────────────────────────────
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Type)]
 pub struct McpToolResponse {
     pub name: String,
     pub description: String,
     pub input_schema: serde_json::Value,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Type)]
 pub struct McpServerResponse {
     pub id: String,
     pub name: String,
@@ -30,7 +30,7 @@ pub struct McpServerResponse {
 
 // ── add_mcp_server ────────────────────────────────────────────────────────────
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct AddMcpServerPayload {
     pub name: String,

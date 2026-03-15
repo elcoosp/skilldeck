@@ -13,7 +13,7 @@ use skilldeck_models::{
     messages::{self as msg_model, Entity as Messages},
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "snake_case")]
 pub enum ExportFormat {
     Markdown,

@@ -6,9 +6,9 @@
 //!
 //! After saving or deleting a key, the in-memory provider registry is updated
 //! so the agent loop immediately picks up the change without a restart.
-use specta::specta;
 
 use serde::{Deserialize, Serialize};
+use specta::{Type, specta};
 use std::sync::Arc;
 use tauri::State;
 use tauri_plugin_keyring::KeyringExt;
@@ -17,7 +17,7 @@ use crate::state::AppState;
 use skilldeck_core::providers::{ClaudeProvider, OpenAiProvider};
 
 /// Whether a given provider has a stored key.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct ApiKeyStatus {
     pub provider: String,
     pub has_key: bool,

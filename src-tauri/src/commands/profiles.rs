@@ -1,8 +1,8 @@
 //! Profile Tauri commands.
-use specta::specta;
 
 use sea_orm::{ActiveModelTrait, ActiveValue::Set, EntityTrait, QueryOrder};
 use serde::{Deserialize, Serialize};
+use specta::{Type, specta};
 use std::sync::Arc;
 use tauri::State;
 use uuid::Uuid;
@@ -10,7 +10,7 @@ use uuid::Uuid;
 use crate::state::AppState;
 use skilldeck_models::profiles::{self, Entity as Profiles};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct ProfileData {
     pub id: String,
     pub name: String,
