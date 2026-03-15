@@ -143,7 +143,8 @@ pub fn run() {
             export_gdpr_data,
             delete_platform_account,
             // agent
-            cancel_agent
+            cancel_agent,
+            test_api_connection,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

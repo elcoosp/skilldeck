@@ -86,7 +86,7 @@ pub async fn delete_api_key(app: tauri::AppHandle, provider: String) -> Result<(
         .map_err(|e| e.to_string())
 }
 
-/// Light format-based validation — does not make a real API call.
+/// Light format-based validation – does not make a real API call.
 ///
 /// Use this for immediate feedback in the settings UI; real connectivity
 /// is verified the first time the agent loop attempts a completion.
@@ -99,4 +99,44 @@ pub async fn validate_api_key(provider: String, key: String) -> Result<bool, Str
         _ => return Err(format!("Unknown provider: {provider}")),
     };
     Ok(valid)
+}
+
+/// Test a provider API key by making a minimal API call.
+#[tauri::command]
+pub async fn test_api_connection(provider: String, key: String) -> Result<bool, String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    match provider.as_str() {
+        "claude" => {
+            let url = "https://api.anthropic.com/v1/models";
+            let resp = client
+                .get(url)
+                .header("x-api-key", &key)
+                .header("anthropic-version", "2023-06-01")
+                .send()
+                .await
+                .map_err(|e| e.to_string())?;
+            Ok(resp.status().is_success())
+        }
+        "openai" => {
+            let url = "https://api.openai.com/v1/models";
+            let resp = client
+                .get(url)
+                .bearer_auth(&key)
+                .send()
+                .await
+                .map_err(|e| e.to_string())?;
+            Ok(resp.status().is_success())
+        }
+        "ollama" => {
+            // Ollama has no API key; just check if the server is reachable.
+            let url = "http://localhost:11434/api/tags";
+            let resp = client.get(url).send().await.map_err(|e| e.to_string())?;
+            Ok(resp.status().is_success())
+        }
+        _ => Err(format!("Unknown provider: {provider}")),
+    }
 }
