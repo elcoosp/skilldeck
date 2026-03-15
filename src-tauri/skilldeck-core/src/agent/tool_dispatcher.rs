@@ -11,7 +11,7 @@ use tokio::sync::oneshot;
 
 use crate::{
     CoreError,
-    agent::{LoadSkillResult, SkillContentFormat},
+    agent::load_skill_result::{LoadSkillResult, SkillContentFormat},
     mcp::registry::McpRegistry,
     skills::SkillRegistry,
     traits::{McpCallResult, ToolCall},
@@ -235,17 +235,8 @@ impl ToolDispatcher {
                 match self.skill_registry.get_skill(skill_name).await {
                     Some(skill) => {
                         let (content, format) = if self.supports_toon {
-                            match toon::encode(&serde_json::json!(skill.content_md), None) {
-                                Ok(encoded) => (encoded, SkillContentFormat::Toon),
-                                Err(e) => {
-                                    tracing::warn!(
-                                        "Toon encoding failed for skill '{}': {}",
-                                        skill_name,
-                                        e
-                                    );
-                                    (skill.content_md.clone(), SkillContentFormat::Text)
-                                }
-                            }
+                            let encoded = toon::encode(&serde_json::json!(skill.content_md), None);
+                            (encoded, SkillContentFormat::Toon)
                         } else {
                             (skill.content_md.clone(), SkillContentFormat::Text)
                         };
