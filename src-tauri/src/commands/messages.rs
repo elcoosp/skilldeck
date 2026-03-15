@@ -335,8 +335,7 @@ async fn run_agent_loop(
         .with_history(history)
         .with_dispatcher(dispatcher);
 
-    // --- NEW: Inject MCP tools ---
-    let all_mcp_tools = state.registry.mcp_registry.all_tools(); // Vec<(String, McpTool)>
+    let all_mcp_tools = state.registry.mcp_registry.all_tools();
     for (server_name, mcp_tool) in all_mcp_tools {
         let tool_def = mcp_tool_to_tool_def(&mcp_tool);
         agent = agent.with_tool(tool_def);
@@ -345,6 +344,13 @@ async fn run_agent_loop(
             mcp_tool.name,
             server_name
         );
+    }
+
+    // Inject built-in tools
+    let built_in_tools = all_built_in_tools();
+    for tool_def in built_in_tools {
+        agent = agent.with_tool(tool_def);
+        tracing::debug!("Added built-in tool '{}'", tool_def.name);
     }
 
     // Run the loop concurrently while we drain the event channel.
