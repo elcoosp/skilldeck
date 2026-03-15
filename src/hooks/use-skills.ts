@@ -15,7 +15,7 @@ import {
   uninstallSkill,
   type InstallTarget,
   type RegistrySkill,
-  type SkillInfo,
+  type Skill,
   type SkillSourceInfo
 } from '@/lib/invoke'
 import { toast } from 'sonner'
@@ -48,37 +48,34 @@ export function useRegistrySkills(params?: {
 
 export type MergedSkill =
   | (RegistrySkill & { _sourceType: 'registry' })
-  | (SkillInfo & { _sourceType: 'local'; id: string })
+  | (Skill & { _sourceType: 'local'; id: string })
 
 export function useAllSkills(params?: { category?: string; search?: string }) {
-  const local = useLocalSkills()
-  const registry = useRegistrySkills(params)
+  const localQuery = useQuery({
+    queryKey: ['skills', 'local'],
+    queryFn: listSkills,
+  });
 
-  const merged = useMemo(() => {
-    // Local skills override registry skills with the same name.
-    const map = new Map<string, MergedSkill>()
+  const registryQuery = useQuery({
+    queryKey: ['skills', 'registry', params],
+    queryFn: () => fetchRegistrySkills(params),
+  });
 
-    for (const s of registry.data ?? []) {
-      map.set(s.name, { ...s, _sourceType: 'registry' as const })
-    }
-    for (const s of local.data ?? []) {
-      map.set(s.name, {
-        ...s,
-        id: s.name,
-        _sourceType: 'local' as const
-      })
-    }
-
-    return Array.from(map.values())
-  }, [local.data, registry.data])
+  const combined = (() => {
+    const local = (localQuery.data ?? []).map(s => ({ ...s, _sourceType: 'local' as const }));
+    const registry = (registryQuery.data ?? []).map(s => ({ ...s, _sourceType: 'registry' as const }));
+    return [...local, ...registry];
+  })();
 
   return {
-    skills: merged,
-    isLoading: local.isLoading || registry.isLoading,
-    isError: local.isError || registry.isError,
-    localSkills: local,
-    registrySkills: registry
-  }
+    skills: combined,
+    isLoading: localQuery.isLoading || registryQuery.isLoading,
+    isError: localQuery.isError || registryQuery.isError,
+    refetch: () => {
+      localQuery.refetch();
+      registryQuery.refetch();
+    },
+  };
 }
 
 // ── Toggle ────────────────────────────────────────────────────────────────────
