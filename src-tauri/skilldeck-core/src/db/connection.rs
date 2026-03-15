@@ -1,7 +1,7 @@
 //! Database connection management.
 //!
 //! Handles SQLite initialization, WAL mode, PRAGMAs, and migration execution.
-
+use sea_orm::PaginatorTrait;
 use sea_orm::{ConnectOptions, ConnectionTrait, Database, DatabaseConnection, Statement};
 use sea_orm_migration::migrator::MigratorTrait;
 use std::time::Duration;

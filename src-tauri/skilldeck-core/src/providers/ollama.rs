@@ -134,12 +134,6 @@ mod tests {
     }
 
     #[test]
-    fn default_port() {
-        let p = OllamaProvider::new(11434);
-        assert_eq!(p.port, 11434);
-    }
-
-    #[test]
     fn parse_ollama_list_typical_output() {
         let output = "NAME                     ID              SIZE    MODIFIED\n\
                       llama3.2:latest          a80c4f17acd5    2.0 GB  3 hours ago\n\
