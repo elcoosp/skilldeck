@@ -145,6 +145,17 @@ pub async fn resolve_tool_approval(
 
 // ── Internal helper ───────────────────────────────────────────────────────────
 
+/// Convert an MCP tool into a core `ToolDefinition`.
+use skilldeck_core::traits::{McpTool, ToolDefinition};
+
+fn mcp_tool_to_tool_def(mcp_tool: &McpTool) -> ToolDefinition {
+    ToolDefinition {
+        name: mcp_tool.name.clone(),
+        description: mcp_tool.description.clone(),
+        input_schema: mcp_tool.input_schema.clone(),
+    }
+}
+
 /// Resolve which provider and model ID to use for a conversation.
 ///
 /// Lookup order:
@@ -320,9 +331,21 @@ async fn run_agent_loop(
         })
         .collect();
 
-    let agent = AgentLoop::new(provider, model_id, AgentLoopConfig::default(), tx)
+    let mut agent = AgentLoop::new(provider, model_id, AgentLoopConfig::default(), tx)
         .with_history(history)
         .with_dispatcher(dispatcher);
+
+    // --- NEW: Inject MCP tools ---
+    let all_mcp_tools = state.registry.mcp_registry.all_tools(); // Vec<(String, McpTool)>
+    for (server_name, mcp_tool) in all_mcp_tools {
+        let tool_def = mcp_tool_to_tool_def(&mcp_tool);
+        agent = agent.with_tool(tool_def);
+        tracing::debug!(
+            "Added MCP tool '{}' from server '{}'",
+            mcp_tool.name,
+            server_name
+        );
+    }
 
     // Run the loop concurrently while we drain the event channel.
     let conv_id_for_loop = conversation_id.clone();
@@ -442,5 +465,24 @@ async fn run_agent_loop(
                 },
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_mcp_tool_conversion() {
+        let mcp_tool = McpTool {
+            name: "read_file".to_string(),
+            description: "Read a file".to_string(),
+            input_schema: json!({"type":"object"}),
+        };
+        let def = mcp_tool_to_tool_def(&mcp_tool);
+        assert_eq!(def.name, "read_file");
+        assert_eq!(def.description, "Read a file");
+        assert_eq!(def.input_schema, json!({"type":"object"}));
     }
 }
