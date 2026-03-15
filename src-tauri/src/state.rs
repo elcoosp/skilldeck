@@ -210,7 +210,6 @@ impl AppState {
             Ok(ref c) => c.skill_directories.clone(),
             Err(_) => {
                 if let Some(home) = dirs_next::home_dir() {
-                    // changed from dirs::home_dir
                     let global = home.join(".agents").join("skills");
                     if global.exists() {
                         vec![("personal".to_string(), global)]
@@ -236,8 +235,21 @@ impl AppState {
                 }
             }
 
-            let scanned = scanner::scan_directories(&skill_dirs).await;
-            for (label, skills) in scanned {
+            // --- PARALLEL SCANNING (changed) ---
+            use futures::future::join_all;
+            let scan_futures = skill_dirs.iter().map(|(label, path)| {
+                let path = path.clone();
+                async move {
+                    let skills = scanner::scan_directory(&path).await.unwrap_or_else(|e| {
+                        tracing::warn!("Failed to scan skill directory {:?}: {}", path, e);
+                        vec![]
+                    });
+                    (label.clone(), skills)
+                }
+            });
+            let scanned_results = join_all(scan_futures).await;
+
+            for (label, skills) in scanned_results {
                 info!(
                     "Registering {} skills from source '{}'",
                     skills.len(),
@@ -249,6 +261,8 @@ impl AppState {
                     .register_source(label, skills)
                     .await;
             }
+            // --- END PARALLEL SCANNING ---
+
             for (label, path) in &skill_dirs {
                 match start_registry_watcher(
                     path.clone(),
