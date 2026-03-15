@@ -334,7 +334,7 @@ async fn run_agent_loop(
         })
         .collect();
 
-    let mut agent = AgentLoop::new(provider, model_id, AgentLoopConfig::default(), tx)
+    let mut agent = AgentLoop::new(provider.clone(), model_id, AgentLoopConfig::default(), tx)
         .with_history(history)
         .with_dispatcher(dispatcher);
 
@@ -353,8 +353,8 @@ async fn run_agent_loop(
     // Inject built-in tools (always available)
     let built_in_tools = all_built_in_tools();
     for tool_def in built_in_tools {
-        agent = agent.with_tool(tool_def);
         tracing::debug!("Added built-in tool '{}'", tool_def.name);
+        agent = agent.with_tool(tool_def);
     }
 
     // ── NEW: Inject skill catalog (Toon if supported) ─────────────────────────
