@@ -54,7 +54,8 @@ async fn poll_once(app: &AppHandle, state: &Arc<AppState>) {
         return;
     }
 
-    match client.get_pending_nudges().await {
+    match client.get_pending_nudges(None).await {
+        // <-- added None
         Ok(nudges) => {
             for nudge in nudges {
                 let nudge_id = nudge.id;
@@ -63,7 +64,7 @@ async fn poll_once(app: &AppHandle, state: &Arc<AppState>) {
                     warn!("Failed to emit nudge event: {e}");
                 }
                 // Best-effort mark as delivered.
-                let _ = client.mark_nudge_delivered(nudge_id).await;
+                let _ = client.mark_nudge_delivered(nudge_id, None).await; // <-- added None
             }
         }
         Err(e) => debug!("Nudge poll failed: {e}"),
