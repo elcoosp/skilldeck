@@ -127,8 +127,8 @@ pub fn run() {
         .export(Typescript::default(), "../src/bindings.ts")
         .expect("Failed to export TypeScript bindings");
 
-    // Build the invoke handler and event registration function
-    let (invoke_handler, register_events) = builder.build().unwrap();
+    // Get the invoke handler (borrows builder, does not consume it)
+    let invoke_handler = builder.invoke_handler();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -137,8 +137,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(move |app| {
-            // Register event listeners for Tauri Specta
-            register_events(app);
+            // Mount events for Tauri Specta (consumes builder)
+            builder.mount_events(app);
 
             let handle = app.handle().clone();
             tauri::async_runtime::block_on(async move {
