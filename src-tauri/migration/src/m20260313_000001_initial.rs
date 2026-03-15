@@ -1,4 +1,6 @@
-//! Initial migration: all 35 database tables for SkillDeck v1.
+//! Initial migration: all 38 database tables for SkillDeck v1.
+//! Includes core tables, MCP, profiles, skills, workflows, analytics,
+//! UI state, sync, plus user preferences, nudge cache, and registry skills cache.
 //!
 //! Uses SeaORM 2.0 migration API and ActiveModel for seed data.
 
@@ -15,7 +17,7 @@ pub struct Migration;
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         // =====================================================================
-        // CORE TABLES (using schema::* helpers)
+        // CORE TABLES
         // =====================================================================
 
         // workspaces
@@ -76,6 +78,57 @@ impl MigrationTrait for Migration {
                     .table(Profiles::Table)
                     .name("idx_profiles_is_default")
                     .col(Profiles::IsDefault)
+                    .to_owned(),
+            )
+            .await?;
+
+        // user_preferences (new)
+        manager
+            .create_table(
+                Table::create()
+                    .table(UserPreferences::Table)
+                    .if_not_exists()
+                    .col(uuid(UserPreferences::Id).primary_key())
+                    .col(uuid(UserPreferences::PlatformUserId).not_null())
+                    .col(
+                        boolean(UserPreferences::PlatformKeyStored)
+                            .not_null()
+                            .default(false),
+                    )
+                    .col(string(UserPreferences::PlatformUrl).null())
+                    .col(
+                        string(UserPreferences::NudgeFrequency)
+                            .not_null()
+                            .default("important_only"),
+                    )
+                    .col(
+                        boolean(UserPreferences::NudgeOptOut)
+                            .not_null()
+                            .default(false),
+                    )
+                    .col(
+                        json(UserPreferences::NotificationChannels)
+                            .not_null()
+                            .default("[\"in-app\"]"),
+                    )
+                    .col(
+                        string(UserPreferences::ThemePreference)
+                            .not_null()
+                            .default("system"),
+                    )
+                    .col(string(UserPreferences::Timezone).null())
+                    .col(
+                        boolean(UserPreferences::AnalyticsOptIn)
+                            .not_null()
+                            .default(false),
+                    )
+                    .col(
+                        boolean(UserPreferences::PlatformFeaturesEnabled)
+                            .not_null()
+                            .default(true),
+                    )
+                    .col(timestamp_with_time_zone(UserPreferences::CreatedAt).not_null())
+                    .col(timestamp_with_time_zone(UserPreferences::UpdatedAt).not_null())
                     .to_owned(),
             )
             .await?;
@@ -578,6 +631,47 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .default(Expr::current_timestamp()),
                     )
+                    .to_owned(),
+            )
+            .await?;
+
+        // registry_skills cache (new)
+        manager
+            .create_table(
+                Table::create()
+                    .table(RegistrySkills::Table)
+                    .if_not_exists()
+                    .col(uuid(RegistrySkills::Id).primary_key())
+                    .col(string(RegistrySkills::RegistryId).not_null().unique_key())
+                    .col(string(RegistrySkills::Name).not_null())
+                    .col(text(RegistrySkills::Description).not_null())
+                    .col(string(RegistrySkills::Source).not_null())
+                    .col(string(RegistrySkills::SourceUrl).null())
+                    .col(string(RegistrySkills::Version).null())
+                    .col(string(RegistrySkills::Author).null())
+                    .col(string(RegistrySkills::License).null())
+                    .col(json_binary(RegistrySkills::Tags).null())
+                    .col(string(RegistrySkills::Category).null())
+                    .col(json_binary(RegistrySkills::LintWarnings).null())
+                    .col(integer(RegistrySkills::SecurityScore).not_null().default(5))
+                    .col(integer(RegistrySkills::QualityScore).not_null().default(5))
+                    .col(
+                        string(RegistrySkills::MetadataSource)
+                            .not_null()
+                            .default("author"),
+                    )
+                    .col(text(RegistrySkills::Content).not_null())
+                    .col(timestamp_with_time_zone(RegistrySkills::SyncedAt).not_null())
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_registry_skills_name")
+                    .table(RegistrySkills::Table)
+                    .col(RegistrySkills::Name)
                     .to_owned(),
             )
             .await?;
@@ -1142,6 +1236,23 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
+        // local_nudge_cache (new)
+        manager
+            .create_table(
+                Table::create()
+                    .table(LocalNudgeCache::Table)
+                    .if_not_exists()
+                    .col(uuid(LocalNudgeCache::Id).primary_key())
+                    .col(
+                        uuid(LocalNudgeCache::PlatformNudgeId)
+                            .not_null()
+                            .unique_key(),
+                    )
+                    .col(timestamp_with_time_zone(LocalNudgeCache::ShownAt).not_null())
+                    .to_owned(),
+            )
+            .await?;
+
         // =====================================================================
         // SEED DATA USING ACTIVE MODEL
         // =====================================================================
@@ -1221,9 +1332,10 @@ impl MigrationTrait for Migration {
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        // Drop in reverse FK dependency order
+        // Drop in reverse FK dependency order (new tables inserted appropriately)
         let tables = [
             "sync_watermarks",
+            "local_nudge_cache",
             "sync_state",
             "message_embeddings",
             "export_jobs",
@@ -1244,7 +1356,9 @@ impl MigrationTrait for Migration {
             "subagent_sessions",
             "workflow_executions",
             "skill_source_dirs",
+            "registry_skills",
             "skills",
+            "mcp_servers", // ← add this line
             "mcp_tool_cache",
             "conversation_model_override",
             "conversation_skill_overrides",
@@ -1255,10 +1369,10 @@ impl MigrationTrait for Migration {
             "conversation_branches",
             "messages",
             "conversations",
+            "user_preferences",
             "workspaces",
             "profiles",
         ];
-
         for table in &tables {
             manager
                 .drop_table(Table::drop().table(Alias::new(*table)).to_owned())
@@ -1286,6 +1400,25 @@ enum Profiles {
     CreatedAt,
     UpdatedAt,
 }
+
+#[derive(DeriveIden)]
+enum UserPreferences {
+    Table,
+    Id,
+    PlatformUserId,
+    PlatformKeyStored,
+    PlatformUrl,
+    NudgeFrequency,
+    NudgeOptOut,
+    NotificationChannels,
+    ThemePreference,
+    Timezone,
+    AnalyticsOptIn,
+    PlatformFeaturesEnabled,
+    CreatedAt,
+    UpdatedAt,
+}
+
 #[derive(DeriveIden)]
 enum Workspaces {
     Table,
@@ -1297,6 +1430,7 @@ enum Workspaces {
     LastOpenedAt,
     CreatedAt,
 }
+
 #[derive(DeriveIden)]
 enum Conversations {
     Table,
@@ -1309,6 +1443,7 @@ enum Conversations {
     UpdatedAt,
     ArchivedAt,
 }
+
 #[derive(DeriveIden)]
 enum Messages {
     Table,
@@ -1324,6 +1459,7 @@ enum Messages {
     CacheWriteTokens,
     CreatedAt,
 }
+
 #[derive(DeriveIden)]
 enum ConversationBranches {
     Table,
@@ -1335,6 +1471,7 @@ enum ConversationBranches {
     CreatedAt,
     MergedAt,
 }
+
 #[derive(DeriveIden)]
 enum ToolCallEvents {
     Table,
@@ -1351,6 +1488,7 @@ enum ToolCallEvents {
     CreatedAt,
     CompletedAt,
 }
+
 #[derive(DeriveIden)]
 enum ProfileMcps {
     Table,
@@ -1361,6 +1499,7 @@ enum ProfileMcps {
     Overrides,
     CreatedAt,
 }
+
 #[derive(DeriveIden)]
 enum ProfileSkills {
     Table,
@@ -1371,6 +1510,7 @@ enum ProfileSkills {
     Enabled,
     CreatedAt,
 }
+
 #[derive(DeriveIden)]
 enum McpServers {
     Table,
@@ -1385,6 +1525,7 @@ enum McpServers {
     CreatedAt,
     UpdatedAt,
 }
+
 #[derive(DeriveIden)]
 enum McpToolCache {
     Table,
@@ -1395,6 +1536,7 @@ enum McpToolCache {
     InputSchema,
     CachedAt,
 }
+
 #[derive(DeriveIden)]
 enum ConversationMcpOverrides {
     Table,
@@ -1404,6 +1546,7 @@ enum ConversationMcpOverrides {
     Enabled,
     Overrides,
 }
+
 #[derive(DeriveIden)]
 enum ConversationSkillOverrides {
     Table,
@@ -1412,6 +1555,7 @@ enum ConversationSkillOverrides {
     SkillName,
     Enabled,
 }
+
 #[derive(DeriveIden)]
 enum ConversationModelOverride {
     Table,
@@ -1421,6 +1565,7 @@ enum ConversationModelOverride {
     ModelId,
     ModelParams,
 }
+
 #[derive(DeriveIden)]
 enum Skills {
     Table,
@@ -1436,6 +1581,7 @@ enum Skills {
     CreatedAt,
     UpdatedAt,
 }
+
 #[derive(DeriveIden)]
 enum SkillSourceDirs {
     Table,
@@ -1446,6 +1592,29 @@ enum SkillSourceDirs {
     Enabled,
     CreatedAt,
 }
+
+#[derive(DeriveIden)]
+enum RegistrySkills {
+    Table,
+    Id,
+    RegistryId,
+    Name,
+    Description,
+    Source,
+    SourceUrl,
+    Version,
+    Author,
+    License,
+    Tags,
+    Category,
+    LintWarnings,
+    SecurityScore,
+    QualityScore,
+    MetadataSource,
+    Content,
+    SyncedAt,
+}
+
 #[derive(DeriveIden)]
 enum WorkflowExecutions {
     Table,
@@ -1458,6 +1627,7 @@ enum WorkflowExecutions {
     StartedAt,
     CompletedAt,
 }
+
 #[derive(DeriveIden)]
 enum WorkflowSteps {
     Table,
@@ -1472,6 +1642,7 @@ enum WorkflowSteps {
     StartedAt,
     CompletedAt,
 }
+
 #[derive(DeriveIden)]
 enum SubagentSessions {
     Table,
@@ -1485,6 +1656,7 @@ enum SubagentSessions {
     CreatedAt,
     CompletedAt,
 }
+
 #[derive(DeriveIden)]
 enum Artifacts {
     Table,
@@ -1496,6 +1668,7 @@ enum Artifacts {
     Language,
     CreatedAt,
 }
+
 #[derive(DeriveIden)]
 enum Attachments {
     Table,
@@ -1507,6 +1680,7 @@ enum Attachments {
     StoragePath,
     CreatedAt,
 }
+
 #[derive(DeriveIden)]
 enum Templates {
     Table,
@@ -1517,6 +1691,7 @@ enum Templates {
     Variables,
     CreatedAt,
 }
+
 #[derive(DeriveIden)]
 enum Folders {
     Table,
@@ -1525,6 +1700,7 @@ enum Folders {
     ParentId,
     CreatedAt,
 }
+
 #[derive(DeriveIden)]
 enum Tags {
     Table,
@@ -1533,6 +1709,7 @@ enum Tags {
     Color,
     CreatedAt,
 }
+
 #[derive(DeriveIden)]
 enum ConversationTags {
     Table,
@@ -1540,6 +1717,7 @@ enum ConversationTags {
     ConversationId,
     TagId,
 }
+
 #[derive(DeriveIden)]
 enum Prompts {
     Table,
@@ -1550,6 +1728,7 @@ enum Prompts {
     CreatedAt,
     UpdatedAt,
 }
+
 #[derive(DeriveIden)]
 enum PromptVariables {
     Table,
@@ -1559,6 +1738,7 @@ enum PromptVariables {
     Description,
     DefaultValue,
 }
+
 #[derive(DeriveIden)]
 enum UsageEvents {
     Table,
@@ -1574,7 +1754,7 @@ enum UsageEvents {
     CostCents,
     CreatedAt,
 }
-// Note: ModelPricing uses manual Iden impl (see below)
+
 #[derive(DeriveIden)]
 enum WorkspaceState {
     Table,
@@ -1584,6 +1764,7 @@ enum WorkspaceState {
     SortOrder,
     UpdatedAt,
 }
+
 #[derive(DeriveIden)]
 enum ConversationUiState {
     Table,
@@ -1594,6 +1775,7 @@ enum ConversationUiState {
     PanelSizes,
     UpdatedAt,
 }
+
 #[derive(DeriveIden)]
 enum Bookmarks {
     Table,
@@ -1602,6 +1784,7 @@ enum Bookmarks {
     Note,
     CreatedAt,
 }
+
 #[derive(DeriveIden)]
 enum ExportJobs {
     Table,
@@ -1615,6 +1798,7 @@ enum ExportJobs {
     CompletedAt,
     CreatedAt,
 }
+
 #[derive(DeriveIden)]
 enum MessageEmbeddings {
     Table,
@@ -1624,6 +1808,7 @@ enum MessageEmbeddings {
     Model,
     GeneratedAt,
 }
+
 #[derive(DeriveIden)]
 enum SyncState {
     Table,
@@ -1634,6 +1819,7 @@ enum SyncState {
     LastError,
     CreatedAt,
 }
+
 #[derive(DeriveIden)]
 enum SyncWatermarks {
     Table,
@@ -1642,6 +1828,14 @@ enum SyncWatermarks {
     TableName,
     LastSyncedVersion,
     UpdatedAt,
+}
+
+#[derive(DeriveIden)]
+enum LocalNudgeCache {
+    Table,
+    Id,
+    PlatformNudgeId,
+    ShownAt,
 }
 
 // =============================================================================

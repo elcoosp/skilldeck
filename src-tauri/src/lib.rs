@@ -1,8 +1,8 @@
 //! Tauri application entry point (library form for testability).
 //!
 //! This module wires together:
-//! - `AppState` initialization (DB + Registry + ApprovalGate + PlatformClient)
-//! - All IPC command handlers
+//! - `AppState` initialization (DB + Registry + ApprovalGate + LintConfig)
+//! - All IPC command handlers (extended with marketplace commands)
 //! - Tauri plugins (keyring, shell, store, dialog)
 //! - Tracing subscriber
 
@@ -11,7 +11,9 @@ mod config;
 mod events;
 mod nudge_poller;
 mod platform_client;
+mod skills;
 mod state;
+mod sync;
 
 use commands::{
     conversations::{
@@ -35,7 +37,24 @@ use commands::{
     },
     profiles::{create_profile, delete_profile, list_profiles, update_profile},
     settings::{delete_api_key, list_api_keys, set_api_key, validate_api_key},
-    skills::{list_skills, toggle_skill},
+    skills::{
+        // Existing
+        list_skills,
+        toggle_skill,
+        // Lint
+        lint_skill,
+        lint_all_local_sources,
+        get_lint_rules,
+        disable_lint_rule,
+        // Installation
+        install_skill,
+        uninstall_skill,
+        diff_skill_versions,
+        // Sources
+        list_skill_sources,
+        add_skill_source,
+        remove_skill_source,
+    },
     workspaces::{close_workspace, list_workspaces, open_workspace},
 };
 use state::AppState;
@@ -45,23 +64,21 @@ use tracing_subscriber::{fmt, EnvFilter};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Initialise structured logging (RUST_LOG=info by default).
     fmt()
         .with_env_filter(
             EnvFilter::from_default_env()
                 .add_directive("skilldeck=info".parse().unwrap())
-                .add_directive("skilldeck_core=info".parse().unwrap()),
+                .add_directive("skilldeck_core=info".parse().unwrap())
+                .add_directive("skilldeck_lint=info".parse().unwrap()),
         )
         .init();
 
     tauri::Builder::default()
-        // OS-level plugins.
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_keyring::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        // Async setup: build AppState before any command can run.
         .setup(|app| {
             let handle = app.handle().clone();
             tauri::async_runtime::block_on(async move {
@@ -70,14 +87,12 @@ pub fn run() {
                     .expect("Failed to initialize AppState");
                 let state = Arc::new(state);
 
-                // Start nudge poller in the background.
                 nudge_poller::start_nudge_poller(handle.clone(), Arc::clone(&state));
 
                 handle.manage(state);
             });
             Ok(())
         })
-        // Register every IPC command.
         .invoke_handler(tauri::generate_handler![
             // conversations
             create_conversation,
@@ -98,9 +113,22 @@ pub fn run() {
             set_api_key,
             delete_api_key,
             validate_api_key,
-            // skills
+            // skills — basic
             list_skills,
             toggle_skill,
+            // skills — lint
+            lint_skill,
+            lint_all_local_sources,
+            get_lint_rules,
+            disable_lint_rule,
+            // skills — installation
+            install_skill,
+            uninstall_skill,
+            diff_skill_versions,
+            // skills — source management
+            list_skill_sources,
+            add_skill_source,
+            remove_skill_source,
             // mcp
             list_mcp_servers,
             connect_mcp_server,
@@ -109,7 +137,14 @@ pub fn run() {
             remove_mcp_server,
             // export
             export_conversation,
+            // gist
+            share_skill_as_gist,
+            share_workflow_as_gist,
+            import_skill_from_gist,
+            import_workflow_from_gist,
             export_conversation_as_markdown,
+            has_github_token,
+            set_github_token,
             // workspaces
             open_workspace,
             close_workspace,
@@ -120,20 +155,13 @@ pub fn run() {
             ensure_platform_registration,
             get_platform_preferences,
             update_platform_preferences,
+            get_pending_nudges,
+            send_activity_event,
+            get_referral_stats,
+            create_referral_code,
             resend_verification_email,
             export_gdpr_data,
             delete_platform_account,
-            create_referral_code,
-            get_referral_stats,
-            get_pending_nudges,
-            send_activity_event,
-            // github / gist
-            set_github_token,
-            has_github_token,
-            share_skill_as_gist,
-            import_skill_from_gist,
-            share_workflow_as_gist,
-            import_workflow_from_gist,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

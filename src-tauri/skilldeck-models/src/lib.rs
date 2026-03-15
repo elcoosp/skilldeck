@@ -15,6 +15,7 @@ pub mod conversation_ui_state;
 pub mod conversations;
 pub mod export_jobs;
 pub mod folders;
+pub mod local_nudge_cache;
 pub mod mcp_servers;
 pub mod mcp_tool_cache;
 pub mod message_embeddings;
@@ -25,6 +26,7 @@ pub mod profile_skills;
 pub mod profiles;
 pub mod prompt_variables;
 pub mod prompts;
+pub mod registry_skills;
 pub mod skill_source_dirs; // <-- add
 pub mod skills;
 pub mod subagent_sessions;

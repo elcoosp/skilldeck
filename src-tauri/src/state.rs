@@ -7,22 +7,24 @@ use serde_json;
 use std::{env::home_dir, sync::Arc};
 use tauri::Manager;
 use tauri_plugin_keyring::KeyringExt;
+use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
 
 use skilldeck_core::{
+    Registry, SeaOrmDatabase,
     agent::tool_dispatcher::ApprovalGate,
     db::open_db,
     mcp::{
-        supervisor::{start_supervisor, SupervisorCommand, SupervisorConfig},
         SseTransport, StdioTransport,
+        supervisor::{SupervisorCommand, SupervisorConfig, start_supervisor},
     },
     providers::{ClaudeProvider, OllamaProvider, OpenAiProvider},
     skills::{scanner, watcher::start_registry_watcher},
     traits::McpServerConfig,
     workspace::ContextLoader,
-    Registry, SeaOrmDatabase,
 };
+use skilldeck_lint::LintConfig;
 use skilldeck_models::mcp_servers;
 
 const KEYRING_SERVICE: &str = "skilldeck";
@@ -32,7 +34,6 @@ const KEYRING_SERVICE: &str = "skilldeck";
 /// Call this once during app initialisation so that servers appear in the
 /// registry immediately (as `Disconnected`) and can later be reconnected
 /// by the user.
-
 pub async fn reload_mcp_servers_from_db(
     db: &Arc<dyn skilldeck_core::traits::Database>,
     registry: &Arc<skilldeck_core::mcp::McpRegistry>,
@@ -63,6 +64,7 @@ pub async fn reload_mcp_servers_from_db(
         Err(e) => tracing::error!("reload_mcp_servers: query failed: {e}"),
     }
 }
+
 /// Top-level shared application state injected into every Tauri command.
 pub struct AppState {
     /// Core registry: DB connection + provider map + MCP/skill registries.
@@ -80,6 +82,9 @@ pub struct AppState {
     pub platform_client: tokio::sync::RwLock<crate::platform_client::PlatformClient>,
     /// Whether the user has opted in to anonymous analytics (mirrored from DB).
     pub analytics_opt_in: std::sync::atomic::AtomicBool,
+    /// Merged lint configuration — starts from `~/.config/skilldeck/skilldeck-lint.toml`
+    /// and can be updated at runtime via the `disable_lint_rule` command.
+    pub lint_config: Arc<RwLock<LintConfig>>,
 }
 
 impl AppState {
@@ -128,6 +133,18 @@ impl AppState {
         registry.register_provider(OllamaProvider::new(11434));
 
         let approval_gate = Arc::new(ApprovalGate::new());
+
+        // ── Lint config ───────────────────────────────────────────────────────
+        let global_config_path =
+            dirs::config_dir().map(|d| d.join("skilldeck").join("skilldeck-lint.toml"));
+
+        let lint_config =
+            LintConfig::from_files(global_config_path.as_deref(), None).unwrap_or_default();
+
+        info!(
+            "Loaded lint config: {} rule overrides",
+            lint_config.rules.len()
+        );
 
         // ── Start MCP supervisor ──────────────────────────────────────────────
         let supervisor_tx = start_supervisor(
@@ -179,13 +196,14 @@ impl AppState {
         }
 
         let state = Self {
-            registry,
+            registry: Arc::clone(&registry),
             approval_gate,
             supervisor_tx,
             agent_cancel_tokens,
             db_url,
             platform_client: tokio::sync::RwLock::new(platform_client),
             analytics_opt_in: std::sync::atomic::AtomicBool::new(analytics_opt_in_val),
+            lint_config: Arc::new(RwLock::new(lint_config)),
         };
 
         state.ensure_default_profile().await;
