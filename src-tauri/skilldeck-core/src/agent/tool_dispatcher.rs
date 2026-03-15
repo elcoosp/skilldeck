@@ -11,7 +11,9 @@ use tokio::sync::oneshot;
 
 use crate::{
     CoreError,
+    agent::{LoadSkillResult, SkillContentFormat},
     mcp::registry::McpRegistry,
+    skills::SkillRegistry,
     traits::{McpCallResult, ToolCall},
 };
 
@@ -157,16 +159,26 @@ const BUILTIN_TOOLS: &[&str] = &["loadSkill", "spawnSubagent", "mergeSubagentRes
 pub struct ToolDispatcher {
     mcp_registry: Arc<McpRegistry>,
     approval_gate: Arc<ApprovalGate>,
+    skill_registry: Arc<SkillRegistry>,
     /// Auto-approve policy; updated at runtime via `set_auto_approve`.
     auto_approve: Arc<tokio::sync::RwLock<AutoApproveConfig>>,
+    /// Whether the model supports Toon encoding.
+    supports_toon: bool,
 }
 
 impl ToolDispatcher {
-    pub fn new(mcp_registry: Arc<McpRegistry>, approval_gate: Arc<ApprovalGate>) -> Self {
+    pub fn new(
+        mcp_registry: Arc<McpRegistry>,
+        approval_gate: Arc<ApprovalGate>,
+        skill_registry: Arc<SkillRegistry>,
+        supports_toon: bool,
+    ) -> Self {
         Self {
             mcp_registry,
             approval_gate,
+            skill_registry,
             auto_approve: Arc::new(tokio::sync::RwLock::new(AutoApproveConfig::default())),
+            supports_toon,
         }
     }
 
@@ -182,7 +194,7 @@ impl ToolDispatcher {
             serde_json::from_str(&tool_call.function.arguments).unwrap_or(Value::Null);
 
         // 1. Try built-ins first — they never go through the gate.
-        if let Some(result) = self.dispatch_builtin(name, &args) {
+        if let Some(result) = self.dispatch_builtin(name, &args).await {
             return result;
         }
 
@@ -216,11 +228,38 @@ impl ToolDispatcher {
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
-    fn dispatch_builtin(&self, name: &str, args: &Value) -> Option<Result<Value, CoreError>> {
+    async fn dispatch_builtin(&self, name: &str, args: &Value) -> Option<Result<Value, CoreError>> {
         match name {
             "loadSkill" => {
                 let skill_name = args["name"].as_str().unwrap_or("unknown");
-                Some(Ok(serde_json::json!({ "loaded": skill_name })))
+                match self.skill_registry.get_skill(skill_name).await {
+                    Some(skill) => {
+                        let (content, format) = if self.supports_toon {
+                            match toon::encode(&serde_json::json!(skill.content_md), None) {
+                                Ok(encoded) => (encoded, SkillContentFormat::Toon),
+                                Err(e) => {
+                                    tracing::warn!(
+                                        "Toon encoding failed for skill '{}': {}",
+                                        skill_name,
+                                        e
+                                    );
+                                    (skill.content_md.clone(), SkillContentFormat::Text)
+                                }
+                            }
+                        } else {
+                            (skill.content_md.clone(), SkillContentFormat::Text)
+                        };
+                        let result = LoadSkillResult {
+                            loaded: skill_name.to_string(),
+                            content,
+                            format,
+                        };
+                        Some(Ok(serde_json::to_value(result).unwrap()))
+                    }
+                    None => Some(Err(CoreError::SkillNotInRegistry {
+                        name: skill_name.into(),
+                    })),
+                }
             }
             "spawnSubagent" => Some(Ok(serde_json::json!({ "spawned": true }))),
             "mergeSubagentResults" => Some(Ok(serde_json::json!({ "merged": true }))),
@@ -267,7 +306,12 @@ mod tests {
     use super::*;
 
     fn make_dispatcher() -> ToolDispatcher {
-        ToolDispatcher::new(Arc::new(McpRegistry::new()), Arc::new(ApprovalGate::new()))
+        ToolDispatcher::new(
+            Arc::new(McpRegistry::new()),
+            Arc::new(ApprovalGate::new()),
+            Arc::new(SkillRegistry::new()),
+            false,
+        )
     }
 
     #[tokio::test]
