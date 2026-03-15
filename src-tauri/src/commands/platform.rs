@@ -6,6 +6,7 @@
 use std::sync::Arc;
 use tauri::State;
 use tauri_plugin_keyring::KeyringExt;
+use tokio_util::sync::CancellationToken;
 use tracing::info;
 use uuid::Uuid;
 
@@ -39,10 +40,11 @@ pub async fn ensure_platform_registration(
     // Check whether we already have a stored key.
     let keyring = app.keyring();
     if let Ok(maybe_key) = keyring.get_password(KEYRING_SERVICE, PLATFORM_KEY_ACCOUNT)
-        && maybe_key.is_some() {
-            info!("Platform API key already stored – skipping registration");
-            return Ok(());
-        }
+        && maybe_key.is_some()
+    {
+        info!("Platform API key already stored – skipping registration");
+        return Ok(());
+    }
 
     // Not yet registered – call the platform.
     let client = state.platform_client.read().await;
@@ -101,7 +103,7 @@ pub async fn get_platform_preferences(
         .platform_client
         .read()
         .await
-        .get_preferences()
+        .get_preferences(None)
         .await
         .map_err(map_err)
 }
@@ -135,7 +137,7 @@ pub async fn update_platform_preferences(
         .platform_client
         .read()
         .await
-        .update_preferences(req)
+        .update_preferences(req, None)
         .await
         .map_err(map_err)
 }
@@ -146,7 +148,7 @@ pub async fn resend_verification_email(state: State<'_, Arc<AppState>>) -> Resul
         .platform_client
         .read()
         .await
-        .resend_verification()
+        .resend_verification(None)
         .await
         .map_err(map_err)
 }
@@ -159,7 +161,7 @@ pub async fn export_gdpr_data(
         .platform_client
         .read()
         .await
-        .export_gdpr_data()
+        .export_gdpr_data(None)
         .await
         .map_err(map_err)
 }
@@ -173,7 +175,7 @@ pub async fn delete_platform_account(
         .platform_client
         .read()
         .await
-        .delete_account()
+        .delete_account(None)
         .await
         .map_err(map_err)?;
 
@@ -194,7 +196,7 @@ pub async fn create_referral_code(
         .platform_client
         .read()
         .await
-        .create_referral_code()
+        .create_referral_code(None)
         .await
         .map_err(map_err)
 }
@@ -205,7 +207,7 @@ pub async fn get_referral_stats(state: State<'_, Arc<AppState>>) -> Result<Refer
         .platform_client
         .read()
         .await
-        .get_referral_stats()
+        .get_referral_stats(None)
         .await
         .map_err(map_err)
 }
@@ -220,7 +222,7 @@ pub async fn get_pending_nudges(
         .platform_client
         .read()
         .await
-        .get_pending_nudges()
+        .get_pending_nudges(None)
         .await
         .map_err(map_err)
 }
@@ -250,6 +252,7 @@ pub async fn send_activity_event(
         .send_activity_event(
             payload.event_type,
             payload.metadata.unwrap_or(serde_json::json!({})),
+            None,
         )
         .await
         .map_err(map_err)
