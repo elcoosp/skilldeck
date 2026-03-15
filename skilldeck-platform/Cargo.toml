@@ -1,0 +1,75 @@
+[package]
+name = "skilldeck-platform"
+version = "0.1.0"
+edition = "2024"
+description = "SkillDeck Platform — opt-in referrals, nudges, analytics"
+authors = ["elcoosp"]
+license = "MIT"
+
+[[bin]]
+name = "skilldeck-platform"
+path = "src/main.rs"
+
+[workspace]
+members = [".", "migration"]
+resolver = "2"
+
+[dependencies]
+# Web framework
+axum = { version = "0.8.8", features = ["macros"] }
+tower = "0.5.3"
+tower-http = { version = "0.6.8", features = ["cors", "trace"] }
+tower_governor = "0.8.0"
+
+# Async runtime
+tokio = { version = "1.50.0", features = ["full"] }
+
+# Database
+sea-orm = { version = "2.0.0-rc.37", features = [
+    "sqlx-sqlite",
+    "runtime-tokio-native-tls",
+    "macros",
+    "with-chrono",
+    "with-uuid",
+    "with-json",
+] }
+sea-orm-migration = "2.0.0-rc.37"
+
+migration = { path = "migration" }
+
+# Serialisation
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
+
+# Data types
+uuid = { version = "1.22.0", features = ["v4", "serde"] }
+chrono = { version = "0.4.44", features = ["serde"] }
+
+# Auth
+argon2 = "0.5.3"
+rand = "0.10.0"
+
+# Email
+resend-rs = "0.21.1"
+
+# Scheduler
+tokio-cron-scheduler = "0.15.1"
+
+# Observability
+tracing = "0.1"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter", "json"] }
+
+# Error handling
+thiserror = "2.0.18"
+anyhow = "1.0.102"
+
+# Config
+config = "0.15.21"
+dotenvy = "0.15.7"
+
+# Encoding
+hex = "0.4.3"
+async-trait = "0.1.89"
+
+[dev-dependencies]
+axum-test = "19.1.1"
