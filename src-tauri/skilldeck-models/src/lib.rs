@@ -15,6 +15,7 @@ pub mod conversation_ui_state;
 pub mod conversations;
 pub mod export_jobs;
 pub mod folders;
+pub mod local_nudge_cache;
 pub mod mcp_servers;
 pub mod mcp_tool_cache;
 pub mod message_embeddings;
