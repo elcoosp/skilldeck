@@ -22,7 +22,11 @@ pub struct ContextBuilder {
 
 impl ContextBuilder {
     pub fn new(model_id: impl Into<String>) -> Self {
-        Self { model_id: model_id.into(), max_messages: 100, ..Default::default() }
+        Self {
+            model_id: model_id.into(),
+            max_messages: 100,
+            ..Default::default()
+        }
     }
 
     pub fn system_prompt(mut self, prompt: impl Into<String>) -> Self {
@@ -68,6 +72,7 @@ impl ContextBuilder {
             messages,
             system,
             tools: self.tools,
+            tools_toon: None, // <-- added field
             model_params: self.model_params,
         })
     }
@@ -144,8 +149,16 @@ mod tests {
     #[test]
     fn trim_messages_under_limit() {
         let msgs = vec![
-            ChatMessage { role: MessageRole::User, content: "hi".into(), name: None },
-            ChatMessage { role: MessageRole::Assistant, content: "hello".into(), name: None },
+            ChatMessage {
+                role: MessageRole::User,
+                content: "hi".into(),
+                name: None,
+            },
+            ChatMessage {
+                role: MessageRole::Assistant,
+                content: "hello".into(),
+                name: None,
+            },
         ];
         assert_eq!(trim_messages(msgs.clone(), 10).len(), 2);
     }
@@ -153,7 +166,11 @@ mod tests {
     #[test]
     fn trim_messages_over_limit() {
         let msgs: Vec<_> = (0..20)
-            .map(|i| ChatMessage { role: MessageRole::User, content: i.to_string(), name: None })
+            .map(|i| ChatMessage {
+                role: MessageRole::User,
+                content: i.to_string(),
+                name: None,
+            })
             .collect();
         let trimmed = trim_messages(msgs, 10);
         assert_eq!(trimmed.len(), 10);
@@ -167,7 +184,11 @@ mod tests {
             .system_prompt("Be helpful")
             .add_skill("# Skill A\nDo things")
             .tools(vec![])
-            .messages(vec![ChatMessage { role: MessageRole::User, content: "hi".into(), name: None }])
+            .messages(vec![ChatMessage {
+                role: MessageRole::User,
+                content: "hi".into(),
+                name: None,
+            }])
             .build()
             .unwrap();
 
