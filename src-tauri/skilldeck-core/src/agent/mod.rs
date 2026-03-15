@@ -2,6 +2,7 @@
 
 pub mod built_in_tools;
 pub mod context_builder;
+pub mod load_skill_result;
 pub mod r#loop;
 pub mod subagent;
 pub mod tool_dispatcher;
