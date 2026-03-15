@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AtSign, Hash, Paperclip, Send, StopCircle, X } from 'lucide-react'
 import { open } from '@tauri-apps/plugin-dialog'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
@@ -27,6 +28,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [isComposing, setIsComposing] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<FileChip[]>([])
+  const [isSending, setIsSending] = useState(false)
 
   const draft = useUIStore((s) => s.drafts[conversationId] ?? '')
   const setDraft = useUIStore((s) => s.setDraft)
@@ -90,6 +92,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
 
     if (!finalContent.trim() || isComposing || isRunning) return
 
+    setIsSending(true)
     setContent('')
     setSelectedFiles([])
     clearDraft(conversationId)
@@ -100,6 +103,8 @@ export function MessageInput({ conversationId }: MessageInputProps) {
       // Restore content so the user doesn't lose it.
       setContent(finalContent)
       console.error('Failed to send message:', err)
+    } finally {
+      setIsSending(false)
     }
   }, [content, selectedFiles, isComposing, isRunning, conversationId, clearDraft, sendMutation])
 
@@ -144,7 +149,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
           disabled={isRunning}
           className={cn(
             'flex-1 min-h-[36px] max-h-[200px] resize-none border-0 shadow-none bg-transparent focus-visible:ring-0 text-sm',
-            'leading-6 py-2 px-0 overflow-y-hidden' // Added overflow-y-hidden to prevent scrollbar when empty
+            'leading-6 py-2 px-0 overflow-y-hidden'
           )}
           rows={1}
         />
@@ -152,15 +157,36 @@ export function MessageInput({ conversationId }: MessageInputProps) {
         <Button
           size="icon-sm"
           className="shrink-0 mb-0.5"
-          onClick={isRunning ? undefined : submit}
-          disabled={(!content.trim() && selectedFiles.length === 0 && !isRunning) || sendMutation.isPending}
+          onClick={submit}
+          disabled={(!content.trim() && selectedFiles.length === 0 && !isRunning) || sendMutation.isPending || isSending}
           aria-label={isRunning ? 'Stop' : 'Send'}
         >
-          {isRunning ? (
-            <StopCircle className="size-3.5" />
-          ) : (
-            <Send className="size-3.5" />
-          )}
+          <AnimatePresence mode="wait">
+            {isSending ? (
+              <motion.div
+                key="sending"
+                initial={{ rotate: 0 }}
+                animate={{ rotate: 360 }}
+                transition={{ duration: 0.5, repeat: Infinity, ease: 'linear' }}
+              >
+                <Send className="size-3.5" />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="idle"
+                initial={{ scale: 0.8 }}
+                animate={{ scale: 1 }}
+                exit={{ scale: 0.8 }}
+                transition={{ duration: 0.2 }}
+              >
+                {isRunning ? (
+                  <StopCircle className="size-3.5" />
+                ) : (
+                  <Send className="size-3.5" />
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </Button>
       </div>
 
