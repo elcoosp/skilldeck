@@ -8,7 +8,6 @@ use std::time::Duration;
 
 use tauri::{AppHandle, Emitter};
 use tracing::{debug, warn};
-use uuid::Uuid;
 
 use crate::platform_client::PendingNudge;
 use crate::state::AppState;

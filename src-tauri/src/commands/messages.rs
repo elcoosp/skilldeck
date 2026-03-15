@@ -15,7 +15,7 @@ use tauri::{Emitter, State};
 use uuid::Uuid;
 
 use crate::{events::AgentEvent, state::AppState};
-use skilldeck_core::agent::{all_built_in_tools, AgentLoop, AgentLoopConfig, AgentLoopEvent};
+use skilldeck_core::agent::{AgentLoop, AgentLoopConfig, AgentLoopEvent, all_built_in_tools};
 use skilldeck_models::conversations::{self, Entity as Conversations};
 use skilldeck_models::messages::{self, Entity as Messages};
 
@@ -28,7 +28,14 @@ pub struct MessageData {
     pub content: String,
     pub created_at: String,
 }
-
+#[tauri::command]
+pub async fn cancel_agent(
+    state: State<'_, Arc<AppState>>,
+    conversation_id: String,
+) -> Result<(), String> {
+    state.cancel_agent(&conversation_id);
+    Ok(())
+}
 /// List all messages for a conversation, oldest-first.
 ///
 /// `branch_id` is reserved for branch-aware retrieval (v1.1).
@@ -407,7 +414,6 @@ async fn run_agent_loop(
     }
 
     // Run the loop concurrently while we drain the event channel.
-    let conv_id_for_loop = conversation_id.clone();
     let loop_handle = tokio::spawn(async move { agent.run(user_message).await });
 
     // Forward loop events to Tauri event bus.

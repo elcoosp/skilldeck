@@ -125,6 +125,11 @@ impl PlatformClient {
         self.api_key.is_some()
     }
 
+    /// Get the base URL of the platform.
+    pub fn base_url(&self) -> &str {
+        &self.base_url
+    }
+
     fn check_enabled(&self) -> Result<(), PlatformError> {
         if !self.enabled {
             return Err(PlatformError::Disabled);

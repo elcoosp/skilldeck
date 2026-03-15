@@ -13,6 +13,27 @@ import type { UUID, DateTimeString } from './types'
 // Domain types — kept in sync with Rust command return types
 // ============================================================================
 
+export interface RegistrySkill {
+  id: string;
+  name: string;
+  description: string;
+  source: string;
+  sourceUrl?: string;
+  version?: string;
+  author?: string;
+  license?: string;
+  tags: string[];
+  category?: string;
+  lintWarnings: LintWarning[];
+  securityScore: number;
+  qualityScore: number;
+  metadataSource: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+  // Frontend-only field to distinguish source
+  _sourceType?: 'registry';
+}
 export interface Profile {
   id: UUID
   name: string

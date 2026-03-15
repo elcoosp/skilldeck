@@ -53,7 +53,7 @@ pub struct AgentToolCall {
 }
 
 // ── MCP events ────────────────────────────────────────────────────────────────
-
+#[allow(dead_code)]
 /// Payload for the `"mcp-event"` Tauri channel.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -62,7 +62,7 @@ pub enum McpEvent {
     ServerDisconnected { name: String },
     ToolDiscovered { server: String, tool: McpToolInfo },
 }
-
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct McpToolInfo {
     pub name: String,
@@ -70,7 +70,7 @@ pub struct McpToolInfo {
 }
 
 // ── Workflow events ───────────────────────────────────────────────────────────
-
+#[allow(dead_code)]
 /// Payload for the `"workflow-event"` Tauri channel.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]

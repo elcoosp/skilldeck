@@ -12,14 +12,13 @@ use crate::{
 
 pub struct OllamaProvider {
     inner: OpenAiProvider,
-    pub(crate) port: u16,
 }
 
 impl OllamaProvider {
     pub fn new(port: u16) -> Self {
         let inner = OpenAiProvider::new("ollama".to_string())
             .with_base_url(format!("http://localhost:{}/v1", port));
-        Self { inner, port }
+        Self { inner }
     }
 
     /// Parse the output of `ollama list` into a vec of model IDs.

@@ -6,12 +6,11 @@
 use std::sync::Arc;
 use tauri::State;
 use tauri_plugin_keyring::KeyringExt;
-use tracing::{error, info, warn};
+use tracing::info;
 use uuid::Uuid;
 
 use crate::platform_client::{
-    PendingNudge, PlatformClient, PlatformError, PlatformPreferences, ReferralStats,
-    UpdatePreferencesRequest,
+    PendingNudge, PlatformError, PlatformPreferences, ReferralStats, UpdatePreferencesRequest,
 };
 use crate::state::AppState;
 
@@ -39,12 +38,11 @@ pub async fn ensure_platform_registration(
 ) -> Result<(), String> {
     // Check whether we already have a stored key.
     let keyring = app.keyring();
-    if let Ok(maybe_key) = keyring.get_password(KEYRING_SERVICE, PLATFORM_KEY_ACCOUNT) {
-        if maybe_key.is_some() {
+    if let Ok(maybe_key) = keyring.get_password(KEYRING_SERVICE, PLATFORM_KEY_ACCOUNT)
+        && maybe_key.is_some() {
             info!("Platform API key already stored – skipping registration");
             return Ok(());
         }
-    }
 
     // Not yet registered – call the platform.
     let client = state.platform_client.read().await;

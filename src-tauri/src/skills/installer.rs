@@ -3,9 +3,9 @@
 //! Installing is a "copy" operation (not a live link), ensuring local stability
 //! regardless of registry changes.
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use tracing::info;
 
 /// Target location for installing a skill.
@@ -75,7 +75,7 @@ pub fn uninstall_skill(skill_name: &str, target: &InstallTarget) -> Result<()> {
     info!("Uninstalled skill '{}'", skill_name);
     Ok(())
 }
-
+#[allow(dead_code)]
 /// Overwrite an existing skill with new content.
 pub fn update_skill(
     skill_name: &str,
@@ -100,7 +100,7 @@ pub fn update_skill(
         target: target.clone(),
     })
 }
-
+#[allow(dead_code)]
 /// Read the current content of a locally installed skill.
 pub fn read_local_skill(skill_name: &str, target: &InstallTarget) -> Result<String> {
     let target_dir = resolve_target_dir(target)?;
@@ -117,8 +117,6 @@ fn resolve_target_dir(target: &InstallTarget) -> Result<PathBuf> {
                 .ok_or_else(|| anyhow::anyhow!("Cannot determine home directory"))?;
             Ok(home.join(".agents").join("skills"))
         }
-        InstallTarget::Workspace => {
-            Ok(std::env::current_dir()?.join(".skilldeck").join("skills"))
-        }
+        InstallTarget::Workspace => Ok(std::env::current_dir()?.join(".skilldeck").join("skills")),
     }
 }
