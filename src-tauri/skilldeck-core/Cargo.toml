@@ -52,5 +52,6 @@ skilldeck-models = { path = "../skilldeck-models" }
 sea-orm-migration = { version = "2.0.0-rc.37" }
 tokio-util = "0.7.18"
 parking_lot = "0.12.5"
+toon = "0.1.2"
 [dev-dependencies]
 tempfile = "3.27.0"
