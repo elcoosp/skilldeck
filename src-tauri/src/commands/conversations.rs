@@ -3,22 +3,23 @@
 //! All DB access goes through the `Database` trait so the layer remains
 //! testable without a real SQLite file.
 
-use crate::state::AppState;
 use sea_orm::PaginatorTrait;
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, QueryFilter, QueryOrder,
     QuerySelect,
 };
 use serde::Serialize;
-use skilldeck_models::conversations::{self, Entity as Conversation};
-use skilldeck_models::messages::{self as msg_model, Entity as Messages};
-use specta::specta;
+use specta::Type;
 use std::sync::Arc;
 use tauri::State;
 use uuid::Uuid;
 
+use crate::state::AppState;
+use skilldeck_models::conversations::{self, Entity as Conversation};
+use skilldeck_models::messages::{self as msg_model, Entity as Messages};
+
 /// Lightweight summary used by the sidebar list.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Type)]
 pub struct ConversationSummary {
     pub id: String,
     pub title: Option<String>,

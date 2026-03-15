@@ -4,11 +4,13 @@
 //! All event names use kebab-case and match the listeners in `src/lib/events.ts`.
 
 use serde::{Deserialize, Serialize};
+use specta::Type;
+use tauri_specta::Event;
 
 // ── Agent events ─────────────────────────────────────────────────────────────
 
 /// Payload for the `"agent-event"` Tauri channel.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum AgentEvent {
     Cancelled {
@@ -45,7 +47,7 @@ pub enum AgentEvent {
     },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct AgentToolCall {
     pub id: String,
     pub name: String,
@@ -53,26 +55,26 @@ pub struct AgentToolCall {
 }
 
 // ── MCP events ────────────────────────────────────────────────────────────────
-#[allow(dead_code)]
+
 /// Payload for the `"mcp-event"` Tauri channel.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum McpEvent {
     ServerConnected { name: String },
     ServerDisconnected { name: String },
     ToolDiscovered { server: String, tool: McpToolInfo },
 }
-#[allow(dead_code)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct McpToolInfo {
     pub name: String,
     pub description: String,
 }
 
 // ── Workflow events ───────────────────────────────────────────────────────────
-#[allow(dead_code)]
+
 /// Payload for the `"workflow-event"` Tauri channel.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum WorkflowEvent {
     Started {
