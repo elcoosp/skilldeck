@@ -18,7 +18,8 @@ use tracing::{error, info, instrument, warn};
 
 use crate::{
     CoreError,
-    agent::{LoadSkillResult, SkillContentFormat, tool_dispatcher::ToolDispatcher},
+    agent::load_skill_result::{LoadSkillResult, SkillContentFormat},
+    agent::tool_dispatcher::ToolDispatcher,
     traits::{
         ChatMessage, CompletionChunk, CompletionRequest, MessageRole, ModelParams, ModelProvider,
         ToolCall, ToolDefinition,
@@ -250,7 +251,7 @@ impl AgentLoop {
                     name: Some(tool_call.function.name.clone()),
                 });
 
-                // NEW: Handle loadSkill result
+                // Handle loadSkill result
                 if tool_call.function.name == "loadSkill" {
                     match serde_json::from_str::<LoadSkillResult>(&content) {
                         Ok(load_result) => {
@@ -258,13 +259,10 @@ impl AgentLoop {
                                 SkillContentFormat::Toon => {
                                     // Decode the Toon back to the original markdown
                                     match toon::decode(&load_result.content, None) {
-                                        Ok(value) => {
-                                            // Expect the decoded value to be a string (the skill content)
-                                            value
-                                                .as_str()
-                                                .unwrap_or(&load_result.content)
-                                                .to_string()
-                                        }
+                                        Ok(value) => value
+                                            .as_str()
+                                            .unwrap_or(&load_result.content)
+                                            .to_string(),
                                         Err(e) => {
                                             tracing::error!(
                                                 "Failed to decode Toon skill content: {}",
@@ -322,13 +320,8 @@ impl AgentLoop {
                     message: format!("Failed to serialize tools: {}", e),
                 })?;
 
-            match toon::encode(&tools_json, Some(toon::EncodeOptions::default())) {
-                Ok(encoded) => Some(encoded),
-                Err(e) => {
-                    tracing::error!("Failed to encode tools as Toon: {}", e);
-                    None // fall back to regular tools
-                }
-            }
+            let encoded = toon::encode(&tools_json, Some(toon::EncodeOptions::default()));
+            Some(encoded) // toon::encode is infallible (returns String)
         } else {
             None
         };
