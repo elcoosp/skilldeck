@@ -160,7 +160,8 @@ impl LintRule for DescriptionLength {
         };
         let desc = match fm.get("description") {
             Some(d) => d.clone(),
-            None => return vec![LintWarning {
+            None => {
+                return vec![LintWarning {
                 rule_id: self.id().to_string(),
                 severity: Severity::Error,
                 message: "Frontmatter missing required 'description' field".to_string(),
@@ -173,7 +174,8 @@ impl LintRule for DescriptionLength {
                     "Add 'description: \"A clear description of this skill\"' to the frontmatter"
                         .to_string(),
                 ),
-            }],
+            }]
+            }
         };
 
         if desc.len() < 20 {
@@ -409,24 +411,20 @@ impl LintRule for AllowedTools {
             None => return vec![],
         };
 
-        match fm.get("allowed_tools") {
-            None => {
-                return vec![LintWarning {
-                    rule_id: self.id().to_string(),
-                    severity: Severity::Info,
-                    message: "Skill does not declare 'allowed_tools'".to_string(),
-                    location: Some(crate::LintLocation {
-                        file: skill_md_location(skill_path),
-                        line: None,
-                        column: None,
-                    }),
-                    suggested_fix: Some(
-                        "Add 'allowed_tools: []' or list specific tools the skill requires"
-                            .to_string(),
-                    ),
-                }];
-            }
-            _ => {}
+        if !fm.contains_key("allowed_tools") {
+            return vec![LintWarning {
+                rule_id: self.id().to_string(),
+                severity: Severity::Info,
+                message: "Skill does not declare 'allowed_tools'".to_string(),
+                location: Some(crate::LintLocation {
+                    file: skill_md_location(skill_path),
+                    line: None,
+                    column: None,
+                }),
+                suggested_fix: Some(
+                    "Add 'allowed_tools: []' or list specific tools the skill requires".to_string(),
+                ),
+            }];
         }
         vec![]
     }

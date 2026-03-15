@@ -314,8 +314,7 @@ fn read_body(skill_path: &Path) -> Option<String> {
     let content = fs::read_to_string(path).ok()?;
 
     // Skip past the closing `---` of the frontmatter.
-    if content.starts_with("---") {
-        let rest = &content[3..];
+    if let Some(rest) = content.strip_prefix("---") {
         if let Some(end) = rest.find("\n---") {
             return Some(rest[end + 4..].to_string());
         }

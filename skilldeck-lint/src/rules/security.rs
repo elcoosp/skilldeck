@@ -164,7 +164,7 @@ fn parse_allowed_tools_from_content(content: &str) -> Option<Vec<String>> {
     let line = fm
         .lines()
         .find(|l| l.trim_start().starts_with("allowed_tools:"))?;
-    let value_part = line.splitn(2, ':').nth(1)?.trim();
+    let value_part = line.split_once(':')?.1.trim();
 
     // Parse a simple bracketed list: ["a", "b"] or [a, b].
     let inner = value_part

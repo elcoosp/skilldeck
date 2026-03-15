@@ -132,13 +132,19 @@ impl LintRule for ReferencesDepth {
 
     fn check(&self, skill_path: &Path, _config: &LintConfig) -> Vec<LintWarning> {
         let mut warnings = Vec::new();
-        check_depth(skill_path, skill_path, 0, MAX_REFERENCE_DEPTH, &mut warnings);
+        check_depth(
+            skill_path,
+            skill_path,
+            0,
+            MAX_REFERENCE_DEPTH,
+            &mut warnings,
+        );
         warnings
     }
 }
 
 fn check_depth(
-    base: &Path,
+    _base: &Path,
     current: &Path,
     depth: usize,
     max_depth: usize,
@@ -166,7 +172,7 @@ fn check_depth(
     if let Ok(entries) = fs::read_dir(current) {
         for entry in entries.flatten() {
             if entry.path().is_dir() {
-                check_depth(base, &entry.path(), depth + 1, max_depth, warnings);
+                check_depth(_base, &entry.path(), depth + 1, max_depth, warnings);
             }
         }
     }
