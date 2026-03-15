@@ -21,12 +21,18 @@ pub struct WorkflowExecutor {
     tx: Sender<WorkflowEvent>,
     /// Optional provider context; when present steps run real agent loops.
     ctx: Option<StepExecutionContext>,
+    /// Maximum iterations for evaluator-optimizer workflows.
+    max_eval_opt_iterations: u32,
 }
 
 impl WorkflowExecutor {
     /// Create an executor that uses stub step results (tests / CI).
     pub fn new(tx: Sender<WorkflowEvent>) -> Self {
-        Self { tx, ctx: None }
+        Self {
+            tx,
+            ctx: None,
+            max_eval_opt_iterations: 5,
+        }
     }
 
     /// Create an executor that drives real `AgentLoop` instances per step.
@@ -34,6 +40,7 @@ impl WorkflowExecutor {
         tx: Sender<WorkflowEvent>,
         provider: Arc<dyn ModelProvider>,
         model_id: String,
+        max_eval_opt_iterations: u32,
     ) -> Self {
         Self {
             tx,
@@ -42,6 +49,7 @@ impl WorkflowExecutor {
                 model_id,
                 config: AgentLoopConfig::default(),
             }),
+            max_eval_opt_iterations,
         }
     }
 
@@ -79,7 +87,15 @@ impl WorkflowExecutor {
                 parallel::execute(&mut state, &graph, &self.tx, ctx_ref).await
             }
             WorkflowPattern::EvaluatorOptimizer => {
-                eval_opt::execute(&mut state, &graph, &order, &self.tx, ctx_ref).await
+                eval_opt::execute(
+                    &mut state,
+                    &graph,
+                    &order,
+                    &self.tx,
+                    ctx_ref,
+                    Some(self.max_eval_opt_iterations),
+                )
+                .await
             }
         };
 
