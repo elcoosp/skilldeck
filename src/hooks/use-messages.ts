@@ -8,6 +8,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { listMessages, sendMessage } from '@/lib/invoke'
 import { useUIStore } from '@/store/ui'
+import { useAchievements } from '@/hooks/use-achievements'
 import type { Message } from '@/lib/invoke'
 import type { UUID } from '@/lib/types'
 
@@ -25,6 +26,7 @@ export function useMessages(
 
 export function useSendMessage(conversationId: UUID) {
   const queryClient = useQueryClient()
+  const { unlock } = useAchievements()
 
   return useMutation({
     mutationFn: (content: string) => sendMessage(conversationId, content),
@@ -33,6 +35,21 @@ export function useSendMessage(conversationId: UUID) {
       // The `done` event in use-agent-stream triggers this via invalidation.
       queryClient.invalidateQueries({ queryKey: ['messages', conversationId] })
       queryClient.invalidateQueries({ queryKey: ['conversations'] })
+
+      // Check for achievements after the message is sent and data refetched
+      setTimeout(() => {
+        const messages = queryClient.getQueryData<Message[]>(['messages', conversationId])
+        if (messages) {
+          // Count user messages
+          const userMessageCount = messages.filter(m => m.role === 'user').length
+          if (userMessageCount === 1) {
+            unlock('firstMessage')
+          }
+          if (userMessageCount === 10) {
+            unlock('tenthMessage')
+          }
+        }
+      }, 100) // small delay to allow refetch
     }
   })
 }
