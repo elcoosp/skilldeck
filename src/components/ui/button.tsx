@@ -56,9 +56,9 @@ function Button({
   const motionProps = asChild
     ? {}
     : {
-      whileHover: { scale: 1.02, y: -2 },
-      whileTap: { scale: 0.98 },
-      transition: { type: 'spring', stiffness: 400, damping: 25 },
+      whileHover: { scale: 1.01, boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)' },
+      whileTap: { scale: 0.99 },
+      transition: { duration: 0.2, ease: 'easeOut' },
     }
 
   return (
