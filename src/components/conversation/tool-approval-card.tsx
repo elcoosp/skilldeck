@@ -10,6 +10,7 @@ import { AlertTriangle, Check, Edit2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { resolveToolApproval } from '@/lib/invoke'
+import { useAchievements } from '@/hooks/use-achievements'
 import type { ToolCallInfo } from '@/lib/events'
 
 interface ToolApprovalCardProps {
@@ -29,6 +30,7 @@ export function ToolApprovalCard({
   )
   const [isEditing, setIsEditing] = useState(false)
   const [resolving, setResolving] = useState(false)
+  const { unlock } = useAchievements()
 
   const resolve = async (approved: boolean) => {
     setResolving(true)
@@ -44,6 +46,9 @@ export function ToolApprovalCard({
         }
       }
       await resolveToolApproval(toolCallId, approved, parsed)
+      if (approved) {
+        unlock('firstToolApproval')
+      }
       onResolved()
     } catch (err) {
       toast.error(`Failed to resolve approval: ${err}`)
