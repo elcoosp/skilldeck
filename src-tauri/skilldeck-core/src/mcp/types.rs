@@ -16,7 +16,12 @@ pub struct JsonRpcRequest {
 
 impl JsonRpcRequest {
     pub fn new(id: u64, method: impl Into<String>) -> Self {
-        Self { jsonrpc: "2.0".to_string(), id, method: method.into(), params: None }
+        Self {
+            jsonrpc: "2.0".to_string(),
+            id,
+            method: method.into(),
+            params: None,
+        }
     }
 
     pub fn with_params(mut self, params: Value) -> Self {
@@ -46,6 +51,7 @@ pub struct JsonRpcError {
 // ── Initialize ────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")] // protocol_version → protocolVersion, client_info → clientInfo
 pub struct InitializeParams {
     pub protocol_version: String,
     pub capabilities: ClientCapabilities,
@@ -76,17 +82,20 @@ pub struct ClientCapabilities {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RootsCapability {
     pub list_changed: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ClientInfo {
     pub name: String,
     pub version: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct InitializeResult {
     pub protocol_version: String,
     pub capabilities: ServerCapabilities,
@@ -94,6 +103,7 @@ pub struct InitializeResult {
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct ServerCapabilities {
     #[serde(default)]
     pub experimental: Option<Value>,
@@ -106,12 +116,14 @@ pub struct ServerCapabilities {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PromptsCapability {
     #[serde(default)]
     pub list_changed: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ResourcesCapability {
     #[serde(default)]
     pub subscribe: bool,
@@ -120,12 +132,14 @@ pub struct ResourcesCapability {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ToolsCapability {
     #[serde(default)]
     pub list_changed: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ServerInfo {
     pub name: String,
     pub version: String,
@@ -140,6 +154,7 @@ pub struct ListToolsParams {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ListToolsResult {
     pub tools: Vec<McpToolDefinition>,
     #[serde(default)]
@@ -147,6 +162,7 @@ pub struct ListToolsResult {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct McpToolDefinition {
     pub name: String,
     #[serde(default)]
@@ -162,6 +178,7 @@ pub struct CallToolParams {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CallToolResult {
     pub content: Vec<Content>,
     #[serde(default)]
@@ -177,6 +194,7 @@ pub struct ListResourcesParams {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ListResourcesResult {
     pub resources: Vec<Resource>,
     #[serde(default)]
@@ -184,6 +202,7 @@ pub struct ListResourcesResult {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Resource {
     pub uri: String,
     pub name: String,
@@ -204,6 +223,7 @@ pub struct ReadResourceResult {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ResourceContents {
     pub uri: String,
     #[serde(default)]
@@ -249,7 +269,8 @@ mod tests {
 
     #[test]
     fn json_rpc_error_deserialization() {
-        let json = r#"{"jsonrpc":"2.0","id":1,"error":{"code":-32600,"message":"Invalid Request"}}"#;
+        let json =
+            r#"{"jsonrpc":"2.0","id":1,"error":{"code":-32600,"message":"Invalid Request"}}"#;
         let resp: JsonRpcResponse = serde_json::from_str(json).unwrap();
         let e = resp.error.unwrap();
         assert_eq!(e.code, -32600);
@@ -257,15 +278,37 @@ mod tests {
     }
 
     #[test]
-    fn initialize_params_default() {
+    fn initialize_params_serializes_camel_case() {
         let p = InitializeParams::default();
+        let json = serde_json::to_string(&p).unwrap();
+        // Must use camelCase keys — the MCP server rejects snake_case
+        assert!(
+            json.contains("\"protocolVersion\""),
+            "expected protocolVersion, got: {}",
+            json
+        );
+        assert!(
+            json.contains("\"clientInfo\""),
+            "expected clientInfo, got: {}",
+            json
+        );
+        assert!(
+            !json.contains("\"protocol_version\""),
+            "snake_case must not appear"
+        );
+        assert!(
+            !json.contains("\"client_info\""),
+            "snake_case must not appear"
+        );
         assert_eq!(p.protocol_version, "2024-11-05");
         assert_eq!(p.client_info.name, "skilldeck");
     }
 
     #[test]
     fn content_text_serialization() {
-        let c = Content::Text { text: "Hello".to_string() };
+        let c = Content::Text {
+            text: "Hello".to_string(),
+        };
         let json = serde_json::to_string(&c).unwrap();
         assert!(json.contains("Hello"));
     }

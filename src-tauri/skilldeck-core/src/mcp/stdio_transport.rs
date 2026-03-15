@@ -6,8 +6,8 @@
 use async_trait::async_trait;
 use serde_json::Value;
 use std::process::Stdio;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin, ChildStdout, Command};
 use tokio::sync::Mutex;
@@ -16,7 +16,10 @@ use tracing::{debug, info, warn};
 use crate::{
     CoreError,
     mcp::types::*,
-    traits::{McpCapabilities, McpContent, McpResource, McpCallResult as McpToolResult, McpServerConfig, McpSession, McpTool, McpTransport},
+    traits::{
+        McpCallResult as McpToolResult, McpCapabilities, McpContent, McpResource, McpServerConfig,
+        McpSession, McpTool, McpTransport,
+    },
 };
 
 // ── Transport ─────────────────────────────────────────────────────────────────
@@ -24,6 +27,9 @@ use crate::{
 pub struct StdioTransport;
 
 impl StdioTransport {
+    pub fn new() -> Self {
+        Self
+    }
     /// Extract `command` and `args` from the config JSON blob.
     pub fn parse_config(config: &Value) -> Result<(String, Vec<String>), CoreError> {
         let command = config["command"]
@@ -35,7 +41,11 @@ impl StdioTransport {
 
         let args = config["args"]
             .as_array()
-            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
             .unwrap_or_default();
 
         Ok((command, args))
@@ -44,9 +54,16 @@ impl StdioTransport {
 
 #[async_trait]
 impl McpTransport for StdioTransport {
-    async fn connect(&self, config: &McpServerConfig, server_name: &str) -> Result<McpSession, CoreError> {
+    async fn connect(
+        &self,
+        config: &McpServerConfig,
+        server_name: &str,
+    ) -> Result<McpSession, CoreError> {
         let (command, args) = Self::parse_config(&config.config)?;
-        info!("Starting MCP server '{}': {} {:?}", server_name, command, args);
+        info!(
+            "Starting MCP server '{}': {} {:?}",
+            server_name, command, args
+        );
 
         let mut child = Command::new(&command)
             .args(&args)
@@ -59,21 +76,32 @@ impl McpTransport for StdioTransport {
                 message: format!("Failed to spawn process: {}", e),
             })?;
 
-        let stdin = child.stdin.take().ok_or_else(|| CoreError::McpConnectionFailed {
-            server_name: server_name.to_string(),
-            message: "Failed to capture stdin".to_string(),
-        })?;
+        let stdin = child
+            .stdin
+            .take()
+            .ok_or_else(|| CoreError::McpConnectionFailed {
+                server_name: server_name.to_string(),
+                message: "Failed to capture stdin".to_string(),
+            })?;
 
-        let stdout = child.stdout.take().ok_or_else(|| CoreError::McpConnectionFailed {
-            server_name: server_name.to_string(),
-            message: "Failed to capture stdout".to_string(),
-        })?;
+        let stdout = child
+            .stdout
+            .take()
+            .ok_or_else(|| CoreError::McpConnectionFailed {
+                server_name: server_name.to_string(),
+                message: "Failed to capture stdout".to_string(),
+            })?;
 
         let inner = StdioSessionInner::new(stdin, stdout, child);
         let capabilities = inner.initialize().await?;
         let tools = inner.list_tools().await?;
 
-        Ok(McpSession::new(server_name.to_string(), tools, capabilities, Box::new(inner)))
+        Ok(McpSession::new(
+            server_name.to_string(),
+            tools,
+            capabilities,
+            Box::new(inner),
+        ))
     }
 
     fn supports(&self, config: &McpServerConfig) -> bool {
@@ -100,11 +128,19 @@ impl StdioSessionInner {
         }
     }
 
-    async fn send_request(&self, method: &str, params: Option<Value>) -> Result<JsonRpcResponse, CoreError> {
+    async fn send_request(
+        &self,
+        method: &str,
+        params: Option<Value>,
+    ) -> Result<JsonRpcResponse, CoreError> {
         let id = self.request_id.fetch_add(1, Ordering::SeqCst);
         let req = {
             let r = JsonRpcRequest::new(id, method);
-            if let Some(p) = params { r.with_params(p) } else { r }
+            if let Some(p) = params {
+                r.with_params(p)
+            } else {
+                r
+            }
         };
 
         let line = serde_json::to_string(&req).map_err(|e| CoreError::Internal {
@@ -115,55 +151,73 @@ impl StdioSessionInner {
 
         {
             let mut stdin = self.stdin.lock().await;
-            stdin.write_all(line.as_bytes()).await.map_err(|e| CoreError::McpConnectionFailed {
-                server_name: String::new(),
-                message: format!("stdin write: {}", e),
-            })?;
-            stdin.flush().await.map_err(|e| CoreError::McpConnectionFailed {
-                server_name: String::new(),
-                message: format!("stdin flush: {}", e),
-            })?;
+            stdin
+                .write_all(line.as_bytes())
+                .await
+                .map_err(|e| CoreError::McpConnectionFailed {
+                    server_name: String::new(),
+                    message: format!("stdin write: {}", e),
+                })?;
+            stdin
+                .flush()
+                .await
+                .map_err(|e| CoreError::McpConnectionFailed {
+                    server_name: String::new(),
+                    message: format!("stdin flush: {}", e),
+                })?;
         }
 
         let response_line = {
             let mut stdout = self.stdout.lock().await;
             let mut line = String::new();
-            stdout.read_line(&mut line).await.map_err(|e| CoreError::McpConnectionFailed {
-                server_name: String::new(),
-                message: format!("stdout read: {}", e),
-            })?;
+            stdout
+                .read_line(&mut line)
+                .await
+                .map_err(|e| CoreError::McpConnectionFailed {
+                    server_name: String::new(),
+                    message: format!("stdout read: {}", e),
+                })?;
             line
         };
 
         debug!("← MCP stdio: {}", response_line.trim());
 
-        let resp: JsonRpcResponse = serde_json::from_str(response_line.trim())
-            .map_err(|e| CoreError::McpJsonRpc {
+        let resp: JsonRpcResponse =
+            serde_json::from_str(response_line.trim()).map_err(|e| CoreError::McpJsonRpc {
                 code: -32700,
                 message: format!("Parse response: {}", e),
             })?;
 
         if let Some(err) = &resp.error {
-            return Err(CoreError::McpJsonRpc { code: err.code, message: err.message.clone() });
+            return Err(CoreError::McpJsonRpc {
+                code: err.code,
+                message: err.message.clone(),
+            });
         }
         Ok(resp)
     }
 
     async fn initialize(&self) -> Result<McpCapabilities, CoreError> {
-        let params = serde_json::to_value(InitializeParams::default())
-            .map_err(|e| CoreError::Internal { message: format!("Serialize init: {}", e) })?;
+        let params =
+            serde_json::to_value(InitializeParams::default()).map_err(|e| CoreError::Internal {
+                message: format!("Serialize init: {}", e),
+            })?;
 
         let resp = self.send_request("initialize", Some(params)).await?;
-        let result: InitializeResult = serde_json::from_value(
-            resp.result.ok_or_else(|| CoreError::McpJsonRpc {
+        let result: InitializeResult =
+            serde_json::from_value(resp.result.ok_or_else(|| CoreError::McpJsonRpc {
                 code: -32603,
                 message: "No result in initialize response".into(),
-            })?,
-        )
-        .map_err(|e| CoreError::McpJsonRpc { code: -32603, message: format!("Parse init: {}", e) })?;
+            })?)
+            .map_err(|e| CoreError::McpJsonRpc {
+                code: -32603,
+                message: format!("Parse init: {}", e),
+            })?;
 
-        info!("MCP server initialized: {} v{} (proto {})",
-            result.server_info.name, result.server_info.version, result.protocol_version);
+        info!(
+            "MCP server initialized: {} v{} (proto {})",
+            result.server_info.name, result.server_info.version, result.protocol_version
+        );
 
         // Notify server we're done initializing
         let _ = self.send_request("notifications/initialized", None).await;
@@ -176,39 +230,50 @@ impl StdioSessionInner {
     }
 
     async fn list_tools(&self) -> Result<Vec<McpTool>, CoreError> {
-        let params = serde_json::to_value(ListToolsParams::default())
-            .map_err(|e| CoreError::Internal { message: format!("Serialize list_tools: {}", e) })?;
+        let params =
+            serde_json::to_value(ListToolsParams::default()).map_err(|e| CoreError::Internal {
+                message: format!("Serialize list_tools: {}", e),
+            })?;
 
         let resp = self.send_request("tools/list", Some(params)).await?;
-        let result: ListToolsResult = serde_json::from_value(
-            resp.result.ok_or_else(|| CoreError::McpJsonRpc {
+        let result: ListToolsResult =
+            serde_json::from_value(resp.result.ok_or_else(|| CoreError::McpJsonRpc {
                 code: -32603,
                 message: "No result in tools/list".into(),
-            })?,
-        )
-        .map_err(|e| CoreError::McpJsonRpc { code: -32603, message: format!("Parse tools: {}", e) })?;
+            })?)
+            .map_err(|e| CoreError::McpJsonRpc {
+                code: -32603,
+                message: format!("Parse tools: {}", e),
+            })?;
 
-        Ok(result.tools.into_iter().map(|t| McpTool {
-            name: t.name,
-            description: t.description,
-            input_schema: t.input_schema,
-        }).collect())
+        Ok(result
+            .tools
+            .into_iter()
+            .map(|t| McpTool {
+                name: t.name,
+                description: t.description,
+                input_schema: t.input_schema,
+            })
+            .collect())
     }
 }
 
 fn map_content(content: Vec<Content>) -> Vec<McpContent> {
-    content.into_iter().map(|c| match c {
-        Content::Text { text } => McpContent::Text { text },
-        Content::Image { data, mime_type } => McpContent::Image { data, mime_type },
-        Content::Resource { resource } => McpContent::Resource {
-            resource: McpResource {
-                uri: resource.uri,
-                name: String::new(),
-                description: None,
-                mime_type: resource.mime_type,
+    content
+        .into_iter()
+        .map(|c| match c {
+            Content::Text { text } => McpContent::Text { text },
+            Content::Image { data, mime_type } => McpContent::Image { data, mime_type },
+            Content::Resource { resource } => McpContent::Resource {
+                resource: McpResource {
+                    uri: resource.uri,
+                    name: String::new(),
+                    description: None,
+                    mime_type: resource.mime_type,
+                },
             },
-        },
-    }).collect()
+        })
+        .collect()
 }
 
 #[async_trait]
@@ -218,66 +283,100 @@ impl crate::traits::McpSessionInner for StdioSessionInner {
             name: name.to_string(),
             arguments: Some(arguments),
         })
-        .map_err(|e| CoreError::Internal { message: format!("Serialize call_tool: {}", e) })?;
+        .map_err(|e| CoreError::Internal {
+            message: format!("Serialize call_tool: {}", e),
+        })?;
 
         let resp = self.send_request("tools/call", Some(params)).await?;
-        let result: CallToolResult = serde_json::from_value(
-            resp.result.ok_or_else(|| CoreError::McpJsonRpc {
+        let result: CallToolResult =
+            serde_json::from_value(resp.result.ok_or_else(|| CoreError::McpJsonRpc {
                 code: -32603,
                 message: "No result in tools/call".into(),
-            })?,
-        )
-        .map_err(|e| CoreError::McpJsonRpc { code: -32603, message: format!("Parse call_tool: {}", e) })?;
+            })?)
+            .map_err(|e| CoreError::McpJsonRpc {
+                code: -32603,
+                message: format!("Parse call_tool: {}", e),
+            })?;
 
-        Ok(McpToolResult { content: map_content(result.content), is_error: result.is_error })
+        Ok(McpToolResult {
+            content: map_content(result.content),
+            is_error: result.is_error,
+        })
     }
 
     async fn list_resources(&self) -> Result<Vec<McpResource>, CoreError> {
-        let params = serde_json::to_value(ListResourcesParams::default())
-            .map_err(|e| CoreError::Internal { message: format!("Serialize list_resources: {}", e) })?;
+        let params = serde_json::to_value(ListResourcesParams::default()).map_err(|e| {
+            CoreError::Internal {
+                message: format!("Serialize list_resources: {}", e),
+            }
+        })?;
 
         let resp = self.send_request("resources/list", Some(params)).await?;
-        let result: ListResourcesResult = serde_json::from_value(
-            resp.result.ok_or_else(|| CoreError::McpJsonRpc {
+        let result: ListResourcesResult =
+            serde_json::from_value(resp.result.ok_or_else(|| CoreError::McpJsonRpc {
                 code: -32603,
                 message: "No result in resources/list".into(),
-            })?,
-        )
-        .map_err(|e| CoreError::McpJsonRpc { code: -32603, message: format!("Parse resources: {}", e) })?;
+            })?)
+            .map_err(|e| CoreError::McpJsonRpc {
+                code: -32603,
+                message: format!("Parse resources: {}", e),
+            })?;
 
-        Ok(result.resources.into_iter().map(|r| McpResource {
-            uri: r.uri, name: r.name, description: r.description, mime_type: r.mime_type,
-        }).collect())
+        Ok(result
+            .resources
+            .into_iter()
+            .map(|r| McpResource {
+                uri: r.uri,
+                name: r.name,
+                description: r.description,
+                mime_type: r.mime_type,
+            })
+            .collect())
     }
 
     async fn read_resource(&self, uri: &str) -> Result<Vec<McpContent>, CoreError> {
-        let params = serde_json::to_value(ReadResourceParams { uri: uri.to_string() })
-            .map_err(|e| CoreError::Internal { message: format!("Serialize read_resource: {}", e) })?;
+        let params = serde_json::to_value(ReadResourceParams {
+            uri: uri.to_string(),
+        })
+        .map_err(|e| CoreError::Internal {
+            message: format!("Serialize read_resource: {}", e),
+        })?;
 
         let resp = self.send_request("resources/read", Some(params)).await?;
-        let result: ReadResourceResult = serde_json::from_value(
-            resp.result.ok_or_else(|| CoreError::McpJsonRpc {
+        let result: ReadResourceResult =
+            serde_json::from_value(resp.result.ok_or_else(|| CoreError::McpJsonRpc {
                 code: -32603,
                 message: "No result in resources/read".into(),
-            })?,
-        )
-        .map_err(|e| CoreError::McpJsonRpc { code: -32603, message: format!("Parse read_resource: {}", e) })?;
+            })?)
+            .map_err(|e| CoreError::McpJsonRpc {
+                code: -32603,
+                message: format!("Parse read_resource: {}", e),
+            })?;
 
-        Ok(result.contents.into_iter().map(|c| match (c.text, c.blob) {
-            (Some(text), _) => McpContent::Text { text },
-            (_, Some(_)) => McpContent::Text { text: "[Binary content]".to_string() },
-            _ => McpContent::Text { text: String::new() },
-        }).collect())
+        Ok(result
+            .contents
+            .into_iter()
+            .map(|c| match (c.text, c.blob) {
+                (Some(text), _) => McpContent::Text { text },
+                (_, Some(_)) => McpContent::Text {
+                    text: "[Binary content]".to_string(),
+                },
+                _ => McpContent::Text {
+                    text: String::new(),
+                },
+            })
+            .collect())
     }
 }
 
 impl Drop for StdioSessionInner {
     fn drop(&mut self) {
         if let Ok(mut guard) = self.child.try_lock()
-            && let Some(mut child) = guard.take() {
-                let _ = child.start_kill();
-                warn!("Killed MCP server process on drop");
-            }
+            && let Some(mut child) = guard.take()
+        {
+            let _ = child.start_kill();
+            warn!("Killed MCP server process on drop");
+        }
     }
 }
 
@@ -287,7 +386,8 @@ mod tests {
 
     #[test]
     fn parse_config_ok() {
-        let config = serde_json::json!({"command": "mcp-server-sqlite", "args": ["--db-path", "/data.db"]});
+        let config =
+            serde_json::json!({"command": "mcp-server-sqlite", "args": ["--db-path", "/data.db"]});
         let (cmd, args) = StdioTransport::parse_config(&config).unwrap();
         assert_eq!(cmd, "mcp-server-sqlite");
         assert_eq!(args, vec!["--db-path", "/data.db"]);
@@ -309,7 +409,13 @@ mod tests {
     #[test]
     fn supports_stdio_only() {
         let t = StdioTransport;
-        assert!(t.supports(&McpServerConfig { transport: "stdio".into(), config: serde_json::json!({}) }));
-        assert!(!t.supports(&McpServerConfig { transport: "sse".into(), config: serde_json::json!({}) }));
+        assert!(t.supports(&McpServerConfig {
+            transport: "stdio".into(),
+            config: serde_json::json!({})
+        }));
+        assert!(!t.supports(&McpServerConfig {
+            transport: "sse".into(),
+            config: serde_json::json!({})
+        }));
     }
 }

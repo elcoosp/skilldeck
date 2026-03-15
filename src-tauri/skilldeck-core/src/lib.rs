@@ -95,7 +95,18 @@ impl Registry {
             skill_registry: Arc::new(skills::SkillRegistry::new()),
         }
     }
-
+    /// Create a registry using a pre-built [`McpRegistry`].
+    ///
+    /// Use when you need to register transports before wrapping in `Arc`
+    /// (transports require `&mut self` which is unavailable through `Arc`).
+    pub fn with_mcp_registry(db: impl Database + 'static, mcp_registry: mcp::McpRegistry) -> Self {
+        Self {
+            db: Arc::new(db),
+            providers: dashmap::DashMap::new(),
+            mcp_registry: Arc::new(mcp_registry),
+            skill_registry: Arc::new(skills::SkillRegistry::new()),
+        }
+    }
     /// Register a model provider.
     pub fn register_provider(&self, provider: impl ModelProvider + 'static) {
         let id = provider.id().to_string();

@@ -1,6 +1,7 @@
 //! MCP server registry — tracks live connections and dispatches tool calls.
 
 use dashmap::DashMap;
+use parking_lot::RwLock;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -56,7 +57,10 @@ pub struct McpRegistry {
     servers: DashMap<Uuid, LiveServer>,
     /// Stored configs keyed by server id, used by the supervisor to reconnect.
     pub stored_configs: DashMap<Uuid, McpServerConfig>,
-    transports: Vec<Box<dyn crate::traits::McpTransport>>,
+    /// RwLock so transports can be registered through &self (e.g. through Arc).
+    /// Arc wrapping lets us clone a handle out before dropping the lock,
+    /// which is required to avoid holding the guard across an .await point.
+    transports: RwLock<Vec<Arc<dyn crate::traits::McpTransport + Send + Sync>>>,
 }
 
 impl McpRegistry {
@@ -64,12 +68,37 @@ impl McpRegistry {
         Self {
             servers: DashMap::new(),
             stored_configs: DashMap::new(),
-            transports: vec![],
+            transports: RwLock::new(vec![]),
         }
     }
 
-    pub fn register_transport(&mut self, transport: impl crate::traits::McpTransport + 'static) {
-        self.transports.push(Box::new(transport));
+    /// Register a transport through a shared reference — works through `Arc<McpRegistry>`.
+    pub fn register_transport(
+        &self,
+        transport: impl crate::traits::McpTransport + Send + Sync + 'static,
+    ) {
+        self.transports.write().push(Arc::new(transport));
+    }
+
+    /// Register a server under a *caller-supplied* UUID (e.g. the persisted DB id).
+    pub fn add_server_with_id(&self, id: Uuid, name: String, config: McpServerConfig) {
+        if self.servers.contains_key(&id) {
+            return;
+        }
+        self.servers.insert(
+            id,
+            LiveServer {
+                id,
+                name,
+                status: ServerStatus::Disconnected,
+                session: None,
+                error_count: 0,
+                last_error: None,
+                tools: Vec::new(),
+                capabilities: McpCapabilities::default(),
+            },
+        );
+        self.stored_configs.insert(id, config);
     }
 
     /// Register a server without connecting yet, storing the config for later reconnects.
@@ -94,10 +123,8 @@ impl McpRegistry {
 
     /// Connect a previously-registered server, storing the config for future reconnects.
     pub async fn connect(&self, id: Uuid, config: McpServerConfig) -> Result<(), CoreError> {
-        // Persist config so the supervisor can reconnect autonomously.
         self.stored_configs.insert(id, config.clone());
 
-        // Mark as connecting.
         {
             let mut entry = self
                 .servers
@@ -112,13 +139,19 @@ impl McpRegistry {
             .map(|s| s.name.clone())
             .ok_or(CoreError::McpServerNotFound { server_id: id })?;
 
-        let transport = self
-            .transports
-            .iter()
-            .find(|t| t.supports(&config))
-            .ok_or_else(|| CoreError::InvalidConfiguration {
-                message: format!("No transport registered for type: {}", config.transport),
-            })?;
+        // Clone an Arc handle to the matching transport, then drop the read
+        // guard immediately — parking_lot guards are !Send so they cannot be
+        // held across an .await point.
+        let transport: Arc<dyn crate::traits::McpTransport + Send + Sync> = {
+            let transports = self.transports.read();
+            transports
+                .iter()
+                .find(|t| t.supports(&config))
+                .cloned()
+                .ok_or_else(|| CoreError::InvalidConfiguration {
+                    message: format!("No transport registered for type: {}", config.transport),
+                })?
+        }; // guard dropped here
 
         match transport.connect(&config, &server_name).await {
             Ok(session) => {
@@ -306,5 +339,28 @@ mod tests {
         r.mark_failed(id);
         let s = r.get(id).unwrap();
         assert_eq!(s.status, ServerStatus::Failed);
+    }
+
+    #[test]
+    fn register_transport_through_arc() {
+        use crate::traits::{McpServerConfig, McpSession, McpTransport};
+        use async_trait::async_trait;
+
+        struct DummyTransport;
+        #[async_trait]
+        impl McpTransport for DummyTransport {
+            async fn connect(&self, _: &McpServerConfig, _: &str) -> Result<McpSession, CoreError> {
+                Err(CoreError::NotImplemented {
+                    feature: "dummy".into(),
+                })
+            }
+            fn supports(&self, c: &McpServerConfig) -> bool {
+                c.transport == "dummy"
+            }
+        }
+
+        let r = Arc::new(McpRegistry::new());
+        r.register_transport(DummyTransport); // &self + Send+Sync bound, works through Arc
+        assert_eq!(r.transports.read().len(), 1);
     }
 }

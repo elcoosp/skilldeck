@@ -15,7 +15,10 @@ use commands::{
         create_conversation, delete_conversation, list_conversations, rename_conversation,
     },
     export::export_conversation,
-    mcp::{connect_mcp_server, disconnect_mcp_server, list_mcp_servers},
+    mcp::{
+        add_mcp_server, connect_mcp_server, disconnect_mcp_server, list_mcp_servers,
+        remove_mcp_server,
+    },
     messages::{list_messages, resolve_tool_approval, send_message},
     ollama::list_ollama_models,
     profiles::{create_profile, delete_profile, list_profiles, update_profile},
@@ -85,6 +88,8 @@ pub fn run() {
             list_mcp_servers,
             connect_mcp_server,
             disconnect_mcp_server,
+            add_mcp_server,
+            remove_mcp_server,
             // export
             export_conversation,
             // workspaces

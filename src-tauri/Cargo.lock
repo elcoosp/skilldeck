@@ -5566,6 +5566,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "dashmap",
+ "parking_lot",
  "sea-orm",
  "serde",
  "serde_json",
@@ -5605,6 +5606,7 @@ dependencies = [
  "migration",
  "notify",
  "notify-debouncer-mini",
+ "parking_lot",
  "petgraph",
  "reqwest",
  "sea-orm",

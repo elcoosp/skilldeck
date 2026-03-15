@@ -1,25 +1,68 @@
+// src-tauri/src/state.rs
 //! Application state management.
 
 use dashmap::DashMap;
+use sea_orm::EntityTrait;
+use serde_json;
 use std::{env::home_dir, sync::Arc};
 use tauri::Manager;
 use tauri_plugin_keyring::KeyringExt;
 use tokio_util::sync::CancellationToken;
-
-use tracing::{info, warn};
+use tracing::{error, info, warn};
 
 use skilldeck_core::{
     agent::tool_dispatcher::ApprovalGate,
     db::open_db,
-    mcp::supervisor::{start_supervisor, SupervisorCommand, SupervisorConfig},
+    mcp::{
+        supervisor::{start_supervisor, SupervisorCommand, SupervisorConfig},
+        SseTransport, StdioTransport,
+    },
     providers::{ClaudeProvider, OllamaProvider, OpenAiProvider},
     skills::{scanner, watcher::start_registry_watcher},
+    traits::McpServerConfig,
     workspace::ContextLoader,
     Registry, SeaOrmDatabase,
 };
+use skilldeck_models::mcp_servers;
 
 const KEYRING_SERVICE: &str = "skilldeck";
 
+/// Reload persisted MCP servers from the database into the registry.
+///
+/// Call this once during app initialisation so that servers appear in the
+/// registry immediately (as `Disconnected`) and can later be reconnected
+/// by the user.
+
+pub async fn reload_mcp_servers_from_db(
+    db: &Arc<dyn skilldeck_core::traits::Database>,
+    registry: &Arc<skilldeck_core::mcp::McpRegistry>,
+) {
+    let conn = match db.connection().await {
+        Ok(c) => c,
+        Err(e) => {
+            tracing::error!("reload_mcp_servers: DB connection failed: {e}");
+            return;
+        }
+    };
+
+    match mcp_servers::Entity::find().all(conn).await {
+        Ok(rows) => {
+            for row in rows {
+                if row.status != "enabled" {
+                    continue;
+                }
+                // `config_json` is already a JsonValue – use directly.
+                let mcp_config = skilldeck_core::traits::McpServerConfig {
+                    transport: row.transport.clone(),
+                    config: row.config_json,
+                };
+                registry.add_server_with_id(row.id, row.name, mcp_config);
+            }
+            tracing::info!("Loaded {} MCP server(s) from DB", registry.list().len());
+        }
+        Err(e) => tracing::error!("reload_mcp_servers: query failed: {e}"),
+    }
+}
 /// Top-level shared application state injected into every Tauri command.
 pub struct AppState {
     /// Core registry: DB connection + provider map + MCP/skill registries.
@@ -30,6 +73,9 @@ pub struct AppState {
     pub supervisor_tx: tokio::sync::mpsc::Sender<SupervisorCommand>,
     /// Per-conversation cancellation tokens so callers can abort agent loops.
     pub agent_cancel_tokens: Arc<DashMap<String, CancellationToken>>,
+    /// Canonical SQLite path – e.g. "/Users/alice/Library/…/skilldeck.db".
+    /// Kept as a plain `String` so background tasks can open a fresh connection.
+    pub db_url: String,
 }
 
 impl AppState {
@@ -44,6 +90,14 @@ impl AppState {
         let conn = open_db(&db_url, true).await?;
         let db = SeaOrmDatabase::new(conn);
         let registry = Arc::new(Registry::new(db));
+
+        // Register transports — now takes &self so works through Arc.
+        registry
+            .mcp_registry
+            .register_transport(StdioTransport::new());
+        registry
+            .mcp_registry
+            .register_transport(SseTransport::new());
 
         // ── Register model providers ──────────────────────────────────────────
         let keyring = app.keyring();
@@ -94,6 +148,7 @@ impl AppState {
             approval_gate,
             supervisor_tx,
             agent_cancel_tokens,
+            db_url,
         };
 
         state.ensure_default_profile().await;
