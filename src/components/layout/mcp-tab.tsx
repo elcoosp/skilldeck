@@ -957,7 +957,7 @@ export function McpTab() {
               </div>
               <div>
                 <p className="text-xs font-medium mb-1">No tools configured – add a server and unleash the magic!</p>
-                <p className="text-[11px] text-muted-foreground leading-relaxed max-w-[180px]">
+                <p className="text-[11px] text-muted-foreground leading-relaxed  text-center">
                   MCP servers give the agent tools like file access, web search, and database queries.
                 </p>
               </div>
