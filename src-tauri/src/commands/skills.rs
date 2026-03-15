@@ -146,7 +146,19 @@ pub async fn get_lint_rules() -> Result<Vec<String>, String> {
 // ── Installation commands ─────────────────────────────────────────────────────
 
 use crate::skills::installer::{InstallResult, InstallTarget, install_skill as do_install};
-
+/// Validate skill name – only allow alphanumeric, underscore, hyphen.
+fn validate_skill_name(name: &str) -> Result<(), String> {
+    if name.is_empty() {
+        return Err("Skill name cannot be empty".to_string());
+    }
+    if !name
+        .chars()
+        .all(|c| c.is_alphanumeric() || c == '_' || c == '-')
+    {
+        return Err("Skill name contains invalid characters (only letters, numbers, underscores, and hyphens allowed)".to_string());
+    }
+    Ok(())
+}
 /// Install a skill into the personal or workspace location.
 #[tauri::command]
 pub async fn install_skill(
@@ -154,6 +166,7 @@ pub async fn install_skill(
     skill_content: String,
     target: InstallTarget,
 ) -> Result<InstallResult, String> {
+    validate_skill_name(&skill_name)?;
     tokio::task::spawn_blocking(move || {
         do_install(&skill_name, &skill_content, &target).map_err(|e| e.to_string())
     })
@@ -164,6 +177,7 @@ pub async fn install_skill(
 /// Uninstall a locally installed skill.
 #[tauri::command]
 pub async fn uninstall_skill(skill_name: String, target: InstallTarget) -> Result<(), String> {
+    validate_skill_name(&skill_name)?;
     tokio::task::spawn_blocking(move || {
         crate::skills::installer::uninstall_skill(&skill_name, &target).map_err(|e| e.to_string())
     })
