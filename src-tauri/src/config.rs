@@ -8,6 +8,7 @@ const DEFAULT_MAX_EVAL_OPT_ITERATIONS: u32 = 5;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
+#[derive(Default)]
 pub struct AppConfig {
     pub platform: PlatformConfig,
     pub agent: AgentConfig,
@@ -26,14 +27,6 @@ pub struct AgentConfig {
     pub max_eval_opt_iterations: u32,
 }
 
-impl Default for AppConfig {
-    fn default() -> Self {
-        Self {
-            platform: PlatformConfig::default(),
-            agent: AgentConfig::default(),
-        }
-    }
-}
 
 impl Default for PlatformConfig {
     fn default() -> Self {

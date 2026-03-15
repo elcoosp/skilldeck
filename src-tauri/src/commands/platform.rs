@@ -6,7 +6,6 @@
 use std::sync::Arc;
 use tauri::State;
 use tauri_plugin_keyring::KeyringExt;
-use tokio_util::sync::CancellationToken;
 use tracing::info;
 use uuid::Uuid;
 

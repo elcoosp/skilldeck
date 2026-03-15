@@ -190,10 +190,10 @@ impl PlatformClient {
         let mut delay = std::time::Duration::from_millis(100);
         for attempt in 0..3 {
             // Check cancellation before each attempt
-            if let Some(ref token) = cancel {
-                if token.is_cancelled() {
-                    return Err(PlatformError::Cancelled);
-                }
+            if let Some(ref token) = cancel
+                && token.is_cancelled()
+            {
+                return Err(PlatformError::Cancelled);
             }
             let future = f();
             let result = if let Some(ref token) = cancel {
@@ -236,10 +236,10 @@ impl PlatformClient {
     {
         let mut delay = std::time::Duration::from_millis(100);
         for attempt in 0..3 {
-            if let Some(ref token) = cancel {
-                if token.is_cancelled() {
-                    return Err(PlatformError::Cancelled);
-                }
+            if let Some(ref token) = cancel
+                && token.is_cancelled()
+            {
+                return Err(PlatformError::Cancelled);
             }
             let future = f();
             let result = if let Some(ref token) = cancel {
@@ -453,7 +453,7 @@ impl PlatformClient {
         };
         match self.retry(fut, cancel).await {
             Ok(v) => Ok(v),
-            Err(PlatformError::Http { status, .. }) if status == 204 => Ok(vec![]),
+            Err(PlatformError::Http { status: 204, .. }) => Ok(vec![]),
             Err(e) => Err(e),
         }
     }
@@ -495,10 +495,10 @@ impl PlatformClient {
         // Manual retry loop with cancellation
         let mut delay = std::time::Duration::from_millis(100);
         for attempt in 0..3 {
-            if let Some(ref token) = cancel {
-                if token.is_cancelled() {
-                    return Err(PlatformError::Cancelled);
-                }
+            if let Some(ref token) = cancel
+                && token.is_cancelled()
+            {
+                return Err(PlatformError::Cancelled);
             }
             let req = ActivityEventRequest {
                 event_type: event_type_str.clone(),
@@ -547,4 +547,3 @@ impl PlatformClient {
         unreachable!()
     }
 }
-
