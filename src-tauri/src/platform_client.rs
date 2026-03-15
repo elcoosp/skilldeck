@@ -9,6 +9,7 @@ use reqwest::{Client, StatusCode};
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
 // ── Error ─────────────────────────────────────────────────────────────────────
@@ -25,7 +26,6 @@ pub enum PlatformError {
     NotConfigured,
     #[error("Platform features are disabled in config")]
     Disabled,
-    #[allow(dead_code)]
     #[error("Operation cancelled")]
     Cancelled,
 }
@@ -171,8 +171,17 @@ impl PlatformClient {
         })
     }
 
-    // Simple retry helper with exponential backoff.
-    async fn retry<F, Fut, T>(&self, mut f: F) -> Result<T, PlatformError>
+    // Helper to classify reqwest errors as transient
+    fn is_transient_reqwest(e: &reqwest::Error) -> bool {
+        e.is_timeout() || e.is_connect() || e.is_request()
+    }
+
+    // Retry helper with cancellation support
+    async fn retry<F, Fut, T>(
+        &self,
+        mut f: F,
+        cancel: Option<CancellationToken>,
+    ) -> Result<T, PlatformError>
     where
         F: FnMut() -> Fut,
         Fut: std::future::Future<Output = Result<reqwest::Response, PlatformError>>,
@@ -180,10 +189,33 @@ impl PlatformClient {
     {
         let mut delay = std::time::Duration::from_millis(100);
         for attempt in 0..3 {
-            match f().await {
+            // Check cancellation before each attempt
+            if let Some(ref token) = cancel {
+                if token.is_cancelled() {
+                    return Err(PlatformError::Cancelled);
+                }
+            }
+            let future = f();
+            let result = if let Some(ref token) = cancel {
+                tokio::select! {
+                    res = future => res,
+                    _ = token.cancelled() => return Err(PlatformError::Cancelled),
+                }
+            } else {
+                future.await
+            };
+            match result {
                 Ok(resp) => return Ok(resp.json().await?),
                 Err(e) if e.is_transient() && attempt < 2 => {
-                    tokio::time::sleep(delay).await;
+                    // Also check cancellation during backoff sleep
+                    if let Some(ref token) = cancel {
+                        tokio::select! {
+                            _ = tokio::time::sleep(delay) => {}
+                            _ = token.cancelled() => return Err(PlatformError::Cancelled),
+                        }
+                    } else {
+                        tokio::time::sleep(delay).await;
+                    }
                     delay *= 2;
                 }
                 Err(e) => return Err(e),
@@ -193,17 +225,42 @@ impl PlatformClient {
     }
 
     // For methods that return no content (204)
-    async fn retry_no_content<F, Fut>(&self, mut f: F) -> Result<(), PlatformError>
+    async fn retry_no_content<F, Fut>(
+        &self,
+        mut f: F,
+        cancel: Option<CancellationToken>,
+    ) -> Result<(), PlatformError>
     where
         F: FnMut() -> Fut,
         Fut: std::future::Future<Output = Result<reqwest::Response, PlatformError>>,
     {
         let mut delay = std::time::Duration::from_millis(100);
         for attempt in 0..3 {
-            match f().await {
+            if let Some(ref token) = cancel {
+                if token.is_cancelled() {
+                    return Err(PlatformError::Cancelled);
+                }
+            }
+            let future = f();
+            let result = if let Some(ref token) = cancel {
+                tokio::select! {
+                    res = future => res,
+                    _ = token.cancelled() => return Err(PlatformError::Cancelled),
+                }
+            } else {
+                future.await
+            };
+            match result {
                 Ok(_resp) => return Ok(()),
                 Err(e) if e.is_transient() && attempt < 2 => {
-                    tokio::time::sleep(delay).await;
+                    if let Some(ref token) = cancel {
+                        tokio::select! {
+                            _ = tokio::time::sleep(delay) => {}
+                            _ = token.cancelled() => return Err(PlatformError::Cancelled),
+                        }
+                    } else {
+                        tokio::time::sleep(delay).await;
+                    }
                     delay *= 2;
                 }
                 Err(e) => return Err(e),
@@ -227,12 +284,15 @@ impl PlatformClient {
                 .await?;
             Self::check_response(resp).await
         };
-        self.retry(fut).await
+        self.retry(fut, None).await
     }
 
     // ── Preferences ───────────────────────────────────────────────────────────
 
-    pub async fn get_preferences(&self) -> Result<PlatformPreferences, PlatformError> {
+    pub async fn get_preferences(
+        &self,
+        cancel: Option<CancellationToken>,
+    ) -> Result<PlatformPreferences, PlatformError> {
         self.check_enabled()?;
         let auth = self.auth_header()?;
         let url = format!("{}/api/preferences", self.base_url);
@@ -245,12 +305,13 @@ impl PlatformClient {
                 .await?;
             Self::check_response(resp).await
         };
-        self.retry(fut).await
+        self.retry(fut, cancel).await
     }
 
     pub async fn update_preferences(
         &self,
         req: UpdatePreferencesRequest,
+        cancel: Option<CancellationToken>,
     ) -> Result<PlatformPreferences, PlatformError> {
         self.check_enabled()?;
         let auth = self.auth_header()?;
@@ -265,10 +326,13 @@ impl PlatformClient {
                 .await?;
             Self::check_response(resp).await
         };
-        self.retry(fut).await
+        self.retry(fut, cancel).await
     }
 
-    pub async fn resend_verification(&self) -> Result<(), PlatformError> {
+    pub async fn resend_verification(
+        &self,
+        cancel: Option<CancellationToken>,
+    ) -> Result<(), PlatformError> {
         self.check_enabled()?;
         let auth = self.auth_header()?;
         let url = format!("{}/api/preferences/resend-verification", self.base_url);
@@ -281,10 +345,13 @@ impl PlatformClient {
                 .await?;
             Self::check_response(resp).await
         };
-        self.retry_no_content(fut).await
+        self.retry_no_content(fut, cancel).await
     }
 
-    pub async fn export_gdpr_data(&self) -> Result<serde_json::Value, PlatformError> {
+    pub async fn export_gdpr_data(
+        &self,
+        cancel: Option<CancellationToken>,
+    ) -> Result<serde_json::Value, PlatformError> {
         self.check_enabled()?;
         let auth = self.auth_header()?;
         let url = format!("{}/api/preferences/export", self.base_url);
@@ -297,10 +364,13 @@ impl PlatformClient {
                 .await?;
             Self::check_response(resp).await
         };
-        self.retry(fut).await
+        self.retry(fut, cancel).await
     }
 
-    pub async fn delete_account(&self) -> Result<(), PlatformError> {
+    pub async fn delete_account(
+        &self,
+        cancel: Option<CancellationToken>,
+    ) -> Result<(), PlatformError> {
         self.check_enabled()?;
         let auth = self.auth_header()?;
         let url = format!("{}/api/preferences/account", self.base_url);
@@ -313,12 +383,15 @@ impl PlatformClient {
                 .await?;
             Self::check_response(resp).await
         };
-        self.retry_no_content(fut).await
+        self.retry_no_content(fut, cancel).await
     }
 
     // ── Growth / Referrals ────────────────────────────────────────────────────
 
-    pub async fn create_referral_code(&self) -> Result<ReferralCode, PlatformError> {
+    pub async fn create_referral_code(
+        &self,
+        cancel: Option<CancellationToken>,
+    ) -> Result<ReferralCode, PlatformError> {
         self.check_enabled()?;
         let auth = self.auth_header()?;
         let url = format!("{}/api/growth/referral", self.base_url);
@@ -331,10 +404,13 @@ impl PlatformClient {
                 .await?;
             Self::check_response(resp).await
         };
-        self.retry(fut).await
+        self.retry(fut, cancel).await
     }
 
-    pub async fn get_referral_stats(&self) -> Result<ReferralStats, PlatformError> {
+    pub async fn get_referral_stats(
+        &self,
+        cancel: Option<CancellationToken>,
+    ) -> Result<ReferralStats, PlatformError> {
         self.check_enabled()?;
         let auth = self.auth_header()?;
         let url = format!("{}/api/growth/referral/stats", self.base_url);
@@ -347,12 +423,15 @@ impl PlatformClient {
                 .await?;
             Self::check_response(resp).await
         };
-        self.retry(fut).await
+        self.retry(fut, cancel).await
     }
 
     // ── Nudges ────────────────────────────────────────────────────────────────
 
-    pub async fn get_pending_nudges(&self) -> Result<Vec<PendingNudge>, PlatformError> {
+    pub async fn get_pending_nudges(
+        &self,
+        cancel: Option<CancellationToken>,
+    ) -> Result<Vec<PendingNudge>, PlatformError> {
         self.check_enabled()?;
         let auth = self.auth_header()?;
         let url = format!("{}/api/growth/nudges/pending", self.base_url);
@@ -372,14 +451,18 @@ impl PlatformClient {
             }
             Self::check_response(resp).await
         };
-        match self.retry(fut).await {
+        match self.retry(fut, cancel).await {
             Ok(v) => Ok(v),
             Err(PlatformError::Http { status, .. }) if status == 204 => Ok(vec![]),
             Err(e) => Err(e),
         }
     }
 
-    pub async fn mark_nudge_delivered(&self, nudge_id: Uuid) -> Result<(), PlatformError> {
+    pub async fn mark_nudge_delivered(
+        &self,
+        nudge_id: Uuid,
+        cancel: Option<CancellationToken>,
+    ) -> Result<(), PlatformError> {
         self.check_enabled()?;
         let auth = self.auth_header()?;
         let url = format!("{}/api/growth/nudges/{nudge_id}/delivered", self.base_url);
@@ -392,7 +475,7 @@ impl PlatformClient {
                 .await?;
             Self::check_response(resp).await
         };
-        self.retry_no_content(fut).await
+        self.retry_no_content(fut, cancel).await
     }
 
     // ── Activity events ───────────────────────────────────────────────────────
@@ -402,20 +485,21 @@ impl PlatformClient {
         &self,
         event_type: impl Into<String>,
         metadata: serde_json::Value,
+        cancel: Option<CancellationToken>,
     ) -> Result<(), PlatformError> {
         self.check_enabled()?;
         let auth = self.auth_header()?;
         let url = format!("{}/api/growth/event", self.base_url);
         let event_type_str = event_type.into();
 
-        // Helper to classify reqwest errors as transient
-        fn is_transient_reqwest(e: &reqwest::Error) -> bool {
-            e.is_timeout() || e.is_connect() || e.is_request()
-        }
-
-        // Manual retry loop with exponential backoff
+        // Manual retry loop with cancellation
         let mut delay = std::time::Duration::from_millis(100);
         for attempt in 0..3 {
+            if let Some(ref token) = cancel {
+                if token.is_cancelled() {
+                    return Err(PlatformError::Cancelled);
+                }
+            }
             let req = ActivityEventRequest {
                 event_type: event_type_str.clone(),
                 metadata: metadata.clone(),
@@ -432,14 +516,28 @@ impl PlatformClient {
                 Ok(resp) => match Self::check_response(resp).await {
                     Ok(_) => return Ok(()),
                     Err(e) if e.is_transient() && attempt < 2 => {
-                        tokio::time::sleep(delay).await;
+                        if let Some(ref token) = cancel {
+                            tokio::select! {
+                                _ = tokio::time::sleep(delay) => {}
+                                _ = token.cancelled() => return Err(PlatformError::Cancelled),
+                            }
+                        } else {
+                            tokio::time::sleep(delay).await;
+                        }
                         delay *= 2;
                         continue;
                     }
                     Err(e) => return Err(e),
                 },
-                Err(e) if is_transient_reqwest(&e) && attempt < 2 => {
-                    tokio::time::sleep(delay).await;
+                Err(e) if Self::is_transient_reqwest(&e) && attempt < 2 => {
+                    if let Some(ref token) = cancel {
+                        tokio::select! {
+                            _ = tokio::time::sleep(delay) => {}
+                            _ = token.cancelled() => return Err(PlatformError::Cancelled),
+                        }
+                    } else {
+                        tokio::time::sleep(delay).await;
+                    }
                     delay *= 2;
                     continue;
                 }
@@ -449,3 +547,4 @@ impl PlatformClient {
         unreachable!()
     }
 }
+
