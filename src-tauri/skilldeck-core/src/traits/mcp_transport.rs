@@ -71,7 +71,12 @@ impl McpSession {
         capabilities: McpCapabilities,
         inner: Box<dyn McpSessionInner>,
     ) -> Self {
-        Self { server_name, tools, capabilities, inner }
+        Self {
+            server_name,
+            tools,
+            capabilities,
+            inner,
+        }
     }
 
     pub async fn call_tool(
@@ -144,7 +149,9 @@ mod tests {
 
     #[test]
     fn mcp_content_text() {
-        let content = McpContent::Text { text: "Hello".to_string() };
+        let content = McpContent::Text {
+            text: "Hello".to_string(),
+        };
         let json = serde_json::to_string(&content).unwrap();
         assert!(json.contains("text"));
         assert!(json.contains("Hello"));

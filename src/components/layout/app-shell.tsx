@@ -14,7 +14,9 @@ import { CenterPanel } from './center-panel'
 import { RightPanel } from './right-panel'
 import { CommandPalette } from '@/components/overlays/command-palette'
 import { SettingsOverlay } from '@/components/overlays/settings-overlay'
+import { LaunchNotificationBanner } from '@/components/overlays/launch-notification'
 import { useUIStore } from '@/store/ui'
+import { useNudgeListener, usePlatformRegistration } from '@/hooks/use-platform'
 
 export function AppShell() {
   const panelSizes = useUIStore((s) => s.panelSizes)
@@ -22,6 +24,11 @@ export function AppShell() {
   const setCommandPaletteOpen = useUIStore((s) => s.setCommandPaletteOpen)
   const setSettingsOpen = useUIStore((s) => s.setSettingsOpen)
   const settingsOpen = useUIStore((s) => s.settingsOpen)
+
+  // Ensure the app is registered with the platform (no-op if already done).
+  usePlatformRegistration()
+  // Subscribe to nudge events from the background poller.
+  useNudgeListener()
 
   // Global keyboard shortcuts (declarative hooks)
   useHotkeys('meta+k, ctrl+k', (e) => {
@@ -51,42 +58,47 @@ export function AppShell() {
   }, [setCommandPaletteOpen, setSettingsOpen])
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-background text-foreground">
-      <Group
-        orientation="horizontal"
-        onLayoutChange={(sizes) =>
-          setPanelSizes({ left: sizes[0], right: sizes[2] })
-        }
-      >
-        {/* Left — conversation list */}
-        <Panel
-          defaultSize={`${panelSizes.left}px`}
-          minSize="15%"
-          maxSize="30%"
-          className="border-r border-border"
+    <div className="h-screen w-screen overflow-hidden bg-background text-foreground flex flex-col">
+      {/* Product Hunt launch banner (dismissible) */}
+      <LaunchNotificationBanner />
+
+      <div className="flex-1 overflow-hidden">
+        <Group
+          orientation="horizontal"
+          onLayoutChange={(sizes) =>
+            setPanelSizes({ left: sizes[0], right: sizes[2] })
+          }
         >
-          <LeftPanel />
-        </Panel>
+          {/* Left — conversation list */}
+          <Panel
+            defaultSize={`${panelSizes.left}px`}
+            minSize="15%"
+            maxSize="30%"
+            className="border-r border-border"
+          >
+            <LeftPanel />
+          </Panel>
 
-        <Separator className="w-px bg-border hover:bg-primary/30 transition-colors cursor-col-resize" />
+          <Separator className="w-px bg-border hover:bg-primary/30 transition-colors cursor-col-resize" />
 
-        {/* Center — message thread + input */}
-        <Panel minSize="35%">
-          <CenterPanel />
-        </Panel>
+          {/* Center — message thread + input */}
+          <Panel minSize="35%">
+            <CenterPanel />
+          </Panel>
 
-        <Separator className="w-px bg-border hover:bg-primary/30 transition-colors cursor-col-resize" />
+          <Separator className="w-px bg-border hover:bg-primary/30 transition-colors cursor-col-resize" />
 
-        {/* Right — session info / workflow / analytics */}
-        <Panel
-          defaultSize={`${panelSizes.right}px`}
-          minSize="18%"
-          maxSize="35%"
-          className="border-l border-border"
-        >
-          <RightPanel />
-        </Panel>
-      </Group>
+          {/* Right — session info / workflow / analytics */}
+          <Panel
+            defaultSize={`${panelSizes.right}px`}
+            minSize="18%"
+            maxSize="35%"
+            className="border-l border-border"
+          >
+            <RightPanel />
+          </Panel>
+        </Group>
+      </div>
 
       {/* Global overlays */}
       <CommandPalette />

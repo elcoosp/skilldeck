@@ -38,7 +38,9 @@ const CodePre = ({ children, ...props }: any) => {
   const language = props['data-language'] ?? 'code'
 
   const copy = async () => {
-    await navigator.clipboard.writeText(extractText(children).replace(/\n$/, ''))
+    await navigator.clipboard.writeText(
+      extractText(children).replace(/\n$/, '')
+    )
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
@@ -47,7 +49,7 @@ const CodePre = ({ children, ...props }: any) => {
     <div className="my-3 rounded-lg border border-border flex flex-col text-xs font-mono">
       <div className="flex items-center justify-between px-3 py-1.5 border-b border-border bg-muted rounded-t-lg">
         <button
-          onClick={() => setCollapsed(v => !v)}
+          onClick={() => setCollapsed((v) => !v)}
           className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
           aria-label={collapsed ? 'Expand' : 'Collapse'}
         >
@@ -64,9 +66,11 @@ const CodePre = ({ children, ...props }: any) => {
           className="p-1 text-muted-foreground hover:text-foreground transition-colors rounded"
           aria-label="Copy code"
         >
-          {copied
-            ? <Check className="size-3.5 text-green-500" />
-            : <Copy className="size-3.5" />}
+          {copied ? (
+            <Check className="size-3.5 text-green-500" />
+          ) : (
+            <Copy className="size-3.5" />
+          )}
         </button>
       </div>
 
@@ -91,7 +95,10 @@ const CodePre = ({ children, ...props }: any) => {
   )
 }
 
-export function MessageBubble({ message, isStreaming = false }: MessageBubbleProps) {
+export function MessageBubble({
+  message,
+  isStreaming = false
+}: MessageBubbleProps) {
   const [collapsed, setCollapsed] = useState(false)
 
   const isUser = message.role === 'user'
@@ -101,7 +108,8 @@ export function MessageBubble({ message, isStreaming = false }: MessageBubblePro
   const syntheticStreaming = message.id === '__streaming__'
 
   // Never allow collapsing while streaming — avoids state reset reopening the bubble
-  const canCollapse = (isAssistant || isSystem || isTool) && !isStreaming && !syntheticStreaming
+  const canCollapse =
+    (isAssistant || isSystem || isTool) && !isStreaming && !syntheticStreaming
   const isCollapsed = collapsed && canCollapse
 
   return (
@@ -125,17 +133,21 @@ export function MessageBubble({ message, isStreaming = false }: MessageBubblePro
         )}
         aria-hidden
       >
-        {isUser
-          ? <User className="size-3.5" />
-          : isSystem
-            ? <AlertCircle className="size-3.5" />
-            : isTool
-              ? <Wrench className="size-3.5" />
-              : <Bot className="size-3.5" />}
+        {isUser ? (
+          <User className="size-3.5" />
+        ) : isSystem ? (
+          <AlertCircle className="size-3.5" />
+        ) : isTool ? (
+          <Wrench className="size-3.5" />
+        ) : (
+          <Bot className="size-3.5" />
+        )}
       </div>
 
       {/* Bubble */}
-      <div className={cn('relative max-w-[78%] min-w-0', isUser && 'text-right')}>
+      <div
+        className={cn('relative max-w-[78%] min-w-0', isUser && 'text-right')}
+      >
         <div
           className={cn(
             'inline-block px-3.5 py-2.5 rounded-xl text-sm leading-relaxed',
@@ -153,7 +165,7 @@ export function MessageBubble({ message, isStreaming = false }: MessageBubblePro
                 {isAssistant ? 'Assistant' : isSystem ? 'System' : 'Tool'}
               </span>
               <motion.button
-                onClick={() => setCollapsed(v => !v)}
+                onClick={() => setCollapsed((v) => !v)}
                 className="p-0.5 hover:bg-muted-foreground/20 rounded transition-colors ml-2"
                 aria-label={isCollapsed ? 'Expand message' : 'Collapse message'}
                 whileTap={{ scale: 0.9 }}
@@ -162,9 +174,11 @@ export function MessageBubble({ message, isStreaming = false }: MessageBubblePro
                   animate={{ rotate: isCollapsed ? 0 : 90 }}
                   transition={{ duration: 0.2 }}
                 >
-                  {isCollapsed
-                    ? <ChevronRight className="size-3.5" />
-                    : <ChevronDown className="size-3.5" />}
+                  {isCollapsed ? (
+                    <ChevronRight className="size-3.5" />
+                  ) : (
+                    <ChevronDown className="size-3.5" />
+                  )}
                 </motion.div>
               </motion.button>
             </div>
@@ -190,24 +204,36 @@ export function MessageBubble({ message, isStreaming = false }: MessageBubblePro
                     <MarkdownHooks
                       remarkPlugins={[remarkGfm]}
                       rehypePlugins={[
-                        [rehypeShiki, {
-                          themes: { light: 'vitesse-light', dark: 'vitesse-dark' },
-                          useBackground: false
-                        }]
+                        [
+                          rehypeShiki,
+                          {
+                            themes: {
+                              light: 'vitesse-light',
+                              dark: 'vitesse-dark'
+                            },
+                            useBackground: false
+                          }
+                        ]
                       ]}
                       components={{
                         pre: CodePre,
                         table: ({ children }) => (
                           <div className="overflow-x-auto my-2">
-                            <table className="border-collapse border border-border text-xs">{children}</table>
+                            <table className="border-collapse border border-border text-xs">
+                              {children}
+                            </table>
                           </div>
                         ),
                         th: ({ children }) => (
-                          <th className="border border-border bg-muted/50 px-2 py-1 text-left font-medium">{children}</th>
+                          <th className="border border-border bg-muted/50 px-2 py-1 text-left font-medium">
+                            {children}
+                          </th>
                         ),
                         td: ({ children }) => (
-                          <td className="border border-border px-2 py-1">{children}</td>
-                        ),
+                          <td className="border border-border px-2 py-1">
+                            {children}
+                          </td>
+                        )
                       }}
                     >
                       {message.content}
@@ -228,7 +254,9 @@ export function MessageBubble({ message, isStreaming = false }: MessageBubblePro
                   )}
                 </div>
               ) : (
-                <span className="whitespace-pre-wrap break-words">{message.content}</span>
+                <span className="whitespace-pre-wrap break-words">
+                  {message.content}
+                </span>
               )}
             </div>
           </div>

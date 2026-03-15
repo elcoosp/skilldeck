@@ -16,7 +16,9 @@ pub trait Database: Send + Sync {
         conn.execute_unprepared(sql)
             .await
             .map(|_| ())
-            .map_err(|e| CoreError::DatabaseQuery { message: e.to_string() })
+            .map_err(|e| CoreError::DatabaseQuery {
+                message: e.to_string(),
+            })
     }
 }
 
@@ -26,7 +28,9 @@ pub struct SeaOrmDatabase {
 }
 
 impl SeaOrmDatabase {
-    pub fn new(conn: DatabaseConnection) -> Self { Self { conn } }
+    pub fn new(conn: DatabaseConnection) -> Self {
+        Self { conn }
+    }
 }
 
 #[async_trait]

@@ -46,7 +46,7 @@ uuid = { version = "1.22.0", features = ["v4", "serde"] }
 chrono = { version = "0.4.44", features = ["serde"] }
 
 # Auth
-argon2 = "0.5.3"
+argon2 = {version="0.6.0-rc.7", features=["password-hash"]}
 rand = "0.10.0"
 
 # Email

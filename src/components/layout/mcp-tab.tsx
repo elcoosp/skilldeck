@@ -16,7 +16,7 @@ import {
   Server,
   Trash2,
   Unplug,
-  Zap,
+  Zap
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { openUrl } from '@tauri-apps/plugin-opener'
@@ -30,7 +30,7 @@ import {
   addMcpServer,
   removeMcpServer,
   type McpServer,
-  type AddMcpServerParams,
+  type AddMcpServerParams
 } from '@/lib/invoke'
 
 // ── Catalog ───────────────────────────────────────────────────────────────────
@@ -44,7 +44,14 @@ interface CatalogEntry {
   args?: string[]
   url?: string
   docsUrl: string
-  category: 'filesystem' | 'web' | 'data' | 'dev' | 'productivity' | 'cloud' | 'observability'
+  category:
+    | 'filesystem'
+    | 'web'
+    | 'data'
+    | 'dev'
+    | 'productivity'
+    | 'cloud'
+    | 'observability'
   tags: string[]
 }
 
@@ -56,9 +63,10 @@ const CATALOG: CatalogEntry[] = [
     transport: 'stdio',
     command: 'npx',
     args: ['-y', '@modelcontextprotocol/server-filesystem', '.'],
-    docsUrl: 'https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem',
+    docsUrl:
+      'https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem',
     category: 'filesystem',
-    tags: ['files', 'read', 'write'],
+    tags: ['files', 'read', 'write']
   },
   {
     id: 'memory',
@@ -67,9 +75,10 @@ const CATALOG: CatalogEntry[] = [
     transport: 'stdio',
     command: 'npx',
     args: ['-y', '@modelcontextprotocol/server-memory'],
-    docsUrl: 'https://github.com/modelcontextprotocol/servers/tree/main/src/memory',
+    docsUrl:
+      'https://github.com/modelcontextprotocol/servers/tree/main/src/memory',
     category: 'data',
-    tags: ['memory', 'persistence', 'kv'],
+    tags: ['memory', 'persistence', 'kv']
   },
   {
     id: 'git',
@@ -78,9 +87,10 @@ const CATALOG: CatalogEntry[] = [
     transport: 'stdio',
     command: 'uvx',
     args: ['mcp-server-git', '--repository', '.'],
-    docsUrl: 'https://github.com/modelcontextprotocol/servers/tree/main/src/git',
+    docsUrl:
+      'https://github.com/modelcontextprotocol/servers/tree/main/src/git',
     category: 'dev',
-    tags: ['git', 'history', 'diff'],
+    tags: ['git', 'history', 'diff']
   },
   {
     id: 'github',
@@ -89,9 +99,10 @@ const CATALOG: CatalogEntry[] = [
     transport: 'stdio',
     command: 'npx',
     args: ['-y', '@modelcontextprotocol/server-github'],
-    docsUrl: 'https://github.com/modelcontextprotocol/servers/tree/main/src/github',
+    docsUrl:
+      'https://github.com/modelcontextprotocol/servers/tree/main/src/github',
     category: 'dev',
-    tags: ['git', 'code', 'issues'],
+    tags: ['git', 'code', 'issues']
   },
   {
     id: 'gitlab',
@@ -100,9 +111,10 @@ const CATALOG: CatalogEntry[] = [
     transport: 'stdio',
     command: 'npx',
     args: ['-y', '@modelcontextprotocol/server-gitlab'],
-    docsUrl: 'https://github.com/modelcontextprotocol/servers/tree/main/src/gitlab',
+    docsUrl:
+      'https://github.com/modelcontextprotocol/servers/tree/main/src/gitlab',
     category: 'dev',
-    tags: ['gitlab', 'ci/cd', 'mrs'],
+    tags: ['gitlab', 'ci/cd', 'mrs']
   },
   {
     id: 'brave-search',
@@ -111,9 +123,10 @@ const CATALOG: CatalogEntry[] = [
     transport: 'stdio',
     command: 'npx',
     args: ['-y', '@modelcontextprotocol/server-brave-search'],
-    docsUrl: 'https://github.com/modelcontextprotocol/servers/tree/main/src/brave-search',
+    docsUrl:
+      'https://github.com/modelcontextprotocol/servers/tree/main/src/brave-search',
     category: 'web',
-    tags: ['search', 'web', 'browse'],
+    tags: ['search', 'web', 'browse']
   },
   {
     id: 'fetch',
@@ -122,9 +135,10 @@ const CATALOG: CatalogEntry[] = [
     transport: 'stdio',
     command: 'uvx',
     args: ['mcp-server-fetch'],
-    docsUrl: 'https://github.com/modelcontextprotocol/servers/tree/main/src/fetch',
+    docsUrl:
+      'https://github.com/modelcontextprotocol/servers/tree/main/src/fetch',
     category: 'web',
-    tags: ['http', 'scrape', 'browse'],
+    tags: ['http', 'scrape', 'browse']
   },
   {
     id: 'puppeteer',
@@ -133,9 +147,10 @@ const CATALOG: CatalogEntry[] = [
     transport: 'stdio',
     command: 'npx',
     args: ['-y', '@modelcontextprotocol/server-puppeteer'],
-    docsUrl: 'https://github.com/modelcontextprotocol/servers/tree/main/src/puppeteer',
+    docsUrl:
+      'https://github.com/modelcontextprotocol/servers/tree/main/src/puppeteer',
     category: 'web',
-    tags: ['browser', 'automation', 'screenshot'],
+    tags: ['browser', 'automation', 'screenshot']
   },
   {
     id: 'playwright',
@@ -144,9 +159,10 @@ const CATALOG: CatalogEntry[] = [
     transport: 'stdio',
     command: 'npx',
     args: ['-y', '@modelcontextprotocol/server-playwright'],
-    docsUrl: 'https://github.com/modelcontextprotocol/servers/tree/main/src/playwright',
+    docsUrl:
+      'https://github.com/modelcontextprotocol/servers/tree/main/src/playwright',
     category: 'web',
-    tags: ['testing', 'automation', 'e2e'],
+    tags: ['testing', 'automation', 'e2e']
   },
   {
     id: 'postgres',
@@ -154,10 +170,15 @@ const CATALOG: CatalogEntry[] = [
     description: 'Read-only access to PostgreSQL databases',
     transport: 'stdio',
     command: 'npx',
-    args: ['-y', '@modelcontextprotocol/server-postgres', 'postgresql://localhost/mydb'],
-    docsUrl: 'https://github.com/modelcontextprotocol/servers/tree/main/src/postgres',
+    args: [
+      '-y',
+      '@modelcontextprotocol/server-postgres',
+      'postgresql://localhost/mydb'
+    ],
+    docsUrl:
+      'https://github.com/modelcontextprotocol/servers/tree/main/src/postgres',
     category: 'data',
-    tags: ['sql', 'database', 'postgres'],
+    tags: ['sql', 'database', 'postgres']
   },
   {
     id: 'sqlite',
@@ -166,9 +187,10 @@ const CATALOG: CatalogEntry[] = [
     transport: 'stdio',
     command: 'uvx',
     args: ['mcp-server-sqlite', '--db-path', 'data.db'],
-    docsUrl: 'https://github.com/modelcontextprotocol/servers/tree/main/src/sqlite',
+    docsUrl:
+      'https://github.com/modelcontextprotocol/servers/tree/main/src/sqlite',
     category: 'data',
-    tags: ['sql', 'database', 'query'],
+    tags: ['sql', 'database', 'query']
   },
   {
     id: 'mongodb',
@@ -177,9 +199,10 @@ const CATALOG: CatalogEntry[] = [
     transport: 'stdio',
     command: 'npx',
     args: ['-y', '@modelcontextprotocol/server-mongodb'],
-    docsUrl: 'https://github.com/modelcontextprotocol/servers/tree/main/src/mongodb',
+    docsUrl:
+      'https://github.com/modelcontextprotocol/servers/tree/main/src/mongodb',
     category: 'data',
-    tags: ['nosql', 'document', 'aggregation'],
+    tags: ['nosql', 'document', 'aggregation']
   },
   {
     id: 'qdrant',
@@ -190,7 +213,7 @@ const CATALOG: CatalogEntry[] = [
     args: ['run', '-p', '6333:6333', 'qdrant/qdrant'],
     docsUrl: 'https://github.com/qdrant/qdrant-mcp-server',
     category: 'data',
-    tags: ['vector', 'embeddings', 'memory'],
+    tags: ['vector', 'embeddings', 'memory']
   },
   {
     id: 'firebase',
@@ -201,7 +224,7 @@ const CATALOG: CatalogEntry[] = [
     args: ['-y', 'firebase-tools', 'mcp'],
     docsUrl: 'https://github.com/firebase/firebase-tools',
     category: 'cloud',
-    tags: ['firestore', 'auth', 'crashlytics'],
+    tags: ['firestore', 'auth', 'crashlytics']
   },
   {
     id: 'supabase',
@@ -212,7 +235,7 @@ const CATALOG: CatalogEntry[] = [
     args: ['-y', '@supabase/mcp-server'],
     docsUrl: 'https://github.com/supabase/mcp-server',
     category: 'cloud',
-    tags: ['postgres', 'auth', 'edge-functions'],
+    tags: ['postgres', 'auth', 'edge-functions']
   },
   {
     id: 'aws',
@@ -223,7 +246,7 @@ const CATALOG: CatalogEntry[] = [
     args: ['-y', '@aws/mcp-server'],
     docsUrl: 'https://github.com/awslabs/mcp',
     category: 'cloud',
-    tags: ['ec2', 's3', 'lambda'],
+    tags: ['ec2', 's3', 'lambda']
   },
   {
     id: 'azure-devops',
@@ -234,7 +257,7 @@ const CATALOG: CatalogEntry[] = [
     args: ['-y', '@azure/mcp-server-devops'],
     docsUrl: 'https://github.com/microsoft/mcp-server-devops',
     category: 'cloud',
-    tags: ['azure', 'devops', 'pipelines'],
+    tags: ['azure', 'devops', 'pipelines']
   },
   {
     id: 'cloudflare-workers',
@@ -245,7 +268,7 @@ const CATALOG: CatalogEntry[] = [
     args: ['-y', '@cloudflare/mcp-server-workers'],
     docsUrl: 'https://github.com/cloudflare/mcp-server-workers',
     category: 'cloud',
-    tags: ['workers', 'kv', 'd1'],
+    tags: ['workers', 'kv', 'd1']
   },
   {
     id: 'cloudflare-docs',
@@ -253,9 +276,10 @@ const CATALOG: CatalogEntry[] = [
     description: 'Get up-to-date reference on Cloudflare products',
     transport: 'sse',
     url: 'https://docs.mcp.cloudflare.com/mcp',
-    docsUrl: 'https://developers.cloudflare.com/agents/model-context-protocol/mcp-servers-for-cloudflare/',
+    docsUrl:
+      'https://developers.cloudflare.com/agents/model-context-protocol/mcp-servers-for-cloudflare/',
     category: 'cloud',
-    tags: ['docs', 'cloudflare'],
+    tags: ['docs', 'cloudflare']
   },
   {
     id: 'cloudflare-observability',
@@ -263,9 +287,10 @@ const CATALOG: CatalogEntry[] = [
     description: 'Debug applications with logs and analytics',
     transport: 'sse',
     url: 'https://observability.mcp.cloudflare.com/mcp',
-    docsUrl: 'https://developers.cloudflare.com/agents/model-context-protocol/mcp-servers-for-cloudflare/',
+    docsUrl:
+      'https://developers.cloudflare.com/agents/model-context-protocol/mcp-servers-for-cloudflare/',
     category: 'observability',
-    tags: ['logs', 'analytics', 'debug'],
+    tags: ['logs', 'analytics', 'debug']
   },
   {
     id: 'cloudflare-radar',
@@ -273,9 +298,10 @@ const CATALOG: CatalogEntry[] = [
     description: 'Global internet traffic insights and URL scans',
     transport: 'sse',
     url: 'https://radar.mcp.cloudflare.com/mcp',
-    docsUrl: 'https://developers.cloudflare.com/agents/model-context-protocol/mcp-servers-for-cloudflare/',
+    docsUrl:
+      'https://developers.cloudflare.com/agents/model-context-protocol/mcp-servers-for-cloudflare/',
     category: 'web',
-    tags: ['internet', 'traffic', 'trends'],
+    tags: ['internet', 'traffic', 'trends']
   },
   {
     id: 'datadog',
@@ -286,7 +312,7 @@ const CATALOG: CatalogEntry[] = [
     args: ['-y', '@datadog/mcp-server'],
     docsUrl: 'https://github.com/datadog/mcp-server',
     category: 'observability',
-    tags: ['metrics', 'logs', 'apm'],
+    tags: ['metrics', 'logs', 'apm']
   },
   {
     id: 'grafana',
@@ -297,7 +323,7 @@ const CATALOG: CatalogEntry[] = [
     args: ['-y', '@grafana/mcp-server'],
     docsUrl: 'https://github.com/grafana/mcp-server',
     category: 'observability',
-    tags: ['dashboards', 'prometheus', 'loki'],
+    tags: ['dashboards', 'prometheus', 'loki']
   },
   {
     id: 'sentry',
@@ -308,7 +334,7 @@ const CATALOG: CatalogEntry[] = [
     args: ['-y', '@sentry/mcp-server'],
     docsUrl: 'https://github.com/getsentry/sentry-mcp-server',
     category: 'observability',
-    tags: ['errors', 'issues', 'performance'],
+    tags: ['errors', 'issues', 'performance']
   },
   {
     id: 'kubernetes',
@@ -319,7 +345,7 @@ const CATALOG: CatalogEntry[] = [
     args: ['-y', '@kubernetes/mcp-server'],
     docsUrl: 'https://github.com/kubernetes/mcp-server',
     category: 'dev',
-    tags: ['k8s', 'pods', 'deployments'],
+    tags: ['k8s', 'pods', 'deployments']
   },
   {
     id: 'terraform',
@@ -330,7 +356,7 @@ const CATALOG: CatalogEntry[] = [
     args: ['-y', '@hashicorp/mcp-server-terraform'],
     docsUrl: 'https://github.com/hashicorp/mcp-server-terraform',
     category: 'dev',
-    tags: ['iac', 'terraform', 'state'],
+    tags: ['iac', 'terraform', 'state']
   },
   {
     id: 'slack',
@@ -341,7 +367,7 @@ const CATALOG: CatalogEntry[] = [
     args: ['-y', '@slack/mcp-server'],
     docsUrl: 'https://github.com/slackapi/mcp-server-slack',
     category: 'productivity',
-    tags: ['slack', 'messaging', 'team'],
+    tags: ['slack', 'messaging', 'team']
   },
   {
     id: 'notion',
@@ -352,7 +378,7 @@ const CATALOG: CatalogEntry[] = [
     args: ['-y', '@notionhq/mcp-server'],
     docsUrl: 'https://github.com/makenotion/notion-mcp-server',
     category: 'productivity',
-    tags: ['wiki', 'docs', 'notes'],
+    tags: ['wiki', 'docs', 'notes']
   },
   {
     id: 'jira',
@@ -363,7 +389,7 @@ const CATALOG: CatalogEntry[] = [
     args: ['-y', '@atlassian/mcp-server-jira'],
     docsUrl: 'https://github.com/atlassian/mcp-server-jira',
     category: 'productivity',
-    tags: ['tickets', 'project-mgmt'],
+    tags: ['tickets', 'project-mgmt']
   },
   {
     id: 'figma',
@@ -373,7 +399,7 @@ const CATALOG: CatalogEntry[] = [
     url: 'https://mcp.figma.com/mcp',
     docsUrl: 'https://www.figma.com/developers/mcp',
     category: 'dev',
-    tags: ['design', 'ui', 'code-gen'],
+    tags: ['design', 'ui', 'code-gen']
   },
   {
     id: 'stripe',
@@ -384,7 +410,7 @@ const CATALOG: CatalogEntry[] = [
     args: ['-y', '@stripe/mcp-server'],
     docsUrl: 'https://github.com/stripe/mcp-server',
     category: 'productivity',
-    tags: ['payments', 'billing'],
+    tags: ['payments', 'billing']
   },
   {
     id: 'vercel',
@@ -395,8 +421,8 @@ const CATALOG: CatalogEntry[] = [
     args: ['-y', '@vercel/mcp-server'],
     docsUrl: 'https://github.com/vercel/mcp-server',
     category: 'cloud',
-    tags: ['deployments', 'logs', 'frontend'],
-  },
+    tags: ['deployments', 'logs', 'frontend']
+  }
 ]
 
 const CATEGORY_LABELS: Record<CatalogEntry['category'], string> = {
@@ -406,11 +432,17 @@ const CATEGORY_LABELS: Record<CatalogEntry['category'], string> = {
   dev: 'Development',
   productivity: 'Productivity',
   cloud: 'Cloud',
-  observability: 'Observability',
+  observability: 'Observability'
 }
 
 const CATEGORY_ORDER: CatalogEntry['category'][] = [
-  'filesystem', 'dev', 'web', 'data', 'cloud', 'observability', 'productivity',
+  'filesystem',
+  'dev',
+  'web',
+  'data',
+  'cloud',
+  'observability',
+  'productivity'
 ]
 
 // ── Status badge ──────────────────────────────────────────────────────────────
@@ -428,7 +460,7 @@ function StatusBadge({ status }: { status: McpServer['status'] }) {
       className={cn(
         'text-[10px] h-4 px-1.5 shrink-0',
         status === 'connected' &&
-        'bg-green-500/15 text-green-600 dark:text-green-400 border-green-500/20',
+          'bg-green-500/15 text-green-600 dark:text-green-400 border-green-500/20'
       )}
     >
       {status === 'connected' && (
@@ -451,7 +483,7 @@ function LiveServerCard({ server }: { server: McpServer }) {
       qc.invalidateQueries({ queryKey: ['mcp-servers'] })
       toast.success(`Connected to ${server.name}`)
     },
-    onError: (e: unknown) => toast.error(`Connect failed: ${e}`),
+    onError: (e: unknown) => toast.error(`Connect failed: ${e}`)
   })
 
   const disconnectMut = useMutation({
@@ -460,7 +492,7 @@ function LiveServerCard({ server }: { server: McpServer }) {
       qc.invalidateQueries({ queryKey: ['mcp-servers'] })
       toast.info(`Disconnected from ${server.name}`)
     },
-    onError: (e: unknown) => toast.error(`Disconnect failed: ${e}`),
+    onError: (e: unknown) => toast.error(`Disconnect failed: ${e}`)
   })
 
   const removeMut = useMutation({
@@ -469,23 +501,24 @@ function LiveServerCard({ server }: { server: McpServer }) {
       qc.invalidateQueries({ queryKey: ['mcp-servers'] })
       toast.success(`Removed ${server.name}`)
     },
-    onError: (e: unknown) => toast.error(`Remove failed: ${e}`),
+    onError: (e: unknown) => toast.error(`Remove failed: ${e}`)
   })
 
   const isConnected = server.status === 'connected'
-  const isBusy = connectMut.isPending || disconnectMut.isPending || removeMut.isPending
+  const isBusy =
+    connectMut.isPending || disconnectMut.isPending || removeMut.isPending
 
   return (
     <div className="rounded-lg border border-border bg-card overflow-hidden">
       <div className="flex items-center gap-2 px-3 py-2 min-w-0">
         <button
-          onClick={() => setExpanded(v => !v)}
+          onClick={() => setExpanded((v) => !v)}
           className="flex items-center gap-1.5 flex-1 min-w-0 text-left overflow-hidden"
         >
           <ChevronRight
             className={cn(
               'size-3 text-muted-foreground shrink-0 transition-transform duration-150',
-              expanded && 'rotate-90',
+              expanded && 'rotate-90'
             )}
           />
           <Server className="size-3.5 text-muted-foreground shrink-0" />
@@ -502,7 +535,11 @@ function LiveServerCard({ server }: { server: McpServer }) {
               title="Disconnect"
               className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
             >
-              {isBusy ? <Loader2 className="size-3 animate-spin" /> : <Unplug className="size-3" />}
+              {isBusy ? (
+                <Loader2 className="size-3 animate-spin" />
+              ) : (
+                <Unplug className="size-3" />
+              )}
             </button>
           ) : (
             <button
@@ -511,7 +548,11 @@ function LiveServerCard({ server }: { server: McpServer }) {
               title="Connect"
               className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
             >
-              {isBusy ? <Loader2 className="size-3 animate-spin" /> : <PlugZap className="size-3" />}
+              {isBusy ? (
+                <Loader2 className="size-3 animate-spin" />
+              ) : (
+                <PlugZap className="size-3" />
+              )}
             </button>
           )}
           <button
@@ -536,7 +577,7 @@ function LiveServerCard({ server }: { server: McpServer }) {
               <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
                 {server.tools.length} tool{server.tools.length !== 1 ? 's' : ''}
               </p>
-              {server.tools.map(tool => (
+              {server.tools.map((tool) => (
                 <div key={tool.name} className="text-[11px]">
                   <span className="font-mono text-foreground">{tool.name}</span>
                   {tool.description && (
@@ -560,7 +601,7 @@ function CatalogCard({
   entry,
   alreadyAdded,
   onAdd,
-  adding,
+  adding
 }: {
   entry: CatalogEntry
   alreadyAdded: boolean
@@ -583,7 +624,7 @@ function CatalogCard({
         'flex items-start gap-2 px-3 py-2.5 rounded-lg border transition-colors overflow-hidden',
         alreadyAdded
           ? 'border-green-500/20 bg-green-500/5 opacity-70'
-          : 'border-border hover:border-primary/30 hover:bg-muted/30',
+          : 'border-border hover:border-primary/30 hover:bg-muted/30'
       )}
     >
       {/* Icon — never shrinks, never grows */}
@@ -604,7 +645,7 @@ function CatalogCard({
           {entry.description}
         </p>
         <div className="flex flex-wrap gap-1 mt-1.5">
-          {entry.tags.slice(0, 3).map(tag => (
+          {entry.tags.slice(0, 3).map((tag) => (
             <span
               key={tag}
               className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground"
@@ -626,7 +667,7 @@ function CatalogCard({
             'flex items-center justify-center gap-0.5 w-full px-1.5 py-1 rounded text-[11px] font-medium transition-colors',
             alreadyAdded
               ? 'text-green-600 dark:text-green-400 cursor-default'
-              : 'bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50',
+              : 'bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50'
           )}
         >
           {adding ? (
@@ -673,7 +714,7 @@ function CustomServerForm({ onSuccess }: { onSuccess: () => void }) {
     command: 'npx',
     args: '',
     url: '',
-    env: '',
+    env: ''
   })
 
   const addMut = useMutation({
@@ -683,27 +724,39 @@ function CustomServerForm({ onSuccess }: { onSuccess: () => void }) {
       toast.success(`MCP server "${form.name}" added`)
       onSuccess()
     },
-    onError: (e: unknown) => toast.error(`Failed to add server: ${e}`),
+    onError: (e: unknown) => toast.error(`Failed to add server: ${e}`)
   })
 
   const setField =
     (key: keyof CustomFormState) =>
-      (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
-        setForm(f => ({ ...f, [key]: e.target.value }))
+    (
+      e: React.ChangeEvent<
+        HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+      >
+    ) =>
+      setForm((f) => ({ ...f, [key]: e.target.value }))
 
   const submit = () => {
-    if (!form.name.trim()) { toast.error('Server name is required'); return }
+    if (!form.name.trim()) {
+      toast.error('Server name is required')
+      return
+    }
     if (form.transport === 'stdio' && !form.command.trim()) {
-      toast.error('Command is required for stdio transport'); return
+      toast.error('Command is required for stdio transport')
+      return
     }
     if (form.transport === 'sse' && !form.url.trim()) {
-      toast.error('URL is required for SSE transport'); return
+      toast.error('URL is required for SSE transport')
+      return
     }
 
     let env: Record<string, string> | undefined
     if (form.env.trim()) {
-      try { env = JSON.parse(form.env) } catch {
-        toast.error('Env must be valid JSON, e.g. {"KEY": "value"}'); return
+      try {
+        env = JSON.parse(form.env)
+      } catch {
+        toast.error('Env must be valid JSON, e.g. {"KEY": "value"}')
+        return
       }
     }
 
@@ -711,24 +764,40 @@ function CustomServerForm({ onSuccess }: { onSuccess: () => void }) {
       name: form.name.trim(),
       transport: form.transport,
       command: form.transport === 'stdio' ? form.command.trim() : undefined,
-      args: form.transport === 'stdio' && form.args.trim()
-        ? form.args.trim().split(/\s+/) : undefined,
+      args:
+        form.transport === 'stdio' && form.args.trim()
+          ? form.args.trim().split(/\s+/)
+          : undefined,
       url: form.transport === 'sse' ? form.url.trim() : undefined,
-      env,
+      env
     })
   }
 
-  const inp = 'w-full h-7 rounded-md border border-input bg-background px-2.5 text-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50'
+  const inp =
+    'w-full h-7 rounded-md border border-input bg-background px-2.5 text-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50'
 
   return (
     <div className="space-y-2.5">
       <div>
-        <label className="block text-[11px] text-muted-foreground mb-1">Name</label>
-        <input className={inp} placeholder="my-server" value={form.name} onChange={setField('name')} />
+        <label className="block text-[11px] text-muted-foreground mb-1">
+          Name
+        </label>
+        <input
+          className={inp}
+          placeholder="my-server"
+          value={form.name}
+          onChange={setField('name')}
+        />
       </div>
       <div>
-        <label className="block text-[11px] text-muted-foreground mb-1">Transport</label>
-        <select className={inp} value={form.transport} onChange={setField('transport')}>
+        <label className="block text-[11px] text-muted-foreground mb-1">
+          Transport
+        </label>
+        <select
+          className={inp}
+          value={form.transport}
+          onChange={setField('transport')}
+        >
           <option value="stdio">stdio (local process)</option>
           <option value="sse">SSE (HTTP endpoint)</option>
         </select>
@@ -736,8 +805,15 @@ function CustomServerForm({ onSuccess }: { onSuccess: () => void }) {
       {form.transport === 'stdio' ? (
         <>
           <div>
-            <label className="block text-[11px] text-muted-foreground mb-1">Command</label>
-            <input className={inp} placeholder="npx" value={form.command} onChange={setField('command')} />
+            <label className="block text-[11px] text-muted-foreground mb-1">
+              Command
+            </label>
+            <input
+              className={inp}
+              placeholder="npx"
+              value={form.command}
+              onChange={setField('command')}
+            />
           </div>
           <div>
             <label className="block text-[11px] text-muted-foreground mb-1">
@@ -753,8 +829,15 @@ function CustomServerForm({ onSuccess }: { onSuccess: () => void }) {
         </>
       ) : (
         <div>
-          <label className="block text-[11px] text-muted-foreground mb-1">URL</label>
-          <input className={inp} placeholder="http://localhost:8080/sse" value={form.url} onChange={setField('url')} />
+          <label className="block text-[11px] text-muted-foreground mb-1">
+            URL
+          </label>
+          <input
+            className={inp}
+            placeholder="http://localhost:8080/sse"
+            value={form.url}
+            onChange={setField('url')}
+          />
         </div>
       )}
       <div>
@@ -773,7 +856,11 @@ function CustomServerForm({ onSuccess }: { onSuccess: () => void }) {
         disabled={addMut.isPending}
         className="w-full h-7 rounded-md text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5"
       >
-        {addMut.isPending ? <Loader2 className="size-3 animate-spin" /> : <Plus className="size-3" />}
+        {addMut.isPending ? (
+          <Loader2 className="size-3 animate-spin" />
+        ) : (
+          <Plus className="size-3" />
+        )}
         Add Server
       </button>
     </div>
@@ -787,14 +874,21 @@ type McpView = 'servers' | 'catalog' | 'custom'
 export function McpTab() {
   const [view, setView] = useState<McpView>('servers')
   const [addingId, setAddingId] = useState<string | null>(null)
-  const [catalogCategory, setCatalogCategory] = useState<CatalogEntry['category'] | 'all'>('all')
+  const [catalogCategory, setCatalogCategory] = useState<
+    CatalogEntry['category'] | 'all'
+  >('all')
   const qc = useQueryClient()
 
-  const { data: servers = [], isLoading, refetch, isFetching } = useQuery({
+  const {
+    data: servers = [],
+    isLoading,
+    refetch,
+    isFetching
+  } = useQuery({
     queryKey: ['mcp-servers'],
     queryFn: listMcpServers,
     staleTime: 15_000,
-    refetchInterval: 30_000,
+    refetchInterval: 30_000
   })
 
   const addMut = useMutation({
@@ -808,7 +902,7 @@ export function McpTab() {
     onError: (e: unknown) => {
       toast.error(`Failed to add: ${e}`)
       setAddingId(null)
-    },
+    }
   })
 
   const addFromCatalog = (entry: CatalogEntry) => {
@@ -818,23 +912,31 @@ export function McpTab() {
       transport: entry.transport,
       command: entry.command,
       args: entry.args,
-      url: entry.url,
+      url: entry.url
     })
   }
 
-  const addedNames = new Set(servers.map(s => s.name.toLowerCase()))
-  const isAdded = (entry: CatalogEntry) => addedNames.has(entry.name.toLowerCase())
-  const filteredCatalog = catalogCategory === 'all'
-    ? CATALOG
-    : CATALOG.filter(e => e.category === catalogCategory)
+  const addedNames = new Set(servers.map((s) => s.name.toLowerCase()))
+  const isAdded = (entry: CatalogEntry) =>
+    addedNames.has(entry.name.toLowerCase())
+  const filteredCatalog =
+    catalogCategory === 'all'
+      ? CATALOG
+      : CATALOG.filter((e) => e.category === catalogCategory)
 
   const handleBrowseAll = async () => {
-    try { await openUrl('https://github.com/modelcontextprotocol/servers') }
-    catch (e) { toast.error(`Failed to open link: ${e}`) }
+    try {
+      await openUrl('https://github.com/modelcontextprotocol/servers')
+    } catch (e) {
+      toast.error(`Failed to open link: ${e}`)
+    }
   }
   const handleWhatIsMcp = async () => {
-    try { await openUrl('https://modelcontextprotocol.io/introduction') }
-    catch (e) { toast.error(`Failed to open link: ${e}`) }
+    try {
+      await openUrl('https://modelcontextprotocol.io/introduction')
+    } catch (e) {
+      toast.error(`Failed to open link: ${e}`)
+    }
   }
 
   // ── Catalog view ───────────────────────────────────────────────────────────
@@ -852,7 +954,9 @@ export function McpTab() {
           >
             <ChevronRight className="size-4 rotate-180" />
           </button>
-          <span className="text-xs font-semibold truncate">Popular MCP Servers</span>
+          <span className="text-xs font-semibold truncate">
+            Popular MCP Servers
+          </span>
           <button
             onClick={handleBrowseAll}
             className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors shrink-0"
@@ -866,7 +970,7 @@ export function McpTab() {
             isolation, keeping its scroll context separate from the panel. */}
         <div className="shrink-0 overflow-hidden px-3 py-2">
           <div className="flex gap-1 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-            {(['all', ...CATEGORY_ORDER] as const).map(cat => (
+            {(['all', ...CATEGORY_ORDER] as const).map((cat) => (
               <button
                 key={cat}
                 onClick={() => setCatalogCategory(cat)}
@@ -874,7 +978,7 @@ export function McpTab() {
                   'shrink-0 px-2 py-0.5 rounded-full text-[11px] font-medium transition-colors whitespace-nowrap',
                   catalogCategory === cat
                     ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-muted-foreground hover:text-foreground',
+                    : 'bg-muted text-muted-foreground hover:text-foreground'
                 )}
               >
                 {cat === 'all' ? 'All' : CATEGORY_LABELS[cat]}
@@ -887,7 +991,7 @@ export function McpTab() {
             the ScrollArea's viewport and inflating the scroll width. */}
         <ScrollArea className="flex-1 min-h-0">
           <div className="px-3 pb-3 space-y-1.5 overflow-hidden">
-            {filteredCatalog.map(entry => (
+            {filteredCatalog.map((entry) => (
               <CatalogCard
                 key={entry.id}
                 entry={entry}
@@ -956,23 +1060,31 @@ export function McpTab() {
                 <PlugZapIcon className="size-5 text-muted-foreground" />
               </div>
               <div className="max-w-60 mx-auto">
-                <p className="text-xs font-medium mb-1">No tools configured – add a server and unleash the magic!</p>
+                <p className="text-xs font-medium mb-1">
+                  No tools configured – add a server and unleash the magic!
+                </p>
                 <p className="text-[11px] text-muted-foreground leading-relaxed  text-center">
-                  MCP servers give the agent tools like file access, web search, and database queries.
+                  MCP servers give the agent tools like file access, web search,
+                  and database queries.
                 </p>
               </div>
             </div>
           ) : (
-            servers.map(server => <LiveServerCard key={server.id} server={server} />)
+            servers.map((server) => (
+              <LiveServerCard key={server.id} server={server} />
+            ))
           )}
 
           {servers.length > 0 && (
             <div className="flex items-center gap-3 px-1 pt-1 text-[11px] text-muted-foreground">
               <span className="flex items-center gap-1">
                 <span className="size-1.5 rounded-full bg-green-500 inline-block" />
-                {servers.filter(s => s.status === 'connected').length} connected
+                {servers.filter((s) => s.status === 'connected').length}{' '}
+                connected
               </span>
-              <span>{servers.reduce((n, s) => n + s.tools.length, 0)} tools</span>
+              <span>
+                {servers.reduce((n, s) => n + s.tools.length, 0)} tools
+              </span>
             </div>
           )}
 
@@ -1003,7 +1115,9 @@ export function McpTab() {
             </div>
             <div className="min-w-0">
               <p className="text-xs font-medium">Add custom server</p>
-              <p className="text-[11px] text-muted-foreground">stdio or SSE, any command or URL</p>
+              <p className="text-[11px] text-muted-foreground">
+                stdio or SSE, any command or URL
+              </p>
             </div>
             <ChevronRight className="size-3.5 text-muted-foreground ml-auto shrink-0" />
           </button>

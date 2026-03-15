@@ -5,7 +5,7 @@ use axum::{
     extract::{Query, State},
     http::StatusCode,
 };
-use sea_orm::{ActiveModelTrait, ActiveValue::Set, EntityTrait, PaginatorTrait};
+use sea_orm::{ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, QueryFilter};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::sync::Arc;
@@ -34,13 +34,19 @@ pub struct PreferencesResponse {
 
 impl From<user_preferences::Model> for PreferencesResponse {
     fn from(m: user_preferences::Model) -> Self {
-        let channels = serde_json::from_value(m.notification_channels).unwrap_or_default();
         Self {
             email: m.email,
             email_verified: m.email_verified,
             nudge_frequency: m.nudge_frequency,
             nudge_opt_out: m.nudge_opt_out,
-            notification_channels: channels,
+            // Fix: Use unwrap_or(&Vec::new()) to match expected &Vec<Value> type
+            notification_channels: m
+                .notification_channels
+                .as_array()
+                .unwrap_or(&Vec::new())
+                .iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect(),
             theme_preference: m.theme_preference,
             timezone: m.timezone,
             analytics_opt_in: m.analytics_opt_in,
@@ -59,6 +65,11 @@ pub struct UpdatePreferencesRequest {
     pub analytics_opt_in: Option<bool>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct VerifyQuery {
+    pub token: String,
+}
+
 // ── Handlers ──────────────────────────────────────────────────────────────────
 
 pub async fn get_preferences(
@@ -70,6 +81,7 @@ pub async fn get_preferences(
         .await
         .map_err(AppError::Db)?
         .ok_or_else(|| AppError::NotFound("Preferences not found".into()))?;
+
     Ok(Json(prefs.into()))
 }
 
@@ -94,10 +106,10 @@ pub async fn update_preferences(
         am.email = Set(Some(email.clone()));
         am.email_verified = Set(false);
         am.verification_token = Set(Some(token.clone()));
-
-        // Fire verification email (best-effort).
+        // Fire verification email (best-effort)
         let _ = state.email.send_verification(&email, &token).await;
     }
+
     if let Some(freq) = body.nudge_frequency {
         am.nudge_frequency = Set(freq);
     }
@@ -113,31 +125,20 @@ pub async fn update_preferences(
     if let Some(tz) = body.timezone {
         am.timezone = Set(Some(tz));
     }
-    if let Some(opt_in) = body.analytics_opt_in {
-        am.analytics_opt_in = Set(opt_in);
+    if let Some(analytics) = body.analytics_opt_in {
+        am.analytics_opt_in = Set(analytics);
     }
 
     let updated = am.update(&state.db).await.map_err(AppError::Db)?;
     Ok(Json(updated.into()))
 }
 
-#[derive(Deserialize)]
-pub struct VerifyQuery {
-    pub token: String,
-}
-
 pub async fn verify_email(
-    Query(q): Query<VerifyQuery>,
     State(state): State<Arc<AppState>>,
+    Query(q): Query<VerifyQuery>,
 ) -> Result<(StatusCode, Json<serde_json::Value>)> {
-    use sea_orm::{ColumnTrait, QueryFilter};
-
     let prefs = user_preferences::Entity::find()
-        .filter(
-            user_preferences::COLUMN
-                .verification_token
-                .eq(q.token.as_str()),
-        )
+        .filter(user_preferences::Column::VerificationToken.eq(q.token.as_str()))
         .one(&state.db)
         .await
         .map_err(AppError::Db)?
@@ -209,7 +210,9 @@ pub async fn delete_account(
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 fn generate_token() -> String {
-    use rand::Rng;
-    let bytes: [u8; 24] = rand::rng().r#gen();
+    // Fix: Use rand::rng() instead of thread_rng()
+    // Fix: Import RngExt for .random() method
+    use rand::RngExt;
+    let bytes: [u8; 24] = rand::rng().random();
     hex::encode(bytes)
 }

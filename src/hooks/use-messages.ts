@@ -38,10 +38,15 @@ export function useSendMessage(conversationId: UUID) {
 
       // Check for achievements after the message is sent and data refetched
       setTimeout(() => {
-        const messages = queryClient.getQueryData<Message[]>(['messages', conversationId])
+        const messages = queryClient.getQueryData<Message[]>([
+          'messages',
+          conversationId
+        ])
         if (messages) {
           // Count user messages
-          const userMessageCount = messages.filter(m => m.role === 'user').length
+          const userMessageCount = messages.filter(
+            (m) => m.role === 'user'
+          ).length
           if (userMessageCount === 1) {
             unlock('firstMessage')
           }

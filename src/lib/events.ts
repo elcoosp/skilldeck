@@ -21,7 +21,7 @@ export type AgentEventType =
   | 'tool_result'
   | 'done'
   | 'error'
-  | 'persisted'   // <-- new
+  | 'persisted' // <-- new
 
 export interface AgentEvent {
   type: AgentEventType

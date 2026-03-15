@@ -1,13 +1,16 @@
 //! Tauri application entry point (library form for testability).
 //!
 //! This module wires together:
-//! - `AppState` initialization (DB + Registry + ApprovalGate)
+//! - `AppState` initialization (DB + Registry + ApprovalGate + PlatformClient)
 //! - All IPC command handlers
 //! - Tauri plugins (keyring, shell, store, dialog)
 //! - Tracing subscriber
 
 mod commands;
+mod config;
 mod events;
+mod nudge_poller;
+mod platform_client;
 mod state;
 
 use commands::{
@@ -15,12 +18,21 @@ use commands::{
         create_conversation, delete_conversation, list_conversations, rename_conversation,
     },
     export::export_conversation,
+    gist::{
+        export_conversation_as_markdown, has_github_token, import_skill_from_gist,
+        import_workflow_from_gist, set_github_token, share_skill_as_gist, share_workflow_as_gist,
+    },
     mcp::{
         add_mcp_server, connect_mcp_server, disconnect_mcp_server, list_mcp_servers,
         remove_mcp_server,
     },
     messages::{list_messages, resolve_tool_approval, send_message},
     ollama::list_ollama_models,
+    platform::{
+        create_referral_code, delete_platform_account, ensure_platform_registration,
+        export_gdpr_data, get_pending_nudges, get_platform_preferences, get_referral_stats,
+        resend_verification_email, send_activity_event, update_platform_preferences,
+    },
     profiles::{create_profile, delete_profile, list_profiles, update_profile},
     settings::{delete_api_key, list_api_keys, set_api_key, validate_api_key},
     skills::{list_skills, toggle_skill},
@@ -48,7 +60,7 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_keyring::init())
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_dialog::init()) // <-- new
+        .plugin(tauri_plugin_dialog::init())
         // Async setup: build AppState before any command can run.
         .setup(|app| {
             let handle = app.handle().clone();
@@ -56,7 +68,12 @@ pub fn run() {
                 let state = AppState::initialize(&handle)
                     .await
                     .expect("Failed to initialize AppState");
-                handle.manage(Arc::new(state));
+                let state = Arc::new(state);
+
+                // Start nudge poller in the background.
+                nudge_poller::start_nudge_poller(handle.clone(), Arc::clone(&state));
+
+                handle.manage(state);
             });
             Ok(())
         })
@@ -92,12 +109,31 @@ pub fn run() {
             remove_mcp_server,
             // export
             export_conversation,
+            export_conversation_as_markdown,
             // workspaces
             open_workspace,
             close_workspace,
             list_workspaces,
             // ollama
-            list_ollama_models
+            list_ollama_models,
+            // platform
+            ensure_platform_registration,
+            get_platform_preferences,
+            update_platform_preferences,
+            resend_verification_email,
+            export_gdpr_data,
+            delete_platform_account,
+            create_referral_code,
+            get_referral_stats,
+            get_pending_nudges,
+            send_activity_event,
+            // github / gist
+            set_github_token,
+            has_github_token,
+            share_skill_as_gist,
+            import_skill_from_gist,
+            share_workflow_as_gist,
+            import_workflow_from_gist,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -11,6 +11,6 @@ pub mod types;
 pub use executor::WorkflowExecutor;
 pub use graph::WorkflowGraph;
 pub use types::{
-    StepDependency, StepState, StepStatus, WorkflowDefinition, WorkflowEvent,
-    WorkflowPattern, WorkflowState, WorkflowStatus, WorkflowStepDefinition,
+    StepDependency, StepState, StepStatus, WorkflowDefinition, WorkflowEvent, WorkflowPattern,
+    WorkflowState, WorkflowStatus, WorkflowStepDefinition,
 };

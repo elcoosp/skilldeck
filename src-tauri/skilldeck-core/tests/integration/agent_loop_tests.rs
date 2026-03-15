@@ -169,3 +169,5 @@ fn trimmed_messages_preserve_order() {
         assert!(window[0] < window[1], "messages must remain in order");
     }
 }
+
+

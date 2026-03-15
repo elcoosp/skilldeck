@@ -2,9 +2,11 @@
 
 pub mod conversations;
 pub mod export;
+pub mod gist;
 pub mod mcp;
 pub mod messages;
 pub mod ollama;
+pub mod platform;
 pub mod profiles;
 pub mod settings;
 pub mod skills;

@@ -5,9 +5,7 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
 };
-use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter,
-};
+use sea_orm::{ActiveModelTrait, ActiveValue::Set, EntityTrait, PaginatorTrait, QueryFilter};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::sync::Arc;
@@ -283,13 +281,12 @@ pub async fn track_event(
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 fn generate_referral_code() -> String {
-    use rand::Rng;
+    use rand::RngExt;
     use rand::distr::Alphanumeric;
 
     rand::rng()
-        .sample_iter(&Alphanumeric)
+        .sample_iter(Alphanumeric)
         .take(10)
-        .map(|c| c as char)
-        .map(|c| c.to_ascii_uppercase())
+        .map(|b| (b as char).to_ascii_uppercase())
         .collect()
 }

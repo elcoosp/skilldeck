@@ -5,8 +5,8 @@ import { useAchievements } from '@/hooks/use-achievements'
 // Mock sonner toast
 vi.mock('sonner', () => ({
   toast: {
-    success: vi.fn(),
-  },
+    success: vi.fn()
+  }
 }))
 
 describe('useAchievements', () => {
@@ -23,7 +23,9 @@ describe('useAchievements', () => {
     })
 
     expect(result.current.isUnlocked('firstMessage')).toBe(true)
-    expect(localStorage.getItem('skilldeck-achievements')).toBe(JSON.stringify(['first-message']))
+    expect(localStorage.getItem('skilldeck-achievements')).toBe(
+      JSON.stringify(['first-message'])
+    )
   })
 
   it('does not unlock the same achievement twice', () => {
@@ -45,7 +47,10 @@ describe('useAchievements', () => {
   })
 
   it('loads previously unlocked achievements from localStorage', () => {
-    localStorage.setItem('skilldeck-achievements', JSON.stringify(['first-message']))
+    localStorage.setItem(
+      'skilldeck-achievements',
+      JSON.stringify(['first-message'])
+    )
 
     const { result } = renderHook(() => useAchievements())
 

@@ -21,13 +21,20 @@ pub struct SyncRecord {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum SyncOperation { Create, Update, Delete }
+pub enum SyncOperation {
+    Create,
+    Update,
+    Delete,
+}
 
 #[async_trait]
 pub trait SyncBackend: Send + Sync {
     async fn push(&self, changeset: &Changeset) -> Result<PushResult, CoreError>;
     async fn pull(&self, since: u64) -> Result<Changeset, CoreError>;
-    async fn resolve_conflict(&self, conflict: &SyncConflict) -> Result<ConflictResolution, CoreError>;
+    async fn resolve_conflict(
+        &self,
+        conflict: &SyncConflict,
+    ) -> Result<ConflictResolution, CoreError>;
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -47,7 +54,11 @@ pub struct SyncConflict {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum ConflictResolution { LocalWins, RemoteWins, Merged(serde_json::Value) }
+pub enum ConflictResolution {
+    LocalWins,
+    RemoteWins,
+    Merged(serde_json::Value),
+}
 
 /// No-op sync backend for v1 — does nothing.
 pub struct NoOpSyncBackend;
@@ -55,7 +66,10 @@ pub struct NoOpSyncBackend;
 #[async_trait]
 impl SyncBackend for NoOpSyncBackend {
     async fn push(&self, _: &Changeset) -> Result<PushResult, CoreError> {
-        Ok(PushResult { pushed: Vec::new(), conflicts: Vec::new() })
+        Ok(PushResult {
+            pushed: Vec::new(),
+            conflicts: Vec::new(),
+        })
     }
     async fn pull(&self, _: u64) -> Result<Changeset, CoreError> {
         Ok(Changeset::default())

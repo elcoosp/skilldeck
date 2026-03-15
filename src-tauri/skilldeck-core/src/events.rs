@@ -65,15 +65,9 @@ pub enum AgentEvent {
         child_session_id: Uuid,
     },
     /// A subagent completed its work.
-    SubagentCompleted {
-        session_id: Uuid,
-        success: bool,
-    },
+    SubagentCompleted { session_id: Uuid, success: bool },
     /// Skill registry was reloaded (file watcher triggered).
-    SkillsReloaded {
-        source: String,
-        count: usize,
-    },
+    SkillsReloaded { source: String, count: usize },
     /// An MCP server changed health status.
     McpServerStatus {
         server_name: String,

@@ -9,7 +9,7 @@ import {
   disconnectMcpServer,
   addMcpServer,
   removeMcpServer,
-  type AddMcpServerParams,
+  type AddMcpServerParams
 } from '@/lib/invoke'
 import type { UUID } from '@/lib/types'
 

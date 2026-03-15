@@ -1,7 +1,7 @@
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion'
 
 export function BouncingDots() {
-  const shouldReduceMotion = useReducedMotion();
+  const shouldReduceMotion = useReducedMotion()
 
   if (shouldReduceMotion) {
     // When reduced motion is preferred, show static dots
@@ -11,7 +11,7 @@ export function BouncingDots() {
         <span className="h-2 w-2 rounded-full bg-primary" />
         <span className="h-2 w-2 rounded-full bg-primary" />
       </div>
-    );
+    )
   }
 
   return (
@@ -25,10 +25,10 @@ export function BouncingDots() {
             duration: 0.8,
             repeat: Infinity,
             delay: i * 0.16,
-            ease: 'easeInOut',
+            ease: 'easeInOut'
           }}
         />
       ))}
     </div>
-  );
+  )
 }

@@ -70,7 +70,9 @@ export function useAgentStream(conversationId: string | null) {
 
         case 'persisted':
           // New messages have been saved to the database; refetch.
-          queryClient.invalidateQueries({ queryKey: ['messages', conversationId] })
+          queryClient.invalidateQueries({
+            queryKey: ['messages', conversationId]
+          })
           queryClient.invalidateQueries({ queryKey: ['conversations'] })
           break
       }
@@ -86,7 +88,13 @@ export function useAgentStream(conversationId: string | null) {
       pendingBuffer.current = ''
       unlisten?.()
     }
-  }, [conversationId, appendStreamingText, clearStreamingText, setAgentRunning, queryClient])
+  }, [
+    conversationId,
+    appendStreamingText,
+    clearStreamingText,
+    setAgentRunning,
+    queryClient
+  ])
 
   const streamingText = useUIStore(
     (s) => s.streamingText[conversationId ?? ''] ?? ''

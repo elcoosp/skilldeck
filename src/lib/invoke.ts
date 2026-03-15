@@ -48,10 +48,10 @@ export interface Skill {
 export type AddMcpServerParams = {
   name: string
   transport: 'stdio' | 'sse'
-  command?: string                     // stdio only — executable, e.g. "npx"
-  args?: string[]                      // stdio only — e.g. ["-y", "@mcp/server-fs"]
-  url?: string                         // sse only — e.g. "http://localhost:8080/sse"
-  env?: Record<string, string>         // optional env vars for the subprocess
+  command?: string // stdio only — executable, e.g. "npx"
+  args?: string[] // stdio only — e.g. ["-y", "@mcp/server-fs"]
+  url?: string // sse only — e.g. "http://localhost:8080/sse"
+  env?: Record<string, string> // optional env vars for the subprocess
 }
 export interface McpServer {
   id: UUID

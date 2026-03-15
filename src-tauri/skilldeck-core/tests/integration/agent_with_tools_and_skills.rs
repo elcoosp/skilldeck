@@ -197,3 +197,5 @@ async fn test_agent_injects_mcp_tools_and_skills() {
         "Skill content should be in system prompt"
     );
 }
+
+

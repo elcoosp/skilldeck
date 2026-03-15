@@ -155,3 +155,5 @@ fn cancel_all_on_empty_gate_is_safe() {
     let gate = ApprovalGate::new();
     gate.cancel_all(); // must not panic
 }
+
+

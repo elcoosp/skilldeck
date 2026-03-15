@@ -2,9 +2,10 @@
 
 pub mod user_preferences {
     use sea_orm::entity::prelude::*;
+    use serde::Serialize;
 
     #[sea_orm::model]
-    #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
+    #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize)]
     #[sea_orm(table_name = "user_preferences")]
     pub struct Model {
         #[sea_orm(primary_key, auto_increment = false)]
@@ -23,6 +24,7 @@ pub mod user_preferences {
         pub created_at: DateTimeWithTimeZone,
         pub updated_at: DateTimeWithTimeZone,
 
+        #[serde(skip)]
         #[sea_orm(belongs_to, from = "user_id", to = "id")]
         pub user: HasOne<crate::core::models::users::Entity>,
     }

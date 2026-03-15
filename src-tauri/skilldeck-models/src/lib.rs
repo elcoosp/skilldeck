@@ -34,6 +34,7 @@ pub mod tags;
 pub mod templates;
 pub mod tool_call_events;
 pub mod usage_events;
+pub mod user_preferences;
 pub mod workflow_executions;
 pub mod workflow_steps;
 pub mod workspace_state;

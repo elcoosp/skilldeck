@@ -53,11 +53,18 @@ pub struct SubagentManager {
 
 impl SubagentManager {
     pub fn new() -> Self {
-        Self { sessions: HashMap::new() }
+        Self {
+            sessions: HashMap::new(),
+        }
     }
 
     /// Spawn a new subagent for `task` and return its session ID.
-    pub fn spawn(&mut self, parent_id: Uuid, task: impl Into<String>, skill: Option<String>) -> Uuid {
+    pub fn spawn(
+        &mut self,
+        parent_id: Uuid,
+        task: impl Into<String>,
+        skill: Option<String>,
+    ) -> Uuid {
         let session = SubagentSession::new(parent_id, task, skill);
         let id = session.id;
         self.sessions.insert(id, session);
@@ -66,16 +73,23 @@ impl SubagentManager {
 
     /// Mark a session as running.
     pub fn start(&mut self, id: Uuid) -> Result<(), CoreError> {
-        self.sessions.get_mut(&id)
-            .ok_or_else(|| CoreError::Internal { message: format!("Subagent {} not found", id) })?
+        self.sessions
+            .get_mut(&id)
+            .ok_or_else(|| CoreError::Internal {
+                message: format!("Subagent {} not found", id),
+            })?
             .status = SubagentStatus::Running;
         Ok(())
     }
 
     /// Record a successful result.
     pub fn complete(&mut self, id: Uuid, result: String) -> Result<(), CoreError> {
-        let s = self.sessions.get_mut(&id)
-            .ok_or_else(|| CoreError::Internal { message: format!("Subagent {} not found", id) })?;
+        let s = self
+            .sessions
+            .get_mut(&id)
+            .ok_or_else(|| CoreError::Internal {
+                message: format!("Subagent {} not found", id),
+            })?;
         s.status = SubagentStatus::Completed;
         s.result = Some(result);
         Ok(())
@@ -83,8 +97,12 @@ impl SubagentManager {
 
     /// Record a failure.
     pub fn fail(&mut self, id: Uuid, error: String) -> Result<(), CoreError> {
-        let s = self.sessions.get_mut(&id)
-            .ok_or_else(|| CoreError::Internal { message: format!("Subagent {} not found", id) })?;
+        let s = self
+            .sessions
+            .get_mut(&id)
+            .ok_or_else(|| CoreError::Internal {
+                message: format!("Subagent {} not found", id),
+            })?;
         s.status = SubagentStatus::Failed;
         s.error = Some(error);
         Ok(())
@@ -92,7 +110,8 @@ impl SubagentManager {
 
     /// Collect all completed results for a given parent conversation.
     pub fn collect_results(&self, parent_id: Uuid) -> Vec<String> {
-        self.sessions.values()
+        self.sessions
+            .values()
             .filter(|s| s.parent_id == parent_id && s.status == SubagentStatus::Completed)
             .filter_map(|s| s.result.clone())
             .collect()
@@ -100,7 +119,8 @@ impl SubagentManager {
 
     /// Check if all spawned subagents for a parent have finished.
     pub fn all_done(&self, parent_id: Uuid) -> bool {
-        self.sessions.values()
+        self.sessions
+            .values()
             .filter(|s| s.parent_id == parent_id)
             .all(|s| matches!(s.status, SubagentStatus::Completed | SubagentStatus::Failed))
     }
@@ -111,7 +131,9 @@ impl SubagentManager {
 }
 
 impl Default for SubagentManager {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[cfg(test)]

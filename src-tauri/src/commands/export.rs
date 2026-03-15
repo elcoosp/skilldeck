@@ -19,6 +19,13 @@ pub enum ExportFormat {
     Json,
 }
 
+/// Lightweight message representation used by the Markdown gist exporter.
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct MessageExport {
+    pub role: String,
+    pub content: String,
+}
+
 /// Export a conversation to a file on the local filesystem.
 #[tauri::command]
 pub async fn export_conversation(
@@ -27,7 +34,12 @@ pub async fn export_conversation(
     format: ExportFormat,
     path: PathBuf,
 ) -> Result<(), String> {
-    let db = state.registry.db.connection().await.map_err(|e| e.to_string())?;
+    let db = state
+        .registry
+        .db
+        .connection()
+        .await
+        .map_err(|e| e.to_string())?;
     let uuid = Uuid::parse_str(&id).map_err(|e| e.to_string())?;
 
     let conv = Conversations::find_by_id(uuid)
@@ -78,7 +90,8 @@ pub async fn export_conversation(
     };
 
     let mut file = std::fs::File::create(&path).map_err(|e| e.to_string())?;
-    file.write_all(content.as_bytes()).map_err(|e| e.to_string())?;
+    file.write_all(content.as_bytes())
+        .map_err(|e| e.to_string())?;
 
     Ok(())
 }

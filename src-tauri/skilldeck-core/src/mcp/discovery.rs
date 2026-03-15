@@ -23,21 +23,22 @@ pub async fn discover_servers() -> Vec<DiscoveredServer> {
 
     // 1. Read ~/.config/skilldeck/mcp_servers.json
     if let Some(config_path) = default_config_path()
-        && config_path.exists() {
-            match load_config_file(&config_path).await {
-                Ok(mut servers) => {
-                    debug!(
-                        "Discovered {} MCP server(s) from {:?}",
-                        servers.len(),
-                        config_path
-                    );
-                    found.append(&mut servers);
-                }
-                Err(e) => {
-                    warn!("Failed to load MCP config from {:?}: {}", config_path, e);
-                }
+        && config_path.exists()
+    {
+        match load_config_file(&config_path).await {
+            Ok(mut servers) => {
+                debug!(
+                    "Discovered {} MCP server(s) from {:?}",
+                    servers.len(),
+                    config_path
+                );
+                found.append(&mut servers);
+            }
+            Err(e) => {
+                warn!("Failed to load MCP config from {:?}: {}", config_path, e);
             }
         }
+    }
 
     found
 }

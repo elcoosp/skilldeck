@@ -9,7 +9,7 @@ use axum::{
     middleware::Next,
     response::Response,
 };
-use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+use sea_orm::EntityTrait;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -69,7 +69,7 @@ async fn verify_api_key(db: &sea_orm::DatabaseConnection, token: &str) -> Result
 
 fn argon2_verify(hash: &str, password: &str) -> bool {
     use argon2::Argon2;
-    use argon2::password_hash::{PasswordHash, PasswordVerifier};
+    use argon2::password_hash::{PasswordVerifier, phc::PasswordHash};
     let Ok(parsed) = PasswordHash::new(hash) else {
         return false;
     };
@@ -77,4 +77,3 @@ fn argon2_verify(hash: &str, password: &str) -> bool {
         .verify_password(password.as_bytes(), &parsed)
         .is_ok()
 }
-

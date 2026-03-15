@@ -85,12 +85,30 @@ pub enum StepStatus {
 
 #[derive(Debug, Clone)]
 pub enum WorkflowEvent {
-    Started { id: Uuid },
-    StepStarted { workflow_id: Uuid, step_id: String },
-    StepCompleted { workflow_id: Uuid, step_id: String, result: Option<String> },
-    StepFailed { workflow_id: Uuid, step_id: String, error: String },
-    Completed { id: Uuid },
-    Failed { id: Uuid, error: String },
+    Started {
+        id: Uuid,
+    },
+    StepStarted {
+        workflow_id: Uuid,
+        step_id: String,
+    },
+    StepCompleted {
+        workflow_id: Uuid,
+        step_id: String,
+        result: Option<String>,
+    },
+    StepFailed {
+        workflow_id: Uuid,
+        step_id: String,
+        error: String,
+    },
+    Completed {
+        id: Uuid,
+    },
+    Failed {
+        id: Uuid,
+        error: String,
+    },
 }
 
 #[cfg(test)]

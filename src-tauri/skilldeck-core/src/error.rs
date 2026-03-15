@@ -22,7 +22,10 @@ pub enum CoreError {
     ModelRequestRejected { provider: String, message: String },
 
     #[error("Model provider '{provider}' rate limited. Retry after {retry_after_ms}ms")]
-    ModelRateLimited { provider: String, retry_after_ms: u64 },
+    ModelRateLimited {
+        provider: String,
+        retry_after_ms: u64,
+    },
 
     #[error("Model provider '{provider}' internal error: {message}")]
     ModelInternal { provider: String, message: String },
@@ -46,13 +49,22 @@ pub enum CoreError {
     McpServerNotFound { server_id: uuid::Uuid },
 
     #[error("MCP server '{server_name}' connection failed: {message}")]
-    McpConnectionFailed { server_name: String, message: String },
+    McpConnectionFailed {
+        server_name: String,
+        message: String,
+    },
 
     #[error("MCP server '{server_name}' disconnected: {message}")]
-    McpDisconnected { server_name: String, message: String },
+    McpDisconnected {
+        server_name: String,
+        message: String,
+    },
 
     #[error("MCP tool '{tool_name}' not found on server '{server_name}'")]
-    McpToolNotFound { server_name: String, tool_name: String },
+    McpToolNotFound {
+        server_name: String,
+        tool_name: String,
+    },
 
     #[error("MCP tool '{tool_name}' execution failed: {message}")]
     McpToolExecution { tool_name: String, message: String },
@@ -76,7 +88,10 @@ pub enum CoreError {
     SkillParse { name: String, message: String },
 
     #[error("Invalid YAML frontmatter in skill '{path}': {message}")]
-    SkillInvalidYaml { path: std::path::PathBuf, message: String },
+    SkillInvalidYaml {
+        path: std::path::PathBuf,
+        message: String,
+    },
 
     #[error("Skill '{name}' not found in registry")]
     SkillNotInRegistry { name: String },
@@ -106,7 +121,10 @@ pub enum CoreError {
     SubagentSpawn { message: String },
 
     #[error("Subagent '{session_id}' execution failed: {message}")]
-    SubagentExecution { session_id: uuid::Uuid, message: String },
+    SubagentExecution {
+        session_id: uuid::Uuid,
+        message: String,
+    },
 
     #[error("Maximum subagent depth ({max_depth}) exceeded")]
     SubagentMaxDepth { max_depth: u32 },
@@ -145,13 +163,19 @@ pub enum CoreError {
     // I/O Errors
     // =========================================================================
     #[error("File operation failed for '{path}': {message}")]
-    FileOperation { path: std::path::PathBuf, message: String },
+    FileOperation {
+        path: std::path::PathBuf,
+        message: String,
+    },
 
     #[error("Permission denied for '{path}'")]
     FilePermissionDenied { path: std::path::PathBuf },
 
     #[error("Directory operation failed for '{path}': {message}")]
-    DirectoryOperation { path: std::path::PathBuf, message: String },
+    DirectoryOperation {
+        path: std::path::PathBuf,
+        message: String,
+    },
 
     // =========================================================================
     // Internal Errors
@@ -348,13 +372,29 @@ mod tests {
     #[test]
     fn error_code_consistency() {
         let errors: Vec<CoreError> = vec![
-            CoreError::ModelRequestRejected { provider: "test".into(), message: "test".into() },
-            CoreError::ModelRateLimited { provider: "test".into(), retry_after_ms: 1000 },
-            CoreError::McpServerNotFound { server_id: uuid::Uuid::nil() },
-            CoreError::SkillNotFound { path: std::path::PathBuf::new() },
-            CoreError::WorkflowCycle { cycle_path: "A -> B".into() },
-            CoreError::DatabaseConnection { message: "test".into() },
-            CoreError::Internal { message: "test".into() },
+            CoreError::ModelRequestRejected {
+                provider: "test".into(),
+                message: "test".into(),
+            },
+            CoreError::ModelRateLimited {
+                provider: "test".into(),
+                retry_after_ms: 1000,
+            },
+            CoreError::McpServerNotFound {
+                server_id: uuid::Uuid::nil(),
+            },
+            CoreError::SkillNotFound {
+                path: std::path::PathBuf::new(),
+            },
+            CoreError::WorkflowCycle {
+                cycle_path: "A -> B".into(),
+            },
+            CoreError::DatabaseConnection {
+                message: "test".into(),
+            },
+            CoreError::Internal {
+                message: "test".into(),
+            },
         ];
 
         for err in errors {

@@ -12,7 +12,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger,
+  DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { ConversationItem } from '@/components/conversation/conversation-item'
 import {
@@ -40,7 +40,7 @@ export function LeftPanel() {
   const createConversation = useCreateConversation()
 
   const defaultProfile = profiles?.find((p) => p.is_default) ?? profiles?.[0]
-  const activeWorkspace = workspaces.find(w => w.id === activeWorkspaceId)
+  const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId)
 
   const filtered = conversations?.filter((c) =>
     searchQuery
@@ -73,7 +73,7 @@ export function LeftPanel() {
     }
   }
 
-  const handleSwitchWorkspace = async (workspace: typeof workspaces[0]) => {
+  const handleSwitchWorkspace = async (workspace: (typeof workspaces)[0]) => {
     if (!workspace.is_open) {
       // Reopen closed workspace
       try {
@@ -137,7 +137,9 @@ export function LeftPanel() {
             </div>
           ) : filtered?.length === 0 ? (
             <p className="text-center text-xs text-muted-foreground py-8">
-              {searchQuery ? 'No matches' : 'Your chat log is empty – time to start a conversation!'}
+              {searchQuery
+                ? 'No matches'
+                : 'Your chat log is empty – time to start a conversation!'}
             </p>
           ) : (
             filtered?.map((c) => (
@@ -167,11 +169,14 @@ export function LeftPanel() {
               <ChevronDown className="size-3.5 opacity-50 shrink-0" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-[--radix-dropdown-menu-trigger-width]">
+          <DropdownMenuContent
+            align="start"
+            className="w-[--radix-dropdown-menu-trigger-width]"
+          >
             {workspaces.length === 0 ? (
               <DropdownMenuItem disabled>No workspaces yet</DropdownMenuItem>
             ) : (
-              workspaces.map(w => (
+              workspaces.map((w) => (
                 <DropdownMenuItem
                   key={w.id}
                   onClick={() => handleSwitchWorkspace(w)}
@@ -182,7 +187,9 @@ export function LeftPanel() {
                 >
                   <span className="truncate">{w.name}</span>
                   {!w.is_open && (
-                    <span className="text-[10px] text-muted-foreground ml-2 shrink-0">(closed)</span>
+                    <span className="text-[10px] text-muted-foreground ml-2 shrink-0">
+                      (closed)
+                    </span>
                   )}
                 </DropdownMenuItem>
               ))

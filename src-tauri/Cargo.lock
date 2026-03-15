@@ -5564,9 +5564,13 @@ checksum = "b2aa850e253778c88a04c3d7323b043aeda9d3e30d5971937c1855769763678e"
 name = "skilldeck"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "chrono",
  "dashmap",
+ "dirs",
+ "hex",
  "parking_lot",
+ "reqwest",
  "sea-orm",
  "serde",
  "serde_json",
@@ -5582,8 +5586,10 @@ dependencies = [
  "tauri-plugin-shell",
  "tauri-plugin-store",
  "tauri-specta",
+ "thiserror 2.0.18",
  "tokio",
  "tokio-util",
+ "toml 0.8.2",
  "toon-rust",
  "tracing",
  "tracing-subscriber",

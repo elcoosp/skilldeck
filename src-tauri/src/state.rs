@@ -76,6 +76,10 @@ pub struct AppState {
     /// Canonical SQLite path – e.g. "/Users/alice/Library/…/skilldeck.db".
     /// Kept as a plain `String` so background tasks can open a fresh connection.
     pub db_url: String,
+    /// HTTP client for the optional SkillDeck Platform.
+    pub platform_client: tokio::sync::RwLock<crate::platform_client::PlatformClient>,
+    /// Whether the user has opted in to anonymous analytics (mirrored from DB).
+    pub analytics_opt_in: std::sync::atomic::AtomicBool,
 }
 
 impl AppState {
@@ -143,12 +147,45 @@ impl AppState {
 
         let agent_cancel_tokens = Arc::new(DashMap::new());
 
+        // ── Platform client ────────────────────────────────────────────────────
+        let app_config = crate::config::AppConfig::load();
+        let mut platform_client = crate::platform_client::PlatformClient::new(
+            app_config.platform.url.clone(),
+            app_config.platform.enabled,
+        );
+
+        // Load API key from keychain if it exists.
+        let mut analytics_opt_in_val = false;
+        {
+            let keyring = app.keyring();
+            match keyring.get_password(KEYRING_SERVICE, "platform_api_key") {
+                Ok(Some(key)) => {
+                    platform_client.set_api_key(key);
+                    info!("Platform API key loaded from keychain");
+                }
+                _ => info!("No platform API key in keychain – will register on first use"),
+            }
+
+            // Read analytics opt-in from local DB.
+            if let Ok(conn) = open_db(&db_url, false).await {
+                use sea_orm::EntityTrait;
+                if let Ok(Some(pref)) = skilldeck_models::user_preferences::Entity::find()
+                    .one(&conn)
+                    .await
+                {
+                    analytics_opt_in_val = pref.analytics_opt_in;
+                }
+            }
+        }
+
         let state = Self {
             registry,
             approval_gate,
             supervisor_tx,
             agent_cancel_tokens,
             db_url,
+            platform_client: tokio::sync::RwLock::new(platform_client),
+            analytics_opt_in: std::sync::atomic::AtomicBool::new(analytics_opt_in_val),
         };
 
         state.ensure_default_profile().await;

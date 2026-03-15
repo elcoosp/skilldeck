@@ -11,7 +11,11 @@ interface MessageThreadProps {
   isLoading?: boolean
 }
 
-export function MessageThread({ messages, streamingMessageId, isLoading }: MessageThreadProps) {
+export function MessageThread({
+  messages,
+  streamingMessageId,
+  isLoading
+}: MessageThreadProps) {
   const scrollRef = React.useRef<HTMLDivElement>(null)
 
   const virtualizer = useVirtualizer({
@@ -19,7 +23,7 @@ export function MessageThread({ messages, streamingMessageId, isLoading }: Messa
     getScrollElement: () => scrollRef.current,
     estimateSize: () => 80,
     overscan: 5,
-    measureElement: el => el.getBoundingClientRect().height,
+    measureElement: (el) => el.getBoundingClientRect().height
   })
 
   const virtualItems = virtualizer.getVirtualItems()
@@ -27,7 +31,7 @@ export function MessageThread({ messages, streamingMessageId, isLoading }: Messa
   React.useEffect(() => {
     if (messages.length === 0) return
     virtualizer.scrollToIndex(messages.length - 1, {
-      behavior: streamingMessageId ? 'smooth' : 'auto',
+      behavior: streamingMessageId ? 'smooth' : 'auto'
     })
   }, [messages.length, streamingMessageId, virtualizer])
 
@@ -77,7 +81,7 @@ export function MessageThread({ messages, streamingMessageId, isLoading }: Messa
             transition={{ duration: 0.2 }}
             style={{ height: virtualizer.getTotalSize(), position: 'relative' }}
           >
-            {virtualItems.map(virtualItem => {
+            {virtualItems.map((virtualItem) => {
               const message = messages[virtualItem.index]
               return (
                 <div
@@ -89,7 +93,7 @@ export function MessageThread({ messages, streamingMessageId, isLoading }: Messa
                     top: 0,
                     left: 0,
                     width: '100%',
-                    transform: `translateY(${virtualItem.start}px)`,
+                    transform: `translateY(${virtualItem.start}px)`
                   }}
                 >
                   <div className="px-4 py-1.5">

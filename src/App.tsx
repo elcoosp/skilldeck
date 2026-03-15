@@ -16,9 +16,9 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 1,
-      refetchOnWindowFocus: false,
-    },
-  },
+      refetchOnWindowFocus: false
+    }
+  }
 })
 
 function ThemeSync() {
@@ -46,13 +46,13 @@ function GlobalEventListeners() {
 }
 
 function AppContent() {
-  const onboardingComplete = useUIStore((s) => s.onboardingComplete)
+  const onboardingDone = useUIStore((s) => s.onboardingDone)
 
   return (
     <>
       <GlobalEventListeners />
       <AppShell />
-      {!onboardingComplete && <OnboardingWizard />}
+      {!onboardingDone && <OnboardingWizard />}
     </>
   )
 }

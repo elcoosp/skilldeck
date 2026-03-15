@@ -1,8 +1,7 @@
 //! Core domain HTTP handlers.
 
 use axum::{Json, extract::State};
-use sea_orm::ActiveModelTrait;
-use sea_orm::ActiveValue::Set;
+use sea_orm::{ActiveModelTrait, ActiveValue::Set, EntityTrait};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
@@ -89,22 +88,16 @@ pub async fn register(
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 fn generate_api_key() -> String {
-    use rand::Rng;
-    let bytes: [u8; 32] = rand::rng().r#gen();
+    use rand::RngExt;
+    let bytes: [u8; 32] = rand::rng().random();
     format!("sk_{}", hex::encode(bytes))
 }
 
 fn hash_api_key(key: &str) -> String {
-    use argon2::{
-        Argon2,
-        password_hash::{PasswordHasher, SaltString},
-    };
-    use rand::Rng;
+    use argon2::{Argon2, password_hash::PasswordHasher};
 
-    let mut rng = rand::rng();
-    let salt = SaltString::generate(&mut rng);
     Argon2::default()
-        .hash_password(key.as_bytes(), &salt)
+        .hash_password(key.as_bytes())
         .expect("hash failed")
         .to_string()
 }

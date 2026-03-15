@@ -14,7 +14,7 @@ import {
   Cpu,
   GitBranch,
   Layers,
-  Zap,
+  Zap
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
@@ -23,7 +23,7 @@ import { useConversations } from '@/hooks/use-conversations'
 import { useProfiles } from '@/hooks/use-profiles'
 import { useUIStore } from '@/store/ui'
 
-import { BouncingDots } from '@/components/ui/bouncing-dots';
+import { BouncingDots } from '@/components/ui/bouncing-dots'
 import { useWorkflowEvents } from '@/hooks/use-workflow-events'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
@@ -31,19 +31,23 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
+  SelectValue
 } from '@/components/ui/select'
 import { listApiKeys, listOllamaModels } from '@/lib/invoke'
 import { McpTab } from './mcp-tab'
 
 type Tab = 'session' | 'skills' | 'mcp' | 'workflow' | 'analytics'
 
-const TABS: { id: Tab; label: string; Icon: React.FC<{ className?: string }> }[] = [
+const TABS: {
+  id: Tab
+  label: string
+  Icon: React.FC<{ className?: string }>
+}[] = [
   { id: 'session', label: 'Session', Icon: Cpu },
   { id: 'skills', label: 'Skills', Icon: Layers },
   { id: 'mcp', label: 'MCP', Icon: Zap },
   { id: 'workflow', label: 'Workflow', Icon: GitBranch },
-  { id: 'analytics', label: 'Analytics', Icon: BarChart2 },
+  { id: 'analytics', label: 'Analytics', Icon: BarChart2 }
 ]
 
 export function RightPanel() {
@@ -66,7 +70,7 @@ export function RightPanel() {
               'flex-none',
               activeTab === id
                 ? 'text-foreground border-b-2 border-primary -mb-px'
-                : 'text-muted-foreground hover:text-foreground',
+                : 'text-muted-foreground hover:text-foreground'
             )}
           >
             <Icon className="size-3.5 shrink-0" />
@@ -76,7 +80,7 @@ export function RightPanel() {
                 'max-w-0 group-hover:max-w-32',
                 'ml-0 group-hover:ml-1.5',
                 'opacity-0 group-hover:opacity-100',
-                'transition-[max-width,margin-left,opacity] duration-200 ease-in-out',
+                'transition-[max-width,margin-left,opacity] duration-200 ease-in-out'
               )}
             >
               {label}
@@ -92,7 +96,9 @@ export function RightPanel() {
         </div>
       ) : (
         <ScrollArea className="flex-1 min-h-0">
-          {activeTab === 'session' && <SessionTab conversationId={activeConversationId} />}
+          {activeTab === 'session' && (
+            <SessionTab conversationId={activeConversationId} />
+          )}
           {activeTab === 'skills' && <SkillsTab />}
           {activeTab === 'workflow' && <WorkflowTab />}
           {activeTab === 'analytics' && <AnalyticsTab />}
@@ -120,33 +126,47 @@ function useAvailableModels(provider: string) {
       }
       return []
     },
-    staleTime: 60_000,
+    staleTime: 60_000
   })
 }
 
 function SessionTab({ conversationId }: { conversationId: string | null }) {
   const { data: conversations } = useConversations()
   const { data: profiles } = useProfiles()
-  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null)
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(
+    null
+  )
 
   const { data: keyStatuses = [] } = useQuery({
     queryKey: ['api-keys'],
     queryFn: listApiKeys,
-    staleTime: 30_000,
+    staleTime: 30_000
   })
 
   if (!conversationId) {
-    return <div className="p-4 text-xs text-muted-foreground">No active conversation.</div>
+    return (
+      <div className="p-4 text-xs text-muted-foreground">
+        No active conversation.
+      </div>
+    )
   }
 
   const conversation = conversations?.find((c) => c.id === conversationId)
   if (!conversation) {
-    return <div className="p-4 text-xs text-muted-foreground">Loading conversation…</div>
+    return (
+      <div className="p-4 text-xs text-muted-foreground">
+        Loading conversation…
+      </div>
+    )
   }
 
   const profile = profiles?.find((p) => p.id === conversation.profile_id)
   if (!profile) {
-    return <div className="p-4 text-xs text-muted-foreground">Profile not found.</div>
+    return (
+      <div className="p-4 text-xs text-muted-foreground">
+        Profile not found.
+      </div>
+    )
   }
 
   const hasKeyForProvider = (p: string) =>
@@ -162,7 +182,9 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
         <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
           Active Conversation
         </h3>
-        <p className="text-xs font-mono text-muted-foreground break-all">{conversationId}</p>
+        <p className="text-xs font-mono text-muted-foreground break-all">
+          {conversationId}
+        </p>
       </section>
 
       <section className="space-y-3">
@@ -173,7 +195,10 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
         {profiles && profiles.length > 1 && (
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Profile</label>
-            <Select value={profile.id} onValueChange={(v) => setSelectedProfileId(v)}>
+            <Select
+              value={profile.id}
+              onValueChange={(v) => setSelectedProfileId(v)}
+            >
               <SelectTrigger className="h-7 text-xs">
                 <SelectValue placeholder="Select profile" />
               </SelectTrigger>
@@ -200,7 +225,10 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
           </div>
         </div>
 
-        <ModelSelector provider={effectiveProvider} currentModelId={profile.model_id} />
+        <ModelSelector
+          provider={effectiveProvider}
+          currentModelId={profile.model_id}
+        />
       </section>
     </div>
   )
@@ -208,7 +236,7 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
 
 function ModelSelector({
   provider,
-  currentModelId,
+  currentModelId
 }: {
   provider: string
   currentModelId: string
@@ -216,7 +244,9 @@ function ModelSelector({
   const { data: models = [], isLoading } = useAvailableModels(provider)
   const [selected, setSelected] = useState(currentModelId)
   const displayModels = models.length > 0 ? models : [currentModelId]
-  const safeSelected = displayModels.includes(selected) ? selected : displayModels[0]
+  const safeSelected = displayModels.includes(selected)
+    ? selected
+    : displayModels[0]
 
   return (
     <div className="space-y-1">
@@ -249,13 +279,13 @@ function SkillItem({ skill, isActive }: { skill: any; isActive: boolean }) {
     <div
       className={cn(
         'flex items-start gap-2 p-2 rounded-md w-full overflow-hidden',
-        isActive ? 'bg-muted/50' : 'opacity-50',
+        isActive ? 'bg-muted/50' : 'opacity-50'
       )}
     >
       <div
         className={cn(
           'size-1.5 rounded-full mt-1.5 shrink-0',
-          isActive ? 'bg-green-500' : 'bg-muted-foreground',
+          isActive ? 'bg-green-500' : 'bg-muted-foreground'
         )}
       />
       <div className="flex-1 min-w-0 w-0">
@@ -265,7 +295,7 @@ function SkillItem({ skill, isActive }: { skill: any; isActive: boolean }) {
             <p
               className={cn(
                 'text-xs text-muted-foreground flex-1 min-w-0 w-0',
-                expanded ? 'break-words whitespace-normal' : 'truncate',
+                expanded ? 'break-words whitespace-normal' : 'truncate'
               )}
             >
               {skill.description}
@@ -275,7 +305,11 @@ function SkillItem({ skill, isActive }: { skill: any; isActive: boolean }) {
               onClick={() => setExpanded(!expanded)}
               className="shrink-0 mt-0.5 text-muted-foreground hover:text-foreground"
             >
-              {expanded ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+              {expanded ? (
+                <ChevronUp className="size-3.5" />
+              ) : (
+                <ChevronDown className="size-3.5" />
+              )}
             </button>
           </div>
         )}
@@ -326,7 +360,8 @@ function SkillsTab() {
       )}
       {skills.length === 0 && (
         <p className="text-xs text-muted-foreground">
-          Your skill deck is empty – craft some superpowers!<br />
+          Your skill deck is empty – craft some superpowers!
+          <br />
           Add skills to <code className="text-xs">.skilldeck/skills/</code> or{' '}
           <code className="text-xs">~/.agents/skills/</code>.
         </p>
@@ -334,7 +369,6 @@ function SkillsTab() {
     </div>
   )
 }
-
 
 // ── Workflow tab ──────────────────────────────────────────────────────────────
 
@@ -347,8 +381,8 @@ function WorkflowTab() {
       <div className="p-4">
         <p className="text-xs text-muted-foreground">
           No workflow running. Workflows are triggered when the agent calls{' '}
-          <code className="text-xs font-mono">spawnSubagent</code> or via the workflow
-          executor.
+          <code className="text-xs font-mono">spawnSubagent</code> or via the
+          workflow executor.
         </p>
       </div>
     )
@@ -357,7 +391,7 @@ function WorkflowTab() {
   const statusColor = {
     running: 'text-blue-500',
     completed: 'text-green-500',
-    failed: 'text-red-500',
+    failed: 'text-red-500'
   }[progress.status]
 
   return (
@@ -366,13 +400,19 @@ function WorkflowTab() {
         <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
           Active Workflow
         </h3>
-        <span className={cn('text-xs font-medium', statusColor)}>{progress.status}</span>
+        <span className={cn('text-xs font-medium', statusColor)}>
+          {progress.status}
+        </span>
       </div>
 
-      <p className="text-xs font-mono text-muted-foreground break-all">{progress.workflowId}</p>
+      <p className="text-xs font-mono text-muted-foreground break-all">
+        {progress.workflowId}
+      </p>
 
       {progress.error && (
-        <div className="p-2 rounded-md bg-red-500/10 text-xs text-red-500">{progress.error}</div>
+        <div className="p-2 rounded-md bg-red-500/10 text-xs text-red-500">
+          {progress.error}
+        </div>
       )}
 
       <div className="space-y-1">
@@ -382,24 +422,33 @@ function WorkflowTab() {
             pending: 'bg-muted-foreground/30',
             running: 'bg-blue-500 animate-pulse',
             completed: 'bg-green-500',
-            failed: 'bg-red-500',
+            failed: 'bg-red-500'
           }[step.status]
 
           return (
-            <div key={step.stepId} className="rounded-md border border-border overflow-hidden">
+            <div
+              key={step.stepId}
+              className="rounded-md border border-border overflow-hidden"
+            >
               <button
                 className="flex items-center gap-2 w-full p-2 text-left hover:bg-muted/50 transition-colors"
                 onClick={() =>
                   setExpanded((prev) => ({ ...prev, [step.stepId]: !isOpen }))
                 }
               >
-                <div className={cn('size-2 rounded-full shrink-0', stepColor)} />
-                <span className="text-xs font-medium flex-1 truncate">{step.stepId}</span>
-                <span className="text-xs text-muted-foreground">{step.status}</span>
+                <div
+                  className={cn('size-2 rounded-full shrink-0', stepColor)}
+                />
+                <span className="text-xs font-medium flex-1 truncate">
+                  {step.stepId}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {step.status}
+                </span>
                 <ChevronRight
                   className={cn(
                     'size-3 text-muted-foreground transition-transform',
-                    isOpen && 'rotate-90',
+                    isOpen && 'rotate-90'
                   )}
                 />
               </button>
@@ -428,7 +477,7 @@ function AnalyticsTab() {
     { day: 'Thu', tokens: 5600 },
     { day: 'Fri', tokens: 18700 },
     { day: 'Sat', tokens: 3200 },
-    { day: 'Sun', tokens: 9800 },
+    { day: 'Sun', tokens: 9800 }
   ]
   const maxTokens = Math.max(...mockWeeklyTokens.map((d) => d.tokens))
 
@@ -450,7 +499,9 @@ function AnalyticsTab() {
           ))}
         </div>
         <p className="text-xs text-muted-foreground mt-2 text-right">
-          Total: {mockWeeklyTokens.reduce((a, b) => a + b.tokens, 0).toLocaleString()} tokens
+          Total:{' '}
+          {mockWeeklyTokens.reduce((a, b) => a + b.tokens, 0).toLocaleString()}{' '}
+          tokens
         </p>
       </div>
 
@@ -461,7 +512,7 @@ function AnalyticsTab() {
         {[
           { label: 'Claude', pct: 62, color: 'bg-violet-500' },
           { label: 'Ollama', pct: 28, color: 'bg-blue-500' },
-          { label: 'OpenAI', pct: 10, color: 'bg-green-500' },
+          { label: 'OpenAI', pct: 10, color: 'bg-green-500' }
         ].map(({ label, pct, color }) => (
           <div key={label} className="space-y-1">
             <div className="flex justify-between text-xs">
@@ -469,7 +520,10 @@ function AnalyticsTab() {
               <span className="font-medium">{pct}%</span>
             </div>
             <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-              <div className={cn('h-full rounded-full', color)} style={{ width: `${pct}%` }} />
+              <div
+                className={cn('h-full rounded-full', color)}
+                style={{ width: `${pct}%` }}
+              />
             </div>
           </div>
         ))}

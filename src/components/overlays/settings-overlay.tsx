@@ -4,7 +4,20 @@
  */
 
 import { useState } from 'react'
-import { Eye, EyeOff, Key, Layers, Plus, ShieldCheck, Star, Sun, Trash2, X } from 'lucide-react'
+import {
+  Bell,
+  Eye,
+  EyeOff,
+  Key,
+  Layers,
+  Plus,
+  Share2,
+  ShieldCheck,
+  Star,
+  Sun,
+  Trash2,
+  X
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
@@ -21,9 +34,17 @@ import {
   setDefaultProfile,
   listOllamaModels
 } from '@/lib/invoke'
+import { PreferencesTab } from '@/components/settings/preferences-tab'
+import { ReferralTab } from '@/components/settings/referral-tab'
 import type { Profile } from '@/lib/invoke'
 
-type SettingsTab = 'apikeys' | 'profiles' | 'approvals' | 'appearance'
+type SettingsTab =
+  | 'apikeys'
+  | 'profiles'
+  | 'approvals'
+  | 'appearance'
+  | 'preferences'
+  | 'referral'
 
 export function SettingsOverlay() {
   const [tab, setTab] = useState<SettingsTab>('apikeys')
@@ -50,7 +71,9 @@ export function SettingsOverlay() {
               { id: 'apikeys', label: 'API Keys', Icon: Key },
               { id: 'profiles', label: 'Profiles', Icon: Layers },
               { id: 'approvals', label: 'Tool Approvals', Icon: ShieldCheck },
-              { id: 'appearance', label: 'Appearance', Icon: Sun }
+              { id: 'appearance', label: 'Appearance', Icon: Sun },
+              { id: 'preferences', label: 'Preferences', Icon: Bell },
+              { id: 'referral', label: 'Refer & Earn', Icon: Share2 }
             ] as const
           ).map(({ id, label, Icon }) => (
             <button
@@ -85,6 +108,8 @@ export function SettingsOverlay() {
           {tab === 'profiles' && <ProfilesTab />}
           {tab === 'approvals' && <ApprovalsTab />}
           {tab === 'appearance' && <AppearanceTab />}
+          {tab === 'preferences' && <PreferencesTab />}
+          {tab === 'referral' && <ReferralTab />}
         </div>
       </div>
     </div>
@@ -245,7 +270,11 @@ function ProfilesTab() {
 
   const createMut = useMutation({
     mutationFn: () =>
-      createProfile(newName.trim(), newProvider, newModel.trim() || defaultModel()),
+      createProfile(
+        newName.trim(),
+        newProvider,
+        newModel.trim() || defaultModel()
+      ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['profiles'] })
       toast.success('Profile created')
@@ -282,7 +311,8 @@ function ProfilesTab() {
   ]
 
   function defaultModel() {
-    if (newProvider === 'ollama') return ollamaModels[0]?.id ?? 'llama3.2:latest'
+    if (newProvider === 'ollama')
+      return ollamaModels[0]?.id ?? 'llama3.2:latest'
     if (newProvider === 'claude') return 'claude-sonnet-4-5'
     if (newProvider === 'openai') return 'gpt-4o'
     return ''
@@ -291,7 +321,7 @@ function ProfilesTab() {
   // Helper to safely render provider name (handles both string and object)
   const getProviderName = (provider: string | { id: string; name: string }) => {
     if (typeof provider === 'string') {
-      const found = PROVIDER_OPTIONS.find(p => p.id === provider)
+      const found = PROVIDER_OPTIONS.find((p) => p.id === provider)
       return found ? found.label : provider
     }
     return provider.name || provider.id
@@ -326,11 +356,16 @@ function ProfilesTab() {
           />
           <select
             value={newProvider}
-            onChange={(e) => { setNewProvider(e.target.value); setNewModel('') }}
+            onChange={(e) => {
+              setNewProvider(e.target.value)
+              setNewModel('')
+            }}
             className="w-full h-7 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
           >
             {PROVIDER_OPTIONS.map((p) => (
-              <option key={p.id} value={p.id}>{p.label}</option>
+              <option key={p.id} value={p.id}>
+                {p.label}
+              </option>
             ))}
           </select>
           {newProvider === 'ollama' ? (
@@ -341,7 +376,9 @@ function ProfilesTab() {
             >
               {ollamaModels.map((m) => (
                 // m.id is value, m.name is label for better UX
-                <option key={m.id} value={m.id}>{m.name || m.id}</option>
+                <option key={m.id} value={m.id}>
+                  {m.name || m.id}
+                </option>
               ))}
             </select>
           ) : (
@@ -384,7 +421,9 @@ function ProfilesTab() {
               key={p.id}
               className={cn(
                 'flex items-center gap-3 rounded-lg border px-3 py-2.5',
-                p.is_default ? 'border-primary/40 bg-primary/5' : 'border-border'
+                p.is_default
+                  ? 'border-primary/40 bg-primary/5'
+                  : 'border-border'
               )}
             >
               <div className="flex-1 min-w-0">
@@ -437,27 +476,27 @@ const APPROVAL_FIELDS: Array<{
   label: string
   description: string
 }> = [
-    {
-      key: 'autoApproveReads',
-      label: 'Auto-approve file reads',
-      description: 'Skip the approval dialog for read-only filesystem tools'
-    },
-    {
-      key: 'autoApproveWrites',
-      label: 'Auto-approve file writes',
-      description: 'Skip approval for file creation and modification'
-    },
-    {
-      key: 'autoApproveShell',
-      label: 'Auto-approve shell commands',
-      description: 'Never require approval for shell execution (⚠ dangerous)'
-    },
-    {
-      key: 'autoApproveHttpRequests',
-      label: 'Auto-approve HTTP requests',
-      description: 'Skip approval for outbound HTTP tool calls'
-    }
-  ]
+  {
+    key: 'autoApproveReads',
+    label: 'Auto-approve file reads',
+    description: 'Skip the approval dialog for read-only filesystem tools'
+  },
+  {
+    key: 'autoApproveWrites',
+    label: 'Auto-approve file writes',
+    description: 'Skip approval for file creation and modification'
+  },
+  {
+    key: 'autoApproveShell',
+    label: 'Auto-approve shell commands',
+    description: 'Never require approval for shell execution (⚠ dangerous)'
+  },
+  {
+    key: 'autoApproveHttpRequests',
+    label: 'Auto-approve HTTP requests',
+    description: 'Skip approval for outbound HTTP tool calls'
+  }
+]
 
 function ApprovalsTab() {
   const toolApprovals = useSettingsStore((s) => s.toolApprovals)

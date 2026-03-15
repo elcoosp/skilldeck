@@ -71,15 +71,15 @@ export function MessageInput({ conversationId }: MessageInputProps) {
     })
     if (!selected) return
     const paths = Array.isArray(selected) ? selected : [selected]
-    const newFiles = paths.map(p => ({
+    const newFiles = paths.map((p) => ({
       path: p,
       name: p.split('/').pop() || p
     }))
-    setSelectedFiles(prev => [...prev, ...newFiles])
+    setSelectedFiles((prev) => [...prev, ...newFiles])
   }, [])
 
   const removeFile = useCallback((pathToRemove: string) => {
-    setSelectedFiles(prev => prev.filter(f => f.path !== pathToRemove))
+    setSelectedFiles((prev) => prev.filter((f) => f.path !== pathToRemove))
   }, [])
 
   const submit = useCallback(async () => {
@@ -106,7 +106,15 @@ export function MessageInput({ conversationId }: MessageInputProps) {
     } finally {
       setIsSending(false)
     }
-  }, [content, selectedFiles, isComposing, isRunning, conversationId, clearDraft, sendMutation])
+  }, [
+    content,
+    selectedFiles,
+    isComposing,
+    isRunning,
+    conversationId,
+    clearDraft,
+    sendMutation
+  ])
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey && !isComposing) {
@@ -120,7 +128,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
       {/* File chips */}
       {selectedFiles.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
-          {selectedFiles.map(file => (
+          {selectedFiles.map((file) => (
             <div
               key={file.path}
               className="inline-flex items-center gap-1 bg-muted/70 text-xs rounded-full px-2 py-0.5"
@@ -158,7 +166,11 @@ export function MessageInput({ conversationId }: MessageInputProps) {
           size="icon-sm"
           className="shrink-0 mb-0.5"
           onClick={submit}
-          disabled={(!content.trim() && selectedFiles.length === 0 && !isRunning) || sendMutation.isPending || isSending}
+          disabled={
+            (!content.trim() && selectedFiles.length === 0 && !isRunning) ||
+            sendMutation.isPending ||
+            isSending
+          }
           aria-label={isRunning ? 'Stop' : 'Send'}
         >
           <AnimatePresence mode="wait">
@@ -167,7 +179,11 @@ export function MessageInput({ conversationId }: MessageInputProps) {
                 key="sending"
                 initial={shouldReduceMotion ? {} : { rotate: 0 }}
                 animate={shouldReduceMotion ? {} : { rotate: 360 }}
-                transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.5, repeat: Infinity, ease: 'linear' }}
+                transition={
+                  shouldReduceMotion
+                    ? { duration: 0 }
+                    : { duration: 0.5, repeat: Infinity, ease: 'linear' }
+                }
               >
                 <Send className="size-3.5" />
               </motion.div>
@@ -177,7 +193,9 @@ export function MessageInput({ conversationId }: MessageInputProps) {
                 initial={shouldReduceMotion ? {} : { scale: 0.8 }}
                 animate={shouldReduceMotion ? {} : { scale: 1 }}
                 exit={shouldReduceMotion ? {} : { scale: 0.8 }}
-                transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.2 }}
+                transition={
+                  shouldReduceMotion ? { duration: 0 } : { duration: 0.2 }
+                }
               >
                 {isRunning ? (
                   <StopCircle className="size-3.5" />

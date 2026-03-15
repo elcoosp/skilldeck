@@ -36,7 +36,7 @@ export function useWorkflowEvents() {
             setProgress({
               workflowId: event.id,
               status: 'running',
-              steps: {},
+              steps: {}
             })
           }
           break
@@ -49,8 +49,11 @@ export function useWorkflowEvents() {
                 ...prev,
                 steps: {
                   ...prev.steps,
-                  [event.step_id!]: { stepId: event.step_id!, status: 'running' },
-                },
+                  [event.step_id!]: {
+                    stepId: event.step_id!,
+                    status: 'running'
+                  }
+                }
               }
             })
           }
@@ -67,9 +70,9 @@ export function useWorkflowEvents() {
                   [event.step_id!]: {
                     stepId: event.step_id!,
                     status: 'completed',
-                    result: event.result ?? undefined,
-                  },
-                },
+                    result: event.result ?? undefined
+                  }
+                }
               }
             })
           }

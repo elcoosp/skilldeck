@@ -1,9 +1,14 @@
 /**
  * UI state — Zustand store with selective persistence.
  *
- * Only layout preferences and unlock stage are persisted across sessions.
- * Transient state (active conversation, streaming text, drafts) always
- * resets on restart.
+ * Persisted across sessions:
+ * - panelSizes (left/right panel widths)
+ * - unlockStage (progressive feature unlock)
+ * - leftTab (active left sidebar tab)
+ * - rightTab (active right sidebar tab)
+ *
+ * All other state (active conversation, drafts, streaming, etc.) is ephemeral
+ * and resets on app restart.
  */
 
 import { create } from 'zustand'
@@ -19,48 +24,56 @@ interface UIState {
   activeWorkspaceId: string | null
   setActiveWorkspace: (id: string | null) => void
 
-  // ── Active conversation ──────────────────────────────────────────────────
+  // ── Active conversation ───────────────────────────────────────────────
   activeConversationId: string | null
   setActiveConversation: (id: string | null) => void
 
-  // ── Branch navigation ────────────────────────────────────────────────────
+  // ── Branch navigation ─────────────────────────────────────────────────
   activeBranchId: string | null
   setActiveBranch: (id: string | null) => void
 
-  // ── Panel sizes (persisted) ──────────────────────────────────────────────
+  // ── Panel sizes (persisted) ───────────────────────────────────────────
   panelSizes: PanelSizes
   setPanelSizes: (sizes: Partial<PanelSizes>) => void
 
-  // ── Draft messages (per conversation) ───────────────────────────────────
+  // ── Draft messages (per conversation) ─────────────────────────────────
   drafts: Record<string, string>
   setDraft: (conversationId: string, content: string) => void
   clearDraft: (conversationId: string) => void
 
-  // ── Streaming token buffer (per conversation) ────────────────────────────
+  // ── Streaming token buffer (per conversation) ─────────────────────────
   streamingText: Record<string, string>
   appendStreamingText: (conversationId: string, delta: string) => void
   clearStreamingText: (conversationId: string) => void
 
-  // ── Agent running state (per conversation) ───────────────────────────────
+  // ── Agent running state (per conversation) ────────────────────────────
   agentRunning: Record<string, boolean>
   setAgentRunning: (conversationId: string, running: boolean) => void
 
-  // ── Sidebar search ───────────────────────────────────────────────────────
+  // ── Sidebar search ────────────────────────────────────────────────────
   searchQuery: string
   setSearchQuery: (query: string) => void
 
-  // ── Overlays ─────────────────────────────────────────────────────────────
+  // ── Overlays ──────────────────────────────────────────────────────────
   settingsOpen: boolean
   setSettingsOpen: (open: boolean) => void
 
   commandPaletteOpen: boolean
   setCommandPaletteOpen: (open: boolean) => void
 
-  // ── Progressive unlock stage (persisted) ─────────────────────────────────
+  // ── Sidebar tabs (persisted) ──────────────────────────────────────────
+  leftTab: 'conversations' | 'skills' | 'community'
+  setLeftTab: (tab: 'conversations' | 'skills' | 'community') => void
+
+  rightTab: 'info' | 'workflow' | 'usage'
+  setRightTab: (tab: 'info' | 'workflow' | 'usage') => void
+
+  // ── Progressive unlock stage (persisted) ──────────────────────────────
   unlockStage: number
   setUnlockStage: (stage: number) => void
 
-  /** Whether the user has completed the first-run onboarding wizard */
+  // ── Onboarding completion (manually persisted to localStorage) ────────
+  /** Whether the user has completed the first‑run onboarding wizard */
   onboardingComplete: boolean
   setOnboardingComplete: (complete: boolean) => void
 }
@@ -68,8 +81,8 @@ interface UIState {
 export const useUIStore = create<UIState>()(
   persist(
     (set) => ({
+      // Onboarding – read from localStorage so the wizard only shows once
       onboardingComplete: (() => {
-        // Initialise from localStorage so the wizard only shows once.
         try {
           return localStorage.getItem('skilldeck-onboarding-complete') === 'true'
         } catch {
@@ -85,15 +98,15 @@ export const useUIStore = create<UIState>()(
         set({ onboardingComplete: complete })
       },
 
-      // Active workspace
+      // Workspace
       activeWorkspaceId: null,
       setActiveWorkspace: (id) => set({ activeWorkspaceId: id }),
 
-      // Active conversation
+      // Conversation
       activeConversationId: null,
       setActiveConversation: (id) => set({ activeConversationId: id }),
 
-      // Branch navigation
+      // Branch
       activeBranchId: null,
       setActiveBranch: (id) => set({ activeBranchId: id }),
 
@@ -144,20 +157,27 @@ export const useUIStore = create<UIState>()(
       // Overlays
       settingsOpen: false,
       setSettingsOpen: (open) => set({ settingsOpen: open }),
-
       commandPaletteOpen: false,
       setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
 
-      // Unlock
+      // Sidebar tabs
+      leftTab: 'conversations',
+      setLeftTab: (tab) => set({ leftTab: tab }),
+      rightTab: 'info',
+      setRightTab: (tab) => set({ rightTab: tab }),
+
+      // Unlock stage
       unlockStage: 0,
       setUnlockStage: (stage) => set({ unlockStage: stage })
     }),
     {
       name: 'skilldeck-ui',
-      // Only persist layout preferences — never transient state.
+      // Only persist layout preferences and unlock stage – never transient UI state.
       partialize: (state) => ({
         panelSizes: state.panelSizes,
-        unlockStage: state.unlockStage
+        unlockStage: state.unlockStage,
+        leftTab: state.leftTab,
+        rightTab: state.rightTab
       })
     }
   )
