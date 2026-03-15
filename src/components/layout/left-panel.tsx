@@ -102,7 +102,6 @@ export function LeftPanel() {
             size="icon-sm"
             aria-label="Settings"
             onClick={() => setSettingsOpen(true)}
-            title="Settings (⌘,)"
           >
             <Settings className="size-4" />
           </Button>
@@ -124,11 +123,8 @@ export function LeftPanel() {
             placeholder="Search…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8 h-7 text-sm pr-16" // extra right padding for badge
+            className="pl-8 h-7 text-sm"
           />
-          <kbd className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-mono bg-muted px-1 py-0.5 rounded text-muted-foreground border border-border shadow-sm leading-none">
-            ⌘K
-          </kbd>
         </div>
       </div>
 
@@ -141,7 +137,7 @@ export function LeftPanel() {
             </div>
           ) : filtered?.length === 0 ? (
             <p className="text-center text-xs text-muted-foreground py-8">
-              {searchQuery ? 'No matches' : 'No conversations yet'}
+              {searchQuery ? 'No matches' : 'Your chat log is empty – time to start a conversation!'}
             </p>
           ) : (
             filtered?.map((c) => (

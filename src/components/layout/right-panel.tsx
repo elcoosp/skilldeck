@@ -326,8 +326,8 @@ function SkillsTab() {
       )}
       {skills.length === 0 && (
         <p className="text-xs text-muted-foreground">
-          No skills loaded. Add skills to{' '}
-          <code className="text-xs">.skilldeck/skills/</code> or{' '}
+          Your skill deck is empty – craft some superpowers!<br />
+          Add skills to <code className="text-xs">.skilldeck/skills/</code> or{' '}
           <code className="text-xs">~/.agents/skills/</code>.
         </p>
       )}

@@ -26,8 +26,7 @@ export function CenterPanel() {
         </div>
         <h2 className="text-lg font-medium">Welcome to SkillDeck</h2>
         <p className="text-sm text-muted-foreground max-w-xs">
-          Select a conversation from the sidebar or create a new one to get
-          started.
+          Pick a thread or create a new one to get chatting.
         </p>
       </div>
     )

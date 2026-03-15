@@ -1,10 +1,16 @@
 /**
  * McpTab — full MCP server management panel.
+ *
+ * Replaces the single "No MCP servers configured." dead-end with:
+ *  1. Live server list with status badges + connect/disconnect/remove actions
+ *  2. Curated catalog of popular MCP servers with one-click add
+ *  3. Custom server form (stdio or SSE)
  */
 
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
+  ChevronDown,
   ChevronRight,
   ExternalLink,
   Loader2,
@@ -16,12 +22,13 @@ import {
   Server,
   Trash2,
   Unplug,
+  X,
   Zap,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { openUrl } from '@tauri-apps/plugin-opener'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   listMcpServers,
@@ -44,7 +51,7 @@ interface CatalogEntry {
   args?: string[]
   url?: string
   docsUrl: string
-  category: 'filesystem' | 'web' | 'data' | 'dev' | 'productivity' | 'cloud' | 'observability'
+  category: 'filesystem' | 'web' | 'data' | 'dev' | 'productivity'
   tags: string[]
 }
 
@@ -72,17 +79,6 @@ const CATALOG: CatalogEntry[] = [
     tags: ['memory', 'persistence', 'kv'],
   },
   {
-    id: 'git',
-    name: 'Git',
-    description: 'Read git history, diffs, and commits locally',
-    transport: 'stdio',
-    command: 'uvx',
-    args: ['mcp-server-git', '--repository', '.'],
-    docsUrl: 'https://github.com/modelcontextprotocol/servers/tree/main/src/git',
-    category: 'dev',
-    tags: ['git', 'history', 'diff'],
-  },
-  {
     id: 'github',
     name: 'GitHub',
     description: 'Read repos, issues, PRs and files from GitHub',
@@ -91,18 +87,7 @@ const CATALOG: CatalogEntry[] = [
     args: ['-y', '@modelcontextprotocol/server-github'],
     docsUrl: 'https://github.com/modelcontextprotocol/servers/tree/main/src/github',
     category: 'dev',
-    tags: ['git', 'code', 'issues'],
-  },
-  {
-    id: 'gitlab',
-    name: 'GitLab',
-    description: 'Access GitLab projects, issues, and merge requests',
-    transport: 'stdio',
-    command: 'npx',
-    args: ['-y', '@modelcontextprotocol/server-gitlab'],
-    docsUrl: 'https://github.com/modelcontextprotocol/servers/tree/main/src/gitlab',
-    category: 'dev',
-    tags: ['gitlab', 'ci/cd', 'mrs'],
+    tags: ['git', 'code', 'issues', 'prs'],
   },
   {
     id: 'brave-search',
@@ -127,26 +112,15 @@ const CATALOG: CatalogEntry[] = [
     tags: ['http', 'scrape', 'browse'],
   },
   {
-    id: 'puppeteer',
-    name: 'Puppeteer',
-    description: 'Browser automation and screenshot capture',
+    id: 'sqlite',
+    name: 'SQLite',
+    description: 'Query and manage SQLite databases',
     transport: 'stdio',
-    command: 'npx',
-    args: ['-y', '@modelcontextprotocol/server-puppeteer'],
-    docsUrl: 'https://github.com/modelcontextprotocol/servers/tree/main/src/puppeteer',
-    category: 'web',
-    tags: ['browser', 'automation', 'screenshot'],
-  },
-  {
-    id: 'playwright',
-    name: 'Playwright',
-    description: 'End-to-end testing and web automation',
-    transport: 'stdio',
-    command: 'npx',
-    args: ['-y', '@modelcontextprotocol/server-playwright'],
-    docsUrl: 'https://github.com/modelcontextprotocol/servers/tree/main/src/playwright',
-    category: 'web',
-    tags: ['testing', 'automation', 'e2e'],
+    command: 'uvx',
+    args: ['mcp-server-sqlite', '--db-path', 'data.db'],
+    docsUrl: 'https://github.com/modelcontextprotocol/servers/tree/main/src/sqlite',
+    category: 'data',
+    tags: ['sql', 'database', 'query'],
   },
   {
     id: 'postgres',
@@ -160,242 +134,48 @@ const CATALOG: CatalogEntry[] = [
     tags: ['sql', 'database', 'postgres'],
   },
   {
-    id: 'sqlite',
-    name: 'SQLite',
-    description: 'Query and manage SQLite databases',
+    id: 'git',
+    name: 'Git',
+    description: 'Read git history, diffs, and commits locally',
     transport: 'stdio',
     command: 'uvx',
-    args: ['mcp-server-sqlite', '--db-path', 'data.db'],
-    docsUrl: 'https://github.com/modelcontextprotocol/servers/tree/main/src/sqlite',
-    category: 'data',
-    tags: ['sql', 'database', 'query'],
+    args: ['mcp-server-git', '--repository', '.'],
+    docsUrl: 'https://github.com/modelcontextprotocol/servers/tree/main/src/git',
+    category: 'dev',
+    tags: ['git', 'history', 'diff'],
   },
   {
-    id: 'mongodb',
-    name: 'MongoDB',
-    description: 'Query MongoDB collections using natural language',
+    id: 'puppeteer',
+    name: 'Puppeteer',
+    description: 'Browser automation and screenshot capture',
     transport: 'stdio',
     command: 'npx',
-    args: ['-y', '@modelcontextprotocol/server-mongodb'],
-    docsUrl: 'https://github.com/modelcontextprotocol/servers/tree/main/src/mongodb',
-    category: 'data',
-    tags: ['nosql', 'document', 'aggregation'],
-  },
-  {
-    id: 'qdrant',
-    name: 'Qdrant',
-    description: 'Vector search for RAG and long-term memory',
-    transport: 'stdio',
-    command: 'docker',
-    args: ['run', '-p', '6333:6333', 'qdrant/qdrant'],
-    docsUrl: 'https://github.com/qdrant/qdrant-mcp-server',
-    category: 'data',
-    tags: ['vector', 'embeddings', 'memory'],
-  },
-  {
-    id: 'firebase',
-    name: 'Firebase',
-    description: 'Manage Firestore, Auth, Crashlytics, and more',
-    transport: 'stdio',
-    command: 'npx',
-    args: ['-y', 'firebase-tools', 'mcp'],
-    docsUrl: 'https://github.com/firebase/firebase-tools',
-    category: 'cloud',
-    tags: ['firestore', 'auth', 'crashlytics'],
-  },
-  {
-    id: 'supabase',
-    name: 'Supabase',
-    description: 'Query database, manage edge functions, generate types',
-    transport: 'stdio',
-    command: 'npx',
-    args: ['-y', '@supabase/mcp-server'],
-    docsUrl: 'https://github.com/supabase/mcp-server',
-    category: 'cloud',
-    tags: ['postgres', 'auth', 'edge-functions'],
-  },
-  {
-    id: 'aws',
-    name: 'AWS',
-    description: 'Official AWS SDK integration for resource management',
-    transport: 'stdio',
-    command: 'npx',
-    args: ['-y', '@aws/mcp-server'],
-    docsUrl: 'https://github.com/awslabs/mcp',
-    category: 'cloud',
-    tags: ['ec2', 's3', 'lambda'],
-  },
-  {
-    id: 'azure-devops',
-    name: 'Azure DevOps',
-    description: 'Manage work items, repos, pipelines, and wikis',
-    transport: 'stdio',
-    command: 'npx',
-    args: ['-y', '@azure/mcp-server-devops'],
-    docsUrl: 'https://github.com/microsoft/mcp-server-devops',
-    category: 'cloud',
-    tags: ['azure', 'devops', 'pipelines'],
-  },
-  {
-    id: 'cloudflare-workers',
-    name: 'Cloudflare Workers',
-    description: 'Deploy and manage Workers, KV, and D1',
-    transport: 'stdio',
-    command: 'npx',
-    args: ['-y', '@cloudflare/mcp-server-workers'],
-    docsUrl: 'https://github.com/cloudflare/mcp-server-workers',
-    category: 'cloud',
-    tags: ['workers', 'kv', 'd1'],
-  },
-  {
-    id: 'cloudflare-docs',
-    name: 'Cloudflare Docs',
-    description: 'Get up-to-date reference on Cloudflare products',
-    transport: 'sse',
-    url: 'https://docs.mcp.cloudflare.com/mcp',
-    docsUrl: 'https://developers.cloudflare.com/agents/model-context-protocol/mcp-servers-for-cloudflare/',
-    category: 'cloud',
-    tags: ['docs', 'cloudflare'],
-  },
-  {
-    id: 'cloudflare-observability',
-    name: 'Cloudflare Observability',
-    description: 'Debug applications with logs and analytics',
-    transport: 'sse',
-    url: 'https://observability.mcp.cloudflare.com/mcp',
-    docsUrl: 'https://developers.cloudflare.com/agents/model-context-protocol/mcp-servers-for-cloudflare/',
-    category: 'observability',
-    tags: ['logs', 'analytics', 'debug'],
-  },
-  {
-    id: 'cloudflare-radar',
-    name: 'Cloudflare Radar',
-    description: 'Global internet traffic insights and URL scans',
-    transport: 'sse',
-    url: 'https://radar.mcp.cloudflare.com/mcp',
-    docsUrl: 'https://developers.cloudflare.com/agents/model-context-protocol/mcp-servers-for-cloudflare/',
+    args: ['-y', '@modelcontextprotocol/server-puppeteer'],
+    docsUrl: 'https://github.com/modelcontextprotocol/servers/tree/main/src/puppeteer',
     category: 'web',
-    tags: ['internet', 'traffic', 'trends'],
-  },
-  {
-    id: 'datadog',
-    name: 'Datadog',
-    description: 'Query metrics, logs, traces, and monitor incidents',
-    transport: 'stdio',
-    command: 'npx',
-    args: ['-y', '@datadog/mcp-server'],
-    docsUrl: 'https://github.com/datadog/mcp-server',
-    category: 'observability',
-    tags: ['metrics', 'logs', 'apm'],
-  },
-  {
-    id: 'grafana',
-    name: 'Grafana',
-    description: 'Query dashboards, explore data sources',
-    transport: 'stdio',
-    command: 'npx',
-    args: ['-y', '@grafana/mcp-server'],
-    docsUrl: 'https://github.com/grafana/mcp-server',
-    category: 'observability',
-    tags: ['dashboards', 'prometheus', 'loki'],
-  },
-  {
-    id: 'sentry',
-    name: 'Sentry',
-    description: 'Access errors, issues, and performance data',
-    transport: 'stdio',
-    command: 'npx',
-    args: ['-y', '@sentry/mcp-server'],
-    docsUrl: 'https://github.com/getsentry/sentry-mcp-server',
-    category: 'observability',
-    tags: ['errors', 'issues', 'performance'],
-  },
-  {
-    id: 'kubernetes',
-    name: 'Kubernetes',
-    description: 'Manage pods, deployments, services via kubectl',
-    transport: 'stdio',
-    command: 'npx',
-    args: ['-y', '@kubernetes/mcp-server'],
-    docsUrl: 'https://github.com/kubernetes/mcp-server',
-    category: 'dev',
-    tags: ['k8s', 'pods', 'deployments'],
-  },
-  {
-    id: 'terraform',
-    name: 'Terraform',
-    description: 'Plan, apply, and query Terraform state',
-    transport: 'stdio',
-    command: 'npx',
-    args: ['-y', '@hashicorp/mcp-server-terraform'],
-    docsUrl: 'https://github.com/hashicorp/mcp-server-terraform',
-    category: 'dev',
-    tags: ['iac', 'terraform', 'state'],
+    tags: ['browser', 'automation', 'screenshot'],
   },
   {
     id: 'slack',
     name: 'Slack',
-    description: 'Read and send messages, search channels',
+    description: 'Read and send messages in Slack workspaces',
     transport: 'stdio',
     command: 'npx',
-    args: ['-y', '@slack/mcp-server'],
-    docsUrl: 'https://github.com/slackapi/mcp-server-slack',
+    args: ['-y', '@modelcontextprotocol/server-slack'],
+    docsUrl: 'https://github.com/modelcontextprotocol/servers/tree/main/src/slack',
     category: 'productivity',
     tags: ['slack', 'messaging', 'team'],
   },
   {
-    id: 'notion',
-    name: 'Notion',
-    description: 'Search, read, and write Notion pages',
+    id: 'everything',
+    name: 'Everything (demo)',
+    description: 'Demo server that exposes every MCP capability',
     transport: 'stdio',
     command: 'npx',
-    args: ['-y', '@notionhq/mcp-server'],
-    docsUrl: 'https://github.com/makenotion/notion-mcp-server',
-    category: 'productivity',
-    tags: ['wiki', 'docs', 'notes'],
-  },
-  {
-    id: 'jira',
-    name: 'Jira',
-    description: 'Create, read, and update issues',
-    transport: 'stdio',
-    command: 'npx',
-    args: ['-y', '@atlassian/mcp-server-jira'],
-    docsUrl: 'https://github.com/atlassian/mcp-server-jira',
-    category: 'productivity',
-    tags: ['tickets', 'project-mgmt'],
-  },
-  {
-    id: 'figma',
-    name: 'Figma',
-    description: 'Extract design tokens and generate code from frames',
-    transport: 'sse',
-    url: 'https://mcp.figma.com/mcp',
-    docsUrl: 'https://www.figma.com/developers/mcp',
+    args: ['-y', '@modelcontextprotocol/server-everything'],
+    docsUrl: 'https://github.com/modelcontextprotocol/servers/tree/main/src/everything',
     category: 'dev',
-    tags: ['design', 'ui', 'code-gen'],
-  },
-  {
-    id: 'stripe',
-    name: 'Stripe',
-    description: 'Query customers, subscriptions, and payments',
-    transport: 'stdio',
-    command: 'npx',
-    args: ['-y', '@stripe/mcp-server'],
-    docsUrl: 'https://github.com/stripe/mcp-server',
-    category: 'productivity',
-    tags: ['payments', 'billing'],
-  },
-  {
-    id: 'vercel',
-    name: 'Vercel',
-    description: 'Inspect deployments, logs, and env variables',
-    transport: 'stdio',
-    command: 'npx',
-    args: ['-y', '@vercel/mcp-server'],
-    docsUrl: 'https://github.com/vercel/mcp-server',
-    category: 'cloud',
-    tags: ['deployments', 'logs', 'frontend'],
+    tags: ['demo', 'testing', 'all'],
   },
 ]
 
@@ -405,30 +185,21 @@ const CATEGORY_LABELS: Record<CatalogEntry['category'], string> = {
   data: 'Databases',
   dev: 'Development',
   productivity: 'Productivity',
-  cloud: 'Cloud',
-  observability: 'Observability',
 }
 
 const CATEGORY_ORDER: CatalogEntry['category'][] = [
-  'filesystem', 'dev', 'web', 'data', 'cloud', 'observability', 'productivity',
+  'filesystem', 'dev', 'web', 'data', 'productivity',
 ]
 
-// ── Status badge ──────────────────────────────────────────────────────────────
+// ── Status helpers ─────────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: McpServer['status'] }) {
   return (
     <Badge
-      variant={
-        status === 'connected'
-          ? 'default'
-          : status === 'error'
-            ? 'destructive'
-            : 'secondary'
-      }
+      variant={status === 'connected' ? 'default' : status === 'error' ? 'destructive' : 'secondary'}
       className={cn(
-        'text-[10px] h-4 px-1.5 shrink-0',
-        status === 'connected' &&
-        'bg-green-500/15 text-green-600 dark:text-green-400 border-green-500/20',
+        'text-[10px] h-4 px-1.5',
+        status === 'connected' && 'bg-green-500/15 text-green-600 dark:text-green-400 border-green-500/20',
       )}
     >
       {status === 'connected' && (
@@ -477,23 +248,25 @@ function LiveServerCard({ server }: { server: McpServer }) {
 
   return (
     <div className="rounded-lg border border-border bg-card overflow-hidden">
-      <div className="flex items-center gap-2 px-3 py-2 min-w-0">
+      {/* Header row */}
+      <div className="flex items-center gap-2 px-3 py-2">
         <button
           onClick={() => setExpanded(v => !v)}
-          className="flex items-center gap-1.5 flex-1 min-w-0 text-left overflow-hidden"
+          className="flex items-center gap-1.5 flex-1 min-w-0 text-left"
         >
-          <ChevronRight
-            className={cn(
-              'size-3 text-muted-foreground shrink-0 transition-transform duration-150',
-              expanded && 'rotate-90',
-            )}
-          />
+          <span className={cn(
+            'transition-transform duration-150',
+            expanded ? 'rotate-90' : 'rotate-0'
+          )}>
+            <ChevronRight className="size-3 text-muted-foreground" />
+          </span>
           <Server className="size-3.5 text-muted-foreground shrink-0" />
           <span className="text-xs font-medium truncate">{server.name}</span>
         </button>
 
         <StatusBadge status={server.status} />
 
+        {/* Actions */}
         <div className="flex items-center gap-0.5 shrink-0">
           {isConnected ? (
             <button
@@ -525,6 +298,7 @@ function LiveServerCard({ server }: { server: McpServer }) {
         </div>
       </div>
 
+      {/* Expanded: tools list */}
       {expanded && (
         <div className="border-t border-border px-3 py-2 space-y-1.5">
           {server.tools.length === 0 ? (
@@ -540,7 +314,7 @@ function LiveServerCard({ server }: { server: McpServer }) {
                 <div key={tool.name} className="text-[11px]">
                   <span className="font-mono text-foreground">{tool.name}</span>
                   {tool.description && (
-                    <p className="text-muted-foreground mt-0.5 leading-relaxed break-words">
+                    <p className="text-muted-foreground mt-0.5 leading-relaxed">
                       {tool.description}
                     </p>
                   )}
@@ -567,86 +341,54 @@ function CatalogCard({
   onAdd: (entry: CatalogEntry) => void
   adding: boolean
 }) {
-  const handleDocsClick = async () => {
-    try {
-      await openUrl(entry.docsUrl)
-    } catch (e) {
-      toast.error(`Failed to open link: ${e}`)
-    }
-  }
-
   return (
-    // overflow-hidden on the card clips anything trying to escape horizontally.
-    // This is the primary guard against cards expanding the panel's scroll width.
-    <div
-      className={cn(
-        'flex items-start gap-2 px-3 py-2.5 rounded-lg border transition-colors overflow-hidden',
-        alreadyAdded
-          ? 'border-green-500/20 bg-green-500/5 opacity-70'
-          : 'border-border hover:border-primary/30 hover:bg-muted/30',
-      )}
-    >
-      {/* Icon — never shrinks, never grows */}
+    <div className={cn(
+      'flex items-start gap-2.5 px-3 py-2.5 rounded-lg border transition-colors',
+      alreadyAdded
+        ? 'border-green-500/20 bg-green-500/5 opacity-70'
+        : 'border-border hover:border-primary/30 hover:bg-muted/30',
+    )}>
       <Package className="size-3.5 text-muted-foreground shrink-0 mt-0.5" />
-
-      {/* Text — flex-1 + min-w-0 + overflow-hidden so text wraps/truncates
-          instead of pushing the card wider */}
-      <div className="flex-1 min-w-0 overflow-hidden">
+      <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 mb-0.5">
-          <span className="text-xs font-medium truncate">{entry.name}</span>
-          <span className="text-[10px] text-muted-foreground font-mono bg-muted px-1 rounded shrink-0">
+          <span className="text-xs font-medium">{entry.name}</span>
+          <span className="text-[10px] text-muted-foreground font-mono bg-muted px-1 rounded">
             {entry.transport}
           </span>
         </div>
-        {/* break-words wraps long tokens; w-full gives the paragraph a defined
-            width so the browser knows when to wrap */}
-        <p className="text-[11px] text-muted-foreground leading-relaxed w-full break-words">
+        <p className="text-[11px] text-muted-foreground leading-relaxed">
           {entry.description}
         </p>
         <div className="flex flex-wrap gap-1 mt-1.5">
           {entry.tags.slice(0, 3).map(tag => (
-            <span
-              key={tag}
-              className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground"
-            >
+            <span key={tag} className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
               {tag}
             </span>
           ))}
         </div>
       </div>
-
-      {/* Actions — fixed w-14 column so this column never stretches the card.
-          Previously shrink-0 without a width meant the button text could
-          force the column to grow and push the total width past the panel. */}
-      <div className="flex flex-col gap-1 shrink-0 items-end w-14">
+      <div className="flex flex-col gap-1 shrink-0 items-end">
         <button
           onClick={() => !alreadyAdded && onAdd(entry)}
           disabled={alreadyAdded || adding}
           className={cn(
-            'flex items-center justify-center gap-0.5 w-full px-1.5 py-1 rounded text-[11px] font-medium transition-colors',
+            'flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium transition-colors',
             alreadyAdded
               ? 'text-green-600 dark:text-green-400 cursor-default'
               : 'bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50',
           )}
         >
-          {adding ? (
-            <Loader2 className="size-3 animate-spin" />
-          ) : alreadyAdded ? (
-            '✓'
-          ) : (
-            <>
-              <Plus className="size-2.5" />
-              Add
-            </>
-          )}
+          {adding ? <Loader2 className="size-3 animate-spin" /> :
+            alreadyAdded ? '✓ Added' : <><Plus className="size-2.5" />Add</>}
         </button>
-        <button
-          onClick={handleDocsClick}
+        <a
+          href={entry.docsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
           className="flex items-center gap-0.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
         >
-          Docs
-          <ExternalLink className="size-2.5 shrink-0" />
-        </button>
+          Docs <ExternalLink className="size-2.5" />
+        </a>
       </div>
     </div>
   )
@@ -686,24 +428,31 @@ function CustomServerForm({ onSuccess }: { onSuccess: () => void }) {
     onError: (e: unknown) => toast.error(`Failed to add server: ${e}`),
   })
 
-  const setField =
-    (key: keyof CustomFormState) =>
-      (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
-        setForm(f => ({ ...f, [key]: e.target.value }))
+  const setField = (key: keyof CustomFormState) => (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+  ) => setForm(f => ({ ...f, [key]: e.target.value }))
 
   const submit = () => {
-    if (!form.name.trim()) { toast.error('Server name is required'); return }
+    if (!form.name.trim()) {
+      toast.error('Server name is required')
+      return
+    }
     if (form.transport === 'stdio' && !form.command.trim()) {
-      toast.error('Command is required for stdio transport'); return
+      toast.error('Command is required for stdio transport')
+      return
     }
     if (form.transport === 'sse' && !form.url.trim()) {
-      toast.error('URL is required for SSE transport'); return
+      toast.error('URL is required for SSE transport')
+      return
     }
 
     let env: Record<string, string> | undefined
     if (form.env.trim()) {
-      try { env = JSON.parse(form.env) } catch {
-        toast.error('Env must be valid JSON, e.g. {"KEY": "value"}'); return
+      try {
+        env = JSON.parse(form.env)
+      } catch {
+        toast.error('Env must be valid JSON, e.g. {"KEY": "value"}')
+        return
       }
     }
 
@@ -712,7 +461,8 @@ function CustomServerForm({ onSuccess }: { onSuccess: () => void }) {
       transport: form.transport,
       command: form.transport === 'stdio' ? form.command.trim() : undefined,
       args: form.transport === 'stdio' && form.args.trim()
-        ? form.args.trim().split(/\s+/) : undefined,
+        ? form.args.trim().split(/\s+/)
+        : undefined,
       url: form.transport === 'sse' ? form.url.trim() : undefined,
       env,
     })
@@ -726,13 +476,19 @@ function CustomServerForm({ onSuccess }: { onSuccess: () => void }) {
         <label className="block text-[11px] text-muted-foreground mb-1">Name</label>
         <input className={inp} placeholder="my-server" value={form.name} onChange={setField('name')} />
       </div>
+
       <div>
         <label className="block text-[11px] text-muted-foreground mb-1">Transport</label>
-        <select className={inp} value={form.transport} onChange={setField('transport')}>
+        <select
+          className={inp}
+          value={form.transport}
+          onChange={setField('transport')}
+        >
           <option value="stdio">stdio (local process)</option>
           <option value="sse">SSE (HTTP endpoint)</option>
         </select>
       </div>
+
       {form.transport === 'stdio' ? (
         <>
           <div>
@@ -757,6 +513,7 @@ function CustomServerForm({ onSuccess }: { onSuccess: () => void }) {
           <input className={inp} placeholder="http://localhost:8080/sse" value={form.url} onChange={setField('url')} />
         </div>
       )}
+
       <div>
         <label className="block text-[11px] text-muted-foreground mb-1">
           Env vars <span className="opacity-60">(optional JSON)</span>
@@ -768,6 +525,7 @@ function CustomServerForm({ onSuccess }: { onSuccess: () => void }) {
           onChange={setField('env')}
         />
       </div>
+
       <button
         onClick={submit}
         disabled={addMut.isPending}
@@ -824,69 +582,56 @@ export function McpTab() {
 
   const addedNames = new Set(servers.map(s => s.name.toLowerCase()))
   const isAdded = (entry: CatalogEntry) => addedNames.has(entry.name.toLowerCase())
+
   const filteredCatalog = catalogCategory === 'all'
     ? CATALOG
     : CATALOG.filter(e => e.category === catalogCategory)
 
-  const handleBrowseAll = async () => {
-    try { await openUrl('https://github.com/modelcontextprotocol/servers') }
-    catch (e) { toast.error(`Failed to open link: ${e}`) }
-  }
-  const handleWhatIsMcp = async () => {
-    try { await openUrl('https://modelcontextprotocol.io/introduction') }
-    catch (e) { toast.error(`Failed to open link: ${e}`) }
-  }
-
-  // ── Catalog view ───────────────────────────────────────────────────────────
+  // ── Sub-views ──────────────────────────────────────────────────────────────
 
   if (view === 'catalog') {
     return (
-      // overflow-hidden on the root prevents any child from registering a
-      // wider natural width and triggering the panel's horizontal scrollbar.
-      <div className="flex flex-col h-full overflow-hidden">
+      <div className="flex flex-col h-full">
+        {/* Header */}
         <div className="flex items-center gap-2 px-3 pt-3 pb-2 border-b border-border shrink-0">
           <button
             onClick={() => setView('servers')}
-            className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+            className="text-muted-foreground hover:text-foreground transition-colors"
             aria-label="Back"
           >
             <ChevronRight className="size-4 rotate-180" />
           </button>
-          <span className="text-xs font-semibold truncate">Popular MCP Servers</span>
-          <button
-            onClick={handleBrowseAll}
-            className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          <span className="text-xs font-semibold">Popular MCP Servers</span>
+          <a
+            href="https://github.com/modelcontextprotocol/servers"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
           >
-            All <ExternalLink className="size-3" />
-          </button>
+            Browse all <ExternalLink className="size-3" />
+          </a>
         </div>
 
-        {/* Category filter pill row.
-            The outer div clips; the inner div scrolls horizontally in
-            isolation, keeping its scroll context separate from the panel. */}
-        <div className="shrink-0 overflow-hidden px-3 py-2">
-          <div className="flex gap-1 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-            {(['all', ...CATEGORY_ORDER] as const).map(cat => (
-              <button
-                key={cat}
-                onClick={() => setCatalogCategory(cat)}
-                className={cn(
-                  'shrink-0 px-2 py-0.5 rounded-full text-[11px] font-medium transition-colors whitespace-nowrap',
-                  catalogCategory === cat
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {cat === 'all' ? 'All' : CATEGORY_LABELS[cat]}
-              </button>
-            ))}
-          </div>
+        {/* Category filter */}
+        <div className="flex gap-1 px-3 py-2 overflow-x-auto shrink-0 scrollbar-none">
+          {(['all', ...CATEGORY_ORDER] as const).map(cat => (
+            <button
+              key={cat}
+              onClick={() => setCatalogCategory(cat)}
+              className={cn(
+                'shrink-0 px-2 py-0.5 rounded-full text-[11px] font-medium transition-colors whitespace-nowrap',
+                catalogCategory === cat
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {cat === 'all' ? 'All' : CATEGORY_LABELS[cat]}
+            </button>
+          ))}
         </div>
 
-        {/* overflow-hidden on the wrapper stops cards from leaking out of
-            the ScrollArea's viewport and inflating the scroll width. */}
         <ScrollArea className="flex-1 min-h-0">
-          <div className="px-3 pb-3 space-y-1.5 overflow-hidden">
+          <div className="px-3 pb-3 space-y-1.5">
             {filteredCatalog.map(entry => (
               <CatalogCard
                 key={entry.id}
@@ -902,15 +647,13 @@ export function McpTab() {
     )
   }
 
-  // ── Custom server view ─────────────────────────────────────────────────────
-
   if (view === 'custom') {
     return (
-      <div className="flex flex-col h-full overflow-hidden">
+      <div className="flex flex-col h-full">
         <div className="flex items-center gap-2 px-3 pt-3 pb-2 border-b border-border shrink-0">
           <button
             onClick={() => setView('servers')}
-            className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+            className="text-muted-foreground hover:text-foreground transition-colors"
             aria-label="Back"
           >
             <ChevronRight className="size-4 rotate-180" />
@@ -926,58 +669,69 @@ export function McpTab() {
     )
   }
 
-  // ── Server list view (default) ─────────────────────────────────────────────
+  // ── Default: server list view ──────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col h-full">
+      {/* Header */}
       <div className="flex items-center justify-between px-3 pt-3 pb-2 shrink-0">
         <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
           MCP Servers
         </span>
-        <button
-          onClick={() => refetch()}
-          disabled={isFetching}
-          title="Refresh"
-          className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
-        >
-          <RefreshCw className={cn('size-3', isFetching && 'animate-spin')} />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => refetch()}
+            disabled={isFetching}
+            title="Refresh"
+            className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
+          >
+            <RefreshCw className={cn('size-3', isFetching && 'animate-spin')} />
+          </button>
+        </div>
       </div>
 
       <ScrollArea className="flex-1 min-h-0">
-        <div className="px-3 pb-3 space-y-2 overflow-hidden">
+        <div className="px-3 pb-3 space-y-2">
           {isLoading ? (
             <div className="flex justify-center py-6">
               <Loader2 className="size-4 animate-spin text-muted-foreground" />
             </div>
           ) : servers.length === 0 ? (
+            /* ── Empty state ── */
             <div className="flex flex-col items-center text-center gap-3 pt-4 pb-2">
               <div className="size-10 rounded-xl bg-muted flex items-center justify-center">
                 <PlugZapIcon className="size-5 text-muted-foreground" />
               </div>
               <div>
-                <p className="text-xs font-medium mb-1">No MCP servers yet</p>
+                <p className="text-xs font-medium mb-1">No tools configured – add a server and unleash the magic!</p>
                 <p className="text-[11px] text-muted-foreground leading-relaxed max-w-[180px]">
                   MCP servers give the agent tools like file access, web search, and database queries.
                 </p>
               </div>
             </div>
           ) : (
-            servers.map(server => <LiveServerCard key={server.id} server={server} />)
+            servers.map(server => (
+              <LiveServerCard key={server.id} server={server} />
+            ))
           )}
 
+          {/* Stats bar when servers exist */}
           {servers.length > 0 && (
             <div className="flex items-center gap-3 px-1 pt-1 text-[11px] text-muted-foreground">
               <span className="flex items-center gap-1">
                 <span className="size-1.5 rounded-full bg-green-500 inline-block" />
                 {servers.filter(s => s.status === 'connected').length} connected
               </span>
-              <span>{servers.reduce((n, s) => n + s.tools.length, 0)} tools</span>
+              <span>
+                {servers.reduce((n, s) => n + s.tools.length, 0)} tools total
+              </span>
             </div>
           )}
 
+          {/* Divider */}
           <div className="border-t border-border/50 my-2" />
 
+          {/* Action buttons — always visible */}
           <button
             onClick={() => setView('catalog')}
             className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border border-dashed border-border hover:border-primary/40 hover:bg-muted/30 text-left transition-colors group"
@@ -985,10 +739,10 @@ export function McpTab() {
             <div className="size-7 rounded-md bg-muted flex items-center justify-center shrink-0 group-hover:bg-primary/10 transition-colors">
               <Zap className="size-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
             </div>
-            <div className="min-w-0">
+            <div>
               <p className="text-xs font-medium">Browse catalog</p>
               <p className="text-[11px] text-muted-foreground">
-                {CATALOG.length} servers — one click to add
+                {CATALOG.length} popular servers — one click to add
               </p>
             </div>
             <ChevronRight className="size-3.5 text-muted-foreground ml-auto shrink-0" />
@@ -1001,20 +755,25 @@ export function McpTab() {
             <div className="size-7 rounded-md bg-muted flex items-center justify-center shrink-0 group-hover:bg-primary/10 transition-colors">
               <Server className="size-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
             </div>
-            <div className="min-w-0">
+            <div>
               <p className="text-xs font-medium">Add custom server</p>
-              <p className="text-[11px] text-muted-foreground">stdio or SSE, any command or URL</p>
+              <p className="text-[11px] text-muted-foreground">
+                stdio or SSE, any command or URL
+              </p>
             </div>
             <ChevronRight className="size-3.5 text-muted-foreground ml-auto shrink-0" />
           </button>
 
-          <button
-            onClick={handleWhatIsMcp}
+          {/* Learn more link */}
+          <a
+            href="https://modelcontextprotocol.io/introduction"
+            target="_blank"
+            rel="noopener noreferrer"
             className="flex items-center gap-1.5 px-1 pt-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
           >
-            <ExternalLink className="size-3 shrink-0" />
+            <ExternalLink className="size-3" />
             What is MCP?
-          </button>
+          </a>
         </div>
       </ScrollArea>
     </div>
