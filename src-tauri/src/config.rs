@@ -1,27 +1,38 @@
 //! Application configuration loaded from `~/.config/skilldeck/config.toml`.
-//!
-//! All fields have sensible defaults so the file is optional.
 
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 const DEFAULT_PLATFORM_URL: &str = "https://platform.skilldeck.dev";
+const DEFAULT_MAX_EVAL_OPT_ITERATIONS: u32 = 5;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
-#[derive(Default)]
 pub struct AppConfig {
     pub platform: PlatformConfig,
+    pub agent: AgentConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct PlatformConfig {
-    /// Base URL of the SkillDeck Platform API.
     pub url: String,
-    /// Master switch for all platform features (referrals, nudges, analytics).
-    /// Set to `false` to run in fully air-gapped / private mode.
     pub enabled: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct AgentConfig {
+    pub max_eval_opt_iterations: u32,
+}
+
+impl Default for AppConfig {
+    fn default() -> Self {
+        Self {
+            platform: PlatformConfig::default(),
+            agent: AgentConfig::default(),
+        }
+    }
 }
 
 impl Default for PlatformConfig {
@@ -29,6 +40,14 @@ impl Default for PlatformConfig {
         Self {
             url: DEFAULT_PLATFORM_URL.to_string(),
             enabled: true,
+        }
+    }
+}
+
+impl Default for AgentConfig {
+    fn default() -> Self {
+        Self {
+            max_eval_opt_iterations: DEFAULT_MAX_EVAL_OPT_ITERATIONS,
         }
     }
 }
