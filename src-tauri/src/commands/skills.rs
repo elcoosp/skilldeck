@@ -1,23 +1,23 @@
 //! Skill-related Tauri commands.
 //!
 //! Extends the existing list/toggle commands with:
-//! - lint_skill / lint_all_local_sources
-//! - install_skill / uninstall_skill
-//! - source management (add/remove/list)
-//! - registry skill fetching (platform proxy)
-//! - config management (disable rule)
-//! - diff for conflict resolution
+//! - sync_registry_skills
+//! - fetch_registry_skills
+//! - lint commands, installation, source management, etc.
 
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use sea_orm::{ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, QueryFilter};
+use sea_orm::{
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, Condition, EntityTrait, QueryFilter,
+};
 use serde::{Deserialize, Serialize};
 use tauri::State;
 use uuid::Uuid;
 
 use crate::state::AppState;
+use crate::sync::skill_sync::sync_registry_skills as do_sync;
 use skilldeck_lint::{LintConfig, LintWarning, lint_skill as do_lint};
 
 // ── Existing commands (list/toggle) ───────────────────────────────────────────
@@ -41,7 +41,7 @@ pub async fn list_skills(state: State<'_, Arc<AppState>>) -> Result<Vec<SkillInf
             description: s.description,
             is_active: s.is_active,
             source: s.source,
-            path: s.disk_path.map(|p| p.to_string_lossy().into_owned()), // <-- fixed
+            path: s.disk_path.map(|p| p.to_string_lossy().into_owned()),
         })
         .collect())
 }
@@ -70,7 +70,6 @@ pub async fn lint_skill(
     workspace_config_path: Option<PathBuf>,
 ) -> Result<Vec<LintWarning>, String> {
     let base_config = state.lint_config.read().await.clone();
-    // Merge workspace config on top of the global one if provided.
     let config = if let Some(ws_path) = workspace_config_path {
         LintConfig::from_files(None, Some(&ws_path)).unwrap_or(base_config)
     } else {
@@ -127,7 +126,6 @@ pub async fn lint_all_local_sources(
                     tokio::task::spawn_blocking(move || do_lint(&path_clone, &config_clone))
                         .await
                         .unwrap_or_default();
-                // Use source_type as key prefix (since label is gone)
                 results.insert(format!("{}:{}", source.source_type, skill_name), warnings);
             }
         }
@@ -197,7 +195,6 @@ pub async fn diff_skill_versions(
         });
     }
 
-    // Produce a simple line-by-line diff representation.
     let diff = produce_simple_diff(&local_content, &registry_content);
     Ok(DiffResult {
         diff,
@@ -210,7 +207,6 @@ fn produce_simple_diff(old: &str, new: &str) -> String {
     let old_lines: Vec<&str> = old.lines().collect();
     let new_lines: Vec<&str> = new.lines().collect();
 
-    // Simple unified-like diff (not a full Myers diff — sufficient for UI display).
     let max = old_lines.len().max(new_lines.len());
     for i in 0..max {
         match (old_lines.get(i), new_lines.get(i)) {
@@ -260,7 +256,6 @@ pub async fn disable_lint_rule(
             .join("skilldeck-lint.toml"),
     };
 
-    // Read existing config or start fresh.
     let mut content = if config_path.exists() {
         tokio::fs::read_to_string(&config_path)
             .await
@@ -269,7 +264,6 @@ pub async fn disable_lint_rule(
         String::from("[defaults]\nseverity = \"warning\"\n\n[rules]\n")
     };
 
-    // Append the rule override if not already present.
     let rule_entry = format!("\"{}\" = \"off\"", rule_id);
     if !content.contains(&rule_entry) {
         if !content.contains("[rules]") {
@@ -278,7 +272,6 @@ pub async fn disable_lint_rule(
         content.push_str(&format!("{}\n", rule_entry));
     }
 
-    // Write back.
     if let Some(parent) = config_path.parent() {
         tokio::fs::create_dir_all(parent)
             .await
@@ -288,7 +281,6 @@ pub async fn disable_lint_rule(
         .await
         .map_err(|e| e.to_string())?;
 
-    // Reload the in-memory global config.
     if matches!(scope, ConfigScope::Global) {
         if let Ok(new_config) = LintConfig::from_files(Some(&config_path), None) {
             *state.lint_config.write().await = new_config;
@@ -331,7 +323,7 @@ pub async fn list_skill_sources(
             id: r.id.to_string(),
             source_type: r.source_type,
             path: r.path,
-            label: None, // no label in DB
+            label: None,
         })
         .collect())
 }
@@ -341,7 +333,7 @@ pub async fn add_skill_source(
     state: State<'_, Arc<AppState>>,
     source_type: String,
     path: String,
-    label: Option<String>, // kept for API, but ignored
+    _label: Option<String>, // kept for API compatibility, but ignored
 ) -> Result<String, String> {
     let db = state
         .registry
@@ -357,14 +349,15 @@ pub async fn add_skill_source(
         id: Set(id),
         source_type: Set(source_type),
         path: Set(path),
-        priority: Set(0),   // default priority
-        enabled: Set(true), // default enabled
+        priority: Set(0),
+        enabled: Set(true),
         created_at: Set(now),
         ..Default::default()
     };
     active.insert(db).await.map_err(|e| e.to_string())?;
     Ok(id.to_string())
 }
+
 #[tauri::command]
 pub async fn remove_skill_source(
     state: State<'_, Arc<AppState>>,
@@ -384,4 +377,122 @@ pub async fn remove_skill_source(
         .await
         .map_err(|e| e.to_string())?;
     Ok(())
+}
+
+// ── NEW: Registry sync command ────────────────────────────────────────────────
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RegistrySkillData {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub source: String,
+    pub source_url: Option<String>,
+    pub version: Option<String>,
+    pub author: Option<String>,
+    pub license: Option<String>,
+    pub tags: Vec<String>,
+    pub category: Option<String>,
+    pub lint_warnings: Vec<serde_json::Value>,
+    pub security_score: i32,
+    pub quality_score: i32,
+    pub metadata_source: String,
+    pub content: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+impl From<skilldeck_models::registry_skills::Model> for RegistrySkillData {
+    fn from(m: skilldeck_models::registry_skills::Model) -> Self {
+        Self {
+            id: m.id.to_string(),
+            name: m.name,
+            description: m.description,
+            source: m.source,
+            source_url: m.source_url,
+            version: m.version,
+            author: m.author,
+            license: m.license,
+            tags: m
+                .tags
+                .and_then(|j| serde_json::from_value(j).ok())
+                .unwrap_or_default(),
+            category: m.category,
+            lint_warnings: m
+                .lint_warnings
+                .and_then(|j| serde_json::from_value(j).ok())
+                .unwrap_or_default(),
+            security_score: m.security_score,
+            quality_score: m.quality_score,
+            metadata_source: m.metadata_source,
+            content: m.content,
+            created_at: m.synced_at.to_rfc3339(),
+            updated_at: m.synced_at.to_rfc3339(),
+        }
+    }
+}
+
+/// Synchronize skills from the platform registry.
+#[tauri::command]
+pub async fn sync_registry_skills(state: State<'_, Arc<AppState>>) -> Result<usize, String> {
+    let client = state.platform_client.read().await;
+    if !client.is_configured() {
+        return Err("Platform not configured".to_string());
+    }
+    let platform_url = client.base_url().to_string();
+    let db = state
+        .registry
+        .db
+        .connection()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    use sea_orm::EntityTrait;
+    use skilldeck_models::registry_skills::Entity as RegistrySkills;
+
+    let last_sync = RegistrySkills::find()
+        .order_by_desc(skilldeck_models::registry_skills::Column::SyncedAt)
+        .one(&db)
+        .await
+        .map_err(|e| e.to_string())?
+        .map(|row| row.synced_at.to_rfc3339());
+
+    let count = do_sync(&db, &platform_url, last_sync.as_deref())
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(count)
+}
+
+/// Fetch registry skills from the local cache.
+#[tauri::command]
+pub async fn fetch_registry_skills(
+    state: State<'_, Arc<AppState>>,
+    category: Option<String>,
+    search: Option<String>,
+) -> Result<Vec<RegistrySkillData>, String> {
+    let db = state
+        .registry
+        .db
+        .connection()
+        .await
+        .map_err(|e| e.to_string())?;
+    use sea_orm::QueryFilter;
+    use skilldeck_models::registry_skills::{Column, Entity as RegistrySkills};
+
+    let mut query = RegistrySkills::find();
+    if let Some(cat) = category {
+        query = query.filter(Column::Category.eq(cat));
+    }
+    if let Some(term) = search {
+        let pattern = format!("%{}%", term);
+        query = query.filter(
+            Condition::any()
+                .add(Column::Name.like(&pattern))
+                .add(Column::Description.like(&pattern)),
+        );
+    }
+    let skills = query.all(&db).await.map_err(|e| e.to_string())?;
+    Ok(skills.into_iter().map(Into::into).collect())
 }
