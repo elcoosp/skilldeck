@@ -132,7 +132,46 @@ impl MigrationTrait for Migration {
                     .to_owned(),
             )
             .await?;
+        // registry_skills cache (new)
+        manager
+            .create_table(
+                Table::create()
+                    .table(RegistrySkills::Table)
+                    .if_not_exists()
+                    .col(uuid(RegistrySkills::Id).primary_key())
+                    .col(string(RegistrySkills::RegistryId).not_null().unique_key())
+                    .col(string(RegistrySkills::Name).not_null())
+                    .col(text(RegistrySkills::Description).not_null())
+                    .col(string(RegistrySkills::Source).not_null())
+                    .col(string(RegistrySkills::SourceUrl).null())
+                    .col(string(RegistrySkills::Version).null())
+                    .col(string(RegistrySkills::Author).null())
+                    .col(string(RegistrySkills::License).null())
+                    .col(json_binary(RegistrySkills::Tags).null())
+                    .col(string(RegistrySkills::Category).null())
+                    .col(json_binary(RegistrySkills::LintWarnings).null())
+                    .col(integer(RegistrySkills::SecurityScore).not_null().default(5))
+                    .col(integer(RegistrySkills::QualityScore).not_null().default(5))
+                    .col(
+                        string(RegistrySkills::MetadataSource)
+                            .not_null()
+                            .default("author"),
+                    )
+                    .col(text(RegistrySkills::Content).not_null())
+                    .col(timestamp_with_time_zone(RegistrySkills::SyncedAt).not_null())
+                    .to_owned(),
+            )
+            .await?;
 
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_registry_skills_name")
+                    .table(RegistrySkills::Table)
+                    .col(RegistrySkills::Name)
+                    .to_owned(),
+            )
+            .await?;
         // conversations
         manager
             .create_table(
