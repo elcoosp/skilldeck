@@ -18,7 +18,7 @@ import {
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
-import { useSkills } from '@/hooks/use-skills'
+import { useAllSkills } from '@/hooks/use-skills'
 import { useConversations } from '@/hooks/use-conversations'
 import { useProfiles } from '@/hooks/use-profiles'
 import { useUIStore } from '@/store/ui'
@@ -43,12 +43,12 @@ const TABS: {
   label: string
   Icon: React.FC<{ className?: string }>
 }[] = [
-  { id: 'session', label: 'Session', Icon: Cpu },
-  { id: 'skills', label: 'Skills', Icon: Layers },
-  { id: 'mcp', label: 'MCP', Icon: Zap },
-  { id: 'workflow', label: 'Workflow', Icon: GitBranch },
-  { id: 'analytics', label: 'Analytics', Icon: BarChart2 }
-]
+    { id: 'session', label: 'Session', Icon: Cpu },
+    { id: 'skills', label: 'Skills', Icon: Layers },
+    { id: 'mcp', label: 'MCP', Icon: Zap },
+    { id: 'workflow', label: 'Workflow', Icon: GitBranch },
+    { id: 'analytics', label: 'Analytics', Icon: BarChart2 }
+  ]
 
 export function RightPanel() {
   const [activeTab, setActiveTab] = useState<Tab>('session')
@@ -319,7 +319,7 @@ function SkillItem({ skill, isActive }: { skill: any; isActive: boolean }) {
 }
 
 function SkillsTab() {
-  const { data: skills = [], isLoading } = useSkills()
+  const { skills = [], isLoading } = useAllSkills()
 
   if (isLoading) {
     return (

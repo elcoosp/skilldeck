@@ -15,7 +15,7 @@ import {
   uninstallSkill,
   type InstallTarget,
   type RegistrySkill,
-  type SkillInfo,
+  type Skill,
   type SkillSourceInfo
 } from '@/lib/invoke'
 import { toast } from 'sonner'
@@ -48,7 +48,7 @@ export function useRegistrySkills(params?: {
 
 export type MergedSkill =
   | (RegistrySkill & { _sourceType: 'registry' })
-  | (SkillInfo & { _sourceType: 'local'; id: string })
+  | (Skill & { _sourceType: 'local'; id: string })
 
 export function useAllSkills(params?: { category?: string; search?: string }) {
   const local = useLocalSkills()
