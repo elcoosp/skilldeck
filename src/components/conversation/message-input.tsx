@@ -1,4 +1,3 @@
-// src/components/conversation/message-input.tsx
 /**
  * Message input — auto-growing textarea with draft persistence, slash commands,
  * skill mention (@), file reference (#) entry points, and file attachments.
@@ -7,7 +6,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AtSign, Hash, Paperclip, Send, StopCircle, X } from 'lucide-react'
 import { open } from '@tauri-apps/plugin-dialog'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
@@ -38,6 +37,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
   const [content, setContent] = useState(draft)
 
   const sendMutation = useSendMessage(conversationId)
+  const shouldReduceMotion = useReducedMotion()
 
   // Sync draft → local state when conversation changes.
   useEffect(() => {
@@ -165,19 +165,19 @@ export function MessageInput({ conversationId }: MessageInputProps) {
             {isSending ? (
               <motion.div
                 key="sending"
-                initial={{ rotate: 0 }}
-                animate={{ rotate: 360 }}
-                transition={{ duration: 0.5, repeat: Infinity, ease: 'linear' }}
+                initial={shouldReduceMotion ? {} : { rotate: 0 }}
+                animate={shouldReduceMotion ? {} : { rotate: 360 }}
+                transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.5, repeat: Infinity, ease: 'linear' }}
               >
                 <Send className="size-3.5" />
               </motion.div>
             ) : (
               <motion.div
                 key="idle"
-                initial={{ scale: 0.8 }}
-                animate={{ scale: 1 }}
-                exit={{ scale: 0.8 }}
-                transition={{ duration: 0.2 }}
+                initial={shouldReduceMotion ? {} : { scale: 0.8 }}
+                animate={shouldReduceMotion ? {} : { scale: 1 }}
+                exit={shouldReduceMotion ? {} : { scale: 0.8 }}
+                transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.2 }}
               >
                 {isRunning ? (
                   <StopCircle className="size-3.5" />
