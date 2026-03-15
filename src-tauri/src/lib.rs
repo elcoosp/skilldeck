@@ -26,7 +26,7 @@ use tauri::Manager;
 use tracing_subscriber::{EnvFilter, fmt};
 
 // Specta bindings export
-use specta_typescript::Typescript;
+use specta_typescript::{BigIntExportBehavior, Typescript};
 use tauri_specta::{Builder, collect_commands, collect_events};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -123,9 +123,13 @@ pub fn run() {
         .events(collect_events![AgentEvent, McpEvent, WorkflowEvent]);
 
     #[cfg(debug_assertions)]
-    builder
-        .export(Typescript::default(), "../src/bindings.ts")
-        .expect("Failed to export TypeScript bindings");
+    {
+        // Create a Typescript exporter with String behavior for BigInts
+        let ts = Typescript::default().bigint(BigIntExportBehavior::String);
+        builder
+            .export(ts, "../src/bindings.ts")
+            .expect("Failed to export TypeScript bindings");
+    }
 
     // Get the invoke handler (borrows builder, does not consume it)
     let invoke_handler = builder.invoke_handler();
