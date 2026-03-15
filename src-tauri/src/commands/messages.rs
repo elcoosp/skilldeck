@@ -266,9 +266,12 @@ async fn run_agent_loop(
 
     let (tx, mut rx) = mpsc::channel::<Result<AgentLoopEvent, skilldeck_core::CoreError>>(128);
 
+    // Create ToolDispatcher with all required arguments
     let dispatcher = Arc::new(ToolDispatcher::new(
         Arc::clone(&state.registry.mcp_registry),
         Arc::clone(&state.approval_gate),
+        Arc::clone(&state.registry.skill_registry),
+        provider.supports_toon(),
     ));
 
     // Load existing messages to provide history.
@@ -372,9 +375,8 @@ async fn run_agent_loop(
 
             let toon_catalog = toon_rust::encode(
                 &serde_json::json!({ "skills": skills_json }),
-                Some(toon_rust::EncodeOptions {
-                    delimiter: toon_rust::Delimiter::Tab,
-                    key_folding: toon_rust::KeyFolding::Safe,
+                Some(&toon_rust::EncodeOptions {
+                    delimiter: Some(toon_rust::options::Delimiter::Tab),
                     ..Default::default()
                 }),
             )
