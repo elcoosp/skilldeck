@@ -235,9 +235,17 @@ impl ToolDispatcher {
                 match self.skill_registry.get_skill(skill_name).await {
                     Some(skill) => {
                         let (content, format) = if self.supports_toon {
-                            let encoded =
-                                toon_rust::encode(&serde_json::json!(skill.content_md), None);
-                            (encoded, SkillContentFormat::Toon)
+                            match toon_rust::encode(&serde_json::json!(skill.content_md), None) {
+                                Ok(encoded) => (encoded, SkillContentFormat::Toon),
+                                Err(e) => {
+                                    tracing::warn!(
+                                        "Toon encoding failed for skill '{}': {}",
+                                        skill_name,
+                                        e
+                                    );
+                                    (skill.content_md.clone(), SkillContentFormat::Text)
+                                }
+                            }
                         } else {
                             (skill.content_md.clone(), SkillContentFormat::Text)
                         };
