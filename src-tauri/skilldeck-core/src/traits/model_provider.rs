@@ -29,10 +29,10 @@ pub enum MessageRole {
 impl std::fmt::Display for MessageRole {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            MessageRole::System    => write!(f, "system"),
-            MessageRole::User      => write!(f, "user"),
+            MessageRole::System => write!(f, "system"),
+            MessageRole::User => write!(f, "user"),
             MessageRole::Assistant => write!(f, "assistant"),
-            MessageRole::Tool      => write!(f, "tool"),
+            MessageRole::Tool => write!(f, "tool"),
         }
     }
 }
@@ -52,7 +52,9 @@ pub struct ToolCall {
     pub function: FunctionCall,
 }
 
-fn default_tool_type() -> String { "function".to_string() }
+fn default_tool_type() -> String {
+    "function".to_string()
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FunctionCall {
@@ -77,6 +79,8 @@ pub struct CompletionRequest {
     pub messages: Vec<ChatMessage>,
     pub system: Option<String>,
     pub tools: Vec<ToolDefinition>,
+    /// Toon‑encoded tool list (if `Some`, `tools` is ignored).
+    pub tools_toon: Option<String>,
     pub model_params: ModelParams,
     pub model_id: String,
 }
@@ -84,8 +88,12 @@ pub struct CompletionRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum CompletionChunk {
-    Token { content: String },
-    ToolCall { tool_call: ToolCall },
+    Token {
+        content: String,
+    },
+    ToolCall {
+        tool_call: ToolCall,
+    },
     Done {
         input_tokens: u32,
         output_tokens: u32,
@@ -145,14 +153,14 @@ pub trait ModelProvider: Send + Sync {
     fn id(&self) -> &str;
     fn display_name(&self) -> &str;
 
-    fn supports_toon(&self) -> bool { true }
+    /// Whether this provider supports Toon‑encoded tools and skill catalogs.
+    fn supports_toon(&self) -> bool {
+        true
+    }
 
     async fn list_models(&self) -> Result<Vec<ModelInfo>, CoreError>;
 
-    async fn complete(
-        &self,
-        request: CompletionRequest,
-    ) -> Result<CompletionStream, CoreError>;
+    async fn complete(&self, request: CompletionRequest) -> Result<CompletionStream, CoreError>;
 
     async fn complete_sync(
         &self,
@@ -172,16 +180,34 @@ pub trait ModelProvider: Send + Sync {
                 CompletionChunk::Token { content: token } => content.push_str(&token),
                 CompletionChunk::ToolCall { tool_call } => tool_calls.push(tool_call),
                 CompletionChunk::Done {
-                    input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
+                    input_tokens,
+                    output_tokens,
+                    cache_read_tokens,
+                    cache_write_tokens,
                 } => {
-                    usage = TokenUsage { input_tokens, output_tokens, cache_read_tokens, cache_write_tokens };
+                    usage = TokenUsage {
+                        input_tokens,
+                        output_tokens,
+                        cache_read_tokens,
+                        cache_write_tokens,
+                    };
                 }
             }
         }
 
-        let finish_reason = if tool_calls.is_empty() { FinishReason::Stop } else { FinishReason::ToolCalls };
+        let finish_reason = if tool_calls.is_empty() {
+            FinishReason::Stop
+        } else {
+            FinishReason::ToolCalls
+        };
 
-        Ok(CompletionResult { content, tool_calls, usage, model: String::new(), finish_reason })
+        Ok(CompletionResult {
+            content,
+            tool_calls,
+            usage,
+            model: String::new(),
+            finish_reason,
+        })
     }
 }
 
@@ -191,7 +217,9 @@ mod tests {
 
     #[test]
     fn completion_chunk_token_round_trips() {
-        let chunk = CompletionChunk::Token { content: "Hello".to_string() };
+        let chunk = CompletionChunk::Token {
+            content: "Hello".to_string(),
+        };
         let json = serde_json::to_string(&chunk).unwrap();
         assert!(json.contains("token"));
         let decoded: CompletionChunk = serde_json::from_str(&json).unwrap();

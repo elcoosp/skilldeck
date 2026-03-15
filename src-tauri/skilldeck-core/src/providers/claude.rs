@@ -250,11 +250,21 @@ impl ModelProvider for ClaudeProvider {
         let messages = Self::convert_messages(&request.messages)?;
         let tools = Self::convert_tools(&request.tools);
 
+        // If tools_toon is present, add it as a system message
+        let mut system = request.system.clone();
+        if let Some(toon) = &request.tools_toon {
+            let tool_msg = format!("Available tools are provided in TOON format:\n{}", toon);
+            system = match system {
+                Some(s) => Some(format!("{}\n\n{}", s, tool_msg)),
+                None => Some(tool_msg),
+            };
+        }
+
         let claude_request = ClaudeRequest {
             model: request.model_id.clone(),
             max_tokens: request.model_params.max_tokens.unwrap_or(8192),
             messages,
-            system: request.system.clone(),
+            system,
             tools,
             stream: true,
             temperature: request.model_params.temperature,

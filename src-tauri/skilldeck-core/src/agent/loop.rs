@@ -77,6 +77,8 @@ pub struct AgentLoop {
     tx: mpsc::Sender<Result<AgentLoopEvent, CoreError>>,
     /// Cancellation token — set by `cancel()` or passed in from outside.
     cancel_token: CancellationToken,
+    /// Whether the model supports Toon encoding.
+    supports_toon: bool,
 }
 
 impl AgentLoop {
@@ -86,6 +88,7 @@ impl AgentLoop {
         config: AgentLoopConfig,
         tx: mpsc::Sender<Result<AgentLoopEvent, CoreError>>,
     ) -> Self {
+        let supports_toon = provider.supports_toon();
         Self {
             config,
             provider,
@@ -97,6 +100,7 @@ impl AgentLoop {
             dispatcher: None,
             tx,
             cancel_token: CancellationToken::new(),
+            supports_toon,
         }
     }
 
@@ -275,10 +279,34 @@ impl AgentLoop {
             self.messages.clone()
         };
 
+        // Encode tools as Toon if supported
+        let tools_toon = if self.supports_toon && !self.tools.is_empty() {
+            // Convert tools to a JSON array
+            let tools_json =
+                serde_json::to_value(&self.tools).map_err(|e| CoreError::Internal {
+                    message: format!("Failed to serialize tools: {}", e),
+                })?;
+
+            match toon::encode(&tools_json, Some(toon::EncodeOptions::default())) {
+                Ok(encoded) => Some(encoded),
+                Err(e) => {
+                    tracing::error!("Failed to encode tools as Toon: {}", e);
+                    None // fall back to regular tools
+                }
+            }
+        } else {
+            None
+        };
+
         Ok(CompletionRequest {
             messages,
             system,
-            tools: self.tools.clone(),
+            tools: if tools_toon.is_some() {
+                vec![]
+            } else {
+                self.tools.clone()
+            },
+            tools_toon,
             model_params: ModelParams::default(),
             model_id: self.model_id.clone(),
         })
