@@ -1,11 +1,12 @@
 //! HTTP client for the SkillDeck Platform API.
 //!
 //! All requests are authenticated with a bearer token (the platform API key)
-//! retrieved from the OS keychain.  The client is intentionally thin – it
+//! retrieved from the OS keychain. The client is intentionally thin – it
 //! serialises request bodies, deserialises responses, and propagates errors;
 //! higher-level logic lives in the Tauri command handlers.
 
 use reqwest::{Client, StatusCode};
+use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;
@@ -24,6 +25,19 @@ pub enum PlatformError {
     NotConfigured,
     #[error("Platform features are disabled in config")]
     Disabled,
+    #[error("Operation cancelled")]
+    Cancelled,
+}
+
+impl PlatformError {
+    /// Returns true if the error is transient and the operation may be retried.
+    pub fn is_transient(&self) -> bool {
+        match self {
+            PlatformError::Network(_) => true,
+            PlatformError::Http { status, .. } => *status >= 500 || *status == 429,
+            _ => false,
+        }
+    }
 }
 
 // ── Request / response DTOs ───────────────────────────────────────────────────
@@ -100,7 +114,7 @@ pub struct ActivityEventRequest {
 pub struct PlatformClient {
     http: Client,
     base_url: String,
-    api_key: Option<String>,
+    api_key: Option<SecretString>,
     pub enabled: bool,
 }
 
@@ -118,7 +132,7 @@ impl PlatformClient {
     }
 
     pub fn set_api_key(&mut self, key: String) {
-        self.api_key = Some(key);
+        self.api_key = Some(SecretString::from(key));
     }
 
     pub fn is_configured(&self) -> bool {
@@ -139,8 +153,8 @@ impl PlatformClient {
 
     fn auth_header(&self) -> Result<String, PlatformError> {
         self.api_key
-            .as_deref()
-            .map(|k| format!("Bearer {k}"))
+            .as_ref()
+            .map(|key| format!("Bearer {}", key.expose_secret()))
             .ok_or(PlatformError::NotConfigured)
     }
 
@@ -156,20 +170,45 @@ impl PlatformClient {
         })
     }
 
+    // Simple retry helper with exponential backoff.
+    async fn retry<F, Fut, T>(&self, mut f: F) -> Result<T, PlatformError>
+    where
+        F: FnMut() -> Fut,
+        Fut: std::future::Future<Output = Result<T, PlatformError>>,
+    {
+        let mut delay = std::time::Duration::from_millis(100);
+        for attempt in 0..3 {
+            match f().await {
+                Ok(v) => return Ok(v),
+                Err(e) if e.is_transient() && attempt < 2 => {
+                    tokio::time::sleep(delay).await;
+                    delay *= 2;
+                }
+                Err(e) => return Err(e),
+            }
+        }
+        unreachable!()
+    }
+
     // ── Auth-free endpoints ───────────────────────────────────────────────────
 
     /// Register a new client installation.  Returns `(user_id, raw_api_key)`.
     pub async fn register(&self, client_id: Uuid) -> Result<RegisterResponse, PlatformError> {
         self.check_enabled()?;
         let url = format!("{}/api/core/register", self.base_url);
-        let resp = self
-            .http
-            .post(&url)
-            .json(&RegisterRequest { client_id })
-            .send()
-            .await?;
-        let resp = Self::check_response(resp).await?;
-        Ok(resp.json().await?)
+        self.retry(|| async {
+            let resp = self
+                .http
+                .post(&url)
+                .json(&RegisterRequest { client_id })
+                .send()
+                .await?;
+            Self::check_response(resp).await
+        })
+        .await?
+        .json()
+        .await
+        .map_err(Into::into)
     }
 
     // ── Preferences ───────────────────────────────────────────────────────────
@@ -178,14 +217,19 @@ impl PlatformClient {
         self.check_enabled()?;
         let auth = self.auth_header()?;
         let url = format!("{}/api/preferences", self.base_url);
-        let resp = self
-            .http
-            .get(&url)
-            .header("Authorization", auth)
-            .send()
-            .await?;
-        let resp = Self::check_response(resp).await?;
-        Ok(resp.json().await?)
+        self.retry(|| async {
+            let resp = self
+                .http
+                .get(&url)
+                .header("Authorization", &auth)
+                .send()
+                .await?;
+            Self::check_response(resp).await
+        })
+        .await?
+        .json()
+        .await
+        .map_err(Into::into)
     }
 
     pub async fn update_preferences(
@@ -195,57 +239,71 @@ impl PlatformClient {
         self.check_enabled()?;
         let auth = self.auth_header()?;
         let url = format!("{}/api/preferences", self.base_url);
-        let resp = self
-            .http
-            .put(&url)
-            .header("Authorization", auth)
-            .json(&req)
-            .send()
-            .await?;
-        let resp = Self::check_response(resp).await?;
-        Ok(resp.json().await?)
+        self.retry(|| async {
+            let resp = self
+                .http
+                .put(&url)
+                .header("Authorization", &auth)
+                .json(&req)
+                .send()
+                .await?;
+            Self::check_response(resp).await
+        })
+        .await?
+        .json()
+        .await
+        .map_err(Into::into)
     }
 
     pub async fn resend_verification(&self) -> Result<(), PlatformError> {
         self.check_enabled()?;
         let auth = self.auth_header()?;
         let url = format!("{}/api/preferences/resend-verification", self.base_url);
-        let resp = self
-            .http
-            .post(&url)
-            .header("Authorization", auth)
-            .send()
-            .await?;
-        Self::check_response(resp).await?;
-        Ok(())
+        self.retry(|| async {
+            let resp = self
+                .http
+                .post(&url)
+                .header("Authorization", &auth)
+                .send()
+                .await?;
+            Self::check_response(resp).await.map(drop)
+        })
+        .await
     }
 
     pub async fn export_gdpr_data(&self) -> Result<serde_json::Value, PlatformError> {
         self.check_enabled()?;
         let auth = self.auth_header()?;
         let url = format!("{}/api/preferences/export", self.base_url);
-        let resp = self
-            .http
-            .get(&url)
-            .header("Authorization", auth)
-            .send()
-            .await?;
-        let resp = Self::check_response(resp).await?;
-        Ok(resp.json().await?)
+        self.retry(|| async {
+            let resp = self
+                .http
+                .get(&url)
+                .header("Authorization", &auth)
+                .send()
+                .await?;
+            Self::check_response(resp).await
+        })
+        .await?
+        .json()
+        .await
+        .map_err(Into::into)
     }
 
     pub async fn delete_account(&self) -> Result<(), PlatformError> {
         self.check_enabled()?;
         let auth = self.auth_header()?;
         let url = format!("{}/api/preferences/account", self.base_url);
-        let resp = self
-            .http
-            .delete(&url)
-            .header("Authorization", auth)
-            .send()
-            .await?;
-        Self::check_response(resp).await?;
-        Ok(())
+        self.retry(|| async {
+            let resp = self
+                .http
+                .delete(&url)
+                .header("Authorization", &auth)
+                .send()
+                .await?;
+            Self::check_response(resp).await.map(drop)
+        })
+        .await
     }
 
     // ── Growth / Referrals ────────────────────────────────────────────────────
@@ -254,28 +312,38 @@ impl PlatformClient {
         self.check_enabled()?;
         let auth = self.auth_header()?;
         let url = format!("{}/api/growth/referral", self.base_url);
-        let resp = self
-            .http
-            .post(&url)
-            .header("Authorization", auth)
-            .send()
-            .await?;
-        let resp = Self::check_response(resp).await?;
-        Ok(resp.json().await?)
+        self.retry(|| async {
+            let resp = self
+                .http
+                .post(&url)
+                .header("Authorization", &auth)
+                .send()
+                .await?;
+            Self::check_response(resp).await
+        })
+        .await?
+        .json()
+        .await
+        .map_err(Into::into)
     }
 
     pub async fn get_referral_stats(&self) -> Result<ReferralStats, PlatformError> {
         self.check_enabled()?;
         let auth = self.auth_header()?;
         let url = format!("{}/api/growth/referral/stats", self.base_url);
-        let resp = self
-            .http
-            .get(&url)
-            .header("Authorization", auth)
-            .send()
-            .await?;
-        let resp = Self::check_response(resp).await?;
-        Ok(resp.json().await?)
+        self.retry(|| async {
+            let resp = self
+                .http
+                .get(&url)
+                .header("Authorization", &auth)
+                .send()
+                .await?;
+            Self::check_response(resp).await
+        })
+        .await?
+        .json()
+        .await
+        .map_err(Into::into)
     }
 
     // ── Nudges ────────────────────────────────────────────────────────────────
@@ -284,31 +352,38 @@ impl PlatformClient {
         self.check_enabled()?;
         let auth = self.auth_header()?;
         let url = format!("{}/api/growth/nudges/pending", self.base_url);
-        let resp = self
-            .http
-            .get(&url)
-            .header("Authorization", auth)
-            .send()
-            .await?;
-        if resp.status() == StatusCode::NO_CONTENT {
-            return Ok(vec![]);
-        }
-        let resp = Self::check_response(resp).await?;
-        Ok(resp.json().await?)
+        self.retry(|| async {
+            let resp = self
+                .http
+                .get(&url)
+                .header("Authorization", &auth)
+                .send()
+                .await?;
+            if resp.status() == StatusCode::NO_CONTENT {
+                return Ok(vec![]);
+            }
+            Self::check_response(resp).await
+        })
+        .await?
+        .json()
+        .await
+        .map_err(Into::into)
     }
 
     pub async fn mark_nudge_delivered(&self, nudge_id: Uuid) -> Result<(), PlatformError> {
         self.check_enabled()?;
         let auth = self.auth_header()?;
         let url = format!("{}/api/growth/nudges/{nudge_id}/delivered", self.base_url);
-        let resp = self
-            .http
-            .post(&url)
-            .header("Authorization", auth)
-            .send()
-            .await?;
-        Self::check_response(resp).await?;
-        Ok(())
+        self.retry(|| async {
+            let resp = self
+                .http
+                .post(&url)
+                .header("Authorization", &auth)
+                .send()
+                .await?;
+            Self::check_response(resp).await.map(drop)
+        })
+        .await
     }
 
     // ── Activity events ───────────────────────────────────────────────────────
@@ -322,17 +397,19 @@ impl PlatformClient {
         self.check_enabled()?;
         let auth = self.auth_header()?;
         let url = format!("{}/api/growth/event", self.base_url);
-        let resp = self
-            .http
-            .post(&url)
-            .header("Authorization", auth)
-            .json(&ActivityEventRequest {
-                event_type: event_type.into(),
-                metadata,
-            })
-            .send()
-            .await?;
-        Self::check_response(resp).await?;
-        Ok(())
+        self.retry(|| async {
+            let resp = self
+                .http
+                .post(&url)
+                .header("Authorization", &auth)
+                .json(&ActivityEventRequest {
+                    event_type: event_type.into(),
+                    metadata,
+                })
+                .send()
+                .await?;
+            Self::check_response(resp).await.map(drop)
+        })
+        .await
     }
 }
