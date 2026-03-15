@@ -25,6 +25,7 @@ pub enum PlatformError {
     NotConfigured,
     #[error("Platform features are disabled in config")]
     Disabled,
+    #[allow(dead_code)]
     #[error("Operation cancelled")]
     Cancelled,
 }
@@ -174,12 +175,33 @@ impl PlatformClient {
     async fn retry<F, Fut, T>(&self, mut f: F) -> Result<T, PlatformError>
     where
         F: FnMut() -> Fut,
-        Fut: std::future::Future<Output = Result<T, PlatformError>>,
+        Fut: std::future::Future<Output = Result<reqwest::Response, PlatformError>>,
+        T: serde::de::DeserializeOwned,
     {
         let mut delay = std::time::Duration::from_millis(100);
         for attempt in 0..3 {
             match f().await {
-                Ok(v) => return Ok(v),
+                Ok(resp) => return Ok(resp.json().await?),
+                Err(e) if e.is_transient() && attempt < 2 => {
+                    tokio::time::sleep(delay).await;
+                    delay *= 2;
+                }
+                Err(e) => return Err(e),
+            }
+        }
+        unreachable!()
+    }
+
+    // For methods that return no content (204)
+    async fn retry_no_content<F, Fut>(&self, mut f: F) -> Result<(), PlatformError>
+    where
+        F: FnMut() -> Fut,
+        Fut: std::future::Future<Output = Result<reqwest::Response, PlatformError>>,
+    {
+        let mut delay = std::time::Duration::from_millis(100);
+        for attempt in 0..3 {
+            match f().await {
+                Ok(_resp) => return Ok(()),
                 Err(e) if e.is_transient() && attempt < 2 => {
                     tokio::time::sleep(delay).await;
                     delay *= 2;
@@ -196,7 +218,7 @@ impl PlatformClient {
     pub async fn register(&self, client_id: Uuid) -> Result<RegisterResponse, PlatformError> {
         self.check_enabled()?;
         let url = format!("{}/api/core/register", self.base_url);
-        self.retry(|| async {
+        let fut = || async {
             let resp = self
                 .http
                 .post(&url)
@@ -204,11 +226,8 @@ impl PlatformClient {
                 .send()
                 .await?;
             Self::check_response(resp).await
-        })
-        .await?
-        .json()
-        .await
-        .map_err(Into::into)
+        };
+        self.retry(fut).await
     }
 
     // ── Preferences ───────────────────────────────────────────────────────────
@@ -217,7 +236,7 @@ impl PlatformClient {
         self.check_enabled()?;
         let auth = self.auth_header()?;
         let url = format!("{}/api/preferences", self.base_url);
-        self.retry(|| async {
+        let fut = || async {
             let resp = self
                 .http
                 .get(&url)
@@ -225,11 +244,8 @@ impl PlatformClient {
                 .send()
                 .await?;
             Self::check_response(resp).await
-        })
-        .await?
-        .json()
-        .await
-        .map_err(Into::into)
+        };
+        self.retry(fut).await
     }
 
     pub async fn update_preferences(
@@ -239,7 +255,7 @@ impl PlatformClient {
         self.check_enabled()?;
         let auth = self.auth_header()?;
         let url = format!("{}/api/preferences", self.base_url);
-        self.retry(|| async {
+        let fut = || async {
             let resp = self
                 .http
                 .put(&url)
@@ -248,34 +264,31 @@ impl PlatformClient {
                 .send()
                 .await?;
             Self::check_response(resp).await
-        })
-        .await?
-        .json()
-        .await
-        .map_err(Into::into)
+        };
+        self.retry(fut).await
     }
 
     pub async fn resend_verification(&self) -> Result<(), PlatformError> {
         self.check_enabled()?;
         let auth = self.auth_header()?;
         let url = format!("{}/api/preferences/resend-verification", self.base_url);
-        self.retry(|| async {
+        let fut = || async {
             let resp = self
                 .http
                 .post(&url)
                 .header("Authorization", &auth)
                 .send()
                 .await?;
-            Self::check_response(resp).await.map(drop)
-        })
-        .await
+            Self::check_response(resp).await
+        };
+        self.retry_no_content(fut).await
     }
 
     pub async fn export_gdpr_data(&self) -> Result<serde_json::Value, PlatformError> {
         self.check_enabled()?;
         let auth = self.auth_header()?;
         let url = format!("{}/api/preferences/export", self.base_url);
-        self.retry(|| async {
+        let fut = || async {
             let resp = self
                 .http
                 .get(&url)
@@ -283,27 +296,24 @@ impl PlatformClient {
                 .send()
                 .await?;
             Self::check_response(resp).await
-        })
-        .await?
-        .json()
-        .await
-        .map_err(Into::into)
+        };
+        self.retry(fut).await
     }
 
     pub async fn delete_account(&self) -> Result<(), PlatformError> {
         self.check_enabled()?;
         let auth = self.auth_header()?;
         let url = format!("{}/api/preferences/account", self.base_url);
-        self.retry(|| async {
+        let fut = || async {
             let resp = self
                 .http
                 .delete(&url)
                 .header("Authorization", &auth)
                 .send()
                 .await?;
-            Self::check_response(resp).await.map(drop)
-        })
-        .await
+            Self::check_response(resp).await
+        };
+        self.retry_no_content(fut).await
     }
 
     // ── Growth / Referrals ────────────────────────────────────────────────────
@@ -312,7 +322,7 @@ impl PlatformClient {
         self.check_enabled()?;
         let auth = self.auth_header()?;
         let url = format!("{}/api/growth/referral", self.base_url);
-        self.retry(|| async {
+        let fut = || async {
             let resp = self
                 .http
                 .post(&url)
@@ -320,18 +330,15 @@ impl PlatformClient {
                 .send()
                 .await?;
             Self::check_response(resp).await
-        })
-        .await?
-        .json()
-        .await
-        .map_err(Into::into)
+        };
+        self.retry(fut).await
     }
 
     pub async fn get_referral_stats(&self) -> Result<ReferralStats, PlatformError> {
         self.check_enabled()?;
         let auth = self.auth_header()?;
         let url = format!("{}/api/growth/referral/stats", self.base_url);
-        self.retry(|| async {
+        let fut = || async {
             let resp = self
                 .http
                 .get(&url)
@@ -339,11 +346,8 @@ impl PlatformClient {
                 .send()
                 .await?;
             Self::check_response(resp).await
-        })
-        .await?
-        .json()
-        .await
-        .map_err(Into::into)
+        };
+        self.retry(fut).await
     }
 
     // ── Nudges ────────────────────────────────────────────────────────────────
@@ -352,7 +356,7 @@ impl PlatformClient {
         self.check_enabled()?;
         let auth = self.auth_header()?;
         let url = format!("{}/api/growth/nudges/pending", self.base_url);
-        self.retry(|| async {
+        let fut = || async {
             let resp = self
                 .http
                 .get(&url)
@@ -360,30 +364,35 @@ impl PlatformClient {
                 .send()
                 .await?;
             if resp.status() == StatusCode::NO_CONTENT {
-                return Ok(vec![]);
+                // Return an empty vec without parsing
+                return Err(PlatformError::Http {
+                    status: 204,
+                    body: "".to_string(),
+                });
             }
             Self::check_response(resp).await
-        })
-        .await?
-        .json()
-        .await
-        .map_err(Into::into)
+        };
+        match self.retry(fut).await {
+            Ok(v) => Ok(v),
+            Err(PlatformError::Http { status, .. }) if status == 204 => Ok(vec![]),
+            Err(e) => Err(e),
+        }
     }
 
     pub async fn mark_nudge_delivered(&self, nudge_id: Uuid) -> Result<(), PlatformError> {
         self.check_enabled()?;
         let auth = self.auth_header()?;
         let url = format!("{}/api/growth/nudges/{nudge_id}/delivered", self.base_url);
-        self.retry(|| async {
+        let fut = || async {
             let resp = self
                 .http
                 .post(&url)
                 .header("Authorization", &auth)
                 .send()
                 .await?;
-            Self::check_response(resp).await.map(drop)
-        })
-        .await
+            Self::check_response(resp).await
+        };
+        self.retry_no_content(fut).await
     }
 
     // ── Activity events ───────────────────────────────────────────────────────
@@ -397,19 +406,46 @@ impl PlatformClient {
         self.check_enabled()?;
         let auth = self.auth_header()?;
         let url = format!("{}/api/growth/event", self.base_url);
-        self.retry(|| async {
-            let resp = self
+        let event_type_str = event_type.into();
+
+        // Helper to classify reqwest errors as transient
+        fn is_transient_reqwest(e: &reqwest::Error) -> bool {
+            e.is_timeout() || e.is_connect() || e.is_request()
+        }
+
+        // Manual retry loop with exponential backoff
+        let mut delay = std::time::Duration::from_millis(100);
+        for attempt in 0..3 {
+            let req = ActivityEventRequest {
+                event_type: event_type_str.clone(),
+                metadata: metadata.clone(),
+            };
+            let resp_result = self
                 .http
                 .post(&url)
                 .header("Authorization", &auth)
-                .json(&ActivityEventRequest {
-                    event_type: event_type.into(),
-                    metadata,
-                })
+                .json(&req)
                 .send()
-                .await?;
-            Self::check_response(resp).await.map(drop)
-        })
-        .await
+                .await;
+
+            match resp_result {
+                Ok(resp) => match Self::check_response(resp).await {
+                    Ok(_) => return Ok(()),
+                    Err(e) if e.is_transient() && attempt < 2 => {
+                        tokio::time::sleep(delay).await;
+                        delay *= 2;
+                        continue;
+                    }
+                    Err(e) => return Err(e),
+                },
+                Err(e) if is_transient_reqwest(&e) && attempt < 2 => {
+                    tokio::time::sleep(delay).await;
+                    delay *= 2;
+                    continue;
+                }
+                Err(e) => return Err(PlatformError::Network(e)),
+            }
+        }
+        unreachable!()
     }
 }

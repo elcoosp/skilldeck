@@ -226,7 +226,7 @@ impl AppState {
             warn!("No skill directories found — skills will not be loaded");
         } else {
             // Ensure each skill directory exists before scanning
-            for (label, path) in &skill_dirs {
+            for (_label, path) in &skill_dirs {
                 if !path.exists() {
                     tokio::fs::create_dir_all(path).await.map_err(|e| {
                         tracing::error!("Failed to create skill directory {:?}: {}", path, e);

@@ -261,7 +261,7 @@ pub async fn disable_lint_rule(
     scope: ConfigScope,
 ) -> Result<(), String> {
     let config_path = match scope {
-        ConfigScope::Global => dirs::config_dir()
+        ConfigScope::Global => dirs_next::config_dir()
             .ok_or("Cannot find config dir")?
             .join("skilldeck")
             .join("skilldeck-lint.toml"),

@@ -24,7 +24,6 @@ pub struct PlatformConfig {
     pub enabled: bool,
 }
 
-
 impl Default for PlatformConfig {
     fn default() -> Self {
         Self {
@@ -39,22 +38,23 @@ impl AppConfig {
     /// Returns defaults if the file does not exist or cannot be parsed.
     pub fn load() -> Self {
         if let Some(path) = config_path()
-            && path.exists() {
-                match std::fs::read_to_string(&path) {
-                    Ok(contents) => match toml::from_str(&contents) {
-                        Ok(cfg) => {
-                            tracing::info!("Loaded config from {:?}", path);
-                            return cfg;
-                        }
-                        Err(e) => tracing::warn!("Failed to parse config at {:?}: {e}", path),
-                    },
-                    Err(e) => tracing::warn!("Failed to read config at {:?}: {e}", path),
-                }
+            && path.exists()
+        {
+            match std::fs::read_to_string(&path) {
+                Ok(contents) => match toml::from_str(&contents) {
+                    Ok(cfg) => {
+                        tracing::info!("Loaded config from {:?}", path);
+                        return cfg;
+                    }
+                    Err(e) => tracing::warn!("Failed to parse config at {:?}: {e}", path),
+                },
+                Err(e) => tracing::warn!("Failed to read config at {:?}: {e}", path),
             }
+        }
         Self::default()
     }
 }
 
 fn config_path() -> Option<PathBuf> {
-    dirs::config_dir().map(|d| d.join("skilldeck").join("config.toml"))
+    dirs_next::config_dir().map(|d| d.join("skilldeck").join("config.toml"))
 }

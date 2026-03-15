@@ -5600,6 +5600,7 @@ dependencies = [
  "chrono",
  "dashmap",
  "dirs-next",
+ "futures",
  "hex",
  "parking_lot",
  "reqwest",
