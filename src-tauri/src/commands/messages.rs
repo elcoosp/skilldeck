@@ -10,6 +10,7 @@ use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, QueryFilter, QueryOrder,
 };
 use serde::Serialize;
+use specta::specta;
 use std::sync::Arc;
 use tauri::{Emitter, State};
 use uuid::Uuid;
@@ -29,6 +30,7 @@ pub struct MessageData {
     pub created_at: String,
 }
 
+#[specta]
 #[tauri::command]
 pub async fn cancel_agent(
     state: State<'_, Arc<AppState>>,
@@ -41,6 +43,7 @@ pub async fn cancel_agent(
 /// List all messages for a conversation, oldest-first.
 ///
 /// `branch_id` is reserved for branch-aware retrieval (v1.1).
+#[specta]
 #[tauri::command]
 pub async fn list_messages(
     state: State<'_, Arc<AppState>>,
@@ -78,6 +81,7 @@ pub async fn list_messages(
 ///
 /// Returns immediately once the message is persisted; the agent loop emits
 /// `agent-event` payloads asynchronously.
+#[specta]
 #[tauri::command]
 pub async fn send_message(
     state: State<'_, Arc<AppState>>,
@@ -131,6 +135,7 @@ pub async fn send_message(
 /// Resolve a pending tool-approval from the frontend.
 ///
 /// Called when the user clicks "Approve" or "Deny" on a `ToolApprovalCard`.
+#[specta]
 #[tauri::command]
 pub async fn resolve_tool_approval(
     state: State<'_, Arc<AppState>>,

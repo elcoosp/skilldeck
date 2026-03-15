@@ -2,6 +2,7 @@
 //!
 //! All commands that call the platform first check that platform features are
 //! enabled and that credentials have been initialised.
+use specta::specta;
 
 use std::sync::Arc;
 use tauri::State;
@@ -31,6 +32,7 @@ fn map_err(e: PlatformError) -> String {
 /// already exist in the keychain the function is a no-op.  Otherwise it
 /// registers with the platform, stores the API key in the keychain, and
 /// persists the `platform_user_id` in the local `user_preferences` table.
+#[specta]
 #[tauri::command]
 pub async fn ensure_platform_registration(
     app: tauri::AppHandle,
@@ -94,6 +96,7 @@ pub async fn ensure_platform_registration(
 
 // ── Preferences ───────────────────────────────────────────────────────────────
 
+#[specta]
 #[tauri::command]
 pub async fn get_platform_preferences(
     state: State<'_, Arc<AppState>>,
@@ -118,6 +121,7 @@ pub struct UpdatePrefsPayload {
     pub analytics_opt_in: Option<bool>,
 }
 
+#[specta]
 #[tauri::command]
 pub async fn update_platform_preferences(
     payload: UpdatePrefsPayload,
@@ -141,6 +145,7 @@ pub async fn update_platform_preferences(
         .map_err(map_err)
 }
 
+#[specta]
 #[tauri::command]
 pub async fn resend_verification_email(state: State<'_, Arc<AppState>>) -> Result<(), String> {
     state
@@ -152,6 +157,7 @@ pub async fn resend_verification_email(state: State<'_, Arc<AppState>>) -> Resul
         .map_err(map_err)
 }
 
+#[specta]
 #[tauri::command]
 pub async fn export_gdpr_data(
     state: State<'_, Arc<AppState>>,
@@ -165,6 +171,7 @@ pub async fn export_gdpr_data(
         .map_err(map_err)
 }
 
+#[specta]
 #[tauri::command]
 pub async fn delete_platform_account(
     app: tauri::AppHandle,
@@ -187,6 +194,7 @@ pub async fn delete_platform_account(
 
 // ── Referrals ─────────────────────────────────────────────────────────────────
 
+#[specta]
 #[tauri::command]
 pub async fn create_referral_code(
     state: State<'_, Arc<AppState>>,
@@ -200,6 +208,7 @@ pub async fn create_referral_code(
         .map_err(map_err)
 }
 
+#[specta]
 #[tauri::command]
 pub async fn get_referral_stats(state: State<'_, Arc<AppState>>) -> Result<ReferralStats, String> {
     state
@@ -213,6 +222,7 @@ pub async fn get_referral_stats(state: State<'_, Arc<AppState>>) -> Result<Refer
 
 // ── Nudges ────────────────────────────────────────────────────────────────────
 
+#[specta]
 #[tauri::command]
 pub async fn get_pending_nudges(
     state: State<'_, Arc<AppState>>,
@@ -234,6 +244,7 @@ pub struct ActivityEventPayload {
     pub metadata: Option<serde_json::Value>,
 }
 
+#[specta]
 #[tauri::command]
 pub async fn send_activity_event(
     payload: ActivityEventPayload,

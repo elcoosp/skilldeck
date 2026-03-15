@@ -3,19 +3,19 @@
 //! All DB access goes through the `Database` trait so the layer remains
 //! testable without a real SQLite file.
 
+use crate::state::AppState;
 use sea_orm::PaginatorTrait;
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, QueryFilter, QueryOrder,
     QuerySelect,
 };
 use serde::Serialize;
+use skilldeck_models::conversations::{self, Entity as Conversation};
+use skilldeck_models::messages::{self as msg_model, Entity as Messages};
+use specta::specta;
 use std::sync::Arc;
 use tauri::State;
 use uuid::Uuid;
-
-use crate::state::AppState;
-use skilldeck_models::conversations::{self, Entity as Conversation};
-use skilldeck_models::messages::{self as msg_model, Entity as Messages};
 
 /// Lightweight summary used by the sidebar list.
 #[derive(Debug, Clone, Serialize)]
@@ -30,6 +30,7 @@ pub struct ConversationSummary {
 }
 
 /// Create a new conversation for the given profile.
+#[specta]
 #[tauri::command]
 pub async fn create_conversation(
     state: State<'_, Arc<AppState>>,
@@ -62,6 +63,7 @@ pub async fn create_conversation(
 }
 
 /// Return conversations for a profile, most-recently-updated first.
+#[specta]
 #[tauri::command]
 pub async fn list_conversations(
     state: State<'_, Arc<AppState>>,
@@ -111,6 +113,7 @@ pub async fn list_conversations(
 }
 
 /// Soft-delete a conversation.
+#[specta]
 #[tauri::command]
 pub async fn delete_conversation(state: State<'_, Arc<AppState>>, id: Uuid) -> Result<(), String> {
     let db = state
@@ -135,6 +138,7 @@ pub async fn delete_conversation(state: State<'_, Arc<AppState>>, id: Uuid) -> R
 }
 
 /// Rename a conversation.
+#[specta]
 #[tauri::command]
 pub async fn rename_conversation(
     state: State<'_, Arc<AppState>>,

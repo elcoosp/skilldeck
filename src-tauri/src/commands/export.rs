@@ -2,6 +2,7 @@
 
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, QueryOrder};
 use serde::{Deserialize, Serialize};
+use specta::specta;
 use std::{io::Write, path::PathBuf, sync::Arc};
 use tauri::State;
 use uuid::Uuid;
@@ -27,6 +28,7 @@ pub struct MessageExport {
 }
 
 /// Export a conversation to a file on the local filesystem.
+#[specta]
 #[tauri::command]
 pub async fn export_conversation(
     state: State<'_, Arc<AppState>>,

@@ -6,6 +6,7 @@
 //!
 //! After saving or deleting a key, the in-memory provider registry is updated
 //! so the agent loop immediately picks up the change without a restart.
+use specta::specta;
 
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -26,6 +27,7 @@ const KEYRING_SERVICE: &str = "skilldeck";
 const KNOWN_PROVIDERS: &[&str] = &["claude", "openai", "ollama"];
 
 /// Return key-presence status for every known provider.
+#[specta]
 #[tauri::command]
 pub async fn list_api_keys(app: tauri::AppHandle) -> Result<Vec<ApiKeyStatus>, String> {
     let keyring = app.keyring();
@@ -44,6 +46,7 @@ pub async fn list_api_keys(app: tauri::AppHandle) -> Result<Vec<ApiKeyStatus>, S
 
 /// Store (or replace) an API key in the OS keychain and refresh the provider
 /// registry so the agent loop can use the new key immediately.
+#[specta]
 #[tauri::command]
 pub async fn set_api_key(
     app: tauri::AppHandle,
@@ -79,6 +82,7 @@ pub async fn set_api_key(
 /// the key was captured by value.  A full de-registration would require
 /// restarting the app or a more complex eviction mechanism; for v1 this is
 /// acceptable.
+#[specta]
 #[tauri::command]
 pub async fn delete_api_key(app: tauri::AppHandle, provider: String) -> Result<(), String> {
     app.keyring()
@@ -90,6 +94,7 @@ pub async fn delete_api_key(app: tauri::AppHandle, provider: String) -> Result<(
 ///
 /// Use this for immediate feedback in the settings UI; real connectivity
 /// is verified the first time the agent loop attempts a completion.
+#[specta]
 #[tauri::command]
 pub async fn validate_api_key(provider: String, key: String) -> Result<bool, String> {
     let valid = match provider.as_str() {
@@ -102,6 +107,7 @@ pub async fn validate_api_key(provider: String, key: String) -> Result<bool, Str
 }
 
 /// Test a provider API key by making a minimal API call.
+#[specta]
 #[tauri::command]
 pub async fn test_api_connection(provider: String, key: String) -> Result<bool, String> {
     let client = reqwest::Client::builder()
