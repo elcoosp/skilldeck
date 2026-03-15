@@ -38,12 +38,11 @@ pub async fn ensure_platform_registration(
 ) -> Result<(), String> {
     // Check whether we already have a stored key.
     let keyring = app.keyring();
-    if let Ok(maybe_key) = keyring.get_password(KEYRING_SERVICE, PLATFORM_KEY_ACCOUNT) {
-        if maybe_key.is_some() {
+    if let Ok(maybe_key) = keyring.get_password(KEYRING_SERVICE, PLATFORM_KEY_ACCOUNT)
+        && maybe_key.is_some() {
             info!("Platform API key already stored – skipping registration");
             return Ok(());
         }
-    }
 
     // Not yet registered – call the platform.
     let client = state.platform_client.read().await;

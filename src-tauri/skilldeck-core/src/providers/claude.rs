@@ -30,20 +30,22 @@ struct ClaudeMessage {
 #[serde(untagged)]
 enum ClaudeContent {
     Text(String),
+    #[allow(dead_code)] // Used for future tool call support
     Blocks(Vec<ClaudeContentBlock>),
 }
 
 #[derive(Debug, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum ClaudeContentBlock {
-    Text {
-        text: String,
-    },
+    #[allow(dead_code)]
+    Text { text: String },
+    #[allow(dead_code)]
     ToolUse {
         id: String,
         name: String,
         input: Value,
     },
+    #[allow(dead_code)]
     ToolResult {
         tool_use_id: String,
         content: String,
@@ -82,8 +84,10 @@ struct ClaudeEvent {
     message: Option<ClaudeMessageResponse>,
     #[serde(default)]
     usage: Option<ClaudeUsage>,
+    #[allow(dead_code)]
     #[serde(default)]
     index: Option<u32>,
+    #[allow(dead_code)]
     #[serde(default)]
     content_block: Option<ClaudeContentBlockResponse>,
 }
@@ -92,36 +96,48 @@ struct ClaudeEvent {
 struct ClaudeDelta {
     #[serde(default)]
     text: Option<String>,
+    #[allow(dead_code)]
     #[serde(default)]
     stop_reason: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 struct ClaudeMessageResponse {
+    #[allow(dead_code)]
     #[serde(default)]
     id: Option<String>,
+    #[allow(dead_code)]
     #[serde(default)]
     role: Option<String>,
+    #[allow(dead_code)]
     #[serde(default)]
     content: Vec<ClaudeContentBlockResponse>,
+    #[allow(dead_code)]
     #[serde(default)]
     model: Option<String>,
+    #[allow(dead_code)]
     #[serde(default)]
     stop_reason: Option<String>,
+    #[allow(dead_code)]
     #[serde(default)]
     usage: Option<ClaudeUsage>,
 }
 
 #[derive(Debug, Deserialize)]
 struct ClaudeContentBlockResponse {
+    #[allow(dead_code)]
     #[serde(rename = "type", default)]
     block_type: Option<String>,
+    #[allow(dead_code)]
     #[serde(default)]
     text: Option<String>,
+    #[allow(dead_code)]
     #[serde(default)]
     id: Option<String>,
+    #[allow(dead_code)]
     #[serde(default)]
     name: Option<String>,
+    #[allow(dead_code)]
     #[serde(default)]
     input: Option<Value>,
 }
@@ -331,13 +347,8 @@ impl ModelProvider for ClaudeProvider {
             ..Default::default()
         };
 
-        // The retry function returns Result<Response, CoreError> because it unwraps the inner error
-        // upon permanent failure or exhausted retries.
         let response = retry(backoff, operation).await?;
 
-        // Use flat_map so every SSE line in a single byte chunk is emitted
-        // as its own stream item. The old filter_map + chunks.into_iter().next()
-        // silently dropped all tokens after the first in each network read.
         let stream =
             response
                 .bytes_stream()

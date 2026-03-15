@@ -80,6 +80,7 @@ struct OpenAiChunk {
 #[derive(Debug, Deserialize)]
 struct OpenAiChoice {
     delta: OpenAiDelta,
+    #[allow(dead_code)]
     finish_reason: Option<String>,
 }
 
@@ -291,12 +292,8 @@ impl ModelProvider for OpenAiProvider {
             ..Default::default()
         };
 
-        // The retry function returns Result<Response, CoreError>.
         let response = retry(backoff, operation).await?;
 
-        // Use flat_map so every SSE line in a single byte chunk is emitted
-        // as its own stream item. filter_map can only yield one item per chunk,
-        // silently dropping all subsequent lines.
         let stream =
             response
                 .bytes_stream()

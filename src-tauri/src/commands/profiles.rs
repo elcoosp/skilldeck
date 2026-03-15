@@ -119,6 +119,7 @@ pub async fn update_profile(
 }
 
 /// Set a profile as the default, clearing the flag on all others.
+#[allow(dead_code)] // Used via Tauri IPC
 #[tauri::command]
 pub async fn set_default_profile(
     state: State<'_, Arc<AppState>>,
@@ -184,8 +185,8 @@ pub async fn delete_profile(state: State<'_, Arc<AppState>>, id: String) -> Resu
     active.delete(db).await.map_err(|e| e.to_string())?;
 
     // If we deleted the default, promote the first remaining profile.
-    if was_default {
-        if let Some(first) = Profiles::find()
+    if was_default
+        && let Some(first) = Profiles::find()
             .order_by_asc(profiles::Column::Name)
             .one(db)
             .await
@@ -196,7 +197,6 @@ pub async fn delete_profile(state: State<'_, Arc<AppState>>, id: String) -> Resu
             active.updated_at = Set(chrono::Utc::now().fixed_offset());
             active.update(db).await.map_err(|e| e.to_string())?;
         }
-    }
 
     Ok(())
 }

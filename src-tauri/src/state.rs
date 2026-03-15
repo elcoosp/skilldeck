@@ -20,7 +20,6 @@ use skilldeck_core::{
     },
     providers::{ClaudeProvider, OllamaProvider, OpenAiProvider},
     skills::{scanner, watcher::start_registry_watcher},
-    traits::McpServerConfig,
     workspace::ContextLoader,
 };
 use skilldeck_lint::LintConfig;
@@ -29,10 +28,6 @@ use skilldeck_models::mcp_servers;
 const KEYRING_SERVICE: &str = "skilldeck";
 
 /// Reload persisted MCP servers from the database into the registry.
-///
-/// Call this once during app initialisation so that servers appear in the
-/// registry immediately (as `Disconnected`) and can later be reconnected
-/// by the user.
 pub async fn reload_mcp_servers_from_db(
     db: &Arc<dyn skilldeck_core::traits::Database>,
     registry: &Arc<skilldeck_core::mcp::McpRegistry>,
@@ -51,7 +46,6 @@ pub async fn reload_mcp_servers_from_db(
                 if row.status != "enabled" {
                     continue;
                 }
-                // `config_json` is already a JsonValue – use directly.
                 let mcp_config = skilldeck_core::traits::McpServerConfig {
                     transport: row.transport.clone(),
                     config: row.config_json,
@@ -70,10 +64,9 @@ pub struct AppState {
     pub registry: Arc<Registry>,
     /// Async approval gate: suspends agent tasks awaiting user approval.
     pub approval_gate: Arc<ApprovalGate>,
-    #[allow(dead_code)]
     /// MCP supervisor command channel (used to register configs and trigger restarts).
-    pub supervisor_tx: tokio::sync::mpsc::Sender<SupervisorCommand>,
     #[allow(dead_code)]
+    pub supervisor_tx: tokio::sync::mpsc::Sender<SupervisorCommand>,
     /// Per-conversation cancellation tokens so callers can abort agent loops.
     pub agent_cancel_tokens: Arc<DashMap<String, CancellationToken>>,
     /// Canonical SQLite path – e.g. "/Users/alice/Library/…/skilldeck.db".
@@ -109,11 +102,15 @@ impl AppState {
             .mcp_registry
             .register_transport(SseTransport::new());
 
+        // ── Load persisted MCP servers from database ───────────────────────────
+        // This call makes the `reload_mcp_servers_from_db` function used.
+        reload_mcp_servers_from_db(&registry.db, &registry.mcp_registry).await;
+
         // ── Register model providers ──────────────────────────────────────────
         let keyring = app.keyring();
 
         match keyring.get_password(KEYRING_SERVICE, "claude") {
-            Ok(key) if !key.is_none() => {
+            Ok(key) if key.is_some() => {
                 info!("Registering Claude provider");
                 registry.register_provider(ClaudeProvider::new(key.unwrap()));
             }
@@ -122,7 +119,7 @@ impl AppState {
         }
 
         match keyring.get_password(KEYRING_SERVICE, "openai") {
-            Ok(key) if !key.is_none() => {
+            Ok(key) if key.is_some() => {
                 info!("Registering OpenAI provider");
                 registry.register_provider(OpenAiProvider::new(key.unwrap()));
             }
@@ -154,8 +151,6 @@ impl AppState {
         );
 
         // ── Re-register stored MCP server configs with the supervisor ─────────
-        // The registry's stored_configs map is populated when servers are added.
-        // We push each config into the supervisor so it can reconnect on error.
         for entry in registry.mcp_registry.stored_configs.iter() {
             let _ = supervisor_tx.try_send(SupervisorCommand::RegisterConfig(
                 *entry.key(),
@@ -264,7 +259,7 @@ impl AppState {
 
         Ok(state)
     }
-    #[allow(dead_code)]
+
     /// Cancel an in-flight agent loop for the given conversation.
     pub fn cancel_agent(&self, conversation_id: &str) {
         if let Some(token) = self.agent_cancel_tokens.get(conversation_id) {

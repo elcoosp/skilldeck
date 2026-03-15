@@ -11,6 +11,7 @@ use std::sync::Arc;
 
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, Condition, EntityTrait, QueryFilter,
+    QueryOrder,
 };
 use serde::{Deserialize, Serialize};
 use tauri::State;
@@ -281,10 +282,10 @@ pub async fn disable_lint_rule(
         .await
         .map_err(|e| e.to_string())?;
 
-    if matches!(scope, ConfigScope::Global) {
-        if let Ok(new_config) = LintConfig::from_files(Some(&config_path), None) {
-            *state.lint_config.write().await = new_config;
-        }
+    if matches!(scope, ConfigScope::Global)
+        && let Ok(new_config) = LintConfig::from_files(Some(&config_path), None)
+    {
+        *state.lint_config.write().await = new_config;
     }
 
     Ok(())
@@ -352,7 +353,6 @@ pub async fn add_skill_source(
         priority: Set(0),
         enabled: Set(true),
         created_at: Set(now),
-        ..Default::default()
     };
     active.insert(db).await.map_err(|e| e.to_string())?;
     Ok(id.to_string())
@@ -379,7 +379,7 @@ pub async fn remove_skill_source(
     Ok(())
 }
 
-// ── NEW: Registry sync command ────────────────────────────────────────────────
+// ── Registry sync commands ────────────────────────────────────────────────────
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -433,9 +433,8 @@ impl From<skilldeck_models::registry_skills::Model> for RegistrySkillData {
     }
 }
 
-/// Synchronize skills from the platform registry.
-#[tauri::command]
-pub async fn sync_registry_skills(state: State<'_, Arc<AppState>>) -> Result<usize, String> {
+/// Background-friendly sync function – takes `&AppState` directly.
+pub async fn sync_registry_skills_background(state: &AppState) -> Result<usize, String> {
     let client = state.platform_client.read().await;
     if !client.is_configured() {
         return Err("Platform not configured".to_string());
@@ -453,16 +452,22 @@ pub async fn sync_registry_skills(state: State<'_, Arc<AppState>>) -> Result<usi
 
     let last_sync = RegistrySkills::find()
         .order_by_desc(skilldeck_models::registry_skills::Column::SyncedAt)
-        .one(&db)
+        .one(db) // Note: pass `db`, not `&db`
         .await
         .map_err(|e| e.to_string())?
         .map(|row| row.synced_at.to_rfc3339());
 
-    let count = do_sync(&db, &platform_url, last_sync.as_deref())
+    let count = do_sync(db, &platform_url, last_sync.as_deref())
         .await
         .map_err(|e| e.to_string())?;
 
     Ok(count)
+}
+
+/// Synchronize skills from the platform registry (Tauri command).
+#[tauri::command]
+pub async fn sync_registry_skills(state: State<'_, Arc<AppState>>) -> Result<usize, String> {
+    sync_registry_skills_background(&state).await
 }
 
 /// Fetch registry skills from the local cache.
@@ -493,6 +498,6 @@ pub async fn fetch_registry_skills(
                 .add(Column::Description.like(&pattern)),
         );
     }
-    let skills = query.all(&db).await.map_err(|e| e.to_string())?;
+    let skills = query.all(db).await.map_err(|e| e.to_string())?; // Fixed: `db` not `&db`
     Ok(skills.into_iter().map(Into::into).collect())
 }

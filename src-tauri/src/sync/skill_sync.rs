@@ -12,6 +12,7 @@ use uuid::Uuid;
 #[derive(Debug, Deserialize)]
 pub struct SyncResponse {
     pub skills: Vec<RegistrySkillDto>,
+    #[allow(dead_code)] // Used only for deserialization
     pub synced_at: String,
 }
 
@@ -88,10 +89,7 @@ fn urlencoding_simple(s: &str) -> String {
     s.replace(':', "%3A").replace('+', "%2B")
 }
 
-async fn upsert_registry_skill(
-    db: &DatabaseConnection,
-    dto: &RegistrySkillDto,
-) -> Result<()> {
+async fn upsert_registry_skill(db: &DatabaseConnection, dto: &RegistrySkillDto) -> Result<()> {
     // Use the registry_skills table from the local client migration.
     use skilldeck_models::registry_skills::{ActiveModel, Column, Entity};
 

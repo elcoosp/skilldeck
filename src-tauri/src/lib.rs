@@ -59,7 +59,7 @@ pub fn run() {
                     loop {
                         interval.tick().await;
                         if let Err(e) =
-                            commands::skills::sync_registry_skills_core(&sync_state).await
+                            commands::skills::sync_registry_skills_background(&sync_state).await
                         {
                             tracing::warn!("Background skill sync failed: {}", e);
                         }
@@ -142,6 +142,7 @@ pub fn run() {
             resend_verification_email,
             export_gdpr_data,
             delete_platform_account,
+            // agent
             cancel_agent
         ])
         .run(tauri::generate_context!())

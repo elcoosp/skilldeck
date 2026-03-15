@@ -51,7 +51,7 @@ pub async fn open_workspace(
         .map_err(|e| e.to_string())?;
 
     let (id, _is_new) = if let Some(row) = existing {
-        let id = row.id.clone();
+        let id = row.id;
         // Reopen: update is_open and last_opened_at
         let mut active: workspaces::ActiveModel = row.into();
         active.is_open = Set(true);
@@ -76,7 +76,6 @@ pub async fn open_workspace(
             is_open: Set(true),
             created_at: Set(now),
             last_opened_at: Set(Some(now)),
-            ..Default::default()
         };
         model.insert(db).await.map_err(|e| e.to_string())?;
         (id, true)
