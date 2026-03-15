@@ -63,10 +63,15 @@ pub fn start_watcher(
         }
     });
 
-    // Debouncer task: aggregate events for 200 ms then flush.
+    // Improved debouncer task: aggregate events for 200 ms after the last event,
+    // using a `DelayQueue` approach with a timer that resets on each new event.
     tokio::spawn(async move {
+        use std::collections::HashSet;
+        use tokio::time::Instant;
+
+        let debounce = Duration::from_millis(200);
         let mut pending: Vec<Event> = Vec::new();
-        let mut debounce_timer: Option<tokio::time::Instant> = None;
+        let mut flush_time: Option<Instant> = None;
 
         loop {
             tokio::select! {
@@ -75,44 +80,42 @@ pub fn start_watcher(
                         Ok(event) => pending.push(event),
                         Err(e) => warn!("File watcher error: {}", e),
                     }
-                    if debounce_timer.is_none() {
-                        debounce_timer =
-                            Some(tokio::time::Instant::now() + Duration::from_millis(200));
-                    }
+                    // Reset the timer: flush after 200 ms of inactivity
+                    flush_time = Some(Instant::now() + debounce);
                 }
                 _ = async {
-                    if let Some(deadline) = debounce_timer {
+                    if let Some(deadline) = flush_time {
                         tokio::time::sleep_until(deadline).await;
                     } else {
                         std::future::pending::<()>().await
                     }
                 } => {
-                    // Debounce period elapsed — process all pending events.
+                    // Debounce period elapsed without new events — process all pending.
                     let events = std::mem::take(&mut pending);
-                    debounce_timer = None;
+                    flush_time = None;
 
+                    // De-duplicate by skill directory path.
+                    let mut dedup = HashSet::new();
                     for event in events {
-                        // Capture kind *before* consuming paths — avoids a
-                        // partial-move compile error on `event`.
                         let kind = event.kind;
-
                         for path in event.paths {
                             if !path.file_name().map(|n| n == "SKILL.md").unwrap_or(false) {
                                 continue;
                             }
-
                             let skill_dir = match path.parent() {
                                 Some(p) => p.to_owned(),
                                 None => continue,
                             };
-
+                            // If we already have an event for this directory, skip
+                            if !dedup.insert(skill_dir.clone()) {
+                                continue;
+                            }
                             let watch_event = match kind {
-                                EventKind::Create(_) => SkillWatchEvent::Created(skill_dir),
-                                EventKind::Modify(_) => SkillWatchEvent::Modified(skill_dir),
-                                EventKind::Remove(_) => SkillWatchEvent::Deleted(skill_dir),
+                                EventKind::Create(_) => SkillWatchEvent::Created(skill_dir.clone()),
+                                EventKind::Modify(_) => SkillWatchEvent::Modified(skill_dir.clone()),
+                                EventKind::Remove(_) => SkillWatchEvent::Deleted(skill_dir.clone()),
                                 _ => continue,
                             };
-
                             if tx.send(watch_event).await.is_err() {
                                 warn!("Skill watch event receiver dropped; stopping debouncer");
                                 return;
@@ -307,5 +310,40 @@ mod tests {
             "No Deleted event received within {} seconds",
             timeout.as_secs()
         );
+    }
+
+    #[tokio::test]
+    async fn debouncer_coalesces_multiple_events() {
+        let tmp = tempfile::tempdir().unwrap();
+        let (tx, mut rx) = channel(32);
+
+        let _watcher = start_watcher(tmp.path().to_owned(), tx).unwrap();
+        tokio::time::sleep(Duration::from_millis(250)).await;
+
+        let skill_dir = tmp.path().join("coalesce");
+        fs::create_dir_all(&skill_dir).unwrap();
+
+        // Generate three rapid changes
+        for i in 1..=3 {
+            fs::write(
+                skill_dir.join("SKILL.md"),
+                format!("---\nname: coalesce\n---\ncontent {}", i),
+            )
+            .unwrap();
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+
+        // Wait for debouncer (200 ms) plus a little.
+        tokio::time::sleep(Duration::from_millis(300)).await;
+
+        let events: Vec<SkillWatchEvent> = std::iter::from_fn(|| rx.try_recv().ok()).collect();
+        // Expect exactly one event (Created or Modified) due to deduplication
+        assert_eq!(events.len(), 1);
+        match &events[0] {
+            SkillWatchEvent::Created(p) | SkillWatchEvent::Modified(p) => {
+                assert_eq!(p, &skill_dir);
+            }
+            _ => panic!("unexpected event type"),
+        }
     }
 }
