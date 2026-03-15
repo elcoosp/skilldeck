@@ -350,16 +350,57 @@ async fn run_agent_loop(
     // Inject built-in tools (always available)
     let built_in_tools = all_built_in_tools();
     for tool_def in built_in_tools {
-        tracing::debug!("Added built-in tool '{}'", tool_def.name.clone());
         agent = agent.with_tool(tool_def);
+        tracing::debug!("Added built-in tool '{}'", tool_def.name);
     }
 
-    // Inject active skills (their content is added to the system prompt)
+    // ── NEW: Inject skill catalog (Toon if supported) ─────────────────────────
     let skills = state.registry.skill_registry.skills().await;
-    for skill in skills {
-        if skill.is_active {
-            agent = agent.with_skill(skill.description);
-            tracing::debug!("Injected skill '{}' into context", skill.name);
+    let active_skills: Vec<(String, String)> = skills
+        .into_iter()
+        .filter(|s| s.is_active)
+        .map(|s| (s.name, s.description))
+        .collect();
+
+    if !active_skills.is_empty() {
+        if provider.supports_toon() {
+            // Build a JSON array of skill objects
+            let skills_json: Vec<serde_json::Value> = active_skills
+                .iter()
+                .map(|(name, desc)| serde_json::json!({ "name": name, "description": desc }))
+                .collect();
+
+            let toon_catalog = toon::encode(
+                &serde_json::json!({ "skills": skills_json }),
+                Some(toon::EncodeOptions {
+                    delimiter: toon::Delimiter::Tab,
+                    key_folding: toon::KeyFolding::Safe,
+                    ..Default::default()
+                }),
+            )
+            .map_err(|e| {
+                tracing::error!("Failed to encode skill catalog as Toon: {}", e);
+                e
+            })
+            .ok();
+
+            if let Some(catalog) = toon_catalog {
+                agent = agent.with_skill(format!("<toon>\n{}\n</toon>", catalog));
+            } else {
+                // Fallback to markdown
+                let mut catalog = String::from("\n\n## Available Skills\n");
+                for (name, desc) in active_skills {
+                    catalog.push_str(&format!("- **{}**: {}\n", name, desc));
+                }
+                agent = agent.with_skill(catalog);
+            }
+        } else {
+            // Fallback to markdown catalog
+            let mut catalog = String::from("\n\n## Available Skills\n");
+            for (name, desc) in active_skills {
+                catalog.push_str(&format!("- **{}**: {}\n", name, desc));
+            }
+            agent = agent.with_skill(catalog);
         }
     }
 
