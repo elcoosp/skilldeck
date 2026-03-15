@@ -6,12 +6,11 @@
 use std::sync::Arc;
 use tauri::State;
 use tauri_plugin_keyring::KeyringExt;
-use tracing::{error, info, warn};
+use tracing::info;
 use uuid::Uuid;
 
 use crate::platform_client::{
-    PendingNudge, PlatformClient, PlatformError, PlatformPreferences, ReferralStats,
-    UpdatePreferencesRequest,
+    PendingNudge, PlatformError, PlatformPreferences, ReferralStats, UpdatePreferencesRequest,
 };
 use crate::state::AppState;
 

@@ -1,8 +1,6 @@
 //! Profile Tauri commands.
 
-use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, QueryFilter, QueryOrder,
-};
+use sea_orm::{ActiveModelTrait, ActiveValue::Set, EntityTrait, QueryOrder};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tauri::State;

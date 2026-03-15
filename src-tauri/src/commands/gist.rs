@@ -15,8 +15,6 @@ use crate::state::AppState;
 const KEYRING_SERVICE: &str = "skilldeck";
 const GITHUB_TOKEN_ACCOUNT: &str = "github_token";
 const GITHUB_API: &str = "https://api.github.com";
-// Community skills registry gist (public, read-only for discovery).
-const COMMUNITY_GIST_ID: &str = "skilldeck-community";
 
 // ── DTOs ──────────────────────────────────────────────────────────────────────
 

@@ -3,13 +3,12 @@
 
 use dashmap::DashMap;
 use sea_orm::EntityTrait;
-use serde_json;
 use std::{env::home_dir, sync::Arc};
 use tauri::Manager;
 use tauri_plugin_keyring::KeyringExt;
 use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 
 use skilldeck_core::{
     Registry, SeaOrmDatabase,
@@ -71,8 +70,10 @@ pub struct AppState {
     pub registry: Arc<Registry>,
     /// Async approval gate: suspends agent tasks awaiting user approval.
     pub approval_gate: Arc<ApprovalGate>,
+    #[allow(dead_code)]
     /// MCP supervisor command channel (used to register configs and trigger restarts).
     pub supervisor_tx: tokio::sync::mpsc::Sender<SupervisorCommand>,
+    #[allow(dead_code)]
     /// Per-conversation cancellation tokens so callers can abort agent loops.
     pub agent_cancel_tokens: Arc<DashMap<String, CancellationToken>>,
     /// Canonical SQLite path – e.g. "/Users/alice/Library/…/skilldeck.db".
@@ -263,7 +264,7 @@ impl AppState {
 
         Ok(state)
     }
-
+    #[allow(dead_code)]
     /// Cancel an in-flight agent loop for the given conversation.
     pub fn cancel_agent(&self, conversation_id: &str) {
         if let Some(token) = self.agent_cancel_tokens.get(conversation_id) {

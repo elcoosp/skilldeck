@@ -50,7 +50,7 @@ pub async fn open_workspace(
         .await
         .map_err(|e| e.to_string())?;
 
-    let (id, is_new) = if let Some(row) = existing {
+    let (id, _is_new) = if let Some(row) = existing {
         let id = row.id.clone();
         // Reopen: update is_open and last_opened_at
         let mut active: workspaces::ActiveModel = row.into();

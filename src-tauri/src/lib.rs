@@ -49,7 +49,22 @@ pub fn run() {
                     .expect("Failed to initialize AppState");
                 let state = Arc::new(state);
 
+                // Start nudge poller
                 nudge_poller::start_nudge_poller(handle.clone(), Arc::clone(&state));
+
+                // Start skill sync poller (hourly)
+                let sync_state = Arc::clone(&state);
+                tokio::spawn(async move {
+                    let mut interval = tokio::time::interval(std::time::Duration::from_secs(3600));
+                    loop {
+                        interval.tick().await;
+                        if let Err(e) =
+                            commands::skills::sync_registry_skills_core(&sync_state).await
+                        {
+                            tracing::warn!("Background skill sync failed: {}", e);
+                        }
+                    }
+                });
 
                 handle.manage(state);
             });
@@ -127,6 +142,7 @@ pub fn run() {
             resend_verification_email,
             export_gdpr_data,
             delete_platform_account,
+            cancel_agent
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
