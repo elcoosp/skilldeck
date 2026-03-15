@@ -304,6 +304,8 @@ impl ToolDispatcher {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::skills::SkillRegistry;
+    use crate::traits::Skill;
 
     fn make_dispatcher() -> ToolDispatcher {
         ToolDispatcher::new(
@@ -370,7 +372,25 @@ mod tests {
 
     #[tokio::test]
     async fn builtin_load_skill_returns_json() {
-        let d = make_dispatcher();
+        // Create a registry with a pre‑loaded skill
+        let skill_registry = Arc::new(SkillRegistry::new());
+        let skill = Skill::new(
+            "my-skill".into(),
+            "desc".into(),
+            "content".into(),
+            "test".into(),
+        );
+        skill_registry
+            .register_source("test".into(), vec![skill])
+            .await;
+
+        let d = ToolDispatcher::new(
+            Arc::new(McpRegistry::new()),
+            Arc::new(ApprovalGate::new()),
+            skill_registry,
+            false,
+        );
+
         let tc = ToolCall {
             id: "tc1".into(),
             r#type: "function".into(),
