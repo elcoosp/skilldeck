@@ -1,4 +1,4 @@
-//! Initial migration: all 38 database tables for SkillDeck v1.
+//! Initial migration: all 38+ database tables for SkillDeck v1.
 //! Includes core tables, MCP, profiles, skills, workflows, analytics,
 //! UI state, sync, plus user preferences, nudge cache, and registry skills cache.
 //!
@@ -132,6 +132,7 @@ impl MigrationTrait for Migration {
                     .to_owned(),
             )
             .await?;
+
         // registry_skills cache (new)
         manager
             .create_table(
@@ -172,6 +173,7 @@ impl MigrationTrait for Migration {
                     .to_owned(),
             )
             .await?;
+
         // conversations
         manager
             .create_table(
@@ -747,6 +749,29 @@ impl MigrationTrait for Migration {
                             )
                             .to(Conversations::Table, Conversations::Id)
                             .on_delete(ForeignKeyAction::Cascade),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        // workflow_definitions (new table for saved workflows)
+        manager
+            .create_table(
+                Table::create()
+                    .table(WorkflowDefinitions::Table)
+                    .if_not_exists()
+                    .col(uuid(WorkflowDefinitions::Id).primary_key())
+                    .col(string(WorkflowDefinitions::Name).not_null())
+                    .col(json(WorkflowDefinitions::DefinitionJson).not_null())
+                    .col(
+                        timestamp_with_time_zone(WorkflowDefinitions::CreatedAt)
+                            .not_null()
+                            .default(Expr::current_timestamp()),
+                    )
+                    .col(
+                        timestamp_with_time_zone(WorkflowDefinitions::UpdatedAt)
+                            .not_null()
+                            .default(Expr::current_timestamp()),
                     )
                     .to_owned(),
             )
@@ -1394,11 +1419,12 @@ impl MigrationTrait for Migration {
             "artifacts",
             "workflow_steps",
             "subagent_sessions",
+            "workflow_definitions", // <-- added new table
             "workflow_executions",
             "skill_source_dirs",
             "registry_skills",
             "skills",
-            "mcp_servers", // ← add this line
+            "mcp_servers",
             "mcp_tool_cache",
             "conversation_model_override",
             "conversation_skill_overrides",
@@ -1667,6 +1693,16 @@ enum WorkflowExecutions {
     Status,
     StartedAt,
     CompletedAt,
+}
+
+#[derive(DeriveIden)]
+enum WorkflowDefinitions {
+    Table,
+    Id,
+    Name,
+    DefinitionJson,
+    CreatedAt,
+    UpdatedAt,
 }
 
 #[derive(DeriveIden)]
