@@ -43,7 +43,7 @@ We adhere to `kebab-case` file names and use `shadcn/ui` components.
 
 - [ ] **Step 1: Define Context Types**
 
-Create `src/types/chat-context.ts`. We extend types to handle Folder scopes.
+Create `src/types/chat-context.ts`. We extend types to handle Folder scopes and ensure strict typing for the `RegistrySkill`.
 
 ```typescript
 // src/types/chat-context.ts
@@ -89,8 +89,13 @@ export interface TriggerState {
 export interface FileEntry {
   name: string;
   path: string;
-  isDir: boolean;
+  is_dir: boolean; // Changed to snake_case to match Rust serialization defaults usually
   size?: number;
+}
+
+export interface FolderCounts {
+  shallow: number;
+  deep: number;
 }
 ```
 
@@ -106,7 +111,7 @@ Create `src/store/chat-context-store.ts`.
 // src/store/chat-context-store.ts
 import { create } from 'zustand';
 import { AttachedItem, AttachedSkill, AttachedFile, AttachedFolder } from '@/types/chat-context';
-import { RegistrySkill, LintWarning } from '@/lib/bindings';
+import { RegistrySkill } from '@/lib/bindings';
 
 interface ChatContextState {
   items: AttachedItem[];
@@ -145,6 +150,8 @@ export const useChatContextStore = create<ChatContextState>((set) => ({
   updateSkillLintResults: (skillId, warnings) => set((state) => ({
     items: state.items.map(item => {
       if (item.type === 'skill' && item.data.id === skillId) {
+        // Assuming RegistrySkill has a mutable warnings field or we extend it
+        // For strict immutability, we return a new object
         return { ...item, data: { ...item.data, lintWarnings: warnings } };
       }
       return item;
@@ -167,11 +174,24 @@ git commit -m "feat(chat): add state management for context injection with folde
 **Files:**
 - Create: `src-tauri/src/commands/files.rs`
 - Modify: `src-tauri/src/main.rs`
+- Modify: `src-tauri/Cargo.toml`
 - Modify: `src/lib/invoke.ts`
 
-- [ ] **Step 1: Create Directory Listing Command**
+- [ ] **Step 1: Add Dependencies**
 
-We need a command that lists files and provides counts for the scope modal.
+Modify `src-tauri/Cargo.toml` to ensure `walkdir` and `tokio` are available.
+
+```toml
+[dependencies]
+# ... existing
+walkdir = "2"
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+```
+
+- [ ] **Step 2: Create Directory Listing Command**
+
+We need a command that lists files and provides counts for the scope modal. **Crucial:** We use `async` and `spawn_blocking` to prevent UI freezing during I/O.
 
 ```rust
 // src-tauri/src/commands/files.rs
@@ -195,92 +215,95 @@ pub struct FolderCounts {
 }
 
 #[tauri::command]
-pub fn list_directory_contents(path: String) -> Result<Vec<FileEntry>, String> {
-    let dir_path = PathBuf::from(&path);
-    
-    if !dir_path.exists() || !dir_path.is_dir() {
-        return Err("Path is not a valid directory".into());
-    }
+pub async fn list_directory_contents(path: String) -> Result<Vec<FileEntry>, String> {
+    // Move blocking I/O to a separate thread
+    tokio::task::spawn_blocking(move || {
+        let dir_path = PathBuf::from(&path);
+        
+        if !dir_path.exists() || !dir_path.is_dir() {
+            return Err("Path is not a valid directory".into());
+        }
 
-    let mut entries = Vec::new();
-    
-    // Add parent directory (..)
-    if let Some(parent) = dir_path.parent() {
+        let mut entries = Vec::new();
+        
+        // Add parent directory (..)
+        if let Some(parent) = dir_path.parent() {
+            entries.push(FileEntry {
+                name: "..".to_string(),
+                path: parent.to_string_lossy().to_string(),
+                is_dir: true,
+                size: None,
+            });
+        }
+
+        // Add current directory (.)
         entries.push(FileEntry {
-            name: "..".to_string(),
-            path: parent.to_string_lossy().to_string(),
+            name: ".".to_string(),
+            path: dir_path.to_string_lossy().to_string(),
             is_dir: true,
             size: None,
         });
-    }
 
-    // Add current directory (.)
-    entries.push(FileEntry {
-        name: ".".to_string(),
-        path: dir_path.to_string_lossy().to_string(),
-        is_dir: true,
-        size: None,
-    });
+        // Read directory
+        if let Ok(read_dir) = fs::read_dir(&dir_path) {
+            for entry in read_dir.flatten() {
+                let path = entry.path();
+                let name = entry.file_name().to_string_lossy().to_string();
+                
+                // Basic ignore
+                if name.starts_with('.') || name == "node_modules" || name == "target" {
+                    continue;
+                }
 
-    // Read directory
-    if let Ok(read_dir) = fs::read_dir(&dir_path) {
-        for entry in read_dir.flatten() {
-            let path = entry.path();
-            let name = entry.file_name().to_string_lossy().to_string();
-            
-            // Basic ignore
-            if name.starts_with('.') || name == "node_modules" || name == "target" {
-                continue;
+                let metadata = entry.metadata().ok();
+                let is_dir = metadata.as_ref().map(|m| m.is_dir()).unwrap_or(false);
+                let size = metadata.as_ref().map(|m| m.len()).ok();
+
+                entries.push(FileEntry {
+                    name,
+                    path: path.to_string_lossy().to_string(),
+                    is_dir,
+                    size,
+                });
             }
-
-            let metadata = entry.metadata().ok();
-            let is_dir = metadata.as_ref().map(|m| m.is_dir()).unwrap_or(false);
-            let size = metadata.as_ref().map(|m| m.len()).ok();
-
-            entries.push(FileEntry {
-                name,
-                path: path.to_string_lossy().to_string(),
-                is_dir,
-                size,
-            });
         }
-    }
 
-    Ok(entries)
+        Ok(entries)
+    }).await.map_err(|e| format!("Task join error: {}", e))?
 }
 
 #[tauri::command]
-pub fn count_folder_files(path: String) -> Result<FolderCounts, String> {
-    let dir_path = PathBuf::from(&path);
-    
-    let mut shallow_count = 0;
-    let mut deep_count = 0;
+pub async fn count_folder_files(path: String) -> Result<FolderCounts, String> {
+    tokio::task::spawn_blocking(move || {
+        let dir_path = PathBuf::from(&path);
+        
+        let mut shallow_count = 0;
+        let mut deep_count = 0;
 
-    if let Ok(read_dir) = fs::read_dir(&dir_path) {
-        for entry in read_dir.flatten() {
-            // Shallow count (direct children that are files)
-            if entry.path().is_file() {
-                shallow_count += 1;
+        if let Ok(read_dir) = fs::read_dir(&dir_path) {
+            for entry in read_dir.flatten() {
+                if entry.path().is_file() {
+                    shallow_count += 1;
+                }
             }
         }
-    }
 
-    // Deep count (recursive)
-    let walker = WalkDir::new(&dir_path).into_iter();
-    for entry in walker.filter_map(|e| e.ok()) {
-        if entry.file_type().is_file() {
-            deep_count += 1;
+        let walker = WalkDir::new(&dir_path).into_iter();
+        for entry in walker.filter_map(|e| e.ok()) {
+            if entry.file_type().is_file() {
+                deep_count += 1;
+            }
         }
-    }
 
-    Ok(FolderCounts {
-        shallow: shallow_count,
-        deep: deep_count, 
-    })
+        Ok(FolderCounts {
+            shallow: shallow_count,
+            deep: deep_count, 
+        })
+    }).await.map_err(|e| format!("Task join error: {}", e))?
 }
 ```
 
-- [ ] **Step 2: Register Commands**
+- [ ] **Step 3: Register Commands**
 
 Modify `src-tauri/src/main.rs`.
 
@@ -298,9 +321,9 @@ fn main() {
 }
 ```
 
-- [ ] **Step 3: Add Frontend Bindings**
+- [ ] **Step 4: Add Frontend Bindings**
 
-Modify `src/lib/invoke.ts`.
+Modify `src/lib/invoke.ts`. Note the field mapping if Rust uses `is_dir` but TS expects `isDir`. We will align TS type to Rust `snake_case` or use serde rename. For this plan, we update TS to match Rust defaults.
 
 ```typescript
 // src/lib/invoke.ts
@@ -316,7 +339,7 @@ export async function countFolderFiles(path: string): Promise<FolderCounts> {
 }
 ```
 
-- [ ] **Step 4: Commit Backend**
+- [ ] **Step 5: Commit Backend**
 
 ```bash
 git add src-tauri/src/commands/files.rs src-tauri/src/main.rs src/lib/invoke.ts
@@ -330,13 +353,12 @@ git commit -m "feat(chat): add backend commands for file browsing and counting"
 
 - [ ] **Step 1: Create the Modal Component**
 
-We replace the custom CSS modal with a `shadcn/ui` Dialog structure. We use `lucide-react` for icons.
+We replace the custom CSS modal with a `shadcn/ui` Dialog structure. We use `lucide-react` for icons. Note: We render this inside the picker portal, so it behaves like a submenu rather than a full page dialog.
 
 ```tsx
 // src/components/chat/folder-scope-modal.tsx
 import React from 'react';
 import { File, FolderTree, ChevronLeft } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 
 interface FolderScopeModalProps {
@@ -421,7 +443,7 @@ git commit -m "feat(chat): add folder scope modal using shadcn components"
 
 - [ ] **Step 1: Create the File Mention Picker**
 
-We implement the provided logic using `shadcn/ui` primitives and Tailwind. We use `createPortal` for the floating list to break out of containers.
+We implement the provided logic using `shadcn/ui` primitives and Tailwind. We use `createPortal` for the floating list to break out of containers. **Correction:** Updated to use `is_dir` to match backend types.
 
 ```tsx
 // src/components/chat/file-mention-picker.tsx
@@ -534,7 +556,8 @@ export const FileMentionPicker: React.FC<FileMentionPickerProps> = ({
 
   const handleItemSelect = (file: FileEntry, isShift: boolean) => {
     // Intercept . (current folder) to show scope modal
-    if (file.isDir && file.name === '.') {
+    // Note: Backend marks current dir as name: ".", is_dir: true
+    if (file.is_dir && file.name === '.') {
       setPendingFolder(file);
       setView('folder-scope-confirm');
       return;
@@ -633,8 +656,8 @@ export const FileMentionPicker: React.FC<FileMentionPickerProps> = ({
           )}
           {!loading &&
             filtered.map((file, index) => {
-              const sizeFormatted = file.isDir ? '—' : formatBytes(file.size);
-              const isLarge = !file.isDir && (file.size ?? 0) > FILE_SIZE_WARN_THRESHOLD;
+              const sizeFormatted = file.is_dir ? '—' : formatBytes(file.size);
+              const isLarge = !file.is_dir && (file.size ?? 0) > FILE_SIZE_WARN_THRESHOLD;
               return (
                 <div
                   key={file.path}
@@ -646,7 +669,7 @@ export const FileMentionPicker: React.FC<FileMentionPickerProps> = ({
                   onMouseEnter={() => setSelectedIndex(index)}
                 >
                   <span className="w-4 h-4 flex items-center justify-center text-muted-foreground">
-                    {file.isDir ? (
+                    {file.is_dir ? (
                       file.name === '..' ? (
                         <ChevronLeft className="w-4 h-4" />
                       ) : (
@@ -693,11 +716,11 @@ git commit -m "feat(chat): implement file mention picker with shadcn and portal"
 
 - [ ] **Step 1: Create Skill Palette Component**
 
-We reuse the `TrustBadge` from the marketplace and `shadcn` structure.
+We reuse the `TrustBadge` from the marketplace and `shadcn` structure. **Correction:** Added missing `useRef` import.
 
 ```tsx
 // src/components/chat/chat-command-palette.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { RegistrySkill } from '@/lib/bindings';
 import { TrustBadge } from '@/components/skills/trust-badge';
 import { Input } from '@/components/ui/input';
@@ -754,7 +777,6 @@ export const ChatCommandPalette: React.FC<ChatCommandPaletteProps> = ({
     };
 
     // Add listener only when active/focused
-    // Simplified: rely on parent to pass key events or global listener
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [filtered, selectedIndex, onSelect, onClose]);
@@ -783,8 +805,11 @@ export const ChatCommandPalette: React.FC<ChatCommandPaletteProps> = ({
           ref={inputRef}
           placeholder="Search skills..."
           value={query}
-          onChange={(e) => {/* Parent controls query usually, but we might need to sync */}
-          }
+          onChange={(e) => {
+              // In this implementation, the parent controls the query via TriggerState,
+              // but if we wanted local control we'd update here.
+              // We assume parent syncs query.
+          }}
           className="h-8 text-sm"
         />
       </div>
@@ -965,8 +990,6 @@ git add src/components/chat/context-chip.tsx src/components/chat/attached-items-
 git commit -m "feat(chat): implement context chips with shadcn badges"
 ```
 
----
-
 ## Chunk 7: Input Trigger System & Main Integration
 
 **Files:**
@@ -974,7 +997,8 @@ git commit -m "feat(chat): implement context chips with shadcn badges"
 
 - [ ] **Step 1: Implement Trigger Detection and State**
 
-We modify `src/components/chat/chat-input.tsx`. This is the main integration point. We assume the existence of `textareaRef` and basic state.
+We modify `src/components/chat/chat-input.tsx`. This is the main integration point.
+**Logic Fix:** We must handle the cleanup of the trigger character (e.g., `@`) from the input text once a selection is made, since we are representing the selection as a Chip, not inline text.
 
 ```tsx
 // src/components/chat/chat-input.tsx
@@ -983,8 +1007,9 @@ import { useChatContextStore } from '@/store/chat-context-store';
 import { FileMentionPicker } from './file-mention-picker';
 import { ChatCommandPalette } from './chat-command-palette';
 import { AttachedItemsList } from './attached-items-list';
-import { listDirectoryContents, countFolderFiles, useAllSkills } from '@/lib/bindings'; // Assuming hook export
-import { RegistrySkill, FileEntry } from '@/types/chat-context';
+import { listDirectoryContents, countFolderFiles } from '@/lib/invoke';
+import { useAllSkills } from '@/lib/bindings'; // Assuming hook exists or import from invoke
+import { RegistrySkill, FileEntry, FolderCounts } from '@/types/chat-context';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { AtSign, Hash, Send } from 'lucide-react';
@@ -996,17 +1021,19 @@ export const ChatInput: React.FC = () => {
   
   // File Picker State
   const [currentPath, setCurrentPath] = useState<string>(() => {
-    // Initialize with workspace root or home
-    return process.env.WORKSPACE_ROOT || '.';
+    // Attempt to get workspace root, fallback to home or '.'
+    return localStorage.getItem('workspaceRoot') || '.';
   });
   const [fileItems, setFileItems] = useState<FileEntry[]>([]);
   const [fileLoading, setFileLoading] = useState(false);
-  const [folderCounts, setFolderCounts] = useState({ shallow: 0, deep: 0 });
+  const [folderCounts, setFolderCounts] = useState<FolderCounts>({ shallow: 0, deep: 0 });
 
   // Skill Picker State
+  // Assuming useAllSkills is a custom hook wrapping the invoke call
+  // If not, replace with simple useState + useEffect fetching
   const { data: skills = [], isLoading: skillsLoading } = useAllSkills();
 
-  // Store
+  // Store Actions
   const addFile = useChatContextStore(s => s.addFile);
   const addFolder = useChatContextStore(s => s.addFolder);
   const addSkill = useChatContextStore(s => s.addSkill);
@@ -1015,40 +1042,55 @@ export const ChatInput: React.FC = () => {
 
   // --- Trigger Logic ---
 
-  const calculatePickerPosition = () => {
+  const calculatePickerPosition = useCallback(() => {
     if (textareaRef.current) {
       const rect = textareaRef.current.getBoundingClientRect();
-      // Simple positioning: Above the input
-      return { top: rect.top - 250, left: rect.left + 10 }; 
+      // Position above the input, accounting for scroll
+      return { top: rect.top - 260 + window.scrollY, left: rect.left + 10 }; 
     }
     return null;
-  };
+  }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Check for Trigger Keys
+    // If picker is open, let it handle navigation (ArrowUp/Down/Enter)
+    // This is handled via global listeners in the Pickers, but we prevent default here if needed
+    // to stop cursor movement in textarea while navigating picker.
+    if (triggerState) {
+      if (['ArrowUp', 'ArrowDown', 'Enter'].includes(e.key)) {
+        // Pickers handle their own state, but we might need to stop propagation
+        // to prevent cursor jump in textarea.
+        // However, since Pickers use global listeners, we don't strictly need to stop here
+        // unless the textarea is stealing focus.
+      }
+    }
+
+    if (e.key === 'Escape') {
+      closePicker();
+      return;
+    }
+
+    if (e.key === 'Enter' && !e.shiftKey && !triggerState) {
+      e.preventDefault();
+      handleSend();
+      return;
+    }
+
+    // Trigger Detection on Key Press
     if (e.key === '@' || e.key === '#') {
-      // Logic to insert char and open picker
-      // If we want to open on key press without inserting char (macro style):
-      // e.preventDefault();
-      
-      // For now, let's allow the char to be typed, and detect it to open UI
-      // But we can set the state immediately to anticipate
+      // We set state anticipating the character insertion
+      // startIndex will be current cursor position + 1
+      const cursorPos = e.currentTarget.selectionStart;
       const type = e.key === '@' ? 'skill' : 'file';
-      const pos = e.currentTarget.selectionStart;
       
-      // We need to wait for the char to actually appear in value to confirm trigger
-      // Or simpler: just open the picker immediately on keydown
-      setTriggerState({ type, query: '', startIndex: pos + 1 });
+      // We defer position calculation to onChange to ensure text is updated
+      // but we set the trigger type now.
+      // Note: If user moves cursor and types, we might have issues, but simple implementation first.
+      setTriggerState({ type, query: '', startIndex: cursorPos + 1 });
       setPickerPosition(calculatePickerPosition());
       
       if (type === 'file') {
-        loadDirectory(currentPath); // Load files for current context
+        loadDirectory(currentPath);
       }
-    } else if (e.key === 'Escape') {
-      closePicker();
-    } else if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
     }
   };
 
@@ -1056,36 +1098,21 @@ export const ChatInput: React.FC = () => {
     const value = e.target.value;
     setInputValue(value);
 
-    // Update Trigger Query
+    // Update Trigger Query or Close
     if (triggerState) {
       const cursorPos = e.target.selectionStart;
-      // Find the last trigger char before cursor
-      // This is a simplified check. Robust implementation tracks exact start index.
-      const lastAtIndex = value.lastIndexOf('@', cursorPos);
-      const lastHashIndex = value.lastIndexOf('#', cursorPos);
       
-      // If both -1, close (user deleted trigger)
-      if (lastAtIndex === -1 && lastHashIndex === -1 && triggerState) {
-         // Check if we are inside a trigger scope
-         // For simplicity, we assume the triggerState.startIndex is valid
-         if (cursorPos < triggerState.startIndex) {
-           closePicker();
-         } else {
-           // Extract query between startIndex and cursor
-           const query = value.substring(triggerState.startIndex, cursorPos);
-           setTriggerState(prev => prev ? { ...prev, query } : null);
-         }
+      // Check if we deleted the trigger char
+      if (cursorPos < triggerState.startIndex) {
+        closePicker();
       } else {
-         // User typed another trigger?
-         // Complex logic needed for robust inline triggers. 
-         // For this plan, we stick to: "First trigger opens UI, Escape closes".
-         // Query updates based on text.
-         if (cursorPos < triggerState.startIndex) {
-           closePicker();
-         } else {
-           const query = value.substring(triggerState.startIndex, cursorPos);
-           setTriggerState(prev => prev ? { ...prev, query } : null);
-         }
+        // Extract query from startIndex to cursor
+        // Note: This logic assumes no multi-line triggers for simplicity
+        const query = value.substring(triggerState.startIndex, cursorPos);
+        setTriggerState(prev => prev ? { ...prev, query } : null);
+        
+        // Update position slightly if text wraps (optional, simple static pos for now)
+        if (!pickerPosition) setPickerPosition(calculatePickerPosition());
       }
     }
   };
@@ -1104,24 +1131,22 @@ export const ChatInput: React.FC = () => {
       const entries = await listDirectoryContents(path);
       setFileItems(entries);
     } catch (err) {
-      console.error(err);
+      console.error("Failed to load directory:", err);
+      // Optionally show toast
     } finally {
       setFileLoading(false);
     }
   };
 
   const handleFileSelect = async (file: FileEntry, isDeep?: boolean) => {
-    if (file.isDir) {
+    if (file.is_dir) {
       if (file.name === '..') {
-        // Go up
-        const parent = file.path; // Backend returns parent path for '..'
-        loadDirectory(parent);
+        // Backend handles resolving parent path
+        loadDirectory(file.path);
       } else if (file.name === '.') {
-        // Current folder selected via Shift+Enter or Scope Modal logic
-        // Scope modal is handled inside FileMentionPicker, which calls this onSelect
-        // If isDeep is defined, it comes from the modal
-        const counts = await countFolderFiles(file.path);
+        // Current folder selected (via Scope Modal logic)
         if (isDeep !== undefined) {
+           const counts = await countFolderFiles(file.path);
            addFolder({ 
              id: file.path, 
              name: file.name, 
@@ -1129,15 +1154,18 @@ export const ChatInput: React.FC = () => {
              scope: isDeep ? 'deep' : 'shallow', 
              fileCount: isDeep ? counts.deep : counts.shallow 
            });
+           // Clean trigger text
+           clearTriggerText();
            closePicker();
         }
       } else {
-        // Enter directory
+        // Regular directory navigation
         loadDirectory(file.path);
       }
     } else {
-      // Add File
+      // File selected
       addFile({ id: file.path, name: file.name, path: file.path, size: file.size });
+      clearTriggerText();
       closePicker();
     }
   };
@@ -1146,14 +1174,25 @@ export const ChatInput: React.FC = () => {
 
   const handleSkillSelect = (skill: RegistrySkill) => {
     addSkill(skill);
+    clearTriggerText();
     closePicker();
-    // TODO: Trigger lint check
+    // Note: Lint check might happen here or on send
+  };
+
+  // --- Helpers ---
+
+  const clearTriggerText = () => {
+    if (!triggerState) return;
+    // Remove the trigger char and query from input
+    const before = inputValue.substring(0, triggerState.startIndex - 1);
+    const after = inputValue.substring(textareaRef.current?.selectionStart || 0);
+    setInputValue(before + after);
   };
 
   // --- Submission ---
 
   const handleSend = () => {
-    // Collect items and send
+    // Placeholder for send logic (Chunk 9)
     console.log('Send', { content: inputValue, context: useChatContextStore.getState().items });
     setInputValue('');
     useChatContextStore.getState().clearItems();
@@ -1179,10 +1218,21 @@ export const ChatInput: React.FC = () => {
         
         {/* Bottom Bar Buttons */}
         <div className="flex gap-1 pb-1">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {/* Focus input and inject '#' */}}>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
+             // Manual trigger injection
+             setInputValue(prev => prev + '#');
+             // Force trigger state
+             setTriggerState({ type: 'file', query: '', startIndex: inputValue.length + 1 });
+             setPickerPosition(calculatePickerPosition());
+             loadDirectory(currentPath);
+          }}>
             <Hash className="w-4 h-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {/* Focus input and inject '@' */}}>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
+             setInputValue(prev => prev + '@');
+             setTriggerState({ type: 'skill', query: '', startIndex: inputValue.length + 1 });
+             setPickerPosition(calculatePickerPosition());
+          }}>
             <AtSign className="w-4 h-4" />
           </Button>
           <Button size="icon" className="h-8 w-8" onClick={handleSend}>
@@ -1191,8 +1241,8 @@ export const ChatInput: React.FC = () => {
         </div>
       </div>
 
-      {/* Pickers (Rendered Portal-based in their own components) */}
-      {triggerState?.type === 'file' && (
+      {/* Pickers */}
+      {triggerState?.type === 'file' && pickerPosition && (
         <FileMentionPicker
           open={true}
           query={triggerState.query}
@@ -1206,7 +1256,7 @@ export const ChatInput: React.FC = () => {
         />
       )}
 
-      {triggerState?.type === 'skill' && (
+      {triggerState?.type === 'skill' && pickerPosition && (
         <ChatCommandPalette
           type="skill"
           query={triggerState.query}
@@ -1245,7 +1295,16 @@ Using `shadcn` AlertDialog.
 // src/components/chat/security-warning-dialog.tsx
 import React from 'react';
 import { RegistrySkill } from '@/lib/bindings';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { AlertTriangle } from 'lucide-react';
 
 interface Props {
@@ -1255,6 +1314,9 @@ interface Props {
 }
 
 export const SecurityWarningDialog: React.FC<Props> = ({ skill, onConfirm, onCancel }) => {
+  // Filter for security specific warnings (example logic)
+  const securityWarnings = skill.lintWarnings?.filter(w => w.rule_id.includes('sec-') || w.severity === 'error');
+
   return (
     <AlertDialog open={true} onOpenChange={(open) => !open && onCancel()}>
       <AlertDialogContent>
@@ -1265,9 +1327,9 @@ export const SecurityWarningDialog: React.FC<Props> = ({ skill, onConfirm, onCan
           </AlertDialogTitle>
           <AlertDialogDescription>
             The skill <strong>{skill.name}</strong> has been flagged for potentially dangerous behavior.
-            <div className="mt-2 p-2 bg-red-50 dark:bg-red-950 rounded text-sm text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800">
-              {skill.lintWarnings?.filter(w => w.rule_id.includes('sec-')).map((w, i) => (
-                <div key={i}>• {w.message}</div>
+            <div className="mt-2 p-2 bg-red-50 dark:bg-red-950 rounded text-sm text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800 max-h-40 overflow-y-auto">
+              {securityWarnings?.map((w, i) => (
+                <div key={i} className="mb-1">• {w.message}</div>
               ))}
             </div>
           </AlertDialogDescription>
@@ -1286,29 +1348,35 @@ export const SecurityWarningDialog: React.FC<Props> = ({ skill, onConfirm, onCan
 
 - [ ] **Step 2: Integrate Logic into ChatInput**
 
-Update `handleSkillSelect` in `src/components/chat/chat-input.tsx`.
+Update `src/components/chat/chat-input.tsx`.
 
 ```tsx
-// Add state for review
+// ... imports
+import { SecurityWarningDialog } from './security-warning-dialog';
+
+// ... inside component
 const [skillForReview, setSkillForReview] = useState<RegistrySkill | null>(null);
 
 // Updated Handler
 const handleSkillSelect = (skill: RegistrySkill) => {
-  if (skill.securityScore < 2) {
+  // Check security score or lint warnings
+  if (skill.securityScore < 2 || (skill.lintWarnings && skill.lintWarnings.some(w => w.severity === 'error'))) {
     setSkillForReview(skill);
-    closePicker();
+    closePicker(); // Close picker, show dialog
   } else {
     confirmAddSkill(skill);
   }
 };
 
 const confirmAddSkill = (skill: RegistrySkill) => {
-  // Installation logic if registry (similar to previous plan)
   addSkill(skill);
+  clearTriggerText(); // Clean input
   setSkillForReview(null);
+  closePicker();
 };
 
-// Render Dialog
+// Render Dialog inside return statement
+// ...
 {skillForReview && (
   <SecurityWarningDialog 
     skill={skillForReview} 
@@ -1325,10 +1393,12 @@ git add src/components/chat/security-warning-dialog.tsx src/components/chat/chat
 git commit -m "feat(chat): add security warning dialog for dangerous skills"
 ```
 
+---
+
 ## Chunk 9: Backend Message Submission Integration
 
 **Files:**
-- Modify: `src-tauri/src/commands/chat.rs`
+- Create: `src-tauri/src/commands/chat.rs` (or modify existing)
 - Modify: `src-tauri/src/main.rs`
 - Modify: `src/lib/invoke.ts`
 - Modify: `src/components/chat/chat-input.tsx`
@@ -1341,6 +1411,7 @@ We need a structured way to receive the context items in Rust.
 // src-tauri/src/commands/chat.rs
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use std::fs;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ContextAttachment {
@@ -1359,14 +1430,15 @@ pub struct SendMessagePayload {
 pub async fn send_chat_message(payload: SendMessagePayload) -> Result<String, String> {
     let mut context_content = String::new();
 
-    // Process Attachments
+    // Process Attachments (Blocking part inside spawn_blocking if heavy)
+    // For simplicity, we do basic file reading here.
     for attachment in payload.attachments {
         match attachment.item_type.as_str() {
             "file" => {
-                // Read file content
                 let path = PathBuf::from(&attachment.id);
                 if path.exists() {
-                    match std::fs::read_to_string(&path) {
+                    // Basic read, consider size limits in production
+                    match fs::read_to_string(&path) {
                         Ok(content) => {
                             context_content.push_str(&format!(
                                 "\n--- File: {} ---\n{}\n--- End File ---\n",
@@ -1379,23 +1451,17 @@ pub async fn send_chat_message(payload: SendMessagePayload) -> Result<String, St
                 }
             }
             "folder" => {
-                // List files based on scope and read them
-                // Implement file walking logic similar to count_folder_files but reading content
-                // For now, placeholder:
+                // Placeholder: In real app, we would walk the directory based on scope
                 context_content.push_str(&format!("\n--- Folder: {} ({}) ---\n[Folder content injection logic]\n", attachment.id, attachment.scope.unwrap_or_default()));
             }
             "skill" => {
-                // Load Skill content
-                // If ID is a path (local), read it.
-                // If ID is a UUID (registry), look it up in DB/Cache.
-                // Placeholder:
-                 context_content.push_str(&format!("\n--- Skill: {} ---\n[Skill content injection logic]\n", attachment.id));
+                // Placeholder: Load skill content
+                context_content.push_str(&format!("\n--- Skill: {} ---\n[Skill content injection logic]\n", attachment.id));
             }
             _ => {}
         }
     }
 
-    // Construct Final Prompt
     let final_prompt = if context_content.is_empty() {
         payload.content
     } else {
@@ -1438,6 +1504,7 @@ Modify `src/lib/invoke.ts`.
 
 ```typescript
 // src/lib/invoke.ts
+// ... existing imports
 
 interface ContextAttachment {
   item_type: 'skill' | 'file' | 'folder';
@@ -1460,9 +1527,8 @@ export async function sendChatMessage(payload: SendMessagePayload): Promise<stri
 Modify `src/components/chat/chat-input.tsx`.
 
 ```tsx
-// src/components/chat/chat-input.tsx
 // ... imports
-import { sendChatMessage } from '@/lib/bindings';
+import { sendChatMessage } from '@/lib/invoke';
 
 // ... inside component
 const handleSend = async () => {
@@ -1495,7 +1561,7 @@ const handleSend = async () => {
     useChatContextStore.getState().clearItems();
   } catch (err) {
     console.error(err);
-    // Toast error
+    // TODO: Toast error
   }
 };
 ```
@@ -1517,7 +1583,7 @@ git commit -m "feat(chat): integrate backend message submission with context"
 
 - [ ] **Step 1: Enhance Keyboard Navigation**
 
-Ensure the `FileMentionPicker` intercepts navigation keys properly to prevent the textarea from fighting with the picker.
+Ensure the `FileMentionPicker` intercepts navigation keys properly.
 
 ```tsx
 // src/components/chat/file-mention-picker.tsx
@@ -1601,73 +1667,42 @@ test('User can attach a file via # trigger and send', async ({ page }) => {
   await input.fill('#');
   
   // 3. Wait for File Picker
-  const picker = page.locator('div[role="listbox"]'); // Assuming role added
+  const picker = page.locator('div.fixed.z-50'); // Portal container
   await expect(picker).toBeVisible();
   
-  // 4. Verify we see current directory contents (.)
-  const currentItem = page.locator('text=Direct children only').first(); // Placeholder check
-  // Ideally check for a known file in the workspace
-  // await expect(page.locator('text=package.json')).toBeVisible();
+  // 4. Navigate (Mock file system response or use real fs if testing in Tauri)
+  // Assuming real fs or mocked backend response with 'src' folder
+  const srcFolder = picker.locator('div[role="option"]:has-text("src")');
+  await expect(srcFolder).toBeVisible();
   
-  // 5. Select first file (Enter)
-  await input.press('Enter');
+  // 5. Select item
+  await srcFolder.click();
   
-  // 6. Verify Chip appeared
-  const chip = page.locator('div[class*="context-chip"]'); // Adjust selector
-  // await expect(chip).toBeVisible();
+  // 6. Verify Chip appears
+  const chip = page.locator('div.bg-muted\\/30 > div:has-text("src")'); // Chip container
+  await expect(chip).toBeVisible();
   
-  // 7. Send
-  await input.fill('Analyze this.');
-  await input.press('Enter'); // Submit
-  
-  // 8. Verify UI cleared
+  // 7. Verify Trigger char removed
   await expect(input).toHaveValue('');
+  
+  // 8. Send
+  const sendBtn = page.locator('button:has(svg.lucide-send)');
+  await sendBtn.click();
+  
+  // 9. Verify clear (or message sent)
+  await expect(chip).not.toBeVisible();
 });
 ```
 
-- [ ] **Step 2: Commit Tests**
+- [ ] **Step 2: Run Tests**
+
+```bash
+npm run test:e2e
+```
+
+- [ ] **Step 3: Final Commit**
 
 ```bash
 git add tests/e2e/context-injection.spec.ts
-git commit -m "test(chat): add e2e test for file context injection"
-```
-
----
-
-## Chunk 12: Documentation & Final Review
-
-**Files:**
-- Create: `docs/features/chat-context-injection.md`
-
-- [ ] **Step 1: Document Feature**
-
-Create `docs/features/chat-context-injection.md`.
-
-```markdown
-# Chat Context Injection
-
-## Overview
-Allows users to attach Skills and Files directly into the chat input to provide context to the AI.
-
-## Usage
-- **@**: Opens Skill Selector. Supports local and registry skills.
-- **#**: Opens File Selector. Supports workspace files and folders.
-    - **Shift+Enter** on a folder adds it directly.
-    - **Enter** on a folder (`.`) opens scope selection (Shallow vs Deep).
-
-## Architecture
-- **Frontend**: React + Zustand. `shadcn/ui` for styling.
-- **Backend**: Tauri commands for file listing and message construction.
-- **State**: `chat-context-store` holds transient attachments.
-
-## Security
-- Skills with low security scores trigger a confirmation dialog.
-- Files are read and injected into the prompt context on the backend.
-```
-
-- [ ] **Step 2: Final Commit**
-
-```bash
-git add docs/features/chat-context-injection.md
-git commit -m "docs: add documentation for chat context injection"
+git commit -m "test(e2e): add context injection flow test"
 ```

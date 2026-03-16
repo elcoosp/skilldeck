@@ -1,8 +1,9 @@
+// src-tauri/src/lib.rs
 //! Tauri application entry point (library form for testability).
 //!
 //! This module wires together:
 //! - `AppState` initialization (DB + Registry + ApprovalGate + LintConfig)
-//! - All IPC command handlers (extended with marketplace commands)
+//! - All IPC command handlers (extended with marketplace + file-browsing commands)
 //! - Tauri plugins (keyring, shell, store, dialog)
 //! - Tracing subscriber
 
@@ -16,8 +17,8 @@ mod state;
 mod sync;
 
 use commands::{
-    conversations::*, export::*, gist::*, mcp::*, messages::*, ollama::*, platform::*, profiles::*,
-    settings::*, skills::*, workspaces::*,
+    conversations::*, export::*, files::*, gist::*, mcp::*, messages::*, ollama::*, platform::*,
+    profiles::*, settings::*, skills::*, workspaces::*,
 };
 use events::{AgentEvent, McpEvent, WorkflowEvent};
 use state::AppState;
@@ -119,6 +120,9 @@ pub fn run() {
             cancel_agent,
             // settings
             test_api_connection,
+            // file browsing (chat context injection)
+            list_directory_contents,
+            count_folder_files,
         ])
         .events(collect_events![AgentEvent, McpEvent, WorkflowEvent]);
 
@@ -157,7 +161,8 @@ pub fn run() {
                 // Start skill sync poller (hourly)
                 let sync_state = Arc::clone(&state);
                 tokio::spawn(async move {
-                    let mut interval = tokio::time::interval(std::time::Duration::from_secs(3600));
+                    let mut interval =
+                        tokio::time::interval(std::time::Duration::from_secs(3600));
                     loop {
                         interval.tick().await;
                         if let Err(e) =

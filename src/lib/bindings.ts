@@ -618,6 +618,34 @@ async testApiConnection(provider: string, key: string) : Promise<Result<boolean,
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+/**
+ * List the contents of a directory, including a `..` parent entry.
+ * 
+ * Hidden files, `node_modules`, and `target` are excluded.
+ * I/O is offloaded to a blocking thread to avoid stalling the async runtime.
+ */
+async listDirectoryContents(path: string) : Promise<Result<FileEntry[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_directory_contents", { path }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Count files inside a folder at two depths: direct children only (shallow)
+ * and all nested files recursively (deep).
+ * 
+ * Hidden files and `node_modules` / `target` are excluded from both counts.
+ */
+async countFolderFiles(path: string) : Promise<Result<FolderCounts, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("count_folder_files", { path }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
@@ -662,6 +690,14 @@ export type ConfigScope = "global" | "workspace"
 export type ConversationSummary = { id: string; title: string | null; profile_id: string; workspace_id: string | null; created_at: string; updated_at: string; message_count: string }
 export type DiffResult = { diff: string; has_changes: boolean }
 export type ExportFormat = "markdown" | "json"
+/**
+ * A single file or directory entry returned by `list_directory_contents`.
+ */
+export type FileEntry = { name: string; path: string; is_dir: boolean; size: string | null }
+/**
+ * Shallow vs deep file counts for a folder, used by `FolderScopeModal`.
+ */
+export type FolderCounts = { shallow: string; deep: string }
 export type GistFile = { filename: string; content: string }
 export type GistInfo = { id: string; url: string; html_url: string; description: string }
 /**
