@@ -254,6 +254,13 @@ impl SubagentSpawner for SpawnerWithContext {
             )
             .await
     }
+
+    async fn get_subagent_result(&self, subagent_id: &str) -> Option<String> {
+        self.state
+            .subagent_results
+            .get(subagent_id)
+            .map(|r| r.clone())
+    }
 }
 
 /// Drive the `AgentLoop` and forward every event to the Tauri bus.

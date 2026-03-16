@@ -16,10 +16,11 @@ import { MarkdownHooks } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeShiki from '@shikijs/rehype'
 import { cn } from '@/lib/utils'
-import type { MessageData } from '@/lib/bindings'   // Fixed import
+import type { MessageData } from '@/lib/bindings'
+import { SubagentCard } from './subagent-card'
 
 interface MessageBubbleProps {
-  message: MessageData   // Changed from Message to MessageData
+  message: MessageData
   isStreaming?: boolean
 }
 
@@ -102,6 +103,24 @@ export function MessageBubble({
   const isTool = message.role === 'tool'
   const isSystem = message.role === 'system'
   const syntheticStreaming = message.id === '__streaming__'
+
+  // Check if this is a subagent spawn message
+  if (isAssistant && !isStreaming && message.content) {
+    try {
+      const data = JSON.parse(message.content);
+      if (data.subagentId) {
+        return (
+          <SubagentCard
+            subagentId={data.subagentId}
+            task={data.task || 'Subagent'}
+          // onMerge and onCancel can be wired via callbacks later
+          />
+        );
+      }
+    } catch {
+      // not JSON, continue to normal rendering
+    }
+  }
 
   const canCollapse =
     (isAssistant || isSystem || isTool) && !isStreaming && !syntheticStreaming

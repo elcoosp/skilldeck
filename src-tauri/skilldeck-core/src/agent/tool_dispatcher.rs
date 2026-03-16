@@ -299,11 +299,30 @@ impl ToolDispatcher {
                 }
             }
             "mergeSubagentResults" => {
-                // This tool is handled in the Tauri command layer where we have access to results.
-                // For now, return an error indicating it's not implemented at the core level.
-                Some(Err(CoreError::NotImplemented {
-                    feature: "mergeSubagentResults in core".into(),
-                }))
+                if let Some(spawner) = &self.subagent_spawner {
+                    let subagent_id = args["subagentId"]
+                        .as_str()
+                        .ok_or_else(|| CoreError::McpToolExecution {
+                            tool_name: "mergeSubagentResults".into(),
+                            message: "Missing subagentId".into(),
+                        })
+                        .map_err(|e| return Some(Err(e)))?;
+
+                    match spawner.get_subagent_result(subagent_id).await {
+                        Some(result) => Some(Ok(serde_json::json!({ "result": result }))),
+                        None => Some(Err(CoreError::McpToolExecution {
+                            tool_name: "mergeSubagentResults".into(),
+                            message: format!(
+                                "Subagent {} not found or not yet completed",
+                                subagent_id
+                            ),
+                        })),
+                    }
+                } else {
+                    Some(Err(CoreError::Internal {
+                        message: "Subagent spawner not configured".into(),
+                    }))
+                }
             }
             _ => None,
         }

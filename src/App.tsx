@@ -11,6 +11,7 @@ import { OnboardingWizard } from '@/components/overlays/onboarding-wizard'
 import { useSettingsStore } from '@/store/settings'
 import { useUIStore } from '@/store/ui'
 import { useMcpEvents } from '@/hooks/use-mcp-events'
+import { useSubagentEvents } from '@/hooks/use-subagent-events'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -42,6 +43,7 @@ function ThemeSync() {
 function GlobalEventListeners() {
   // Keep mcp-servers query fresh whenever MCP lifecycle events arrive.
   useMcpEvents()
+  useSubagentEvents() // <-- new
   return null
 }
 

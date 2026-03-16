@@ -1,7 +1,4 @@
 use async_trait::async_trait;
-use std::sync::Arc;
-
-use crate::traits::ModelProvider;
 
 #[async_trait]
 pub trait SubagentSpawner: Send + Sync {
@@ -10,4 +7,7 @@ pub trait SubagentSpawner: Send + Sync {
         task: String,
         skill_names: Vec<String>,
     ) -> Result<String, String>;
+
+    /// Retrieve the final result of a completed subagent.
+    async fn get_subagent_result(&self, subagent_id: &str) -> Option<String>;
 }

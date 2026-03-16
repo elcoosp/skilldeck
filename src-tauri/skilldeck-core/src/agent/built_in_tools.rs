@@ -34,7 +34,7 @@ pub fn spawn_subagent() -> ToolDefinition {
     ToolDefinition {
         name: "spawnSubagent".to_string(),
         description: "Spawn a parallel subagent to handle an independent sub-task. \
-            Useful for fan-out workflows where tasks don't depend on each other."
+            Optionally equip it with one or more skills from the skill registry."
             .to_string(),
         input_schema: serde_json::json!({
             "type": "object",
@@ -43,9 +43,10 @@ pub fn spawn_subagent() -> ToolDefinition {
                     "type": "string",
                     "description": "The task description for the subagent"
                 },
-                "skill": {
-                    "type": "string",
-                    "description": "Optional skill name to equip the subagent with"
+                "skills": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "List of skill names to equip the subagent with"
                 }
             },
             "required": ["task"]
@@ -63,13 +64,17 @@ pub fn merge_subagent_results() -> ToolDefinition {
         input_schema: serde_json::json!({
             "type": "object",
             "properties": {
+                "subagentId": {
+                    "type": "string",
+                    "description": "ID of the subagent whose result to merge"
+                },
                 "strategy": {
                     "type": "string",
                     "enum": ["concat", "summarize", "vote"],
                     "description": "How to merge results: concatenate, summarize, or majority-vote"
                 }
             },
-            "required": []
+            "required": ["subagentId"]
         }),
     }
 }
