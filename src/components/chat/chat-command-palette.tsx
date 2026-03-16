@@ -7,13 +7,23 @@ import { cn } from '@/lib/utils'
 import { Loader2 } from 'lucide-react'
 import { createPortal } from 'react-dom'
 
+type PaletteItem = {
+  id: string;
+  name: string;
+  description: string;
+  _sourceType: 'local' | 'registry';
+  securityScore?: number;
+  qualityScore?: number;
+  // other fields can be added as needed
+}
+
 interface ChatCommandPaletteProps {
   type: 'skill'
   query: string
-  items: RegistrySkillData[]
+  items: PaletteItem[]
   loading: boolean
   position: { top: number; left: number } | null
-  onSelect: (skill: RegistrySkillData) => void
+  onSelect: (item: PaletteItem) => void
   onClose: () => void
 }
 
@@ -131,17 +141,24 @@ export const ChatCommandPalette: React.FC<ChatCommandPaletteProps> = ({
             onMouseEnter={() => setSelectedIndex(index)}
           >
             <div className="flex flex-col min-w-0 mr-2">
-              <span className="font-medium text-blue-600 dark:text-blue-400 truncate">
+              <span className="font-medium text-blue-600 dark:text-blue-400 truncate flex items-center gap-1">
                 @{skill.name}
+                {skill._sourceType === 'local' && (
+                  <span className="ml-1 text-[10px] bg-muted px-1 rounded">local</span>
+                )}
               </span>
               <span className="text-xs text-muted-foreground truncate w-48">
                 {skill.description}
               </span>
             </div>
-            <TrustBadge
-              securityScore={skill.securityScore}
-              qualityScore={skill.qualityScore}
-            />
+            {skill._sourceType === 'registry' && skill.securityScore !== undefined && skill.qualityScore !== undefined ? (
+              <TrustBadge
+                securityScore={skill.securityScore}
+                qualityScore={skill.qualityScore}
+              />
+            ) : (
+              <span className="text-xs text-muted-foreground">local</span>
+            )}
           </div>
         ))}
       </div>
