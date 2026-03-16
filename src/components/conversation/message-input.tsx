@@ -11,14 +11,20 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { AtSign, Hash, Paperclip, Send, X, Timer } from 'lucide-react'
 import { open } from '@tauri-apps/plugin-dialog'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
+import { toast } from 'sonner'
+
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 import { useUIStore } from '@/store/ui'
 import { useSendMessage } from '@/hooks/use-messages'
-import { useCombinedSkills } from '@/hooks/use-combined-skills'
+import { useUnifiedSkills } from '@/hooks/use-unified-skills'
+import { useCreateConversation } from '@/hooks/use-conversations'
+import { useProfiles } from '@/hooks/use-profiles'
+import { useWorkspaces } from '@/hooks/use-workspaces'
 import { commands } from '@/lib/bindings'
 import type { RegistrySkillData } from '@/lib/bindings'
+import type { UnifiedSkill } from '@/types/skills'
 import { useChatContextStore } from '@/store/chat-context-store'
 import { FileMentionPicker } from '@/components/chat/file-mention-picker'
 import { ChatCommandPalette } from '@/components/chat/chat-command-palette'
@@ -26,7 +32,6 @@ import { AttachedItemsList } from '@/components/chat/attached-items-list'
 import { SecurityWarningDialog } from '@/components/chat/security-warning-dialog'
 import type { FileEntry, FolderCounts, TriggerState } from '@/types/chat-context'
 import type { UUID } from '@/lib/types'
-import { useWorkspaces } from '@/hooks/use-workspaces'
 
 interface MessageInputProps {
   conversationId: UUID
@@ -47,7 +52,10 @@ export function MessageInput({ conversationId }: MessageInputProps) {
   const activeWorkspaceId = useUIStore((s) => s.activeWorkspaceId)
   const { data: workspaces } = useWorkspaces()
   const activeWorkspace = workspaces?.find(w => w.id === activeWorkspaceId)
-  const workspaceRoot = activeWorkspace?.path ?? null
+  const workspaceRoot = activeWorkspace?.path ?? undefined // <-- CHANGED: null → undefined
+
+  // ── Profiles (for auto‑create) ──────────────────────────────────────────
+  const { data: profiles = [] } = useProfiles()
 
   // ── Draft / UI store ──────────────────────────────────────────────────────
   const draft = useUIStore((s) => s.drafts[conversationId] ?? '')
@@ -57,26 +65,16 @@ export function MessageInput({ conversationId }: MessageInputProps) {
   const queuedMessage = useUIStore((s) => s.queuedMessages[conversationId])
   const setQueuedMessage = useUIStore((s) => s.setQueuedMessage)
   const clearQueuedMessage = useUIStore((s) => s.clearQueuedMessage)
+  const setActiveConversation = useUIStore((s) => s.setActiveConversation)
 
   const [content, setContent] = useState(draft)
 
   const sendMutation = useSendMessage(conversationId)
+  const createConversation = useCreateConversation()
   const shouldReduceMotion = useReducedMotion()
 
-  // ── Combined skills for @ picker ─────────────────────────────────────────
-  const { data: skillData = [], isLoading: skillsLoading } = useCombinedSkills()
-
-  // ── Listen for custom event to auto‑send queued message ──────────────────
-  useEffect(() => {
-    const handleSendQueued = (e: CustomEvent<{ conversationId: string; content: string }>) => {
-      if (e.detail.conversationId === conversationId) {
-        sendMutation.mutate(e.detail.content)
-        clearQueuedMessage(conversationId)
-      }
-    }
-    window.addEventListener('skilldeck:send-queued-message', handleSendQueued as EventListener)
-    return () => window.removeEventListener('skilldeck:send-queued-message', handleSendQueued as EventListener)
-  }, [conversationId, sendMutation, clearQueuedMessage])
+  // ── Unified skills for @ picker ─────────────────────────────────────────
+  const { unifiedSkills = [], isLoading: skillsLoading } = useUnifiedSkills()
 
   // ── Context injection state ───────────────────────────────────────────────
   const [triggerState, setTriggerState] = useState<TriggerState | null>(null)
@@ -231,22 +229,22 @@ export function MessageInput({ conversationId }: MessageInputProps) {
   )
 
   const handleSkillSelect = useCallback(
-    (skill: PaletteItem) => {
-      if (skill._sourceType === 'registry') {
-        // original registry skill handling
-        const rawWarnings = (skill as any).lintWarnings ?? [];
+    (skill: UnifiedSkill) => {
+      if (skill.registryData) {
+        // Registry skill
+        const rawWarnings = skill.registryData.lintWarnings ?? [];
         const hasDanger =
-          (skill as any).securityScore < 2 ||
+          skill.registryData.securityScore < 2 ||
           rawWarnings.some((w: any) => w.severity === 'error' || (w.rule_id ?? '').includes('sec-'))
 
         if (hasDanger) {
-          setSkillForReview(skill as RegistrySkillData);
+          setSkillForReview(skill.registryData);
           closePicker();
         } else {
-          confirmAddSkill(skill as RegistrySkillData);
+          confirmAddSkill(skill.registryData);
         }
-      } else {
-        // local skill - add to context as a skill with minimal data
+      } else if (skill.localData) {
+        // Local skill – construct minimal RegistrySkillData
         const localSkillData: RegistrySkillData = {
           id: skill.id,
           name: skill.name,
@@ -373,17 +371,34 @@ export function MessageInput({ conversationId }: MessageInputProps) {
 
     if (!finalContent.trim() || isComposing || isRunning) return
 
+    // Auto‑create conversation if none is active
+    let finalConversationId = conversationId
+    if (!finalConversationId) {
+      const defaultProfile = profiles.find(p => p.is_default) ?? profiles[0]
+      if (!defaultProfile) {
+        toast.error('No profile available to create conversation')
+        return
+      }
+      try {
+        finalConversationId = await createConversation.mutateAsync({ profileId: defaultProfile.id })
+        setActiveConversation(finalConversationId)
+      } catch (err) {
+        toast.error(`Failed to create conversation: ${err}`)
+        return
+      }
+    }
+
     setIsSending(true)
     setContent('')
     setSelectedFiles([])
-    clearDraft(conversationId)
+    clearDraft(finalConversationId)
     clearItems()
 
     try {
       await sendMutation.mutateAsync(finalContent)
     } catch (err) {
-      toast.error(`Failed to send message: ${err}`);
-      setContent(finalContent); // restore draft
+      toast.error(`Failed to send message: ${err}`)
+      setContent(finalContent) // restore draft
     } finally {
       setIsSending(false)
     }
@@ -393,6 +408,9 @@ export function MessageInput({ conversationId }: MessageInputProps) {
     isComposing,
     isRunning,
     conversationId,
+    profiles,
+    createConversation,
+    setActiveConversation,
     clearDraft,
     clearItems,
     sendMutation
@@ -601,7 +619,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
         <ChatCommandPalette
           type="skill"
           query={triggerState.query}
-          items={skillData}
+          items={unifiedSkills}
           loading={skillsLoading}
           position={pickerPosition}
           onSelect={handleSkillSelect}

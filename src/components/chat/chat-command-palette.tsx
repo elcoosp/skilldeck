@@ -1,29 +1,19 @@
 // src/components/chat/chat-command-palette.tsx
 import React, { useEffect, useRef, useState } from 'react'
-import type { RegistrySkillData } from '@/lib/bindings'
+import type { UnifiedSkill } from '@/types/skills'
 import { TrustBadge } from '@/components/skills/trust-badge'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { Loader2 } from 'lucide-react'
 import { createPortal } from 'react-dom'
 
-type PaletteItem = {
-  id: string;
-  name: string;
-  description: string;
-  _sourceType: 'local' | 'registry';
-  securityScore?: number;
-  qualityScore?: number;
-  // other fields can be added as needed
-}
-
 interface ChatCommandPaletteProps {
   type: 'skill'
   query: string
-  items: PaletteItem[]
+  items: UnifiedSkill[]
   loading: boolean
   position: { top: number; left: number } | null
-  onSelect: (item: PaletteItem) => void
+  onSelect: (skill: UnifiedSkill) => void
   onClose: () => void
 }
 
@@ -122,45 +112,52 @@ export const ChatCommandPalette: React.FC<ChatCommandPaletteProps> = ({
           </div>
         )}
 
-        {filtered.map((skill, index) => (
-          <div
-            key={skill.id}
-            role="option"
-            aria-selected={index === selectedIndex}
-            tabIndex={-1}
-            className={cn(
-              'flex items-center justify-between px-2 py-1.5 rounded-sm cursor-pointer text-sm',
-              index === selectedIndex
-                ? 'bg-accent text-accent-foreground'
-                : 'hover:bg-accent/50'
-            )}
-            onClick={() => {
-              onSelect(skill)
-              onClose()
-            }}
-            onMouseEnter={() => setSelectedIndex(index)}
-          >
-            <div className="flex flex-col min-w-0 mr-2">
-              <span className="font-medium text-blue-600 dark:text-blue-400 truncate flex items-center gap-1">
-                @{skill.name}
-                {skill._sourceType === 'local' && (
-                  <span className="ml-1 text-[10px] bg-muted px-1 rounded">local</span>
-                )}
-              </span>
-              <span className="text-xs text-muted-foreground truncate w-48">
-                {skill.description}
-              </span>
+        {filtered.map((skill, index) => {
+          const isRegistry = !!skill.registryData;
+          const securityScore = skill.registryData?.securityScore ?? 5;
+          const qualityScore = skill.registryData?.qualityScore ?? 5;
+          const sourceType = isRegistry ? 'registry' : 'local';
+
+          return (
+            <div
+              key={skill.id}
+              role="option"
+              aria-selected={index === selectedIndex}
+              tabIndex={-1}
+              className={cn(
+                'flex items-center justify-between px-2 py-1.5 rounded-sm cursor-pointer text-sm',
+                index === selectedIndex
+                  ? 'bg-accent text-accent-foreground'
+                  : 'hover:bg-accent/50'
+              )}
+              onClick={() => {
+                onSelect(skill)
+                onClose()
+              }}
+              onMouseEnter={() => setSelectedIndex(index)}
+            >
+              <div className="flex flex-col min-w-0 mr-2">
+                <span className="font-medium text-blue-600 dark:text-blue-400 truncate flex items-center gap-1">
+                  @{skill.name}
+                  {sourceType === 'local' && (
+                    <span className="ml-1 text-[10px] bg-muted px-1 rounded">local</span>
+                  )}
+                </span>
+                <span className="text-xs text-muted-foreground truncate w-48">
+                  {skill.description}
+                </span>
+              </div>
+              {sourceType === 'registry' ? (
+                <TrustBadge
+                  securityScore={securityScore}
+                  qualityScore={qualityScore}
+                />
+              ) : (
+                <span className="text-xs text-muted-foreground">local</span>
+              )}
             </div>
-            {skill._sourceType === 'registry' && skill.securityScore !== undefined && skill.qualityScore !== undefined ? (
-              <TrustBadge
-                securityScore={skill.securityScore}
-                qualityScore={skill.qualityScore}
-              />
-            ) : (
-              <span className="text-xs text-muted-foreground">local</span>
-            )}
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>,
     document.body

@@ -86,7 +86,7 @@ export function useInstallSkill() {
       skillContent: string;
       target: 'personal' | 'workspace';
     }) => {
-      const res = await commands.installSkill(skillName, skillContent, target);
+      const res = await commands.installSkill(skillName, skillContent, target, null); // <-- added null
       if (res.status === 'error') throw new Error(res.error);
       return res.data;
     },
@@ -95,7 +95,6 @@ export function useInstallSkill() {
     },
   });
 }
-
 export function useUninstallSkill() {
   const queryClient = useQueryClient()
   return useMutation({

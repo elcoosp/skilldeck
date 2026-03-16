@@ -20,6 +20,7 @@ import { commands } from '@/lib/bindings';
 import type { RegistrySkillData } from '@/lib/bindings';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { useQuery } from '@tanstack/react-query';
 
 interface SkillDetailProps {
   skill: RegistrySkillData | null;

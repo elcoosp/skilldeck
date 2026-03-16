@@ -31,7 +31,7 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
       const res = await commands.installSkill(
         skill.registryData.name,
         skill.registryData.content,
-        'personal'
+        'personal', null
       )
       if (res.status === 'error') throw new Error(res.error)
       return res.data
