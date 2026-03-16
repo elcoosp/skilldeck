@@ -70,7 +70,7 @@ We need to implement Tauri commands for creating, listing, and managing conversa
 
 - [x] All conversation commands work
 - [x] All message commands work
-- [ ] Events are emitted correctly
+- [x] Events are emitted correctly (in `run_agent_loop`)
 - [x] Errors are handled gracefully
 - [x] Commands are type-safe
 - [ ] Integration tests verify commands

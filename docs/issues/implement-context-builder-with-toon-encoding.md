@@ -59,7 +59,7 @@ We need to implement the context builder that assembles the complete context for
 - [x] Assembles system prompt correctly
 - [x] Includes active skills by priority
 - [x] Includes conversation history
-- [x] Respects token limits
+- [x] Respects token limits (truncates messages)
 - [ ] Supports TOON encoding (optional)
 - [ ] Falls back to JSON if needed
 

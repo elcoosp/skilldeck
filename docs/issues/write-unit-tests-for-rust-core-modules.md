@@ -59,12 +59,12 @@ We need to write unit tests for all Rust core modules including error types, dat
 ## Acceptance Criteria
 
 - [x] Error type tests pass
-- [ ] Database tests pass
-- [ ] Provider tests pass
+- [ ] Database tests pass (some exist)
+- [ ] Provider tests pass (some exist for Claude, OpenAI, Ollama)
 - [x] MCP types tests pass
 - [x] Skill loader tests pass
 - [x] Skill resolver tests pass
-- [ ] Agent loop tests pass
+- [ ] Agent loop tests pass (some exist)
 - [x] Workflow graph tests pass
 - [x] Workspace detector tests pass
 - [ ] Line coverage ≥ 80%
@@ -101,4 +101,4 @@ We need to write unit tests for all Rust core modules including error types, dat
 - **Complexity:** Medium
 - **Effort:** 3d
 
-**Completion Note:** Many unit tests exist for core modules, but coverage is incomplete. Some modules (like providers, database) lack comprehensive tests.
+**Completion Note:** Many unit tests exist for core modules, but coverage is incomplete. Some modules (like providers, database) lack comprehensive tests. Agent loop has only configuration tests.

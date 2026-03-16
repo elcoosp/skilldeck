@@ -73,9 +73,9 @@ We need to implement the layout components including the app shell, left panel (
 - [x] Left panel shows conversation list
 - [x] Center panel shows message thread
 - [x] Right panel shows tabs
-- [ ] Keyboard navigation works
-- [ ] Layout is responsive
-- [ ] Unit tests verify rendering
+- [ ] Keyboard navigation works (some global shortcuts exist)
+- [ ] Layout is responsive (not fully verified)
+- [x] Unit tests verify rendering (some exist)
 
 ## Testing Requirements
 

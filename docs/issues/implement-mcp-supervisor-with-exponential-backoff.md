@@ -68,8 +68,8 @@ We need to implement the MCP supervisor that monitors server health, restarts fa
 
 ## Acceptance Criteria
 
-- [x] Monitors server health at configurable interval
-- [x] Restarts failed servers with exponential backoff (logic present but actual reconnect deferred)
+- [x] Monitors server health at configurable interval (structure exists)
+- [ ] Restarts failed servers with exponential backoff (logic present but actual reconnect deferred)
 - [x] Caps maximum delay
 - [x] Limits maximum restart attempts
 - [x] Allows manual restart

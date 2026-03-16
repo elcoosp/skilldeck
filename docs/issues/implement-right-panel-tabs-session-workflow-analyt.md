@@ -72,11 +72,11 @@ We need to implement the right panel tabs for session management (active skills,
 
 - [x] Session tab shows active skills
 - [x] Session tab shows MCP servers
-- [ ] Workflow tab shows DAG
-- [ ] Workflow tab shows step status
-- [ ] Analytics tab shows token usage
-- [ ] Token counter displays correctly
-- [ ] Unit tests verify rendering
+- [ ] Workflow tab shows DAG (placeholder, not using React Flow)
+- [ ] Workflow tab shows step status (uses `useWorkflowEvents` but no DAG)
+- [ ] Analytics tab shows token usage (mock data)
+- [ ] Token counter displays correctly (not implemented)
+- [x] Unit tests verify rendering (some exist)
 
 ## Dependencies
 
@@ -88,4 +88,4 @@ We need to implement the right panel tabs for session management (active skills,
 - **Complexity:** Medium
 - **Effort:** 2d
 
-**Completion Note:** The right panel exists and contains SessionTab, SkillsTab, and McpTab. Workflow and Analytics tabs are not yet implemented. Token counter is not present.
+**Completion Note:** The right panel exists and contains SessionTab, SkillsTab, and McpTab. Workflow and Analytics tabs are implemented with placeholder/mock content, not fully functional. Token counter is not present.

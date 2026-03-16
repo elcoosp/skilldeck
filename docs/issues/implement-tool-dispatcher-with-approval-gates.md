@@ -85,7 +85,7 @@ We need to implement the tool dispatcher that routes tool calls to the appropria
 - [x] Supports edited parameters
 - [x] Supports denial with reason
 - [x] Supports cancellation
-- [ ] Respects auto-approve configuration (not implemented)
+- [ ] Respects auto-approve configuration (not wired)
 - [x] Unit tests verify routing
 - [x] Unit tests verify approval flow
 
@@ -105,4 +105,4 @@ We need to implement the tool dispatcher that routes tool calls to the appropria
 - **Blocked by:** MCP registry, built-in tools
 - **Blocks:** Agent loop
 
-**Completion Note:** Tool dispatcher and approval gate are implemented with oneshot channels. Built-in tools are stubs, so dispatch_builtin returns dummy JSON. Auto-approve categories not implemented. The dispatcher is used by AgentLoop.
+**Completion Note:** Tool dispatcher and approval gate are implemented with oneshot channels. Built-in tools are partially implemented (`loadSkill` works, others stubs). Auto-approve categories are not wired to frontend settings. The dispatcher is used by AgentLoop.

@@ -70,7 +70,7 @@ We need to implement subagent session management that creates isolated agent ses
 ## Acceptance Criteria
 
 - [x] Spawns subagent with isolated message history (session tracking implemented)
-- [ ] Tracks subagent status
+- [ ] Tracks subagent status (in manager, but not wired)
 - [ ] Displays subagent result card (frontend not implemented)
 - [x] Supports merge operation (merge/discard methods exist)
 - [x] Supports discard operation

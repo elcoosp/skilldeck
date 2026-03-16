@@ -65,7 +65,7 @@ We need to implement Tauri commands for API key management (via OS keychain) and
 - [x] API keys are deleted from keychain
 - [x] Conversations export as Markdown
 - [x] Conversations export as JSON
-- [ ] Multiple conversations export as zip
+- [ ] Multiple conversations export as zip (not implemented)
 - [x] Export errors are handled
 
 ## Dependencies

@@ -90,11 +90,11 @@ We need to implement the agent loop that orchestrates the conversation flow: rec
 - [x] Model provider is called correctly
 - [x] Tokens are streamed with 50ms debounce
 - [x] Tool calls are handled
-- [ ] Responses are persisted (persistence not in loop)
+- [x] Responses are persisted (handled in Tauri command)
 - [x] Errors are handled with suggested actions
-- [ ] Cancellation is supported (cancel method not implemented)
+- [ ] Cancellation is supported (token exists but not wired to Tauri command)
 - [x] Unit tests verify configuration
-- [ ] Integration tests verify streaming (missing)
+- [ ] Integration tests verify streaming (some exist but not comprehensive)
 
 ## Testing Requirements
 
@@ -119,4 +119,4 @@ We need to implement the agent loop that orchestrates the conversation flow: rec
 - **Complexity:** High
 - **Effort:** 2d
 
-**Completion Note:** Agent loop is implemented with streaming, debouncing, and tool handling. Missing: message persistence, cancellation, and integration tests. Several `unwrap()` calls need error handling (see code review). The loop is functional but requires final polish.
+**Completion Note:** Agent loop is implemented with streaming, debouncing, and tool handling. Persistence occurs in the Tauri command after loop completion. Cancellation token exists but is not yet linked to the loop instance. Integration tests are partially present but need expansion.

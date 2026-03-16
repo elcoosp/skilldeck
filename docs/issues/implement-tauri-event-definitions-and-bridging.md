@@ -70,10 +70,10 @@ We need to define all event types for agent events, MCP events, and workflow eve
 
 - [x] All event types are defined (AgentEvent in core/events.rs, WorkflowEvent in workflow/types.rs)
 - [x] Events serialize to JSON correctly
-- [ ] Events are emitted from agent loop (they are sent to a channel, but not yet to Tauri)
+- [x] Events are emitted from agent loop (via `app.emit` in `messages.rs`)
 - [ ] Events are emitted from MCP supervisor (not yet)
-- [ ] Events are emitted from workflow executor (they are sent to a channel)
-- [ ] Frontend can subscribe to events (requires Tauri bridging)
+- [ ] Events are emitted from workflow executor (sent to channel but not Tauri)
+- [x] Frontend can subscribe to events (via `events.ts` listeners)
 
 ## Dependencies
 
@@ -85,4 +85,4 @@ We need to define all event types for agent events, MCP events, and workflow eve
 - **Complexity:** Low
 - **Effort:** 0.5d
 
-**Completion Note:** Event types are defined in core. The agent loop, workflow executor, etc., send events to internal channels, but Tauri emission is not implemented. The bridging layer is missing.
+**Completion Note:** Event types are defined. Agent loop events are emitted via Tauri in `run_agent_loop`. MCP supervisor and workflow executor events are not yet bridged to Tauri. The frontend listeners are present.

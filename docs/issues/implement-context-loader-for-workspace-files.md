@@ -49,14 +49,14 @@ We need to implement the context loader that reads context files, handles missin
 - `root` — Workspace root path
 - `project_type` — Detected project type
 - `context_files` — Loaded context files
-- `skill_directory` — Optional skill directory path
+- `skill_directories` — Discovered skill directories
 - `is_git_repo` — Whether it's a git repository
 - `gitignore_patterns` — Gitignore patterns
 
 **ContextLoader:**
 - `load(root)` — Load workspace context
 - `load_context_files(root, project_type)` — Load context files
-- `find_skill_directory(root)` — Find skill directory
+- `find_skill_directories(root)` — Find skill directories
 - `load_gitignore(root)` — Load gitignore patterns
 - `build_context_string(context)` — Build context string
 
@@ -67,7 +67,7 @@ We need to implement the context loader that reads context files, handles missin
 - [x] Loads .gitignore if present
 - [x] Loads project-specific files
 - [x] Handles missing files gracefully
-- [x] Finds skill directory
+- [x] Finds skill directories
 - [x] Detects git repository
 - [x] Builds context string
 - [x] Unit tests verify file loading

@@ -48,16 +48,18 @@ We need to implement the Tauri shell that initializes the application, manages s
 
 **AppState struct:**
 - `registry` — Arc<Registry> (core library)
-- `mcp_registry` — Arc<McpRegistry>
-- `skill_registry` — Arc<SkillRegistry>
 - `approval_gate` — ApprovalGate
+- `agent_cancel_tokens` — Cancellation tokens
+- `platform_client` — Platform HTTP client
+- `lint_config` — Lint configuration
 
 **Initialization:**
 - Open database
-- Create registries
+- Create registry
 - Register model providers
 - Start MCP supervisor
 - Start skill watcher
+- Seed default profile
 
 **Commands to register:**
 - `create_conversation`
@@ -66,7 +68,6 @@ We need to implement the Tauri shell that initializes the application, manages s
 - `list_profiles`
 - `list_skills`
 - `connect_mcp_server`
-- `start_workflow`
 - etc.
 
 ## Acceptance Criteria
@@ -75,7 +76,7 @@ We need to implement the Tauri shell that initializes the application, manages s
 - [x] Database is opened with WAL mode
 - [x] Registries are created
 - [x] Commands are registered
-- [ ] Events are bridged to frontend
+- [ ] Events are bridged to frontend (partially)
 - [x] State is accessible from commands
 - [ ] Integration tests verify initialization
 

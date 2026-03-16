@@ -64,23 +64,23 @@ We need to write integration tests that verify end-to-end workflows including ag
 
 ## Acceptance Criteria
 
-- [ ] Agent loop integration tests pass
-- [ ] Skill resolution integration tests pass
-- [ ] MCP client integration tests pass
-- [ ] Workflow executor integration tests pass
+- [ ] Agent loop integration tests pass (some exist but not comprehensive)
+- [ ] Skill resolution integration tests pass (unit tests exist, integration missing)
+- [ ] MCP client integration tests pass (missing)
+- [ ] Workflow executor integration tests pass (some exist with placeholder sleeps)
 - [ ] Tests use mock servers/providers
 - [ ] Tests are deterministic
 
 ## Testing Requirements
 
 **Integration tests:**
-- `agent_loop_processes_message` — Message processed correctly
-- `agent_loop_handles_tool_call` — Tool call handled
-- `skill_resolution_priority` — Priority order correct
-- `mcp_client_connects` — Client connects
-- `mcp_client_discovers_tools` — Tools discovered
-- `workflow_sequential` — Sequential workflow executes
-- `workflow_parallel` — Parallel workflow executes
+- `agent_loop_processes_message` — Message processed correctly (stub)
+- `agent_loop_handles_tool_call` — Tool call handled (stub)
+- `skill_resolution_priority` — Priority order correct (unit)
+- `mcp_client_connects` — Client connects (missing)
+- `mcp_client_discovers_tools` — Tools discovered (missing)
+- `workflow_sequential` — Sequential workflow executes (stub)
+- `workflow_parallel` — Parallel workflow executes (stub)
 
 ## Dependencies
 
@@ -92,4 +92,4 @@ We need to write integration tests that verify end-to-end workflows including ag
 - **Complexity:** High
 - **Effort:** 3d
 
-**Completion Note:** Some integration tests exist (e.g., `agent_loop_tests.rs`, `skill_loader_tests.rs`, `workflow_executor_tests.rs`) but are not comprehensive. Many are stubs or use placeholder sleeps.
+**Completion Note:** Some integration tests exist (e.g., `agent_loop_tests.rs`, `skill_loader_tests.rs`, `workflow_executor_tests.rs`) but are not comprehensive. Many are stubs or use placeholder sleeps. MCP client tests are missing.

@@ -89,7 +89,7 @@ We need to implement conversation components including conversation list, messag
 - [x] Tool call cards display
 - [x] Approval cards work
 - [x] Message input has all features
-- [ ] Keyboard shortcuts work
+- [ ] Keyboard shortcuts work (some exist)
 - [x] Unit tests verify rendering
 
 ## Testing Requirements

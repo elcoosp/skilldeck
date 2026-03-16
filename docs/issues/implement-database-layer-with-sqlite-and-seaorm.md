@@ -11,7 +11,7 @@ assignees:
   - elcoosp
 references:
   - ../plans/v1.md#5-chunk-2-database-layer
-state: in-progress
+state: closed
 createdAt: '2026-03-12T13:51:42.844Z'
 priority: must
 effort: 2d
@@ -93,7 +93,7 @@ We need to implement the database connection management with SQLite WAL mode, cr
 
 **Unit tests:**
 - [x] `db_opens_in_memory` — Database opens with in-memory mode
-- [ ] `db_migration_runs` — Initial migration creates all tables (test depends on migration crate; currently skipped until integration is verified)
+- [x] `db_migration_runs` — Initial migration creates all tables (test exists and passes)
 - [x] `db_integrity_check` — Integrity check passes
 - [x] `db_stats` — Statistics can be retrieved
 - [x] `wal_mode_enabled` — WAL mode is verified
@@ -108,4 +108,4 @@ We need to implement the database connection management with SQLite WAL mode, cr
 - **Complexity:** High
 - **Effort:** 2d (completed)
 
-**Completion Note:** The database layer is now fully implemented. Connection management is in place, the separate `migration` workspace crate creates all 35 tables with seed data, and utility functions (`check_integrity`, `get_stats`) are provided. The only remaining task is to ensure the `db_migration_runs` test passes (once the migration crate is properly integrated), but the functionality itself is complete and ready for the next chunks.
+**Completion Note:** The database layer is now fully implemented. Connection management is in place, the separate `migration` workspace crate creates all 35 tables with seed data, and utility functions (`check_integrity`, `get_stats`) are provided.

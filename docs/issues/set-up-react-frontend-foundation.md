@@ -73,11 +73,11 @@ We need to set up the React frontend foundation including project structure, sta
 
 ## Acceptance Criteria
 
-- [x] IPC API layer is type-safe
-- [x] Zustand stores are set up
+- [x] IPC API layer is type-safe (via `bindings.ts`)
+- [x] Zustand stores are set up (ui, settings)
 - [x] TanStack Query is configured
-- [ ] Event subscriptions work
-- [x] Hooks are implemented
+- [x] Event subscriptions work (via `events.ts`)
+- [x] Hooks are implemented (useConversations, useMessages, etc.)
 - [x] TypeScript compiles without errors
 
 ## Dependencies
@@ -90,4 +90,4 @@ We need to set up the React frontend foundation including project structure, sta
 - **Complexity:** Medium
 - **Effort:** 2d
 
-**Completion Note:** The frontend foundation is fully implemented. All necessary libraries and hooks are present. Event subscriptions are partially implemented (the `onAgentEvent` listener exists but the actual event emission from Rust is not fully bridged).
+**Completion Note:** The frontend foundation is fully implemented. All necessary libraries and hooks are present. Event subscriptions are partially implemented (the `onAgentEvent` listener exists and works with emitted events).
