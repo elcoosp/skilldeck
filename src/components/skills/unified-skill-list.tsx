@@ -54,7 +54,7 @@ export function UnifiedSkillList() {
   const [selected, setSelected] = useState<UnifiedSkill | null>(null)
 
   const containerRef = useRef<HTMLDivElement>(null)
-  const columns = useColumnCount(containerRef)
+  const columns = useColumnCount(containerRef) // now works because containerRef is RefObject<HTMLDivElement> and HTMLDivElement extends HTMLElement
 
   const { unifiedSkills, isLoading, installedCount, registryError } =
     useUnifiedSkills({ search: debouncedSearch || undefined })
