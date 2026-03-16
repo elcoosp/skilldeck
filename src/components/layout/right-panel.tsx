@@ -422,4 +422,3 @@ function AnalyticsTab() {
     </div>
   )
 }
-

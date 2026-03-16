@@ -1,8 +1,8 @@
 // src/components/skills/unified-skill-list.tsx
 // Virtualized marketplace grid — merges local + registry skills via
-// useUnifiedSkills, renders rows of 3 cards using @tanstack/react-virtual.
+// useUnifiedSkills, renders rows with responsive column count.
 
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { AlertCircle, RefreshCw, Search } from 'lucide-react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -14,13 +14,47 @@ import { UnifiedSkillCard } from './unified-skill-card'
 import { SkillDetailPanel } from './skill-detail-panel'
 import type { UnifiedSkill } from '@/types/skills'
 
-const COLUMN_COUNT = 3
+// Responsive column count based on container width
+const BREAKPOINTS = {
+  single: 400,
+  double: 600
+}
+
+function useColumnCount(ref: React.RefObject<HTMLElement>) {
+  const [columns, setColumns] = useState(3) // default to 3, will adjust on mount
+
+  useEffect(() => {
+    if (!ref.current) return
+
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width
+      if (!width) return
+
+      if (width < BREAKPOINTS.single) {
+        setColumns(1)
+      } else if (width < BREAKPOINTS.double) {
+        setColumns(2)
+      } else {
+        setColumns(3)
+      }
+    })
+
+    observer.observe(ref.current)
+    return () => observer.disconnect()
+  }, [ref])
+
+  return columns
+}
+
 const ROW_HEIGHT_ESTIMATE = 160 // px
 
 export function UnifiedSkillList() {
   const [search, setSearch] = useState('')
   const [debouncedSearch] = useDebounce(search, 300)
   const [selected, setSelected] = useState<UnifiedSkill | null>(null)
+
+  const containerRef = useRef<HTMLDivElement>(null)
+  const columns = useColumnCount(containerRef)
 
   const { unifiedSkills, isLoading, installedCount, registryError } =
     useUnifiedSkills({ search: debouncedSearch || undefined })
@@ -39,7 +73,7 @@ export function UnifiedSkillList() {
 
   const parentRef = useRef<HTMLDivElement>(null)
 
-  const rowCount = Math.ceil(unifiedSkills.length / COLUMN_COUNT)
+  const rowCount = Math.ceil(unifiedSkills.length / columns)
 
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
@@ -54,7 +88,7 @@ export function UnifiedSkillList() {
     : null
 
   return (
-    <div className="flex h-full min-h-0">
+    <div className="flex h-full min-h-0" ref={containerRef}>
       {/* ── Main area ─────────────────────────────────────────────────────── */}
       <div className="flex flex-col flex-1 min-w-0 h-full">
         {/* Toolbar */}
@@ -126,7 +160,10 @@ export function UnifiedSkillList() {
         ) : unifiedSkills.length === 0 ? (
           <EmptyState search={search} hasRegistryError={!!registryError} />
         ) : (
-          <div ref={parentRef} className="flex-1 overflow-auto px-4 py-4">
+          <div
+            ref={parentRef}
+            className="flex-1 overflow-auto px-4 py-4 overflow-x-hidden"
+          >
             {/* Virtual scroll container */}
             <div
               style={{
@@ -136,10 +173,10 @@ export function UnifiedSkillList() {
               }}
             >
               {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                const startIdx = virtualRow.index * COLUMN_COUNT
+                const startIdx = virtualRow.index * columns
                 const rowItems = unifiedSkills.slice(
                   startIdx,
-                  startIdx + COLUMN_COUNT
+                  startIdx + columns
                 )
 
                 return (
@@ -153,7 +190,7 @@ export function UnifiedSkillList() {
                       height: `${virtualRow.size}px`,
                       transform: `translateY(${virtualRow.start}px)`,
                       display: 'grid',
-                      gridTemplateColumns: `repeat(${COLUMN_COUNT}, 1fr)`,
+                      gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
                       gap: '0.75rem',
                       paddingBottom: '0.75rem'
                     }}
@@ -172,7 +209,7 @@ export function UnifiedSkillList() {
                     ))}
                     {/* Pad incomplete last row */}
                     {Array.from({
-                      length: COLUMN_COUNT - rowItems.length
+                      length: columns - rowItems.length
                     }).map((_, i) => (
                       <div key={`pad-${i}`} />
                     ))}

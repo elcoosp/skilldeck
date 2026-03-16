@@ -1,194 +1,91 @@
-/**
- * UI state — Zustand store with selective persistence.
- *
- * Persisted across sessions:
- * - panelSizes (left/right panel widths)
- * - unlockStage (progressive feature unlock)
- * - leftTab (active left sidebar tab)
- * - rightTab (active right sidebar tab)
- *
- * All other state (active conversation, drafts, streaming, etc.) is ephemeral
- * and resets on app restart.
- */
+// src/components/settings/platform-tab.tsx
+import { useState } from 'react'
+import { usePlatformPreferences } from '@/hooks/use-platform'
+import { Switch } from '@/components/ui/switch'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { toast } from 'sonner'
 
-import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+export function PlatformTab() {
+  const { query, update } = usePlatformPreferences()
+  const prefs = query.data
 
-interface PanelSizes {
-  left: number
-  right: number
-}
+  const [enabled, setEnabled] = useState(prefs?.platformEnabled ?? true)
+  const [url, setUrl] = useState(prefs?.platformUrl ?? 'https://platform.skilldeck.dev')
 
-type SettingsTab = 'apikeys' | 'profiles' | 'approvals' | 'appearance' | 'preferences' | 'referral' | 'platform'
-
-interface UIState {
-  // ── Active workspace ──────────────────────────────────────────────────
-  activeWorkspaceId: string | null
-  setActiveWorkspace: (id: string | null) => void
-
-  // ── Active conversation ───────────────────────────────────────────────
-  activeConversationId: string | null
-  setActiveConversation: (id: string | null) => void
-
-  // ── Branch navigation ─────────────────────────────────────────────────
-  activeBranchId: string | null
-  setActiveBranch: (id: string | null) => void
-
-  // ── Panel sizes (persisted) ───────────────────────────────────────────
-  panelSizes: PanelSizes
-  setPanelSizes: (sizes: Partial<PanelSizes>) => void
-
-  // ── Draft messages (per conversation) ─────────────────────────────────
-  drafts: Record<string, string>
-  setDraft: (conversationId: string, content: string) => void
-  clearDraft: (conversationId: string) => void
-
-  // ── Streaming token buffer (per conversation) ─────────────────────────
-  streamingText: Record<string, string>
-  appendStreamingText: (conversationId: string, delta: string) => void
-  clearStreamingText: (conversationId: string) => void
-
-  // ── Agent running state (per conversation) ────────────────────────────
-  agentRunning: Record<string, boolean>
-  setAgentRunning: (conversationId: string, running: boolean) => void
-
-  // ── Sidebar search ────────────────────────────────────────────────────
-  searchQuery: string
-  setSearchQuery: (query: string) => void
-
-  // ── Overlays ──────────────────────────────────────────────────────────
-  settingsOpen: boolean
-  setSettingsOpen: (open: boolean) => void
-
-  commandPaletteOpen: boolean
-  setCommandPaletteOpen: (open: boolean) => void
-
-  // ── Settings tab (ephemeral, not persisted) ───────────────────────────
-  settingsTab: SettingsTab
-  setSettingsTab: (tab: SettingsTab) => void
-
-  // ── Sidebar tabs (persisted) ──────────────────────────────────────────
-  leftTab: 'conversations' | 'skills' | 'community'
-  setLeftTab: (tab: 'conversations' | 'skills' | 'community') => void
-
-  rightTab: 'info' | 'workflow' | 'usage'
-  setRightTab: (tab: 'info' | 'workflow' | 'usage') => void
-
-  // ── Progressive unlock stage (persisted) ──────────────────────────────
-  unlockStage: number
-  setUnlockStage: (stage: number) => void
-
-  // ── Onboarding completion (manually persisted to localStorage) ────────
-  /** Whether the user has completed the first‑run onboarding wizard */
-  onboardingComplete: boolean
-  setOnboardingComplete: (complete: boolean) => void
-}
-
-export const useUIStore = create<UIState>()(
-  persist(
-    (set) => ({
-      // Onboarding – read from localStorage so the wizard only shows once
-      onboardingComplete: (() => {
-        try {
-          return localStorage.getItem('skilldeck-onboarding-complete') === 'true'
-        } catch {
-          return false
+  const save = () => {
+    update.mutate(
+      { platformEnabled: enabled, platformUrl: url },
+      {
+        onSuccess: () => {
+          toast.success('Platform settings saved')
+        },
+        onError: (error) => {
+          toast.error(`Failed to save: ${error}`)
         }
-      })(),
-      setOnboardingComplete: (complete) => {
-        try {
-          localStorage.setItem('skilldeck-onboarding-complete', String(complete))
-        } catch {
-          // ignore
-        }
-        set({ onboardingComplete: complete })
-      },
+      }
+    )
+  }
 
-      // Workspace
-      activeWorkspaceId: null,
-      setActiveWorkspace: (id) => set({ activeWorkspaceId: id }),
+  if (query.isLoading) {
+    return (
+      <div className="flex items-center justify-center h-40 text-muted-foreground text-sm">
+        Loading platform preferences…
+      </div>
+    )
+  }
 
-      // Conversation
-      activeConversationId: null,
-      setActiveConversation: (id) => set({ activeConversationId: id }),
+  if (query.isError) {
+    return (
+      <div className="p-4 text-sm text-destructive">
+        Could not load platform preferences.
+      </div>
+    )
+  }
 
-      // Branch
-      activeBranchId: null,
-      setActiveBranch: (id) => set({ activeBranchId: id }),
+  return (
+    <div className="space-y-6 text-sm">
+      <div>
+        <h3 className="text-sm font-medium">Platform Sync</h3>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Connect to SkillDeck Platform to browse and install community skills.
+        </p>
+      </div>
 
-      // Panel sizes
-      panelSizes: { left: 280, right: 320 },
-      setPanelSizes: (sizes) =>
-        set((state) => ({ panelSizes: { ...state.panelSizes, ...sizes } })),
+      <div className="flex items-center justify-between">
+        <label className="text-sm" htmlFor="platform-enabled">
+          Enable platform sync
+        </label>
+        <Switch
+          id="platform-enabled"
+          checked={enabled}
+          onCheckedChange={setEnabled}
+        />
+      </div>
 
-      // Drafts
-      drafts: {},
-      setDraft: (conversationId, content) =>
-        set((state) => ({
-          drafts: { ...state.drafts, [conversationId]: content }
-        })),
-      clearDraft: (conversationId) =>
-        set((state) => {
-          const { [conversationId]: _removed, ...rest } = state.drafts
-          return { drafts: rest }
-        }),
+      <div className="space-y-2">
+        <label className="text-sm" htmlFor="platform-url">
+          Platform URL
+        </label>
+        <Input
+          id="platform-url"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          placeholder="https://platform.skilldeck.dev"
+        />
+        <p className="text-xs text-muted-foreground">
+          Change this only if you're using a self-hosted instance.
+        </p>
+      </div>
 
-      // Streaming text
-      streamingText: {},
-      appendStreamingText: (conversationId, delta) =>
-        set((state) => ({
-          streamingText: {
-            ...state.streamingText,
-            [conversationId]:
-              (state.streamingText[conversationId] ?? '') + delta
-          }
-        })),
-      clearStreamingText: (conversationId) =>
-        set((state) => {
-          const { [conversationId]: _removed, ...rest } = state.streamingText
-          return { streamingText: rest }
-        }),
-
-      // Agent running
-      agentRunning: {},
-      setAgentRunning: (conversationId, running) =>
-        set((state) => ({
-          agentRunning: { ...state.agentRunning, [conversationId]: running }
-        })),
-
-      // Search
-      searchQuery: '',
-      setSearchQuery: (query) => set({ searchQuery: query }),
-
-      // Overlays
-      settingsOpen: false,
-      setSettingsOpen: (open) => set({ settingsOpen: open }),
-      commandPaletteOpen: false,
-      setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
-
-      // Settings tab
-      settingsTab: 'apikeys',
-      setSettingsTab: (tab) => set({ settingsTab: tab }),
-
-      // Sidebar tabs
-      leftTab: 'conversations',
-      setLeftTab: (tab) => set({ leftTab: tab }),
-      rightTab: 'info',
-      setRightTab: (tab) => set({ rightTab: tab }),
-
-      // Unlock stage
-      unlockStage: 0,
-      setUnlockStage: (stage) => set({ unlockStage: stage })
-    }),
-    {
-      name: 'skilldeck-ui',
-      // Only persist layout preferences and unlock stage – never transient UI state.
-      partialize: (state) => ({
-        panelSizes: state.panelSizes,
-        unlockStage: state.unlockStage,
-        leftTab: state.leftTab,
-        rightTab: state.rightTab
-      })
-    }
+      <Button
+        onClick={save}
+        size="sm"
+        disabled={update.isPending}
+        className="w-full"
+      >
+        {update.isPending ? 'Saving…' : 'Save Settings'}
+      </Button>
+    </div>
   )
-)
+}
