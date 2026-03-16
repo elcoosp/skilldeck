@@ -20,7 +20,11 @@ export interface PlatformPreferences {
   theme_preference: 'system' | 'light' | 'dark'
   timezone: string | null
   analytics_opt_in: boolean
+  // New fields:
+  platformEnabled: boolean
+  platformUrl: string
 }
+
 
 export interface UpdatePreferencesPayload {
   email?: string
@@ -30,8 +34,10 @@ export interface UpdatePreferencesPayload {
   theme_preference?: 'system' | 'light' | 'dark'
   timezone?: string
   analytics_opt_in?: boolean
+  // New fields:
+  platformEnabled?: boolean
+  platformUrl?: string
 }
-
 export interface ReferralCode {
   id: UUID
   code: string

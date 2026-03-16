@@ -1,153 +1,77 @@
-import { useCallback, useEffect } from 'react'
+// src/hooks/use-platform.ts
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { toast } from 'sonner'
-import { commands } from '@/lib/bindings'
 import {
-  listenForNudges,
+  getPlatformPreferences,
+  updatePlatformPreferences,
+  resendVerificationEmail,
+  createReferralCode,
+  getReferralStats,
   sendActivityEvent,
+  ensurePlatformRegistration,
+  type PlatformPreferences,
   type UpdatePreferencesPayload,
-  type ActivityEventType
 } from '@/lib/platform'
 
-// ── Registration ──────────────────────────────────────────────────────────────
-
-export function usePlatformRegistration() {
-  return useQuery({
-    queryKey: ['platform', 'registration'],
-    queryFn: async () => {
-      const res = await commands.ensurePlatformRegistration()
-      if (res.status === 'error') throw new Error(res.error)
-      return res.data
-    },
-    staleTime: Infinity,
-    retry: 2
-  })
-}
-
-// ── Preferences ───────────────────────────────────────────────────────────────
-
 export function usePlatformPreferences() {
-  const qc = useQueryClient()
-
   const query = useQuery({
-    queryKey: ['platform', 'preferences'],
-    queryFn: async () => {
-      const res = await commands.getPlatformPreferences()
-      if (res.status === 'ok') return res.data
-      throw new Error(res.error)
-    },
-    staleTime: 5 * 60 * 1000
+    queryKey: ['platform-preferences'],
+    queryFn: getPlatformPreferences,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   })
 
+  const queryClient = useQueryClient()
   const update = useMutation({
     mutationFn: async (payload: UpdatePreferencesPayload) => {
-      const updatePayload = {
-        email: payload.email ?? null,
-        nudge_frequency: payload.nudge_frequency ?? null,
-        nudge_opt_out: payload.nudge_opt_out ?? null,
-        notification_channels: payload.notification_channels ?? null,
-        theme_preference: payload.theme_preference ?? null,
-        timezone: payload.timezone ?? null,
-        analytics_opt_in: payload.analytics_opt_in ?? null,
-      }
-      const res = await commands.updatePlatformPreferences(updatePayload)
-      if (res.status === 'error') throw new Error(res.error)
-      return res.data
+      const result = await updatePlatformPreferences(payload)
+      return result
     },
     onSuccess: (data) => {
-      qc.setQueryData(['platform', 'preferences'], data)
-      toast.success('Preferences saved')
+      queryClient.setQueryData(['platform-preferences'], data)
     },
-    onError: (err: Error) =>
-      toast.error(`Failed to save preferences: ${err.message}`)
   })
 
   const resendVerification = useMutation({
-    mutationFn: async () => {
-      const res = await commands.resendVerificationEmail()
-      if (res.status === 'error') throw new Error(res.error)
-      return res.data
-    },
-    onSuccess: () => toast.success('Verification email sent'),
-    onError: (err: Error) => toast.error(err.message)
+    mutationFn: resendVerificationEmail,
   })
 
-  return { query, update, resendVerification }
+  return {
+    query,
+    update,
+    resendVerification,
+  }
 }
 
-// ── Referrals ─────────────────────────────────────────────────────────────────
-
 export function useReferral() {
-  const qc = useQueryClient()
-
   const stats = useQuery({
-    queryKey: ['platform', 'referral', 'stats'],
-    queryFn: async () => {
-      const res = await commands.getReferralStats()
-      if (res.status === 'ok') return res.data
-      throw new Error(res.error)
-    },
-    staleTime: 60 * 1000
+    queryKey: ['referral-stats'],
+    queryFn: getReferralStats,
+    staleTime: 5 * 60 * 1000,
   })
 
   const create = useMutation({
-    mutationFn: async () => {
-      const res = await commands.createReferralCode()
-      if (res.status === 'error') throw new Error(res.error)
-      return res.data
-    },
+    mutationFn: createReferralCode,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['platform', 'referral'] })
-      sendActivityEvent('referral_link_created').catch(() => { })
-      toast.success('Referral code created!')
-    }
+      stats.refetch()
+    },
   })
 
   return { stats, create }
 }
 
-// ── Nudge listener ────────────────────────────────────────────────────────────
-
 export function useNudgeListener() {
-  useEffect(() => {
-    let unlisten: (() => void) | null = null
-    listenForNudges((nudge) => {
-      toast(nudge.message, {
-        duration: 8000,
-        action: nudge.cta_label
-          ? {
-            label: nudge.cta_label,
-            onClick: () => {
-              sendActivityEvent('nudge_clicked').catch(() => { })
-              if (nudge.cta_action) {
-                const [, target] = nudge.cta_action.split(':')
-                window.dispatchEvent(
-                  new CustomEvent('skilldeck:navigate', {
-                    detail: { tab: target }
-                  })
-                )
-              }
-            }
-          }
-          : undefined
-      })
-    }).then((fn) => {
-      unlisten = fn
-    })
-
-    return () => {
-      unlisten?.()
-    }
-  }, [])
+  // This hook would listen for nudge events; implementation depends on the event system.
+  // We'll leave it as a placeholder for now.
 }
 
-// ── Activity event helper ─────────────────────────────────────────────────────
+export function usePlatformRegistration() {
+  return useMutation({
+    mutationFn: ensurePlatformRegistration,
+  })
+}
 
-export function useTrackEvent() {
-  return useCallback(
-    (eventType: ActivityEventType, metadata?: Record<string, unknown>) => {
-      sendActivityEvent(eventType, metadata).catch(() => { })
-    },
-    []
-  )
+export function useActivityEvent() {
+  return useMutation({
+    mutationFn: ({ eventType, metadata }: { eventType: string; metadata?: Record<string, unknown> }) =>
+      sendActivityEvent(eventType as any, metadata),
+  })
 }

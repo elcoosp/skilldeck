@@ -1,4 +1,3 @@
-// src/store/ui.ts
 /**
  * UI state — Zustand store with selective persistence.
  *
@@ -19,6 +18,8 @@ interface PanelSizes {
   left: number
   right: number
 }
+
+type SettingsTab = 'apikeys' | 'profiles' | 'approvals' | 'appearance' | 'preferences' | 'referral' | 'platform'
 
 interface UIState {
   // ── Active workspace ──────────────────────────────────────────────────
@@ -62,16 +63,16 @@ interface UIState {
   commandPaletteOpen: boolean
   setCommandPaletteOpen: (open: boolean) => void
 
+  // ── Settings tab (ephemeral, not persisted) ───────────────────────────
+  settingsTab: SettingsTab
+  setSettingsTab: (tab: SettingsTab) => void
+
   // ── Sidebar tabs (persisted) ──────────────────────────────────────────
   leftTab: 'conversations' | 'skills' | 'community'
   setLeftTab: (tab: 'conversations' | 'skills' | 'community') => void
 
   rightTab: 'info' | 'workflow' | 'usage'
   setRightTab: (tab: 'info' | 'workflow' | 'usage') => void
-
-  // ── Settings tab (ephemeral) ──────────────────────────────────────────
-  settingsTab: 'apikeys' | 'profiles' | 'approvals' | 'appearance' | 'preferences' | 'referral' | 'platform'
-  setSettingsTab: (tab: UIState['settingsTab']) => void
 
   // ── Progressive unlock stage (persisted) ──────────────────────────────
   unlockStage: number
