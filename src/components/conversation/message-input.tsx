@@ -1,4 +1,3 @@
-// src/components/conversation/message-input.tsx
 /**
  * Message input — auto-growing textarea with draft persistence, slash commands,
  * skill mention (@), file reference (#) entry points, and file attachments.
@@ -80,7 +79,6 @@ export function MessageInput({ conversationId }: MessageInputProps) {
   const [pickerPosition, setPickerPosition] = useState<{ top: number; left: number } | null>(null)
 
   // File picker
-  const [currentPath, setCurrentPath] = useState<string>(workspaceRoot)
   const [fileItems, setFileItems] = useState<FileEntry[]>([])
   const [fileLoading, setFileLoading] = useState(false)
   const [folderCounts, setFolderCounts] = useState<FolderCounts>({ shallow: 0, deep: 0 })
@@ -157,7 +155,6 @@ export function MessageInput({ conversationId }: MessageInputProps) {
 
   const loadDirectory = useCallback(async (path: string) => {
     setFileLoading(true)
-    setCurrentPath(path)
     try {
       const res = await commands.listDirectoryContents(path)
       if (res.status === 'ok') {
@@ -213,7 +210,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
       }
 
       // Plain file selected
-      addFile({ id: file.path, name: file.name, path: file.path, size: file.size })
+      addFile({ id: file.path, name: file.name, path: file.path, size: file.size ?? undefined })
       clearTriggerText(triggerState)
       closePicker()
     },
@@ -327,7 +324,6 @@ export function MessageInput({ conversationId }: MessageInputProps) {
   // ── Manual trigger buttons ────────────────────────────────────────────────
 
   const triggerFilePicker = () => {
-    setCurrentPath(workspaceRoot)
     setTriggerState({ type: 'file', query: '', startIndex: content.length + 1 })
     setPickerPosition(calculatePickerPosition())
     loadDirectory(workspaceRoot)
@@ -481,7 +477,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
               (!content.trim() && selectedFiles.length === 0) ||
               sendMutation.isPending ||
               isSending ||
-              (isRunning && queuedMessage)
+              (isRunning && queuedMessage ? true : false)
             }
             aria-label={isRunning ? 'Queue message' : 'Send'}
           >
