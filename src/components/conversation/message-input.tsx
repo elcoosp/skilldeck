@@ -26,6 +26,7 @@ import { AttachedItemsList } from '@/components/chat/attached-items-list'
 import { SecurityWarningDialog } from '@/components/chat/security-warning-dialog'
 import type { FileEntry, FolderCounts, TriggerState } from '@/types/chat-context'
 import type { UUID } from '@/lib/types'
+import { useWorkspaces } from '@/hooks/use-workspaces'
 
 interface MessageInputProps {
   conversationId: UUID
@@ -42,6 +43,12 @@ export function MessageInput({ conversationId }: MessageInputProps) {
   const [selectedFiles, setSelectedFiles] = useState<FileChip[]>([])
   const [isSending, setIsSending] = useState(false)
 
+  // ── Workspace context ───────────────────────────────────────────────────
+  const activeWorkspaceId = useUIStore((s) => s.activeWorkspaceId)
+  const { data: workspaces } = useWorkspaces()
+  const activeWorkspace = workspaces?.find(w => w.id === activeWorkspaceId)
+  const workspaceRoot = activeWorkspace?.path ?? '.'
+
   // ── Draft / UI store ──────────────────────────────────────────────────────
   const draft = useUIStore((s) => s.drafts[conversationId] ?? '')
   const setDraft = useUIStore((s) => s.setDraft)
@@ -57,7 +64,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
   const [pickerPosition, setPickerPosition] = useState<{ top: number; left: number } | null>(null)
 
   // File picker
-  const [currentPath, setCurrentPath] = useState<string>('.')
+  const [currentPath, setCurrentPath] = useState<string>(workspaceRoot)
   const [fileItems, setFileItems] = useState<FileEntry[]>([])
   const [fileLoading, setFileLoading] = useState(false)
   const [folderCounts, setFolderCounts] = useState<FolderCounts>({ shallow: 0, deep: 0 })
@@ -250,7 +257,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
       setTriggerState({ type, query: '', startIndex: cursorPos + 1 })
       setPickerPosition(calculatePickerPosition())
       if (type === 'file') {
-        loadDirectory(currentPath)
+        loadDirectory(workspaceRoot)
       }
     }
   }
@@ -296,9 +303,10 @@ export function MessageInput({ conversationId }: MessageInputProps) {
   // ── Manual trigger buttons ────────────────────────────────────────────────
 
   const triggerFilePicker = () => {
+    setCurrentPath(workspaceRoot)
     setTriggerState({ type: 'file', query: '', startIndex: content.length + 1 })
     setPickerPosition(calculatePickerPosition())
-    loadDirectory(currentPath)
+    loadDirectory(workspaceRoot)
     textareaRef.current?.focus()
   }
 
