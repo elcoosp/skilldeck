@@ -53,15 +53,15 @@ export function usePlatformPreferences() {
 
   const update = useMutation({
     mutationFn: async (payload: UpdatePreferencesPayload) => {
-      // Send only the fields the API accepts
+      // Send only the fields the API accepts, converting undefined to null
       const apiPayload = {
-        email: payload.email,
-        nudge_frequency: payload.nudge_frequency,
-        nudge_opt_out: payload.nudge_opt_out,
-        notification_channels: payload.notification_channels,
-        theme_preference: payload.theme_preference,
-        timezone: payload.timezone,
-        analytics_opt_in: payload.analytics_opt_in,
+        email: payload.email ?? null,
+        nudge_frequency: payload.nudge_frequency ?? null,
+        nudge_opt_out: payload.nudge_opt_out ?? null,
+        notification_channels: payload.notification_channels ?? null,
+        theme_preference: payload.theme_preference ?? null,
+        timezone: payload.timezone ?? null,
+        analytics_opt_in: payload.analytics_opt_in ?? null,
       };
 
       const res = await commands.updatePlatformPreferences(apiPayload);
@@ -146,7 +146,7 @@ export function useNudgeListener() {
     const setupListener = async () => {
       try {
         unlisten = await listen<NudgePayload>('nudge://pending', (event) => {
-          const { id, message, cta_label, cta_action } = event.payload;
+          const { message, cta_label, cta_action } = event.payload;
           toast.info(message, {
             duration: 10000,
             action: cta_label && cta_action ? {
