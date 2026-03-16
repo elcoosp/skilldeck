@@ -6,6 +6,7 @@
 //! - All IPC command handlers (extended with marketplace + file-browsing commands)
 //! - Tauri plugins (keyring, shell, store, dialog)
 //! - Tracing subscriber
+//! - Splashscreen handling (two‑window approach)
 
 mod commands;
 mod config;
@@ -27,7 +28,7 @@ use commands::{
 use events::{AgentEvent, McpEvent, WorkflowEvent};
 use state::AppState;
 use std::sync::Arc;
-use tauri::Manager;
+use tauri::{Listener, Manager};
 use tracing_subscriber::{EnvFilter, fmt};
 
 // Specta bindings export
@@ -154,6 +155,7 @@ pub fn run() {
     let invoke_handler = builder.invoke_handler();
 
     tauri::Builder::default()
+        // Splashscreen is handled via two windows – no separate plugin needed
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_keyring::init())
@@ -163,17 +165,36 @@ pub fn run() {
             // Mount events for Tauri Specta (consumes builder)
             builder.mount_events(app);
 
+            // Get references to the splashscreen and main windows (must match labels in tauri.conf.json)
+            let splash_window = app
+                .get_webview_window("splashscreen")
+                .expect("splashscreen window not found");
+            let main_window = app
+                .get_webview_window("main")
+                .expect("main window not found");
+
+            // Create a oneshot channel to wait for the frontend ready signal
+            let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+
+            // Register a one‑time global event listener – `once` is FnOnce, so we can move tx.
+            app.once("splashscreen-frontend-ready", move |_| {
+                // Ignore errors if the receiver is already dropped
+                let _ = tx.send(());
+            });
+
             let handle = app.handle().clone();
+
+            // Perform heavy initialization (DB, skill scanning, etc.) – this runs synchronously
+            // inside `block_on` to wait for completion before the app starts.
             tauri::async_runtime::block_on(async move {
                 let state = AppState::initialize(&handle)
                     .await
                     .expect("Failed to initialize AppState");
                 let state = Arc::new(state);
 
-                // Start nudge poller
+                // Start background tasks (nudge poller, skill sync)
                 nudge_poller::start_nudge_poller(handle.clone(), Arc::clone(&state));
 
-                // Start skill sync poller (hourly)
                 let sync_state = Arc::clone(&state);
                 tokio::spawn(async move {
                     let mut interval = tokio::time::interval(std::time::Duration::from_secs(3600));
@@ -187,8 +208,31 @@ pub fn run() {
                     }
                 });
 
+                // Store the state so commands can access it
                 handle.manage(state);
             });
+
+            // Spawn a task that waits for the frontend ready event, then closes the splashscreen
+            // and shows the main window.  Add a timeout to avoid hanging forever.
+            tauri::async_runtime::spawn(async move {
+                // Wait for the event to be received, with a timeout (e.g., 5 seconds) as fallback.
+                match tokio::time::timeout(std::time::Duration::from_secs(5), rx).await {
+                    Ok(Ok(())) => {
+                        // Frontend ready – normal path
+                    }
+                    _ => {
+                        // Timeout or channel error – still close splashscreen to avoid blocking.
+                        tracing::warn!(
+                            "Splashscreen frontend ready event timeout – proceeding anyway"
+                        );
+                    }
+                }
+
+                // All done – close splashscreen and reveal main window
+                let _ = splash_window.close();
+                let _ = main_window.show();
+            });
+
             Ok(())
         })
         .invoke_handler(invoke_handler)

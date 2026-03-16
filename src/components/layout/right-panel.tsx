@@ -337,7 +337,7 @@ function WorkflowTab() {
             <img
               src="/illustrations/empty-workflows.svg"
               alt="No workflows"
-              className="w-40 h-40 mb-4 opacity-90"
+              className="w-40 h-40 mb-4 opacity-90 rounded-3xl"
             />
             <h3 className="text-base font-semibold text-foreground mb-1">
               Ready to orchestrate something brilliant?

@@ -272,7 +272,7 @@ function EmptyState({
       <img
         src="/illustrations/empty-skills.svg"
         alt="No skills"
-        className="w-48 h-48 mb-2 opacity-90"
+        className="w-48 h-48 mb-2 opacity-90 rounded-3xl"
       />
       <h3 className="text-base font-semibold text-foreground mb-1">
         Your toolkit is waiting to be built.

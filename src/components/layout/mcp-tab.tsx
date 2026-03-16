@@ -637,7 +637,7 @@ export function McpTab() {
               <img
                 src="/illustrations/empty-mcp.svg"
                 alt="No MCP servers"
-                className="w-48 h-48 mb-4 opacity-90"
+                className="w-48 h-48 mb-4 opacity-90 rounded-3xl"
               />
               <h3 className="text-base font-semibold text-foreground mb-1">
                 Your agent needs friends.

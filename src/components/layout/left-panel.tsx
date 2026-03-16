@@ -146,7 +146,7 @@ export function LeftPanel() {
                 <img
                   src="/illustrations/empty-conversations.svg"
                   alt="No conversations"
-                  className="w-48 h-48 mb-4 opacity-90"
+                  className="w-48 h-48 mb-4 opacity-90 rounded-3xl"
                 />
                 <h3 className="text-base font-semibold text-foreground mb-1">
                   Your deck is empty—time to deal the first card.
