@@ -41,8 +41,6 @@ export function MessageInput({ conversationId }: MessageInputProps) {
   const [isComposing, setIsComposing] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<FileChip[]>([])
   const [isSending, setIsSending] = useState(false)
-  // ── Queued message (local state) ───────────────────────────────────────
-  const [queuedMessage, setQueuedMessage] = useState<string | null>(null)
 
   // ── Workspace context ───────────────────────────────────────────────────
   const activeWorkspaceId = useUIStore((s) => s.activeWorkspaceId)
@@ -55,18 +53,25 @@ export function MessageInput({ conversationId }: MessageInputProps) {
   const setDraft = useUIStore((s) => s.setDraft)
   const clearDraft = useUIStore((s) => s.clearDraft)
   const isRunning = useUIStore((s) => s.agentRunning[conversationId] ?? false)
+  const queuedMessage = useUIStore((s) => s.queuedMessages[conversationId])
+  const setQueuedMessage = useUIStore((s) => s.setQueuedMessage)
+  const clearQueuedMessage = useUIStore((s) => s.clearQueuedMessage)
   const [content, setContent] = useState(draft)
 
   const sendMutation = useSendMessage(conversationId)
   const shouldReduceMotion = useReducedMotion()
 
-  // ── Auto‑send queued message when agent finishes ─────────────────────────
+  // ── Listen for custom event to auto‑send queued message ──────────────────
   useEffect(() => {
-    if (!isRunning && queuedMessage) {
-      sendMutation.mutate(queuedMessage)
-      setQueuedMessage(null)
+    const handleSendQueued = (e: CustomEvent<{ conversationId: string; content: string }>) => {
+      if (e.detail.conversationId === conversationId) {
+        sendMutation.mutate(e.detail.content)
+        clearQueuedMessage(conversationId)
+      }
     }
-  }, [isRunning, queuedMessage, sendMutation])
+    window.addEventListener('skilldeck:send-queued-message', handleSendQueued as EventListener)
+    return () => window.removeEventListener('skilldeck:send-queued-message', handleSendQueued as EventListener)
+  }, [conversationId, sendMutation, clearQueuedMessage])
 
   // ── Context injection state ───────────────────────────────────────────────
   const [triggerState, setTriggerState] = useState<TriggerState | null>(null)
@@ -258,7 +263,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
       if (isRunning) {
         // Queue the current draft instead of sending
         if (content.trim()) {
-          setQueuedMessage(content)
+          setQueuedMessage(conversationId, content)
           setContent('')
         }
       } else {
@@ -372,14 +377,14 @@ export function MessageInput({ conversationId }: MessageInputProps) {
 
   const queueCurrent = useCallback(() => {
     if (content.trim()) {
-      setQueuedMessage(content)
+      setQueuedMessage(conversationId, content)
       setContent('')
     }
-  }, [content])
+  }, [content, conversationId, setQueuedMessage])
 
   const cancelQueued = useCallback(() => {
-    setQueuedMessage(null)
-  }, [])
+    clearQueuedMessage(conversationId)
+  }, [conversationId, clearQueuedMessage])
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -548,7 +553,6 @@ export function MessageInput({ conversationId }: MessageInputProps) {
           onQueryChange={(q) =>
             setTriggerState((prev) => (prev ? { ...prev, query: q } : null))
           }
-          // Pass workspaceRoot so the picker knows whether a workspace is active
           workspaceRoot={workspaceRoot}
         />
       )}

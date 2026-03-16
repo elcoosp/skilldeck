@@ -7,7 +7,7 @@
  * - leftTab (active left sidebar tab)
  * - rightTab (active right sidebar tab)
  *
- * All other state (active conversation, drafts, streaming, etc.) is ephemeral
+ * All other state (active conversation, drafts, streaming, queued messages) is ephemeral
  * and resets on app restart.
  */
 
@@ -42,6 +42,11 @@ interface UIState {
   drafts: Record<string, string>
   setDraft: (conversationId: string, content: string) => void
   clearDraft: (conversationId: string) => void
+
+  // ── Queued messages (per conversation) ────────────────────────────────
+  queuedMessages: Record<string, string>
+  setQueuedMessage: (conversationId: string, content: string) => void
+  clearQueuedMessage: (conversationId: string) => void
 
   // ── Streaming token buffer (per conversation) ─────────────────────────
   streamingText: Record<string, string>
@@ -131,6 +136,18 @@ export const useUIStore = create<UIState>()(
         set((state) => {
           const { [conversationId]: _removed, ...rest } = state.drafts
           return { drafts: rest }
+        }),
+
+      // Queued messages
+      queuedMessages: {},
+      setQueuedMessage: (conversationId, content) =>
+        set((state) => ({
+          queuedMessages: { ...state.queuedMessages, [conversationId]: content }
+        })),
+      clearQueuedMessage: (conversationId) =>
+        set((state) => {
+          const { [conversationId]: _removed, ...rest } = state.queuedMessages
+          return { queuedMessages: rest }
         }),
 
       // Streaming text

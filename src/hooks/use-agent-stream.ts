@@ -1,4 +1,4 @@
-// src/hooks/use-agent-stream.ts
+// File: src/hooks/use-agent-stream.ts
 /**
  * useAgentStream — subscribe to Tauri agent-event channel for a given
  * conversation and drive streaming text + running state in the UI store.
@@ -62,6 +62,19 @@ export function useAgentStream(conversationId: string | null) {
           }
           setAgentRunning(conversationId, false)
           clearStreamingText(conversationId)
+
+          // If there's a queued message, send it now
+          if (queuedMessage) {
+            // We need access to the send mutation – we'll emit an event that
+            // MessageInput listens to, or we can use a callback prop.
+            // For simplicity, we'll dispatch a custom DOM event that MessageInput can catch.
+            window.dispatchEvent(
+              new CustomEvent('skilldeck:send-queued-message', {
+                detail: { conversationId, content: queuedMessage }
+              })
+            )
+            clearQueuedMessage(conversationId)
+          }
           break
 
         case 'error':
@@ -95,7 +108,9 @@ export function useAgentStream(conversationId: string | null) {
     appendStreamingText,
     clearStreamingText,
     setAgentRunning,
-    queryClient
+    queryClient,
+    queuedMessage,
+    clearQueuedMessage
   ])
 
   const streamingText = useUIStore(
