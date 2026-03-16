@@ -283,7 +283,6 @@ async fn run_agent_loop(
 ) {
     use skilldeck_core::agent::tool_dispatcher::ToolDispatcher;
     use skilldeck_core::traits::ChatMessage;
-    use std::time::Duration;
     use tokio::sync::mpsc;
 
     // Resolve provider + model from the conversation's profile.

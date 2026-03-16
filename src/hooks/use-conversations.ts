@@ -30,9 +30,10 @@ export function useCreateConversation() {
       if (res.status === 'error') throw new Error(res.error)
       return res.data
     },
-    onSuccess: async (newId) => {
-      // Wait for the conversation list to refetch
-      await queryClient.invalidateQueries({ queryKey: ['conversations'] })
+    onSuccess: async (newId, { profileId }) => {
+      // Wait for the conversation list to refetch completely
+      await queryClient.refetchQueries({ queryKey: ['conversations', profileId] })
+      await queryClient.refetchQueries({ queryKey: ['conversations'] })
       // Now set the active conversation
       setActiveConversation(newId)
     }
