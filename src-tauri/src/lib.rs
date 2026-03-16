@@ -44,6 +44,7 @@ pub fn run() {
     // Build Tauri Specta builder with all commands and events
     let builder = Builder::<tauri::Wry>::new()
         .commands(collect_commands![
+            open_folder,
             // skills — registry sync
             sync_registry_skills,
             fetch_registry_skills,
@@ -161,8 +162,7 @@ pub fn run() {
                 // Start skill sync poller (hourly)
                 let sync_state = Arc::clone(&state);
                 tokio::spawn(async move {
-                    let mut interval =
-                        tokio::time::interval(std::time::Duration::from_secs(3600));
+                    let mut interval = tokio::time::interval(std::time::Duration::from_secs(3600));
                     loop {
                         interval.tick().await;
                         if let Err(e) =

@@ -5,6 +5,7 @@ import { useState } from 'react'
 import {
   ArrowLeft,
   ExternalLink,
+  FolderOpen,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -15,6 +16,8 @@ import { InstallDialog } from './install-dialog'
 import { BlockedSkillAlert } from './blocked-skill-alert'
 import type { RegistrySkillData } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
+import { commands } from '@/lib/bindings'
+import { toast } from 'sonner'
 
 interface SkillDetailProps {
   skill: RegistrySkillData
@@ -40,6 +43,16 @@ export function SkillDetail({
       setShowBlocked(true)
     } else {
       setShowInstall(true)
+    }
+  }
+
+  const handleOpenFolder = async () => {
+    try {
+      await commands.openFolder(skill.sourceUrl || '') // This will be replaced with actual path when we have local path
+      // In a real scenario, we'd have a local path for installed skills
+      toast.info('Opening folder...')
+    } catch (error) {
+      toast.error('Could not open folder')
     }
   }
 
@@ -110,6 +123,25 @@ export function SkillDetail({
             )}
             {skill.category && (
               <MetaRow label="Category" value={skill.category} />
+            )}
+            {/* Show path if available (for installed skills) */}
+            {isInstalled && (
+              <div className="flex flex-col gap-0.5 col-span-2">
+                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                  Location
+                </span>
+                <div className="flex items-center gap-1 text-sm">
+                  <span className="truncate">{skill.sourceUrl || 'unknown path'}</span>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={handleOpenFolder}
+                    title="Open in file explorer"
+                  >
+                    <FolderOpen className="size-3" />
+                  </Button>
+                </div>
+              </div>
             )}
           </div>
 

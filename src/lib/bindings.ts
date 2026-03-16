@@ -6,6 +6,17 @@
 
 export const commands = {
 /**
+ * Open a folder in the system file explorer.
+ */
+async openFolder(path: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("open_folder", { path }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Synchronize skills from the platform registry (Tauri command).
  */
 async syncRegistrySkills() : Promise<Result<string, string>> {

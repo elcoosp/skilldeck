@@ -1,6 +1,7 @@
 // src/components/skills/skill-card.tsx
 // Skill card for the browser grid — shows trust badge, AI tag indicator, and lint summary.
 
+import { useState } from 'react'
 import {
   Bot,
   ExternalLink,
@@ -12,10 +13,21 @@ import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { TrustBadge } from './trust-badge'
-import type { RegistrySkillData } from '@/lib/bindings'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { useRemoveSkill } from '@/hooks/use-skills'
+import type { RegistrySkillData, SkillInfo } from '@/lib/bindings'
 
 interface SkillCardProps {
-  skill: RegistrySkillData
+  skill: RegistrySkillData | (SkillInfo & { _sourceType: 'local' })
   isInstalled?: boolean
   onSelect?: () => void
   onInstall?: () => void
@@ -29,136 +41,190 @@ export function SkillCard({
   onInstall,
   className
 }: SkillCardProps) {
-  const errorCount = skill.lintWarnings.filter(
-    (w: any) => w.severity === 'error'
-  ).length
-  const isAiTagged = skill.metadataSource === 'llm_enrichment'
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
+  const removeSkill = useRemoveSkill()
+
+  const isRegistry = '_sourceType' in skill && skill._sourceType === 'registry'
+  const isLocal = '_sourceType' in skill && skill._sourceType === 'local'
+  const errorCount = isRegistry
+    ? (skill as RegistrySkillData).lintWarnings.filter((w: any) => w.severity === 'error').length
+    : 0
+  const isAiTagged = isRegistry && (skill as RegistrySkillData).metadataSource === 'llm_enrichment'
+  const tags = isRegistry ? (skill as RegistrySkillData).tags : []
+
+  const handleRemove = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setShowRemoveConfirm(true)
+  }
 
   return (
-    <div
-      role={onSelect ? 'button' : undefined}
-      tabIndex={onSelect ? 0 : undefined}
-      onClick={onSelect}
-      onKeyDown={(e) => e.key === 'Enter' && onSelect?.()}
-      className={cn(
-        'group flex flex-col gap-3 rounded-lg border border-border bg-card p-4 text-sm transition-all',
-        onSelect && 'cursor-pointer hover:border-primary/50 hover:shadow-sm',
-        className
-      )}
-    >
-      {/* Header row */}
-      <div className="flex items-start gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-          <Package className="size-4" />
+    <>
+      <div
+        role={onSelect ? 'button' : undefined}
+        tabIndex={onSelect ? 0 : undefined}
+        onClick={onSelect}
+        onKeyDown={(e) => e.key === 'Enter' && onSelect?.()}
+        className={cn(
+          'group flex flex-col gap-3 rounded-lg border border-border bg-card p-4 text-sm transition-all w-full min-w-0',
+          onSelect && 'cursor-pointer hover:border-primary/50 hover:shadow-sm',
+          className
+        )}
+      >
+        {/* Header row */}
+        <div className="flex items-start gap-3 min-w-0">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+            <Package className="size-4" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-semibold truncate">{skill.name}</span>
+              {isRegistry && (skill as RegistrySkillData).version && (
+                <span className="text-[10px] text-muted-foreground font-mono">
+                  v{(skill as RegistrySkillData).version}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5 break-words">
+              {skill.description}
+            </p>
+          </div>
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-semibold truncate">{skill.name}</span>
-            {skill.version && (
-              <span className="text-[10px] text-muted-foreground font-mono">
-                v{skill.version}
+
+        {/* Trust badge + source badge */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {isRegistry ? (
+            <TrustBadge
+              securityScore={(skill as RegistrySkillData).securityScore}
+              qualityScore={(skill as RegistrySkillData).qualityScore}
+            />
+          ) : (
+            <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+              <Tag className="size-2.5" />
+              Local
+            </span>
+          )}
+          {isInstalled && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+              Installed
+            </span>
+          )}
+        </div>
+
+        {/* Tags */}
+        {isRegistry && tags.length > 0 && (
+          <div className="flex items-center gap-1 flex-wrap">
+            {isAiTagged && (
+              <span
+                className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground"
+                title="Tags generated by AI enrichment"
+              >
+                <Bot className="size-2.5" />
+                AI
+              </span>
+            )}
+            {tags.slice(0, 3).map((tag: string) => (
+              <Badge
+                key={tag}
+                variant="secondary"
+                className="h-5 px-1.5 text-[10px] font-normal"
+              >
+                {tag}
+              </Badge>
+            ))}
+            {tags.length > 3 && (
+              <span className="text-[10px] text-muted-foreground">
+                +{tags.length - 3}
               </span>
             )}
           </div>
-          <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
-            {skill.description}
-          </p>
-        </div>
-      </div>
-
-      {/* Trust badge + source badge */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <TrustBadge
-          securityScore={skill.securityScore}
-          qualityScore={skill.qualityScore}
-        />
-        {isInstalled && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
-            Installed
-          </span>
         )}
-        <SourceBadge source={skill.source} />
+
+        {/* Footer row */}
+        <div className="flex items-center justify-between gap-2 mt-auto pt-1 border-t border-border/50">
+          <div className="flex items-center gap-3 text-[11px] text-muted-foreground min-w-0">
+            {isRegistry && (skill as RegistrySkillData).author && (
+              <span className="flex items-center gap-1 truncate">
+                <User className="size-3 shrink-0" />
+                <span className="truncate">{(skill as RegistrySkillData).author}</span>
+              </span>
+            )}
+            {isLocal && (
+              <span className="truncate">Source: {skill.source}</span>
+            )}
+            {errorCount > 0 && (
+              <span className="text-destructive shrink-0">
+                {errorCount} issue{errorCount > 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1 shrink-0">
+            {isLocal && (
+              <Button
+                size="sm"
+                className="h-7 text-xs"
+                variant="destructive"
+                onClick={handleRemove}
+              >
+                Remove
+              </Button>
+            )}
+            {isRegistry && !isInstalled && onInstall && (
+              <Button
+                size="sm"
+                className="h-7 text-xs"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onInstall()
+                }}
+              >
+                Install
+              </Button>
+            )}
+            {isRegistry && (skill as RegistrySkillData).sourceUrl && (
+              <a
+                href={(skill as RegistrySkillData).sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+                title="View source"
+              >
+                <ExternalLink className="size-3" />
+              </a>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Tags */}
-      {skill.tags.length > 0 && (
-        <div className="flex items-center gap-1 flex-wrap">
-          {isAiTagged && (
-            <span
-              className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground"
-              title="Tags generated by AI enrichment"
-            >
-              <Bot className="size-2.5" />
-              AI
-            </span>
-          )}
-          {skill.tags.slice(0, 5).map((tag: string) => (
-            <Badge
-              key={tag}
-              variant="secondary"
-              className="h-5 px-1.5 text-[10px] font-normal"
-            >
-              {tag}
-            </Badge>
-          ))}
-          {skill.tags.length > 5 && (
-            <span className="text-[10px] text-muted-foreground">
-              +{skill.tags.length - 5}
-            </span>
-          )}
-        </div>
+      {/* Remove confirmation dialog */}
+      {showRemoveConfirm && (
+        <AlertDialog open onOpenChange={setShowRemoveConfirm}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Remove local skill</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently delete the skill folder from your disk:
+                <code className="block mt-2 p-2 bg-muted rounded text-xs">
+                  {skill.path || skill.name}
+                </code>
+                This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  removeSkill.mutate({ skillName: skill.name, target: 'personal' })
+                  setShowRemoveConfirm(false)
+                }}
+              >
+                Delete permanently
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
-
-      {/* Footer row */}
-      <div className="flex items-center justify-between gap-2 mt-auto pt-1 border-t border-border/50">
-        <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
-          {skill.author && (
-            <span className="flex items-center gap-1">
-              <User className="size-3" />
-              {skill.author}
-            </span>
-          )}
-          {errorCount > 0 && (
-            <span className="text-destructive">
-              {errorCount} issue{errorCount > 1 ? 's' : ''}
-            </span>
-          )}
-        </div>
-
-        {!isInstalled && onInstall && (
-          <Button
-            size="sm"
-            className="h-7 text-xs"
-            onClick={(e) => {
-              e.stopPropagation()
-              onInstall()
-            }}
-          >
-            Install
-          </Button>
-        )}
-        {skill.sourceUrl && (
-          <a
-            href={skill.sourceUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="text-muted-foreground hover:text-foreground transition-colors"
-            title="View source"
-          >
-            <ExternalLink className="size-3" />
-          </a>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function SourceBadge({ source }: { source: string }) {
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-      <Tag className="size-2.5" />
-      {source}
-    </span>
+    </>
   )
 }

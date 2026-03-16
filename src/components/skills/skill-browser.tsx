@@ -2,16 +2,29 @@
 // Main skill browser — grid view with search, category filter, and detail panel.
 
 import { useState, useMemo } from 'react'
+import { formatDistanceToNow } from 'date-fns'
 import { RefreshCw, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { SkillCard } from './skill-card'
 import { SkillDetail } from './skill-detail'
 import { useAllSkills, useSyncRegistry } from '@/hooks/use-skills'
+import { useUIStore } from '@/store/ui'
 import type { RegistrySkillData } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 
 const CATEGORIES = [
   'All',
@@ -29,6 +42,9 @@ export function SkillBrowser({ className }: { className?: string }) {
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('All')
   const [selectedSkill, setSelectedSkill] = useState<RegistrySkillData | null>(null)
+  const [syncing, setSyncing] = useState(false)
+  const [lastSync, setLastSync] = useState<Date | null>(null)
+  const [showPlatformAlert, setShowPlatformAlert] = useState(false)
 
   const { skills, isLoading, isError } = useAllSkills({
     category: category === 'All' ? undefined : category,
@@ -36,6 +52,25 @@ export function SkillBrowser({ className }: { className?: string }) {
   })
 
   const sync = useSyncRegistry()
+  const setSettingsOpen = useUIStore((s) => s.setSettingsOpen)
+  const setSettingsTab = useUIStore((s) => s.setSettingsTab)
+
+  const handleSync = async () => {
+    setSyncing(true)
+    try {
+      const result = await sync.mutateAsync()
+      toast.success(`Synced ${result} skills from registry`)
+      setLastSync(new Date())
+    } catch (error) {
+      if (error instanceof Error && error.message === 'PLATFORM_NOT_CONFIGURED') {
+        setShowPlatformAlert(true)
+      } else {
+        toast.error(`Sync failed: ${error instanceof Error ? error.message : String(error)}`)
+      }
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   // Client-side filter on top of server-side filtering.
   const filtered = useMemo(() => {
@@ -91,19 +126,19 @@ export function SkillBrowser({ className }: { className?: string }) {
           variant="ghost"
           size="icon"
           className="size-8 shrink-0"
-          onClick={() => sync.mutate()}
-          disabled={sync.isPending}
+          onClick={handleSync}
+          disabled={syncing}
           title="Sync from registry"
         >
           <RefreshCw
-            className={cn('size-3.5', sync.isPending && 'animate-spin')}
+            className={cn('size-3.5', syncing && 'animate-spin')}
           />
         </Button>
       </div>
 
       {/* Content */}
       <ScrollArea className="flex-1">
-        <div className="p-3">
+        <div className="p-3 overflow-hidden">
           {isLoading && (
             <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
               <div className="animate-spin size-4 border-2 border-primary border-t-transparent rounded-full mr-2" />
@@ -117,7 +152,7 @@ export function SkillBrowser({ className }: { className?: string }) {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => sync.mutate()}
+                onClick={() => window.location.reload()}
               >
                 Retry
               </Button>
@@ -132,77 +167,60 @@ export function SkillBrowser({ className }: { className?: string }) {
           )}
 
           {!isLoading && !isError && filtered.length > 0 && (
-            <div className="grid grid-cols-1 gap-2">
-              {filtered.map((skill) => {
-                // Narrow to RegistrySkillData for display.
-                if (skill._sourceType === 'registry') {
-                  return (
-                    <SkillCard
-                      key={skill.id}
-                      skill={skill}
-                      onSelect={() => setSelectedSkill(skill)}
-                    />
-                  )
-                }
-                // Local skill — show a simplified card.
-                return (
-                  <LocalSkillRow
-                    key={skill.name}
-                    name={skill.name}
-                    description={skill.description}
-                    source={skill.source}
-                    isActive={skill.is_active}
-                  />
-                )
-              })}
+            <div className="grid grid-cols-1 gap-2 overflow-hidden">
+              {filtered.map((skill) => (
+                <SkillCard
+                  key={skill._sourceType === 'registry' ? skill.id : skill.name}
+                  skill={skill}
+                  onSelect={() => {
+                    if (skill._sourceType === 'registry') {
+                      setSelectedSkill(skill)
+                    }
+                  }}
+                />
+              ))}
             </div>
           )}
         </div>
       </ScrollArea>
 
       {/* Footer summary */}
-      <div className="px-3 py-1.5 border-t border-border text-[11px] text-muted-foreground shrink-0">
-        {filtered.length} skill{filtered.length !== 1 ? 's' : ''}
-        {filtered.length !== skills.length && ` (filtered from ${skills.length})`}
-      </div>
-    </div>
-  )
-}
-
-// ── Local skill row ───────────────────────────────────────────────────────────
-
-function LocalSkillRow({
-  name,
-  description,
-  source,
-  isActive
-}: {
-  name: string
-  description: string
-  source: string
-  isActive: boolean
-}) {
-  return (
-    <div className="flex items-center gap-3 rounded-lg border border-border bg-card p-3 text-sm">
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="font-medium truncate">{name}</span>
-          <span className="text-[10px] bg-muted rounded-full px-1.5 py-0.5 text-muted-foreground">
-            {source}
+      <div className="flex items-center justify-between px-3 py-1.5 border-t border-border text-[11px] text-muted-foreground shrink-0">
+        <span>
+          {filtered.length} skill{filtered.length !== 1 ? 's' : ''}
+          {filtered.length !== skills.length && ` (filtered from ${skills.length})`}
+        </span>
+        {lastSync && (
+          <span className="text-[10px]">
+            Last sync: {formatDistanceToNow(lastSync, { addSuffix: true })}
           </span>
-        </div>
-        <p className="text-xs text-muted-foreground truncate mt-0.5">{description}</p>
-      </div>
-      <span
-        className={cn(
-          'text-[11px] font-medium rounded-full px-2 py-0.5',
-          isActive
-            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-            : 'bg-muted text-muted-foreground'
         )}
-      >
-        {isActive ? 'Active' : 'Inactive'}
-      </span>
+      </div>
+
+      {/* Platform configuration alert */}
+      {showPlatformAlert && (
+        <AlertDialog open onOpenChange={setShowPlatformAlert}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Platform sync unavailable</AlertDialogTitle>
+              <AlertDialogDescription>
+                You need to connect to the SkillDeck Platform to sync community skills.
+                Configure your platform settings to enable this feature.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={() => {
+                setShowPlatformAlert(false)
+                setSettingsTab('platform')
+                setSettingsOpen(true)
+              }}>
+                Open Settings
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   )
 }
