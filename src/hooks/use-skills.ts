@@ -3,8 +3,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { commands } from '@/lib/bindings'
 import type { RegistrySkillData, SkillInfo } from '@/lib/bindings'
 
+export type CombinedSkill =
+  | (SkillInfo & { _sourceType: 'local' })
+  | (RegistrySkillData & { _sourceType: 'registry' })
+
 export function useAllSkills(options?: { category?: string; search?: string }): {
-  skills: Array<SkillInfo | RegistrySkillData>;
+  skills: CombinedSkill[];
   isLoading: boolean;
   isError: boolean;
 } {
@@ -27,7 +31,7 @@ export function useAllSkills(options?: { category?: string; search?: string }): 
   })
 
   // Combine with type discrimination
-  const combined = [
+  const combined: CombinedSkill[] = [
     ...localSkills.map(s => ({ ...s, _sourceType: 'local' as const })),
     ...registrySkills.map(s => ({ ...s, _sourceType: 'registry' as const }))
   ]

@@ -20,9 +20,8 @@ import {
 } from '@/components/ui/alert-dialog'
 import { SkillCard } from './skill-card'
 import { SkillDetail } from './skill-detail'
-import { useAllSkills, useSyncRegistry } from '@/hooks/use-skills'
+import { useAllSkills, useSyncRegistry, type CombinedSkill } from '@/hooks/use-skills'
 import { useUIStore } from '@/store/ui'
-import type { RegistrySkillData } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 
@@ -41,7 +40,7 @@ const CATEGORIES = [
 export function SkillBrowser({ className }: { className?: string }) {
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('All')
-  const [selectedSkill, setSelectedSkill] = useState<RegistrySkillData | null>(null)
+  const [selectedSkill, setSelectedSkill] = useState<CombinedSkill | null>(null)
   const [syncing, setSyncing] = useState(false)
   const [lastSync, setLastSync] = useState<Date | null>(null)
   const [showPlatformAlert, setShowPlatformAlert] = useState(false)
@@ -82,7 +81,7 @@ export function SkillBrowser({ className }: { className?: string }) {
         s.description.toLowerCase().includes(search.toLowerCase())
       const matchCat =
         category === 'All' ||
-        ('category' in s && s.category === category)
+        (s._sourceType === 'registry' && s.category === category)
       return matchSearch && matchCat
     })
   }, [skills, search, category])
@@ -90,7 +89,7 @@ export function SkillBrowser({ className }: { className?: string }) {
   if (selectedSkill) {
     return (
       <SkillDetail
-        skill={selectedSkill}
+        skill={selectedSkill._sourceType === 'registry' ? selectedSkill : null}
         className={className}
         onBack={() => setSelectedSkill(null)}
       />

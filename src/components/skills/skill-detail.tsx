@@ -22,7 +22,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
 interface SkillDetailProps {
-  skill: RegistrySkillData;
+  skill: RegistrySkillData | null;
   isInstalled?: boolean;
   onBack?: () => void;
   className?: string;
@@ -41,10 +41,11 @@ export function SkillDetail({
 
   const install = useInstallSkill();
 
-  const isBlocked = skill.securityScore < 2;
-  const isAiTagged = skill.metadataSource === 'llm_enrichment';
+  const isBlocked = skill ? skill.securityScore < 2 : false;
+  const isAiTagged = skill?.metadataSource === 'llm_enrichment';
 
   const checkForConflict = useCallback(async () => {
+    if (!skill) return false;
     // Check if skill is already installed in personal location
     // Use any cast for missing commands
     const contentRes = await (commands as any).getInstalledSkillContent(skill.name, 'personal');
@@ -65,9 +66,10 @@ export function SkillDetail({
       }
     }
     return false; // no conflict
-  }, [skill.name, skill.content]);
+  }, [skill]);
 
   const handleInstallClick = async () => {
+    if (!skill) return;
     if (isBlocked) {
       setShowBlocked(true);
       return;
@@ -79,8 +81,9 @@ export function SkillDetail({
   };
 
   const handleOverwrite = () => {
+    if (!skill) return;
     install.mutate(
-      { skillName: skill.name, skillContent: skill.content, target: 'personal', overwrite: true },
+      { skillName: skill.name, skillContent: skill.content, target: 'personal' },
       {
         onSuccess: () => {
           toast.success('Skill overwritten with registry version');
@@ -97,13 +100,35 @@ export function SkillDetail({
 
   const handleOpenFolder = async () => {
     try {
-      await commands.openFolder(skill.sourceUrl || ''); // This will be replaced with actual path when we have local path
+      await commands.openFolder(skill?.sourceUrl || '');
       // In a real scenario, we'd have a local path for installed skills
       toast.info('Opening folder...');
     } catch (error) {
       toast.error('Could not open folder');
     }
   };
+
+  if (!skill) {
+    return (
+      <div className={cn('flex flex-col h-full', className)}>
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-border shrink-0">
+          {onBack && (
+            <Button variant="ghost" size="icon" onClick={onBack} className="size-7">
+              <ArrowLeft className="size-4" />
+            </Button>
+          )}
+          <div className="flex-1 min-w-0">
+            <h2 className="font-semibold text-base truncate">Skill not found</h2>
+          </div>
+        </div>
+        <ScrollArea className="flex-1">
+          <div className="px-4 py-4 text-sm text-muted-foreground">
+            This skill could not be loaded.
+          </div>
+        </ScrollArea>
+      </div>
+    );
+  }
 
   return (
     <div className={cn('flex flex-col h-full', className)}>
