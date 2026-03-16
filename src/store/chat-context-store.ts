@@ -1,9 +1,9 @@
-// src/store/chat-context-store.ts
 import { create } from 'zustand'
 import type {
   AttachedItem,
   AttachedFile,
-  AttachedFolder
+  AttachedFolder,
+  AttachedSkill
 } from '@/types/chat-context'
 import type { LintWarning, RegistrySkillData } from '@/lib/bindings'
 
@@ -24,7 +24,13 @@ export const useChatContextStore = create<ChatContextState>((set) => ({
     set((state) => {
       if (state.items.some((item) => item.type === 'skill' && item.data.id === skill.id))
         return state
-      return { items: [...state.items, { type: 'skill', data: skill }] }
+      // Remove the original lintWarnings (JsonValue[]) and store our own (initially undefined)
+      const { lintWarnings: _ignored, ...rest } = skill
+      const newItem: AttachedSkill = {
+        type: 'skill',
+        data: { ...rest, lintWarnings: undefined }
+      }
+      return { items: [...state.items, newItem] }
     }),
 
   addFile: (file) =>
@@ -52,7 +58,10 @@ export const useChatContextStore = create<ChatContextState>((set) => ({
     set((state) => ({
       items: state.items.map((item) => {
         if (item.type === 'skill' && item.data.id === skillId) {
-          return { ...item, data: { ...item.data, lintWarnings: warnings } }
+          return {
+            ...item,
+            data: { ...item.data, lintWarnings: warnings }
+          }
         }
         return item
       })

@@ -3,14 +3,15 @@
  *
  * Tab bar shows icons only. On hover the label fades in and smoothly pushes
  * sibling icons apart via a max-width transition (no layout jumps).
+ *
+ * Skills tab now renders the UnifiedSkillList — a virtualized marketplace that
+ * merges local and registry skills into a single high-performance grid.
  */
 
 import { useState } from 'react'
 import {
   BarChart2,
-  ChevronDown,
   ChevronRight,
-  ChevronUp,
   Cpu,
   GitBranch,
   Layers,
@@ -18,12 +19,10 @@ import {
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
-import { useAllSkills } from '@/hooks/use-skills'
 import { useConversations } from '@/hooks/use-conversations'
 import { useProfiles } from '@/hooks/use-profiles'
 import { useUIStore } from '@/store/ui'
 
-import { BouncingDots } from '@/components/ui/bouncing-dots'
 import { useWorkflowEvents } from '@/hooks/use-workflow-events'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
@@ -35,6 +34,7 @@ import {
 } from '@/components/ui/select'
 import { commands } from '@/lib/bindings'
 import { McpTab } from './mcp-tab'
+import { UnifiedSkillList } from '@/components/skills/unified-skill-list'
 
 type Tab = 'session' | 'skills' | 'mcp' | 'workflow' | 'analytics'
 
@@ -61,6 +61,7 @@ export function RightPanel() {
         {TABS.map(({ id, label, Icon }) => (
           <button
             key={id}
+            type="button"
             onClick={() => setActiveTab(id)}
             className={cn(
               'group flex items-center justify-center gap-0 px-2 py-2.5 text-xs font-medium',
@@ -88,17 +89,21 @@ export function RightPanel() {
         ))}
       </div>
 
-      {/* Tab content — McpTab owns its own scroll; all others share the ScrollArea */}
+      {/* Tab content */}
       {activeTab === 'mcp' ? (
         <div className="flex-1 min-h-0 overflow-hidden w-full min-w-0">
           <McpTab />
+        </div>
+      ) : activeTab === 'skills' ? (
+        // Skills tab owns its own scroll and layout (virtualized marketplace)
+        <div className="flex-1 min-h-0 overflow-hidden w-full min-w-0">
+          <UnifiedSkillList />
         </div>
       ) : (
         <ScrollArea className="flex-1 min-h-0">
           {activeTab === 'session' && (
             <SessionTab conversationId={activeConversationId} />
           )}
-          {activeTab === 'skills' && <SkillsTab />}
           {activeTab === 'workflow' && <WorkflowTab />}
           {activeTab === 'analytics' && <AnalyticsTab />}
         </ScrollArea>
@@ -133,7 +138,6 @@ function useAvailableModels(provider: string) {
 function SessionTab({ conversationId }: { conversationId: string | null }) {
   const { data: conversations } = useConversations()
   const { data: profiles } = useProfiles()
-  // selectedProfileId not used yet
   const { data: keyStatuses = [] } = useQuery({
     queryKey: ['api-keys'],
     queryFn: async () => {
@@ -249,108 +253,6 @@ function ModelSelector({
   )
 }
 
-// ── Skills tab ────────────────────────────────────────────────────────────────
-
-function SkillItem({ skill, isActive }: { skill: any; isActive: boolean }) {
-  const [expanded, setExpanded] = useState(false)
-  const hasDescription = !!skill.description
-
-  return (
-    <div
-      className={cn(
-        'flex items-start gap-2 p-2 rounded-md w-full overflow-hidden',
-        isActive ? 'bg-muted/50' : 'opacity-50'
-      )}
-    >
-      <div
-        className={cn(
-          'size-1.5 rounded-full mt-1.5 shrink-0',
-          isActive ? 'bg-green-500' : 'bg-muted-foreground'
-        )}
-      />
-      <div className="flex-1 min-w-0 w-0">
-        <p className="text-xs font-medium truncate">{skill.name}</p>
-        {hasDescription && (
-          <div className="flex items-start gap-1 mt-0.5 w-full">
-            <p
-              className={cn(
-                'text-xs text-muted-foreground flex-1 min-w-0 w-0',
-                expanded ? 'break-words whitespace-normal' : 'truncate'
-              )}
-            >
-              {skill.description}
-            </p>
-            <button
-              type="button"
-              onClick={() => setExpanded(!expanded)}
-              className="shrink-0 mt-0.5 text-muted-foreground hover:text-foreground"
-            >
-              {expanded ? (
-                <ChevronUp className="size-3.5" />
-              ) : (
-                <ChevronDown className="size-3.5" />
-              )}
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function SkillsTab() {
-  const { skills = [], isLoading } = useAllSkills()
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center py-8">
-        <BouncingDots />
-      </div>
-    )
-  }
-
-  // Filter local skills (which have is_active) vs registry skills (no is_active)
-  const active = skills.filter((s) => '_sourceType' in s && s._sourceType === 'local' && s.is_active)
-  const inactive = skills.filter((s) => '_sourceType' in s && s._sourceType === 'local' && !s.is_active)
-
-  return (
-    <div className="p-3 space-y-3">
-      {active.length > 0 && (
-        <section>
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-            Active ({active.length})
-          </h3>
-          <div className="space-y-1">
-            {active.map((s) => (
-              <SkillItem key={s.name} skill={s} isActive />
-            ))}
-          </div>
-        </section>
-      )}
-      {inactive.length > 0 && (
-        <section>
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-            Available ({inactive.length})
-          </h3>
-          <div className="space-y-1">
-            {inactive.map((s) => (
-              <SkillItem key={s.name} skill={s} isActive={false} />
-            ))}
-          </div>
-        </section>
-      )}
-      {skills.length === 0 && (
-        <p className="text-xs text-muted-foreground">
-          Your skill deck is empty – craft some superpowers!
-          <br />
-          Add skills to <code className="text-xs">.skilldeck/skills/</code> or{' '}
-          <code className="text-xs">~/.agents/skills/</code>.
-        </p>
-      )}
-    </div>
-  )
-}
-
 // ── Workflow tab ──────────────────────────────────────────────────────────────
 
 function WorkflowTab() {
@@ -412,9 +314,13 @@ function WorkflowTab() {
               className="rounded-md border border-border overflow-hidden"
             >
               <button
+                type="button"
                 className="flex items-center gap-2 w-full p-2 text-left hover:bg-muted/50 transition-colors"
                 onClick={() =>
-                  setExpanded((prev) => ({ ...prev, [step.stepId]: !isOpen }))
+                  setExpanded((prev) => ({
+                    ...prev,
+                    [step.stepId]: !isOpen
+                  }))
                 }
               >
                 <div
@@ -516,3 +422,4 @@ function AnalyticsTab() {
     </div>
   )
 }
+

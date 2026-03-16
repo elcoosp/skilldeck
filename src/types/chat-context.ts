@@ -1,13 +1,14 @@
-// src/types/chat-context.ts
 import type { RegistrySkillData, LintWarning } from '@/lib/bindings'
 
 export type ContextItemType = 'skill' | 'file' | 'folder'
 
 export interface AttachedSkill {
   type: 'skill'
-  data: RegistrySkillData & { lintWarnings?: LintWarning[] }
+  // Omit the original lintWarnings (JsonValue[]) and add our own optional LintWarning[]
+  data: Omit<RegistrySkillData, 'lintWarnings'> & { lintWarnings?: LintWarning[] }
 }
 
+// (rest of the file unchanged)
 export interface AttachedFile {
   type: 'file'
   data: {
