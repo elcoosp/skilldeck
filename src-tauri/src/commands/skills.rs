@@ -47,7 +47,38 @@ pub async fn list_skills(state: State<'_, Arc<AppState>>) -> Result<Vec<SkillInf
         })
         .collect())
 }
+#[specta]
+#[tauri::command]
+pub async fn install_registry_skill(
+    state: State<'_, Arc<AppState>>,
+    skill_id: String,
+    target: InstallTarget,
+) -> Result<InstallResult, String> {
+    let db = state
+        .registry
+        .db
+        .connection()
+        .await
+        .map_err(|e| e.to_string())?;
 
+    use skilldeck_models::registry_skills::Entity as RegistrySkills;
+    let uuid = Uuid::parse_str(&skill_id).map_err(|e| e.to_string())?;
+
+    let skill = RegistrySkills::find_by_id(uuid)
+        .one(db)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "Skill not found in registry".to_string())?;
+
+    // Use the existing install_skill function
+    crate::skills::installer::install_skill(&skill.name, &skill.content, &target)
+        .map_err(|e| e.to_string())
+        .map(|install_result| InstallResult {
+            skill_name: install_result.skill_name,
+            installed_path: install_result.installed_path,
+            target: install_result.target,
+        })
+}
 #[specta]
 #[tauri::command]
 pub async fn toggle_skill(
@@ -529,4 +560,3 @@ pub async fn fetch_registry_skills(
     let skills = query.all(db).await.map_err(|e| e.to_string())?; // Fixed: `db` not `&db`
     Ok(skills.into_iter().map(Into::into).collect())
 }
-

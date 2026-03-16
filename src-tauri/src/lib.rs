@@ -16,8 +16,8 @@ mod state;
 mod sync;
 
 use commands::{
-    conversations::*, export::*, gist::*, mcp::*, messages::*, ollama::*, platform::*, profiles::*,
-    settings::*, skills::*, workspaces::*,
+    branches::*, conversations::*, export::*, gist::*, mcp::*, messages::*, ollama::*, platform::*,
+    profiles::*, settings::*, skills::*, workspaces::*,
 };
 use events::{AgentEvent, McpEvent, WorkflowEvent};
 use state::AppState;
@@ -49,6 +49,7 @@ pub fn run() {
             // skills — registry sync
             sync_registry_skills,
             fetch_registry_skills,
+            install_registry_skill,
             // conversations
             create_conversation,
             list_conversations,

@@ -1,131 +1,67 @@
 /**
- * CommunitySkillsTab — browse and one-click install community skills from GitHub Gists.
- *
- * Win theme: "Team Knowledge That Compounds"
+ * CommunitySkillsTab — browse and one-click install community skills from the platform registry.
  */
 
-import { useState } from 'react'
-import { Download, Search, X } from 'lucide-react'
-import { toast } from 'sonner'
-import { importSkillFromGist } from '@/lib/gist'
-import { sendActivityEvent } from '@/lib/platform'
-
-interface CommunitySkill {
-  id: string
-  name: string
-  description: string
-  author: string
-  gistId: string
-  stars: number
-  tags: string[]
-}
-
-// Curated community skills – in production this would be fetched from the
-// skilldeck-community GitHub repo or a platform endpoint.
-const CURATED_SKILLS: CommunitySkill[] = [
-  {
-    id: '1',
-    name: 'code-review',
-    description:
-      'Structured code review with severity levels, actionable suggestions, and team-style comments.',
-    author: 'elcoosp',
-    gistId: '',
-    stars: 42,
-    tags: ['engineering', 'quality']
-  },
-  {
-    id: '2',
-    name: 'pr-description',
-    description:
-      'Generate clear, comprehensive pull request descriptions from diff context.',
-    author: 'elcoosp',
-    gistId: '',
-    stars: 38,
-    tags: ['engineering', 'writing']
-  },
-  {
-    id: '3',
-    name: 'standup-notes',
-    description:
-      "Summarise yesterday's commits and today's tasks into a concise standup update.",
-    author: 'elcoosp',
-    gistId: '',
-    stars: 29,
-    tags: ['productivity', 'writing']
-  },
-  {
-    id: '4',
-    name: 'sql-optimizer',
-    description:
-      'Analyse and optimise SQL queries with explanations and index suggestions.',
-    author: 'elcoosp',
-    gistId: '',
-    stars: 24,
-    tags: ['database', 'engineering']
-  }
-]
+import { useState } from 'react';
+import { Download, Search, X } from 'lucide-react';
+import { toast } from 'sonner';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { commands } from '@/lib/bindings';
+import type { RegistrySkillData } from '@/lib/bindings';
+import { sendActivityEvent } from '@/lib/platform';
 
 interface Props {
-  /** Called after successful import with (skillName, contentMd) */
-  onInstall: (skillName: string, contentMd: string) => void
+  onInstall?: (skillName: string) => void;
 }
 
 export function CommunitySkillsTab({ onInstall }: Props) {
-  const [query, setQuery] = useState('')
-  const [installing, setInstalling] = useState<string | null>(null)
-  const [gistImportId, setGistImportId] = useState('')
-  const [importing, setImporting] = useState(false)
+  const [query, setQuery] = useState('');
+  const queryClient = useQueryClient();
 
-  const filtered = CURATED_SKILLS.filter(
+  // Fetch registry skills
+  const { data: skills = [], isLoading, error } = useQuery({
+    queryKey: ['registry-skills'],
+    queryFn: async () => {
+      const res = await commands.fetchRegistrySkills(null, null);
+      if (res.status === 'ok') return res.data;
+      throw new Error(res.error);
+    },
+  });
+
+  const installMutation = useMutation({
+    mutationFn: async (skill: RegistrySkillData) => {
+      const res = await commands.installRegistrySkill(skill.id, 'personal');
+      if (res.status === 'error') throw new Error(res.error);
+      return res.data;
+    },
+    onSuccess: (data, skill) => {
+      queryClient.invalidateQueries({ queryKey: ['skills'] }); // refresh local skills
+      toast.success(`${skill.name} installed!`);
+      sendActivityEvent('skill_created', { source: 'community', skill_name: skill.name }).catch(() => { });
+      onInstall?.(skill.name);
+    },
+    onError: (err: any) => {
+      toast.error(`Install failed: ${err.message}`);
+    },
+  });
+
+  const filtered = skills.filter(
     (s) =>
       s.name.toLowerCase().includes(query.toLowerCase()) ||
       s.description.toLowerCase().includes(query.toLowerCase()) ||
       s.tags.some((t) => t.toLowerCase().includes(query.toLowerCase()))
-  )
+  );
 
-  async function installSkill(skill: CommunitySkill) {
-    if (!skill.gistId) {
-      toast.info('This skill is coming soon — check back after launch!')
-      return
-    }
-    setInstalling(skill.id)
-    try {
-      const file = await importSkillFromGist(skill.gistId)
-      onInstall(skill.name, file.content)
-      sendActivityEvent('skill_created', {
-        source: 'community',
-        skill_name: skill.name
-      }).catch(() => { })
-      toast.success(`${skill.name} installed!`)
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Install failed')
-    } finally {
-      setInstalling(null)
-    }
+  if (isLoading) {
+    return <div className="flex justify-center p-8">Loading community skills...</div>;
   }
 
-  async function importFromGist() {
-    const id = gistImportId.trim()
-    if (!id) return
-    setImporting(true)
-    try {
-      // Support full URL or bare ID
-      const gistId = id.includes('gist.github.com/')
-        ? (id.split('/').pop() ?? id)
-        : id
-      const file = await importSkillFromGist(gistId)
-      const skillName = file.filename.replace(/\.md$/, '') || 'imported-skill'
-      onInstall(skillName, file.content)
-      sendActivityEvent('skill_created', { source: 'gist_import' }).catch(
-        () => { }
-      )
-      toast.success(`${skillName} imported!`)
-      setGistImportId('')
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Import failed')
-    } finally {
-      setImporting(false)
-    }
+  if (error) {
+    return (
+      <div className="p-4 text-center text-destructive">
+        Failed to load community skills. Please check your connection.
+      </div>
+    );
   }
 
   return (
@@ -135,17 +71,13 @@ export function CommunitySkillsTab({ onInstall }: Props) {
         <div>
           <h3 className="font-semibold text-sm">Community Skills</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            One-click install from the community. Skills are version-controlled
-            — contribute yours.
+            One-click install from the community. Skills are version-controlled — contribute yours.
           </p>
         </div>
 
         {/* Search */}
         <div className="relative">
-          <Search
-            size={13}
-            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
-          />
+          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
             placeholder="Search skills…"
@@ -162,25 +94,6 @@ export function CommunitySkillsTab({ onInstall }: Props) {
             </button>
           )}
         </div>
-
-        {/* Gist import */}
-        <div className="flex gap-2">
-          <input
-            type="text"
-            placeholder="Import from Gist URL or ID…"
-            value={gistImportId}
-            onChange={(e) => setGistImportId(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && importFromGist()}
-            className="flex-1 rounded-md border border-input bg-background px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
-          />
-          <button
-            onClick={importFromGist}
-            disabled={!gistImportId.trim() || importing}
-            className="px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 disabled:opacity-50"
-          >
-            {importing ? '…' : 'Import'}
-          </button>
-        </div>
       </div>
 
       {/* Skill list */}
@@ -194,24 +107,24 @@ export function CommunitySkillsTab({ onInstall }: Props) {
             <SkillCard
               key={skill.id}
               skill={skill}
-              installing={installing === skill.id}
-              onInstall={() => installSkill(skill)}
+              installing={installMutation.isPending && installMutation.variables?.id === skill.id}
+              onInstall={() => installMutation.mutate(skill)}
             />
           ))
         )}
       </div>
     </div>
-  )
+  );
 }
 
 function SkillCard({
   skill,
   installing,
-  onInstall
+  onInstall,
 }: {
-  skill: CommunitySkill
-  installing: boolean
-  onInstall: () => void
+  skill: RegistrySkillData;
+  installing: boolean;
+  onInstall: () => void;
 }) {
   return (
     <div className="rounded-lg border border-border p-3 hover:border-primary/40 transition-colors">
@@ -219,13 +132,10 @@ function SkillCard({
         <div>
           <span className="text-sm font-medium font-mono">{skill.name}</span>
           <span className="ml-2 text-xs text-muted-foreground">
-            by {skill.author}
+            by {skill.author || 'Unknown'}
           </span>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
-          <span className="text-xs text-muted-foreground">
-            ⭐ {skill.stars}
-          </span>
           <button
             onClick={onInstall}
             disabled={installing}
@@ -236,11 +146,9 @@ function SkillCard({
           </button>
         </div>
       </div>
-      <p className="text-xs text-muted-foreground line-clamp-2">
-        {skill.description}
-      </p>
+      <p className="text-xs text-muted-foreground line-clamp-2">{skill.description}</p>
       <div className="flex flex-wrap gap-1 mt-2">
-        {skill.tags.map((tag) => (
+        {skill.tags.slice(0, 3).map((tag) => (
           <span
             key={tag}
             className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground"
@@ -250,5 +158,5 @@ function SkillCard({
         ))}
       </div>
     </div>
-  )
+  );
 }
