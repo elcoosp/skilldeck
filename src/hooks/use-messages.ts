@@ -5,12 +5,12 @@
  * the thread always shows the latest state without a full refetch mid-stream.
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { commands } from '@/lib/bindings'
-import type { MessageData } from '@/lib/bindings'
-import { useUIStore } from '@/store/ui'
-import { useAchievements } from '@/hooks/use-achievements'
-import type { UUID } from '@/lib/types'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { commands } from '@/lib/bindings';
+import type { MessageData } from '@/lib/bindings';
+import { useUIStore } from '@/store/ui';
+import { useAchievements } from '@/hooks/use-achievements';
+import type { UUID } from '@/lib/types';
 
 export function useMessages(
   conversationId: UUID | null,
@@ -19,52 +19,50 @@ export function useMessages(
   return useQuery({
     queryKey: ['messages', conversationId, branchId],
     queryFn: async () => {
-      const res = await commands.listMessages(conversationId!, branchId ?? null)
-      if (res.status === 'ok') return res.data
-      throw new Error(res.error)
+      const res = await commands.listMessages(conversationId!, branchId ?? null);
+      if (res.status === 'ok') return res.data;
+      throw new Error(res.error);
     },
     enabled: !!conversationId,
-    staleTime: 0 // Always fresh after agent completes
-  })
+    staleTime: 0, // Always fresh after agent completes
+  });
 }
 
 export function useSendMessage(conversationId: UUID) {
-  const queryClient = useQueryClient()
-  const { unlock } = useAchievements()
+  const queryClient = useQueryClient();
+  const { unlock } = useAchievements();
 
   return useMutation({
     mutationFn: async (content: string) => {
-      const res = await commands.sendMessage(conversationId, content)
-      if (res.status === 'error') throw new Error(res.error)
-      return res.data
+      const res = await commands.sendMessage(conversationId, content);
+      if (res.status === 'error') throw new Error(res.error);
+      return res.data;
     },
     onSuccess: () => {
       // Agent loop events handle the streaming UX; refetch once done.
       // The `done` event in use-agent-stream triggers this via invalidation.
-      queryClient.invalidateQueries({ queryKey: ['messages', conversationId] })
-      queryClient.invalidateQueries({ queryKey: ['conversations'] })
+      queryClient.invalidateQueries({ queryKey: ['messages', conversationId] });
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
 
       // Check for achievements after the message is sent and data refetched
       setTimeout(() => {
         const messages = queryClient.getQueryData<MessageData[]>([
           'messages',
-          conversationId
-        ])
+          conversationId,
+        ]);
         if (messages) {
           // Count user messages
-          const userMessageCount = messages.filter(
-            (m) => m.role === 'user'
-          ).length
+          const userMessageCount = messages.filter((m) => m.role === 'user').length;
           if (userMessageCount === 1) {
-            unlock('firstMessage')
+            unlock('firstMessage');
           }
           if (userMessageCount === 10) {
-            unlock('tenthMessage')
+            unlock('tenthMessage');
           }
         }
-      }, 100) // small delay to allow refetch
-    }
-  })
+      }, 100); // small delay to allow refetch
+    },
+  });
 }
 
 /**
@@ -78,23 +76,19 @@ export function useMessagesWithStream(
   conversationId: UUID | null,
   branchId?: UUID | null
 ): MessageData[] {
-  const { data: messages = [] } = useMessages(conversationId, branchId)
-  const streamingText = useUIStore(
-    (s) => s.streamingText[conversationId ?? ''] ?? ''
-  )
-  const isRunning = useUIStore(
-    (s) => s.agentRunning[conversationId ?? ''] ?? false
-  )
+  const { data: messages = [] } = useMessages(conversationId, branchId);
+  const streamingText = useUIStore((s) => s.streamingText[conversationId ?? ''] ?? '');
+  const isRunning = useUIStore((s) => s.agentRunning[conversationId ?? ''] ?? false);
 
-  if (!isRunning || !streamingText) return messages
+  if (!isRunning || !streamingText) return messages;
 
   const streamBubble: MessageData = {
     id: '__streaming__',
     conversation_id: conversationId!,
     role: 'assistant',
     content: streamingText,
-    created_at: new Date().toISOString()
-  }
+    created_at: new Date().toISOString(),
+  };
 
-  return [...messages, streamBubble]
+  return [...messages, streamBubble];
 }

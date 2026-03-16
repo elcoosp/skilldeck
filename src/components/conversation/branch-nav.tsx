@@ -6,41 +6,45 @@
  * "N of M" and the branch title.
  */
 
-import { ChevronLeft, ChevronRight, GitBranch } from 'lucide-react'
-import { useUIStore } from '@/store/ui'
+import { ChevronLeft, ChevronRight, GitBranch } from 'lucide-react';
+import { useUIStore } from '@/store/ui';
+import { useBranches } from '@/hooks/use-branches';
 
-/**
- * Minimal hook — in v1 branch metadata comes from the parent query.
- * This component accepts props directly; a future hook can supply them
- * from the DB once branch CRUD is wired.
- */
 interface BranchNavProps {
-  currentIndex?: number
-  totalBranches?: number
-  branchTitle?: string
-  onPrev?: () => void
-  onNext?: () => void
+  conversationId: string;
 }
 
-export function BranchNav({
-  currentIndex = 1,
-  totalBranches = 1,
-  branchTitle,
-  onPrev,
-  onNext
-}: BranchNavProps) {
-  const setActiveBranch = useUIStore((s) => s.setActiveBranch)
+export function BranchNav({ conversationId }: BranchNavProps) {
+  const activeBranchId = useUIStore((s) => s.activeBranchId);
+  const setActiveBranch = useUIStore((s) => s.setActiveBranch);
+  const { data: branches = [], isLoading } = useBranches(conversationId);
 
-  const hasPrev = currentIndex > 1
-  const hasNext = currentIndex < totalBranches
+  if (isLoading || branches.length <= 1) return null; // don't show if only main trunk
+
+  const currentIndex = branches.findIndex((b) => b.id === activeBranchId) + 1; // 1-based for display
+  const total = branches.length;
+
+  const goPrev = () => {
+    if (currentIndex > 1) {
+      setActiveBranch(branches[currentIndex - 2].id);
+    }
+  };
+
+  const goNext = () => {
+    if (currentIndex < total) {
+      setActiveBranch(branches[currentIndex].id);
+    }
+  };
+
+  const currentBranch = branches.find((b) => b.id === activeBranchId);
 
   return (
     <div className="flex items-center gap-2 px-4 py-1.5 text-xs text-muted-foreground bg-muted/40">
       <GitBranch className="size-3.5 shrink-0" />
 
       <button
-        onClick={onPrev}
-        disabled={!hasPrev}
+        onClick={goPrev}
+        disabled={currentIndex <= 1}
         aria-label="Previous branch"
         className="p-0.5 rounded hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
       >
@@ -48,20 +52,20 @@ export function BranchNav({
       </button>
 
       <span className="font-medium tabular-nums">
-        {currentIndex} / {totalBranches}
+        {currentIndex} / {total}
       </span>
 
       <button
-        onClick={onNext}
-        disabled={!hasNext}
+        onClick={goNext}
+        disabled={currentIndex >= total}
         aria-label="Next branch"
         className="p-0.5 rounded hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
       >
         <ChevronRight className="size-3.5" />
       </button>
 
-      {branchTitle && (
-        <span className="truncate text-muted-foreground/70">{branchTitle}</span>
+      {currentBranch?.name && (
+        <span className="truncate text-muted-foreground/70">{currentBranch.name}</span>
       )}
 
       <button
@@ -71,5 +75,5 @@ export function BranchNav({
         Exit branch
       </button>
     </div>
-  )
+  );
 }
