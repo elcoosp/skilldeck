@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <!-- Soft background gradient (white → light blue) -->
+    <linearGradient id="bgSoft" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#EFF6FF"/>
+    </linearGradient>
+
+    <!-- Arrowhead marker for dashed arrows -->
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#94A3B8" fill-opacity="0.5"/>
+    </marker>
+
+    <!-- Ghost gradients (10% opacity) – true to brand colors -->
+    <linearGradient id="ghostBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3B82F6" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#1E40AF" stop-opacity="0.1"/>
+    </linearGradient>
+    <linearGradient id="ghostDark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1F2937" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#111827" stop-opacity="0.1"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="100" height="100" fill="url(#bgSoft)"/>
+
+  <!-- ========== GHOST RECTANGLES (faint, dreamy, floating) ========== -->
+  <!-- Primary blue gradient ghost (top-left) - rotated -5° -->
+  <rect x="6" y="10" width="36" height="36" rx="12" fill="url(#ghostBlue)" transform="rotate(-5, 24, 28)"/>
+
+  <!-- Dark neutral ghost (center) - rotated +3° -->
+  <rect x="32" y="28" width="36" height="36" rx="12" fill="url(#ghostDark)" transform="rotate(3, 50, 46)"/>
+
+  <!-- Semi-transparent blue ghost (bottom-right) - rotated -2°, using solid with opacity for variation -->
+  <rect x="54" y="42" width="36" height="36" rx="12" fill="#3B82F6" fill-opacity="0.08" transform="rotate(-2, 72, 60)"/>
+
+  <!-- ========== DAG: HOLLOW RECTANGLES (outlines) ========== -->
+  <!-- Top rectangle -->
+  <rect x="30" y="18" width="40" height="26" rx="12" fill="none" stroke="#94A3B8" stroke-width="2" stroke-opacity="0.5"/>
+
+  <!-- Bottom left rectangle -->
+  <rect x="12" y="58" width="30" height="26" rx="12" fill="none" stroke="#94A3B8" stroke-width="2" stroke-opacity="0.5"/>
+
+  <!-- Bottom right rectangle -->
+  <rect x="58" y="58" width="30" height="26" rx="12" fill="none" stroke="#94A3B8" stroke-width="2" stroke-opacity="0.5"/>
+
+  <!-- ========== DASHED ARROWS (incomplete connections) ========== -->
+  <!-- Top → bottom left -->
+  <line x1="50" y1="44" x2="27" y2="58" stroke="#94A3B8" stroke-width="2" stroke-opacity="0.5" stroke-dasharray="5 3" marker-end="url(#arrow)"/>
+
+  <!-- Top → bottom right -->
+  <line x1="50" y1="44" x2="73" y2="58" stroke="#94A3B8" stroke-width="2" stroke-opacity="0.5" stroke-dasharray="5 3" marker-end="url(#arrow)"/>
+
+  <!-- ========== SPARKLE (offset near the dark neutral ghost) ========== -->
+  <!-- Clean star/sparkle, positioned slightly above and left of the ghost, not overlapping awkwardly -->
+  <g transform="translate(42,32)">
+    <!-- main cross -->
+    <line x1="-4" y1="0" x2="4" y2="0" stroke="#F59E0B" stroke-width="1.5" stroke-linecap="round" opacity="0.9"/>
+    <line x1="0" y1="-4" x2="0" y2="4" stroke="#F59E0B" stroke-width="1.5" stroke-linecap="round" opacity="0.9"/>
+    <!-- diagonal lines for sparkle effect -->
+    <line x1="-2.8" y1="-2.8" x2="2.8" y2="2.8" stroke="#F59E0B" stroke-width="1.2" stroke-linecap="round" opacity="0.6"/>
+    <line x1="2.8" y1="-2.8" x2="-2.8" y2="2.8" stroke="#F59E0B" stroke-width="1.2" stroke-linecap="round" opacity="0.6"/>
+  </g>
+
+  <!-- ========== PLUS ICON (near empty connection point) ========== -->
+  <!-- Positioned near the right side of top rectangle, inviting interaction -->
+  <g transform="translate(68,32)">
+    <line x1="-5" y1="0" x2="5" y2="0" stroke="#3B82F6" stroke-width="2" stroke-linecap="round"/>
+    <line x1="0" y1="-5" x2="0" y2="5" stroke="#3B82F6" stroke-width="2" stroke-linecap="round"/>
+  </g>
+</svg>

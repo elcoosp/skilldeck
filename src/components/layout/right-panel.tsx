@@ -1,4 +1,3 @@
-// File: src/components/layout/right-panel.tsx
 /**
  * Right panel — tabbed session context: Session, Skills, MCP, Workflow, Analytics.
  *
@@ -142,7 +141,7 @@ function useAvailableModels(provider: string) {
 }
 
 function SessionTab({ conversationId }: { conversationId: string | null }) {
-  const { data: conversations, isLoading, refetch } = useConversations();
+  const { data: conversations } = useConversations();
   const { data: profiles } = useProfiles();
   const { data: keyStatuses = [] } = useQuery({
     queryKey: ['api-keys'],
@@ -158,22 +157,9 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
     return <div className="p-4 text-xs text-muted-foreground">No active conversation.</div>;
   }
 
-  if (isLoading) {
-    return <div className="p-4 text-xs text-muted-foreground">Loading...</div>;
-  }
-
   const conversation = conversations?.find((c) => c.id === conversationId);
   if (!conversation) {
-    return (
-      <div className="p-4 space-y-2">
-        <p className="text-xs text-muted-foreground">
-          Conversation not found. It may still be loading.
-        </p>
-        <Button size="sm" variant="outline" onClick={() => refetch()}>
-          Refresh
-        </Button>
-      </div>
-    );
+    return <div className="p-4 text-xs text-muted-foreground">Loading conversation…</div>;
   }
 
   const profile = profiles?.find((p) => p.id === conversation.profile_id);
@@ -346,9 +332,20 @@ function WorkflowTab() {
             <BouncingDots />
           </div>
         ) : savedWorkflows.length === 0 ? (
-          <p className="text-xs text-muted-foreground">
-            No saved workflows. Create one to define multi-agent processes.
-          </p>
+          // ✨ Whimsical empty state
+          <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
+            <img
+              src="/illustrations/empty-workflows.svg"
+              alt="No workflows"
+              className="w-40 h-40 mb-4 opacity-90"
+            />
+            <h3 className="text-base font-semibold text-foreground mb-1">
+              Ready to orchestrate something brilliant?
+            </h3>
+            <p className="text-sm text-muted-foreground max-w-xs">
+              Design a workflow that turns complex tasks into elegant automation.
+            </p>
+          </div>
         ) : (
           <div className="space-y-1">
             {savedWorkflows.map((wf) => (

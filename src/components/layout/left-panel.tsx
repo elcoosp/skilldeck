@@ -136,11 +136,26 @@ export function LeftPanel() {
               <div className="size-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
             </div>
           ) : filtered?.length === 0 ? (
-            <p className="text-center text-xs text-muted-foreground py-8">
-              {searchQuery
-                ? 'No matches'
-                : 'Your chat log is empty – time to start a conversation!'}
-            </p>
+            searchQuery ? (
+              <p className="text-center text-xs text-muted-foreground py-8">
+                No matches
+              </p>
+            ) : (
+              // ✨ Whimsical empty state
+              <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                <img
+                  src="/illustrations/empty-conversations.svg"
+                  alt="No conversations"
+                  className="w-48 h-48 mb-4 opacity-90"
+                />
+                <h3 className="text-base font-semibold text-foreground mb-1">
+                  Your deck is empty—time to deal the first card.
+                </h3>
+                <p className="text-sm text-muted-foreground max-w-xs">
+                  Start a new conversation and build something brilliant.
+                </p>
+              </div>
+            )
           ) : (
             filtered?.map((c) => (
               <ConversationItem

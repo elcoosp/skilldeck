@@ -632,19 +632,19 @@ export function McpTab() {
               <Loader2 className="size-4 animate-spin text-muted-foreground" />
             </div>
           ) : servers.length === 0 ? (
-            <div className="flex flex-col items-center text-center gap-3 pt-4 pb-2">
-              <div className="size-10 rounded-xl bg-muted flex items-center justify-center">
-                <PlugZapIcon className="size-5 text-muted-foreground" />
-              </div>
-              <div className="max-w-60 mx-auto">
-                <p className="text-xs font-medium mb-1">
-                  No tools configured – add a server and unleash the magic!
-                </p>
-                <p className="text-[11px] text-muted-foreground leading-relaxed  text-center">
-                  MCP servers give the agent tools like file access, web search,
-                  and database queries.
-                </p>
-              </div>
+            // ✨ Whimsical empty state
+            <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+              <img
+                src="/illustrations/empty-mcp.svg"
+                alt="No MCP servers"
+                className="w-48 h-48 mb-4 opacity-90"
+              />
+              <h3 className="text-base font-semibold text-foreground mb-1">
+                Your agent needs friends.
+              </h3>
+              <p className="text-sm text-muted-foreground max-w-xs">
+                Add an MCP server to give it new tools—like a brain with extra senses.
+              </p>
             </div>
           ) : (
             servers.map((server: McpServerResponse) => (

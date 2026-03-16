@@ -54,7 +54,7 @@ export function UnifiedSkillList() {
   const [selected, setSelected] = useState<UnifiedSkill | null>(null)
 
   const containerRef = useRef<HTMLDivElement>(null)
-  const columns = useColumnCount(containerRef) // now works because containerRef is RefObject<HTMLDivElement> and HTMLDivElement extends HTMLElement
+  const columns = useColumnCount(containerRef)
 
   const { unifiedSkills, isLoading, installedCount, registryError } =
     useUnifiedSkills({ search: debouncedSearch || undefined })
@@ -241,38 +241,45 @@ function EmptyState({
   search: string
   hasRegistryError: boolean
 }) {
+  if (hasRegistryError) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-3">
+        <AlertCircle className="h-8 w-8 text-amber-500" />
+        <p className="text-sm font-medium">Registry unavailable</p>
+        <p className="text-xs text-muted-foreground max-w-xs">
+          Could not reach the skill registry. Local skills are still shown.
+          Check your network or platform configuration.
+        </p>
+      </div>
+    )
+  }
+
+  if (search) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-3">
+        <Search className="h-8 w-8 text-muted-foreground/40" />
+        <p className="text-sm font-medium">No skills match "{search}"</p>
+        <p className="text-xs text-muted-foreground">
+          Try a different search term or clear the filter.
+        </p>
+      </div>
+    )
+  }
+
+  // ✨ Whimsical empty state for no skills at all
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-3">
-      {hasRegistryError ? (
-        <>
-          <AlertCircle className="h-8 w-8 text-amber-500" />
-          <p className="text-sm font-medium">Registry unavailable</p>
-          <p className="text-xs text-muted-foreground max-w-xs">
-            Could not reach the skill registry. Local skills are still shown.
-            Check your network or platform configuration.
-          </p>
-        </>
-      ) : search ? (
-        <>
-          <Search className="h-8 w-8 text-muted-foreground/40" />
-          <p className="text-sm font-medium">No skills match "{search}"</p>
-          <p className="text-xs text-muted-foreground">
-            Try a different search term or clear the filter.
-          </p>
-        </>
-      ) : (
-        <>
-          <div className="text-3xl">🎯</div>
-          <p className="text-sm font-medium">Your skill deck is empty</p>
-          <p className="text-xs text-muted-foreground max-w-xs">
-            Add skills to{' '}
-            <code className="font-mono text-[11px]">.skilldeck/skills/</code>{' '}
-            or{' '}
-            <code className="font-mono text-[11px]">~/.agents/skills/</code>,
-            or sync the registry to browse available skills.
-          </p>
-        </>
-      )}
+    <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-4">
+      <img
+        src="/illustrations/empty-skills.svg"
+        alt="No skills"
+        className="w-48 h-48 mb-2 opacity-90"
+      />
+      <h3 className="text-base font-semibold text-foreground mb-1">
+        Your toolkit is waiting to be built.
+      </h3>
+      <p className="text-sm text-muted-foreground max-w-xs">
+        Sync the registry or create your own skill—every deck needs its cards.
+      </p>
     </div>
   )
 }
