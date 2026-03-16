@@ -1,4 +1,4 @@
-// File: src/hooks/use-agent-stream.ts
+// src/hooks/use-agent-stream.ts
 /**
  * useAgentStream — subscribe to Tauri agent-event channel for a given
  * conversation and drive streaming text + running state in the UI store.
@@ -18,6 +18,8 @@ export function useAgentStream(conversationId: string | null) {
   const appendStreamingText = useUIStore((s) => s.appendStreamingText)
   const clearStreamingText = useUIStore((s) => s.clearStreamingText)
   const setAgentRunning = useUIStore((s) => s.setAgentRunning)
+  const queuedMessage = useUIStore((s) => s.queuedMessages[conversationId ?? ''])
+  const clearQueuedMessage = useUIStore((s) => s.clearQueuedMessage)
 
   // Buffer deltas between rAF ticks to avoid per-token setState calls.
   const pendingBuffer = useRef('')
