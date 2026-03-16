@@ -27,7 +27,7 @@ pub mod profiles;
 pub mod prompt_variables;
 pub mod prompts;
 pub mod registry_skills;
-pub mod skill_source_dirs; // <-- add
+pub mod skill_source_dirs;
 pub mod skills;
 pub mod subagent_sessions;
 pub mod sync_state;
@@ -37,7 +37,8 @@ pub mod templates;
 pub mod tool_call_events;
 pub mod usage_events;
 pub mod user_preferences;
+pub mod workflow_definitions;
 pub mod workflow_executions;
 pub mod workflow_steps;
 pub mod workspace_state;
-pub mod workspaces; // <-- add
+pub mod workspaces;

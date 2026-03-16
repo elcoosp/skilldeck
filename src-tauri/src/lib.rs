@@ -43,6 +43,12 @@ pub fn run() {
     // Build Tauri Specta builder with all commands and events
     let builder = Builder::<tauri::Wry>::new()
         .commands(collect_commands![
+            //workflows
+            save_workflow_definition,
+            list_workflow_definitions,
+            get_workflow_definition,
+            delete_workflow_definition,
+            // branches
             create_branch,
             list_branches,
             get_branch_messages,
