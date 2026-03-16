@@ -1,3 +1,4 @@
+// src/hooks/use-branches.ts
 import { useQuery } from '@tanstack/react-query';
 import { commands } from '@/lib/bindings';
 import type { UUID } from '@/lib/types';
@@ -15,7 +16,8 @@ export function useBranches(conversationId: UUID | null) {
     queryKey: ['branches', conversationId],
     queryFn: async (): Promise<BranchInfo[]> => {
       if (!conversationId) return [];
-      const res = await commands.listBranches(conversationId);
+      // FIXME: commands.listBranches is not typed; assert as any until bindings are regenerated
+      const res = await (commands as any).listBranches(conversationId);
       if (res.status === 'ok') return res.data;
       throw new Error(res.error);
     },
