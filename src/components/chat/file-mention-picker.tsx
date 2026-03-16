@@ -25,6 +25,8 @@ interface FileMentionPickerProps {
   onSelect: (file: FileEntry, isDeep?: boolean) => void
   onClose: () => void
   onQueryChange?: (query: string) => void
+  // New prop to detect workspace status
+  workspaceRoot?: string
 }
 
 const FILE_SIZE_WARN_THRESHOLD = 50 * 1024 // 50 KB
@@ -46,7 +48,8 @@ export const FileMentionPicker: React.FC<FileMentionPickerProps> = ({
   currentFolderCounts = { shallow: 0, deep: 0 },
   onSelect,
   onClose,
-  onQueryChange
+  onQueryChange,
+  workspaceRoot = '.'
 }) => {
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [view, setView] = useState<'list' | 'folder-scope-confirm'>('list')
@@ -163,6 +166,9 @@ export const FileMentionPicker: React.FC<FileMentionPickerProps> = ({
     }
   }
 
+  // Determine if we are in a workspace (not just the default '.' root)
+  const hasWorkspace = workspaceRoot !== '.'
+
   if (!open || !position) return null
 
   return createPortal(
@@ -215,7 +221,14 @@ export const FileMentionPicker: React.FC<FileMentionPickerProps> = ({
 
           {!loading && filtered.length === 0 && (
             <div className="p-4 text-center text-sm text-muted-foreground">
-              No files found
+              {!hasWorkspace ? (
+                <>
+                  <p className="font-medium mb-1">No workspace open</p>
+                  <p className="text-xs">Open a workspace first to browse files.</p>
+                </>
+              ) : (
+                'No files found'
+              )}
             </div>
           )}
 

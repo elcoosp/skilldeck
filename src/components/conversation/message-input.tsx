@@ -1,4 +1,3 @@
-// src/components/conversation/message-input.tsx (final with Chunk 1 & 3)
 /**
  * Message input — auto-growing textarea with draft persistence, slash commands,
  * skill mention (@), file reference (#) entry points, and file attachments.
@@ -42,6 +41,8 @@ export function MessageInput({ conversationId }: MessageInputProps) {
   const [isComposing, setIsComposing] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<FileChip[]>([])
   const [isSending, setIsSending] = useState(false)
+  // ── Queued message (local state) ───────────────────────────────────────
+  const [queuedMessage, setQueuedMessage] = useState<string | null>(null)
 
   // ── Workspace context ───────────────────────────────────────────────────
   const activeWorkspaceId = useUIStore((s) => s.activeWorkspaceId)
@@ -54,9 +55,6 @@ export function MessageInput({ conversationId }: MessageInputProps) {
   const setDraft = useUIStore((s) => s.setDraft)
   const clearDraft = useUIStore((s) => s.clearDraft)
   const isRunning = useUIStore((s) => s.agentRunning[conversationId] ?? false)
-  const queuedMessage = useUIStore((s) => s.queuedMessages[conversationId])
-  const setQueuedMessage = useUIStore((s) => s.setQueuedMessage)
-  const clearQueuedMessage = useUIStore((s) => s.clearQueuedMessage)
   const [content, setContent] = useState(draft)
 
   const sendMutation = useSendMessage(conversationId)
@@ -66,9 +64,9 @@ export function MessageInput({ conversationId }: MessageInputProps) {
   useEffect(() => {
     if (!isRunning && queuedMessage) {
       sendMutation.mutate(queuedMessage)
-      clearQueuedMessage(conversationId)
+      setQueuedMessage(null)
     }
-  }, [isRunning, queuedMessage, conversationId, sendMutation, clearQueuedMessage])
+  }, [isRunning, queuedMessage, sendMutation])
 
   // ── Context injection state ───────────────────────────────────────────────
   const [triggerState, setTriggerState] = useState<TriggerState | null>(null)
@@ -260,7 +258,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
       if (isRunning) {
         // Queue the current draft instead of sending
         if (content.trim()) {
-          setQueuedMessage(conversationId, content)
+          setQueuedMessage(content)
           setContent('')
         }
       } else {
@@ -374,14 +372,14 @@ export function MessageInput({ conversationId }: MessageInputProps) {
 
   const queueCurrent = useCallback(() => {
     if (content.trim()) {
-      setQueuedMessage(conversationId, content)
+      setQueuedMessage(content)
       setContent('')
     }
-  }, [content, conversationId, setQueuedMessage])
+  }, [content])
 
   const cancelQueued = useCallback(() => {
-    clearQueuedMessage(conversationId)
-  }, [conversationId, clearQueuedMessage])
+    setQueuedMessage(null)
+  }, [])
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -550,6 +548,8 @@ export function MessageInput({ conversationId }: MessageInputProps) {
           onQueryChange={(q) =>
             setTriggerState((prev) => (prev ? { ...prev, query: q } : null))
           }
+          // Pass workspaceRoot so the picker knows whether a workspace is active
+          workspaceRoot={workspaceRoot}
         />
       )}
 
