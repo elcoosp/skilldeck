@@ -1,7 +1,10 @@
+// src-tauri/src/commands/mod.rs
 //! Tauri command modules.
 
+pub mod branches;
 pub mod conversations;
 pub mod export;
+pub mod files;
 pub mod gist;
 pub mod mcp;
 pub mod messages;
