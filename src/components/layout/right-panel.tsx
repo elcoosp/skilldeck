@@ -1,3 +1,4 @@
+// File: src/components/layout/right-panel.tsx
 /**
  * Right panel — tabbed session context: Session, Skills, MCP, Workflow, Analytics.
  *
@@ -141,7 +142,7 @@ function useAvailableModels(provider: string) {
 }
 
 function SessionTab({ conversationId }: { conversationId: string | null }) {
-  const { data: conversations } = useConversations();
+  const { data: conversations, isLoading, refetch } = useConversations();
   const { data: profiles } = useProfiles();
   const { data: keyStatuses = [] } = useQuery({
     queryKey: ['api-keys'],
@@ -157,9 +158,22 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
     return <div className="p-4 text-xs text-muted-foreground">No active conversation.</div>;
   }
 
+  if (isLoading) {
+    return <div className="p-4 text-xs text-muted-foreground">Loading...</div>;
+  }
+
   const conversation = conversations?.find((c) => c.id === conversationId);
   if (!conversation) {
-    return <div className="p-4 text-xs text-muted-foreground">Loading conversation…</div>;
+    return (
+      <div className="p-4 space-y-2">
+        <p className="text-xs text-muted-foreground">
+          Conversation not found. It may still be loading.
+        </p>
+        <Button size="sm" variant="outline" onClick={() => refetch()}>
+          Refresh
+        </Button>
+      </div>
+    );
   }
 
   const profile = profiles?.find((p) => p.id === conversation.profile_id);

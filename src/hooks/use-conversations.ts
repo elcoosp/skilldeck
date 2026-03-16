@@ -1,3 +1,4 @@
+// File: src/hooks/use-conversations.ts
 /**
  * Conversation data hooks — TanStack Query wrappers over invoke layer.
  */
@@ -29,9 +30,10 @@ export function useCreateConversation() {
       if (res.status === 'error') throw new Error(res.error)
       return res.data
     },
-    onSuccess: (newId) => {
-      // Invalidate and refetch conversations list
-      queryClient.invalidateQueries({ queryKey: ['conversations'] })
+    onSuccess: async (newId) => {
+      // Wait for the conversation list to refetch
+      await queryClient.invalidateQueries({ queryKey: ['conversations'] })
+      // Now set the active conversation
       setActiveConversation(newId)
     }
   })
