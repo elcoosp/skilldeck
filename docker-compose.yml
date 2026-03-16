@@ -27,7 +27,7 @@ services:
 
   # ── PostgreSQL database ────────────────────────────────────────────────────
   db:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     environment:
       POSTGRES_USER: skilldeck
       POSTGRES_PASSWORD: skilldeck_pass
