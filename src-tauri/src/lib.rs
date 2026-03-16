@@ -16,9 +16,8 @@ mod state;
 mod sync;
 
 use commands::{
-    workflows::*;
     branches::*, conversations::*, export::*, gist::*, mcp::*, messages::*, ollama::*, platform::*,
-    profiles::*, settings::*, skills::*, workspaces::*,
+    profiles::*, settings::*, skills::*, workflows::*, workspaces::*,
 };
 use events::{AgentEvent, McpEvent, WorkflowEvent};
 use state::AppState;
