@@ -76,6 +76,11 @@ interface UIState {
   /** Whether the user has completed the first‑run onboarding wizard */
   onboardingComplete: boolean
   setOnboardingComplete: (complete: boolean) => void
+
+  // ── Platform features flag (manually persisted to localStorage) ────────
+  /** Whether platform features (community skills, nudges, referrals) are enabled */
+  platformFeaturesEnabled: boolean
+  setPlatformFeaturesEnabled: (enabled: boolean) => void
 }
 
 export const useUIStore = create<UIState>()(
@@ -96,6 +101,25 @@ export const useUIStore = create<UIState>()(
           // ignore
         }
         set({ onboardingComplete: complete })
+      },
+
+      // Platform features – default to true, but can be disabled by onboarding skip
+      platformFeaturesEnabled: (() => {
+        try {
+          // If explicitly set to false, respect that; otherwise default to true
+          const stored = localStorage.getItem('skilldeck-platform-features-enabled')
+          return stored !== 'false'
+        } catch {
+          return true
+        }
+      })(),
+      setPlatformFeaturesEnabled: (enabled) => {
+        try {
+          localStorage.setItem('skilldeck-platform-features-enabled', String(enabled))
+        } catch {
+          // ignore
+        }
+        set({ platformFeaturesEnabled: enabled })
       },
 
       // Workspace
