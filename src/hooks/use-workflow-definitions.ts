@@ -1,8 +1,7 @@
+// src/hooks/use-workflow-definitions.ts
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { commands } from '@/lib/bindings';
-import type { WorkflowDefinitionResponse } from '@/lib/bindings'; // This type will be generated
 
-// The type might not be in bindings yet, so we define it locally until regenerated
 export interface WorkflowDefinition {
   id: string;
   name: string;
@@ -15,7 +14,8 @@ export function useWorkflowDefinitions() {
   return useQuery({
     queryKey: ['workflow-definitions'],
     queryFn: async (): Promise<WorkflowDefinition[]> => {
-      const res = await commands.listWorkflowDefinitions();
+      // FIXME: commands.listWorkflowDefinitions is not typed; cast to any
+      const res = await (commands as any).listWorkflowDefinitions();
       if (res.status === 'ok') return res.data;
       throw new Error(res.error);
     },
@@ -26,7 +26,7 @@ export function useSaveWorkflowDefinition() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ name, definition }: { name: string; definition: any }) => {
-      const res = await commands.saveWorkflowDefinition({ name, definition });
+      const res = await (commands as any).saveWorkflowDefinition({ name, definition });
       if (res.status === 'error') throw new Error(res.error);
       return res.data;
     },
@@ -40,7 +40,7 @@ export function useDeleteWorkflowDefinition() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const res = await commands.deleteWorkflowDefinition(id);
+      const res = await (commands as any).deleteWorkflowDefinition(id);
       if (res.status === 'error') throw new Error(res.error);
       return res.data;
     },
