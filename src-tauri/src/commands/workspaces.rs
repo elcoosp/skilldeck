@@ -4,6 +4,7 @@ use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, QueryFilter, QueryOrder,
 };
 use serde::Serialize;
+use specta::{Type, specta};
 use std::{path::PathBuf, sync::Arc};
 use tauri::State;
 use uuid::Uuid;
@@ -12,7 +13,7 @@ use crate::state::AppState;
 use skilldeck_core::workspace::context::ContextLoader;
 use skilldeck_models::workspaces::{self, Entity as Workspaces};
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Type)]
 pub struct WorkspaceData {
     pub id: String,
     pub path: String,
@@ -23,6 +24,7 @@ pub struct WorkspaceData {
 
 /// Detect and open a workspace at the given path.
 /// If the workspace already exists in the DB, it is reopened (updated) instead of inserted.
+#[specta]
 #[tauri::command]
 pub async fn open_workspace(
     state: State<'_, Arc<AppState>>,
@@ -96,6 +98,7 @@ pub async fn open_workspace(
 }
 
 /// Mark a workspace as closed.
+#[specta]
 #[tauri::command]
 pub async fn close_workspace(state: State<'_, Arc<AppState>>, id: String) -> Result<(), String> {
     let db = state
@@ -120,6 +123,7 @@ pub async fn close_workspace(state: State<'_, Arc<AppState>>, id: String) -> Res
     Ok(())
 }
 /// List all workspaces (both open and closed)
+#[specta]
 #[tauri::command]
 pub async fn list_workspaces(
     state: State<'_, Arc<AppState>>,

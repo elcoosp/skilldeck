@@ -1,23 +1,10 @@
-/**
- * usePlatform — central hook for all SkillDeck Platform interactions.
- *
- * Handles lazy registration, preference loading/updating, referral stats,
- * and nudge polling.  Components import this instead of calling platform
- * invoke functions directly.
- */
-
 import { useCallback, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { commands } from '@/lib/bindings'
 import {
-  ensurePlatformRegistration,
-  getPlatformPreferences,
-  updatePlatformPreferences,
-  getReferralStats,
-  createReferralCode,
-  resendVerificationEmail,
-  sendActivityEvent,
   listenForNudges,
+  sendActivityEvent,
   type UpdatePreferencesPayload,
   type ActivityEventType
 } from '@/lib/platform'
@@ -27,8 +14,11 @@ import {
 export function usePlatformRegistration() {
   return useQuery({
     queryKey: ['platform', 'registration'],
-    queryFn: ensurePlatformRegistration,
-    // Run once; re-run is idempotent but unnecessary.
+    queryFn: async () => {
+      const res = await commands.ensurePlatformRegistration()
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
+    },
     staleTime: Infinity,
     retry: 2
   })
@@ -41,13 +31,29 @@ export function usePlatformPreferences() {
 
   const query = useQuery({
     queryKey: ['platform', 'preferences'],
-    queryFn: getPlatformPreferences,
+    queryFn: async () => {
+      const res = await commands.getPlatformPreferences()
+      if (res.status === 'ok') return res.data
+      throw new Error(res.error)
+    },
     staleTime: 5 * 60 * 1000
   })
 
   const update = useMutation({
-    mutationFn: (payload: UpdatePreferencesPayload) =>
-      updatePlatformPreferences(payload),
+    mutationFn: async (payload: UpdatePreferencesPayload) => {
+      const updatePayload = {
+        email: payload.email ?? null,
+        nudge_frequency: payload.nudge_frequency ?? null,
+        nudge_opt_out: payload.nudge_opt_out ?? null,
+        notification_channels: payload.notification_channels ?? null,
+        theme_preference: payload.theme_preference ?? null,
+        timezone: payload.timezone ?? null,
+        analytics_opt_in: payload.analytics_opt_in ?? null,
+      }
+      const res = await commands.updatePlatformPreferences(updatePayload)
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
+    },
     onSuccess: (data) => {
       qc.setQueryData(['platform', 'preferences'], data)
       toast.success('Preferences saved')
@@ -57,7 +63,11 @@ export function usePlatformPreferences() {
   })
 
   const resendVerification = useMutation({
-    mutationFn: resendVerificationEmail,
+    mutationFn: async () => {
+      const res = await commands.resendVerificationEmail()
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
+    },
     onSuccess: () => toast.success('Verification email sent'),
     onError: (err: Error) => toast.error(err.message)
   })
@@ -72,15 +82,23 @@ export function useReferral() {
 
   const stats = useQuery({
     queryKey: ['platform', 'referral', 'stats'],
-    queryFn: getReferralStats,
+    queryFn: async () => {
+      const res = await commands.getReferralStats()
+      if (res.status === 'ok') return res.data
+      throw new Error(res.error)
+    },
     staleTime: 60 * 1000
   })
 
   const create = useMutation({
-    mutationFn: createReferralCode,
+    mutationFn: async () => {
+      const res = await commands.createReferralCode()
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['platform', 'referral'] })
-      sendActivityEvent('referral_link_created').catch(() => {})
+      sendActivityEvent('referral_link_created').catch(() => { })
       toast.success('Referral code created!')
     }
   })
@@ -98,20 +116,19 @@ export function useNudgeListener() {
         duration: 8000,
         action: nudge.cta_label
           ? {
-              label: nudge.cta_label,
-              onClick: () => {
-                sendActivityEvent('nudge_clicked').catch(() => {})
-                if (nudge.cta_action) {
-                  // cta_action format: "open:tab" e.g. "open:referral"
-                  const [, target] = nudge.cta_action.split(':')
-                  window.dispatchEvent(
-                    new CustomEvent('skilldeck:navigate', {
-                      detail: { tab: target }
-                    })
-                  )
-                }
+            label: nudge.cta_label,
+            onClick: () => {
+              sendActivityEvent('nudge_clicked').catch(() => { })
+              if (nudge.cta_action) {
+                const [, target] = nudge.cta_action.split(':')
+                window.dispatchEvent(
+                  new CustomEvent('skilldeck:navigate', {
+                    detail: { tab: target }
+                  })
+                )
               }
             }
+          }
           : undefined
       })
     }).then((fn) => {
@@ -129,7 +146,7 @@ export function useNudgeListener() {
 export function useTrackEvent() {
   return useCallback(
     (eventType: ActivityEventType, metadata?: Record<string, unknown>) => {
-      sendActivityEvent(eventType, metadata).catch(() => {})
+      sendActivityEvent(eventType, metadata).catch(() => { })
     },
     []
   )

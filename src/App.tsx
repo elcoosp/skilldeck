@@ -46,13 +46,13 @@ function GlobalEventListeners() {
 }
 
 function AppContent() {
-  const onboardingDone = useUIStore((s) => s.onboardingDone)
+  const onboardingComplete = useUIStore((s) => s.onboardingComplete)
 
   return (
     <>
       <GlobalEventListeners />
       <AppShell />
-      {!onboardingDone && <OnboardingWizard />}
+      {!onboardingComplete && <OnboardingWizard />}
     </>
   )
 }

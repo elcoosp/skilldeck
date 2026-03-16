@@ -48,8 +48,8 @@ describe('theme', () => {
 describe('toolApprovals', () => {
   it('all approval flags default to false', () => {
     const { toolApprovals } = useSettingsStore.getState()
-    for (const [key, value] of Object.entries(toolApprovals)) {
-      expect(value).toBe(false, `${key} should default to false`)
+    for (const [, value] of Object.entries(toolApprovals)) {
+      expect(value).toBe(false)
     }
   })
 
@@ -58,7 +58,6 @@ describe('toolApprovals', () => {
     expect(useSettingsStore.getState().toolApprovals.autoApproveReads).toBe(
       true
     )
-    // Others unchanged
     expect(useSettingsStore.getState().toolApprovals.autoApproveWrites).toBe(
       false
     )
@@ -75,7 +74,7 @@ describe('toolApprovals', () => {
     expect(toolApprovals.autoApproveWrites).toBe(false)
   })
 
-  it('autoApproveShell stays false by default (security requirement)', () => {
+  it('autoApproveShell stays false by default', () => {
     expect(useSettingsStore.getState().toolApprovals.autoApproveShell).toBe(
       false
     )

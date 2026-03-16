@@ -67,7 +67,7 @@ export function ShareSkillModal({ skillName, contentMd, onClose }: Props) {
       setResult(gist)
       setStep('done')
       sendActivityEvent('skill_shared', { skill_name: skillName }).catch(
-        () => {}
+        () => { }
       )
     } finally {
       setSaving(false)

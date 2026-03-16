@@ -14,11 +14,11 @@ import {
   DialogTitle
 } from '@/components/ui/dialog'
 import { useInstallSkill } from '@/hooks/use-skills'
-import type { InstallTarget, RegistrySkill } from '@/lib/invoke'
+import type { InstallTarget, RegistrySkillData } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
 
 interface InstallDialogProps {
-  skill: RegistrySkill
+  skill: RegistrySkillData
   onClose: () => void
 }
 

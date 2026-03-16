@@ -1,5 +1,6 @@
 // src-tauri/src/commands/mcp.rs
 //! Tauri commands for MCP server management.
+use specta::{Type, specta};
 
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -11,14 +12,14 @@ use skilldeck_core::CoreError;
 
 // ── Shared response types ─────────────────────────────────────────────────────
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Type)]
 pub struct McpToolResponse {
     pub name: String,
     pub description: String,
     pub input_schema: serde_json::Value,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Type)]
 pub struct McpServerResponse {
     pub id: String,
     pub name: String,
@@ -29,7 +30,7 @@ pub struct McpServerResponse {
 
 // ── add_mcp_server ────────────────────────────────────────────────────────────
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct AddMcpServerPayload {
     pub name: String,
@@ -40,6 +41,7 @@ pub struct AddMcpServerPayload {
     pub env: Option<std::collections::HashMap<String, String>>,
 }
 
+#[specta]
 #[tauri::command]
 pub async fn add_mcp_server(
     payload: AddMcpServerPayload,
@@ -139,6 +141,7 @@ pub async fn add_mcp_server(
 
 // ── remove_mcp_server ─────────────────────────────────────────────────────────
 
+#[specta]
 #[tauri::command]
 pub async fn remove_mcp_server(
     id: String,
@@ -174,6 +177,7 @@ pub async fn remove_mcp_server(
 
 // ── list_mcp_servers ──────────────────────────────────────────────────────────
 
+#[specta]
 #[tauri::command]
 pub async fn list_mcp_servers(
     state: State<'_, Arc<AppState>>, // Arc<AppState>
@@ -209,6 +213,7 @@ pub async fn list_mcp_servers(
 
 // ── connect_mcp_server ────────────────────────────────────────────────────────
 
+#[specta]
 #[tauri::command]
 pub async fn connect_mcp_server(
     id: String,
@@ -223,6 +228,7 @@ pub async fn connect_mcp_server(
 
 // ── disconnect_mcp_server ─────────────────────────────────────────────────────
 
+#[specta]
 #[tauri::command]
 pub async fn disconnect_mcp_server(
     id: String,

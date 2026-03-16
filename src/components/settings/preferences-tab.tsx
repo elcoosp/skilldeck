@@ -1,14 +1,9 @@
 /**
  * PreferencesTab — Platform preferences panel inside SettingsOverlay.
- *
- * Win themes woven into copy:
- *  - Privacy: "Your data stays on your machine — we only sync what you choose."
- *  - Team Knowledge: "Share nudge preferences with your team workflow."
  */
 
 import { useState } from 'react'
 import { Bell, Globe, Mail, Palette, Shield } from 'lucide-react'
-import { toast } from 'sonner'
 import { usePlatformPreferences } from '@/hooks/use-platform'
 import type { UpdatePreferencesPayload } from '@/lib/platform'
 
@@ -134,7 +129,11 @@ export function PreferencesTab() {
             { value: 'email', label: 'Email (requires verified address)' }
           ] as const
         ).map(({ value, label }) => {
-          const channels = prefs?.notification_channels ?? ['in-app']
+          const rawChannels = prefs?.notification_channels ?? ['in-app']
+          // Ensure type safety
+          const channels = rawChannels.filter((c): c is 'in-app' | 'email' =>
+            c === 'in-app' || c === 'email'
+          )
           const checked = channels.includes(value)
           return (
             <label

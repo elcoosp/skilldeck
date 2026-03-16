@@ -190,8 +190,13 @@ impl ToolDispatcher {
     /// Route a tool call to the right handler and return a JSON result.
     pub async fn dispatch(&self, tool_call: &ToolCall) -> Result<Value, CoreError> {
         let name = &tool_call.function.name;
-        let args: Value =
-            serde_json::from_str(&tool_call.function.arguments).unwrap_or(Value::Null);
+        // Parse arguments with proper error handling
+        let args: Value = serde_json::from_str(&tool_call.function.arguments).map_err(|e| {
+            CoreError::McpToolExecution {
+                tool_name: name.clone(),
+                message: format!("Invalid JSON arguments: {}", e),
+            }
+        })?;
 
         // 1. Try built-ins first — they never go through the gate.
         if let Some(result) = self.dispatch_builtin(name, &args).await {
@@ -401,6 +406,30 @@ mod tests {
         };
         let result = d.dispatch(&tc).await.unwrap();
         assert_eq!(result["loaded"], "my-skill");
+    }
+
+    #[tokio::test]
+    async fn malformed_json_arguments_return_error() {
+        let d = make_dispatcher();
+        let tc = ToolCall {
+            id: "tc2".into(),
+            r#type: "function".into(),
+            function: crate::traits::FunctionCall {
+                name: "some_tool".into(),
+                arguments: r#"{invalid json"#.into(), // malformed
+            },
+        };
+        let result = d.dispatch(&tc).await;
+        assert!(result.is_err());
+        if let Err(e) = result {
+            match e {
+                CoreError::McpToolExecution { tool_name, message } => {
+                    assert_eq!(tool_name, "some_tool");
+                    assert!(message.contains("Invalid JSON arguments"));
+                }
+                _ => panic!("expected McpToolExecution error"),
+            }
+        }
     }
 
     #[test]

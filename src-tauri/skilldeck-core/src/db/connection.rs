@@ -1,14 +1,14 @@
 //! Database connection management.
 //!
 //! Handles SQLite initialization, WAL mode, PRAGMAs, and migration execution.
-
+use sea_orm::PaginatorTrait;
 use sea_orm::{ConnectOptions, ConnectionTrait, Database, DatabaseConnection, Statement};
 use sea_orm_migration::migrator::MigratorTrait;
 use std::time::Duration;
 use tracing::info;
 
 use crate::CoreError;
-use migration::Migrator; // <-- import the migration crate
+use migration::Migrator;
 
 /// Opens a SQLite database, applies PRAGMAs for WAL + safety, and optionally
 /// runs pending migrations.
@@ -56,7 +56,6 @@ pub async fn open_db(url: &str, run_migrations: bool) -> Result<DatabaseConnecti
 }
 
 /// Applies all required SQLite PRAGMAs after connection.
-/// Uses `execute_raw` — the SeaORM 2.0 replacement for the removed `execute` overload.
 async fn apply_pragmas(db: &DatabaseConnection) -> Result<(), CoreError> {
     let pragmas = [
         "PRAGMA journal_mode=WAL",
@@ -106,38 +105,54 @@ pub async fn check_integrity(db: &DatabaseConnection) -> Result<(), CoreError> {
 }
 
 /// Returns approximate row counts for the primary application tables.
+/// Now uses entity-specific counts to avoid raw SQL.
 pub async fn get_stats(
     db: &DatabaseConnection,
 ) -> Result<std::collections::HashMap<String, i64>, CoreError> {
+    use sea_orm::EntityTrait;
+    use skilldeck_models::{
+        conversations::Entity as Conversations, mcp_servers::Entity as McpServers,
+        messages::Entity as Messages, profiles::Entity as Profiles, skills::Entity as Skills,
+        subagent_sessions::Entity as SubagentSessions, usage_events::Entity as UsageEvents,
+        workflow_executions::Entity as WorkflowExecutions, workspaces::Entity as Workspaces,
+    };
+
     let mut stats = std::collections::HashMap::new();
 
-    let tables = [
-        "conversations",
-        "messages",
-        "profiles",
-        "skills",
-        "mcp_servers",
-        "subagent_sessions",
-        "workflow_executions",
-        "workspaces",
-        "usage_events",
-    ];
-
-    for table in &tables {
-        if let Some(row) = db
-            .query_one_raw(Statement::from_string(
-                sea_orm::DatabaseBackend::Sqlite,
-                format!("SELECT COUNT(*) as count FROM \"{table}\""),
-            ))
-            .await
-            .map_err(|e| CoreError::DatabaseQuery {
-                message: format!("Failed to get stats for {table}: {e}"),
-            })?
-        {
-            let count: i64 = row.try_get("", "count").unwrap_or(0);
-            stats.insert(table.to_string(), count);
-        }
-    }
+    // Count each table using the entity's count method.
+    stats.insert(
+        "conversations".to_string(),
+        Conversations::find().count(db).await? as i64,
+    );
+    stats.insert(
+        "messages".to_string(),
+        Messages::find().count(db).await? as i64,
+    );
+    stats.insert(
+        "profiles".to_string(),
+        Profiles::find().count(db).await? as i64,
+    );
+    stats.insert("skills".to_string(), Skills::find().count(db).await? as i64);
+    stats.insert(
+        "mcp_servers".to_string(),
+        McpServers::find().count(db).await? as i64,
+    );
+    stats.insert(
+        "subagent_sessions".to_string(),
+        SubagentSessions::find().count(db).await? as i64,
+    );
+    stats.insert(
+        "workflow_executions".to_string(),
+        WorkflowExecutions::find().count(db).await? as i64,
+    );
+    stats.insert(
+        "workspaces".to_string(),
+        Workspaces::find().count(db).await? as i64,
+    );
+    stats.insert(
+        "usage_events".to_string(),
+        UsageEvents::find().count(db).await? as i64,
+    );
 
     Ok(stats)
 }

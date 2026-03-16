@@ -15,24 +15,28 @@ use super::{
 };
 use crate::CoreError;
 
-/// Maximum generation/evaluation cycles before giving up.
-const MAX_ITERATIONS: u32 = 5;
+/// Default maximum generation/evaluation cycles before giving up.
+const DEFAULT_MAX_ITERATIONS: u32 = 5;
 
 /// Evaluate-and-optimise execution.
 ///
 /// Convention (v1): the *last* step in `order` is the evaluator; everything
 /// before it is setup steps (run once) + generator (re-run each cycle).
+///
+/// `max_iterations` overrides the default maximum iterations.
 pub async fn execute(
     state: &mut WorkflowState,
     _graph: &WorkflowGraph,
     order: &[String],
     tx: &Sender<WorkflowEvent>,
     ctx: Option<&StepExecutionContext>,
+    max_iterations: Option<u32>,
 ) -> Result<(), CoreError> {
     if order.is_empty() {
         return Ok(());
     }
 
+    let max = max_iterations.unwrap_or(DEFAULT_MAX_ITERATIONS);
     let (setup_and_gen, evaluator_slice) = order.split_at(order.len().saturating_sub(1));
     let evaluator_id = evaluator_slice.first().map(String::as_str);
 
@@ -49,11 +53,11 @@ pub async fn execute(
     let mut iteration = 0u32;
     loop {
         iteration += 1;
-        if iteration > MAX_ITERATIONS {
-            info!("EvalOpt: max iterations ({}) reached", MAX_ITERATIONS);
+        if iteration > max {
+            info!("EvalOpt: max iterations ({}) reached", max);
             break;
         }
-        info!("EvalOpt: iteration {}/{}", iteration, MAX_ITERATIONS);
+        info!("EvalOpt: iteration {}/{}", iteration, max);
 
         // Run generator — reset state so execute_step re-runs it.
         if let Some(gen_id) = generator_id {
@@ -165,7 +169,7 @@ mod tests {
         let graph = WorkflowGraph::new();
         let mut state = make_eval_opt_state();
         let order = vec!["gen".to_string(), "eval".to_string()];
-        execute(&mut state, &graph, &order, &tx, None)
+        execute(&mut state, &graph, &order, &tx, None, None)
             .await
             .unwrap();
         let eval_step = state.steps.iter().find(|s| s.id == "eval").unwrap();
@@ -177,6 +181,8 @@ mod tests {
         let (tx, _rx) = tokio::sync::mpsc::channel(4);
         let graph = WorkflowGraph::new();
         let mut state = make_eval_opt_state();
-        execute(&mut state, &graph, &[], &tx, None).await.unwrap();
+        execute(&mut state, &graph, &[], &tx, None, None)
+            .await
+            .unwrap();
     }
 }

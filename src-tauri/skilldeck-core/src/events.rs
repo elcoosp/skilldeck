@@ -1,87 +1,99 @@
-//! Event types emitted from the Rust core to the React frontend via Tauri IPC.
+// File: src-tauri/src/events.rs
+//! Typed IPC event payloads emitted from Rust to the React frontend.
 //!
-//! `WorkflowEvent` is re-exported here for convenience even though it lives in
-//! the workflow module — the executor emits it on an internal channel.
-pub use crate::workflow::types::WorkflowEvent;
+//! All event names use kebab-case and match the listeners in `src/lib/events.ts`.
 
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
+use specta::Type;
+use tauri_specta::Event;
 
-/// All events the Rust core can emit to the frontend.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+// ── Agent events ─────────────────────────────────────────────────────────────
+
+/// Payload for the `"agent-event"` Tauri channel.
+#[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum AgentEvent {
-    /// A token chunk streamed from the model.
-    TokenChunk {
-        conversation_id: Uuid,
-        message_id: Uuid,
+    Cancelled {
+        conversation_id: String,
+    },
+    Started {
+        conversation_id: String,
+    },
+    Token {
+        conversation_id: String,
         delta: String,
     },
-    /// The agent has begun processing a new turn.
-    TurnStarted {
-        conversation_id: Uuid,
-        message_id: Uuid,
+    ToolCall {
+        conversation_id: String,
+        tool_call: AgentToolCall,
     },
-    /// The agent completed a turn.
-    TurnCompleted {
-        conversation_id: Uuid,
-        message_id: Uuid,
+    ToolResult {
+        conversation_id: String,
+        tool_call_id: String,
+        result: String,
+    },
+    Done {
+        conversation_id: String,
         input_tokens: u32,
         output_tokens: u32,
     },
-    /// The agent encountered an error.
-    TurnError {
-        conversation_id: Uuid,
-        message_id: Uuid,
-        error_code: String,
+    Error {
+        conversation_id: String,
         message: String,
-        suggested_action: Option<String>,
     },
-    /// An MCP tool call was dispatched.
-    ToolCallStarted {
-        conversation_id: Uuid,
-        message_id: Uuid,
-        tool_name: String,
-        server_name: String,
-    },
-    /// An MCP tool call returned a result.
-    ToolCallCompleted {
-        conversation_id: Uuid,
-        message_id: Uuid,
-        tool_name: String,
-        is_error: bool,
-    },
-    /// The agent requires user approval before executing a tool.
-    ToolApprovalRequired {
-        conversation_id: Uuid,
-        approval_id: Uuid,
-        tool_name: String,
-        server_name: String,
-        arguments: serde_json::Value,
-    },
-    /// A subagent was spawned for parallel execution.
-    SubagentSpawned {
-        parent_session_id: Uuid,
-        child_session_id: Uuid,
-    },
-    /// A subagent completed its work.
-    SubagentCompleted { session_id: Uuid, success: bool },
-    /// Skill registry was reloaded (file watcher triggered).
-    SkillsReloaded { source: String, count: usize },
-    /// An MCP server changed health status.
-    McpServerStatus {
-        server_name: String,
-        status: McpServerStatus,
+    /// New messages have been persisted to the database.
+    Persisted {
+        conversation_id: String,
     },
 }
 
-/// Health status of an MCP server.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum McpServerStatus {
-    Connecting,
-    Connected,
-    Disconnected,
-    Restarting { attempt: u32 },
-    Failed,
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct AgentToolCall {
+    pub id: String,
+    pub name: String,
+    pub arguments: serde_json::Value,
+}
+
+// ── MCP events ────────────────────────────────────────────────────────────────
+
+/// Payload for the `"mcp-event"` Tauri channel.
+#[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum McpEvent {
+    ServerConnected { name: String },
+    ServerDisconnected { name: String },
+    ToolDiscovered { server: String, tool: McpToolInfo },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct McpToolInfo {
+    pub name: String,
+    pub description: String,
+}
+
+// ── Workflow events ───────────────────────────────────────────────────────────
+
+/// Payload for the `"workflow-event"` Tauri channel.
+#[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum WorkflowEvent {
+    Started {
+        id: String,
+    },
+    StepStarted {
+        workflow_id: String,
+        step_id: String,
+    },
+    StepCompleted {
+        workflow_id: String,
+        step_id: String,
+        result: Option<String>,
+    },
+    Completed {
+        id: String,
+    },
+    Failed {
+        id: String,
+        message: String,
+    },
 }

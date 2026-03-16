@@ -5,6 +5,7 @@
 
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use specta::{Type, specta};
 use std::{collections::HashMap, sync::Arc};
 use tauri::State;
 use tauri_plugin_keyring::KeyringExt;
@@ -32,19 +33,19 @@ pub struct GistInfo {
     pub description: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Type)]
 struct CreateGistRequest {
     description: String,
     public: bool,
     files: HashMap<String, GistFileBody>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Type)]
 struct GistFileBody {
     content: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Type)]
 struct GitHubGistResponse {
     id: String,
     url: String,
@@ -72,6 +73,7 @@ fn get_github_token(app: &tauri::AppHandle) -> Option<String> {
 // ── Commands ──────────────────────────────────────────────────────────────────
 
 /// Store a GitHub OAuth token in the keychain.
+#[specta]
 #[tauri::command]
 pub async fn set_github_token(token: String, app: tauri::AppHandle) -> Result<(), String> {
     app.keyring()
@@ -80,6 +82,7 @@ pub async fn set_github_token(token: String, app: tauri::AppHandle) -> Result<()
 }
 
 /// Check whether a GitHub token is already stored.
+#[specta]
 #[tauri::command]
 pub async fn has_github_token(app: tauri::AppHandle) -> bool {
     get_github_token(&app).is_some()
@@ -89,6 +92,7 @@ pub async fn has_github_token(app: tauri::AppHandle) -> bool {
 ///
 /// `skill_name` — the skill's filesystem folder name.
 /// `content_md` — the full SKILL.md content.
+#[specta]
 #[tauri::command]
 pub async fn share_skill_as_gist(
     skill_name: String,
@@ -143,6 +147,7 @@ pub async fn share_skill_as_gist(
 
 /// Import a skill from a GitHub Gist URL or ID.
 /// Returns the SKILL.md content so the frontend can write it to disk.
+#[specta]
 #[tauri::command]
 pub async fn import_skill_from_gist(gist_id: String) -> Result<GistFile, String> {
     let url = format!("{GITHUB_API}/gists/{gist_id}");
@@ -183,6 +188,7 @@ pub async fn import_skill_from_gist(gist_id: String) -> Result<GistFile, String>
 }
 
 /// Share a workflow definition as a GitHub Gist.
+#[specta]
 #[tauri::command]
 pub async fn share_workflow_as_gist(
     workflow_name: String,
@@ -234,6 +240,7 @@ pub async fn share_workflow_as_gist(
 }
 
 /// Import a workflow from a Gist ID. Returns the parsed JSON value.
+#[specta]
 #[tauri::command]
 pub async fn import_workflow_from_gist(gist_id: String) -> Result<serde_json::Value, String> {
     #[derive(Deserialize)]
@@ -270,6 +277,7 @@ pub async fn import_workflow_from_gist(gist_id: String) -> Result<serde_json::Va
 }
 
 /// Export a conversation as Markdown with SkillDeck attribution footer.
+#[specta]
 #[tauri::command]
 pub async fn export_conversation_as_markdown(
     title: String,

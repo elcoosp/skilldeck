@@ -481,6 +481,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc897dd8d9e8bd1ed8cdad82b5966c3e0ecae09fb1907d58efaa013543185d0a"
 
 [[package]]
+name = "rustc_version"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cfcb3a22ef46e85b45de6ee7e79d063319ebb6594faafcf1c225ea92ab6e9b92"
+dependencies = [
+ "semver",
+]
+
+[[package]]
 name = "rustix"
 version = "1.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -603,10 +612,20 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
+ "specta",
  "tempfile",
  "thiserror 2.0.18",
  "toml",
  "walkdir",
+]
+
+[[package]]
+name = "specta"
+version = "2.0.0-rc.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "76e9b845c713b099203e50efa3994c73ff25dfcde803d851afde7c818185896f"
+dependencies = [
+ "rustc_version",
 ]
 
 [[package]]

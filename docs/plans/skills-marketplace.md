@@ -504,7 +504,7 @@ export async function getLintRules(): Promise<string[]> {
 
 ```typescript
 import { useQuery } from '@tanstack/react-query';
-import { lintSkill, lintAllLocalSources, getLintRules } from '@/lib/invoke';
+import { lintSkill, lintAllLocalSources, getLintRules } from '@/lib/bindings';
 
 export function useLintSkill(skillPath: string | null) {
   return useQuery({
@@ -796,7 +796,7 @@ export async function fetchRegistrySkills(params?: { category?: string; tags?: s
 
 We'll need a Tauri command that proxies to the platform API (to avoid CORS). Add a command in `src-tauri/src/commands/platform.rs`.
 
-- [ ] **Step 2: Create useSkills hook that merges local and registry skills**
+- [ ] **Step 2: Create useAllSkills hook that merges local and registry skills**
 
 ```typescript
 export function useAllSkills() {

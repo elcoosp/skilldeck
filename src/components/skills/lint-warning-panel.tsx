@@ -6,18 +6,16 @@ import { AlertTriangle, CheckCircle2, Info, ShieldAlert, Wrench, X } from 'lucid
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { useDisableRule } from '@/hooks/use-lint'
-import type { LintWarning } from '@/lib/invoke'
+import type { LintWarning } from '@/lib/bindings'
 
 interface LintWarningPanelProps {
   warnings: LintWarning[]
-  skillPath?: string
   onApplyFix?: (warning: LintWarning) => void
   className?: string
 }
 
 export function LintWarningPanel({
   warnings,
-  skillPath,
   onApplyFix,
   className
 }: LintWarningPanelProps) {
@@ -70,13 +68,13 @@ function WarningRow({ warning, onFix, onIgnore }: WarningRowProps) {
       className={cn(
         'flex items-start gap-2 rounded-md border px-3 py-2 text-sm',
         warning.severity === 'error' && isSecurity &&
-          'border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/20',
+        'border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/20',
         warning.severity === 'error' && !isSecurity &&
-          'border-destructive/30 bg-destructive/5',
+        'border-destructive/30 bg-destructive/5',
         warning.severity === 'warning' &&
-          'border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/20',
+        'border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/20',
         warning.severity === 'info' &&
-          'border-border bg-muted/30'
+        'border-border bg-muted/30'
       )}
     >
       {/* Icon */}

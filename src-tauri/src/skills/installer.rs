@@ -4,12 +4,14 @@
 //! regardless of registry changes.
 
 use anyhow::{Result, bail};
+use serde::{Deserialize, Serialize};
+use specta::Type;
 use std::fs;
 use std::path::PathBuf;
 use tracing::info;
 
 /// Target location for installing a skill.
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum InstallTarget {
     /// `~/.agents/skills/<name>/`
@@ -19,7 +21,7 @@ pub enum InstallTarget {
 }
 
 /// Result returned after a successful installation.
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, Serialize, Type)]
 pub struct InstallResult {
     pub skill_name: String,
     pub installed_path: String,
@@ -75,6 +77,7 @@ pub fn uninstall_skill(skill_name: &str, target: &InstallTarget) -> Result<()> {
     info!("Uninstalled skill '{}'", skill_name);
     Ok(())
 }
+
 #[allow(dead_code)]
 /// Overwrite an existing skill with new content.
 pub fn update_skill(
@@ -100,6 +103,7 @@ pub fn update_skill(
         target: target.clone(),
     })
 }
+
 #[allow(dead_code)]
 /// Read the current content of a locally installed skill.
 pub fn read_local_skill(skill_name: &str, target: &InstallTarget) -> Result<String> {
@@ -113,7 +117,7 @@ pub fn read_local_skill(skill_name: &str, target: &InstallTarget) -> Result<Stri
 fn resolve_target_dir(target: &InstallTarget) -> Result<PathBuf> {
     match target {
         InstallTarget::Personal => {
-            let home = dirs::home_dir()
+            let home = dirs_next::home_dir()
                 .ok_or_else(|| anyhow::anyhow!("Cannot determine home directory"))?;
             Ok(home.join(".agents").join("skills"))
         }

@@ -5,7 +5,6 @@
  * Every developer you bring onboard multiplies your team's AI knowledge.
  */
 
-import { useState } from 'react'
 import { Copy, ExternalLink, Gift, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { useReferral } from '@/hooks/use-platform'

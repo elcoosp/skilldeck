@@ -54,7 +54,7 @@ fn main() -> anyhow::Result<()> {
         } => {
             // Build merged config: global → workspace → explicit override.
             let global_config_path =
-                dirs::config_dir().map(|d| d.join("skilldeck").join("skilldeck-lint.toml"));
+                dirs_next::config_dir().map(|d| d.join("skilldeck").join("skilldeck-lint.toml"));
             let workspace_config_path = path.join(".skilldeck").join("skilldeck-lint.toml");
 
             let merged_config = if let Some(explicit) = config {
@@ -116,7 +116,10 @@ fn main() -> anyhow::Result<()> {
 
                         if let Some(loc) = &w.location {
                             if let Some(line) = loc.line {
-                                println!("  {} [{}] {}:{} — {}", icon, w.rule_id, loc.file, line, w.message);
+                                println!(
+                                    "  {} [{}] {}:{} — {}",
+                                    icon, w.rule_id, loc.file, line, w.message
+                                );
                             } else {
                                 println!("  {} [{}] {} — {}", icon, w.rule_id, loc.file, w.message);
                             }

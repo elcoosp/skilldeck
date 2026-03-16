@@ -9,6 +9,7 @@ use sea_orm::{
     QuerySelect,
 };
 use serde::Serialize;
+use specta::{Type, specta};
 use std::sync::Arc;
 use tauri::State;
 use uuid::Uuid;
@@ -18,7 +19,7 @@ use skilldeck_models::conversations::{self, Entity as Conversation};
 use skilldeck_models::messages::{self as msg_model, Entity as Messages};
 
 /// Lightweight summary used by the sidebar list.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Type)]
 pub struct ConversationSummary {
     pub id: String,
     pub title: Option<String>,
@@ -30,10 +31,11 @@ pub struct ConversationSummary {
 }
 
 /// Create a new conversation for the given profile.
+#[specta]
 #[tauri::command]
 pub async fn create_conversation(
     state: State<'_, Arc<AppState>>,
-    profile_id: String,
+    profile_id: Uuid,
     title: Option<String>,
 ) -> Result<String, String> {
     let db = state
@@ -42,14 +44,13 @@ pub async fn create_conversation(
         .connection()
         .await
         .map_err(|e| e.to_string())?;
-    let profile_uuid = Uuid::parse_str(&profile_id).map_err(|e| e.to_string())?;
 
     let id = Uuid::new_v4();
     let now = chrono::Utc::now().fixed_offset();
 
     let model = conversations::ActiveModel {
         id: Set(id),
-        profile_id: Set(profile_uuid),
+        profile_id: Set(profile_id),
         title: Set(title),
         status: Set("active".to_string()),
         workspace_id: Set(None),
@@ -63,10 +64,11 @@ pub async fn create_conversation(
 }
 
 /// Return conversations for a profile, most-recently-updated first.
+#[specta]
 #[tauri::command]
 pub async fn list_conversations(
     state: State<'_, Arc<AppState>>,
-    profile_id: Option<String>,
+    profile_id: Option<Uuid>,
     limit: Option<u64>,
 ) -> Result<Vec<ConversationSummary>, String> {
     let db = state
@@ -83,8 +85,7 @@ pub async fn list_conversations(
         .limit(limit);
 
     if let Some(pid) = profile_id {
-        let uuid = Uuid::parse_str(&pid).map_err(|e| e.to_string())?;
-        query = query.filter(conversations::Column::ProfileId.eq(uuid));
+        query = query.filter(conversations::Column::ProfileId.eq(pid));
     }
 
     let rows = query.all(db).await.map_err(|e| e.to_string())?;
@@ -113,20 +114,17 @@ pub async fn list_conversations(
 }
 
 /// Soft-delete a conversation.
+#[specta]
 #[tauri::command]
-pub async fn delete_conversation(
-    state: State<'_, Arc<AppState>>,
-    id: String,
-) -> Result<(), String> {
+pub async fn delete_conversation(state: State<'_, Arc<AppState>>, id: Uuid) -> Result<(), String> {
     let db = state
         .registry
         .db
         .connection()
         .await
         .map_err(|e| e.to_string())?;
-    let uuid = Uuid::parse_str(&id).map_err(|e| e.to_string())?;
 
-    let row = Conversation::find_by_id(uuid)
+    let row = Conversation::find_by_id(id)
         .one(db)
         .await
         .map_err(|e| e.to_string())?
@@ -141,10 +139,11 @@ pub async fn delete_conversation(
 }
 
 /// Rename a conversation.
+#[specta]
 #[tauri::command]
 pub async fn rename_conversation(
     state: State<'_, Arc<AppState>>,
-    id: String,
+    id: Uuid,
     title: String,
 ) -> Result<(), String> {
     let db = state
@@ -153,9 +152,8 @@ pub async fn rename_conversation(
         .connection()
         .await
         .map_err(|e| e.to_string())?;
-    let uuid = Uuid::parse_str(&id).map_err(|e| e.to_string())?;
 
-    let row = Conversation::find_by_id(uuid)
+    let row = Conversation::find_by_id(id)
         .one(db)
         .await
         .map_err(|e| e.to_string())?

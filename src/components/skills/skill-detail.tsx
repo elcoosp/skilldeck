@@ -4,11 +4,7 @@
 import { useState } from 'react'
 import {
   ArrowLeft,
-  Book,
-  Calendar,
   ExternalLink,
-  Shield,
-  Star
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -17,11 +13,11 @@ import { TrustBadge, ScoreDots } from './trust-badge'
 import { LintWarningPanel } from './lint-warning-panel'
 import { InstallDialog } from './install-dialog'
 import { BlockedSkillAlert } from './blocked-skill-alert'
-import type { RegistrySkill } from '@/lib/invoke'
+import type { RegistrySkillData } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
 
 interface SkillDetailProps {
-  skill: RegistrySkill
+  skill: RegistrySkillData
   isInstalled?: boolean
   onBack?: () => void
   className?: string

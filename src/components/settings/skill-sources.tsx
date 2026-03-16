@@ -16,13 +16,13 @@ import { Input } from '@/components/ui/input'
 import {
   useAddSkillSource,
   useRemoveSkillSource,
-  useSkillSources
+  useSkillsSources
 } from '@/hooks/use-skills'
-import type { SkillSourceInfo } from '@/lib/invoke'
+import type { SkillSourceInfo } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
 
 export function SkillSources() {
-  const { data: sources = [], isLoading } = useSkillSources()
+  const { data: sources = [], isLoading } = useSkillsSources()
   const addSource = useAddSkillSource()
   const removeSource = useRemoveSkillSource()
 
@@ -151,7 +151,7 @@ function SourceRow({
   source: SkillSourceInfo
   onRemove: () => void
 }) {
-  const Icon = source.sourceType === 'registry' ? Globe : FolderOpen
+  const Icon = source.source_type === 'registry' ? Globe : FolderOpen
 
   return (
     <div className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs">

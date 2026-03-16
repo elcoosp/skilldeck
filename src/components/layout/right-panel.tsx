@@ -33,7 +33,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
-import { listApiKeys, listOllamaModels } from '@/lib/invoke'
+import { commands } from '@/lib/bindings'
 import { McpTab } from './mcp-tab'
 
 type Tab = 'session' | 'skills' | 'mcp' | 'workflow' | 'analytics'
@@ -66,7 +66,6 @@ export function RightPanel() {
               'group flex items-center justify-center gap-0 px-2 py-2.5 text-xs font-medium',
               'transition-all duration-200',
               'overflow-hidden min-w-0',
-              // Remove flex-1, use min-w instead so hovered tab can grow freely
               'flex-none',
               activeTab === id
                 ? 'text-foreground border-b-2 border-primary -mb-px'
@@ -115,8 +114,9 @@ function useAvailableModels(provider: string) {
     queryKey: ['available-models', provider],
     queryFn: async (): Promise<string[]> => {
       if (provider === 'ollama') {
-        const models = await listOllamaModels()
-        return models.map((m) => m.id)
+        const res = await commands.listOllamaModels()
+        if (res.status === 'ok') return res.data.map((m) => m.id)
+        throw new Error(res.error)
       }
       if (provider === 'claude') {
         return ['claude-sonnet-4-5', 'claude-opus-4', 'claude-3-5-sonnet']
@@ -133,13 +133,14 @@ function useAvailableModels(provider: string) {
 function SessionTab({ conversationId }: { conversationId: string | null }) {
   const { data: conversations } = useConversations()
   const { data: profiles } = useProfiles()
-  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(
-    null
-  )
-
+  // selectedProfileId not used yet
   const { data: keyStatuses = [] } = useQuery({
     queryKey: ['api-keys'],
-    queryFn: listApiKeys,
+    queryFn: async () => {
+      const res = await commands.listApiKeys()
+      if (res.status === 'ok') return res.data
+      throw new Error(res.error)
+    },
     staleTime: 30_000
   })
 
@@ -191,27 +192,6 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
         <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
           Profile & Model
         </h3>
-
-        {profiles && profiles.length > 1 && (
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">Profile</label>
-            <Select
-              value={profile.id}
-              onValueChange={(v) => setSelectedProfileId(v)}
-            >
-              <SelectTrigger className="h-7 text-xs">
-                <SelectValue placeholder="Select profile" />
-              </SelectTrigger>
-              <SelectContent>
-                {profiles.map((p) => (
-                  <SelectItem key={p.id} value={p.id} className="text-xs">
-                    {p.name} {p.is_default ? '(default)' : ''}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
 
         <div className="space-y-1">
           <label className="text-xs text-muted-foreground">Provider</label>
@@ -329,8 +309,9 @@ function SkillsTab() {
     )
   }
 
-  const active = skills.filter((s) => s.is_active)
-  const inactive = skills.filter((s) => !s.is_active)
+  // Filter local skills (which have is_active) vs registry skills (no is_active)
+  const active = skills.filter((s) => '_sourceType' in s && s._sourceType === 'local' && s.is_active)
+  const inactive = skills.filter((s) => '_sourceType' in s && s._sourceType === 'local' && !s.is_active)
 
   return (
     <div className="p-3 space-y-3">

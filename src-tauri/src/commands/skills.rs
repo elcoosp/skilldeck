@@ -5,15 +5,15 @@
 //! - fetch_registry_skills
 //! - lint commands, installation, source management, etc.
 
-use std::collections::HashMap;
-use std::path::PathBuf;
-use std::sync::Arc;
-
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, Condition, EntityTrait, QueryFilter,
     QueryOrder,
 };
 use serde::{Deserialize, Serialize};
+use specta::{Type, specta};
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::sync::Arc;
 use tauri::State;
 use uuid::Uuid;
 
@@ -23,7 +23,7 @@ use skilldeck_lint::{LintConfig, LintWarning, lint_skill as do_lint};
 
 // ── Existing commands (list/toggle) ───────────────────────────────────────────
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Type)]
 pub struct SkillInfo {
     pub name: String,
     pub description: String,
@@ -32,6 +32,7 @@ pub struct SkillInfo {
     pub path: Option<String>,
 }
 
+#[specta]
 #[tauri::command]
 pub async fn list_skills(state: State<'_, Arc<AppState>>) -> Result<Vec<SkillInfo>, String> {
     let skills = state.registry.skill_registry.skills().await;
@@ -47,6 +48,7 @@ pub async fn list_skills(state: State<'_, Arc<AppState>>) -> Result<Vec<SkillInf
         .collect())
 }
 
+#[specta]
 #[tauri::command]
 pub async fn toggle_skill(
     state: State<'_, Arc<AppState>>,
@@ -64,6 +66,7 @@ pub async fn toggle_skill(
 // ── Lint commands ─────────────────────────────────────────────────────────────
 
 /// Lint a single skill directory, merging workspace config if present.
+#[specta]
 #[tauri::command]
 pub async fn lint_skill(
     state: State<'_, Arc<AppState>>,
@@ -85,6 +88,7 @@ pub async fn lint_skill(
 }
 
 /// Lint all known local skill source directories.
+#[specta]
 #[tauri::command]
 pub async fn lint_all_local_sources(
     state: State<'_, Arc<AppState>>,
@@ -135,6 +139,7 @@ pub async fn lint_all_local_sources(
 }
 
 /// Get all available lint rule IDs.
+#[specta]
 #[tauri::command]
 pub async fn get_lint_rules() -> Result<Vec<String>, String> {
     Ok(skilldeck_lint::rules::all_rules()
@@ -146,14 +151,28 @@ pub async fn get_lint_rules() -> Result<Vec<String>, String> {
 // ── Installation commands ─────────────────────────────────────────────────────
 
 use crate::skills::installer::{InstallResult, InstallTarget, install_skill as do_install};
-
+/// Validate skill name – only allow alphanumeric, underscore, hyphen.
+fn validate_skill_name(name: &str) -> Result<(), String> {
+    if name.is_empty() {
+        return Err("Skill name cannot be empty".to_string());
+    }
+    if !name
+        .chars()
+        .all(|c| c.is_alphanumeric() || c == '_' || c == '-')
+    {
+        return Err("Skill name contains invalid characters (only letters, numbers, underscores, and hyphens allowed)".to_string());
+    }
+    Ok(())
+}
 /// Install a skill into the personal or workspace location.
+#[specta]
 #[tauri::command]
 pub async fn install_skill(
     skill_name: String,
     skill_content: String,
     target: InstallTarget,
 ) -> Result<InstallResult, String> {
+    validate_skill_name(&skill_name)?;
     tokio::task::spawn_blocking(move || {
         do_install(&skill_name, &skill_content, &target).map_err(|e| e.to_string())
     })
@@ -162,8 +181,10 @@ pub async fn install_skill(
 }
 
 /// Uninstall a locally installed skill.
+#[specta]
 #[tauri::command]
 pub async fn uninstall_skill(skill_name: String, target: InstallTarget) -> Result<(), String> {
+    validate_skill_name(&skill_name)?;
     tokio::task::spawn_blocking(move || {
         crate::skills::installer::uninstall_skill(&skill_name, &target).map_err(|e| e.to_string())
     })
@@ -173,13 +194,14 @@ pub async fn uninstall_skill(skill_name: String, target: InstallTarget) -> Resul
 
 // ── Diff / conflict resolution ────────────────────────────────────────────────
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Type)]
 pub struct DiffResult {
     pub diff: String,
     pub has_changes: bool,
 }
 
 /// Compute a unified diff between the locally installed skill and a registry version.
+#[specta]
 #[tauri::command]
 pub async fn diff_skill_versions(
     local_path: PathBuf,
@@ -232,7 +254,7 @@ fn produce_simple_diff(old: &str, new: &str) -> String {
 
 // ── Lint config management ────────────────────────────────────────────────────
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum ConfigScope {
     Global,
@@ -240,6 +262,7 @@ pub enum ConfigScope {
 }
 
 /// Disable a lint rule by adding it to the TOML config file.
+#[specta]
 #[tauri::command]
 pub async fn disable_lint_rule(
     state: State<'_, Arc<AppState>>,
@@ -247,7 +270,7 @@ pub async fn disable_lint_rule(
     scope: ConfigScope,
 ) -> Result<(), String> {
     let config_path = match scope {
-        ConfigScope::Global => dirs::config_dir()
+        ConfigScope::Global => dirs_next::config_dir()
             .ok_or("Cannot find config dir")?
             .join("skilldeck")
             .join("skilldeck-lint.toml"),
@@ -293,7 +316,7 @@ pub async fn disable_lint_rule(
 
 // ── Source management ─────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct SkillSourceInfo {
     pub id: String,
     pub source_type: String, // "local_path" | "registry"
@@ -301,6 +324,7 @@ pub struct SkillSourceInfo {
     pub label: Option<String>,
 }
 
+#[specta]
 #[tauri::command]
 pub async fn list_skill_sources(
     state: State<'_, Arc<AppState>>,
@@ -329,6 +353,7 @@ pub async fn list_skill_sources(
         .collect())
 }
 
+#[specta]
 #[tauri::command]
 pub async fn add_skill_source(
     state: State<'_, Arc<AppState>>,
@@ -358,6 +383,7 @@ pub async fn add_skill_source(
     Ok(id.to_string())
 }
 
+#[specta]
 #[tauri::command]
 pub async fn remove_skill_source(
     state: State<'_, Arc<AppState>>,
@@ -381,7 +407,7 @@ pub async fn remove_skill_source(
 
 // ── Registry sync commands ────────────────────────────────────────────────────
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct RegistrySkillData {
     pub id: String,
@@ -465,12 +491,14 @@ pub async fn sync_registry_skills_background(state: &AppState) -> Result<usize, 
 }
 
 /// Synchronize skills from the platform registry (Tauri command).
+#[specta]
 #[tauri::command]
 pub async fn sync_registry_skills(state: State<'_, Arc<AppState>>) -> Result<usize, String> {
     sync_registry_skills_background(&state).await
 }
 
 /// Fetch registry skills from the local cache.
+#[specta]
 #[tauri::command]
 pub async fn fetch_registry_skills(
     state: State<'_, Arc<AppState>>,
@@ -501,3 +529,4 @@ pub async fn fetch_registry_skills(
     let skills = query.all(db).await.map_err(|e| e.to_string())?; // Fixed: `db` not `&db`
     Ok(skills.into_iter().map(Into::into).collect())
 }
+

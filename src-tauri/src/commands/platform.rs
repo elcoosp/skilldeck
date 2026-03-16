@@ -2,6 +2,7 @@
 //!
 //! All commands that call the platform first check that platform features are
 //! enabled and that credentials have been initialised.
+use specta::{Type, specta};
 
 use std::sync::Arc;
 use tauri::State;
@@ -31,6 +32,7 @@ fn map_err(e: PlatformError) -> String {
 /// already exist in the keychain the function is a no-op.  Otherwise it
 /// registers with the platform, stores the API key in the keychain, and
 /// persists the `platform_user_id` in the local `user_preferences` table.
+#[specta]
 #[tauri::command]
 pub async fn ensure_platform_registration(
     app: tauri::AppHandle,
@@ -39,10 +41,11 @@ pub async fn ensure_platform_registration(
     // Check whether we already have a stored key.
     let keyring = app.keyring();
     if let Ok(maybe_key) = keyring.get_password(KEYRING_SERVICE, PLATFORM_KEY_ACCOUNT)
-        && maybe_key.is_some() {
-            info!("Platform API key already stored – skipping registration");
-            return Ok(());
-        }
+        && maybe_key.is_some()
+    {
+        info!("Platform API key already stored – skipping registration");
+        return Ok(());
+    }
 
     // Not yet registered – call the platform.
     let client = state.platform_client.read().await;
@@ -93,6 +96,7 @@ pub async fn ensure_platform_registration(
 
 // ── Preferences ───────────────────────────────────────────────────────────────
 
+#[specta]
 #[tauri::command]
 pub async fn get_platform_preferences(
     state: State<'_, Arc<AppState>>,
@@ -101,12 +105,12 @@ pub async fn get_platform_preferences(
         .platform_client
         .read()
         .await
-        .get_preferences()
+        .get_preferences(None)
         .await
         .map_err(map_err)
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Type)]
 pub struct UpdatePrefsPayload {
     pub email: Option<String>,
     pub nudge_frequency: Option<String>,
@@ -117,6 +121,7 @@ pub struct UpdatePrefsPayload {
     pub analytics_opt_in: Option<bool>,
 }
 
+#[specta]
 #[tauri::command]
 pub async fn update_platform_preferences(
     payload: UpdatePrefsPayload,
@@ -135,22 +140,24 @@ pub async fn update_platform_preferences(
         .platform_client
         .read()
         .await
-        .update_preferences(req)
+        .update_preferences(req, None)
         .await
         .map_err(map_err)
 }
 
+#[specta]
 #[tauri::command]
 pub async fn resend_verification_email(state: State<'_, Arc<AppState>>) -> Result<(), String> {
     state
         .platform_client
         .read()
         .await
-        .resend_verification()
+        .resend_verification(None)
         .await
         .map_err(map_err)
 }
 
+#[specta]
 #[tauri::command]
 pub async fn export_gdpr_data(
     state: State<'_, Arc<AppState>>,
@@ -159,11 +166,12 @@ pub async fn export_gdpr_data(
         .platform_client
         .read()
         .await
-        .export_gdpr_data()
+        .export_gdpr_data(None)
         .await
         .map_err(map_err)
 }
 
+#[specta]
 #[tauri::command]
 pub async fn delete_platform_account(
     app: tauri::AppHandle,
@@ -173,7 +181,7 @@ pub async fn delete_platform_account(
         .platform_client
         .read()
         .await
-        .delete_account()
+        .delete_account(None)
         .await
         .map_err(map_err)?;
 
@@ -186,6 +194,7 @@ pub async fn delete_platform_account(
 
 // ── Referrals ─────────────────────────────────────────────────────────────────
 
+#[specta]
 #[tauri::command]
 pub async fn create_referral_code(
     state: State<'_, Arc<AppState>>,
@@ -194,24 +203,26 @@ pub async fn create_referral_code(
         .platform_client
         .read()
         .await
-        .create_referral_code()
+        .create_referral_code(None)
         .await
         .map_err(map_err)
 }
 
+#[specta]
 #[tauri::command]
 pub async fn get_referral_stats(state: State<'_, Arc<AppState>>) -> Result<ReferralStats, String> {
     state
         .platform_client
         .read()
         .await
-        .get_referral_stats()
+        .get_referral_stats(None)
         .await
         .map_err(map_err)
 }
 
 // ── Nudges ────────────────────────────────────────────────────────────────────
 
+#[specta]
 #[tauri::command]
 pub async fn get_pending_nudges(
     state: State<'_, Arc<AppState>>,
@@ -220,19 +231,20 @@ pub async fn get_pending_nudges(
         .platform_client
         .read()
         .await
-        .get_pending_nudges()
+        .get_pending_nudges(None)
         .await
         .map_err(map_err)
 }
 
 // ── Activity events ───────────────────────────────────────────────────────────
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Type)]
 pub struct ActivityEventPayload {
     pub event_type: String,
     pub metadata: Option<serde_json::Value>,
 }
 
+#[specta]
 #[tauri::command]
 pub async fn send_activity_event(
     payload: ActivityEventPayload,
@@ -250,6 +262,7 @@ pub async fn send_activity_event(
         .send_activity_event(
             payload.event_type,
             payload.metadata.unwrap_or(serde_json::json!({})),
+            None,
         )
         .await
         .map_err(map_err)

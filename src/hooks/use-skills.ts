@@ -1,23 +1,13 @@
 // src/hooks/use-skills.ts
 // React Query hooks for skills — local, registry, and merged views.
 
-import { useMemo } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  addSkillSource,
-  fetchRegistrySkills,
-  installSkill,
-  listSkillSources,
-  listSkills,
-  removeSkillSource,
-  syncRegistrySkills,
-  toggleSkill,
-  uninstallSkill,
-  type InstallTarget,
-  type RegistrySkill,
-  type Skill,
-  type SkillSourceInfo
-} from '@/lib/invoke'
+import { commands } from '@/lib/bindings'
+import type {
+  InstallTarget,
+  RegistrySkillData,
+  SkillInfo,
+} from '@/lib/bindings'
 import { toast } from 'sonner'
 
 // ── Local skills ──────────────────────────────────────────────────────────────
@@ -25,7 +15,11 @@ import { toast } from 'sonner'
 export function useLocalSkills() {
   return useQuery({
     queryKey: ['skills', 'local'],
-    queryFn: listSkills,
+    queryFn: async () => {
+      const res = await commands.listSkills()
+      if (res.status === 'ok') return res.data
+      throw new Error(res.error)
+    },
     staleTime: 30_000
   })
 }
@@ -38,7 +32,14 @@ export function useRegistrySkills(params?: {
 }) {
   return useQuery({
     queryKey: ['skills', 'registry', params],
-    queryFn: () => fetchRegistrySkills(params),
+    queryFn: async () => {
+      const res = await commands.fetchRegistrySkills(
+        params?.category ?? null,
+        params?.search ?? null
+      )
+      if (res.status === 'ok') return res.data
+      throw new Error(res.error)
+    },
     staleTime: 5 * 60_000, // 5 min — registry data changes slowly
     retry: 1
   })
@@ -47,35 +48,46 @@ export function useRegistrySkills(params?: {
 // ── Merged view ───────────────────────────────────────────────────────────────
 
 export type MergedSkill =
-  | (RegistrySkill & { _sourceType: 'registry' })
-  | (Skill & { _sourceType: 'local'; id: string })
+  | (RegistrySkillData & { _sourceType: 'registry' })
+  | (SkillInfo & { _sourceType: 'local' })
 
 export function useAllSkills(params?: { category?: string; search?: string }) {
   const localQuery = useQuery({
     queryKey: ['skills', 'local'],
-    queryFn: listSkills,
-  });
+    queryFn: async () => {
+      const res = await commands.listSkills()
+      if (res.status === 'ok') return res.data
+      throw new Error(res.error)
+    }
+  })
 
   const registryQuery = useQuery({
     queryKey: ['skills', 'registry', params],
-    queryFn: () => fetchRegistrySkills(params),
-  });
+    queryFn: async () => {
+      const res = await commands.fetchRegistrySkills(
+        params?.category ?? null,
+        params?.search ?? null
+      )
+      if (res.status === 'ok') return res.data
+      throw new Error(res.error)
+    }
+  })
 
   const combined = (() => {
-    const local = (localQuery.data ?? []).map(s => ({ ...s, _sourceType: 'local' as const }));
-    const registry = (registryQuery.data ?? []).map(s => ({ ...s, _sourceType: 'registry' as const }));
-    return [...local, ...registry];
-  })();
+    const local = (localQuery.data ?? []).map(s => ({ ...s, _sourceType: 'local' as const }))
+    const registry = (registryQuery.data ?? []).map(s => ({ ...s, _sourceType: 'registry' as const }))
+    return [...local, ...registry]
+  })()
 
   return {
     skills: combined,
     isLoading: localQuery.isLoading || registryQuery.isLoading,
     isError: localQuery.isError || registryQuery.isError,
     refetch: () => {
-      localQuery.refetch();
-      registryQuery.refetch();
-    },
-  };
+      localQuery.refetch()
+      registryQuery.refetch()
+    }
+  }
 }
 
 // ── Toggle ────────────────────────────────────────────────────────────────────
@@ -83,8 +95,11 @@ export function useAllSkills(params?: { category?: string; search?: string }) {
 export function useToggleSkill() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ name, active }: { name: string; active: boolean }) =>
-      toggleSkill(name, active),
+    mutationFn: async ({ name, active }: { name: string; active: boolean }) => {
+      const res = await commands.toggleSkill(name, active)
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['skills', 'local'] })
   })
 }
@@ -94,7 +109,7 @@ export function useToggleSkill() {
 export function useInstallSkill() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({
+    mutationFn: async ({
       skillName,
       skillContent,
       target
@@ -102,9 +117,13 @@ export function useInstallSkill() {
       skillName: string
       skillContent: string
       target: InstallTarget
-    }) => installSkill(skillName, skillContent, target),
+    }) => {
+      const res = await commands.installSkill(skillName, skillContent, target)
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
+    },
     onSuccess: (result) => {
-      toast.success(`Skill "${result.skillName}" installed successfully`)
+      toast.success(`Skill "${result.skill_name}" installed successfully`)
       queryClient.invalidateQueries({ queryKey: ['skills'] })
     },
     onError: (e: unknown) => toast.error(`Install failed: ${e}`)
@@ -116,8 +135,11 @@ export function useInstallSkill() {
 export function useUninstallSkill() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ skillName, target }: { skillName: string; target: InstallTarget }) =>
-      uninstallSkill(skillName, target),
+    mutationFn: async ({ skillName, target }: { skillName: string; target: InstallTarget }) => {
+      const res = await commands.uninstallSkill(skillName, target)
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
+    },
     onSuccess: () => {
       toast.success('Skill uninstalled')
       queryClient.invalidateQueries({ queryKey: ['skills'] })
@@ -131,7 +153,11 @@ export function useUninstallSkill() {
 export function useSyncRegistry() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: syncRegistrySkills,
+    mutationFn: async () => {
+      const res = await commands.syncRegistrySkills()
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
+    },
     onSuccess: (count) => {
       toast.success(`Synced ${count} skill(s) from registry`)
       queryClient.invalidateQueries({ queryKey: ['skills', 'registry'] })
@@ -142,10 +168,14 @@ export function useSyncRegistry() {
 
 // ── Sources ───────────────────────────────────────────────────────────────────
 
-export function useSkillSources() {
+export function useSkillsSources() {
   return useQuery({
     queryKey: ['skills', 'sources'],
-    queryFn: listSkillSources,
+    queryFn: async () => {
+      const res = await commands.listSkillSources()
+      if (res.status === 'ok') return res.data
+      throw new Error(res.error)
+    },
     staleTime: 60_000
   })
 }
@@ -153,7 +183,7 @@ export function useSkillSources() {
 export function useAddSkillSource() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({
+    mutationFn: async ({
       sourceType,
       path,
       label
@@ -161,7 +191,11 @@ export function useAddSkillSource() {
       sourceType: string
       path: string
       label?: string
-    }) => addSkillSource(sourceType, path, label),
+    }) => {
+      const res = await commands.addSkillSource(sourceType, path, label ?? null)
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
+    },
     onSuccess: () => {
       toast.success('Skill source added')
       queryClient.invalidateQueries({ queryKey: ['skills'] })
@@ -173,7 +207,11 @@ export function useAddSkillSource() {
 export function useRemoveSkillSource() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => removeSkillSource(id),
+    mutationFn: async (id: string) => {
+      const res = await commands.removeSkillSource(id)
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
+    },
     onSuccess: () => {
       toast.success('Skill source removed')
       queryClient.invalidateQueries({ queryKey: ['skills'] })

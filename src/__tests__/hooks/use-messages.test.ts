@@ -3,13 +3,13 @@ import { useUIStore } from '@/store/ui'
 import { useMessagesWithStream } from '@/hooks/use-messages'
 import { renderHook } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import * as invoke from '@/lib/invoke'
-import type { Message } from '@/lib/invoke'
+import * as bindings from '@/lib/bindings'
+import type { MessageData } from '@/lib/bindings'
 import React from 'react'
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
-const msg = (id: string, role: Message['role'], content: string): Message => ({
+const msg = (id: string, role: MessageData['role'], content: string): MessageData => ({
   id,
   conversation_id: 'conv-1',
   role,
@@ -27,10 +27,13 @@ const wrapper = ({ children }: { children: React.ReactNode }) =>
   )
 
 beforeEach(() => {
-  vi.spyOn(invoke, 'listMessages').mockResolvedValue([
-    msg('m1', 'user', 'Hello'),
-    msg('m2', 'assistant', 'Hi there')
-  ])
+  vi.spyOn(bindings.commands, 'listMessages').mockResolvedValue({
+    status: 'ok',
+    data: [
+      msg('m1', 'user', 'Hello'),
+      msg('m2', 'assistant', 'Hi there')
+    ]
+  })
 
   useUIStore.setState({
     activeConversationId: null,
@@ -54,11 +57,13 @@ describe('useMessagesWithStream', () => {
       wrapper
     })
 
-    // Before query resolves the list is empty
-    expect(Array.isArray(result.current)).toBe(true)
+    // Wait for query to resolve
+    await vi.waitFor(() => {
+      expect(result.current.length).toBe(2)
+    })
   })
 
-  it('appends synthetic streaming bubble when agent is running', () => {
+  it('appends synthetic streaming bubble when agent is running', async () => {
     // Seed store with streaming text and running flag
     useUIStore.setState({
       streamingText: { 'conv-1': 'Partial response…' },
@@ -69,14 +74,18 @@ describe('useMessagesWithStream', () => {
       wrapper
     })
 
-    const messages = result.current
-    const streamBubble = messages.find((m) => m.id === '__streaming__')
+    // Wait for query to resolve
+    await vi.waitFor(() => {
+      expect(result.current.length).toBe(3) // 2 persisted + 1 streaming
+    })
+
+    const streamBubble = result.current.find((m) => m.id === '__streaming__')
     expect(streamBubble).toBeDefined()
     expect(streamBubble?.content).toBe('Partial response…')
     expect(streamBubble?.role).toBe('assistant')
   })
 
-  it('does not append streaming bubble when agent is not running', () => {
+  it('does not append streaming bubble when agent is not running', async () => {
     useUIStore.setState({
       streamingText: {},
       agentRunning: { 'conv-1': false }
@@ -86,11 +95,15 @@ describe('useMessagesWithStream', () => {
       wrapper
     })
 
+    await vi.waitFor(() => {
+      expect(result.current.length).toBe(2)
+    })
+
     const streamBubble = result.current.find((m) => m.id === '__streaming__')
     expect(streamBubble).toBeUndefined()
   })
 
-  it('does not append streaming bubble when streamingText is empty string', () => {
+  it('does not append streaming bubble when streamingText is empty string', async () => {
     useUIStore.setState({
       streamingText: { 'conv-1': '' },
       agentRunning: { 'conv-1': true }
@@ -98,6 +111,10 @@ describe('useMessagesWithStream', () => {
 
     const { result } = renderHook(() => useMessagesWithStream('conv-1'), {
       wrapper
+    })
+
+    await vi.waitFor(() => {
+      expect(result.current.length).toBe(2)
     })
 
     const streamBubble = result.current.find((m) => m.id === '__streaming__')

@@ -19,10 +19,15 @@ use commands::{
     conversations::*, export::*, gist::*, mcp::*, messages::*, ollama::*, platform::*, profiles::*,
     settings::*, skills::*, workspaces::*,
 };
+use events::{AgentEvent, McpEvent, WorkflowEvent};
 use state::AppState;
 use std::sync::Arc;
 use tauri::Manager;
 use tracing_subscriber::{EnvFilter, fmt};
+
+// Specta bindings export
+use specta_typescript::{BigIntExportBehavior, Typescript};
+use tauri_specta::{Builder, collect_commands, collect_events};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -35,42 +40,9 @@ pub fn run() {
         )
         .init();
 
-    tauri::Builder::default()
-        .plugin(tauri_plugin_shell::init())
-        .plugin(tauri_plugin_store::Builder::default().build())
-        .plugin(tauri_plugin_keyring::init())
-        .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_dialog::init())
-        .setup(|app| {
-            let handle = app.handle().clone();
-            tauri::async_runtime::block_on(async move {
-                let state = AppState::initialize(&handle)
-                    .await
-                    .expect("Failed to initialize AppState");
-                let state = Arc::new(state);
-
-                // Start nudge poller
-                nudge_poller::start_nudge_poller(handle.clone(), Arc::clone(&state));
-
-                // Start skill sync poller (hourly)
-                let sync_state = Arc::clone(&state);
-                tokio::spawn(async move {
-                    let mut interval = tokio::time::interval(std::time::Duration::from_secs(3600));
-                    loop {
-                        interval.tick().await;
-                        if let Err(e) =
-                            commands::skills::sync_registry_skills_background(&sync_state).await
-                        {
-                            tracing::warn!("Background skill sync failed: {}", e);
-                        }
-                    }
-                });
-
-                handle.manage(state);
-            });
-            Ok(())
-        })
-        .invoke_handler(tauri::generate_handler![
+    // Build Tauri Specta builder with all commands and events
+    let builder = Builder::<tauri::Wry>::new()
+        .commands(collect_commands![
             // skills — registry sync
             sync_registry_skills,
             fetch_registry_skills,
@@ -88,6 +60,7 @@ pub fn run() {
             create_profile,
             update_profile,
             delete_profile,
+            set_default_profile,
             // settings / keys
             list_api_keys,
             set_api_key,
@@ -143,8 +116,63 @@ pub fn run() {
             export_gdpr_data,
             delete_platform_account,
             // agent
-            cancel_agent
+            cancel_agent,
+            // settings
+            test_api_connection,
         ])
+        .events(collect_events![AgentEvent, McpEvent, WorkflowEvent]);
+
+    #[cfg(debug_assertions)]
+    {
+        // Create a Typescript exporter with String behavior for BigInts
+        let ts = Typescript::default().bigint(BigIntExportBehavior::String);
+        builder
+            .export(ts, "../src/lib/bindings.ts")
+            .expect("Failed to export TypeScript bindings");
+    }
+
+    // Get the invoke handler (borrows builder, does not consume it)
+    let invoke_handler = builder.invoke_handler();
+
+    tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_store::Builder::default().build())
+        .plugin(tauri_plugin_keyring::init())
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
+        .setup(move |app| {
+            // Mount events for Tauri Specta (consumes builder)
+            builder.mount_events(app);
+
+            let handle = app.handle().clone();
+            tauri::async_runtime::block_on(async move {
+                let state = AppState::initialize(&handle)
+                    .await
+                    .expect("Failed to initialize AppState");
+                let state = Arc::new(state);
+
+                // Start nudge poller
+                nudge_poller::start_nudge_poller(handle.clone(), Arc::clone(&state));
+
+                // Start skill sync poller (hourly)
+                let sync_state = Arc::clone(&state);
+                tokio::spawn(async move {
+                    let mut interval = tokio::time::interval(std::time::Duration::from_secs(3600));
+                    loop {
+                        interval.tick().await;
+                        if let Err(e) =
+                            commands::skills::sync_registry_skills_background(&sync_state).await
+                        {
+                            tracing::warn!("Background skill sync failed: {}", e);
+                        }
+                    }
+                });
+
+                handle.manage(state);
+            });
+            Ok(())
+        })
+        .invoke_handler(invoke_handler)
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

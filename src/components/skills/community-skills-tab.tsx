@@ -5,7 +5,7 @@
  */
 
 import { useState } from 'react'
-import { Download, ExternalLink, Search, X } from 'lucide-react'
+import { Download, Search, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { importSkillFromGist } from '@/lib/gist'
 import { sendActivityEvent } from '@/lib/platform'
@@ -95,7 +95,7 @@ export function CommunitySkillsTab({ onInstall }: Props) {
       sendActivityEvent('skill_created', {
         source: 'community',
         skill_name: skill.name
-      }).catch(() => {})
+      }).catch(() => { })
       toast.success(`${skill.name} installed!`)
     } catch (e: any) {
       toast.error(e?.message ?? 'Install failed')
@@ -117,7 +117,7 @@ export function CommunitySkillsTab({ onInstall }: Props) {
       const skillName = file.filename.replace(/\.md$/, '') || 'imported-skill'
       onInstall(skillName, file.content)
       sendActivityEvent('skill_created', { source: 'gist_import' }).catch(
-        () => {}
+        () => { }
       )
       toast.success(`${skillName} imported!`)
       setGistImportId('')

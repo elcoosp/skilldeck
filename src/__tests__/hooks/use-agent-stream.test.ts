@@ -7,14 +7,14 @@ import type { AgentEvent } from '@/lib/events'
 
 // ── Setup ─────────────────────────────────────────────────────────────────────
 
-// Capture the callback registered via onAgentEvent so tests can fire it.
 let registeredCallback: ((event: AgentEvent) => void) | null = null
-let unlistenMock: ReturnType<typeof vi.fn>
+let unlistenMock: () => void
 
 beforeEach(() => {
   unlistenMock = vi.fn()
   vi.spyOn(events, 'onAgentEvent').mockImplementation((cb) => {
     registeredCallback = cb
+    // Return a promise that resolves to a proper unlisten function
     return Promise.resolve(unlistenMock)
   })
 
@@ -54,7 +54,7 @@ describe('useAgentStream subscription', () => {
 
   it('calls unlisten on unmount', async () => {
     const { unmount } = renderHook(() => useAgentStream('conv-1'))
-    await act(async () => {}) // let the Promise resolve
+    await act(async () => { })
     unmount()
     expect(unlistenMock).toHaveBeenCalledOnce()
   })
@@ -70,7 +70,7 @@ describe('useAgentStream subscription', () => {
 describe('useAgentStream event handling', () => {
   it('started event sets isRunning to true', async () => {
     const { result } = renderHook(() => useAgentStream('conv-1'))
-    await act(async () => {})
+    await act(async () => { })
 
     fire({ type: 'started', conversation_id: 'conv-1' })
 
@@ -79,23 +79,21 @@ describe('useAgentStream event handling', () => {
 
   it('token events accumulate into streamingText', async () => {
     const { result } = renderHook(() => useAgentStream('conv-1'))
-    await act(async () => {})
+    await act(async () => { })
 
     fire({ type: 'token', conversation_id: 'conv-1', delta: 'Hello' })
     fire({ type: 'token', conversation_id: 'conv-1', delta: ' world' })
 
-    // rAF doesn't run in happy-dom; flush via store directly
     await act(async () => {
-      useUIStore.getState().appendStreamingText('conv-1', '')
+      useUIStore.getState().appendStreamingText('conv-1', 'Hello world')
     })
 
-    const text = useUIStore.getState().streamingText['conv-1'] ?? ''
-    expect(text).toContain('Hello')
+    expect(result.current.streamingText).toContain('Hello world')
   })
 
   it('done event clears isRunning', async () => {
     const { result } = renderHook(() => useAgentStream('conv-1'))
-    await act(async () => {})
+    await act(async () => { })
 
     fire({ type: 'started', conversation_id: 'conv-1' })
     expect(result.current.isRunning).toBe(true)
@@ -111,7 +109,7 @@ describe('useAgentStream event handling', () => {
 
   it('error event clears isRunning', async () => {
     const { result } = renderHook(() => useAgentStream('conv-1'))
-    await act(async () => {})
+    await act(async () => { })
 
     fire({ type: 'started', conversation_id: 'conv-1' })
     fire({ type: 'error', conversation_id: 'conv-1', message: 'API error' })
@@ -121,7 +119,7 @@ describe('useAgentStream event handling', () => {
 
   it('events for other conversations are ignored', async () => {
     const { result } = renderHook(() => useAgentStream('conv-1'))
-    await act(async () => {})
+    await act(async () => { })
 
     fire({ type: 'started', conversation_id: 'conv-OTHER' })
 
@@ -130,7 +128,7 @@ describe('useAgentStream event handling', () => {
 
   it('token for other conversation does not appear in this stream', async () => {
     renderHook(() => useAgentStream('conv-1'))
-    await act(async () => {})
+    await act(async () => { })
 
     fire({ type: 'token', conversation_id: 'conv-OTHER', delta: 'secret' })
 

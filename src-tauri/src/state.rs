@@ -3,7 +3,7 @@
 
 use dashmap::DashMap;
 use sea_orm::EntityTrait;
-use std::{env::home_dir, sync::Arc};
+use std::sync::Arc;
 use tauri::Manager;
 use tauri_plugin_keyring::KeyringExt;
 use tokio::sync::RwLock;
@@ -103,7 +103,6 @@ impl AppState {
             .register_transport(SseTransport::new());
 
         // ── Load persisted MCP servers from database ───────────────────────────
-        // This call makes the `reload_mcp_servers_from_db` function used.
         reload_mcp_servers_from_db(&registry.db, &registry.mcp_registry).await;
 
         // ── Register model providers ──────────────────────────────────────────
@@ -134,7 +133,7 @@ impl AppState {
 
         // ── Lint config ───────────────────────────────────────────────────────
         let global_config_path =
-            dirs::config_dir().map(|d| d.join("skilldeck").join("skilldeck-lint.toml"));
+            dirs_next::config_dir().map(|d| d.join("skilldeck").join("skilldeck-lint.toml"));
 
         let lint_config =
             LintConfig::from_files(global_config_path.as_deref(), None).unwrap_or_default();
@@ -210,7 +209,7 @@ impl AppState {
         let skill_dirs = match ctx {
             Ok(ref c) => c.skill_directories.clone(),
             Err(_) => {
-                if let Some(home) = home_dir() {
+                if let Some(home) = dirs_next::home_dir() {
                     let global = home.join(".agents").join("skills");
                     if global.exists() {
                         vec![("personal".to_string(), global)]
@@ -226,8 +225,31 @@ impl AppState {
         if skill_dirs.is_empty() {
             warn!("No skill directories found — skills will not be loaded");
         } else {
-            let scanned = scanner::scan_directories(&skill_dirs).await;
-            for (label, skills) in scanned {
+            // Ensure each skill directory exists before scanning
+            for (_label, path) in &skill_dirs {
+                if !path.exists() {
+                    tokio::fs::create_dir_all(path).await.map_err(|e| {
+                        tracing::error!("Failed to create skill directory {:?}: {}", path, e);
+                        e
+                    })?;
+                }
+            }
+
+            // --- PARALLEL SCANNING (changed) ---
+            use futures::future::join_all;
+            let scan_futures = skill_dirs.iter().map(|(label, path)| {
+                let path = path.clone();
+                async move {
+                    let skills = scanner::scan_directory(&path).await.unwrap_or_else(|e| {
+                        tracing::warn!("Failed to scan skill directory {:?}: {}", path, e);
+                        vec![]
+                    });
+                    (label.clone(), skills)
+                }
+            });
+            let scanned_results = join_all(scan_futures).await;
+
+            for (label, skills) in scanned_results {
                 info!(
                     "Registering {} skills from source '{}'",
                     skills.len(),
@@ -239,6 +261,8 @@ impl AppState {
                     .register_source(label, skills)
                     .await;
             }
+            // --- END PARALLEL SCANNING ---
+
             for (label, path) in &skill_dirs {
                 match start_registry_watcher(
                     path.clone(),

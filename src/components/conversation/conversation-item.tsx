@@ -17,7 +17,7 @@ import {
   useDeleteConversation,
   useRenameConversation
 } from '@/hooks/use-conversations'
-import type { ConversationSummary } from '@/lib/invoke'
+import type { ConversationSummary } from '@/lib/bindings'
 
 interface ConversationItemProps {
   conversation: ConversationSummary

@@ -10,6 +10,7 @@ use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, QueryFilter, QueryOrder,
 };
 use serde::Serialize;
+use specta::{Type, specta};
 use std::sync::Arc;
 use tauri::{Emitter, State};
 use uuid::Uuid;
@@ -20,7 +21,7 @@ use skilldeck_models::conversations::{self, Entity as Conversations};
 use skilldeck_models::messages::{self, Entity as Messages};
 
 /// Serialisable message returned to the frontend.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Type)]
 pub struct MessageData {
     pub id: String,
     pub conversation_id: String,
@@ -28,6 +29,8 @@ pub struct MessageData {
     pub content: String,
     pub created_at: String,
 }
+
+#[specta]
 #[tauri::command]
 pub async fn cancel_agent(
     state: State<'_, Arc<AppState>>,
@@ -36,9 +39,11 @@ pub async fn cancel_agent(
     state.cancel_agent(&conversation_id);
     Ok(())
 }
+
 /// List all messages for a conversation, oldest-first.
 ///
 /// `branch_id` is reserved for branch-aware retrieval (v1.1).
+#[specta]
 #[tauri::command]
 pub async fn list_messages(
     state: State<'_, Arc<AppState>>,
@@ -76,6 +81,7 @@ pub async fn list_messages(
 ///
 /// Returns immediately once the message is persisted; the agent loop emits
 /// `agent-event` payloads asynchronously.
+#[specta]
 #[tauri::command]
 pub async fn send_message(
     state: State<'_, Arc<AppState>>,
@@ -129,6 +135,7 @@ pub async fn send_message(
 /// Resolve a pending tool-approval from the frontend.
 ///
 /// Called when the user clicks "Approve" or "Deny" on a `ToolApprovalCard`.
+#[specta]
 #[tauri::command]
 pub async fn resolve_tool_approval(
     state: State<'_, Arc<AppState>>,
@@ -178,31 +185,23 @@ async fn resolve_provider_and_model(state: &AppState, conversation_id: &str) -> 
     const FALLBACK_MODEL: &str = "llama3.2:latest";
 
     // Try to read conversation → profile from DB.
-    let Ok(db) = state.registry.db.connection().await else {
-        return (FALLBACK_PROVIDER.into(), FALLBACK_MODEL.into());
+    let db = match state.registry.db.connection().await {
+        Ok(db) => db,
+        Err(_) => return (FALLBACK_PROVIDER.into(), FALLBACK_MODEL.into()),
     };
-    let Ok(conv_uuid) = Uuid::parse_str(conversation_id) else {
-        return (FALLBACK_PROVIDER.into(), FALLBACK_MODEL.into());
-    };
-
-    let conv = Conversations::find_by_id(conv_uuid)
-        .one(db)
-        .await
-        .ok()
-        .flatten();
-
-    let profile = if let Some(c) = conv {
-        Profiles::find_by_id(c.profile_id)
-            .one(db)
-            .await
-            .ok()
-            .flatten()
-    } else {
-        None
+    let conv_uuid = match Uuid::parse_str(conversation_id) {
+        Ok(u) => u,
+        Err(_) => return (FALLBACK_PROVIDER.into(), FALLBACK_MODEL.into()),
     };
 
-    let Some(profile) = profile else {
-        return (FALLBACK_PROVIDER.into(), FALLBACK_MODEL.into());
+    let conv = match Conversations::find_by_id(conv_uuid).one(db).await {
+        Ok(Some(c)) => c,
+        _ => return (FALLBACK_PROVIDER.into(), FALLBACK_MODEL.into()),
+    };
+
+    let profile = match Profiles::find_by_id(conv.profile_id).one(db).await {
+        Ok(Some(p)) => p,
+        _ => return (FALLBACK_PROVIDER.into(), FALLBACK_MODEL.into()),
     };
 
     // Use the profile's provider if it's registered; otherwise fall back.
@@ -364,7 +363,7 @@ async fn run_agent_loop(
         agent = agent.with_tool(tool_def);
     }
 
-    // ── NEW: Inject skill catalog (Toon if supported) ─────────────────────────
+    // Inject skill catalog (Toon if supported)
     let skills = state.registry.skill_registry.skills().await;
     let active_skills: Vec<(String, String)> = skills
         .into_iter()
@@ -454,14 +453,9 @@ async fn run_agent_loop(
     }
 
     // Loop has finished. Retrieve new messages and persist them.
-    let loop_result = loop_handle.await.unwrap_or_else(|e| {
-        Err(skilldeck_core::CoreError::Internal {
-            message: e.to_string(),
-        })
-    });
-
+    let loop_result = loop_handle.await;
     match loop_result {
-        Ok(new_messages) => {
+        Ok(Ok(new_messages)) => {
             let db = match state.registry.db.connection().await {
                 Ok(conn) => conn,
                 Err(e) => {
@@ -510,7 +504,9 @@ async fn run_agent_loop(
             if let Ok(Some(conv)) = Conversations::find_by_id(conv_uuid).one(db).await {
                 let mut active: conversations::ActiveModel = conv.into();
                 active.updated_at = Set(now);
-                let _ = active.update(db).await;
+                if let Err(e) = active.update(db).await {
+                    tracing::warn!("Failed to update conversation timestamp: {}", e);
+                }
             }
 
             // Emit persisted event to notify frontend to refresh.
@@ -521,12 +517,21 @@ async fn run_agent_loop(
                 },
             );
         }
-        Err(e) => {
+        Ok(Err(e)) => {
             let _ = app.emit(
                 "agent-event",
                 AgentEvent::Error {
                     conversation_id: conversation_id.clone(),
                     message: e.to_string(),
+                },
+            );
+        }
+        Err(e) => {
+            let _ = app.emit(
+                "agent-event",
+                AgentEvent::Error {
+                    conversation_id: conversation_id.clone(),
+                    message: format!("Agent loop panicked: {}", e),
                 },
             );
         }

@@ -8,6 +8,7 @@
 //! so the agent loop immediately picks up the change without a restart.
 
 use serde::{Deserialize, Serialize};
+use specta::{Type, specta};
 use std::sync::Arc;
 use tauri::State;
 use tauri_plugin_keyring::KeyringExt;
@@ -16,7 +17,7 @@ use crate::state::AppState;
 use skilldeck_core::providers::{ClaudeProvider, OpenAiProvider};
 
 /// Whether a given provider has a stored key.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct ApiKeyStatus {
     pub provider: String,
     pub has_key: bool,
@@ -26,6 +27,7 @@ const KEYRING_SERVICE: &str = "skilldeck";
 const KNOWN_PROVIDERS: &[&str] = &["claude", "openai", "ollama"];
 
 /// Return key-presence status for every known provider.
+#[specta]
 #[tauri::command]
 pub async fn list_api_keys(app: tauri::AppHandle) -> Result<Vec<ApiKeyStatus>, String> {
     let keyring = app.keyring();
@@ -44,6 +46,7 @@ pub async fn list_api_keys(app: tauri::AppHandle) -> Result<Vec<ApiKeyStatus>, S
 
 /// Store (or replace) an API key in the OS keychain and refresh the provider
 /// registry so the agent loop can use the new key immediately.
+#[specta]
 #[tauri::command]
 pub async fn set_api_key(
     app: tauri::AppHandle,
@@ -79,6 +82,7 @@ pub async fn set_api_key(
 /// the key was captured by value.  A full de-registration would require
 /// restarting the app or a more complex eviction mechanism; for v1 this is
 /// acceptable.
+#[specta]
 #[tauri::command]
 pub async fn delete_api_key(app: tauri::AppHandle, provider: String) -> Result<(), String> {
     app.keyring()
@@ -86,10 +90,11 @@ pub async fn delete_api_key(app: tauri::AppHandle, provider: String) -> Result<(
         .map_err(|e| e.to_string())
 }
 
-/// Light format-based validation — does not make a real API call.
+/// Light format-based validation – does not make a real API call.
 ///
 /// Use this for immediate feedback in the settings UI; real connectivity
 /// is verified the first time the agent loop attempts a completion.
+#[specta]
 #[tauri::command]
 pub async fn validate_api_key(provider: String, key: String) -> Result<bool, String> {
     let valid = match provider.as_str() {
@@ -99,4 +104,45 @@ pub async fn validate_api_key(provider: String, key: String) -> Result<bool, Str
         _ => return Err(format!("Unknown provider: {provider}")),
     };
     Ok(valid)
+}
+
+/// Test a provider API key by making a minimal API call.
+#[specta]
+#[tauri::command]
+pub async fn test_api_connection(provider: String, key: String) -> Result<bool, String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    match provider.as_str() {
+        "claude" => {
+            let url = "https://api.anthropic.com/v1/models";
+            let resp = client
+                .get(url)
+                .header("x-api-key", &key)
+                .header("anthropic-version", "2023-06-01")
+                .send()
+                .await
+                .map_err(|e| e.to_string())?;
+            Ok(resp.status().is_success())
+        }
+        "openai" => {
+            let url = "https://api.openai.com/v1/models";
+            let resp = client
+                .get(url)
+                .bearer_auth(&key)
+                .send()
+                .await
+                .map_err(|e| e.to_string())?;
+            Ok(resp.status().is_success())
+        }
+        "ollama" => {
+            // Ollama has no API key; just check if the server is reachable.
+            let url = "http://localhost:11434/api/tags";
+            let resp = client.get(url).send().await.map_err(|e| e.to_string())?;
+            Ok(resp.status().is_success())
+        }
+        _ => Err(format!("Unknown provider: {provider}")),
+    }
 }

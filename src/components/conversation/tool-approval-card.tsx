@@ -1,22 +1,14 @@
-/**
- * ToolApprovalCard — displayed inline when the agent requests a tool call
- * that requires explicit user approval (ASR-SEC-002).
- *
- * Resolves the Rust oneshot channel via `resolve_tool_approval` IPC command.
- */
-
 import { useState } from 'react'
 import { AlertTriangle, Check, Edit2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import { resolveToolApproval } from '@/lib/invoke'
+import { commands } from '@/lib/bindings'
 import { useAchievements } from '@/hooks/use-achievements'
 import type { ToolCallInfo } from '@/lib/events'
 
 interface ToolApprovalCardProps {
   toolCallId: string
   toolCall: ToolCallInfo
-  /** Called once the gate is resolved so the parent can unmount the card. */
   onResolved: () => void
 }
 
@@ -35,7 +27,7 @@ export function ToolApprovalCard({
   const resolve = async (approved: boolean) => {
     setResolving(true)
     try {
-      let parsed: Record<string, unknown> | undefined
+      let parsed: Record<string, unknown> | null = null
       if (approved && isEditing) {
         try {
           parsed = JSON.parse(editedArgs)
@@ -45,20 +37,23 @@ export function ToolApprovalCard({
           return
         }
       }
-      await resolveToolApproval(toolCallId, approved, parsed)
+      // JsonValue is compatible with Record<string,unknown> | null at runtime
+      const jsonValue = parsed as any
+      const res = await commands.resolveToolApproval(toolCallId, approved, jsonValue)
+      if (res.status === 'error') throw new Error(res.error)
       if (approved) {
         unlock('firstToolApproval')
       }
       onResolved()
     } catch (err) {
       toast.error(`Failed to resolve approval: ${err}`)
+    } finally {
       setResolving(false)
     }
   }
 
   return (
     <div className="my-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
-      {/* Header */}
       <div className="flex items-center gap-2 mb-2">
         <AlertTriangle className="size-4 text-amber-500 shrink-0" />
         <span className="font-medium text-amber-700 dark:text-amber-400">
@@ -66,7 +61,6 @@ export function ToolApprovalCard({
         </span>
       </div>
 
-      {/* Tool name */}
       <div className="mb-2">
         <span className="text-xs text-muted-foreground">Tool: </span>
         <code className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded">
@@ -74,7 +68,6 @@ export function ToolApprovalCard({
         </code>
       </div>
 
-      {/* Arguments */}
       <div className="mb-3">
         <div className="flex items-center justify-between mb-1">
           <span className="text-xs text-muted-foreground">Arguments</span>
@@ -106,7 +99,6 @@ export function ToolApprovalCard({
         )}
       </div>
 
-      {/* Action buttons */}
       <div className="flex items-center gap-2">
         <button
           onClick={() => resolve(true)}

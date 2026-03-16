@@ -2,6 +2,7 @@
 
 use sea_orm::{ActiveModelTrait, ActiveValue::Set, EntityTrait, QueryOrder};
 use serde::{Deserialize, Serialize};
+use specta::{Type, specta};
 use std::sync::Arc;
 use tauri::State;
 use uuid::Uuid;
@@ -9,7 +10,7 @@ use uuid::Uuid;
 use crate::state::AppState;
 use skilldeck_models::profiles::{self, Entity as Profiles};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct ProfileData {
     pub id: String,
     pub name: String,
@@ -19,6 +20,7 @@ pub struct ProfileData {
 }
 
 /// List all profiles ordered by default-first, then alphabetically.
+#[specta]
 #[tauri::command]
 pub async fn list_profiles(state: State<'_, Arc<AppState>>) -> Result<Vec<ProfileData>, String> {
     let db = state
@@ -48,6 +50,7 @@ pub async fn list_profiles(state: State<'_, Arc<AppState>>) -> Result<Vec<Profil
 }
 
 /// Create a new profile.
+#[specta]
 #[tauri::command]
 pub async fn create_profile(
     state: State<'_, Arc<AppState>>,
@@ -80,6 +83,7 @@ pub async fn create_profile(
 }
 
 /// Partial update — only provided fields are mutated.
+#[specta]
 #[tauri::command]
 pub async fn update_profile(
     state: State<'_, Arc<AppState>>,
@@ -120,6 +124,7 @@ pub async fn update_profile(
 
 /// Set a profile as the default, clearing the flag on all others.
 #[allow(dead_code)] // Used via Tauri IPC
+#[specta]
 #[tauri::command]
 pub async fn set_default_profile(
     state: State<'_, Arc<AppState>>,
@@ -160,6 +165,7 @@ pub async fn set_default_profile(
 }
 
 /// Delete a profile. Refuses to delete the last remaining profile.
+#[specta]
 #[tauri::command]
 pub async fn delete_profile(state: State<'_, Arc<AppState>>, id: String) -> Result<(), String> {
     let db = state
@@ -191,12 +197,12 @@ pub async fn delete_profile(state: State<'_, Arc<AppState>>, id: String) -> Resu
             .one(db)
             .await
             .map_err(|e| e.to_string())?
-        {
-            let mut active: profiles::ActiveModel = first.into();
-            active.is_default = Set(true);
-            active.updated_at = Set(chrono::Utc::now().fixed_offset());
-            active.update(db).await.map_err(|e| e.to_string())?;
-        }
+    {
+        let mut active: profiles::ActiveModel = first.into();
+        active.is_default = Set(true);
+        active.updated_at = Set(chrono::Utc::now().fixed_offset());
+        active.update(db).await.map_err(|e| e.to_string())?;
+    }
 
     Ok(())
 }
