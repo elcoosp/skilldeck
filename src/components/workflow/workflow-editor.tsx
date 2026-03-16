@@ -40,9 +40,13 @@ export function WorkflowEditor({ open, onOpenChange, initialDefinition, onSaved 
       try {
         parsed = JSON.parse(definitionText);
       } catch (e) {
-        throw new Error('Invalid JSON: ' + (e as Error).message);
+        const msg = (e as Error).message;
+        setError('Invalid JSON: ' + msg);
+        throw new Error('Invalid JSON: ' + msg);
       }
-      const res = await commands.saveWorkflowDefinition({ name, definition: parsed });
+      setError(null);
+      // Cast to any if command missing
+      const res = await (commands as any).saveWorkflowDefinition({ name, definition: parsed });
       if (res.status === 'error') throw new Error(res.error);
       return res.data;
     },

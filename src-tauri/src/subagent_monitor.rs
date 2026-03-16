@@ -1,23 +1,23 @@
 // src-tauri/src/subagent_monitor.rs
 //! Subagent monitoring — listens to A2A event streams and forwards to Tauri frontend.
 
-use adk_server::a2a::{A2aClient, UpdateEvent};
+use adk_rust::server::a2a::{A2aClient, Message, Part, Role, UpdateEvent};
 use dashmap::DashMap;
 use futures::StreamExt;
 use std::sync::Arc;
-use tauri::AppHandle;
+use tauri::{AppHandle, Emitter};
 use tracing::error;
 
 pub async fn monitor_subagent(
     subagent_id: String,
-    client: A2aClient,
+    client: Arc<A2aClient>,
     app_handle: AppHandle,
     results_map: Arc<DashMap<String, String>>,
 ) {
     // Send a start message to kick off the subagent
-    let message = adk_server::a2a::Message::builder()
-        .role(adk_server::a2a::Role::User)
-        .parts(vec![adk_server::a2a::Part::text("Start".to_string())])
+    let message = Message::builder()
+        .role(Role::User)
+        .parts(vec![Part::text("Start".to_string())])
         .message_id(uuid::Uuid::new_v4().to_string())
         .build();
 
@@ -44,9 +44,13 @@ pub async fn monitor_subagent(
                 );
             }
             Ok(UpdateEvent::TaskArtifactUpdate(artifact)) => {
-                // Store the latest artifact as the result
-                if let Some(text) = artifact.parts.first().and_then(|p| p.text()) {
-                    last_result = text.to_string();
+                // Access the nested artifact field and extract text from parts
+                let text = artifact.artifact.parts.iter().find_map(|part| match part {
+                    Part::Text { text, .. } => Some(text.clone()), // ignore metadata with `..`
+                    _ => None,
+                });
+                if let Some(text) = text {
+                    last_result = text;
                     let _ = app_handle.emit(
                         "subagent-artifact",
                         serde_json::json!({

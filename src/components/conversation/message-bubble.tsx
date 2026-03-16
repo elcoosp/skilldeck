@@ -111,9 +111,9 @@ export function MessageBubble({
       if (data.subagentId) {
         return (
           <SubagentCard
-            subagentId={data.subagentId}
-            task={data.task || 'Subagent'}
-          // onMerge and onCancel can be wired via callbacks later
+            stepName={data.task || 'Subagent'}
+            status="running"
+            onOpen={() => { }} // TODO: navigate to subagent conversation
           />
         );
       }

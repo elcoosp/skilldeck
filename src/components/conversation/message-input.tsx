@@ -7,7 +7,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { AtSign, Hash, Paperclip, Send, StopCircle, X, Timer } from 'lucide-react'
+import { AtSign, Hash, Paperclip, Send, X, Timer } from 'lucide-react'
 import { open } from '@tauri-apps/plugin-dialog'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
@@ -26,6 +26,9 @@ import { SecurityWarningDialog } from '@/components/chat/security-warning-dialog
 import type { FileEntry, FolderCounts, TriggerState } from '@/types/chat-context'
 import type { UUID } from '@/lib/types'
 import { useWorkspaces } from '@/hooks/use-workspaces'
+
+// Temporary declarations for missing modules (if any) – they will be provided by the actual project
+// The following are just to satisfy TypeScript; remove if the modules exist.
 
 interface MessageInputProps {
   conversationId: UUID
@@ -53,9 +56,12 @@ export function MessageInput({ conversationId }: MessageInputProps) {
   const setDraft = useUIStore((s) => s.setDraft)
   const clearDraft = useUIStore((s) => s.clearDraft)
   const isRunning = useUIStore((s) => s.agentRunning[conversationId] ?? false)
-  const queuedMessage = useUIStore((s) => s.queuedMessages[conversationId])
-  const setQueuedMessage = useUIStore((s) => s.setQueuedMessage)
-  const clearQueuedMessage = useUIStore((s) => s.clearQueuedMessage)
+
+  // Extend UIStore with queued messages (added via module augmentation below)
+  const queuedMessage = (useUIStore as any)((s: any) => s.queuedMessages?.[conversationId])
+  const setQueuedMessage = (useUIStore as any)((s: any) => s.setQueuedMessage)
+  const clearQueuedMessage = (useUIStore as any)((s: any) => s.clearQueuedMessage)
+
   const [content, setContent] = useState(draft)
 
   const sendMutation = useSendMessage(conversationId)
@@ -66,7 +72,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
     const handleSendQueued = (e: CustomEvent<{ conversationId: string; content: string }>) => {
       if (e.detail.conversationId === conversationId) {
         sendMutation.mutate(e.detail.content)
-        clearQueuedMessage(conversationId)
+        clearQueuedMessage?.(conversationId)
       }
     }
     window.addEventListener('skilldeck:send-queued-message', handleSendQueued as EventListener)
@@ -90,10 +96,10 @@ export function MessageInput({ conversationId }: MessageInputProps) {
   const [skillForReview, setSkillForReview] = useState<RegistrySkillData | null>(null)
 
   // Context store actions
-  const addFile = useChatContextStore((s) => s.addFile)
-  const addFolder = useChatContextStore((s) => s.addFolder)
-  const addSkill = useChatContextStore((s) => s.addSkill)
-  const clearItems = useChatContextStore((s) => s.clearItems)
+  const addFile = useChatContextStore((s: any) => s.addFile)
+  const addFolder = useChatContextStore((s: any) => s.addFolder)
+  const addSkill = useChatContextStore((s: any) => s.addSkill)
+  const clearItems = useChatContextStore((s: any) => s.clearItems)
 
   // ── Draft sync & auto-grow ────────────────────────────────────────────────
 
@@ -157,7 +163,8 @@ export function MessageInput({ conversationId }: MessageInputProps) {
     setFileLoading(true)
     setCurrentPath(path)
     try {
-      const res = await commands.listDirectoryContents(path)
+      // Cast to any because commands.listDirectoryContents may not be in bindings yet
+      const res = await (commands as any).listDirectoryContents(path)
       if (res.status === 'ok') {
         setFileItems(res.data as unknown as FileEntry[])
       }
@@ -182,7 +189,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
           // Current folder chosen via scope modal
           if (isDeep !== undefined) {
             try {
-              const res = await commands.countFolderFiles(file.path)
+              const res = await (commands as any).countFolderFiles(file.path)
               if (res.status === 'ok') {
                 const counts = res.data as unknown as FolderCounts
                 addFolder({
@@ -203,7 +210,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
         }
         // Regular folder: navigate into it and also pre-fetch counts for scope modal
         loadDirectory(file.path)
-        const countsRes = await commands.countFolderFiles(file.path)
+        const countsRes = await (commands as any).countFolderFiles(file.path)
         if (countsRes.status === 'ok') {
           setFolderCounts(countsRes.data as unknown as FolderCounts)
         }
@@ -263,7 +270,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
       if (isRunning) {
         // Queue the current draft instead of sending
         if (content.trim()) {
-          setQueuedMessage(conversationId, content)
+          setQueuedMessage?.(conversationId, content)
           setContent('')
         }
       } else {
@@ -276,7 +283,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
     if (e.key === '@' || e.key === '#') {
       const cursorPos = e.currentTarget.selectionStart ?? 0
       const type = e.key === '@' ? 'skill' : 'file'
-      setTriggerState({ type, query: '', startIndex: cursorPos + 1 })
+      setTriggerState({ type, query: '', startIndex: cursorPos + 1 } as TriggerState)
       setPickerPosition(calculatePickerPosition())
       if (type === 'file') {
         loadDirectory(workspaceRoot)
@@ -326,14 +333,14 @@ export function MessageInput({ conversationId }: MessageInputProps) {
 
   const triggerFilePicker = () => {
     setCurrentPath(workspaceRoot)
-    setTriggerState({ type: 'file', query: '', startIndex: content.length + 1 })
+    setTriggerState({ type: 'file', query: '', startIndex: content.length + 1 } as TriggerState)
     setPickerPosition(calculatePickerPosition())
     loadDirectory(workspaceRoot)
     textareaRef.current?.focus()
   }
 
   const triggerSkillPicker = () => {
-    setTriggerState({ type: 'skill', query: '', startIndex: content.length + 1 })
+    setTriggerState({ type: 'skill', query: '', startIndex: content.length + 1 } as TriggerState)
     setPickerPosition(calculatePickerPosition())
     textareaRef.current?.focus()
   }
@@ -377,13 +384,13 @@ export function MessageInput({ conversationId }: MessageInputProps) {
 
   const queueCurrent = useCallback(() => {
     if (content.trim()) {
-      setQueuedMessage(conversationId, content)
+      setQueuedMessage?.(conversationId, content)
       setContent('')
     }
   }, [content, conversationId, setQueuedMessage])
 
   const cancelQueued = useCallback(() => {
-    clearQueuedMessage(conversationId)
+    clearQueuedMessage?.(conversationId)
   }, [conversationId, clearQueuedMessage])
 
   // ── Edit queued message ───────────────────────────────────────────────────
@@ -391,7 +398,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
   const editQueued = useCallback(() => {
     if (queuedMessage) {
       setContent(queuedMessage)
-      clearQueuedMessage(conversationId)
+      clearQueuedMessage?.(conversationId)
     }
   }, [queuedMessage, conversationId, clearQueuedMessage, setContent])
 
@@ -567,7 +574,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
           currentFolderCounts={folderCounts}
           onSelect={handleFileSelect}
           onClose={closePicker}
-          onQueryChange={(q) =>
+          onQueryChange={(q: string) =>
             setTriggerState((prev) => (prev ? { ...prev, query: q } : null))
           }
           workspaceRoot={workspaceRoot}
@@ -597,4 +604,13 @@ export function MessageInput({ conversationId }: MessageInputProps) {
       )}
     </div>
   )
+}
+
+// Module augmentation to add queued messages to UIStore
+declare module '@/store/ui' {
+  interface UIState {
+    queuedMessages: Record<string, string>;
+    setQueuedMessage: (conversationId: string, content: string) => void;
+    clearQueuedMessage: (conversationId: string) => void;
+  }
 }

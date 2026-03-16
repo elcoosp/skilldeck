@@ -18,7 +18,7 @@ use uuid::Uuid;
 use crate::{events::AgentEvent, state::AppState};
 use async_trait::async_trait;
 use skilldeck_core::agent::{AgentLoop, AgentLoopConfig, AgentLoopEvent, all_built_in_tools};
-use skilldeck_core::traits::SubagentSpawner;
+use skilldeck_core::traits::subagent_spawner::SubagentSpawner;
 use skilldeck_models::conversations::{self, Entity as Conversations};
 use skilldeck_models::messages::{self, Entity as Messages};
 

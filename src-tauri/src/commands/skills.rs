@@ -179,10 +179,11 @@ pub async fn install_skill(
     tokio::task::spawn_blocking(move || {
         if overwrite.unwrap_or(false) {
             // If overwrite is true, we need to remove existing first
-            let target_dir = crate::skills::installer::resolve_target_dir(&target)?;
+            let target_dir =
+                crate::skills::installer::resolve_target_dir(&target).map_err(|e| e.to_string())?;
             let dest_path = target_dir.join(&skill_name);
             if dest_path.exists() {
-                std::fs::remove_dir_all(&dest_path)?;
+                std::fs::remove_dir_all(&dest_path).map_err(|e| e.to_string())?;
             }
         }
         do_install(&skill_name, &skill_content, &target).map_err(|e| e.to_string())

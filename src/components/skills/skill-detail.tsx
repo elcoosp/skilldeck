@@ -36,8 +36,6 @@ export function SkillDetail({
   const [showInstall, setShowInstall] = useState(false);
   const [showBlocked, setShowBlocked] = useState(false);
   const [showConflict, setShowConflict] = useState(false);
-  const [localContent, setLocalContent] = useState<string | null>(null);
-  const [localPath, setLocalPath] = useState<string | null>(null);
   const [diff, setDiff] = useState<string>('');
 
   const install = useInstallSkill();
@@ -46,19 +44,18 @@ export function SkillDetail({
   const isAiTagged = skill.metadataSource === 'llm_enrichment';
 
   const checkForConflict = useCallback(async () => {
-    // Check if skill is already installed in personal location (or workspace, but we'll check personal first)
-    const contentRes = await commands.getInstalledSkillContent(skill.name, 'personal');
+    // Check if skill is already installed in personal location
+    // Use any cast for missing commands
+    const contentRes = await (commands as any).getInstalledSkillContent(skill.name, 'personal');
     if (contentRes.status === 'error') {
       toast.error('Failed to check existing installation');
       return false;
     }
     if (contentRes.data) {
       // Skill exists locally, get path and diff
-      const pathRes = await commands.getInstalledSkillPath(skill.name, 'personal');
+      const pathRes = await (commands as any).getInstalledSkillPath(skill.name, 'personal');
       if (pathRes.status === 'ok' && pathRes.data) {
-        setLocalContent(contentRes.data);
-        setLocalPath(pathRes.data);
-        const diffRes = await commands.diffSkillVersions(pathRes.data, skill.content);
+        const diffRes = await (commands as any).diffSkillVersions(pathRes.data, skill.content);
         if (diffRes.status === 'ok') {
           setDiff(diffRes.data.diff);
           setShowConflict(true);

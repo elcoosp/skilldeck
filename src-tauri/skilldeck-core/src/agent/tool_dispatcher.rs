@@ -14,7 +14,7 @@ use crate::{
     agent::load_skill_result::{LoadSkillResult, SkillContentFormat},
     mcp::registry::McpRegistry,
     skills::SkillRegistry,
-    traits::{McpCallResult, SubagentSpawner, ToolCall},
+    traits::{McpCallResult, ToolCall, subagent_spawner::SubagentSpawner},
 };
 
 // ── Approval gate ─────────────────────────────────────────────────────────────
@@ -300,13 +300,15 @@ impl ToolDispatcher {
             }
             "mergeSubagentResults" => {
                 if let Some(spawner) = &self.subagent_spawner {
-                    let subagent_id = args["subagentId"]
-                        .as_str()
-                        .ok_or_else(|| CoreError::McpToolExecution {
-                            tool_name: "mergeSubagentResults".into(),
-                            message: "Missing subagentId".into(),
-                        })
-                        .map_err(|e| return Some(Err(e)))?;
+                    let subagent_id = match args["subagentId"].as_str() {
+                        Some(id) => id,
+                        None => {
+                            return Some(Err(CoreError::McpToolExecution {
+                                tool_name: "mergeSubagentResults".into(),
+                                message: "Missing subagentId".into(),
+                            }));
+                        }
+                    };
 
                     match spawner.get_subagent_result(subagent_id).await {
                         Some(result) => Some(Ok(serde_json::json!({ "result": result }))),

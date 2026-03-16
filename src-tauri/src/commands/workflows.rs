@@ -1,8 +1,6 @@
 //! Workflow definition Tauri commands.
 
-use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, QueryFilter, QueryOrder,
-};
+use sea_orm::{ActiveModelTrait, ActiveValue::Set, EntityTrait, QueryOrder};
 use serde::{Deserialize, Serialize};
 use specta::{Type, specta};
 use std::sync::Arc;
@@ -46,7 +44,7 @@ pub async fn save_workflow_definition(
 
     let model = workflow_definitions::ActiveModel {
         id: Set(id),
-        name: Set(req.name),
+        name: Set(req.name.clone()),
         definition_json: Set(req.definition.clone()),
         created_at: Set(now),
         updated_at: Set(now),

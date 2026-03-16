@@ -21,8 +21,8 @@ mod sync;
 pub use subagent_server::SubagentServer;
 
 use commands::{
-    conversations::*, export::*, files::*, gist::*, mcp::*, messages::*, ollama::*, platform::*,
-    profiles::*, settings::*, skills::*, workspaces::*,
+    branches::*, conversations::*, export::*, files::*, gist::*, mcp::*, messages::*, ollama::*,
+    platform::*, profiles::*, settings::*, skills::*, workflows::*, workspaces::*,
 };
 use events::{AgentEvent, McpEvent, WorkflowEvent};
 use state::AppState;
@@ -48,6 +48,16 @@ pub fn run() {
     // Build Tauri Specta builder with all commands and events
     let builder = Builder::<tauri::Wry>::new()
         .commands(collect_commands![
+            create_branch,
+            list_branches,
+            get_branch_messages,
+            save_workflow_definition,
+            list_workflow_definitions,
+            get_workflow_definition,
+            delete_workflow_definition,
+            get_installed_skill_content,
+            get_installed_skill_path,
+            install_registry_skill,
             open_folder,
             // skills — registry sync
             sync_registry_skills,

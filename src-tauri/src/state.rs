@@ -27,8 +27,7 @@ use skilldeck_models::mcp_servers;
 
 use crate::subagent_monitor::monitor_subagent;
 use crate::subagent_server::SubagentServer;
-use adk_server::a2a::A2aClient;
-use skilldeck_core::traits::SubagentSpawner;
+use adk_rust::server::a2a::A2aClient;
 
 const KEYRING_SERVICE: &str = "skilldeck";
 
@@ -88,8 +87,8 @@ pub struct AppState {
     pub subagent_servers: Arc<DashMap<String, SubagentServer>>,
     /// Semaphore to limit concurrent subagents (default 3).
     pub subagent_semaphore: Arc<Semaphore>,
-    /// A2A clients for active subagents.
-    pub subagent_clients: Arc<DashMap<String, A2aClient>>,
+    /// A2A clients for active subagents (wrapped in Arc for sharing).
+    pub subagent_clients: Arc<DashMap<String, Arc<A2aClient>>>,
     /// Final results of completed subagents (for mergeSubagentResult).
     pub subagent_results: Arc<DashMap<String, String>>,
     /// Tauri app handle (needed to emit events from background tasks).
@@ -404,18 +403,17 @@ impl AppState {
         self.subagent_servers.insert(subagent_id.clone(), server);
 
         // Create A2A client
-        let client = adk_server::a2a::A2aClient::from_url(&url)
-            .await
-            .map_err(|e| e.to_string())?;
+        let client = A2aClient::from_url(&url).await.map_err(|e| e.to_string())?;
+        let client_arc = Arc::new(client);
         self.subagent_clients
-            .insert(subagent_id.clone(), client.clone());
+            .insert(subagent_id.clone(), client_arc.clone());
 
         // Spawn monitor task
         let app_handle = self.app_handle.clone();
         let subagent_id_clone = subagent_id.clone();
         let results_map = self.subagent_results.clone();
         tokio::spawn(async move {
-            monitor_subagent(subagent_id_clone, client, app_handle, results_map).await;
+            monitor_subagent(subagent_id_clone, client_arc, app_handle, results_map).await;
         });
 
         Ok(subagent_id)

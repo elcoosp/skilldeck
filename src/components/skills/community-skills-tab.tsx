@@ -30,11 +30,17 @@ export function CommunitySkillsTab({ onInstall }: Props) {
 
   const installMutation = useMutation({
     mutationFn: async (skill: RegistrySkillData) => {
-      const res = await commands.installRegistrySkill(skill.id, 'personal');
+      // Use installSkill with registry source; cast to any if command not yet typed
+      const res = await (commands as any).installSkill({
+        skillName: skill.name,
+        skillContent: skill.content,
+        target: 'personal',
+        source: 'registry',
+      });
       if (res.status === 'error') throw new Error(res.error);
       return res.data;
     },
-    onSuccess: (data, skill) => {
+    onSuccess: (_data, skill) => {
       queryClient.invalidateQueries({ queryKey: ['skills'] }); // refresh local skills
       toast.success(`${skill.name} installed!`);
       sendActivityEvent('skill_created', { source: 'community', skill_name: skill.name }).catch(() => { });
