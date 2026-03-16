@@ -30,14 +30,7 @@ import { PreferencesTab } from '@/components/settings/preferences-tab'
 import { ReferralTab } from '@/components/settings/referral-tab'
 import { PlatformTab } from '@/components/settings/platform-tab'
 
-type SettingsTab =
-  | 'apikeys'
-  | 'profiles'
-  | 'approvals'
-  | 'appearance'
-  | 'preferences'
-  | 'referral'
-  | 'platform'
+// SettingsTab type is no longer needed; removed.
 
 export function SettingsOverlay() {
   const settingsTab = useUIStore((s) => s.settingsTab)
