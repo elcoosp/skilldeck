@@ -7,12 +7,13 @@
 
 import { Copy, ExternalLink, Gift, Users } from 'lucide-react'
 import { toast } from 'sonner'
-import { useReferral } from '@/hooks/use-platform'
+import { useReferral, usePlatformPreferences } from '@/hooks/use-platform'
 
 const REFERRAL_BASE_URL = 'https://skilldeck.dev/r'
 
 export function ReferralTab() {
   const { stats, create } = useReferral()
+  const { query: prefsQuery } = usePlatformPreferences()
 
   const code = stats.data?.code
   const referralUrl = code ? `${REFERRAL_BASE_URL}/${code.code}` : null
@@ -43,6 +44,8 @@ export function ReferralTab() {
       </div>
     )
   }
+
+  const platformConfigured = prefsQuery.data?.platformEnabled && prefsQuery.data?.platformUrl
 
   return (
     <div className="space-y-6 text-sm">
@@ -90,16 +93,35 @@ export function ReferralTab() {
         </div>
       ) : (
         <div className="text-center py-6">
-          <p className="text-muted-foreground mb-4">
-            Create your referral link and start earning rewards.
-          </p>
-          <button
-            className="px-4 py-2 rounded-md bg-primary text-primary-foreground font-medium hover:bg-primary/90 disabled:opacity-50"
-            disabled={create.isPending}
-            onClick={() => create.mutate()}
-          >
-            {create.isPending ? 'Creating…' : 'Create my referral link'}
-          </button>
+          {!platformConfigured ? (
+            <div>
+              <p className="text-muted-foreground mb-4">
+                Connect to SkillDeck Platform to enable referrals.
+              </p>
+              <button
+                className="px-4 py-2 rounded-md bg-primary text-primary-foreground font-medium hover:bg-primary/90"
+                onClick={() => {
+                  // Dispatch event to open settings on platform tab
+                  window.dispatchEvent(new CustomEvent('skilldeck:open-settings', { detail: { tab: 'platform' } }))
+                }}
+              >
+                Configure Platform
+              </button>
+            </div>
+          ) : (
+            <>
+              <p className="text-muted-foreground mb-4">
+                Create your referral link and start earning rewards.
+              </p>
+              <button
+                className="px-4 py-2 rounded-md bg-primary text-primary-foreground font-medium hover:bg-primary/90 disabled:opacity-50"
+                disabled={create.isPending}
+                onClick={() => create.mutate()}
+              >
+                {create.isPending ? 'Creating…' : 'Create my referral link'}
+              </button>
+            </>
+          )}
         </div>
       )}
 
