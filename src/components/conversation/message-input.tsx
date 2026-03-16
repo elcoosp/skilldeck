@@ -1,4 +1,4 @@
-// src/components/conversation/message-input.tsx
+// src/components/conversation/message-input.tsx (final with Chunk 1 & 3)
 /**
  * Message input — auto-growing textarea with draft persistence, slash commands,
  * skill mention (@), file reference (#) entry points, and file attachments.
@@ -8,7 +8,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { AtSign, Hash, Paperclip, Send, StopCircle, X } from 'lucide-react'
+import { AtSign, Hash, Paperclip, Send, StopCircle, X, Timer } from 'lucide-react'
 import { open } from '@tauri-apps/plugin-dialog'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
@@ -54,10 +54,21 @@ export function MessageInput({ conversationId }: MessageInputProps) {
   const setDraft = useUIStore((s) => s.setDraft)
   const clearDraft = useUIStore((s) => s.clearDraft)
   const isRunning = useUIStore((s) => s.agentRunning[conversationId] ?? false)
+  const queuedMessage = useUIStore((s) => s.queuedMessages[conversationId])
+  const setQueuedMessage = useUIStore((s) => s.setQueuedMessage)
+  const clearQueuedMessage = useUIStore((s) => s.clearQueuedMessage)
   const [content, setContent] = useState(draft)
 
   const sendMutation = useSendMessage(conversationId)
   const shouldReduceMotion = useReducedMotion()
+
+  // ── Auto‑send queued message when agent finishes ─────────────────────────
+  useEffect(() => {
+    if (!isRunning && queuedMessage) {
+      sendMutation.mutate(queuedMessage)
+      clearQueuedMessage(conversationId)
+    }
+  }, [isRunning, queuedMessage, conversationId, sendMutation, clearQueuedMessage])
 
   // ── Context injection state ───────────────────────────────────────────────
   const [triggerState, setTriggerState] = useState<TriggerState | null>(null)
@@ -246,7 +257,15 @@ export function MessageInput({ conversationId }: MessageInputProps) {
 
     if (e.key === 'Enter' && !e.shiftKey && !isComposing && !triggerState) {
       e.preventDefault()
-      submit()
+      if (isRunning) {
+        // Queue the current draft instead of sending
+        if (content.trim()) {
+          setQueuedMessage(conversationId, content)
+          setContent('')
+        }
+      } else {
+        submit()
+      }
       return
     }
 
@@ -316,7 +335,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
     textareaRef.current?.focus()
   }
 
-  // ── Submit ────────────────────────────────────────────────────────────────
+  // ── Submit / Queue ────────────────────────────────────────────────────────
 
   const submit = useCallback(async () => {
     let finalContent = content.trim()
@@ -353,10 +372,35 @@ export function MessageInput({ conversationId }: MessageInputProps) {
     sendMutation
   ])
 
+  const queueCurrent = useCallback(() => {
+    if (content.trim()) {
+      setQueuedMessage(conversationId, content)
+      setContent('')
+    }
+  }, [content, conversationId, setQueuedMessage])
+
+  const cancelQueued = useCallback(() => {
+    clearQueuedMessage(conversationId)
+  }, [conversationId, clearQueuedMessage])
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="p-3 space-y-2">
+      {/* Queued message indicator */}
+      {queuedMessage && (
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs">
+          <Timer className="size-3.5" />
+          <span className="flex-1 truncate">Message queued – will send when agent finishes</span>
+          <button
+            onClick={cancelQueued}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <X className="size-3" />
+          </button>
+        </div>
+      )}
+
       {/* Legacy native-picker file chips */}
       {selectedFiles.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
@@ -396,10 +440,12 @@ export function MessageInput({ conversationId }: MessageInputProps) {
             onCompositionEnd={() => setIsComposing(false)}
             placeholder={
               isRunning
-                ? 'Agent is running…'
+                ? queuedMessage
+                  ? 'Agent running – message queued'
+                  : 'Agent is running… (type to queue)'
                 : 'Type a message… (@ for skills · # for files)'
             }
-            disabled={isRunning}
+            disabled={false} // never disabled – draft mode
             className={cn(
               'flex-1 min-h-[36px] max-h-[200px] resize-none border-0 shadow-none bg-transparent',
               'focus-visible:ring-0 text-sm leading-6 py-2 px-0 overflow-y-hidden'
@@ -410,13 +456,14 @@ export function MessageInput({ conversationId }: MessageInputProps) {
           <Button
             size="icon-sm"
             className="shrink-0 mb-0.5"
-            onClick={submit}
+            onClick={isRunning ? queueCurrent : submit}
             disabled={
-              (!content.trim() && selectedFiles.length === 0 && !isRunning) ||
+              (!content.trim() && selectedFiles.length === 0) ||
               sendMutation.isPending ||
-              isSending
+              isSending ||
+              (isRunning && queuedMessage) // disable if already queued
             }
-            aria-label={isRunning ? 'Stop' : 'Send'}
+            aria-label={isRunning ? 'Queue message' : 'Send'}
           >
             <AnimatePresence mode="wait">
               {isSending ? (
@@ -441,7 +488,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
                   transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.2 }}
                 >
                   {isRunning ? (
-                    <StopCircle className="size-3.5" />
+                    <Timer className="size-3.5" />
                   ) : (
                     <Send className="size-3.5" />
                   )}
@@ -485,7 +532,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
           Attach
         </Button>
         <span className="ml-auto text-xs opacity-50 pr-1">
-          ↵ send · ⇧↵ newline
+          ↵ {isRunning ? 'queue' : 'send'} · ⇧↵ newline
         </span>
       </div>
 
