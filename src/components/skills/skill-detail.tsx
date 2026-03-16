@@ -41,6 +41,18 @@ export function SkillDetail({
 
   const install = useInstallSkill();
 
+  // Fetch local path if installed
+  const { data: localPath } = useQuery({
+    queryKey: ['installed-skill-path', skill?.name],
+    queryFn: async () => {
+      if (!skill) return null;
+      const res = await commands.getInstalledSkillPath(skill.name, 'personal');
+      if (res.status === 'error') throw new Error(res.error);
+      return res.data;
+    },
+    enabled: isInstalled && !!skill,
+  });
+
   const isBlocked = skill ? skill.securityScore < 2 : false;
   const isAiTagged = skill?.metadataSource === 'llm_enrichment';
 
@@ -99,9 +111,12 @@ export function SkillDetail({
   };
 
   const handleOpenFolder = async () => {
+    if (!localPath) {
+      toast.error('Cannot open folder – skill not installed locally');
+      return;
+    }
     try {
-      await commands.openFolder(skill?.sourceUrl || '');
-      // In a real scenario, we'd have a local path for installed skills
+      await commands.openFolder(localPath);
       toast.info('Opening folder...');
     } catch (error) {
       toast.error('Could not open folder');
@@ -199,13 +214,13 @@ export function SkillDetail({
               <MetaRow label="Category" value={skill.category} />
             )}
             {/* Show path if available (for installed skills) */}
-            {isInstalled && (
+            {isInstalled && localPath && (
               <div className="flex flex-col gap-0.5 col-span-2">
                 <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
                   Location
                 </span>
                 <div className="flex items-center gap-1 text-sm">
-                  <span className="truncate">{skill.sourceUrl || 'unknown path'}</span>
+                  <span className="truncate">{localPath}</span>
                   <Button
                     variant="ghost"
                     size="icon-xs"

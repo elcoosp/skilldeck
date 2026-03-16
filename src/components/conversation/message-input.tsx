@@ -1,3 +1,4 @@
+// src/components/chat/message-input.tsx
 /**
  * Message input — auto-growing textarea with draft persistence, slash commands,
  * skill mention (@), file reference (#) entry points, and file attachments.
@@ -15,7 +16,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 import { useUIStore } from '@/store/ui'
 import { useSendMessage } from '@/hooks/use-messages'
-import { useRegistrySkills } from '@/hooks/use-skills'
+import { useCombinedSkills } from '@/hooks/use-combined-skills'
 import { commands } from '@/lib/bindings'
 import type { RegistrySkillData } from '@/lib/bindings'
 import { useChatContextStore } from '@/store/chat-context-store'
@@ -46,7 +47,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
   const activeWorkspaceId = useUIStore((s) => s.activeWorkspaceId)
   const { data: workspaces } = useWorkspaces()
   const activeWorkspace = workspaces?.find(w => w.id === activeWorkspaceId)
-  const workspaceRoot = activeWorkspace?.path ?? '.'
+  const workspaceRoot = activeWorkspace?.path ?? null
 
   // ── Draft / UI store ──────────────────────────────────────────────────────
   const draft = useUIStore((s) => s.drafts[conversationId] ?? '')
@@ -61,6 +62,9 @@ export function MessageInput({ conversationId }: MessageInputProps) {
 
   const sendMutation = useSendMessage(conversationId)
   const shouldReduceMotion = useReducedMotion()
+
+  // ── Combined skills for @ picker ─────────────────────────────────────────
+  const { data: skillData = [], isLoading: skillsLoading } = useCombinedSkills()
 
   // ── Listen for custom event to auto‑send queued message ──────────────────
   useEffect(() => {
@@ -82,9 +86,6 @@ export function MessageInput({ conversationId }: MessageInputProps) {
   const [fileItems, setFileItems] = useState<FileEntry[]>([])
   const [fileLoading, setFileLoading] = useState(false)
   const [folderCounts, setFolderCounts] = useState<FolderCounts>({ shallow: 0, deep: 0 })
-
-  // Skill picker — reuse existing hook
-  const { data: skillData = [], isLoading: skillsLoading } = useRegistrySkills()
 
   // Security dialog
   const [skillForReview, setSkillForReview] = useState<RegistrySkillData | null>(null)
@@ -230,20 +231,42 @@ export function MessageInput({ conversationId }: MessageInputProps) {
   )
 
   const handleSkillSelect = useCallback(
-    (skill: RegistrySkillData) => {
-      const rawWarnings = skill.lintWarnings as unknown as Array<{
-        rule_id?: string
-        severity?: string
-      }>
-      const hasDanger =
-        skill.securityScore < 2 ||
-        rawWarnings.some((w) => w.severity === 'error' || (w.rule_id ?? '').includes('sec-'))
+    (skill: PaletteItem) => {
+      if (skill._sourceType === 'registry') {
+        // original registry skill handling
+        const rawWarnings = (skill as any).lintWarnings ?? [];
+        const hasDanger =
+          (skill as any).securityScore < 2 ||
+          rawWarnings.some((w: any) => w.severity === 'error' || (w.rule_id ?? '').includes('sec-'))
 
-      if (hasDanger) {
-        setSkillForReview(skill)
-        closePicker()
+        if (hasDanger) {
+          setSkillForReview(skill as RegistrySkillData);
+          closePicker();
+        } else {
+          confirmAddSkill(skill as RegistrySkillData);
+        }
       } else {
-        confirmAddSkill(skill)
+        // local skill - add to context as a skill with minimal data
+        const localSkillData: RegistrySkillData = {
+          id: skill.id,
+          name: skill.name,
+          description: skill.description,
+          source: 'local',
+          sourceUrl: null,
+          version: null,
+          author: null,
+          license: null,
+          tags: [],
+          category: null,
+          lintWarnings: [],
+          securityScore: 5,
+          qualityScore: 5,
+          metadataSource: 'local',
+          content: '',
+          createdAt: '',
+          updatedAt: ''
+        };
+        confirmAddSkill(localSkillData);
       }
     },
     [confirmAddSkill, closePicker]
@@ -277,8 +300,8 @@ export function MessageInput({ conversationId }: MessageInputProps) {
       const type = e.key === '@' ? 'skill' : 'file'
       setTriggerState({ type, query: '', startIndex: cursorPos + 1 })
       setPickerPosition(calculatePickerPosition())
-      if (type === 'file') {
-        loadDirectory(workspaceRoot)
+      if (type === 'file' && activeWorkspace) {
+        loadDirectory(workspaceRoot!)
       }
     }
   }
@@ -323,18 +346,20 @@ export function MessageInput({ conversationId }: MessageInputProps) {
 
   // ── Manual trigger buttons ────────────────────────────────────────────────
 
-  const triggerFilePicker = () => {
+  const triggerFilePicker = useCallback(() => {
     setTriggerState({ type: 'file', query: '', startIndex: content.length + 1 })
     setPickerPosition(calculatePickerPosition())
-    loadDirectory(workspaceRoot)
+    if (activeWorkspace) {
+      loadDirectory(workspaceRoot!)
+    }
     textareaRef.current?.focus()
-  }
+  }, [content, activeWorkspace, workspaceRoot, loadDirectory, calculatePickerPosition])
 
-  const triggerSkillPicker = () => {
+  const triggerSkillPicker = useCallback(() => {
     setTriggerState({ type: 'skill', query: '', startIndex: content.length + 1 })
     setPickerPosition(calculatePickerPosition())
     textareaRef.current?.focus()
-  }
+  }, [content, calculatePickerPosition])
 
   // ── Submit / Queue ────────────────────────────────────────────────────────
 
@@ -357,8 +382,8 @@ export function MessageInput({ conversationId }: MessageInputProps) {
     try {
       await sendMutation.mutateAsync(finalContent)
     } catch (err) {
-      setContent(finalContent)
-      console.error('Failed to send message:', err)
+      toast.error(`Failed to send message: ${err}`);
+      setContent(finalContent); // restore draft
     } finally {
       setIsSending(false)
     }
@@ -533,6 +558,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
           className="h-6 px-2 text-xs gap-1"
           onClick={triggerFilePicker}
           title="Attach file (#)"
+          disabled={!activeWorkspace}
         >
           <Hash className="size-3" />
           File
