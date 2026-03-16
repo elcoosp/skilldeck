@@ -24,7 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { useRemoveSkill } from '@/hooks/use-skills'
+import { useUninstallSkill } from '@/hooks/use-skills'
 import type { RegistrySkillData, SkillInfo } from '@/lib/bindings'
 
 interface SkillCardProps {
@@ -43,15 +43,20 @@ export function SkillCard({
   className
 }: SkillCardProps) {
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
-  const removeSkill = useRemoveSkill()
+  const uninstallSkill = useUninstallSkill()
 
   const isRegistry = '_sourceType' in skill && skill._sourceType === 'registry'
   const isLocal = '_sourceType' in skill && skill._sourceType === 'local'
-  const errorCount = isRegistry
-    ? (skill as RegistrySkillData).lintWarnings.filter((w: any) => w.severity === 'error').length
+
+  // Helper to safely access registry-specific fields
+  const registrySkill = isRegistry ? skill as RegistrySkillData : null
+  const localSkill = isLocal ? skill as SkillInfo & { _sourceType: 'local' } : null
+
+  const errorCount = registrySkill
+    ? registrySkill.lintWarnings.filter((w: any) => w.severity === 'error').length
     : 0
-  const isAiTagged = isRegistry && (skill as RegistrySkillData).metadataSource === 'llm_enrichment'
-  const tags = isRegistry ? (skill as RegistrySkillData).tags : []
+  const isAiTagged = registrySkill?.metadataSource === 'llm_enrichment'
+  const tags = registrySkill?.tags ?? []
 
   const handleRemove = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -79,9 +84,9 @@ export function SkillCard({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-semibold truncate max-w-full">{skill.name}</span>
-              {isRegistry && (skill as RegistrySkillData).version && (
+              {registrySkill?.version && (
                 <span className="text-[10px] text-muted-foreground font-mono shrink-0">
-                  v{(skill as RegistrySkillData).version}
+                  v{registrySkill.version}
                 </span>
               )}
             </div>
@@ -93,10 +98,10 @@ export function SkillCard({
 
         {/* Trust badge + source badge */}
         <div className="flex items-center gap-2 flex-wrap min-w-0">
-          {isRegistry ? (
+          {isRegistry && registrySkill ? (
             <TrustBadge
-              securityScore={(skill as RegistrySkillData).securityScore}
-              qualityScore={(skill as RegistrySkillData).qualityScore}
+              securityScore={registrySkill.securityScore}
+              qualityScore={registrySkill.qualityScore}
             />
           ) : (
             <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
@@ -112,7 +117,7 @@ export function SkillCard({
         </div>
 
         {/* Tags */}
-        {isRegistry && tags.length > 0 && (
+        {tags.length > 0 && (
           <div className="flex items-center gap-1 flex-wrap min-w-0">
             {isAiTagged && (
               <span
@@ -143,14 +148,14 @@ export function SkillCard({
         {/* Footer row */}
         <div className="flex items-center justify-between gap-2 mt-auto pt-1 border-t border-border/50 min-w-0">
           <div className="flex items-center gap-3 text-[11px] text-muted-foreground min-w-0 flex-wrap">
-            {isRegistry && (skill as RegistrySkillData).author && (
+            {registrySkill?.author && (
               <span className="flex items-center gap-1 truncate max-w-full">
                 <User className="size-3 shrink-0" />
-                <span className="truncate">{(skill as RegistrySkillData).author}</span>
+                <span className="truncate">{registrySkill.author}</span>
               </span>
             )}
-            {isLocal && (
-              <span className="truncate max-w-full">Source: {skill.source}</span>
+            {localSkill && (
+              <span className="truncate max-w-full">Source: {localSkill.source}</span>
             )}
             {errorCount > 0 && (
               <span className="text-destructive shrink-0">
@@ -182,9 +187,9 @@ export function SkillCard({
                 Install
               </Button>
             )}
-            {isRegistry && (skill as RegistrySkillData).sourceUrl && (
+            {registrySkill?.sourceUrl && (
               <a
-                href={(skill as RegistrySkillData).sourceUrl}
+                href={registrySkill.sourceUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
@@ -199,7 +204,7 @@ export function SkillCard({
       </div>
 
       {/* Remove confirmation dialog */}
-      {showRemoveConfirm && (
+      {showRemoveConfirm && localSkill && (
         <AlertDialog open onOpenChange={setShowRemoveConfirm}>
           <AlertDialogContent>
             <AlertDialogHeader>
@@ -207,7 +212,7 @@ export function SkillCard({
               <AlertDialogDescription>
                 This will permanently delete the skill folder from your disk:
                 <code className="block mt-2 p-2 bg-muted rounded text-xs break-all">
-                  {skill.path || skill.name}
+                  {localSkill.path || localSkill.name}
                 </code>
                 This action cannot be undone.
               </AlertDialogDescription>
@@ -216,7 +221,7 @@ export function SkillCard({
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 onClick={() => {
-                  removeSkill.mutate({ skillName: skill.name, target: 'personal' })
+                  uninstallSkill.mutate({ skillName: skill.name, target: 'personal' })
                   setShowRemoveConfirm(false)
                 }}
               >
