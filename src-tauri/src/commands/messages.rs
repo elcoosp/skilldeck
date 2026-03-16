@@ -42,13 +42,14 @@ pub async fn cancel_agent(
 
 /// List all messages for a conversation, oldest-first.
 ///
-/// `branch_id` is reserved for branch-aware retrieval (v1.1).
+/// If `branch_id` is provided, returns messages for that branch only.
+/// If `branch_id` is None, returns messages from the main trunk (branch_id IS NULL).
 #[specta]
 #[tauri::command]
 pub async fn list_messages(
     state: State<'_, Arc<AppState>>,
     conversation_id: String,
-    #[allow(unused_variables)] branch_id: Option<String>,
+    branch_id: Option<String>, // <-- added optional branch_id
 ) -> Result<Vec<MessageData>, String> {
     let db = state
         .registry
@@ -58,12 +59,19 @@ pub async fn list_messages(
         .map_err(|e| e.to_string())?;
     let conv_uuid = Uuid::parse_str(&conversation_id).map_err(|e| e.to_string())?;
 
-    let rows = Messages::find()
+    let mut query = Messages::find()
         .filter(messages::Column::ConversationId.eq(conv_uuid))
-        .order_by_asc(messages::Column::CreatedAt)
-        .all(db)
-        .await
-        .map_err(|e| e.to_string())?;
+        .order_by_asc(messages::Column::CreatedAt);
+
+    if let Some(branch) = branch_id {
+        let branch_uuid = Uuid::parse_str(&branch).map_err(|e| e.to_string())?;
+        query = query.filter(messages::Column::BranchId.eq(Some(branch_uuid)));
+    } else {
+        // Main trunk: branch_id IS NULL
+        query = query.filter(messages::Column::BranchId.is_null());
+    }
+
+    let rows = query.all(db).await.map_err(|e| e.to_string())?;
 
     Ok(rows
         .into_iter()
