@@ -1,4 +1,4 @@
-// File: src/hooks/use-agent-stream.ts
+// src/hooks/use-agent-stream.ts
 /**
  * useAgentStream — subscribe to Tauri agent-event channel for a given
  * conversation and drive streaming text + running state in the UI store.

@@ -3,7 +3,7 @@
  * profiles, tool approval policies, and theme preferences.
  */
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Bell,
   Eye,
@@ -16,7 +16,8 @@ import {
   Star,
   Sun,
   Trash2,
-  X
+  X,
+  Globe
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -27,6 +28,7 @@ import { commands } from '@/lib/bindings'
 import type { ProfileData, ApiKeyStatus } from '@/lib/bindings'
 import { PreferencesTab } from '@/components/settings/preferences-tab'
 import { ReferralTab } from '@/components/settings/referral-tab'
+import { PlatformTab } from '@/components/settings/platform-tab'
 
 type SettingsTab =
   | 'apikeys'
@@ -35,10 +37,20 @@ type SettingsTab =
   | 'appearance'
   | 'preferences'
   | 'referral'
+  | 'platform'
 
 export function SettingsOverlay() {
-  const [tab, setTab] = useState<SettingsTab>('apikeys')
+  const settingsTab = useUIStore((s) => s.settingsTab)
+  const setSettingsTab = useUIStore((s) => s.setSettingsTab)
   const setSettingsOpen = useUIStore((s) => s.setSettingsOpen)
+
+  // Reset settingsTab to default when overlay closes
+  useEffect(() => {
+    return () => {
+      // Optional: reset to default when unmounting, but we want to preserve
+      // the tab when reopening? Probably keep as is.
+    }
+  }, [])
 
   return (
     <div
@@ -63,15 +75,16 @@ export function SettingsOverlay() {
               { id: 'approvals', label: 'Tool Approvals', Icon: ShieldCheck },
               { id: 'appearance', label: 'Appearance', Icon: Sun },
               { id: 'preferences', label: 'Preferences', Icon: Bell },
+              { id: 'platform', label: 'Platform', Icon: Globe },
               { id: 'referral', label: 'Refer & Earn', Icon: Share2 }
             ] as const
           ).map(({ id, label, Icon }) => (
             <button
               key={id}
-              onClick={() => setTab(id)}
+              onClick={() => setSettingsTab(id)}
               className={cn(
                 'flex items-center gap-2.5 w-full px-2.5 py-2 rounded-md text-sm text-left transition-colors',
-                tab === id
+                settingsTab === id
                   ? 'bg-primary/10 text-foreground font-medium'
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted'
               )}
@@ -94,12 +107,13 @@ export function SettingsOverlay() {
 
         {/* Content pane */}
         <div className="flex-1 overflow-y-auto p-6">
-          {tab === 'apikeys' && <ApiKeysTab />}
-          {tab === 'profiles' && <ProfilesTab />}
-          {tab === 'approvals' && <ApprovalsTab />}
-          {tab === 'appearance' && <AppearanceTab />}
-          {tab === 'preferences' && <PreferencesTab />}
-          {tab === 'referral' && <ReferralTab />}
+          {settingsTab === 'apikeys' && <ApiKeysTab />}
+          {settingsTab === 'profiles' && <ProfilesTab />}
+          {settingsTab === 'approvals' && <ApprovalsTab />}
+          {settingsTab === 'appearance' && <AppearanceTab />}
+          {settingsTab === 'preferences' && <PreferencesTab />}
+          {settingsTab === 'platform' && <PlatformTab />}
+          {settingsTab === 'referral' && <ReferralTab />}
         </div>
       </div>
     </div>

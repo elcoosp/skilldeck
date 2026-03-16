@@ -30,6 +30,7 @@ export function useCreateConversation() {
       return res.data
     },
     onSuccess: (newId) => {
+      // Invalidate and refetch conversations list
       queryClient.invalidateQueries({ queryKey: ['conversations'] })
       setActiveConversation(newId)
     }

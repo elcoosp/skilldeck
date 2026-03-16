@@ -97,6 +97,7 @@ export function usePlatformPreferences() {
 
 export function useReferral() {
   const queryClient = useQueryClient();
+
   const stats = useQuery({
     queryKey: ['referral-stats'],
     queryFn: async () => {

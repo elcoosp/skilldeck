@@ -1,3 +1,4 @@
+// src/components/conversation/conversation-item.tsx
 /**
  * Sidebar conversation list item with inline rename and context menu.
  */
