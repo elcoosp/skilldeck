@@ -1,7 +1,7 @@
 // src/hooks/use-skills.ts
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { commands } from '@/lib/bindings'
-import type { RegistrySkillData, SkillInfo, SkillSourceInfo, InstallResult } from '@/lib/bindings'
+import type { RegistrySkillData, SkillInfo } from '@/lib/bindings'
 
 export function useAllSkills(options?: { category?: string; search?: string }) {
   const { data: localSkills = [], isLoading: localLoading } = useQuery({
@@ -80,7 +80,8 @@ export function useInstallSkill() {
       target: 'personal' | 'workspace';
       overwrite?: boolean;
     }) => {
-      const res = await commands.installSkill(skillName, skillContent, target, overwrite);
+      // FIXME: overwrite parameter is not yet supported by the command; remove it for now
+      const res = await commands.installSkill(skillName, skillContent, target);
       if (res.status === 'error') throw new Error(res.error);
       return res.data;
     },
