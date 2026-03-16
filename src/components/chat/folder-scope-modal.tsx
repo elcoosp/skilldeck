@@ -1,5 +1,5 @@
 // src/components/chat/folder-scope-modal.tsx
-import React from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { File, FolderTree, ChevronLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -18,8 +18,43 @@ export const FolderScopeModal: React.FC<FolderScopeModalProps> = ({
   onConfirm,
   onBack
 }) => {
+  const [selectedIndex, setSelectedIndex] = useState(0)
+  const shallowRef = useRef<HTMLButtonElement>(null)
+  const deepRef = useRef<HTMLButtonElement>(null)
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault()
+        setSelectedIndex(prev => (prev === 0 ? 1 : 1))
+        break
+      case 'ArrowUp':
+        e.preventDefault()
+        setSelectedIndex(prev => (prev === 1 ? 0 : 0))
+        break
+      case 'Enter':
+        e.preventDefault()
+        if (selectedIndex === 0) onConfirm(false)
+        else onConfirm(true)
+        break
+      case 'Escape':
+        e.preventDefault()
+        onBack()
+        break
+    }
+  }
+
+  useEffect(() => {
+    if (selectedIndex === 0) shallowRef.current?.focus()
+    else deepRef.current?.focus()
+  }, [selectedIndex])
+
   return (
-    <div className="p-2 bg-popover rounded-lg border shadow-lg">
+    <div
+      className="p-2 bg-popover rounded-lg border shadow-lg"
+      onKeyDown={handleKeyDown}
+      tabIndex={-1}
+    >
       <div className="flex items-center gap-2 mb-3 pb-2 border-b">
         <span className="text-sm font-medium flex items-center gap-1.5 truncate">
           <FolderTree className="w-4 h-4 shrink-0" />
@@ -30,6 +65,7 @@ export const FolderScopeModal: React.FC<FolderScopeModalProps> = ({
       <div className="space-y-1">
         {/* Shallow option */}
         <Button
+          ref={shallowRef}
           variant="ghost"
           className="w-full justify-start gap-3 h-auto py-2 px-2"
           onClick={() => onConfirm(false)}
@@ -45,6 +81,7 @@ export const FolderScopeModal: React.FC<FolderScopeModalProps> = ({
 
         {/* Deep option */}
         <Button
+          ref={deepRef}
           variant="ghost"
           className="w-full justify-start gap-3 h-auto py-2 px-2"
           onClick={() => onConfirm(true)}

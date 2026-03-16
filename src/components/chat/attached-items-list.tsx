@@ -10,7 +10,7 @@ export const AttachedItemsList: React.FC = () => {
   if (items.length === 0) return null
 
   return (
-    <div className="flex flex-wrap gap-1 px-1 pb-1.5">
+    <div className="flex flex-wrap gap-1 px-1 pb-1.5 mt-2">
       {items.map((item) => (
         <ContextChip key={item.data.id} item={item} onRemove={removeItem} />
       ))}

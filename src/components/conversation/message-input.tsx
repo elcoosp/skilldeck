@@ -118,13 +118,16 @@ export function MessageInput({ conversationId }: MessageInputProps) {
 
   const clearTriggerText = useCallback(
     (trigger: TriggerState) => {
-      const before = content.substring(0, trigger.startIndex - 1)
-      const after = content.substring(
-        textareaRef.current?.selectionStart ?? trigger.startIndex
-      )
-      setContent(before + after)
+      // Check if the character at trigger.startIndex - 1 is '@' or '#'
+      const charBefore = content[trigger.startIndex - 1]
+      if (charBefore === '@' || charBefore === '#') {
+        const before = content.substring(0, trigger.startIndex - 1)
+        const after = content.substring(trigger.startIndex)
+        setContent(before + after)
+      }
+      closePicker()
     },
-    [content]
+    [content, closePicker]
   )
 
   // ── File system ───────────────────────────────────────────────────────────
@@ -293,18 +296,14 @@ export function MessageInput({ conversationId }: MessageInputProps) {
   // ── Manual trigger buttons ────────────────────────────────────────────────
 
   const triggerFilePicker = () => {
-    const newContent = content + '#'
-    setContent(newContent)
-    setTriggerState({ type: 'file', query: '', startIndex: newContent.length })
+    setTriggerState({ type: 'file', query: '', startIndex: content.length + 1 })
     setPickerPosition(calculatePickerPosition())
     loadDirectory(currentPath)
     textareaRef.current?.focus()
   }
 
   const triggerSkillPicker = () => {
-    const newContent = content + '@'
-    setContent(newContent)
-    setTriggerState({ type: 'skill', query: '', startIndex: newContent.length })
+    setTriggerState({ type: 'skill', query: '', startIndex: content.length + 1 })
     setPickerPosition(calculatePickerPosition())
     textareaRef.current?.focus()
   }

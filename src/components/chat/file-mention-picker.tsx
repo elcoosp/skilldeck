@@ -178,7 +178,11 @@ export const FileMentionPicker: React.FC<FileMentionPickerProps> = ({
           type="text"
           placeholder="Search files…"
           value={query}
-          onChange={(e) => onQueryChange?.(e.target.value)}
+          onChange={(e) => {
+            let newVal = e.target.value
+            if (newVal.startsWith('#')) newVal = newVal.slice(1)
+            onQueryChange?.(newVal)
+          }}
           className="h-8 text-sm"
         />
       </div>
