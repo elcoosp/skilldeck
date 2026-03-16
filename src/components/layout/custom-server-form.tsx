@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { useQueryClient, useMutation } from '@tanstack/react-query'
 import { Loader2, Plus } from 'lucide-react'
 import { toast } from 'sonner'
-import { addMcpServer } from '@/lib/invoke'
-import type { AddMcpServerParams } from '@/lib/invoke'
+import { commands } from '@/lib/bindings'
+import type { AddMcpServerPayload } from '@/lib/bindings'
 
 type FormTransport = 'stdio' | 'sse'
 
@@ -32,7 +32,11 @@ export function CustomServerForm({ onSuccess }: CustomServerFormProps) {
   })
 
   const addMut = useMutation({
-    mutationFn: (params: AddMcpServerParams) => addMcpServer(params),
+    mutationFn: async (params: AddMcpServerPayload) => {
+      const res = await commands.addMcpServer(params)
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['mcp-servers'] })
       toast.success(`MCP server "${form.name}" added`)
@@ -77,13 +81,13 @@ export function CustomServerForm({ onSuccess }: CustomServerFormProps) {
     addMut.mutate({
       name: form.name.trim(),
       transport: form.transport,
-      command: form.transport === 'stdio' ? form.command.trim() : undefined,
+      command: form.transport === 'stdio' ? form.command.trim() : null,
       args:
         form.transport === 'stdio' && form.args.trim()
           ? form.args.trim().split(/\s+/)
-          : undefined,
-      url: form.transport === 'sse' ? form.url.trim() : undefined,
-      env
+          : null,
+      url: form.transport === 'sse' ? form.url.trim() : null,
+      env: env ?? null
     })
   }
 

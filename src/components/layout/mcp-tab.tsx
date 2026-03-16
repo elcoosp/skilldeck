@@ -17,12 +17,8 @@ import { toast } from 'sonner'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { cn } from '@/lib/utils'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import {
-  listMcpServers,
-  addMcpServer,
-  type McpServer,
-  type AddMcpServerParams
-} from '@/lib/invoke'
+import { commands } from '@/lib/bindings'
+import type { McpServerResponse, AddMcpServerPayload } from '@/lib/bindings'
 
 import { CatalogCard } from './catalog-card'
 import { LiveServerCard } from './live-server-card'
@@ -460,13 +456,21 @@ export function McpTab() {
     isFetching
   } = useQuery({
     queryKey: ['mcp-servers'],
-    queryFn: listMcpServers,
+    queryFn: async () => {
+      const res = await commands.listMcpServers()
+      if (res.status === 'ok') return res.data
+      throw new Error(res.error)
+    },
     staleTime: 15_000,
     refetchInterval: 30_000
   })
 
   const addMut = useMutation({
-    mutationFn: (params: AddMcpServerParams) => addMcpServer(params),
+    mutationFn: async (params: AddMcpServerPayload) => {
+      const res = await commands.addMcpServer(params)
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
+    },
     onSuccess: (_data, params) => {
       qc.invalidateQueries({ queryKey: ['mcp-servers'] })
       toast.success(`"${params.name}" added — connecting…`)
@@ -484,13 +488,14 @@ export function McpTab() {
     addMut.mutate({
       name: entry.name,
       transport: entry.transport,
-      command: entry.command,
-      args: entry.args,
-      url: entry.url
+      command: entry.command ?? null,
+      args: entry.args ?? null,
+      url: entry.url ?? null,
+      env: null
     })
   }
 
-  const addedNames = new Set(servers.map((s) => s.name.toLowerCase()))
+  const addedNames = new Set(servers.map((s: McpServerResponse) => s.name.toLowerCase()))
   const isAdded = (entry: CatalogEntry) =>
     addedNames.has(entry.name.toLowerCase())
   const filteredCatalog =
@@ -642,7 +647,7 @@ export function McpTab() {
               </div>
             </div>
           ) : (
-            servers.map((server) => (
+            servers.map((server: McpServerResponse) => (
               <LiveServerCard key={server.id} server={server} />
             ))
           )}
@@ -651,11 +656,11 @@ export function McpTab() {
             <div className="flex items-center gap-3 px-1 pt-1 text-[11px] text-muted-foreground">
               <span className="flex items-center gap-1">
                 <span className="size-1.5 rounded-full bg-green-500 inline-block" />
-                {servers.filter((s) => s.status === 'connected').length}{' '}
+                {servers.filter((s: McpServerResponse) => s.status === 'connected').length}{' '}
                 connected
               </span>
               <span>
-                {servers.reduce((n, s) => n + s.tools.length, 0)} tools
+                {servers.reduce((n: number, s: McpServerResponse) => n + s.tools.length, 0)} tools
               </span>
             </div>
           )}

@@ -1,9 +1,6 @@
 // src/components/settings/lint-config.tsx
-// UI for viewing and managing lint rule configuration.
-
 import { useState } from 'react'
 import { Settings2, ToggleLeft, ToggleRight } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { useDisableRule, useLintRules } from '@/hooks/use-lint'
 import { cn } from '@/lib/utils'
 
@@ -61,13 +58,12 @@ const RULE_CATEGORIES: Record<string, string[]> = {
 }
 
 export function LintConfig() {
-  const { data: allRules = [], isLoading } = useLintRules()
+  const { data: _allRules, isLoading } = useLintRules()   // renamed to _allRules
   const disableRule = useDisableRule()
   const [disabledRules, setDisabledRules] = useState<Set<string>>(new Set())
 
   function toggleRule(ruleId: string) {
     if (disabledRules.has(ruleId)) {
-      // Re-enable: just remove from local disabled set (user must edit TOML to persist)
       setDisabledRules((prev) => {
         const next = new Set(prev)
         next.delete(ruleId)

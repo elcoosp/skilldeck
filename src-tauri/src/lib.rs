@@ -127,7 +127,7 @@ pub fn run() {
         // Create a Typescript exporter with String behavior for BigInts
         let ts = Typescript::default().bigint(BigIntExportBehavior::String);
         builder
-            .export(ts, "../src/bindings.ts")
+            .export(ts, "../src/lib/bindings.ts")
             .expect("Failed to export TypeScript bindings");
     }
 

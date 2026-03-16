@@ -16,10 +16,10 @@ import { MarkdownHooks } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeShiki from '@shikijs/rehype'
 import { cn } from '@/lib/utils'
-import type { Message } from '@/lib/invoke'
+import type { MessageData } from '@/lib/bindings'   // Fixed import
 
 interface MessageBubbleProps {
-  message: Message
+  message: MessageData   // Changed from Message to MessageData
   isStreaming?: boolean
 }
 
@@ -74,10 +74,6 @@ const CodePre = ({ children, ...props }: any) => {
         </button>
       </div>
 
-      {/*
-        Opacity + pointer-events only — no height animation, no scroll jump.
-        grid-rows trick: 0fr → 1fr collapses without touching scroll position.
-      */}
       <div
         className="grid transition-all duration-200"
         style={{ gridTemplateRows: collapsed ? '0fr' : '1fr' }}
@@ -107,7 +103,6 @@ export function MessageBubble({
   const isSystem = message.role === 'system'
   const syntheticStreaming = message.id === '__streaming__'
 
-  // Never allow collapsing while streaming — avoids state reset reopening the bubble
   const canCollapse =
     (isAssistant || isSystem || isTool) && !isStreaming && !syntheticStreaming
   const isCollapsed = collapsed && canCollapse
@@ -184,12 +179,6 @@ export function MessageBubble({
             </div>
           )}
 
-          {/*
-            Collapse with grid-rows 0fr→1fr + opacity.
-            - grid-rows collapses the space cleanly without height animation jank
-            - opacity fades content in/out
-            - No AnimatePresence, no framer height — scroll stays anchored
-          */}
           <div
             className="grid transition-all duration-200"
             style={{ gridTemplateRows: isCollapsed ? '0fr' : '1fr' }}

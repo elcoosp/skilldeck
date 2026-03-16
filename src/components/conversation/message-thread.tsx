@@ -3,10 +3,10 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { MessageBubble } from './message-bubble'
-import type { Message } from '@/lib/invoke'
+import type { MessageData } from '@/lib/bindings'
 
 interface MessageThreadProps {
-  messages: Message[]
+  messages: MessageData[]
   streamingMessageId?: string
   isLoading?: boolean
 }

@@ -23,20 +23,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import { useUIStore } from '@/store/ui'
 import { useSettingsStore } from '@/store/settings'
-import {
-  setApiKey,
-  deleteApiKey,
-  validateApiKey,
-  listApiKeys,
-  listProfiles,
-  createProfile,
-  deleteProfile,
-  setDefaultProfile,
-  listOllamaModels
-} from '@/lib/invoke'
+import { commands } from '@/lib/bindings'
+import type { ProfileData, ApiKeyStatus } from '@/lib/bindings'
 import { PreferencesTab } from '@/components/settings/preferences-tab'
 import { ReferralTab } from '@/components/settings/referral-tab'
-import type { Profile } from '@/lib/invoke'
 
 type SettingsTab =
   | 'apikeys'
@@ -131,22 +121,27 @@ function ApiKeysTab() {
 
   const { data: keyStatuses = [], refetch } = useQuery({
     queryKey: ['api-keys'],
-    queryFn: listApiKeys
+    queryFn: async () => {
+      const res = await commands.listApiKeys()
+      if (res.status === 'ok') return res.data
+      throw new Error(res.error)
+    }
   })
 
   const handleSave = async (provider: string) => {
     const key = values[provider]?.trim()
     if (!key) return
 
-    const valid = await validateApiKey(provider, key)
-    if (!valid) {
+    const validRes = await commands.validateApiKey(provider, key)
+    if (validRes.status === 'error' || !validRes.data) {
       toast.error(`Invalid format for ${provider} key`)
       return
     }
 
     setSaving((s) => ({ ...s, [provider]: true }))
     try {
-      await setApiKey(provider, key)
+      const res = await commands.setApiKey(provider, key)
+      if (res.status === 'error') throw new Error(res.error)
       setValues((v) => ({ ...v, [provider]: '' }))
       refetch()
       toast.success(`${provider} key saved`)
@@ -159,7 +154,8 @@ function ApiKeysTab() {
 
   const handleDelete = async (provider: string) => {
     try {
-      await deleteApiKey(provider)
+      const res = await commands.deleteApiKey(provider)
+      if (res.status === 'error') throw new Error(res.error)
       refetch()
       toast.success(`${provider} key removed`)
     } catch (err) {
@@ -178,7 +174,7 @@ function ApiKeysTab() {
       </div>
 
       {PROVIDERS.map(({ id, label, placeholder }) => {
-        const status = keyStatuses.find((k) => k.provider === id)
+        const status = keyStatuses.find((k: ApiKeyStatus) => k.provider === id)
         const hasKey = status?.has_key ?? false
 
         return (
@@ -260,21 +256,32 @@ function ProfilesTab() {
 
   const { data: profiles = [], isLoading } = useQuery({
     queryKey: ['profiles'],
-    queryFn: listProfiles
+    queryFn: async () => {
+      const res = await commands.listProfiles()
+      if (res.status === 'ok') return res.data
+      throw new Error(res.error)
+    }
   })
 
   const { data: ollamaModels = [] } = useQuery({
     queryKey: ['available-models', 'ollama'],
-    queryFn: listOllamaModels
+    queryFn: async () => {
+      const res = await commands.listOllamaModels()
+      if (res.status === 'ok') return res.data
+      throw new Error(res.error)
+    }
   })
 
   const createMut = useMutation({
-    mutationFn: () =>
-      createProfile(
+    mutationFn: async () => {
+      const res = await commands.createProfile(
         newName.trim(),
         newProvider,
         newModel.trim() || defaultModel()
-      ),
+      )
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['profiles'] })
       toast.success('Profile created')
@@ -287,7 +294,11 @@ function ProfilesTab() {
   })
 
   const deleteMut = useMutation({
-    mutationFn: (id: string) => deleteProfile(id),
+    mutationFn: async (id: string) => {
+      const res = await commands.deleteProfile(id)
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['profiles'] })
       toast.success('Profile deleted')
@@ -296,7 +307,11 @@ function ProfilesTab() {
   })
 
   const defaultMut = useMutation({
-    mutationFn: (id: string) => setDefaultProfile(id),
+    mutationFn: async (id: string) => {
+      const res = await commands.setDefaultProfile(id)
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['profiles'] })
       toast.success('Default profile updated')
@@ -375,7 +390,6 @@ function ProfilesTab() {
               className="w-full h-7 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
             >
               {ollamaModels.map((m) => (
-                // m.id is value, m.name is label for better UX
                 <option key={m.id} value={m.id}>
                   {m.name || m.id}
                 </option>
@@ -416,7 +430,7 @@ function ProfilesTab() {
         <p className="text-sm text-muted-foreground italic">No profiles yet.</p>
       ) : (
         <div className="space-y-2">
-          {profiles.map((p) => (
+          {profiles.map((p: ProfileData) => (
             <div
               key={p.id}
               className={cn(
@@ -436,7 +450,6 @@ function ProfilesTab() {
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground truncate">
-                  {/* FIX: Handle object or string for model_provider */}
                   {getProviderName(p.model_provider)} · {p.model_id}
                 </p>
               </div>
@@ -476,27 +489,27 @@ const APPROVAL_FIELDS: Array<{
   label: string
   description: string
 }> = [
-  {
-    key: 'autoApproveReads',
-    label: 'Auto-approve file reads',
-    description: 'Skip the approval dialog for read-only filesystem tools'
-  },
-  {
-    key: 'autoApproveWrites',
-    label: 'Auto-approve file writes',
-    description: 'Skip approval for file creation and modification'
-  },
-  {
-    key: 'autoApproveShell',
-    label: 'Auto-approve shell commands',
-    description: 'Never require approval for shell execution (⚠ dangerous)'
-  },
-  {
-    key: 'autoApproveHttpRequests',
-    label: 'Auto-approve HTTP requests',
-    description: 'Skip approval for outbound HTTP tool calls'
-  }
-]
+    {
+      key: 'autoApproveReads',
+      label: 'Auto-approve file reads',
+      description: 'Skip the approval dialog for read-only filesystem tools'
+    },
+    {
+      key: 'autoApproveWrites',
+      label: 'Auto-approve file writes',
+      description: 'Skip approval for file creation and modification'
+    },
+    {
+      key: 'autoApproveShell',
+      label: 'Auto-approve shell commands',
+      description: 'Never require approval for shell execution (⚠ dangerous)'
+    },
+    {
+      key: 'autoApproveHttpRequests',
+      label: 'Auto-approve HTTP requests',
+      description: 'Skip approval for outbound HTTP tool calls'
+    }
+  ]
 
 function ApprovalsTab() {
   const toolApprovals = useSettingsStore((s) => s.toolApprovals)

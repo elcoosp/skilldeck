@@ -1,12 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { listWorkspaces, openWorkspace, closeWorkspace } from '@/lib/invoke'
-import type { Workspace } from '@/lib/invoke'
+import { commands } from '@/lib/bindings'
 import type { UUID } from '@/lib/types'
 
 export function useWorkspaces() {
   return useQuery({
     queryKey: ['workspaces'],
-    queryFn: listWorkspaces,
+    queryFn: async () => {
+      const res = await commands.listWorkspaces()
+      if (res.status === 'ok') return res.data
+      throw new Error(res.error)
+    },
     staleTime: 30_000
   })
 }
@@ -14,7 +17,11 @@ export function useWorkspaces() {
 export function useOpenWorkspace() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (path: string) => openWorkspace(path),
+    mutationFn: async (path: string) => {
+      const res = await commands.openWorkspace(path)
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workspaces'] })
     }
@@ -24,7 +31,11 @@ export function useOpenWorkspace() {
 export function useCloseWorkspace() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: UUID) => closeWorkspace(id),
+    mutationFn: async (id: UUID) => {
+      const res = await commands.closeWorkspace(id)
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workspaces'] })
     }

@@ -12,7 +12,7 @@ import { useState } from 'react'
 import { ArrowRight, Check, Key, Mail, Rocket, Shield } from 'lucide-react'
 import { toast } from 'sonner'
 import { useUIStore } from '@/store/ui'
-import { setApiKey } from '@/lib/invoke'
+import { commands } from '@/lib/bindings'
 import {
   updatePlatformPreferences,
   ensurePlatformRegistration
@@ -39,7 +39,8 @@ export function OnboardingWizard() {
     }
     setSaving(true)
     try {
-      await setApiKey({ provider: 'claude', key: apiKeyDraft.trim() })
+      const res = await commands.setApiKey('claude', apiKeyDraft.trim())
+      if (res.status === 'error') throw new Error(res.error)
       toast.success('API key saved')
       setStep('platform')
     } catch (e: any) {

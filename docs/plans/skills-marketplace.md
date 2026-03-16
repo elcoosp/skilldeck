@@ -504,7 +504,7 @@ export async function getLintRules(): Promise<string[]> {
 
 ```typescript
 import { useQuery } from '@tanstack/react-query';
-import { lintSkill, lintAllLocalSources, getLintRules } from '@/lib/invoke';
+import { lintSkill, lintAllLocalSources, getLintRules } from '@/lib/bindings';
 
 export function useLintSkill(skillPath: string | null) {
   return useQuery({

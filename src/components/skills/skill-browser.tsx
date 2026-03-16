@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { SkillCard } from './skill-card'
 import { SkillDetail } from './skill-detail'
 import { useAllSkills, useSyncRegistry } from '@/hooks/use-skills'
-import type { RegistrySkill } from '@/lib/invoke'
+import type { RegistrySkillData } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
 
 const CATEGORIES = [
@@ -28,7 +28,7 @@ const CATEGORIES = [
 export function SkillBrowser({ className }: { className?: string }) {
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('All')
-  const [selectedSkill, setSelectedSkill] = useState<RegistrySkill | null>(null)
+  const [selectedSkill, setSelectedSkill] = useState<RegistrySkillData | null>(null)
 
   const { skills, isLoading, isError } = useAllSkills({
     category: category === 'All' ? undefined : category,
@@ -134,7 +134,7 @@ export function SkillBrowser({ className }: { className?: string }) {
           {!isLoading && !isError && filtered.length > 0 && (
             <div className="grid grid-cols-1 gap-2">
               {filtered.map((skill) => {
-                // Narrow to RegistrySkill for display.
+                // Narrow to RegistrySkillData for display.
                 if (skill._sourceType === 'registry') {
                   return (
                     <SkillCard
@@ -151,7 +151,7 @@ export function SkillBrowser({ className }: { className?: string }) {
                     name={skill.name}
                     description={skill.description}
                     source={skill.source}
-                    isActive={skill.isActive}
+                    isActive={skill.is_active}
                   />
                 )
               })}

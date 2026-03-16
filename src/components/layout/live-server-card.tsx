@@ -4,14 +4,14 @@ import { ChevronRight, Loader2, PlugZap, Server, Trash2, Unplug } from 'lucide-r
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
-import { connectMcpServer, disconnectMcpServer, removeMcpServer } from '@/lib/invoke'
-import type { McpServer } from '@/lib/invoke'
+import { commands } from '@/lib/bindings'
+import type { McpServerResponse, McpToolResponse } from '@/lib/bindings'
 
 interface LiveServerCardProps {
-  server: McpServer
+  server: McpServerResponse
 }
 
-function StatusBadge({ status }: { status: McpServer['status'] }) {
+function StatusBadge({ status }: { status: McpServerResponse['status'] }) {
   return (
     <Badge
       variant={
@@ -40,7 +40,11 @@ export function LiveServerCard({ server }: LiveServerCardProps) {
   const [expanded, setExpanded] = useState(false)
 
   const connectMut = useMutation({
-    mutationFn: () => connectMcpServer(server.id),
+    mutationFn: async () => {
+      const res = await commands.connectMcpServer(server.id)
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['mcp-servers'] })
       toast.success(`Connected to ${server.name}`)
@@ -49,7 +53,11 @@ export function LiveServerCard({ server }: LiveServerCardProps) {
   })
 
   const disconnectMut = useMutation({
-    mutationFn: () => disconnectMcpServer(server.id),
+    mutationFn: async () => {
+      const res = await commands.disconnectMcpServer(server.id)
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['mcp-servers'] })
       toast.info(`Disconnected from ${server.name}`)
@@ -58,7 +66,11 @@ export function LiveServerCard({ server }: LiveServerCardProps) {
   })
 
   const removeMut = useMutation({
-    mutationFn: () => removeMcpServer(server.id),
+    mutationFn: async () => {
+      const res = await commands.removeMcpServer(server.id)
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['mcp-servers'] })
       toast.success(`Removed ${server.name}`)
@@ -139,7 +151,7 @@ export function LiveServerCard({ server }: LiveServerCardProps) {
               <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
                 {server.tools.length} tool{server.tools.length !== 1 ? 's' : ''}
               </p>
-              {server.tools.map((tool) => (
+              {server.tools.map((tool: McpToolResponse) => (
                 <div key={tool.name} className="text-[11px]">
                   <span className="font-mono text-foreground">{tool.name}</span>
                   {tool.description && (

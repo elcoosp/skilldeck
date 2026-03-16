@@ -1,7 +1,6 @@
 // src/components/skills/conflict-resolver.tsx
 // UX: Shows a diff view when a local skill version diverges from the registry.
 
-import { useState } from 'react'
 import { AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -67,9 +66,9 @@ export function ConflictResolver({
                   className={cn(
                     'px-1 rounded-sm',
                     line.startsWith('-') &&
-                      'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400',
+                    'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400',
                     line.startsWith('+') &&
-                      'bg-green-100 text-green-700 dark:bg-green-950/30 dark:text-green-400'
+                    'bg-green-100 text-green-700 dark:bg-green-950/30 dark:text-green-400'
                   )}
                 >
                   {line || ' '}

@@ -47,7 +47,7 @@ Create `src/types/chat-context.ts`. We extend types to handle Folder scopes.
 
 ```typescript
 // src/types/chat-context.ts
-import { RegistrySkill, LintWarning } from '@/lib/invoke';
+import { RegistrySkill, LintWarning } from '@/lib/bindings';
 
 export type ContextItemType = 'skill' | 'file' | 'folder';
 
@@ -106,7 +106,7 @@ Create `src/store/chat-context-store.ts`.
 // src/store/chat-context-store.ts
 import { create } from 'zustand';
 import { AttachedItem, AttachedSkill, AttachedFile, AttachedFolder } from '@/types/chat-context';
-import { RegistrySkill, LintWarning } from '@/lib/invoke';
+import { RegistrySkill, LintWarning } from '@/lib/bindings';
 
 interface ChatContextState {
   items: AttachedItem[];
@@ -698,7 +698,7 @@ We reuse the `TrustBadge` from the marketplace and `shadcn` structure.
 ```tsx
 // src/components/chat/chat-command-palette.tsx
 import React, { useEffect, useState } from 'react';
-import { RegistrySkill } from '@/lib/invoke';
+import { RegistrySkill } from '@/lib/bindings';
 import { TrustBadge } from '@/components/skills/trust-badge';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -983,7 +983,7 @@ import { useChatContextStore } from '@/store/chat-context-store';
 import { FileMentionPicker } from './file-mention-picker';
 import { ChatCommandPalette } from './chat-command-palette';
 import { AttachedItemsList } from './attached-items-list';
-import { listDirectoryContents, countFolderFiles, useAllSkills } from '@/lib/invoke'; // Assuming hook export
+import { listDirectoryContents, countFolderFiles, useAllSkills } from '@/lib/bindings'; // Assuming hook export
 import { RegistrySkill, FileEntry } from '@/types/chat-context';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -1244,7 +1244,7 @@ Using `shadcn` AlertDialog.
 ```tsx
 // src/components/chat/security-warning-dialog.tsx
 import React from 'react';
-import { RegistrySkill } from '@/lib/invoke';
+import { RegistrySkill } from '@/lib/bindings';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { AlertTriangle } from 'lucide-react';
 
@@ -1462,7 +1462,7 @@ Modify `src/components/chat/chat-input.tsx`.
 ```tsx
 // src/components/chat/chat-input.tsx
 // ... imports
-import { sendChatMessage } from '@/lib/invoke';
+import { sendChatMessage } from '@/lib/bindings';
 
 // ... inside component
 const handleSend = async () => {

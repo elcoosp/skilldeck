@@ -2,13 +2,8 @@
 // React Query hooks for skill linting.
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  disableLintRule,
-  getLintRules,
-  lintAllLocalSources,
-  lintSkill,
-  type LintWarning
-} from '@/lib/invoke'
+import { commands } from '@/lib/bindings'
+import type { LintWarning } from '@/lib/bindings'
 import { toast } from 'sonner'
 
 // ── Single skill lint ─────────────────────────────────────────────────────────
@@ -16,7 +11,12 @@ import { toast } from 'sonner'
 export function useLintSkill(skillPath: string | null) {
   return useQuery({
     queryKey: ['lint', 'skill', skillPath],
-    queryFn: () => lintSkill(skillPath!),
+    queryFn: async () => {
+      if (!skillPath) return []
+      const res = await commands.lintSkill(skillPath, null)
+      if (res.status === 'ok') return res.data
+      throw new Error(res.error)
+    },
     enabled: !!skillPath,
     staleTime: 60_000,
     retry: false
@@ -28,7 +28,11 @@ export function useLintSkill(skillPath: string | null) {
 export function useLintAllLocalSources() {
   return useQuery({
     queryKey: ['lint', 'all-local'],
-    queryFn: lintAllLocalSources,
+    queryFn: async () => {
+      const res = await commands.lintAllLocalSources()
+      if (res.status === 'ok') return res.data
+      throw new Error(res.error)
+    },
     staleTime: 60_000,
     retry: false
   })
@@ -39,7 +43,11 @@ export function useLintAllLocalSources() {
 export function useLintRules() {
   return useQuery({
     queryKey: ['lint', 'rules'],
-    queryFn: getLintRules,
+    queryFn: async () => {
+      const res = await commands.getLintRules()
+      if (res.status === 'ok') return res.data
+      throw new Error(res.error)
+    },
     staleTime: Infinity
   })
 }
@@ -50,13 +58,17 @@ export function useDisableRule() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({
+    mutationFn: async ({
       ruleId,
       scope
     }: {
       ruleId: string
       scope: 'global' | 'workspace'
-    }) => disableLintRule(ruleId, scope),
+    }) => {
+      const res = await commands.disableLintRule(ruleId, scope)
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
+    },
     onSuccess: (_data, { ruleId, scope }) => {
       toast.success(`Rule "${ruleId}" disabled for ${scope} scope`)
       // Invalidate all lint caches so they re-run without the disabled rule.

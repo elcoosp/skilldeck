@@ -12,10 +12,10 @@ import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { TrustBadge } from './trust-badge'
-import type { RegistrySkill } from '@/lib/invoke'
+import type { RegistrySkillData } from '@/lib/bindings'
 
 interface SkillCardProps {
-  skill: RegistrySkill
+  skill: RegistrySkillData
   isInstalled?: boolean
   onSelect?: () => void
   onInstall?: () => void
@@ -30,7 +30,7 @@ export function SkillCard({
   className
 }: SkillCardProps) {
   const errorCount = skill.lintWarnings.filter(
-    (w) => w.severity === 'error'
+    (w: any) => w.severity === 'error'
   ).length
   const isAiTagged = skill.metadataSource === 'llm_enrichment'
 
@@ -92,7 +92,7 @@ export function SkillCard({
               AI
             </span>
           )}
-          {skill.tags.slice(0, 5).map((tag) => (
+          {skill.tags.slice(0, 5).map((tag: string) => (
             <Badge
               key={tag}
               variant="secondary"
