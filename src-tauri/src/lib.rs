@@ -16,6 +16,7 @@ mod state;
 mod sync;
 
 use commands::{
+    workflows::*;
     branches::*, conversations::*, export::*, gist::*, mcp::*, messages::*, ollama::*, platform::*,
     profiles::*, settings::*, skills::*, workspaces::*,
 };
