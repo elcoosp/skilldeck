@@ -107,29 +107,28 @@ export function useToggleSkill() {
 // ── Install ───────────────────────────────────────────────────────────────────
 
 export function useInstallSkill() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({
       skillName,
       skillContent,
-      target
+      target,
+      overwrite = false,
     }: {
-      skillName: string
-      skillContent: string
-      target: InstallTarget
+      skillName: string;
+      skillContent: string;
+      target: 'personal' | 'workspace';
+      overwrite?: boolean;
     }) => {
-      const res = await commands.installSkill(skillName, skillContent, target)
-      if (res.status === 'error') throw new Error(res.error)
-      return res.data
+      const res = await commands.installSkill(skillName, skillContent, target, overwrite);
+      if (res.status === 'error') throw new Error(res.error);
+      return res.data;
     },
-    onSuccess: (result) => {
-      toast.success(`Skill "${result.skill_name}" installed successfully`)
-      queryClient.invalidateQueries({ queryKey: ['skills'] })
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['skills'] });
     },
-    onError: (e: unknown) => toast.error(`Install failed: ${e}`)
-  })
+  });
 }
-
 // ── Uninstall ─────────────────────────────────────────────────────────────────
 
 export function useUninstallSkill() {

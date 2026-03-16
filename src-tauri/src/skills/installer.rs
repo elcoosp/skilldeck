@@ -104,7 +104,6 @@ pub fn update_skill(
     })
 }
 
-#[allow(dead_code)]
 /// Read the current content of a locally installed skill.
 pub fn read_local_skill(skill_name: &str, target: &InstallTarget) -> Result<String> {
     let target_dir = resolve_target_dir(target)?;
@@ -112,9 +111,8 @@ pub fn read_local_skill(skill_name: &str, target: &InstallTarget) -> Result<Stri
     Ok(fs::read_to_string(skill_md)?)
 }
 
-// ── Internals ─────────────────────────────────────────────────────────────────
-
-fn resolve_target_dir(target: &InstallTarget) -> Result<PathBuf> {
+/// Resolve the target directory for a given install target.
+pub fn resolve_target_dir(target: &InstallTarget) -> Result<PathBuf> {
     match target {
         InstallTarget::Personal => {
             let home = dirs_next::home_dir()

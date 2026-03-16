@@ -47,38 +47,7 @@ pub async fn list_skills(state: State<'_, Arc<AppState>>) -> Result<Vec<SkillInf
         })
         .collect())
 }
-#[specta]
-#[tauri::command]
-pub async fn install_registry_skill(
-    state: State<'_, Arc<AppState>>,
-    skill_id: String,
-    target: InstallTarget,
-) -> Result<InstallResult, String> {
-    let db = state
-        .registry
-        .db
-        .connection()
-        .await
-        .map_err(|e| e.to_string())?;
 
-    use skilldeck_models::registry_skills::Entity as RegistrySkills;
-    let uuid = Uuid::parse_str(&skill_id).map_err(|e| e.to_string())?;
-
-    let skill = RegistrySkills::find_by_id(uuid)
-        .one(db)
-        .await
-        .map_err(|e| e.to_string())?
-        .ok_or_else(|| "Skill not found in registry".to_string())?;
-
-    // Use the existing install_skill function
-    crate::skills::installer::install_skill(&skill.name, &skill.content, &target)
-        .map_err(|e| e.to_string())
-        .map(|install_result| InstallResult {
-            skill_name: install_result.skill_name,
-            installed_path: install_result.installed_path,
-            target: install_result.target,
-        })
-}
 #[specta]
 #[tauri::command]
 pub async fn toggle_skill(
@@ -182,6 +151,7 @@ pub async fn get_lint_rules() -> Result<Vec<String>, String> {
 // ── Installation commands ─────────────────────────────────────────────────────
 
 use crate::skills::installer::{InstallResult, InstallTarget, install_skill as do_install};
+
 /// Validate skill name – only allow alphanumeric, underscore, hyphen.
 fn validate_skill_name(name: &str) -> Result<(), String> {
     if name.is_empty() {
@@ -195,6 +165,7 @@ fn validate_skill_name(name: &str) -> Result<(), String> {
     }
     Ok(())
 }
+
 /// Install a skill into the personal or workspace location.
 #[specta]
 #[tauri::command]
@@ -202,9 +173,18 @@ pub async fn install_skill(
     skill_name: String,
     skill_content: String,
     target: InstallTarget,
+    overwrite: Option<bool>,
 ) -> Result<InstallResult, String> {
     validate_skill_name(&skill_name)?;
     tokio::task::spawn_blocking(move || {
+        if overwrite.unwrap_or(false) {
+            // If overwrite is true, we need to remove existing first
+            let target_dir = crate::skills::installer::resolve_target_dir(&target)?;
+            let dest_path = target_dir.join(&skill_name);
+            if dest_path.exists() {
+                std::fs::remove_dir_all(&dest_path)?;
+            }
+        }
         do_install(&skill_name, &skill_content, &target).map_err(|e| e.to_string())
     })
     .await
@@ -221,6 +201,38 @@ pub async fn uninstall_skill(skill_name: String, target: InstallTarget) -> Resul
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+// ── Conflict resolution helpers ───────────────────────────────────────────────
+
+#[specta]
+#[tauri::command]
+pub async fn get_installed_skill_content(
+    skill_name: String,
+    target: InstallTarget,
+) -> Result<Option<String>, String> {
+    use crate::skills::installer::read_local_skill;
+    match read_local_skill(&skill_name, &target) {
+        Ok(content) => Ok(Some(content)),
+        Err(e) if e.to_string().contains("not installed") => Ok(None),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+#[specta]
+#[tauri::command]
+pub async fn get_installed_skill_path(
+    skill_name: String,
+    target: InstallTarget,
+) -> Result<Option<String>, String> {
+    use crate::skills::installer::resolve_target_dir;
+    let target_dir = resolve_target_dir(&target).map_err(|e| e.to_string())?;
+    let skill_path = target_dir.join(&skill_name);
+    if skill_path.exists() {
+        Ok(Some(skill_path.to_string_lossy().into_owned()))
+    } else {
+        Ok(None)
+    }
 }
 
 // ── Diff / conflict resolution ────────────────────────────────────────────────
@@ -509,7 +521,7 @@ pub async fn sync_registry_skills_background(state: &AppState) -> Result<usize, 
 
     let last_sync = RegistrySkills::find()
         .order_by_desc(skilldeck_models::registry_skills::Column::SyncedAt)
-        .one(db) // Note: pass `db`, not `&db`
+        .one(db)
         .await
         .map_err(|e| e.to_string())?
         .map(|row| row.synced_at.to_rfc3339());
@@ -557,6 +569,34 @@ pub async fn fetch_registry_skills(
                 .add(Column::Description.like(&pattern)),
         );
     }
-    let skills = query.all(db).await.map_err(|e| e.to_string())?; // Fixed: `db` not `&db`
+    let skills = query.all(db).await.map_err(|e| e.to_string())?;
     Ok(skills.into_iter().map(Into::into).collect())
+}
+
+/// Install a skill from the registry by ID.
+#[specta]
+#[tauri::command]
+pub async fn install_registry_skill(
+    state: State<'_, Arc<AppState>>,
+    skill_id: String,
+    target: InstallTarget,
+    overwrite: Option<bool>,
+) -> Result<InstallResult, String> {
+    let db = state
+        .registry
+        .db
+        .connection()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    use skilldeck_models::registry_skills::Entity as RegistrySkills;
+    let uuid = Uuid::parse_str(&skill_id).map_err(|e| e.to_string())?;
+
+    let skill = RegistrySkills::find_by_id(uuid)
+        .one(db)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "Skill not found in registry".to_string())?;
+
+    install_skill(skill.name, skill.content, target, overwrite).await
 }

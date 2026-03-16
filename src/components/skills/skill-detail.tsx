@@ -1,26 +1,30 @@
 // src/components/skills/skill-detail.tsx
 // Full detail view for a registry skill — shown in a panel or dialog.
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react';
 import {
   ArrowLeft,
   ExternalLink,
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { TrustBadge, ScoreDots } from './trust-badge'
-import { LintWarningPanel } from './lint-warning-panel'
-import { InstallDialog } from './install-dialog'
-import { BlockedSkillAlert } from './blocked-skill-alert'
-import type { RegistrySkillData } from '@/lib/bindings'
-import { cn } from '@/lib/utils'
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { TrustBadge, ScoreDots } from './trust-badge';
+import { LintWarningPanel } from './lint-warning-panel';
+import { InstallDialog } from './install-dialog';
+import { ConflictResolver } from './conflict-resolver';
+import { BlockedSkillAlert } from './blocked-skill-alert';
+import { useInstallSkill } from '@/hooks/use-skills';
+import { commands } from '@/lib/bindings';
+import type { RegistrySkillData } from '@/lib/bindings';
+import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface SkillDetailProps {
-  skill: RegistrySkillData
-  isInstalled?: boolean
-  onBack?: () => void
-  className?: string
+  skill: RegistrySkillData;
+  isInstalled?: boolean;
+  onBack?: () => void;
+  className?: string;
 }
 
 export function SkillDetail({
@@ -29,19 +33,69 @@ export function SkillDetail({
   onBack,
   className
 }: SkillDetailProps) {
-  const [showInstall, setShowInstall] = useState(false)
-  const [showBlocked, setShowBlocked] = useState(false)
+  const [showInstall, setShowInstall] = useState(false);
+  const [showBlocked, setShowBlocked] = useState(false);
+  const [showConflict, setShowConflict] = useState(false);
+  const [localContent, setLocalContent] = useState<string | null>(null);
+  const [localPath, setLocalPath] = useState<string | null>(null);
+  const [diff, setDiff] = useState<string>('');
 
-  const isBlocked = skill.securityScore < 2
-  const isAiTagged = skill.metadataSource === 'llm_enrichment'
+  const install = useInstallSkill();
 
-  function handleInstallClick() {
-    if (isBlocked) {
-      setShowBlocked(true)
-    } else {
-      setShowInstall(true)
+  const isBlocked = skill.securityScore < 2;
+  const isAiTagged = skill.metadataSource === 'llm_enrichment';
+
+  const checkForConflict = useCallback(async () => {
+    // Check if skill is already installed in personal location (or workspace, but we'll check personal first)
+    const contentRes = await commands.getInstalledSkillContent(skill.name, 'personal');
+    if (contentRes.status === 'error') {
+      toast.error('Failed to check existing installation');
+      return false;
     }
-  }
+    if (contentRes.data) {
+      // Skill exists locally, get path and diff
+      const pathRes = await commands.getInstalledSkillPath(skill.name, 'personal');
+      if (pathRes.status === 'ok' && pathRes.data) {
+        setLocalContent(contentRes.data);
+        setLocalPath(pathRes.data);
+        const diffRes = await commands.diffSkillVersions(pathRes.data, skill.content);
+        if (diffRes.status === 'ok') {
+          setDiff(diffRes.data.diff);
+          setShowConflict(true);
+          return true;
+        }
+      }
+    }
+    return false; // no conflict
+  }, [skill.name, skill.content]);
+
+  const handleInstallClick = async () => {
+    if (isBlocked) {
+      setShowBlocked(true);
+      return;
+    }
+    const hasConflict = await checkForConflict();
+    if (!hasConflict) {
+      setShowInstall(true);
+    }
+  };
+
+  const handleOverwrite = () => {
+    install.mutate(
+      { skillName: skill.name, skillContent: skill.content, target: 'personal', overwrite: true },
+      {
+        onSuccess: () => {
+          toast.success('Skill overwritten with registry version');
+          setShowConflict(false);
+        },
+        onError: (err) => toast.error('Failed to overwrite: ' + err),
+      }
+    );
+  };
+
+  const handleKeepLocal = () => {
+    setShowConflict(false);
+  };
 
   return (
     <div className={cn('flex flex-col h-full', className)}>
@@ -168,13 +222,22 @@ export function SkillDetail({
           skill={skill}
           onCancel={() => setShowBlocked(false)}
           onInstallAnyway={() => {
-            setShowBlocked(false)
-            setShowInstall(true)
+            setShowBlocked(false);
+            setShowInstall(true);
           }}
         />
       )}
+      {showConflict && (
+        <ConflictResolver
+          skillName={skill.name}
+          diff={diff}
+          onKeepLocal={handleKeepLocal}
+          onOverwrite={handleOverwrite}
+          onClose={() => setShowConflict(false)}
+        />
+      )}
     </div>
-  )
+  );
 }
 
 function MetaRow({ label, value }: { label: string; value: string }) {
@@ -185,5 +248,5 @@ function MetaRow({ label, value }: { label: string; value: string }) {
       </span>
       <span className="text-sm truncate">{value}</span>
     </div>
-  )
+  );
 }
