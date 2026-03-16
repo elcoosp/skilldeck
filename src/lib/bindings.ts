@@ -6,6 +6,110 @@
 
 export const commands = {
 /**
+ * Create a new branch from a parent message.
+ */
+async createBranch(req: CreateBranchRequest) : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("create_branch", { req }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * List all branches for a conversation.
+ */
+async listBranches(conversationId: string) : Promise<Result<BranchInfo[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_branches", { conversationId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Get messages for a specific branch.
+ */
+async getBranchMessages(branchId: string) : Promise<Result<MessageData[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_branch_messages", { branchId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Save a new workflow definition.
+ */
+async saveWorkflowDefinition(req: SaveWorkflowDefinitionRequest) : Promise<Result<WorkflowDefinitionResponse, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_workflow_definition", { req }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * List all workflow definitions.
+ */
+async listWorkflowDefinitions() : Promise<Result<WorkflowDefinitionResponse[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_workflow_definitions") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Get a single workflow definition by ID.
+ */
+async getWorkflowDefinition(id: string) : Promise<Result<WorkflowDefinitionResponse, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_workflow_definition", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Delete a workflow definition.
+ */
+async deleteWorkflowDefinition(id: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("delete_workflow_definition", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async getInstalledSkillContent(skillName: string, target: InstallTarget) : Promise<Result<string | null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_installed_skill_content", { skillName, target }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async getInstalledSkillPath(skillName: string, target: InstallTarget) : Promise<Result<string | null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_installed_skill_path", { skillName, target }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Install a skill from the registry by ID.
+ */
+async installRegistrySkill(skillId: string, target: InstallTarget, overwrite: boolean | null) : Promise<Result<InstallResult, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("install_registry_skill", { skillId, target, overwrite }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Open a folder in the system file explorer.
  */
 async openFolder(path: string) : Promise<Result<null, string>> {
@@ -294,9 +398,9 @@ async disableLintRule(ruleId: string, scope: ConfigScope) : Promise<Result<null,
 /**
  * Install a skill into the personal or workspace location.
  */
-async installSkill(skillName: string, skillContent: string, target: InstallTarget) : Promise<Result<InstallResult, string>> {
+async installSkill(skillName: string, skillContent: string, target: InstallTarget, overwrite: boolean | null) : Promise<Result<InstallResult, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("install_skill", { skillName, skillContent, target }) };
+    return { status: "ok", data: await TAURI_INVOKE("install_skill", { skillName, skillContent, target, overwrite }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -694,11 +798,13 @@ export type AgentToolCall = { id: string; name: string; arguments: JsonValue }
  * Whether a given provider has a stored key.
  */
 export type ApiKeyStatus = { provider: string; has_key: boolean }
+export type BranchInfo = { id: string; name: string | null; parent_message_id: string; created_at: string; message_count: string }
 export type ConfigScope = "global" | "workspace"
 /**
  * Lightweight summary used by the sidebar list.
  */
 export type ConversationSummary = { id: string; title: string | null; profile_id: string; workspace_id: string | null; created_at: string; updated_at: string; message_count: string }
+export type CreateBranchRequest = { conversation_id: string; parent_message_id: string; name: string | null }
 export type DiffResult = { diff: string; has_changes: boolean }
 export type ExportFormat = "markdown" | "json"
 /**
@@ -765,6 +871,7 @@ export type ProfileData = { id: string; name: string; model_provider: string; mo
 export type ReferralCode = { id: string; code: string; uses: number; max_uses: number; created_at: string }
 export type ReferralStats = { code: ReferralCode; total_signups: string; total_conversions: string; rewards_earned: string }
 export type RegistrySkillData = { id: string; name: string; description: string; source: string; sourceUrl: string | null; version: string | null; author: string | null; license: string | null; tags: string[]; category: string | null; lintWarnings: JsonValue[]; securityScore: number; qualityScore: number; metadataSource: string; content: string; createdAt: string; updatedAt: string }
+export type SaveWorkflowDefinitionRequest = { name: string; definition: JsonValue }
 /**
  * Severity level of a lint warning.
  */
@@ -772,6 +879,7 @@ export type Severity = "off" | "info" | "warning" | "error"
 export type SkillInfo = { name: string; description: string; is_active: boolean; source: string; path: string | null }
 export type SkillSourceInfo = { id: string; source_type: string; path: string; label: string | null }
 export type UpdatePrefsPayload = { email: string | null; nudge_frequency: string | null; nudge_opt_out: boolean | null; notification_channels: string[] | null; theme_preference: string | null; timezone: string | null; analytics_opt_in: boolean | null }
+export type WorkflowDefinitionResponse = { id: string; name: string; definition: JsonValue; created_at: string; updated_at: string }
 /**
  * Payload for the `"workflow-event"` Tauri channel.
  */
