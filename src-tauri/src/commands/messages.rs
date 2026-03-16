@@ -112,6 +112,14 @@ pub async fn send_message(
     };
     user_msg.insert(db).await.map_err(|e| e.to_string())?;
 
+    // NEW: Emit Persisted event immediately so UI shows the user message right away.
+    let _ = app.emit(
+        "agent-event",
+        AgentEvent::Persisted {
+            conversation_id: conversation_id.clone(),
+        },
+    );
+
     // Emit "started" immediately so the UI can show a spinner.
     let _ = app.emit(
         "agent-event",
@@ -275,6 +283,7 @@ async fn run_agent_loop(
 ) {
     use skilldeck_core::agent::tool_dispatcher::ToolDispatcher;
     use skilldeck_core::traits::ChatMessage;
+    use std::time::Duration;
     use tokio::sync::mpsc;
 
     // Resolve provider + model from the conversation's profile.
