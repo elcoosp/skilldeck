@@ -3,7 +3,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { commands } from '@/lib/bindings'
 import type { RegistrySkillData, SkillInfo } from '@/lib/bindings'
 
-export function useAllSkills(options?: { category?: string; search?: string }) {
+export function useAllSkills(options?: { category?: string; search?: string }): {
+  skills: Array<SkillInfo | RegistrySkillData>;
+  isLoading: boolean;
+  isError: boolean;
+} {
   const { data: localSkills = [], isLoading: localLoading } = useQuery({
     queryKey: ['skills'],
     queryFn: async () => {
@@ -73,14 +77,11 @@ export function useInstallSkill() {
       skillName,
       skillContent,
       target,
-      overwrite = false,
     }: {
       skillName: string;
       skillContent: string;
       target: 'personal' | 'workspace';
-      overwrite?: boolean;
     }) => {
-      // FIXME: overwrite parameter is not yet supported by the command; remove it for now
       const res = await commands.installSkill(skillName, skillContent, target);
       if (res.status === 'error') throw new Error(res.error);
       return res.data;

@@ -45,12 +45,13 @@ export function SkillCard({
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
   const uninstallSkill = useUninstallSkill()
 
-  const isRegistry = '_sourceType' in skill && skill._sourceType === 'registry'
+  // Discriminate based on presence of _sourceType
   const isLocal = '_sourceType' in skill && skill._sourceType === 'local'
+  const isRegistry = !isLocal
 
-  // Helper to safely access registry-specific fields
-  const registrySkill = isRegistry ? skill as RegistrySkillData : null
-  const localSkill = isLocal ? skill as SkillInfo & { _sourceType: 'local' } : null
+  // Safe casts with unknown to avoid type errors
+  const registrySkill = isRegistry ? (skill as unknown as RegistrySkillData) : null
+  const localSkill = isLocal ? (skill as SkillInfo & { _sourceType: 'local' }) : null
 
   const errorCount = registrySkill
     ? registrySkill.lintWarnings.filter((w: any) => w.severity === 'error').length

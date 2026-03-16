@@ -20,7 +20,7 @@ const BREAKPOINTS = {
   double: 600
 }
 
-function useColumnCount(ref: React.RefObject<HTMLElement>) {
+function useColumnCount(ref: React.RefObject<HTMLElement | null>) {
   const [columns, setColumns] = useState(3) // default to 3, will adjust on mount
 
   useEffect(() => {
