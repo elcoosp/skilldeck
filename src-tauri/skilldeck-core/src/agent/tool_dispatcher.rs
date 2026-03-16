@@ -14,7 +14,7 @@ use crate::{
     agent::load_skill_result::{LoadSkillResult, SkillContentFormat},
     mcp::registry::McpRegistry,
     skills::SkillRegistry,
-    traits::{McpCallResult, ToolCall},
+    traits::{McpCallResult, SubagentSpawner, ToolCall},
 };
 
 // ── Approval gate ─────────────────────────────────────────────────────────────
@@ -164,6 +164,8 @@ pub struct ToolDispatcher {
     auto_approve: Arc<tokio::sync::RwLock<AutoApproveConfig>>,
     /// Whether the model supports Toon encoding.
     supports_toon: bool,
+    /// Subagent spawner (optional).
+    subagent_spawner: Option<Arc<dyn SubagentSpawner>>,
 }
 
 impl ToolDispatcher {
@@ -172,6 +174,7 @@ impl ToolDispatcher {
         approval_gate: Arc<ApprovalGate>,
         skill_registry: Arc<SkillRegistry>,
         supports_toon: bool,
+        subagent_spawner: Option<Arc<dyn SubagentSpawner>>,
     ) -> Self {
         Self {
             mcp_registry,
@@ -179,6 +182,7 @@ impl ToolDispatcher {
             skill_registry,
             auto_approve: Arc::new(tokio::sync::RwLock::new(AutoApproveConfig::default())),
             supports_toon,
+            subagent_spawner,
         }
     }
 
@@ -266,8 +270,41 @@ impl ToolDispatcher {
                     })),
                 }
             }
-            "spawnSubagent" => Some(Ok(serde_json::json!({ "spawned": true }))),
-            "mergeSubagentResults" => Some(Ok(serde_json::json!({ "merged": true }))),
+            "spawnSubagent" => {
+                if let Some(spawner) = &self.subagent_spawner {
+                    let task = args["task"].as_str().unwrap_or("").to_string();
+                    let skills = args["skills"]
+                        .as_array()
+                        .map(|arr| {
+                            arr.iter()
+                                .filter_map(|v| v.as_str().map(String::from))
+                                .collect()
+                        })
+                        .unwrap_or_default();
+
+                    match spawner.spawn_subagent(task, skills).await {
+                        Ok(subagent_id) => Some(Ok(serde_json::json!({
+                            "subagentId": subagent_id,
+                            "status": "spawned"
+                        }))),
+                        Err(e) => Some(Err(CoreError::McpToolExecution {
+                            tool_name: "spawnSubagent".into(),
+                            message: e,
+                        })),
+                    }
+                } else {
+                    Some(Err(CoreError::Internal {
+                        message: "Subagent spawner not configured".into(),
+                    }))
+                }
+            }
+            "mergeSubagentResults" => {
+                // This tool is handled in the Tauri command layer where we have access to results.
+                // For now, return an error indicating it's not implemented at the core level.
+                Some(Err(CoreError::NotImplemented {
+                    feature: "mergeSubagentResults in core".into(),
+                }))
+            }
             _ => None,
         }
     }
@@ -318,6 +355,7 @@ mod tests {
             Arc::new(ApprovalGate::new()),
             Arc::new(SkillRegistry::new()),
             false,
+            None,
         )
     }
 
@@ -394,6 +432,7 @@ mod tests {
             Arc::new(ApprovalGate::new()),
             skill_registry,
             false,
+            None,
         );
 
         let tc = ToolCall {

@@ -16,7 +16,9 @@ use tauri::{Emitter, State};
 use uuid::Uuid;
 
 use crate::{events::AgentEvent, state::AppState};
+use async_trait::async_trait;
 use skilldeck_core::agent::{AgentLoop, AgentLoopConfig, AgentLoopEvent, all_built_in_tools};
+use skilldeck_core::traits::SubagentSpawner;
 use skilldeck_models::conversations::{self, Entity as Conversations};
 use skilldeck_models::messages::{self, Entity as Messages};
 
@@ -42,14 +44,13 @@ pub async fn cancel_agent(
 
 /// List all messages for a conversation, oldest-first.
 ///
-/// If `branch_id` is provided, returns messages for that branch only.
-/// If `branch_id` is None, returns messages from the main trunk (branch_id IS NULL).
+/// `branch_id` is reserved for branch-aware retrieval (v1.1).
 #[specta]
 #[tauri::command]
 pub async fn list_messages(
     state: State<'_, Arc<AppState>>,
     conversation_id: String,
-    branch_id: Option<String>, // <-- added optional branch_id
+    #[allow(unused_variables)] branch_id: Option<String>,
 ) -> Result<Vec<MessageData>, String> {
     let db = state
         .registry
@@ -59,19 +60,12 @@ pub async fn list_messages(
         .map_err(|e| e.to_string())?;
     let conv_uuid = Uuid::parse_str(&conversation_id).map_err(|e| e.to_string())?;
 
-    let mut query = Messages::find()
+    let rows = Messages::find()
         .filter(messages::Column::ConversationId.eq(conv_uuid))
-        .order_by_asc(messages::Column::CreatedAt);
-
-    if let Some(branch) = branch_id {
-        let branch_uuid = Uuid::parse_str(&branch).map_err(|e| e.to_string())?;
-        query = query.filter(messages::Column::BranchId.eq(Some(branch_uuid)));
-    } else {
-        // Main trunk: branch_id IS NULL
-        query = query.filter(messages::Column::BranchId.is_null());
-    }
-
-    let rows = query.all(db).await.map_err(|e| e.to_string())?;
+        .order_by_asc(messages::Column::CreatedAt)
+        .all(db)
+        .await
+        .map_err(|e| e.to_string())?;
 
     Ok(rows
         .into_iter()
@@ -236,6 +230,32 @@ async fn resolve_provider_and_model(state: &AppState, conversation_id: &str) -> 
     }
 }
 
+// ── SubagentSpawner wrapper for AppState ──────────────────────────────────────
+
+struct SpawnerWithContext {
+    state: Arc<AppState>,
+    provider: Arc<dyn skilldeck_core::traits::ModelProvider>,
+    model_id: String,
+}
+
+#[async_trait]
+impl SubagentSpawner for SpawnerWithContext {
+    async fn spawn_subagent(
+        &self,
+        task: String,
+        skill_names: Vec<String>,
+    ) -> Result<String, String> {
+        self.state
+            .do_spawn_subagent(
+                task,
+                skill_names,
+                self.provider.clone(),
+                self.model_id.clone(),
+            )
+            .await
+    }
+}
+
 /// Drive the `AgentLoop` and forward every event to the Tauri bus.
 ///
 /// This function runs on a background Tokio task and never panics — all errors
@@ -280,12 +300,20 @@ async fn run_agent_loop(
 
     let (tx, mut rx) = mpsc::channel::<Result<AgentLoopEvent, skilldeck_core::CoreError>>(128);
 
-    // Create ToolDispatcher with all required arguments
+    // Create spawner wrapper
+    let spawner = Arc::new(SpawnerWithContext {
+        state: state.clone(),
+        provider: provider.clone(),
+        model_id: model_id.clone(),
+    });
+
+    // Create ToolDispatcher with spawner
     let dispatcher = Arc::new(ToolDispatcher::new(
         Arc::clone(&state.registry.mcp_registry),
         Arc::clone(&state.approval_gate),
         Arc::clone(&state.registry.skill_registry),
         provider.supports_toon(),
+        Some(spawner as Arc<dyn SubagentSpawner>),
     ));
 
     // Load existing messages to provide history.

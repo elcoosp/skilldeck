@@ -1,8 +1,9 @@
+// src-tauri/src/lib.rs
 //! Tauri application entry point (library form for testability).
 //!
 //! This module wires together:
 //! - `AppState` initialization (DB + Registry + ApprovalGate + LintConfig)
-//! - All IPC command handlers (extended with marketplace commands)
+//! - All IPC command handlers (extended with marketplace + file-browsing commands)
 //! - Tauri plugins (keyring, shell, store, dialog)
 //! - Tracing subscriber
 
@@ -13,11 +14,15 @@ mod nudge_poller;
 mod platform_client;
 mod skills;
 mod state;
+mod subagent_monitor;
+mod subagent_server;
 mod sync;
 
+pub use subagent_server::SubagentServer;
+
 use commands::{
-    branches::*, conversations::*, export::*, gist::*, mcp::*, messages::*, ollama::*, platform::*,
-    profiles::*, settings::*, skills::*, workflows::*, workspaces::*,
+    conversations::*, export::*, files::*, gist::*, mcp::*, messages::*, ollama::*, platform::*,
+    profiles::*, settings::*, skills::*, workspaces::*,
 };
 use events::{AgentEvent, McpEvent, WorkflowEvent};
 use state::AppState;
@@ -43,19 +48,10 @@ pub fn run() {
     // Build Tauri Specta builder with all commands and events
     let builder = Builder::<tauri::Wry>::new()
         .commands(collect_commands![
-            //workflows
-            save_workflow_definition,
-            list_workflow_definitions,
-            get_workflow_definition,
-            delete_workflow_definition,
-            // branches
-            create_branch,
-            list_branches,
-            get_branch_messages,
+            open_folder,
             // skills — registry sync
             sync_registry_skills,
             fetch_registry_skills,
-            install_registry_skill,
             // conversations
             create_conversation,
             list_conversations,
@@ -129,6 +125,9 @@ pub fn run() {
             cancel_agent,
             // settings
             test_api_connection,
+            // file browsing (chat context injection)
+            list_directory_contents,
+            count_folder_files,
         ])
         .events(collect_events![AgentEvent, McpEvent, WorkflowEvent]);
 

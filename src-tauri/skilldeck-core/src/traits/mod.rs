@@ -4,6 +4,7 @@ pub mod database;
 pub mod mcp_transport;
 pub mod model_provider;
 pub mod skill_loader;
+pub mod subagent_spawner;
 pub mod sync_backend;
 
 pub use database::{Database, SeaOrmDatabase};

@@ -6,7 +6,7 @@ use sea_orm::EntityTrait;
 use std::sync::Arc;
 use tauri::Manager;
 use tauri_plugin_keyring::KeyringExt;
-use tokio::sync::RwLock;
+use tokio::sync::{RwLock, Semaphore};
 use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
 
@@ -24,6 +24,11 @@ use skilldeck_core::{
 };
 use skilldeck_lint::LintConfig;
 use skilldeck_models::mcp_servers;
+
+use crate::subagent_monitor::monitor_subagent;
+use crate::subagent_server::SubagentServer;
+use adk_server::a2a::A2aClient;
+use skilldeck_core::traits::SubagentSpawner;
 
 const KEYRING_SERVICE: &str = "skilldeck";
 
@@ -79,6 +84,16 @@ pub struct AppState {
     /// Merged lint configuration — starts from `~/.config/skilldeck/skilldeck-lint.toml`
     /// and can be updated at runtime via the `disable_lint_rule` command.
     pub lint_config: Arc<RwLock<LintConfig>>,
+    /// Subagent servers indexed by subagent ID.
+    pub subagent_servers: Arc<DashMap<String, SubagentServer>>,
+    /// Semaphore to limit concurrent subagents (default 3).
+    pub subagent_semaphore: Arc<Semaphore>,
+    /// A2A clients for active subagents.
+    pub subagent_clients: Arc<DashMap<String, A2aClient>>,
+    /// Final results of completed subagents (for mergeSubagentResult).
+    pub subagent_results: Arc<DashMap<String, String>>,
+    /// Tauri app handle (needed to emit events from background tasks).
+    pub app_handle: tauri::AppHandle,
 }
 
 impl AppState {
@@ -190,6 +205,11 @@ impl AppState {
             }
         }
 
+        let subagent_semaphore = Arc::new(Semaphore::new(3));
+        let subagent_servers = Arc::new(DashMap::new());
+        let subagent_clients = Arc::new(DashMap::new());
+        let subagent_results = Arc::new(DashMap::new());
+
         let state = Self {
             registry: Arc::clone(&registry),
             approval_gate,
@@ -199,6 +219,11 @@ impl AppState {
             platform_client: tokio::sync::RwLock::new(platform_client),
             analytics_opt_in: std::sync::atomic::AtomicBool::new(analytics_opt_in_val),
             lint_config: Arc::new(RwLock::new(lint_config)),
+            subagent_servers,
+            subagent_semaphore,
+            subagent_clients,
+            subagent_results,
+            app_handle: app.clone(),
         };
 
         state.ensure_default_profile().await;
@@ -344,5 +369,55 @@ impl AppState {
             Ok(_) => info!("Seeded default Ollama profile (model: {})", model_id),
             Err(e) => warn!("Failed to seed default profile: {}", e),
         }
+    }
+
+    /// Actual spawn logic (called from the SpawnerWithContext in messages.rs).
+    pub async fn do_spawn_subagent(
+        &self,
+        task: String,
+        skill_names: Vec<String>,
+        provider: Arc<dyn skilldeck_core::traits::ModelProvider>,
+        model_id: String,
+    ) -> Result<String, String> {
+        let _permit = self
+            .subagent_semaphore
+            .acquire()
+            .await
+            .map_err(|e| e.to_string())?;
+
+        let agent = crate::subagent_server::build_subagent_agent(
+            provider,
+            model_id,
+            task.clone(),
+            skill_names,
+            self.registry.skill_registry.clone(),
+        )
+        .await?;
+
+        let server = crate::subagent_server::SubagentServer::spawn(agent)
+            .await
+            .map_err(|e| e.to_string())?;
+        let url = server.url.clone();
+        let subagent_id = uuid::Uuid::new_v4().to_string();
+
+        // Store server
+        self.subagent_servers.insert(subagent_id.clone(), server);
+
+        // Create A2A client
+        let client = adk_server::a2a::A2aClient::from_url(&url)
+            .await
+            .map_err(|e| e.to_string())?;
+        self.subagent_clients
+            .insert(subagent_id.clone(), client.clone());
+
+        // Spawn monitor task
+        let app_handle = self.app_handle.clone();
+        let subagent_id_clone = subagent_id.clone();
+        let results_map = self.subagent_results.clone();
+        tokio::spawn(async move {
+            monitor_subagent(subagent_id_clone, client, app_handle, results_map).await;
+        });
+
+        Ok(subagent_id)
     }
 }
