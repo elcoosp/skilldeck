@@ -2,55 +2,89 @@
 // UX: Shows skill source resolution order so users understand why a local
 // skill overrides a remote one.
 
-import { useState } from 'react'
+import { useState } from 'react';
 import {
   ArrowDown,
   FolderOpen,
   Globe,
   Home,
   Plus,
-  Trash2
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+  Trash2,
+  RefreshCw,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   useAddSkillSource,
   useRemoveSkillSource,
-  useSkillsSources
-} from '@/hooks/use-skills'
-import type { SkillSourceInfo } from '@/lib/bindings'
-import { cn } from '@/lib/utils'
+  useSkillsSources,
+} from '@/hooks/use-skills';
+import type { SkillSourceInfo } from '@/lib/bindings';
+import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 
 export function SkillSources() {
-  const { data: sources = [], isLoading } = useSkillsSources()
-  const addSource = useAddSkillSource()
-  const removeSource = useRemoveSkillSource()
+  const { data: sources = [], isLoading, refetch } = useSkillsSources();
+  const addSource = useAddSkillSource();
+  const removeSource = useRemoveSkillSource();
+  const queryClient = useQueryClient();
 
-  const [showAdd, setShowAdd] = useState(false)
-  const [newPath, setNewPath] = useState('')
-  const [newLabel, setNewLabel] = useState('')
+  const [showAdd, setShowAdd] = useState(false);
+  const [newPath, setNewPath] = useState('');
+  const [newLabel, setNewLabel] = useState('');
+
+  // Sort sources by priority (lower number = higher priority)
+  const sortedSources = [...sources].sort((a, b) => {
+    // Priority is not stored in the API response, so we infer from source_type
+    const priorityMap: Record<string, number> = {
+      workspace: 1,
+      personal: 2,
+      registry: 3,
+    };
+    const aPriority = priorityMap[a.source_type] ?? 999;
+    const bPriority = priorityMap[b.source_type] ?? 999;
+    return aPriority - bPriority;
+  });
 
   function handleAdd() {
-    if (!newPath.trim()) return
+    if (!newPath.trim()) return;
     addSource.mutate(
       { sourceType: 'local_path', path: newPath.trim(), label: newLabel.trim() || undefined },
       {
         onSuccess: () => {
-          setShowAdd(false)
-          setNewPath('')
-          setNewLabel('')
-        }
+          setShowAdd(false);
+          setNewPath('');
+          setNewLabel('');
+          toast.success('Skill source added');
+        },
       }
-    )
+    );
   }
+
+  const handleRemove = (id: string) => {
+    removeSource.mutate(id, {
+      onSuccess: () => toast.success('Skill source removed'),
+    });
+  };
+
+  const handleRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: ['skill-sources'] });
+    refetch();
+  };
 
   return (
     <div className="space-y-4">
-      <div>
-        <h3 className="text-sm font-semibold">Skill Source Directories</h3>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          Skills are resolved in priority order — sources listed earlier override later ones.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-semibold">Skill Source Directories</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Skills are resolved in priority order — sources listed earlier override later ones.
+          </p>
+        </div>
+        <Button variant="ghost" size="icon-sm" onClick={handleRefresh} title="Refresh">
+          <RefreshCw className="size-3.5" />
+        </Button>
       </div>
 
       {/* Resolution order explanation */}
@@ -61,7 +95,7 @@ export function SkillSources() {
         {[
           { icon: FolderOpen, label: 'Workspace (.skilldeck/skills/)', priority: 1 },
           { icon: Home, label: 'Personal (~/.agents/skills/)', priority: 2 },
-          { icon: Globe, label: 'Registry (platform)', priority: 3 }
+          { icon: Globe, label: 'Registry (platform)', priority: 3 },
         ].map((item, i) => (
           <div key={i} className="flex items-center gap-2">
             {i > 0 && <ArrowDown className="size-3 text-muted-foreground ml-4" />}
@@ -81,14 +115,15 @@ export function SkillSources() {
         <div className="text-xs text-muted-foreground">Loading sources…</div>
       ) : (
         <div className="space-y-1.5">
-          {sources.length === 0 && (
+          {sortedSources.length === 0 && (
             <p className="text-xs text-muted-foreground">No custom sources added.</p>
           )}
-          {sources.map((source) => (
+          {sortedSources.map((source, index) => (
             <SourceRow
               key={source.id}
               source={source}
-              onRemove={() => removeSource.mutate(source.id)}
+              priority={index + 1} // Display priority based on order
+              onRemove={() => handleRemove(source.id)}
             />
           ))}
         </div>
@@ -117,7 +152,7 @@ export function SkillSources() {
               onClick={handleAdd}
               disabled={!newPath.trim() || addSource.isPending}
             >
-              Add
+              {addSource.isPending ? 'Adding...' : 'Add'}
             </Button>
             <Button
               size="sm"
@@ -141,25 +176,28 @@ export function SkillSources() {
         </Button>
       )}
     </div>
-  )
+  );
 }
 
 function SourceRow({
   source,
-  onRemove
+  priority,
+  onRemove,
 }: {
-  source: SkillSourceInfo
-  onRemove: () => void
+  source: SkillSourceInfo;
+  priority: number;
+  onRemove: () => void;
 }) {
-  const Icon = source.source_type === 'registry' ? Globe : FolderOpen
+  const Icon = source.source_type === 'registry' ? Globe : FolderOpen;
 
   return (
     <div className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs">
+      <span className="text-[10px] font-medium text-muted-foreground w-6 shrink-0">
+        #{priority}
+      </span>
       <Icon className="size-3.5 shrink-0 text-muted-foreground" />
       <div className="flex-1 min-w-0">
-        {source.label && (
-          <p className="font-medium truncate">{source.label}</p>
-        )}
+        {source.label && <p className="font-medium truncate">{source.label}</p>}
         <p
           className={cn(
             'font-mono truncate text-muted-foreground',
@@ -178,5 +216,5 @@ function SourceRow({
         <Trash2 className="size-3" />
       </Button>
     </div>
-  )
+  );
 }
