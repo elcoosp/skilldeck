@@ -56,6 +56,7 @@ export function SkillBrowser({ className }: { className?: string }) {
 
   const handleSync = async () => {
     setSyncing(true)
+    const start = Date.now()
     try {
       const result = await sync.mutateAsync()
       toast.success(`Synced ${result} skills from registry`)
@@ -67,7 +68,9 @@ export function SkillBrowser({ className }: { className?: string }) {
         toast.error(`Sync failed: ${error instanceof Error ? error.message : String(error)}`)
       }
     } finally {
-      setSyncing(false)
+      const elapsed = Date.now() - start
+      const remaining = Math.max(0, 300 - elapsed)
+      setTimeout(() => setSyncing(false), remaining)
     }
   }
 
@@ -130,7 +133,7 @@ export function SkillBrowser({ className }: { className?: string }) {
           title="Sync from registry"
         >
           <RefreshCw
-            className={cn('size-3.5', syncing && 'animate-spin')}
+            className={cn('size-3.5 transition-transform duration-200', syncing && 'animate-spin')}
           />
         </Button>
       </div>
