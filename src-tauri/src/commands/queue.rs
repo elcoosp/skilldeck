@@ -1,3 +1,4 @@
+// src-tauri/src/commands/queue.rs
 //! Queued message Tauri commands.
 //!
 //! Provides CRUD operations, reordering, and merging for queued messages
@@ -48,6 +49,10 @@ pub async fn add_queued_message_internal(
     conversation_id: &str,
     content: String,
 ) -> Result<String, String> {
+    tracing::info!(
+        "add_queued_message_internal: conversation={}",
+        conversation_id
+    );
     let db = state
         .registry
         .db
@@ -79,6 +84,7 @@ pub async fn add_queued_message_internal(
     };
 
     model.insert(db).await.map_err(|e| e.to_string())?;
+    tracing::info!("Queued message added with id={}", id);
     Ok(id.to_string())
 }
 
@@ -86,21 +92,30 @@ pub async fn list_queued_messages_internal(
     state: &AppState,
     conversation_id: &str,
 ) -> Result<Vec<QueuedMessage>, String> {
-    let db = state
-        .registry
-        .db
-        .connection()
-        .await
-        .map_err(|e| e.to_string())?;
-    let conv_uuid = Uuid::parse_str(conversation_id).map_err(|e| e.to_string())?;
+    tracing::debug!(
+        "list_queued_messages_internal: conversation_id={}",
+        conversation_id
+    );
+    let db = state.registry.db.connection().await.map_err(|e| {
+        tracing::error!("DB connection error: {}", e);
+        e.to_string()
+    })?;
+    let conv_uuid = Uuid::parse_str(conversation_id).map_err(|e| {
+        tracing::error!("Invalid UUID: {}", e);
+        e.to_string()
+    })?;
 
     let rows = Queued::find()
         .filter(queued_messages::Column::ConversationId.eq(conv_uuid))
         .order_by_asc(queued_messages::Column::Position)
         .all(db)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| {
+            tracing::error!("Query error: {}", e);
+            e.to_string()
+        })?;
 
+    tracing::debug!("Found {} queued messages", rows.len());
     Ok(rows.into_iter().map(Into::into).collect())
 }
 
@@ -334,4 +349,16 @@ pub async fn merge_queued_messages(
     ids: Vec<String>,
 ) -> Result<String, String> {
     merge_queued_messages_internal(&state, ids).await
+}
+
+/// Set the auto-send paused flag for a conversation.
+#[specta]
+#[tauri::command]
+pub async fn set_auto_send_paused(
+    state: State<'_, Arc<AppState>>,
+    conversation_id: String,
+    paused: bool,
+) -> Result<(), String> {
+    state.auto_send_paused.insert(conversation_id, paused);
+    Ok(())
 }

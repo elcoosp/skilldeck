@@ -93,12 +93,15 @@ pub struct AppState {
     pub subagent_results: Arc<DashMap<String, String>>,
     /// Tauri app handle (needed to emit events from background tasks).
     pub app_handle: tauri::AppHandle,
+    /// Per-conversation flag to pause auto-send when editing/dragging/selecting.
+    pub auto_send_paused: Arc<DashMap<String, bool>>,
 }
 
 impl AppState {
     pub fn is_agent_running(&self, conversation_id: &str) -> bool {
         self.agent_cancel_tokens.contains_key(conversation_id)
     }
+
     pub async fn initialize(app: &tauri::AppHandle) -> Result<Self, Box<dyn std::error::Error>> {
         let data_dir = app.path().app_data_dir()?;
         std::fs::create_dir_all(&data_dir)?;
@@ -175,6 +178,7 @@ impl AppState {
         }
 
         let agent_cancel_tokens = Arc::new(DashMap::new());
+        let auto_send_paused = Arc::new(DashMap::new());
 
         // ── Platform client ────────────────────────────────────────────────────
         let app_config = crate::config::AppConfig::load();
@@ -226,6 +230,7 @@ impl AppState {
             subagent_clients,
             subagent_results,
             app_handle: app.clone(),
+            auto_send_paused,
         };
 
         state.ensure_default_profile().await;

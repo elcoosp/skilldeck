@@ -613,32 +613,41 @@ fn run_agent_loop(
                 );
 
                 // === AUTO-SEND QUEUED MESSAGES ===
-                // Check if there are queued messages for this conversation
-                if let Ok(queued) =
-                    crate::commands::queue::list_queued_messages_internal(&state, &conversation_id)
-                        .await
-                {
-                    if let Some(first) = queued.first() {
-                        // Delete it from queue
-                        if let Ok(()) = crate::commands::queue::delete_queued_message_internal(
-                            &state, &first.id,
-                        )
-                        .await
-                        {
-                            // Spawn the next message without awaiting it here
-                            let state_clone = state.clone();
-                            let conv_clone = conversation_id.clone();
-                            let content_clone = first.content.clone();
-                            let app_clone = app.clone();
-                            tokio::spawn(async move {
-                                let _ = send_message_internal(
-                                    state_clone,
-                                    conv_clone,
-                                    content_clone,
-                                    app_clone,
-                                )
-                                .await;
-                            });
+                // Check if auto-send is paused for this conversation
+                let is_paused = state
+                    .auto_send_paused
+                    .get(&conversation_id)
+                    .copied()
+                    .unwrap_or(false);
+                if !is_paused {
+                    if let Ok(queued) = crate::commands::queue::list_queued_messages_internal(
+                        &state,
+                        &conversation_id,
+                    )
+                    .await
+                    {
+                        if let Some(first) = queued.first() {
+                            // Delete it from queue
+                            if let Ok(()) = crate::commands::queue::delete_queued_message_internal(
+                                &state, &first.id,
+                            )
+                            .await
+                            {
+                                // Spawn the next message without awaiting it here
+                                let state_clone = state.clone();
+                                let conv_clone = conversation_id.clone();
+                                let content_clone = first.content.clone();
+                                let app_clone = app.clone();
+                                tokio::spawn(async move {
+                                    let _ = send_message_internal(
+                                        state_clone,
+                                        conv_clone,
+                                        content_clone,
+                                        app_clone,
+                                    )
+                                    .await;
+                                });
+                            }
                         }
                     }
                 }

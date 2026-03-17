@@ -1,4 +1,5 @@
 // src/components/conversation/queue/queue-list.tsx
+import { useEffect } from 'react'
 import {
   DndContext,
   closestCenter,
@@ -18,6 +19,7 @@ import {
   useReorderQueuedMessages,
 } from '@/hooks/use-queued-messages'
 import { useQueueStore } from '@/store/queue'
+import { commands } from '@/lib/bindings'
 import { QueuePauseIndicator } from './queue-pause-indicator'
 import { QueueSelectionToolbar } from './queue-selection-toolbar'
 import { QueueItem } from './queue-item'
@@ -32,6 +34,18 @@ export function QueueList({ conversationId }: QueueListProps) {
 
   const mode = useQueueStore((s) => s.mode[conversationId] ?? 'view')
   const setIsDragging = useQueueStore((s) => s.setIsDragging)
+
+  // Get pause-related state
+  const editingId = useQueueStore((s) => s.editingId[conversationId])
+  const isDragging = useQueueStore((s) => s.isDragging[conversationId] ?? false)
+
+  const isPaused = editingId !== null || isDragging || mode === 'select'
+
+  // Sync pause state to backend
+  useEffect(() => {
+    commands.setAutoSendPaused(conversationId, isPaused)
+      .catch(err => console.error('Failed to set auto-send pause:', err))
+  }, [conversationId, isPaused])
 
   const sensors = useSensors(
     useSensor(PointerSensor),
