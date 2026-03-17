@@ -761,6 +761,54 @@ async countFolderFiles(path: string) : Promise<Result<FolderCounts, string>> {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+async addQueuedMessage(conversationId: string, content: string) : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("add_queued_message", { conversationId, content }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async listQueuedMessages(conversationId: string) : Promise<Result<QueuedMessage[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_queued_messages", { conversationId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async updateQueuedMessage(id: string, content: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("update_queued_message", { id, content }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async deleteQueuedMessage(id: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("delete_queued_message", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async reorderQueuedMessages(conversationId: string, orderedIds: string[]) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("reorder_queued_messages", { conversationId, orderedIds }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async mergeQueuedMessages(ids: string[]) : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("merge_queued_messages", { ids }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
@@ -868,6 +916,7 @@ export type OllamaModelInfo = { id: string; name: string }
 export type PendingNudge = { id: string; message: string; cta_label: string | null; cta_action: string | null; created_at: string }
 export type PlatformPreferences = { email: string | null; email_verified: boolean; nudge_frequency: string; nudge_opt_out: boolean; notification_channels: string[]; theme_preference: string; timezone: string | null; analytics_opt_in: boolean }
 export type ProfileData = { id: string; name: string; model_provider: string; model_id: string; is_default: boolean }
+export type QueuedMessage = { id: string; conversation_id: string; content: string; position: number; created_at: string; updated_at: string }
 export type ReferralCode = { id: string; code: string; uses: number; max_uses: number; created_at: string }
 export type ReferralStats = { code: ReferralCode; total_signups: string; total_conversions: string; rewards_earned: string }
 export type RegistrySkillData = { id: string; name: string; description: string; source: string; sourceUrl: string | null; version: string | null; author: string | null; license: string | null; tags: string[]; category: string | null; lintWarnings: JsonValue[]; securityScore: number; qualityScore: number; metadataSource: string; content: string; createdAt: string; updatedAt: string }
