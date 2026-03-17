@@ -494,7 +494,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
         {/* Context chips (skills / files / folders from picker) */}
         <AttachedItemsList />
 
-        <div className="flex items-end gap-2 px-3 py-2">
+        <div className="flex items-center gap-2 px-3 py-2">
           <Textarea
             ref={textareaRef}
             value={content}
