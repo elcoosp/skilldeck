@@ -25,7 +25,6 @@ const ScrollArea = React.forwardRef<
 
 ScrollArea.displayName = 'ScrollArea'
 
-// ScrollBar remains unchanged
 function ScrollBar({
   className,
   orientation = 'vertical',
@@ -41,7 +40,7 @@ function ScrollBar({
         'transition-opacity duration-300 ease-in-out',
         'data-[state=visible]:opacity-100 data-[state=hidden]:opacity-0',
         orientation === 'vertical'
-          ? 'h-full w-1.5 border-l border-l-transparent'
+          ? 'h-full w-2.5 border-l border-l-transparent' // increased from w-1.5 to w-2.5
           : 'h-1.5 flex-col border-t border-t-transparent',
         className
       )}
