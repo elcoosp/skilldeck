@@ -236,7 +236,7 @@ impl MigrationTrait for Migration {
                     .col(text(Messages::Content).not_null())
                     .col(json(Messages::Metadata).null())
                     .col(integer(Messages::InputTokens).null())
-                    .col(json(QueuedMessages::ContextItems))
+                    .col(json(Messages::ContextItems))
                     .col(integer(Messages::OutputTokens).null())
                     .col(integer(Messages::CacheReadTokens).null())
                     .col(integer(Messages::CacheWriteTokens).null())
@@ -1499,7 +1499,6 @@ enum Conversations {
 enum Messages {
     Table,
     Id,
-
     ContextItems,
     ConversationId,
     ParentId,

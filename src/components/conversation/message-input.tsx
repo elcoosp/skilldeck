@@ -49,7 +49,7 @@ import type {
   TriggerState
 } from '@/types/chat-context'
 import type { UnifiedSkill } from '@/types/skills'
-import type { ContextItem } from '@/lib/bindings'   // <-- import auto-generated type
+import type { ContextItem } from '@/lib/bindings'
 
 interface MessageInputProps {
   conversationId: UUID
@@ -333,7 +333,8 @@ export function MessageInput({ conversationId }: MessageInputProps) {
       if (isRunning) {
         // Queue the current draft instead of sending
         if (content.trim()) {
-          addQueuedMessage.mutate(content)
+          // ✅ FIXED: pass object with content
+          addQueuedMessage.mutate({ content })
           setContent('')
         }
       } else {
@@ -577,7 +578,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
             size="icon-sm"
             className="shrink-0 mb-0.5"
             onClick={
-              isRunning ? () => addQueuedMessage.mutate(content) : submit
+              isRunning ? () => addQueuedMessage.mutate({ content }) : submit
             }
             disabled={
               (!content.trim() && selectedFiles.length === 0) ||

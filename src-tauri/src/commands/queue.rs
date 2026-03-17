@@ -1,23 +1,22 @@
 // src-tauri/src/commands/queue.rs
 //! Queued message Tauri commands.
-//!
-//! Provides CRUD operations, reordering, and merging for queued messages
-//! that are persisted while the agent is running.
 
+use std::pin::Pin;
+use std::sync::Arc;
+
+use futures::Future;
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, QueryFilter, QueryOrder,
-    TransactionTrait,
+    ActiveModelTrait, ActiveValue::Set, EntityTrait, QueryFilter, QueryOrder, TransactionTrait,
 };
 use serde::{Deserialize, Serialize};
 use specta::{Type, specta};
-use std::sync::Arc;
 use tauri::State;
 use uuid::Uuid;
 
 use crate::commands::messages::send_message_internal;
 use crate::state::AppState;
 use skilldeck_models::context_item::ContextItem;
-use skilldeck_models::queued_messages::{self, Entity as Queued}; // <-- added
+use skilldeck_models::queued_messages::{self, Entity as Queued};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct QueuedMessage {
@@ -43,14 +42,14 @@ impl From<queued_messages::Model> for QueuedMessage {
 }
 
 // =============================================================================
-// Internal functions (used by both Tauri commands and other modules)
+// Internal functions
 // =============================================================================
 
 pub async fn add_queued_message_internal(
     state: &AppState,
     conversation_id: &str,
     content: String,
-    context_items: Option<Vec<ContextItem>>, // <-- new parameter
+    context_items: Option<Vec<ContextItem>>,
 ) -> Result<String, String> {
     tracing::info!(
         "add_queued_message_internal: conversation={}",
@@ -64,7 +63,6 @@ pub async fn add_queued_message_internal(
         .map_err(|e| e.to_string())?;
     let conv_uuid = Uuid::parse_str(conversation_id).map_err(|e| e.to_string())?;
 
-    // Determine next position
     let max_pos = Queued::find()
         .filter(queued_messages::COLUMN.conversation_id.eq(conv_uuid))
         .order_by_desc(queued_messages::COLUMN.position)
@@ -75,8 +73,10 @@ pub async fn add_queued_message_internal(
         .unwrap_or(0);
 
     let items_json = context_items
+        .as_ref()
         .map(|items| serde_json::to_value(items).map_err(|e| e.to_string()))
-        .transpose()?;
+        .transpose()?
+        .unwrap_or(serde_json::Value::Array(vec![]));
 
     let id = Uuid::new_v4();
     let now = chrono::Utc::now().fixed_offset();
@@ -88,7 +88,7 @@ pub async fn add_queued_message_internal(
         position: Set(max_pos + 1),
         created_at: Set(now),
         updated_at: Set(now),
-        context_items: Set(items_json), // <-- store
+        context_items: Set(Some(items_json)),
     };
 
     model.insert(db).await.map_err(|e| e.to_string())?;
@@ -186,20 +186,17 @@ pub async fn reorder_queued_messages_internal(
 
     let txn = db.begin().await.map_err(|e| e.to_string())?;
 
-    // Fetch all queued messages for this conversation
     let messages = Queued::find()
         .filter(queued_messages::COLUMN.conversation_id.eq(conv_uuid))
         .all(&txn)
         .await
         .map_err(|e| e.to_string())?;
 
-    // Create map from id to message
     let mut by_id = std::collections::HashMap::new();
     for msg in &messages {
         by_id.insert(msg.id.to_string(), msg);
     }
 
-    // Update positions according to ordered_ids
     for (pos, id_str) in ordered_ids.iter().enumerate() {
         if let Some(msg) = by_id.get(id_str) {
             if msg.position != (pos as i32) + 1 {
@@ -238,7 +235,6 @@ pub async fn merge_queued_messages_internal(
 
     let txn = db.begin().await.map_err(|e| e.to_string())?;
 
-    // Fetch all messages to be merged
     let messages = Queued::find()
         .filter(queued_messages::COLUMN.id.is_in(uuids.clone()))
         .all(&txn)
@@ -249,24 +245,20 @@ pub async fn merge_queued_messages_internal(
         return Err("Some messages not found".to_string());
     }
 
-    // Find earliest position among selected messages
     let min_position = messages.iter().map(|m| m.position).min().unwrap();
     let conversation_id = messages[0].conversation_id;
 
-    // Concatenate contents with separator
     let merged_content = messages
         .iter()
         .map(|m| m.content.as_str())
         .collect::<Vec<_>>()
         .join("\n\n---\n\n");
 
-    // Delete the original messages
     for msg in &messages {
         let active: queued_messages::ActiveModel = msg.clone().into();
         active.delete(&txn).await.map_err(|e| e.to_string())?;
     }
 
-    // Shift subsequent messages to fill the gap
     let subsequent = Queued::find()
         .filter(queued_messages::COLUMN.conversation_id.eq(conversation_id))
         .filter(
@@ -285,7 +277,6 @@ pub async fn merge_queued_messages_internal(
         active.update(&txn).await.map_err(|e| e.to_string())?;
     }
 
-    // Insert the merged message at the original min position
     let new_id = Uuid::new_v4();
     let now = chrono::Utc::now().fixed_offset();
     let new_msg = queued_messages::ActiveModel {
@@ -295,7 +286,7 @@ pub async fn merge_queued_messages_internal(
         position: Set(min_position),
         created_at: Set(now),
         updated_at: Set(now),
-        context_items: Set(None), // merged message has no context items
+        context_items: Set(Some(serde_json::Value::Array(vec![]))),
     };
     new_msg.insert(&txn).await.map_err(|e| e.to_string())?;
 
@@ -304,54 +295,48 @@ pub async fn merge_queued_messages_internal(
 }
 
 /// Automatically send the next queued message if conditions allow.
-pub async fn auto_send_next_queued(
-    state: Arc<AppState>,
-    conversation_id: &str,
-    app: tauri::AppHandle,
-) -> Result<(), String> {
-    // Check if agent is running
-    if state.is_agent_running(conversation_id) {
-        return Ok(());
-    }
-    // Check pause flag
-    let is_paused = state
-        .auto_send_paused
-        .get(conversation_id)
-        .map(|r| *r)
-        .unwrap_or(false);
-    if is_paused {
-        return Ok(());
-    }
-    // List queued messages
-    if let Ok(queued) = list_queued_messages_internal(&state, conversation_id).await {
-        if let Some(first) = queued.first() {
-            // Delete it from queue
-            if let Ok(()) = delete_queued_message_internal(&state, &first.id).await {
-                // Build metadata
-                let metadata = serde_json::json!({
-                    "from_queue": true,
-                    "queued_at": first.created_at,
-                });
-                // Send it in a spawned task
-                let state_clone = state.clone();
-                let conv_clone = conversation_id.to_string();
-                let content_clone = first.content.clone();
-                let app_clone = app.clone();
-                tokio::spawn(async move {
-                    let _ = send_message_internal(
-                        state_clone,
-                        conv_clone,
-                        content_clone,
-                        None, // queued messages don't carry context items (could be added later)
-                        app_clone,
-                        Some(metadata),
-                    )
-                    .await;
-                });
+pub fn auto_send_next_queued(state: Arc<AppState>, conversation_id: String, app: tauri::AppHandle) {
+    tokio::spawn(async move {
+        if state.is_agent_running(&conversation_id) {
+            return;
+        }
+        let is_paused = state
+            .auto_send_paused
+            .get(&conversation_id)
+            .map(|r| *r)
+            .unwrap_or(false);
+        if is_paused {
+            return;
+        }
+        if let Ok(queued) = list_queued_messages_internal(&state, &conversation_id).await {
+            if let Some(first) = queued.first() {
+                if let Ok(()) = delete_queued_message_internal(&state, &first.id).await {
+                    let metadata = serde_json::json!({
+                        "from_queue": true,
+                        "queued_at": first.created_at,
+                    });
+                    let state_clone = state.clone();
+                    let conv_clone = conversation_id.clone();
+                    let content_clone = first.content.clone();
+                    let app_clone = app.clone();
+
+                    let inner: Pin<Box<dyn Future<Output = ()> + Send + 'static>> =
+                        Box::pin(async move {
+                            let _ = send_message_internal(
+                                state_clone,
+                                conv_clone,
+                                content_clone,
+                                None,
+                                app_clone,
+                                Some(metadata),
+                            )
+                            .await;
+                        });
+                    tokio::spawn(inner);
+                }
             }
         }
-    }
-    Ok(())
+    });
 }
 
 // =============================================================================
@@ -421,7 +406,6 @@ pub async fn merge_queued_messages(
     merge_queued_messages_internal(&state, ids).await
 }
 
-/// Set the auto-send paused flag for a conversation.
 #[specta]
 #[tauri::command]
 pub async fn set_auto_send_paused(
@@ -433,7 +417,6 @@ pub async fn set_auto_send_paused(
     Ok(())
 }
 
-/// Manually trigger processing of queued messages for a conversation.
 #[specta]
 #[tauri::command]
 pub async fn process_queued_messages(
@@ -441,5 +424,6 @@ pub async fn process_queued_messages(
     conversation_id: String,
     app: tauri::AppHandle,
 ) -> Result<(), String> {
-    auto_send_next_queued((*state).clone(), &conversation_id, app).await
+    auto_send_next_queued((*state).clone(), conversation_id, app);
+    Ok(())
 }

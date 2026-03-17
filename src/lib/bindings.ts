@@ -5,9 +5,6 @@
 
 
 export const commands = {
-/**
- * Manually trigger processing of queued messages for a conversation.
- */
 async processQueuedMessages(conversationId: string) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("process_queued_messages", { conversationId }) };
@@ -16,9 +13,6 @@ async processQueuedMessages(conversationId: string) : Promise<Result<null, strin
     else return { status: "error", error: e  as any };
 }
 },
-/**
- * Set the auto-send paused flag for a conversation.
- */
 async setAutoSendPaused(conversationId: string, paused: boolean) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("set_auto_send_paused", { conversationId, paused }) };
@@ -208,11 +202,6 @@ async renameConversation(id: string, title: string) : Promise<Result<null, strin
     else return { status: "error", error: e  as any };
 }
 },
-/**
- * List all messages for a conversation, oldest-first.
- * 
- * `branch_id` is reserved for branch-aware retrieval (v1.1).
- */
 async listMessages(conversationId: string, branchId: string | null) : Promise<Result<MessageData[], string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("list_messages", { conversationId, branchId }) };
@@ -221,25 +210,14 @@ async listMessages(conversationId: string, branchId: string | null) : Promise<Re
     else return { status: "error", error: e  as any };
 }
 },
-/**
- * Persist the user turn and kick off the agent loop on a background task.
- * 
- * Returns immediately once the message is persisted; the agent loop emits
- * `agent-event` payloads asynchronously.
- */
-async sendMessage(conversationId: string, content: string) : Promise<Result<null, string>> {
+async sendMessage(req: SendMessageRequest) : Promise<Result<null, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("send_message", { conversationId, content }) };
+    return { status: "ok", data: await TAURI_INVOKE("send_message", { req }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
 },
-/**
- * Resolve a pending tool-approval from the frontend.
- * 
- * Called when the user clicks "Approve" or "Deny" on a `ToolApprovalCard`.
- */
 async resolveToolApproval(toolCallId: string, approved: boolean, editedInput: JsonValue | null) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("resolve_tool_approval", { toolCallId, approved, editedInput }) };
@@ -784,9 +762,25 @@ async countFolderFiles(path: string) : Promise<Result<FolderCounts, string>> {
     else return { status: "error", error: e  as any };
 }
 },
-async addQueuedMessage(conversationId: string, content: string) : Promise<Result<string, string>> {
+async readFile(req: ReadFileRequest) : Promise<Result<ReadFileResponse, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("add_queued_message", { conversationId, content }) };
+    return { status: "ok", data: await TAURI_INVOKE("read_file", { req }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async assembleFolder(req: AssembleFolderRequest) : Promise<Result<AssembleFolderResponse, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("assemble_folder", { req }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async addQueuedMessage(req: AddQueuedMessageRequest) : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("add_queued_message", { req }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -877,6 +871,7 @@ workflowEvent: "workflow-event"
 
 export type ActivityEventPayload = { event_type: string; metadata: JsonValue | null }
 export type AddMcpServerPayload = { name: string; transport: string; command: string | null; args: string[] | null; url: string | null; env: Partial<{ [key in string]: string }> | null }
+export type AddQueuedMessageRequest = { conversation_id: string; content: string; context_items: ContextItem[] | null }
 /**
  * Payload for the `"agent-event"` Tauri channel.
  */
@@ -890,8 +885,11 @@ export type AgentToolCall = { id: string; name: string; arguments: JsonValue }
  * Whether a given provider has a stored key.
  */
 export type ApiKeyStatus = { provider: string; has_key: boolean }
+export type AssembleFolderRequest = { path: string; deep: boolean; max_bytes: string | null }
+export type AssembleFolderResponse = { assembled_content: string; file_count: string }
 export type BranchInfo = { id: string; name: string | null; parent_message_id: string; created_at: string; message_count: string }
 export type ConfigScope = "global" | "workspace"
+export type ContextItem = { type: "skill"; name: string } | { type: "file"; path: string; name: string; size: string | null } | { type: "folder"; path: string; name: string; scope: FolderScope; file_count: string }
 /**
  * Lightweight summary used by the sidebar list.
  */
@@ -907,6 +905,11 @@ export type FileEntry = { name: string; path: string; is_dir: boolean; size: str
  * Shallow vs deep file counts for a folder, used by `FolderScopeModal`.
  */
 export type FolderCounts = { shallow: string; deep: string }
+/**
+ * Determines how deeply to traverse a folder when assembling content.
+ * Stored as a string in the JSON column (e.g., "shallow" or "deep").
+ */
+export type FolderScope = "shallow" | "deep"
 export type GistFile = { filename: string; content: string }
 export type GistInfo = { id: string; url: string; html_url: string; description: string }
 /**
@@ -961,10 +964,13 @@ export type PendingNudge = { id: string; message: string; cta_label: string | nu
 export type PlatformPreferences = { email: string | null; email_verified: boolean; nudge_frequency: string; nudge_opt_out: boolean; notification_channels: string[]; theme_preference: string; timezone: string | null; analytics_opt_in: boolean }
 export type ProfileData = { id: string; name: string; model_provider: string; model_id: string; is_default: boolean }
 export type QueuedMessage = { id: string; conversation_id: string; content: string; position: number; created_at: string; updated_at: string }
+export type ReadFileRequest = { path: string; max_bytes: string | null }
+export type ReadFileResponse = { content: string; size: string }
 export type ReferralCode = { id: string; code: string; uses: number; max_uses: number; created_at: string }
 export type ReferralStats = { code: ReferralCode; total_signups: string; total_conversions: string; rewards_earned: string }
 export type RegistrySkillData = { id: string; name: string; description: string; source: string; sourceUrl: string | null; version: string | null; author: string | null; license: string | null; tags: string[]; category: string | null; lintWarnings: JsonValue[]; securityScore: number; qualityScore: number; metadataSource: string; content: string; createdAt: string; updatedAt: string }
 export type SaveWorkflowDefinitionRequest = { name: string; definition: JsonValue }
+export type SendMessageRequest = { conversation_id: string; content: string; context_items: ContextItem[] | null }
 /**
  * Severity level of a lint warning.
  */

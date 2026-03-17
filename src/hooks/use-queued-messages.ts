@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { commands } from '@/lib/bindings'
 import type { UUID } from '@/lib/types'
-
 import type { ContextItem } from '@/lib/bindings'
 
 export interface QueuedMessage {
@@ -30,8 +29,8 @@ export function useQueuedMessages(conversationId: UUID | null) {
       return res.data as QueuedMessage[]
     },
     enabled: !!conversationId,
-    staleTime: 0, // always refetch when invalidated
-    refetchInterval: false, // don't poll
+    staleTime: 0,
+    refetchInterval: false,
   })
 }
 

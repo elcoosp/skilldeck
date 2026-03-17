@@ -7,7 +7,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAchievements } from '@/hooks/use-achievements'
-import type { MessageData } from '@/lib/bindings'
+import type { MessageData, ContextItem } from '@/lib/bindings' // <-- added ContextItem
 import { commands } from '@/lib/bindings'
 import type { UUID } from '@/lib/types'
 import { useUIStore } from '@/store/ui'
@@ -25,8 +25,7 @@ export function useMessages(
       throw new Error(res.error)
     },
     enabled: !!conversationId,
-    staleTime: 10_000, // changed from 0 to 10 seconds – messages are stable between agent runs
-    // FIX: Keep previous data while refetching to avoid UI flicker
+    staleTime: 10_000,
     placeholderData: (previousData) => previousData
   })
 }
@@ -36,25 +35,32 @@ export function useSendMessage(conversationId: UUID) {
   const { unlock } = useAchievements()
 
   return useMutation({
-    mutationFn: async (content: string) => {
-      const res = await commands.sendMessage(conversationId, content)
+    mutationFn: async ({
+      content,
+      contextItems
+    }: {
+      content: string
+      contextItems?: ContextItem[]
+    }) => {
+      // Send the new request struct
+      const res = await commands.sendMessage({
+        conversation_id: conversationId,
+        content,
+        context_items: contextItems
+      })
       if (res.status === 'error') throw new Error(res.error)
       return res.data
     },
     onSuccess: () => {
-      // Agent loop events handle the streaming UX; refetch once done.
-      // The `done` event in use-agent-stream triggers this via invalidation.
       queryClient.invalidateQueries({ queryKey: ['messages', conversationId] })
       queryClient.invalidateQueries({ queryKey: ['conversations'] })
 
-      // Check for achievements after the message is sent and data refetched
       setTimeout(() => {
         const messages = queryClient.getQueryData<MessageData[]>([
           'messages',
           conversationId
         ])
         if (messages) {
-          // Count user messages
           const userMessageCount = messages.filter(
             (m) => m.role === 'user'
           ).length
@@ -65,7 +71,7 @@ export function useSendMessage(conversationId: UUID) {
             unlock('tenthMessage')
           }
         }
-      }, 100) // small delay to allow refetch
+      }, 100)
     }
   })
 }

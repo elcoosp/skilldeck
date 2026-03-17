@@ -7,9 +7,7 @@
 use ignore::WalkBuilder;
 use serde::{Deserialize, Serialize};
 use specta::{Type, specta};
-use std::fs;
 use std::path::PathBuf;
-use walkdir::WalkDir; // <-- added
 
 /// A single file or directory entry returned by `list_directory_contents`.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
