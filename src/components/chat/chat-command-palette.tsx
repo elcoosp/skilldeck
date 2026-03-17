@@ -152,9 +152,7 @@ export const ChatCommandPalette: React.FC<ChatCommandPaletteProps> = ({
                   securityScore={securityScore}
                   qualityScore={qualityScore}
                 />
-              ) : (
-                <span className="text-xs text-muted-foreground">local</span>
-              )}
+              ) : null}
             </div>
           )
         })}
