@@ -131,25 +131,26 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
       <div>
         <h1 className="text-2xl font-bold mb-2">Welcome to SkillDeck</h1>
         <p className="text-muted-foreground">
-          Local-first AI orchestration for developers. Your code never leaves your machine.
+          Build, share, and control AI workflows—<strong>without the cloud</strong>.
+          Your code never leaves your machine, and your skills are version‑controlled like any other dev artifact.
         </p>
       </div>
       <div className="grid gap-3 text-left">
         {[
           {
             icon: <Shield size={16} className="text-emerald-500" />,
-            title: 'Privacy Without Compromise',
-            desc: 'API keys live in your OS keychain. Code stays local.',
+            title: 'Your data stays local',
+            desc: 'API keys live in your OS keychain; conversations never leave your device.',
           },
           {
             icon: <Key size={16} className="text-blue-500" />,
-            title: 'Team Knowledge That Compounds',
-            desc: 'Skills are version-controlled files — share them like code.',
+            title: 'Skills are code',
+            desc: 'Version‑controlled, shareable as Gists, and composable like any other dev tool.',
           },
           {
             icon: <Rocket size={16} className="text-violet-500" />,
-            title: 'From Chat to Intelligence',
-            desc: 'Multi-agent workflows orchestrate complex tasks in parallel.',
+            title: 'From chat to intelligence',
+            desc: 'Orchestrate multi‑agent workflows with parallel execution and evaluator‑optimizer patterns.',
           },
         ].map(({ icon, title, desc }) => (
           <div key={title} className="flex gap-3 p-3 rounded-lg bg-muted/40">
@@ -165,7 +166,7 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
         onClick={onNext}
         className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold flex items-center justify-center gap-2 hover:bg-primary/90"
       >
-        Get started <ArrowRight size={16} />
+        Deal me in <ArrowRight size={16} />
       </button>
     </div>
   );
@@ -187,9 +188,9 @@ function ApiKeyStep({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-bold mb-1">Connect an AI provider</h2>
+        <h2 className="text-xl font-bold mb-1">Connect your first AI provider</h2>
         <p className="text-sm text-muted-foreground">
-          Add your Anthropic API key to unlock Claude. Add more providers later in Settings.
+          SkillDeck needs an API key to chat with models. Start with Claude (Anthropic) – you can add more providers later in Settings.
         </p>
       </div>
       <div className="space-y-2">
@@ -202,12 +203,12 @@ function ApiKeyStep({
           className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring font-mono"
         />
         <p className="text-xs text-muted-foreground">
-          Stored encrypted in your OS keychain — never uploaded anywhere.
+          Stored encrypted in your OS keychain — we never see it, and it never touches the cloud.
         </p>
       </div>
       <div className="flex gap-3">
         <button onClick={onSkip} className="flex-1 py-2 rounded-lg border border-border text-sm hover:bg-muted">
-          Skip for now
+          I'll do this later
         </button>
         <button
           onClick={onNext}
@@ -241,19 +242,20 @@ function PlatformStep({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-bold mb-1">Stay in the loop (optional)</h2>
+        <h2 className="text-xl font-bold mb-1">Join the SkillDeck community (optional)</h2>
         <p className="text-sm text-muted-foreground">
-          Get tips on sharing skills with your team and earn rewards for referrals. No spam — unsubscribe any time.
+          Get weekly skill‑sharing tips, referral rewards, and product updates that matter to developers.
+          No spam – unsubscribe anytime.
         </p>
       </div>
       <div className="flex gap-3 p-4 rounded-lg bg-primary/5 border border-primary/20">
         <Mail size={18} className="text-primary mt-0.5 shrink-0" />
         <div className="text-sm">
-          <p className="font-medium">What you'll receive:</p>
+          <p className="font-medium">What you'll get:</p>
           <ul className="mt-1 text-muted-foreground space-y-0.5 text-xs list-none">
-            <li>• Weekly skill-sharing tips from the community</li>
-            <li>• Referral reward notifications</li>
-            <li>• Product updates that matter to developers</li>
+            <li>• Curated tips to supercharge your team's AI workflows</li>
+            <li>• Early access to new features and referral rewards</li>
+            <li>• A direct line to the team (we read every email)</li>
           </ul>
         </div>
       </div>
@@ -269,7 +271,7 @@ function PlatformStep({
       </div>
       <div className="flex gap-3">
         <button onClick={onSkip} className="flex-1 py-2 rounded-lg border border-border text-sm hover:bg-muted">
-          Skip
+          Not now
         </button>
         <button
           onClick={onNext}
@@ -278,7 +280,7 @@ function PlatformStep({
         >
           {saving ? 'Saving…' : email ? (
             <>
-              <span>Save &amp; continue</span> <ArrowRight size={14} />
+              <span>Save & continue</span> <ArrowRight size={14} />
             </>
           ) : (
             <>
@@ -298,9 +300,9 @@ function DoneStep({ onFinish }: { onFinish: () => void }) {
         <Check size={28} className="text-emerald-600 dark:text-emerald-400" />
       </div>
       <div>
-        <h2 className="text-xl font-bold mb-2">You're all set!</h2>
+        <h2 className="text-xl font-bold mb-2">You're ready to deal!</h2>
         <p className="text-sm text-muted-foreground">
-          Start a conversation, explore your skills, or build a multi-agent workflow.
+          Your deck is assembled. Start a conversation, explore the skill marketplace, or build your first multi‑agent workflow.
         </p>
       </div>
       <button
