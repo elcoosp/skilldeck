@@ -133,7 +133,7 @@ export const ChatCommandPalette: React.FC<ChatCommandPaletteProps> = ({
               aria-selected={index === selectedIndex}
               tabIndex={-1}
               className={cn(
-                'flex items-center justify-between px-2 py-1.5 rounded-sm cursor-pointer text-sm',
+                'flex items-start gap-2 px-2 py-1.5 rounded-sm cursor-pointer text-sm',
                 index === selectedIndex
                   ? 'bg-primary/20 text-foreground'
                   : 'hover:bg-primary/10'
@@ -151,26 +151,26 @@ export const ChatCommandPalette: React.FC<ChatCommandPaletteProps> = ({
               }}
               onMouseEnter={() => setSelectedIndex(index)}
             >
-              <div className="flex flex-col min-w-0 mr-2">
-                <span className="font-medium text-blue-600 dark:text-blue-400 truncate flex items-center gap-1">
-                  @{skill.name}
-                  {sourceType === 'local' && (
-                    <span className="ml-1 text-[10px] bg-muted px-1 rounded">
+              <div className="flex flex-col min-w-0 flex-1">
+                <span className="font-medium text-blue-600 dark:text-blue-400 truncate">
+                  {skill.name}
+                </span>
+                <div className="flex items-center gap-2 flex-nowrap min-w-0">
+                  <span className="text-xs text-muted-foreground truncate min-w-0 flex-1">
+                    {skill.description}
+                  </span>
+                  {sourceType === 'local' ? (
+                    <span className="text-[10px] bg-muted px-1 rounded whitespace-nowrap flex-shrink-0">
                       local
                     </span>
-                  )}
-                </span>
-                <span className="text-xs text-muted-foreground truncate w-48">
-                  {skill.description}
-                </span>
-              </div>
-              <div className="flex-shrink-0 ml-2">
-                {sourceType === 'registry' ? (
-                  <TrustBadge
-                    securityScore={securityScore}
-                    qualityScore={qualityScore}
-                  />
-                ) : null}
+                  ) : sourceType === 'registry' ? (
+                    <TrustBadge
+                      securityScore={securityScore}
+                      qualityScore={qualityScore}
+                      className="flex-shrink-0"
+                    />
+                  ) : null}
+                </div>
               </div>
             </div>
           )
