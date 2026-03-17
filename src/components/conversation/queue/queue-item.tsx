@@ -2,6 +2,8 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { GripVertical, Pencil, Trash2, CheckSquare, Square } from 'lucide-react'
+import { useCallback, useEffect, useMemo } from 'react'
+import { shallow } from 'zustand/shallow'
 import { useQueueStore } from '@/store/queue'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -19,20 +21,27 @@ interface QueueItemProps {
 export function QueueItem({ message, conversationId, position, total }: QueueItemProps) {
   const {
     mode,
-    selectedIds,
+    selectedIdsArray,
     editingId,
     toggleSelected,
     setEditingId,
     setIsDragging,
-  } = useQueueStore((s) => ({
-    mode: s.mode[conversationId] ?? 'view',
-    selectedIds: s.selectedIds[conversationId] ?? new Set(),
-    editingId: s.editingId[conversationId],
-    toggleSelected: s.toggleSelected,
-    setEditingId: s.setEditingId,
-    setIsDragging: s.setIsDragging,
-  }))
+  } = useQueueStore(
+    useCallback(
+      (s) => ({
+        mode: s.mode[conversationId] ?? 'view',
+        selectedIdsArray: s.selectedIds[conversationId] ?? [],
+        editingId: s.editingId[conversationId],
+        toggleSelected: s.toggleSelected,
+        setEditingId: s.setEditingId,
+        setIsDragging: s.setIsDragging,
+      }),
+      [conversationId]
+    ),
+    shallow
+  )
 
+  const selectedIds = useMemo(() => new Set(selectedIdsArray), [selectedIdsArray])
   const deleteMutation = useDeleteQueuedMessage(conversationId)
 
   const {
@@ -44,10 +53,10 @@ export function QueueItem({ message, conversationId, position, total }: QueueIte
     isDragging: isDraggingItem,
   } = useSortable({ id: message.id })
 
-  // Update global dragging state
-  if (isDraggingItem) {
-    setIsDragging(conversationId, true)
-  }
+  // Update global dragging state – MUST be in useEffect, not during render
+  useEffect(() => {
+    setIsDragging(conversationId, isDraggingItem)
+  }, [isDraggingItem, conversationId, setIsDragging])
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -57,9 +66,9 @@ export function QueueItem({ message, conversationId, position, total }: QueueIte
   const isSelected = selectedIds.has(message.id)
   const isEditing = editingId === message.id
 
-  const handleDelete = () => {
+  const handleDelete = useCallback(() => {
     deleteMutation.mutate(message.id)
-  }
+  }, [deleteMutation, message.id])
 
   if (isEditing) {
     return (
