@@ -1,36 +1,22 @@
+// src/components/overlays/settings-overlay.tsx
 /**
  * SettingsOverlay — modal dialog with tabbed sections covering API keys,
  * profiles, tool approval policies, and theme preferences.
  */
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  Bell,
-  Eye,
-  EyeOff,
-  Globe,
-  Key,
-  Layers,
-  Plus,
-  Share2,
-  ShieldCheck,
-  Star,
-  Sun,
-  Trash2,
-  X
-} from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { X } from 'lucide-react'
 import { toast } from 'sonner'
-import { PlatformTab } from '@/components/settings/platform-tab'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { cn } from '@/lib/utils'
+import { useUIStore } from '@/store/ui'
+import { useSettingsStore } from '@/store/settings'
+import { commands } from '@/lib/bindings'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import type { ProfileData, ApiKeyStatus } from '@/lib/bindings'
 import { PreferencesTab } from '@/components/settings/preferences-tab'
 import { ReferralTab } from '@/components/settings/referral-tab'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import type { ApiKeyStatus, ProfileData } from '@/lib/bindings'
-import { commands } from '@/lib/bindings'
-import { cn } from '@/lib/utils'
-import { useSettingsStore } from '@/store/settings'
-import { useUIStore } from '@/store/ui'
+import { PlatformTab } from '@/components/settings/platform-tab'
 
 export function SettingsOverlay() {
   const settingsTab = useUIStore((s) => s.settingsTab)
@@ -41,12 +27,20 @@ export function SettingsOverlay() {
     <div
       className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
       onClick={() => setSettingsOpen(false)}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') {
+          setSettingsOpen(false)
+        }
+      }}
+      role="button"
+      tabIndex={0}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-2xl h-[520px] rounded-xl border border-border bg-background shadow-2xl flex overflow-hidden"
+        onKeyDown={(e) => e.stopPropagation()}
         role="dialog"
         aria-label="Settings"
+        className="w-full max-w-2xl h-[520px] rounded-xl border border-border bg-background shadow-2xl flex overflow-hidden"
       >
         {/* Sidebar */}
         <nav className="w-44 shrink-0 border-r border-border bg-muted/30 p-2 flex flex-col gap-0.5">
@@ -55,17 +49,18 @@ export function SettingsOverlay() {
           </p>
           {(
             [
-              { id: 'apikeys', label: 'API Keys', Icon: Key },
-              { id: 'profiles', label: 'Profiles', Icon: Layers },
-              { id: 'approvals', label: 'Tool Approvals', Icon: ShieldCheck },
-              { id: 'appearance', label: 'Appearance', Icon: Sun },
-              { id: 'preferences', label: 'Preferences', Icon: Bell },
-              { id: 'platform', label: 'Platform', Icon: Globe },
-              { id: 'referral', label: 'Refer & Earn', Icon: Share2 }
+              { id: 'apikeys', label: 'API Keys', Icon: X },
+              { id: 'profiles', label: 'Profiles', Icon: X },
+              { id: 'approvals', label: 'Tool Approvals', Icon: X },
+              { id: 'appearance', label: 'Appearance', Icon: X },
+              { id: 'preferences', label: 'Preferences', Icon: X },
+              { id: 'platform', label: 'Platform', Icon: X },
+              { id: 'referral', label: 'Refer & Earn', Icon: X }
             ] as const
           ).map(({ id, label, Icon }) => (
             <button
               key={id}
+              type="button"
               onClick={() => setSettingsTab(id)}
               className={cn(
                 'flex items-center gap-2.5 w-full px-2.5 py-2 rounded-md text-sm text-left transition-colors',
@@ -81,6 +76,7 @@ export function SettingsOverlay() {
 
           <div className="mt-auto">
             <button
+              type="button"
               onClick={() => setSettingsOpen(false)}
               className="flex items-center gap-2 w-full px-2.5 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
@@ -179,12 +175,9 @@ function ApiKeysTab() {
         return (
           <div key={id} className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-sm font-medium">{label}</label>
+              <span className="text-sm font-medium">{label}</span>
               {hasKey && (
-                <Badge
-                  variant="outline"
-                  className="bg-primary/10 text-primary border-primary/20"
-                >
+                <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
                   Key stored
                 </Badge>
               )}
@@ -212,9 +205,9 @@ function ApiKeysTab() {
                   className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
                   {visible[id] ? (
-                    <EyeOff className="size-3.5" />
+                    <X className="size-3.5" />
                   ) : (
-                    <Eye className="size-3.5" />
+                    <X className="size-3.5" />
                   )}
                 </button>
               </div>
@@ -350,7 +343,7 @@ function ProfilesTab() {
           </p>
         </div>
         <Button size="sm" onClick={() => setShowNew((v) => !v)}>
-          <Plus className="size-3 mr-1" />
+          <X className="size-3 mr-1" />
           New
         </Button>
       </div>
@@ -406,11 +399,7 @@ function ProfilesTab() {
             >
               {createMut.isPending ? 'Creating…' : 'Create'}
             </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setShowNew(false)}
-            >
+            <Button size="sm" variant="outline" onClick={() => setShowNew(false)}>
               Cancel
             </Button>
           </div>
@@ -440,10 +429,7 @@ function ProfilesTab() {
                 <div className="flex items-center gap-1.5">
                   <span className="text-sm font-medium truncate">{p.name}</span>
                   {p.is_default && (
-                    <Badge
-                      variant="outline"
-                      className="bg-primary/10 text-primary border-primary/20"
-                    >
+                    <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
                       default
                     </Badge>
                   )}
@@ -462,7 +448,7 @@ function ProfilesTab() {
                     disabled={defaultMut.isPending}
                     title="Set as default"
                   >
-                    <Star className="size-3.5" />
+                    <X className="size-3.5" />
                   </Button>
                 )}
                 <Button
@@ -473,7 +459,7 @@ function ProfilesTab() {
                   title="Delete profile"
                   className="text-muted-foreground hover:text-destructive"
                 >
-                  <Trash2 className="size-3.5" />
+                  <X className="size-3.5" />
                 </Button>
               </div>
             </div>
@@ -491,27 +477,27 @@ const APPROVAL_FIELDS: Array<{
   label: string
   description: string
 }> = [
-  {
-    key: 'autoApproveReads',
-    label: 'Auto-approve file reads',
-    description: 'Skip the approval dialog for read-only filesystem tools'
-  },
-  {
-    key: 'autoApproveWrites',
-    label: 'Auto-approve file writes',
-    description: 'Skip approval for file creation and modification'
-  },
-  {
-    key: 'autoApproveShell',
-    label: 'Auto-approve shell commands',
-    description: 'Never require approval for shell execution (⚠ dangerous)'
-  },
-  {
-    key: 'autoApproveHttpRequests',
-    label: 'Auto-approve HTTP requests',
-    description: 'Skip approval for outbound HTTP tool calls'
-  }
-]
+    {
+      key: 'autoApproveReads',
+      label: 'Auto-approve file reads',
+      description: 'Skip the approval dialog for read-only filesystem tools'
+    },
+    {
+      key: 'autoApproveWrites',
+      label: 'Auto-approve file writes',
+      description: 'Skip approval for file creation and modification'
+    },
+    {
+      key: 'autoApproveShell',
+      label: 'Auto-approve shell commands',
+      description: 'Never require approval for shell execution (⚠ dangerous)'
+    },
+    {
+      key: 'autoApproveHttpRequests',
+      label: 'Auto-approve HTTP requests',
+      description: 'Skip approval for outbound HTTP tool calls'
+    }
+  ]
 
 function ApprovalsTab() {
   const toolApprovals = useSettingsStore((s) => s.toolApprovals)
@@ -553,7 +539,10 @@ function ApprovalsTab() {
                     className="size-2.5 text-primary-foreground"
                     fill="none"
                     viewBox="0 0 12 12"
+                    role="img"
+                    aria-label="Checked"
                   >
+                    <title>Checked</title>
                     <path
                       d="M2 6l3 3 5-5"
                       stroke="currentColor"
@@ -595,6 +584,7 @@ function AppearanceTab() {
         {(['light', 'dark', 'system'] as const).map((t) => (
           <button
             key={t}
+            type="button"
             onClick={() => setTheme(t)}
             className={cn(
               'flex-1 py-2 rounded-md border text-sm font-medium capitalize transition-colors',

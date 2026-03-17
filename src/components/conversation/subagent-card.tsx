@@ -40,21 +40,44 @@ export function SubagentCard({
   qualityScore,
   onOpen
 }: SubagentCardProps) {
+  if (!onOpen) {
+    return (
+      <div className="my-2 flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2 text-sm">
+        <Bot className="size-4 shrink-0 text-muted-foreground" />
+
+        <div className="flex-1 min-w-0">
+          <p className="font-medium truncate text-xs">{stepName}</p>
+          <p className="text-[11px] text-muted-foreground">
+            {statusLabel[status]}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3 text-[11px] text-muted-foreground shrink-0">
+          {tokensUsed !== undefined && (
+            <span>{tokensUsed.toLocaleString()} tok</span>
+          )}
+          {qualityScore !== undefined && (
+            <span>Q {(qualityScore * 100).toFixed(0)}%</span>
+          )}
+          {statusIcon[status]}
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div
-      role={onOpen ? 'button' : undefined}
-      tabIndex={onOpen ? 0 : undefined}
+    <button
+      type="button"
       onClick={onOpen}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
-          onOpen?.()
+          onOpen()
         }
       }}
       className={cn(
-        'my-2 flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2 text-sm',
-        onOpen &&
-          'cursor-pointer hover:border-primary/50 hover:shadow-sm transition-all'
+        'my-2 flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2 text-sm w-full text-left',
+        'cursor-pointer hover:border-primary/50 hover:shadow-sm transition-all'
       )}
     >
       <Bot className="size-4 shrink-0 text-muted-foreground" />
@@ -75,6 +98,6 @@ export function SubagentCard({
         )}
         {statusIcon[status]}
       </div>
-    </div>
+    </button>
   )
 }

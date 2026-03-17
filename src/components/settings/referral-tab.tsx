@@ -1,3 +1,4 @@
+// src/components/settings/referral-tab.tsx
 /**
  * ReferralTab — Share SkillDeck and track your referral rewards.
  *
@@ -7,7 +8,7 @@
 
 import { Copy, ExternalLink, Gift, Users } from 'lucide-react'
 import { toast } from 'sonner'
-import { usePlatformPreferences, useReferral } from '@/hooks/use-platform'
+import { useReferral, usePlatformPreferences } from '@/hooks/use-platform'
 
 const REFERRAL_BASE_URL = 'https://skilldeck.dev/r'
 
@@ -45,8 +46,7 @@ export function ReferralTab() {
     )
   }
 
-  const platformConfigured =
-    prefsQuery.data?.platformEnabled && prefsQuery.data?.platformUrl
+  const platformConfigured = prefsQuery.data?.platformEnabled && prefsQuery.data?.platformUrl
 
   return (
     <div className="space-y-6 text-sm">
@@ -71,6 +71,7 @@ export function ReferralTab() {
               {referralUrl}
             </code>
             <button
+              type="button"
               onClick={copyCode}
               className="p-2 rounded-md hover:bg-muted transition-colors"
               title="Copy link"
@@ -100,14 +101,11 @@ export function ReferralTab() {
                 Connect to SkillDeck Platform to enable referrals.
               </p>
               <button
+                type="button"
                 className="px-4 py-2 rounded-md bg-primary text-primary-foreground font-medium hover:bg-primary/90"
                 onClick={() => {
                   // Dispatch event to open settings on platform tab
-                  window.dispatchEvent(
-                    new CustomEvent('skilldeck:open-settings', {
-                      detail: { tab: 'platform' }
-                    })
-                  )
+                  window.dispatchEvent(new CustomEvent('skilldeck:open-settings', { detail: { tab: 'platform' } }))
                 }}
               >
                 Configure Platform
@@ -119,6 +117,7 @@ export function ReferralTab() {
                 Create your referral link and start earning rewards.
               </p>
               <button
+                type="button"
                 className="px-4 py-2 rounded-md bg-primary text-primary-foreground font-medium hover:bg-primary/90 disabled:opacity-50"
                 disabled={create.isPending}
                 onClick={() => create.mutate()}
@@ -177,6 +176,7 @@ function ShareButton({
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       className="flex-1 py-1.5 rounded-md border border-border hover:bg-muted text-xs font-medium transition-colors"
     >

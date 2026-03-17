@@ -46,8 +46,6 @@ export function CommandPalette() {
   return (
     /* Backdrop – softer, matches brand neutral */
     <div
-      role="button"
-      tabIndex={0}
       className="fixed inset-0 z-50 bg-black/20 backdrop-blur-sm flex items-start justify-center pt-[15vh]"
       onClick={() => setOpen(false)}
       onKeyDown={(e) => {
@@ -56,6 +54,8 @@ export function CommandPalette() {
           setOpen(false)
         }
       }}
+      role="button"
+      tabIndex={0}
     >
       {/* Panel */}
       <div

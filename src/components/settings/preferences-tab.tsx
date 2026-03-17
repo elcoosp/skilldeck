@@ -1,9 +1,10 @@
+// src/components/settings/preferences-tab.tsx
 /**
  * PreferencesTab — Platform preferences panel inside SettingsOverlay.
  */
 
-import { Bell, Globe, Mail, Palette, Shield } from 'lucide-react'
 import { useState } from 'react'
+import { Bell, Globe, Mail, Palette, Shield } from 'lucide-react'
 import { usePlatformPreferences } from '@/hooks/use-platform'
 import type { UpdatePreferencesPayload } from '@/lib/platform'
 
@@ -43,12 +44,14 @@ export function PreferencesTab() {
         </p>
         <div className="flex gap-2">
           <input
+            id="email-input"
             className="flex-1 rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             placeholder={prefs?.email ?? 'you@example.com'}
             value={emailDraft}
             onChange={(e) => setEmailDraft(e.target.value)}
           />
           <button
+            type="button"
             className="px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
             disabled={!emailDraft || update.isPending}
             onClick={() => {
@@ -69,6 +72,7 @@ export function PreferencesTab() {
               <>
                 <span className="text-xs text-amber-600">Unverified</span>
                 <button
+                  type="button"
                   className="text-xs text-primary underline"
                   onClick={() => resendVerification.mutate()}
                   disabled={resendVerification.isPending}
@@ -131,8 +135,8 @@ export function PreferencesTab() {
         ).map(({ value, label }) => {
           const rawChannels = prefs?.notification_channels ?? ['in-app']
           // Ensure type safety
-          const channels = rawChannels.filter(
-            (c): c is 'in-app' | 'email' => c === 'in-app' || c === 'email'
+          const channels = rawChannels.filter((c): c is 'in-app' | 'email' =>
+            c === 'in-app' || c === 'email'
           )
           const checked = channels.includes(value)
           return (

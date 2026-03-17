@@ -1,328 +1,209 @@
-# 🧪 Queued Message Management UX Research & Recommendations (Final – Enhanced)
+# 🎨 Queued Message Management – Final UX Specification
 
-## 🎯 Research Overview
+## 1. Overview & Goals
 
-### Objectives
-- **Primary Questions:**  
-  - How do users currently interact with the message queue during agent activity?  
-  - What friction points exist in the queuing experience?  
-  - How can we improve visibility, editability, and control over queued messages?  
-- **Success Metrics:**  
-  - Reduction in accidental message overwrites.  
-  - Increased user confidence that queued messages will be sent as intended.  
-  - Higher completion rate of queued messages (vs. abandonment).  
-- **Business Impact:**  
-  - Improved user satisfaction during long agent runs.  
-  - Reduced support tickets about “my message disappeared” or “I couldn’t edit it”.
+The queued message feature allows users to continue composing messages while the agent is processing a previous turn. Messages are stored in a persistent, editable list and are automatically sent in order when the agent becomes idle. This design aims to:
 
-### Methodology
-- **Research Type:** Mixed Methods  
-  - **Qualitative:** Usability testing with 8 participants, think‑aloud protocol, post‑test interviews.  
-  - **Quantitative:** In‑app analytics on current queuing behavior (frequency of use, edit/cancel clicks, abandonment rate).  
-- **Rationale:** Combining behavioral data with direct observation gives us both the “what” and the “why”.
+- **Increase visibility** – users can see all pending messages at a glance.
+- **Maintain flow** – typing is never blocked by a running agent.
+- **Provide control** – edit, delete, reorder, or merge queued messages without disrupting the ongoing conversation.
+- **Ensure predictability** – auto‑send only occurs when the user is not actively manipulating the queue.
 
-### Participants
-- **Primary Users:** SkillDeck power users (developers who run long agent sessions, e.g., code reviews, batch processing).  
-- **Sample Size:** 8 participants for usability testing (saturation reached), plus analytics from 500 active users.  
-- **Recruitment:** In‑app invitation targeting users with >5 agent sessions per week.  
-- **Screening:** Must have experienced the agent‑running state at least once.
+## 2. High‑Level User Flow
 
----
+1. **Agent is running** → Input field’s Send button becomes “Queue”.  
+   - User types a message and presses Enter (or clicks Queue).  
+   - Message is appended to the queue list, input clears.  
+   - Queue expands (if collapsed) to show the new item.
 
-## 👥 User Insights
+2. **Queue management**  
+   - User can expand/collapse the queue via the header.  
+   - Within the expanded list:  
+     - **Reorder** via drag handle (⋮⋮).  
+     - **Edit** inline – click pencil, row expands to textarea.  
+     - **Delete** – click trash, item removed (with optional undo toast).  
+     - **Merge** – enter selection mode, select multiple items, click “Merge”.
 
-### User Persona: “Alex the Power Builder”
+3. **Auto‑send**  
+   - When agent finishes a turn, the first item in the queue is sent automatically **only if**:
+     - No item is being edited.
+     - No drag is in progress.
+     - Selection mode is inactive.
+   - After sending, the item is removed from the queue, and remaining items shift up.
 
-**Demographics & Context**  
-- Age 28–40, senior software engineer or tech lead.  
-- Uses SkillDeck for complex workflows (code generation, refactoring, multi‑step tasks).  
-- Works in a fast‑paced environment, often context‑switching.
+4. **Queue persistence**  
+   - Queue state (items, order) is persisted in the database per conversation, surviving app restarts.
 
-**Behavioral Patterns**  
-- Runs long agent sessions (5–20 minutes) multiple times daily.  
-- While agent runs, continues to think ahead and type follow‑up messages.  
-- Expects messages to be queued and delivered reliably in order.
+## 3. Detailed Component Specification
 
-**Pain Points (Current)**  
-- “I typed a second message, but the first one was still running – I wasn’t sure if it was saved.”  
-- “I accidentally hit Enter and overwrote my queued message instead of editing it.”  
-- “I wanted to change my queued message but had to cancel and retype the whole thing.”
+### 3.1. Queue Header
+- **Always visible** above the input area.
+- **Content:**
+  - Arrow icon (▼/▶) indicating expand/collapse state.
+  - Label: “Queued”
+  - Badge with current count (e.g., `(3)`).
+- **Interaction:** Click toggles expanded state. Hover background changes (`var(--accent)` at 10%).
+- **Accessibility:** `role="button"`, `aria-expanded`, keyboard focusable.
 
-**Motivations**  
-- Wants uninterrupted flow – keep thinking while agent works.  
-- Needs confidence that queued messages are persisted and editable.
+### 3.2. Queue List (Expanded State)
+- **Container** with fixed maximum height (e.g., `200px`) and scrollable if needed.
+- **Rows** – each represents a queued message.
+  - **Height:** `48px` (comfortable touch target).
+  - **Layout:**  
+    `[drag handle] [position badge] [message preview] [edit] [delete]`
+  - **Drag handle:** Six‑dot icon (`⋮⋮`), visible on hover (or always with low opacity). Cursor changes to `grab`.
+  - **Position badge:** Small grey circle with the item’s order number (1,2,3…). Updates on reorder.
+  - **Message preview:** Single‑line truncation with ellipsis. Font size `14px`.
+  - **Action icons:** Pencil and trash, appear on hover (or always with `0.4` opacity).
+- **Hover state:** Light background (`var(--accent)` at 5%) and border.
+- **Focus state:** Outline ring for keyboard navigation.
 
-> *“When the agent is running, I often queue up several messages. I need to see them all, tweak them, and know they’ll go out in the right order.”* – Alex
+### 3.3. Inline Editing
+- **Trigger:** Click pencil icon.
+- **Visual:** Row expands to accommodate a multi‑line textarea (min-height `60px`). Drag handle and position badge are hidden.
+- **Textarea:** Auto‑growing, same styling as main input, with “Save” and “Cancel” buttons below.
+- **Behavior:**
+  - While editing, auto‑send is paused (pause indicator appears).
+  - Save updates the message content and collapses the row.
+  - Cancel discards changes and collapses.
+  - Pressing `Enter` in the textarea does **not** submit (to allow line breaks); `Cmd+Enter` can be used for save.
 
----
+### 3.4. Drag‑and‑Drop Reorder
+- **Trigger:** Drag by the handle.
+- **Visual:**
+  - Ghost element follows cursor with `opacity: 0.7`.
+  - Placeholder shows where item will land (grey dashed border).
+  - While dragging, auto‑send is paused (pause indicator appears).
+- **After drop:** Position badges of all items update immediately.
 
-## 📊 Usability Findings (Current State)
+### 3.5. Selection Mode & Merging
+- **Enter selection mode:** Click “Select” button in toolbar.
+- **Visual:** Each row shows a checkbox on the left, replacing drag handle and position badge. Action icons (edit/delete) are hidden.
+- **Toolbar changes:** Shows “Select all” checkbox, “Merge selected” button, and “Cancel” link.
+- **Merge action:**
+  - Enabled only when ≥2 items selected.
+  - Clicking merges selected items into one new message, concatenating content with `\n\n---\n\n` separator.
+  - New message replaces selected items at the position of the earliest selected item.
+  - Selection mode ends automatically.
 
-### Current Implementation (from codebase)
-- A single queued message is shown as an amber banner with the message text, an **Edit** button, and a **Cancel** button.
-- Clicking Edit copies the queued message back into the input field and removes it from the queue (the user must re‑press Send to re‑queue).
-- Analytics show:
-  - 40% of users who click Edit **never** re‑send the message (abandonment).
-  - 25% of queued messages are overwritten accidentally when a user types a new message and presses Enter without realising the queue already holds a message.
+### 3.6. Pause Indicator (No Layout Shift)
+- **Position:** Placed **above** the queue list but **inside** the queue container, using absolute positioning within a reserved space.
+- **Implementation:** The queue container has a fixed top padding (e.g., `8px`) that accommodates the indicator without shifting the list.
+  - Indicator is absolutely positioned within that padding, with `top: 0`, `left: 0`, `right: 0`, `height: 28px`.
+  - When hidden, the space is empty but the layout remains stable.
+- **Content:** “⏸️ Auto‑send paused – finish editing to continue.” with amber background.
+- **Shown when:** Editing, dragging, or selection mode is active.
 
-### Key Pain Points
-1. **Limited visibility** – only one queued message is shown; if a user queues multiple, they disappear.
-2. **Edit mode is destructive** – editing removes the message from the queue, requiring re‑queueing.
-3. **No ordering** – users cannot see or control the order of multiple queued messages.
-4. **No persistence across app restarts** – queued messages are lost if the app is closed (user expectation: they should survive until sent).
+### 3.7. Main Input Area
+- **Input field:** Standard text input with placeholder.
+- **Send/Queue button:** Changes label based on agent state:
+  - Agent idle → “Send”
+  - Agent running → “Queue”
+- **Behavior when agent running:**
+  - Clicking or pressing Enter **appends** the message to the queue (does not send immediately).
+  - Input clears, focus remains.
+  - If queue was collapsed, it expands to show the new item.
 
----
+### 3.8. Auto‑Send Logic
+- **Trigger:** Agent completes a turn (e.g., after receiving a final response).
+- **Check:** 
+  - Queue not empty.
+  - No editing in progress.
+  - No drag in progress.
+  - Selection mode inactive.
+- **Action:** Remove first item from queue and send it as a user message. The agent will process it as usual.
+- **After send:** Queue updates (remaining items shift). If more items exist, they will be sent after each subsequent agent completion (auto‑send continues until queue empty).
+- **Edge case:** If user adds a new message while auto‑send is in progress (e.g., after the first item was sent but before the second), the new message is appended to the end; order is preserved.
 
-## 🎯 Recommendations
+## 4. Micro‑interactions & Animations
 
-### High Priority (Immediate Action)
+| Interaction | Animation | Duration | Easing |
+|-------------|-----------|----------|--------|
+| Expand/collapse queue | Height transition | 200ms | ease |
+| New item added | Slide down + fade | 150ms | ease-out |
+| Item removed | Fade out + slide up | 150ms | ease-in |
+| Drag start | Ghost scale 0.98 | 100ms | ease |
+| Drop | Ghost scale to 1 | 100ms | ease |
+| Position badge update | Quick number change (no animation) | – | – |
+| Pause indicator appear/disappear | Fade | 150ms | ease |
 
-#### 1. Database‑Backed Queue
-Store queued messages in the database, associated with the conversation. This ensures they survive app restarts and are available across devices (if sync is implemented later).  
-- **New table:** `queued_messages` with fields:  
-  - `id` (UUID, primary key)  
-  - `conversation_id` (foreign key to `conversations`)  
-  - `content` (text)  
-  - `position` (integer, for ordering)  
-  - `created_at` (timestamp)  
-  - `updated_at` (timestamp)  
-- This table allows multiple queued messages per conversation, with explicit ordering.
+All animations respect `prefers-reduced-motion`.
 
-#### 2. Persistent Queued Message List (Drawer / Expandable Panel)
-Replace the single banner with an expandable list above the input.  
-- **Visual:** A “**Queued (3)**” chip that expands into a list when clicked.  
-- **Each item shows:** message preview, Edit (✏️), Delete (🗑️), and drag‑handle for reorder.  
-- **Editing:** Inline editing directly in the list (no modal) – user can modify the text and changes are saved automatically (debounced). The message remains queued until sent.
+## 5. Accessibility (a11y)
 
-#### 3. Non‑destructive Edit
-Editing should **not** remove the message from the queue. Instead, the list item becomes an editable text field (similar to renaming a conversation). On blur or Enter, the updated message is saved to the database.
+- **Keyboard navigation:**
+  - Queue header focusable, `Enter` toggles expand.
+  - Arrow keys navigate rows when expanded.
+  - `Enter` on a row (if not editing) activates edit (or opens context menu).
+  - `Tab` moves through actions within a row.
+  - `Escape` cancels edit or selection mode.
+- **ARIA:**
+  - Queue container has `role="list"`, rows have `role="listitem"`.
+  - Expand button has `aria-expanded`.
+  - Edit mode: `aria-label` on textarea, buttons have accessible names.
+- **Focus management:** When entering edit mode, focus moves to the textarea. When exiting, focus returns to the row’s pencil button.
+- **Color contrast:** All text meets WCAG AA (minimum 4.5:1). Pause indicator uses amber with dark text for readability.
 
-#### 4. Visual Persistence & Order
-- Show a numbered badge (1, 2, 3) to indicate send order.  
-- Allow drag‑and‑drop reordering (updates `position` in the database).  
-- **Automatic processing:** When the current agent turn completes, the next queued message (position 1) is automatically sent **only if the user is not currently editing or dragging any item**. If the user is interacting with the queue (e.g., editing a message, dragging to reorder), auto‑send is paused until the interaction finishes. This prevents interruption and gives the user full control.
+## 6. Visual Design Tokens (Reusing existing theme)
 
-#### 5. Group / Merge Action
-Add a “**Merge selected**” or “**Combine**” option (e.g., via multi‑select or a context menu) that allows the user to merge two or more queued messages into a single message.  
-- When merged, the content of the selected messages is concatenated (with clear separators, e.g., `\n\n---\n\n`) into one new message that replaces the selected ones at the same position.  
-- This addresses advanced use cases where the user wants to consolidate multiple thoughts into one turn.
+| Token | Usage |
+|-------|-------|
+| `--background` | Queue container background |
+| `--accent` | Hover states |
+| `--muted` | Position badge background |
+| `--muted-foreground` | Position badge text, action icons default |
+| `--primary` | Merge button, Send button |
+| `--destructive` | Delete icon hover (optional) |
+| `--warning` (new) | Pause indicator background (`#FEF3C7`) |
+| `--warning-foreground` | Pause indicator text (`#92400E`) |
 
-#### 6. Clear Send / Queue Distinction
-- When the agent is running, pressing Enter (or clicking Send) appends the typed message to the queue.  
-- The input field is cleared, and the new message appears at the end of the queue list.  
-- The user can continue typing and queuing more messages.
+## 7. Implementation Notes
 
-#### 7. Accessibility & Keyboard Support
-- Expand/collapse queue with keyboard (Enter on chip).  
-- Navigate list with arrow keys; Enter to edit; Escape to cancel edit.  
-- Proper focus management and ARIA labels.
-
-### Medium Priority (Next Quarter)
-- **Queue count badge** on the conversation item in left sidebar, so users can see pending messages when switching conversations.  
-- **Auto‑save drafts** – if user closes app, queue is already persisted.
-
-### Long‑term Opportunities
-- **Queue sharing** – allow copying the queue as a structured list to collaborate.
-
----
-
-## 📈 Success Metrics
-
-| Metric | Current | Target |
-|--------|--------|--------|
-| Queued message abandonment rate | 40% | <15% |
-| Accidental overwrite incidents | 25% of queued messages | <5% |
-| User satisfaction (CSAT) with queuing | 3.2/5 | 4.5/5 |
-| Queue usage (messages queued per session) | 1.2 | 2.5+ |
-| Retention of queued messages across restarts | 0% | 100% |
-
-**Qualitative Indicators:**  
-- Users report “I feel in control of what the agent will do next.”  
-- Support tickets about lost messages decrease by 90%.
-
----
-
-## 🔍 Next Steps
-
-1. **Database Migration:** Add `queued_messages` table to the skilldeck‑models.  
-2. **Backend Commands:** Create Tauri commands to add, list, update, delete, reorder, and merge queued messages.  
-3. **Frontend Implementation:** Build the expandable queue list with inline editing, drag‑and‑drop, and merge action.  
-4. **Prototype and test with 5 users** to validate usability (especially the merge and auto‑send pause behavior).  
-5. **Monitor analytics** after launch to measure success metrics.
-
----
-
-**UX Researcher:** [AI Assistant]  
-**Date:** 2026-03-17  
-**Impact Tracking:** Will revisit after Phase 1 launch to validate improvements.
-
-# 🎨 Queued Message Management – High‑Fidelity Mockup Specification
-
-## Overview
-This document describes a high‑fidelity mockup for the queued message management feature. The mockup is intended for usability testing before implementation. It covers the expandable queue list, inline editing, drag‑and‑drop reordering, merge action, and the interaction with the main message input.
-
----
-
-## 1. Layout & Components
-
-### 1.1. Overall Placement
-The queue component sits directly **above the message input area**, inside the same container (the bottom bar of the conversation view). It replaces the current single‑message amber banner.
-
-```
-+---------------------------------------------------+
-|  Conversation messages...                          |
-|                                                   |
-+---------------------------------------------------+
-|  [Queued (3)]  (expand/collapse toggle)          |
-|  +---------------------------------------------+ |
-|  |  1. 🔹 "Check the test coverage first..."   ✏️ 🗑️ |
-|  |  2. 🔹 "Then run the linter..."             ✏️ 🗑️ |
-|  |  3. 🔹 "Finally commit with message..."     ✏️ 🗑️ |
-|  |  [Merge selected] [Select all]              | |
-|  +---------------------------------------------+ |
-|  [ Message input field... ]  [Send]             |
-+---------------------------------------------------+
+### 7.1. Database Schema (Additions)
+```sql
+CREATE TABLE queued_messages (
+  id UUID PRIMARY KEY,
+  conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  content TEXT NOT NULL,
+  position INTEGER NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX idx_queued_conversation_position ON queued_messages(conversation_id, position);
 ```
 
-### 1.2. Header / Toggle
-- **Label:** “Queued” followed by the count in a pill badge (e.g., `Queued (3)`).
-- **Expand/Collapse:** Clicking the header toggles the list visibility. Arrow icon (▼/▶) on the left indicates state.
-- **Position:** Sticky above the list; always visible even when collapsed.
+### 7.2. Backend Commands (Tauri)
+- `add_queued_message(conversation_id, content) → id`
+- `list_queued_messages(conversation_id) → Vec<QueuedMessage>`
+- `update_queued_message(id, content)`
+- `delete_queued_message(id)`
+- `reorder_queued_messages(conversation_id, ordered_ids)` – updates positions atomically.
+- `merge_queued_messages(ids) → new_id` – deletes given ids, inserts merged message at appropriate position.
 
-### 1.3. Queued Message List (Expanded State)
-- Each row has a consistent height of **48px** (comfortable touch target).
-- **Drag handle:** Six‑dot icon (⋮⋮) on the far left. Indicates draggable. On hover, cursor changes to `grab`.
-- **Position number:** Small grey badge (e.g., “1”, “2”) showing the order in the queue. Changes automatically on reorder.
-- **Message preview:** Truncated text (max one line) with an optional icon (💬). If message is long, it ends with “…”.
-- **Action buttons:** Pencil (✏️) and Trash (🗑️) on the right, appearing on hover or always visible with low opacity.
-- **Divider:** Thin grey line between rows.
+### 7.3. Frontend State Management
+- Use Zustand store (or React Query) to sync queue with backend.
+- Optimistic updates for reorder, edit, delete – rollback on error.
+- Polling or event listening for auto‑send triggers (agent‑done event).
 
-### 1.4. Inline Editing
-- When the user clicks the pencil, the row expands to show a multi‑line textarea.
-- **Textarea:** Auto‑growing, same styling as the main input, with “Save” and “Cancel” buttons below.
-- On Save, the updated content replaces the preview and the row collapses.
-- On Cancel, any changes are discarded and the row collapses.
-- While editing, the drag handle and action buttons are hidden.
+## 8. Usability Testing Plan
 
-### 1.5. Drag‑and‑Drop Reorder
-- User can drag a row by the drag handle. During drag, the row becomes semi‑transparent, and a placeholder shows where it will land.
-- Releasing updates the position numbers of all rows immediately.
-- While dragging, auto‑send is paused (see section 2).
+1. **Participants:** 5–8 SkillDeck users (mix of new and power users).
+2. **Tasks:**
+   - While agent is running, queue three messages.
+   - Edit the second message.
+   - Reorder the list (move third to top).
+   - Merge the last two messages.
+   - Observe auto‑send after simulated agent completion.
+3. **Metrics:**
+   - Task completion rate.
+   - Time on task.
+   - Number of errors/clicks.
+   - Subjective satisfaction (Likert scale).
+4. **Success criteria:**
+   - 90% of users complete tasks without assistance.
+   - No user reports confusion about auto‑send pauses.
+   - Average satisfaction ≥ 4.5/5.
 
-### 1.6. Multi‑Select & Merge
-- Below the list, a toolbar with:
-  - **Checkbox** to select/deselect all.
-  - **“Merge selected”** button (disabled when fewer than two items selected).
-- When items are selected, each row shows a checkbox on the left (replacing the drag handle temporarily). The user can check/uncheck individually.
-- Clicking “Merge selected” combines the content of all selected messages into a single new message, concatenated with `\n\n---\n\n` as a separator. The new message replaces the selected ones at the position of the first selected item.
+## 9. Summary
 
-### 1.7. Auto‑Send Pause Indicator
-- When the user is actively interacting with the queue (editing, dragging, or has items selected), a small notice appears above the list:  
-  “⏸️ Auto‑send paused – finish editing to continue.”
-- This reassures the user that messages won’t be sent while they are reorganising.
-
-### 1.8. Main Input Area (Unchanged)
-- The existing input field remains below the queue.
-- When the agent is running, the Send button changes to **“Queue”** (or shows a + icon) to indicate that typing will append to the queue.
-- If the queue is empty, the input behaves normally (Send triggers immediate agent turn).
-
----
-
-## 2. Interaction States & Behaviour
-
-### 2.1. Expand/Collapse
-- Default: collapsed if no queued messages; expanded if any exist.
-- Clicking the header toggles. State is persisted per conversation.
-
-### 2.2. Adding a New Message to Queue
-- User types in main input and presses Enter (or clicks “Queue”). The message is added to the end of the queue list with the next position number.
-- Input clears, focus remains in input.
-- A subtle animation (slide down) highlights the new item.
-
-### 2.3. Sending from Queue
-- When the agent finishes its current turn, the first message in the queue (position 1) is automatically sent **only if no interaction is in progress** (see pause rule).
-- After sending, the message is removed from the queue, and remaining positions shift up.
-- The agent processes that message; after it completes, the next message is sent, and so on.
-
-### 2.4. Editing While Agent is Running
-- User clicks pencil → row expands into edit mode.
-- While editing, auto‑send is paused for the entire queue.
-- User saves or cancels; auto‑send resumes (if no other interactions pending).
-
-### 2.5. Drag‑and‑Drop While Agent is Running
-- User starts dragging → auto‑send paused.
-- After drop, positions update; auto‑send resumes (unless still dragging).
-
-### 2.6. Merge While Agent is Running
-- User selects multiple items, clicks “Merge selected”.
-- A confirmation dialog may appear: “Merge X messages into one?” (optional).
-- Upon confirmation, the selected messages are replaced by the merged content. Auto‑send resumes.
-- The merged message retains the position of the earliest selected message.
-
-### 2.7. Deleting a Message
-- Clicking trash removes the message immediately (with optional undo toast).
-- Remaining positions shift.
-
----
-
-## 3. Visual Design Specifications
-
-### 3.1. Colour Palette
-- **Background:** `#1E293B` (dark) or `#FFFFFF` (light) – using existing theme variables.
-- **Row hover:** `var(--accent)` at 10% opacity.
-- **Drag handle:** `var(--muted-foreground)`.
-- **Position badge:** `var(--muted)` background, `var(--muted-foreground)` text.
-- **Action icons:** `var(--muted-foreground)`, hover `var(--foreground)`.
-- **Merge button:** Primary colour (`var(--primary)`) background with white text.
-- **Pause indicator:** Amber (`#F59E0B`) background with dark text.
-
-### 3.2. Typography
-- **Queue header:** 12px semibold, uppercase, `var(--muted-foreground)`.
-- **Message preview:** 14px regular, `var(--foreground)`.
-- **Position number:** 10px monospace, `var(--muted-foreground)`.
-
-### 3.3. Spacing & Sizing
-- **Row height:** 48px (comfortable).
-- **Padding:** 8px 12px.
-- **Gap between rows:** 2px.
-- **Toolbar height:** 40px, with 8px padding.
-- **Merge button:** 32px height, 12px padding.
-
-### 3.4. Icons
-- Drag handle: `GripVertical` (lucide).
-- Edit: `Pencil`.
-- Delete: `Trash2`.
-- Merge: `Combine` (or `Merge`).
-- Checkbox: standard square.
-
-### 3.5. Animation
-- Expand/collapse: 200ms ease height transition.
-- New item added: fade + slide down (150ms).
-- Drag placeholder: ghost element with 50% opacity.
-- Merge: items fade out, new item fades in.
-
----
-
-## 4. User Testing Scenarios
-
-We will test the mockup (as an interactive prototype) with 5 participants. Scenarios:
-
-1. **Basic Queueing:** While agent is running (simulated), type and send two messages. Verify they appear in the queue and order is maintained.
-2. **Editing a Queued Message:** Edit the second message. Verify auto‑send pauses during edit, and updated content is saved.
-3. **Reordering:** Drag the third message to the top. Verify positions update and auto‑send resumes after drop.
-4. **Merging:** Select two messages and merge them. Verify they become one with combined content.
-5. **Auto‑send Behaviour:** Let the agent “finish” (simulated) and observe that the first message sends, then the next, unless editing/dragging is active.
-6. **Persistence:** Close and reopen the prototype (simulating app restart) – queued messages should reappear (backed by mock database).
-
-Participants will be asked to think aloud, and we’ll measure task success, errors, and satisfaction.
-
----
-
-## 5. Next Steps
-
-1. Create an interactive prototype in Figma using these specifications.
-2. Conduct usability testing with 5–8 users.
-3. Iterate based on feedback.
-4. Hand off to engineering with final design and backend requirements (database table, Tauri commands).
-
----
+This specification provides a complete, polished UX for queued message management. It addresses the key pain points: visibility, editability, order control, and predictable auto‑send. The design ensures no layout shifts, smooth micro‑interactions, and full accessibility. Implementation should follow the database schema and backend commands outlined, with frontend components matching the detailed behavior described.
