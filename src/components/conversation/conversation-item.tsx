@@ -39,6 +39,7 @@ export function ConversationItem({
   const [isRenaming, setIsRenaming] = useState(false)
   const [draft, setDraft] = useState(conversation.title ?? '')
   const inputRef = useRef<HTMLInputElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   const deleteMutation = useDeleteConversation()
   const renameMutation = useRenameConversation()
@@ -49,6 +50,20 @@ export function ConversationItem({
       inputRef.current?.select()
     }
   }, [isRenaming])
+
+  // Click outside to cancel rename (without saving)
+  useEffect(() => {
+    if (!isRenaming) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        cancelRename();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isRenaming, cancelRename]);
 
   const commitRename = () => {
     const trimmed = draft.trim()
@@ -92,6 +107,7 @@ export function ConversationItem({
 
   return (
     <div
+      ref={containerRef}
       role="button"
       tabIndex={0}
       onClick={() => !isRenaming && !isDeleting && onClick()}
