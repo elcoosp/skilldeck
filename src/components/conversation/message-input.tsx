@@ -604,16 +604,18 @@ export function MessageInput({ conversationId }: MessageInputProps) {
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 px-2 text-xs gap-1"
-              onClick={triggerFilePicker}
-              disabled={!activeWorkspace}
-            >
-              <Hash className="size-3" />
-              File
-            </Button>
+            <span tabIndex={0} className="inline-block">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs gap-1"
+                onClick={triggerFilePicker}
+                disabled={!activeWorkspace}
+              >
+                <Hash className="size-3" />
+                File
+              </Button>
+            </span>
           </TooltipTrigger>
           {!activeWorkspace && (
             <TooltipContent side="top">
