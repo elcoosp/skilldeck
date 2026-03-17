@@ -39,12 +39,11 @@ export function ConversationItem({
   const [isRenaming, setIsRenaming] = useState(false)
   const [draft, setDraft] = useState(conversation.title ?? '')
   const inputRef = useRef<HTMLInputElement>(null)
-  const containerRef = useRef<HTMLButtonElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   const deleteMutation = useDeleteConversation()
   const renameMutation = useRenameConversation()
 
-  // Define cancelRename before the effect that uses it
   const cancelRename = useCallback(() => {
     setDraft(conversation.title ?? '')
     setIsRenaming(false)
@@ -82,12 +81,14 @@ export function ConversationItem({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [isRenaming, cancelRename])
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault()
-      commitRename()
+      if (!isRenaming && !isDeleting) {
+        onClick()
+      }
     }
-    if (e.key === 'Escape') {
+    if (e.key === 'Escape' && isRenaming) {
       e.preventDefault()
       cancelRename()
     }
@@ -110,13 +111,12 @@ export function ConversationItem({
   })()
 
   return (
-    <button
-      type="button"
+    <div
       ref={containerRef}
+      role="button"
+      tabIndex={0}
       onClick={() => !isRenaming && !isDeleting && onClick()}
-      onKeyDown={(e) =>
-        e.key === 'Enter' && !isRenaming && !isDeleting && onClick()
-      }
+      onKeyDown={handleKeyDown}
       className={cn(
         'group relative flex items-start gap-2 w-full px-2 py-2 rounded-md text-left transition-colors cursor-pointer',
         isActive
@@ -146,7 +146,16 @@ export function ConversationItem({
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                   onBlur={commitRename}
-                  onKeyDown={handleKeyDown}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      commitRename()
+                    }
+                    if (e.key === 'Escape') {
+                      e.preventDefault()
+                      cancelRename()
+                    }
+                  }}
                   disabled={renameMutation.isPending || isDeleting}
                   className="w-full h-full text-xs bg-transparent border-b border-primary outline-none px-0 leading-none box-border"
                 />
@@ -224,6 +233,6 @@ export function ConversationItem({
           </DropdownMenuContent>
         </DropdownMenu>
       )}
-    </button>
+    </div>
   )
 }

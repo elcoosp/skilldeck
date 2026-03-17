@@ -8,7 +8,7 @@ interface QueueUIState {
   // Keyed by conversationId
   expanded: Record<string, boolean>
   mode: Record<string, QueueMode>
-  selectedIds: Record<string, Set<string>> // Set not serializable – will convert to array for storage
+  selectedIds: Record<string, string[]> // stored as array for stable references
   editingId: Record<string, string | null>
   isDragging: Record<string, boolean>
 
@@ -44,26 +44,27 @@ export const useQueueStore = create<QueueUIState>()(
 
       toggleSelected: (conversationId, id) =>
         set((state) => {
-          const currentSet = state.selectedIds[conversationId] || new Set()
-          const newSet = new Set(currentSet)
-          if (newSet.has(id)) {
-            newSet.delete(id)
+          const current = state.selectedIds[conversationId] || []
+          const index = current.indexOf(id)
+          let newArray
+          if (index === -1) {
+            newArray = [...current, id]
           } else {
-            newSet.add(id)
+            newArray = [...current.slice(0, index), ...current.slice(index + 1)]
           }
           return {
-            selectedIds: { ...state.selectedIds, [conversationId]: newSet }
+            selectedIds: { ...state.selectedIds, [conversationId]: newArray }
           }
         }),
 
       clearSelected: (conversationId) =>
         set((state) => ({
-          selectedIds: { ...state.selectedIds, [conversationId]: new Set() }
+          selectedIds: { ...state.selectedIds, [conversationId]: [] }
         })),
 
       selectAll: (conversationId, ids) =>
         set((state) => ({
-          selectedIds: { ...state.selectedIds, [conversationId]: new Set(ids) }
+          selectedIds: { ...state.selectedIds, [conversationId]: [...ids] }
         })),
 
       setEditingId: (conversationId, id) =>
@@ -94,32 +95,8 @@ export const useQueueStore = create<QueueUIState>()(
     }),
     {
       name: 'skilldeck-queue-ui',
-      // Convert Sets to arrays for storage
-      serialize: (state) => {
-        const serialized: any = { ...state }
-        serialized.selectedIds = Object.fromEntries(
-          Object.entries(state.selectedIds).map(([key, set]) => [
-            key,
-            Array.from(set)
-          ])
-        )
-        return JSON.stringify(serialized)
-      },
-      deserialize: (str) => {
-        const parsed = JSON.parse(str)
-        // Convert arrays back to Sets
-        if (parsed.selectedIds) {
-          parsed.selectedIds = Object.fromEntries(
-            Object.entries(parsed.selectedIds).map(([key, arr]) => [
-              key,
-              new Set(arr as string[])
-            ])
-          )
-        }
-        return parsed
-      },
+      // No custom serialize/deserialize needed – arrays are JSON-serializable
       partialize: (state) => ({
-        // Only persist expanded and mode? selectedIds probably shouldn't persist across sessions.
         expanded: state.expanded,
         mode: state.mode
         // selectedIds, editingId, isDragging are ephemeral

@@ -1,8 +1,10 @@
 // src/components/conversation/queue/queue-header.tsx
+import { useCallback, useMemo } from 'react'
+import { shallow } from 'zustand/shallow'
 import { ChevronDown, ChevronRight, Edit2, X } from 'lucide-react'
+import { useQueueStore } from '@/store/queue'
 import { Button } from '@/components/ui/button'
 import type { QueuedMessage } from '@/hooks/use-queued-messages'
-import { useQueueStore } from '@/store/queue'
 
 interface QueueHeaderProps {
   conversationId: string
@@ -12,33 +14,43 @@ interface QueueHeaderProps {
 export function QueueHeader({ conversationId, messages }: QueueHeaderProps) {
   const expanded = useQueueStore((s) => s.expanded[conversationId] ?? false)
   const mode = useQueueStore((s) => s.mode[conversationId] ?? 'view')
-  const selectedIds = useQueueStore(
-    (s) => s.selectedIds[conversationId] ?? new Set()
+
+  // selectedIds is now an array – stable reference when unchanged
+  const selectedIdsArray = useQueueStore(
+    (s) => s.selectedIds[conversationId] ?? []
   )
+
+  // Convert to Set for efficient lookup, memoized to prevent re-creation
+  const selectedIds = useMemo(() => new Set(selectedIdsArray), [selectedIdsArray])
+
   const setExpanded = useQueueStore((s) => s.setExpanded)
   const setMode = useQueueStore((s) => s.setMode)
   const clearSelected = useQueueStore((s) => s.clearSelected)
 
   const count = messages.length
-  const selectedCount = selectedIds.size
+  const selectedCount = useMemo(() => selectedIds.size, [selectedIds])
 
   if (count === 0) return null
 
-  const handleSelectClick = () => {
+  const handleSelectClick = useCallback(() => {
     setMode(conversationId, 'select')
-    clearSelected(conversationId) // start fresh
-  }
+    clearSelected(conversationId)
+  }, [conversationId, setMode, clearSelected])
 
-  const handleCancelSelect = () => {
+  const handleCancelSelect = useCallback(() => {
     setMode(conversationId, 'view')
     clearSelected(conversationId)
-  }
+  }, [conversationId, setMode, clearSelected])
+
+  const handleToggleExpanded = useCallback(() => {
+    setExpanded(conversationId, !expanded)
+  }, [conversationId, expanded, setExpanded])
 
   return (
     <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border">
       <button
         type="button"
-        onClick={() => setExpanded(conversationId, !expanded)}
+        onClick={handleToggleExpanded}
         className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
       >
         {expanded ? (
