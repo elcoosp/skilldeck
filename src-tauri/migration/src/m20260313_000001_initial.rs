@@ -1,6 +1,7 @@
-//! Initial migration: all 38+ database tables for SkillDeck v1.
+//! Initial migration: all 39+ database tables for SkillDeck v1.
 //! Includes core tables, MCP, profiles, skills, workflows, analytics,
-//! UI state, sync, plus user preferences, nudge cache, and registry skills cache.
+//! UI state, sync, plus user preferences, nudge cache, registry skills cache,
+//! and queued messages.
 //!
 //! Uses SeaORM 2.0 migration API and ActiveModel for seed data.
 
@@ -320,61 +321,50 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
-        // tool_call_events
+        // =====================================================================
+        // QUEUED MESSAGES TABLE (NEW)
+        // =====================================================================
         manager
             .create_table(
                 Table::create()
-                    .table(ToolCallEvents::Table)
+                    .table(QueuedMessages::Table)
                     .if_not_exists()
-                    .col(uuid(ToolCallEvents::Id).primary_key())
-                    .col(uuid(ToolCallEvents::MessageId).not_null())
-                    .col(string(ToolCallEvents::CallId).not_null())
-                    .col(string(ToolCallEvents::ToolName).not_null())
-                    .col(json(ToolCallEvents::InputJson).not_null())
-                    .col(string(ToolCallEvents::Status).not_null().default("pending"))
-                    .col(json(ToolCallEvents::ResultJson).null())
-                    .col(text(ToolCallEvents::Error).null())
+                    .col(uuid(QueuedMessages::Id).primary_key())
+                    .col(uuid(QueuedMessages::ConversationId).not_null())
+                    .col(text(QueuedMessages::Content).not_null())
+                    .col(integer(QueuedMessages::Position).not_null())
                     .col(
-                        boolean(ToolCallEvents::RequiresApproval)
-                            .not_null()
-                            .default(true),
-                    )
-                    .col(
-                        boolean(ToolCallEvents::AutoApproved)
-                            .not_null()
-                            .default(false),
-                    )
-                    .col(
-                        timestamp_with_time_zone(ToolCallEvents::CreatedAt)
+                        timestamp_with_time_zone(QueuedMessages::CreatedAt)
                             .not_null()
                             .default(Expr::current_timestamp()),
                     )
-                    .col(timestamp_with_time_zone(ToolCallEvents::CompletedAt).null())
+                    .col(
+                        timestamp_with_time_zone(QueuedMessages::UpdatedAt)
+                            .not_null()
+                            .default(Expr::current_timestamp()),
+                    )
                     .foreign_key(
                         ForeignKey::create()
-                            .name("fk_tool_call_events_message_id")
-                            .from(ToolCallEvents::Table, ToolCallEvents::MessageId)
-                            .to(Messages::Table, Messages::Id)
+                            .name("fk_queued_messages_conversation_id")
+                            .from(QueuedMessages::Table, QueuedMessages::ConversationId)
+                            .to(Conversations::Table, Conversations::Id)
                             .on_delete(ForeignKeyAction::Cascade),
                     )
                     .to_owned(),
             )
             .await?;
 
-        for (name, col) in [
-            ("idx_tool_call_events_message_id", ToolCallEvents::MessageId),
-            ("idx_tool_call_events_status", ToolCallEvents::Status),
-        ] {
-            manager
-                .create_index(
-                    Index::create()
-                        .table(ToolCallEvents::Table)
-                        .name(name)
-                        .col(col)
-                        .to_owned(),
-                )
-                .await?;
-        }
+        manager
+            .create_index(
+                Index::create()
+                    .table(QueuedMessages::Table)
+                    .name("idx_queued_conversation_position")
+                    .col(QueuedMessages::ConversationId)
+                    .col(QueuedMessages::Position)
+                    .unique()
+                    .to_owned(),
+            )
+            .await?;
 
         // =====================================================================
         // MCP TABLES
@@ -1409,7 +1399,7 @@ impl MigrationTrait for Migration {
             "artifacts",
             "workflow_steps",
             "subagent_sessions",
-            "workflow_definitions", // <-- added new table
+            "workflow_definitions",
             "workflow_executions",
             "skill_source_dirs",
             "registry_skills",
@@ -1421,6 +1411,7 @@ impl MigrationTrait for Migration {
             "conversation_mcp_overrides",
             "profile_skills",
             "profile_mcps",
+            "queued_messages", // <-- new table added
             "tool_call_events",
             "conversation_branches",
             "messages",
@@ -1527,6 +1518,17 @@ enum ConversationBranches {
     Status,
     CreatedAt,
     MergedAt,
+}
+
+#[derive(DeriveIden)]
+enum QueuedMessages {
+    Table,
+    Id,
+    ConversationId,
+    Content,
+    Position,
+    CreatedAt,
+    UpdatedAt,
 }
 
 #[derive(DeriveIden)]

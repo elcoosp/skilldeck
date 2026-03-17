@@ -26,6 +26,7 @@ pub mod profile_skills;
 pub mod profiles;
 pub mod prompt_variables;
 pub mod prompts;
+pub mod queued_messages;
 pub mod registry_skills;
 pub mod skill_source_dirs;
 pub mod skills;
