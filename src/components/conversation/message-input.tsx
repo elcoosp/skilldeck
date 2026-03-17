@@ -1,4 +1,3 @@
-// src/components/chat/message-input.tsx
 /**
  * Message input — auto-growing textarea with draft persistence, slash commands,
  * skill mention (@), file reference (#) entry points, and file attachments.
@@ -7,34 +6,31 @@
  * Selected items appear as chips above the textarea and are cleared on send.
  */
 
-import { open } from '@tauri-apps/plugin-dialog'
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { AtSign, Hash, Paperclip, Send, Timer, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { AtSign, Hash, Paperclip, Send, X, Timer } from 'lucide-react'
+import { open } from '@tauri-apps/plugin-dialog'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { toast } from 'sonner'
-import { AttachedItemsList } from '@/components/chat/attached-items-list'
-import { ChatCommandPalette } from '@/components/chat/chat-command-palette'
-import { FileMentionPicker } from '@/components/chat/file-mention-picker'
-import { SecurityWarningDialog } from '@/components/chat/security-warning-dialog'
+
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { useCreateConversation } from '@/hooks/use-conversations'
-import { useSendMessage } from '@/hooks/use-messages'
-import { useProfiles } from '@/hooks/use-profiles'
-import { useUnifiedSkills } from '@/hooks/use-unified-skills'
-import { useWorkspaces } from '@/hooks/use-workspaces'
-import type { RegistrySkillData } from '@/lib/bindings'
-import { commands } from '@/lib/bindings'
-import type { UUID } from '@/lib/types'
 import { cn } from '@/lib/utils'
-import { useChatContextStore } from '@/store/chat-context-store'
 import { useUIStore } from '@/store/ui'
-import type {
-  FileEntry,
-  FolderCounts,
-  TriggerState
-} from '@/types/chat-context'
+import { useSendMessage } from '@/hooks/use-messages'
+import { useUnifiedSkills } from '@/hooks/use-unified-skills'
+import { useCreateConversation } from '@/hooks/use-conversations'
+import { useProfiles } from '@/hooks/use-profiles'
+import { useWorkspaces } from '@/hooks/use-workspaces'
+import { commands } from '@/lib/bindings'
+import type { RegistrySkillData } from '@/lib/bindings'
 import type { UnifiedSkill } from '@/types/skills'
+import { useChatContextStore } from '@/store/chat-context-store'
+import { FileMentionPicker } from '@/components/chat/file-mention-picker'
+import { ChatCommandPalette } from '@/components/chat/chat-command-palette'
+import { AttachedItemsList } from '@/components/chat/attached-items-list'
+import { SecurityWarningDialog } from '@/components/chat/security-warning-dialog'
+import type { FileEntry, FolderCounts, TriggerState } from '@/types/chat-context'
+import type { UUID } from '@/lib/types'
 
 interface MessageInputProps {
   conversationId: UUID
@@ -54,12 +50,12 @@ export function MessageInput({ conversationId }: MessageInputProps) {
   // ── Workspace context ───────────────────────────────────────────────────
   const activeWorkspaceId = useUIStore((s) => s.activeWorkspaceId)
   const { data: workspaces } = useWorkspaces()
-  const activeWorkspace = workspaces?.find((w) => w.id === activeWorkspaceId)
+  const activeWorkspace = workspaces?.find(w => w.id === activeWorkspaceId)
   const workspaceRoot = activeWorkspace?.path ?? undefined
 
   // ── Profiles (for auto‑create) ──────────────────────────────────────────
   const { data: profiles = [] } = useProfiles()
-  const defaultProfile = profiles.find((p) => p.is_default) ?? profiles[0]
+  const defaultProfile = profiles.find(p => p.is_default) ?? profiles[0]
 
   // ── Draft / UI store ──────────────────────────────────────────────────────
   const draft = useUIStore((s) => s.drafts[conversationId] ?? '')
@@ -85,22 +81,15 @@ export function MessageInput({ conversationId }: MessageInputProps) {
 
   // ── Context injection state ───────────────────────────────────────────────
   const [triggerState, setTriggerState] = useState<TriggerState | null>(null)
-  const [pickerPosition, setPickerPosition] = useState<{
-    top: number
-    left: number
-  } | null>(null)
+  const [pickerPosition, setPickerPosition] = useState<{ top: number; left: number } | null>(null)
 
   // File picker
   const [fileItems, setFileItems] = useState<FileEntry[]>([])
   const [fileLoading, setFileLoading] = useState(false)
-  const [folderCounts, setFolderCounts] = useState<FolderCounts>({
-    shallow: 0,
-    deep: 0
-  })
+  const [folderCounts, setFolderCounts] = useState<FolderCounts>({ shallow: 0, deep: 0 })
 
   // Security dialog
-  const [skillForReview, setSkillForReview] =
-    useState<RegistrySkillData | null>(null)
+  const [skillForReview, setSkillForReview] = useState<RegistrySkillData | null>(null)
 
   // Context store actions
   const addFile = useChatContextStore((s) => s.addFile)
@@ -110,6 +99,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
 
   // ── Draft sync & auto-grow ────────────────────────────────────────────────
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally only sync on conversation change
   useEffect(() => {
     setContent(draft)
   }, [conversationId])
@@ -119,6 +109,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
     return () => clearTimeout(t)
   }, [content, conversationId, setDraft])
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: effect depends on content indirectly
   useEffect(() => {
     const el = textareaRef.current
     if (!el) return
@@ -126,6 +117,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`
   }, [content])
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: focus on conversation change
   useEffect(() => {
     textareaRef.current?.focus()
   }, [conversationId])
@@ -223,23 +215,11 @@ export function MessageInput({ conversationId }: MessageInputProps) {
       }
 
       // Plain file selected
-      addFile({
-        id: file.path,
-        name: file.name,
-        path: file.path,
-        size: file.size ?? undefined
-      })
+      addFile({ id: file.path, name: file.name, path: file.path, size: file.size ?? undefined })
       clearTriggerText(triggerState)
       closePicker()
     },
-    [
-      triggerState,
-      loadDirectory,
-      addFile,
-      addFolder,
-      clearTriggerText,
-      closePicker
-    ]
+    [triggerState, loadDirectory, addFile, addFolder, clearTriggerText, closePicker]
   )
 
   // ── Skill selection ───────────────────────────────────────────────────────
@@ -258,19 +238,16 @@ export function MessageInput({ conversationId }: MessageInputProps) {
     (skill: UnifiedSkill) => {
       if (skill.registryData) {
         // Registry skill
-        const rawWarnings = skill.registryData.lintWarnings ?? []
+        const rawWarnings = skill.registryData.lintWarnings ?? [];
         const hasDanger =
           skill.registryData.securityScore < 2 ||
-          rawWarnings.some(
-            (w: any) =>
-              w.severity === 'error' || (w.rule_id ?? '').includes('sec-')
-          )
+          rawWarnings.some((w: any) => w.severity === 'error' || (w.rule_id ?? '').includes('sec-'))
 
         if (hasDanger) {
-          setSkillForReview(skill.registryData)
-          closePicker()
+          setSkillForReview(skill.registryData);
+          closePicker();
         } else {
-          confirmAddSkill(skill.registryData)
+          confirmAddSkill(skill.registryData);
         }
       } else if (skill.localData) {
         // Local skill – construct minimal RegistrySkillData
@@ -292,8 +269,8 @@ export function MessageInput({ conversationId }: MessageInputProps) {
           content: '',
           createdAt: '',
           updatedAt: ''
-        }
-        confirmAddSkill(localSkillData)
+        };
+        confirmAddSkill(localSkillData);
       }
     },
     [confirmAddSkill, closePicker]
@@ -380,20 +357,10 @@ export function MessageInput({ conversationId }: MessageInputProps) {
       loadDirectory(workspaceRoot!)
     }
     textareaRef.current?.focus()
-  }, [
-    content,
-    activeWorkspace,
-    workspaceRoot,
-    loadDirectory,
-    calculatePickerPosition
-  ])
+  }, [content, activeWorkspace, workspaceRoot, loadDirectory, calculatePickerPosition])
 
   const triggerSkillPicker = useCallback(() => {
-    setTriggerState({
-      type: 'skill',
-      query: '',
-      startIndex: content.length + 1
-    })
+    setTriggerState({ type: 'skill', query: '', startIndex: content.length + 1 })
     setPickerPosition(calculatePickerPosition())
     textareaRef.current?.focus()
   }, [content, calculatePickerPosition])
@@ -413,7 +380,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
     // Auto‑create conversation if none is active
     let finalConversationId = conversationId
     if (!finalConversationId) {
-      const defaultProfile = profiles.find((p) => p.is_default) ?? profiles[0]
+      const defaultProfile = profiles.find(p => p.is_default) ?? profiles[0]
       if (!defaultProfile) {
         toast.error('No profile available to create conversation')
         return
@@ -482,10 +449,9 @@ export function MessageInput({ conversationId }: MessageInputProps) {
       {queuedMessage && (
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs">
           <Timer className="size-3.5" />
-          <span className="flex-1 truncate">
-            Message queued: "{queuedMessage}"
-          </span>
+          <span className="flex-1 truncate">Message queued: "{queuedMessage}"</span>
           <button
+            type="button"
             onClick={editQueued}
             className="text-muted-foreground hover:text-foreground underline"
             aria-label="Edit queued message"
@@ -493,6 +459,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
             Edit
           </button>
           <button
+            type="button"
             onClick={cancelQueued}
             className="text-muted-foreground hover:text-foreground"
             aria-label="Cancel queued message"
@@ -512,6 +479,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
             >
               <span className="max-w-[120px] truncate">{file.name}</span>
               <button
+                type="button"
                 onClick={() => removeFile(file.path)}
                 className="text-muted-foreground hover:text-foreground"
               >
@@ -562,7 +530,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
               (!content.trim() && selectedFiles.length === 0) ||
               sendMutation.isPending ||
               isSending ||
-              (isRunning && queuedMessage ? true : false)
+              !!(isRunning && queuedMessage)
             }
             aria-label={isRunning ? 'Queue message' : 'Send'}
           >
@@ -586,9 +554,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
                   initial={shouldReduceMotion ? {} : { scale: 0.8 }}
                   animate={shouldReduceMotion ? {} : { scale: 1 }}
                   exit={shouldReduceMotion ? {} : { scale: 0.8 }}
-                  transition={
-                    shouldReduceMotion ? { duration: 0 } : { duration: 0.2 }
-                  }
+                  transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.2 }}
                 >
                   {isRunning ? (
                     <Timer className="size-3.5" />
@@ -686,8 +652,8 @@ export function MessageInput({ conversationId }: MessageInputProps) {
 // Module augmentation to add queued messages to UIStore
 declare module '@/store/ui' {
   interface UIState {
-    queuedMessages: Record<string, string>
-    setQueuedMessage: (conversationId: string, content: string) => void
-    clearQueuedMessage: (conversationId: string) => void
+    queuedMessages: Record<string, string>;
+    setQueuedMessage: (conversationId: string, content: string) => void;
+    clearQueuedMessage: (conversationId: string) => void;
   }
 }

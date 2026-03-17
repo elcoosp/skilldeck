@@ -53,8 +53,7 @@ export function SubagentCard({
       }}
       className={cn(
         'my-2 flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2 text-sm',
-        onOpen &&
-          'cursor-pointer hover:border-primary/50 hover:shadow-sm transition-all'
+        onOpen && 'cursor-pointer hover:border-primary/50 hover:shadow-sm transition-all'
       )}
     >
       <Bot className="size-4 shrink-0 text-muted-foreground" />

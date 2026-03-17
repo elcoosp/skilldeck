@@ -1,3 +1,4 @@
+// src/components/overlays/launch-notification.tsx
 /**
  * LaunchNotificationBanner — Product Hunt launch supporter signup.
  *
@@ -5,12 +6,12 @@
  * Collects email via the platform preferences endpoint.
  */
 
+import { useState, useEffect } from 'react'
 import { Rocket, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import {
-  ensurePlatformRegistration,
-  updatePlatformPreferences
+  updatePlatformPreferences,
+  ensurePlatformRegistration
 } from '@/lib/platform'
 
 const DISMISSED_KEY = 'skilldeck:launch-banner-dismissed'
@@ -87,6 +88,7 @@ export function LaunchNotificationBanner() {
       )}
 
       <button
+        type="button"
         onClick={dismiss}
         className="shrink-0 p-1 hover:bg-white/20 rounded-md transition-colors"
         aria-label="Dismiss"

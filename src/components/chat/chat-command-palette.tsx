@@ -1,13 +1,11 @@
 // src/components/chat/chat-command-palette.tsx
-
-import { Loader2 } from 'lucide-react'
-import type React from 'react'
-import { useEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import React, { useEffect, useRef, useState } from 'react'
+import type { UnifiedSkill } from '@/types/skills'
 import { TrustBadge } from '@/components/skills/trust-badge'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
-import type { UnifiedSkill } from '@/types/skills'
+import { Loader2 } from 'lucide-react'
+import { createPortal } from 'react-dom'
 
 interface ChatCommandPaletteProps {
   type: 'skill'
@@ -38,17 +36,15 @@ export const ChatCommandPalette: React.FC<ChatCommandPaletteProps> = ({
   )
 
   // Reset selection when filter changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: we want to reset on query change
   useEffect(() => {
     setSelectedIndex(0)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query])
 
   // Scroll selected item into view
   useEffect(() => {
     if (listRef.current) {
-      const el = listRef.current.children[selectedIndex] as
-        | HTMLElement
-        | undefined
+      const el = listRef.current.children[selectedIndex] as HTMLElement | undefined
       el?.scrollIntoView({ block: 'nearest' })
     }
   }, [selectedIndex])
@@ -79,10 +75,7 @@ export const ChatCommandPalette: React.FC<ChatCommandPaletteProps> = ({
   // Click-outside to close
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(e.target as Node)
-      ) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         onClose()
       }
     }
@@ -121,10 +114,10 @@ export const ChatCommandPalette: React.FC<ChatCommandPaletteProps> = ({
         )}
 
         {filtered.map((skill, index) => {
-          const isRegistry = !!skill.registryData
-          const securityScore = skill.registryData?.securityScore ?? 5
-          const qualityScore = skill.registryData?.qualityScore ?? 5
-          const sourceType = isRegistry ? 'registry' : 'local'
+          const isRegistry = !!skill.registryData;
+          const securityScore = skill.registryData?.securityScore ?? 5;
+          const qualityScore = skill.registryData?.qualityScore ?? 5;
+          const sourceType = isRegistry ? 'registry' : 'local';
 
           return (
             <div
@@ -155,9 +148,7 @@ export const ChatCommandPalette: React.FC<ChatCommandPaletteProps> = ({
                 <span className="font-medium text-blue-600 dark:text-blue-400 truncate flex items-center gap-1">
                   @{skill.name}
                   {sourceType === 'local' && (
-                    <span className="ml-1 text-[10px] bg-muted px-1 rounded">
-                      local
-                    </span>
+                    <span className="ml-1 text-[10px] bg-muted px-1 rounded">local</span>
                   )}
                 </span>
                 <span className="text-xs text-muted-foreground truncate w-48">
