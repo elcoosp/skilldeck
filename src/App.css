@@ -2,12 +2,13 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource/poppins";
+/* This loads Poppins font */
 
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Font & base styles (unchanged) */
-  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+  /* Font & base styles – now using Poppins as the primary brand font */
+  font-family: "Poppins", Inter, Avenir, Helvetica, Arial, sans-serif;
   font-size: 16px;
   line-height: 24px;
   font-weight: 400;
@@ -23,15 +24,10 @@
 
   /* Brand color palette – extracted from logo */
   --brand-primary-light: #3B82F6;
-  /* gradient start */
   --brand-primary-dark: #1E40AF;
-  /* gradient end */
   --brand-secondary-light: #1F2937;
-  /* dark rectangle */
   --brand-secondary-dark: #111827;
-  /* darker rectangle */
   --brand-accent: #FF8A4C;
-  /* kept for vibrancy */
   --brand-neutral-100: #F9FAFB;
   --brand-neutral-300: #E2E8F0;
   --brand-neutral-500: #94A3B8;
