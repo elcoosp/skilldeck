@@ -19,7 +19,6 @@ export function QueueSelectionToolbar({
   conversationId,
   messageIds,
 }: QueueSelectionToolbarProps) {
-  // ✅ Use stable empty array fallback (store stores arrays, not Sets)
   const selectedIdsArray = useQueueStore(
     (s) => s.selectedIds[conversationId] ?? EMPTY_ARRAY
   )
@@ -30,7 +29,6 @@ export function QueueSelectionToolbar({
   const deleteMutation = useDeleteQueuedMessage(conversationId)
   const mergeMutation = useMergeQueuedMessages(conversationId)
 
-  // Convert array to Set for efficient lookup, memoized
   const selectedSet = useMemo(() => new Set(selectedIdsArray), [selectedIdsArray])
   const allSelected = messageIds.length > 0 && selectedSet.size === messageIds.length
   const someSelected = selectedSet.size > 0
@@ -74,7 +72,7 @@ export function QueueSelectionToolbar({
         ) : (
           <Square className="size-3 mr-1" />
         )}
-        {allSelected ? 'Deselect all' : 'Select all'}
+        Select all
       </Button>
 
       <div className="flex-1" />

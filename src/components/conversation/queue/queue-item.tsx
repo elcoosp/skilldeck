@@ -15,11 +15,10 @@ const EMPTY_ARRAY: string[] = []
 interface QueueItemProps {
   message: QueuedMessage
   conversationId: string
-  position: number
-  total: number
+  position: number  // 1-based position in the queue
 }
 
-export function QueueItem({ message, conversationId, position, total }: QueueItemProps) {
+export function QueueItem({ message, conversationId, position }: QueueItemProps) {
   // Individual selectors – each returns a stable value
   const mode = useQueueStore((s) => s.mode[conversationId] ?? 'view')
   const selectedIdsArray = useQueueStore(
@@ -109,10 +108,10 @@ export function QueueItem({ message, conversationId, position, total }: QueueIte
         </button>
       )}
 
-      {/* Position badge – shows position/total in view mode */}
+      {/* Position badge – shows just the position number */}
       {mode === 'view' && (
-        <span className="w-10 text-center text-[10px] font-medium text-muted-foreground bg-muted rounded-full py-0.5">
-          {position}/{total}
+        <span className="w-6 text-center text-[10px] font-medium text-muted-foreground bg-muted rounded-full py-0.5">
+          {position}
         </span>
       )}
 

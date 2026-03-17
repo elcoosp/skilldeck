@@ -1,26 +1,26 @@
 // src/components/conversation/queue/queue-list.tsx
 import {
-  closestCenter,
   DndContext,
-  type DragEndEvent,
+  closestCenter,
   KeyboardSensor,
   PointerSensor,
   useSensor,
-  useSensors
+  useSensors,
+  DragEndEvent,
 } from '@dnd-kit/core'
 import {
   SortableContext,
   sortableKeyboardCoordinates,
-  verticalListSortingStrategy
+  verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import {
   useQueuedMessages,
-  useReorderQueuedMessages
+  useReorderQueuedMessages,
 } from '@/hooks/use-queued-messages'
 import { useQueueStore } from '@/store/queue'
-import { QueueItem } from './queue-item'
 import { QueuePauseIndicator } from './queue-pause-indicator'
 import { QueueSelectionToolbar } from './queue-selection-toolbar'
+import { QueueItem } from './queue-item'
 
 interface QueueListProps {
   conversationId: string
@@ -36,7 +36,7 @@ export function QueueList({ conversationId }: QueueListProps) {
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates
+      coordinateGetter: sortableKeyboardCoordinates,
     })
   )
 
@@ -61,9 +61,7 @@ export function QueueList({ conversationId }: QueueListProps) {
   }
 
   if (isLoading) {
-    return (
-      <div className="p-3 text-xs text-muted-foreground">Loading queue...</div>
-    )
+    return <div className="p-3 text-xs text-muted-foreground">Loading queue...</div>
   }
 
   if (messages.length === 0) {
@@ -71,32 +69,33 @@ export function QueueList({ conversationId }: QueueListProps) {
   }
 
   return (
-    <div className="relative">
+    <div className="relative flex flex-col max-h-[200px] overflow-hidden border-t border-border">
       <QueuePauseIndicator conversationId={conversationId} />
 
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-        onDragStart={handleDragStart}
-      >
-        <SortableContext
-          items={messages.map((m) => m.id)}
-          strategy={verticalListSortingStrategy}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+          onDragStart={handleDragStart}
         >
-          <div className="max-h-[200px] overflow-y-auto">
-            {messages.map((message, index) => (
-              <QueueItem
-                key={message.id}
-                message={message}
-                conversationId={conversationId}
-                position={index + 1}
-                total={messages.length}
-              />
-            ))}
-          </div>
-        </SortableContext>
-      </DndContext>
+          <SortableContext
+            items={messages.map((m) => m.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="divide-y divide-border">
+              {messages.map((message, index) => (
+                <QueueItem
+                  key={message.id}
+                  message={message}
+                  conversationId={conversationId}
+                  position={index + 1}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
+      </div>
 
       {mode === 'select' && (
         <QueueSelectionToolbar
