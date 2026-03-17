@@ -23,6 +23,7 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
+    "tauri:icon": "tauri icon public/logo.svg",
     "tauri:build": "tauri build",
     "lint": "biome check .",
     "check": "tsc --noEmit",
