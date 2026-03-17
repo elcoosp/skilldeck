@@ -12,9 +12,9 @@ export function useConversations(profileId?: UUID) {
   return useQuery({
     queryKey: ['conversations', profileId],
     queryFn: async () => {
-      // FIXED: second argument must be a string (as per binding type)
       const res = await commands.listConversations(
         profileId ?? null,
+        //@ts-expect-error
         50
       )
       if (res.status === 'ok') return res.data

@@ -5,6 +5,10 @@
  * Tab bar shows icons only. On hover the label fades in and smoothly pushes
  * sibling icons apart via a max-width transition (no layout jumps).
  *
+ * Each tab uses flex-1 so all five tabs share the bar width equally and never
+ * shift position when a label slides in — the icon stays centred in its
+ * reserved slot at all times.
+ *
  * Skills tab now renders the UnifiedSkillList — a virtualized marketplace that
  * merges local and registry skills into a single high-performance grid.
  */
@@ -54,12 +58,12 @@ const TABS: {
   label: string
   Icon: React.FC<{ className?: string }>
 }[] = [
-  { id: 'session', label: 'Session', Icon: Cpu },
-  { id: 'skills', label: 'Skills', Icon: Layers },
-  { id: 'mcp', label: 'MCP', Icon: Zap },
-  { id: 'workflow', label: 'Workflow', Icon: GitBranch },
-  { id: 'analytics', label: 'Analytics', Icon: BarChart2 }
-]
+    { id: 'session', label: 'Session', Icon: Cpu },
+    { id: 'skills', label: 'Skills', Icon: Layers },
+    { id: 'mcp', label: 'MCP', Icon: Zap },
+    { id: 'workflow', label: 'Workflow', Icon: GitBranch },
+    { id: 'analytics', label: 'Analytics', Icon: BarChart2 }
+  ]
 
 export function RightPanel() {
   const [activeTab, setActiveTab] = useState<Tab>('session')
@@ -67,7 +71,12 @@ export function RightPanel() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Tab bar — icon-only by default; label slides in on hover */}
+      {/*
+        Tab bar — each tab takes an equal share of the full bar width (flex-1).
+        The icon is always centred inside that reserved slot. The label fades
+        in on hover WITHOUT displacing the icon or shifting neighbouring tabs,
+        because the tab's width never changes.
+      */}
       <div className="flex border-b border-border shrink-0">
         {TABS.map(({ id, label, Icon }) => (
           <button
@@ -75,20 +84,26 @@ export function RightPanel() {
             type="button"
             onClick={() => setActiveTab(id)}
             className={cn(
-              'group flex items-center justify-center gap-0 px-2 py-2.5 text-xs font-medium',
-              'transition-all duration-200',
-              'overflow-hidden min-w-0',
-              'flex-none',
+              // Each tab owns an equal portion of the bar — layout never shifts
+              'group relative flex items-center justify-center',
+              'flex-1 px-1 py-2.5 text-xs font-medium',
+              'overflow-hidden',
+              'transition-colors duration-200',
               activeTab === id
                 ? 'text-foreground border-b-2 border-primary -mb-px'
                 : 'text-muted-foreground hover:text-foreground'
             )}
           >
             <Icon className="size-3.5 shrink-0" />
+            {/*
+              Label slides in from zero width. Because the button already
+              occupies its full flex-1 share, this expansion is clipped inside
+              the existing space — siblings don't move.
+            */}
             <span
               className={cn(
-                'whitespace-nowrap overflow-hidden',
-                'max-w-0 group-hover:max-w-32',
+                'whitespace-nowrap overflow-hidden pointer-events-none',
+                'max-w-0 group-hover:max-w-[5rem]',
                 'ml-0 group-hover:ml-1.5',
                 'opacity-0 group-hover:opacity-100',
                 'transition-[max-width,margin-left,opacity] duration-200 ease-in-out'
