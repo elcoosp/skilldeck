@@ -89,6 +89,7 @@ pub(crate) async fn send_message_internal(
     conversation_id: String,
     content: String,
     app: tauri::AppHandle,
+    metadata: Option<serde_json::Value>, // <-- metadata parameter added
 ) -> Result<(), String> {
     let db = state
         .registry
@@ -106,6 +107,7 @@ pub(crate) async fn send_message_internal(
         conversation_id: Set(conv_uuid),
         role: Set("user".to_string()),
         content: Set(content.clone()),
+        metadata: Set(metadata), // <-- store metadata
         created_at: Set(now),
         ..Default::default()
     };
@@ -167,7 +169,7 @@ pub async fn send_message(
 
     // Clone the Arc for the internal call
     let state_clone = (*state).clone();
-    send_message_internal(state_clone, conversation_id, content, app).await
+    send_message_internal(state_clone, conversation_id, content, app, None).await
 }
 
 /// Resolve a pending tool-approval from the frontend.
