@@ -16,7 +16,8 @@ use uuid::Uuid;
 
 use crate::commands::messages::send_message_internal;
 use crate::state::AppState;
-use skilldeck_models::queued_messages::{self, Entity as Queued};
+use skilldeck_models::context_item::ContextItem;
+use skilldeck_models::queued_messages::{self, Entity as Queued}; // <-- added
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct QueuedMessage {
@@ -49,6 +50,7 @@ pub async fn add_queued_message_internal(
     state: &AppState,
     conversation_id: &str,
     content: String,
+    context_items: Option<Vec<ContextItem>>, // <-- new parameter
 ) -> Result<String, String> {
     tracing::info!(
         "add_queued_message_internal: conversation={}",
@@ -64,13 +66,17 @@ pub async fn add_queued_message_internal(
 
     // Determine next position
     let max_pos = Queued::find()
-        .filter(queued_messages::Column::ConversationId.eq(conv_uuid))
-        .order_by_desc(queued_messages::Column::Position)
+        .filter(queued_messages::COLUMN.conversation_id.eq(conv_uuid))
+        .order_by_desc(queued_messages::COLUMN.position)
         .one(db)
         .await
         .map_err(|e| e.to_string())?
         .map(|m| m.position)
         .unwrap_or(0);
+
+    let items_json = context_items
+        .map(|items| serde_json::to_value(items).map_err(|e| e.to_string()))
+        .transpose()?;
 
     let id = Uuid::new_v4();
     let now = chrono::Utc::now().fixed_offset();
@@ -82,6 +88,7 @@ pub async fn add_queued_message_internal(
         position: Set(max_pos + 1),
         created_at: Set(now),
         updated_at: Set(now),
+        context_items: Set(items_json), // <-- store
     };
 
     model.insert(db).await.map_err(|e| e.to_string())?;
@@ -107,8 +114,8 @@ pub async fn list_queued_messages_internal(
     })?;
 
     let rows = Queued::find()
-        .filter(queued_messages::Column::ConversationId.eq(conv_uuid))
-        .order_by_asc(queued_messages::Column::Position)
+        .filter(queued_messages::COLUMN.conversation_id.eq(conv_uuid))
+        .order_by_asc(queued_messages::COLUMN.position)
         .all(db)
         .await
         .map_err(|e| {
@@ -181,7 +188,7 @@ pub async fn reorder_queued_messages_internal(
 
     // Fetch all queued messages for this conversation
     let messages = Queued::find()
-        .filter(queued_messages::Column::ConversationId.eq(conv_uuid))
+        .filter(queued_messages::COLUMN.conversation_id.eq(conv_uuid))
         .all(&txn)
         .await
         .map_err(|e| e.to_string())?;
@@ -233,7 +240,7 @@ pub async fn merge_queued_messages_internal(
 
     // Fetch all messages to be merged
     let messages = Queued::find()
-        .filter(queued_messages::Column::Id.is_in(uuids.clone()))
+        .filter(queued_messages::COLUMN.id.is_in(uuids.clone()))
         .all(&txn)
         .await
         .map_err(|e| e.to_string())?;
@@ -261,8 +268,12 @@ pub async fn merge_queued_messages_internal(
 
     // Shift subsequent messages to fill the gap
     let subsequent = Queued::find()
-        .filter(queued_messages::Column::ConversationId.eq(conversation_id))
-        .filter(queued_messages::Column::Position.gt(min_position + messages.len() as i32 - 1))
+        .filter(queued_messages::COLUMN.conversation_id.eq(conversation_id))
+        .filter(
+            queued_messages::COLUMN
+                .position
+                .gt(min_position + messages.len() as i32 - 1),
+        )
         .all(&txn)
         .await
         .map_err(|e| e.to_string())?;
@@ -284,6 +295,7 @@ pub async fn merge_queued_messages_internal(
         position: Set(min_position),
         created_at: Set(now),
         updated_at: Set(now),
+        context_items: Set(None), // merged message has no context items
     };
     new_msg.insert(&txn).await.map_err(|e| e.to_string())?;
 
@@ -330,8 +342,9 @@ pub async fn auto_send_next_queued(
                         state_clone,
                         conv_clone,
                         content_clone,
+                        None, // queued messages don't carry context items (could be added later)
                         app_clone,
-                        Some(metadata), // Pass metadata
+                        Some(metadata),
                     )
                     .await;
                 });
@@ -345,14 +358,20 @@ pub async fn auto_send_next_queued(
 // Tauri command wrappers
 // =============================================================================
 
+#[derive(Debug, Deserialize, Type)]
+pub struct AddQueuedMessageRequest {
+    pub conversation_id: String,
+    pub content: String,
+    pub context_items: Option<Vec<ContextItem>>,
+}
+
 #[specta]
 #[tauri::command]
 pub async fn add_queued_message(
     state: State<'_, Arc<AppState>>,
-    conversation_id: String,
-    content: String,
+    req: AddQueuedMessageRequest,
 ) -> Result<String, String> {
-    add_queued_message_internal(&state, &conversation_id, content).await
+    add_queued_message_internal(&state, &req.conversation_id, req.content, req.context_items).await
 }
 
 #[specta]

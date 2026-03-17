@@ -9,7 +9,7 @@
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, QueryFilter, QueryOrder,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use specta::{Type, specta};
 use std::sync::Arc;
 use tauri::{Emitter, State};
@@ -20,8 +20,9 @@ use crate::{events::AgentEvent, state::AppState};
 use async_trait::async_trait;
 use skilldeck_core::agent::{AgentLoop, AgentLoopConfig, AgentLoopEvent, all_built_in_tools};
 use skilldeck_core::traits::subagent_spawner::SubagentSpawner;
+use skilldeck_models::context_item::ContextItem;
 use skilldeck_models::conversations::{self, Entity as Conversations};
-use skilldeck_models::messages::{self, Entity as Messages};
+use skilldeck_models::messages::{self, Entity as Messages}; // <-- added
 
 /// Serialisable message returned to the frontend.
 #[derive(Debug, Clone, Serialize, Type)]
@@ -62,8 +63,8 @@ pub async fn list_messages(
     let conv_uuid = Uuid::parse_str(&conversation_id).map_err(|e| e.to_string())?;
 
     let rows = Messages::find()
-        .filter(messages::Column::ConversationId.eq(conv_uuid))
-        .order_by_asc(messages::Column::CreatedAt)
+        .filter(messages::COLUMN.conversation_id.eq(conv_uuid)) // <-- typed column
+        .order_by_asc(messages::COLUMN.created_at)
         .all(db)
         .await
         .map_err(|e| e.to_string())?;
@@ -88,8 +89,9 @@ pub(crate) async fn send_message_internal(
     state: Arc<AppState>,
     conversation_id: String,
     content: String,
+    context_items: Option<Vec<ContextItem>>, // <-- new parameter
     app: tauri::AppHandle,
-    metadata: Option<serde_json::Value>, // <-- metadata parameter added
+    metadata: Option<serde_json::Value>,
 ) -> Result<(), String> {
     let db = state
         .registry
@@ -101,13 +103,19 @@ pub(crate) async fn send_message_internal(
     let msg_id = Uuid::new_v4();
     let now = chrono::Utc::now().fixed_offset();
 
+    // Convert context_items to JSON
+    let items_json = context_items
+        .map(|items| serde_json::to_value(items).map_err(|e| e.to_string()))
+        .transpose()?;
+
     // Persist user message.
     let user_msg = messages::ActiveModel {
         id: Set(msg_id),
         conversation_id: Set(conv_uuid),
         role: Set("user".to_string()),
         content: Set(content.clone()),
-        metadata: Set(metadata), // <-- store metadata
+        metadata: Set(metadata),
+        context_items: Set(items_json), // <-- store
         created_at: Set(now),
         ..Default::default()
     };
@@ -145,22 +153,34 @@ pub(crate) async fn send_message_internal(
 ///
 /// Returns immediately once the message is persisted; the agent loop emits
 /// `agent-event` payloads asynchronously.
+#[derive(Debug, Deserialize, Type)]
+pub struct SendMessageRequest {
+    pub conversation_id: String,
+    pub content: String,
+    pub context_items: Option<Vec<ContextItem>>,
+}
+
 #[specta]
 #[tauri::command]
 pub async fn send_message(
     state: State<'_, Arc<AppState>>,
-    conversation_id: String,
-    content: String,
+    req: SendMessageRequest,
     app: tauri::AppHandle,
 ) -> Result<(), String> {
     // If agent already running for this conversation → queue the message
-    if state.is_agent_running(&conversation_id) {
-        let id = queue::add_queued_message_internal(&state, &conversation_id, content).await?;
+    if state.is_agent_running(&req.conversation_id) {
+        let id = queue::add_queued_message_internal(
+            &state,
+            &req.conversation_id,
+            req.content,
+            req.context_items,
+        )
+        .await?;
         // Emit event so UI knows queue changed (optional but good)
         let _ = app.emit(
             "queued-message-added",
             serde_json::json!({
-                "conversation_id": conversation_id,
+                "conversation_id": req.conversation_id,
                 "id": id
             }),
         );
@@ -169,7 +189,15 @@ pub async fn send_message(
 
     // Clone the Arc for the internal call
     let state_clone = (*state).clone();
-    send_message_internal(state_clone, conversation_id, content, app, None).await
+    send_message_internal(
+        state_clone,
+        req.conversation_id,
+        req.content,
+        req.context_items,
+        app,
+        None,
+    )
+    .await
 }
 
 /// Resolve a pending tool-approval from the frontend.
@@ -402,8 +430,8 @@ fn run_agent_loop(
             }
         };
         let history_rows = match Messages::find()
-            .filter(messages::Column::ConversationId.eq(conv_uuid))
-            .order_by_asc(messages::Column::CreatedAt)
+            .filter(messages::COLUMN.conversation_id.eq(conv_uuid))
+            .order_by_asc(messages::COLUMN.created_at)
             .all(db)
             .await
         {
@@ -503,6 +531,74 @@ fn run_agent_loop(
                     catalog.push_str(&format!("- **{}**: {}\n", name, desc));
                 }
                 agent = agent.with_skill(catalog);
+            }
+        }
+
+        // Retrieve the user message (which we just inserted) to get its context_items
+        let user_message_row = match Messages::find_by_id(msg_id).one(db).await {
+            Ok(Some(m)) => m,
+            Ok(None) => {
+                tracing::error!("User message not found after insert");
+                return;
+            }
+            Err(e) => {
+                tracing::error!("Failed to fetch user message: {}", e);
+                return;
+            }
+        };
+
+        // Extract context items and assemble content
+        if let Some(json) = user_message_row.context_items {
+            if let Ok(context_items) = serde_json::from_value::<Vec<ContextItem>>(json) {
+                let mut combined_context = String::new();
+                for item in context_items {
+                    match item {
+                        ContextItem::File { path, .. } => {
+                            // read file content
+                            if let Ok(content) = std::fs::read_to_string(&path) {
+                                combined_context
+                                    .push_str(&format!("--- File: {} ---\n{}\n\n", path, content));
+                            } else {
+                                tracing::warn!("Could not read file: {}", path);
+                            }
+                        }
+                        ContextItem::Folder { path, scope, .. } => {
+                            // assemble folder
+                            let deep = match scope {
+                                FolderScope::Shallow => false,
+                                FolderScope::Deep => true,
+                            };
+                            if let Ok((content, _)) =
+                                crate::skills::folder_assembler::assemble_folder_context(
+                                    std::path::Path::new(&path),
+                                    deep,
+                                    Some(500_000), // limit size
+                                )
+                            {
+                                combined_context.push_str(&format!(
+                                    "--- Folder: {} (scope: {:?}) ---\n{}\n\n",
+                                    path, scope, content
+                                ));
+                            }
+                        }
+                        ContextItem::Skill { name } => {
+                            // load skill from registry
+                            if let Some(skill) =
+                                state.registry.skill_registry.get_skill(&name).await
+                            {
+                                combined_context.push_str(&format!(
+                                    "--- Skill: {} ---\n{}\n\n",
+                                    name, skill.content_md
+                                ));
+                            } else {
+                                tracing::warn!("Skill not found: {}", name);
+                            }
+                        }
+                    }
+                }
+                if !combined_context.is_empty() {
+                    agent = agent.with_skill(combined_context);
+                }
             }
         }
 
