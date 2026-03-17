@@ -12,6 +12,7 @@ import { useMcpEvents } from '@/hooks/use-mcp-events'
 import { useSubagentEvents } from '@/hooks/use-subagent-events'
 import { useSettingsStore } from '@/store/settings'
 import { useUIStore } from '@/store/ui'
+import { TooltipProvider } from '@/components/ui/tooltip'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -62,8 +63,10 @@ function AppContent() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeSync />
-      <AppContent />
+      <TooltipProvider>
+        <ThemeSync />
+        <AppContent />
+      </TooltipProvider>
     </QueryClientProvider>
   )
 }
