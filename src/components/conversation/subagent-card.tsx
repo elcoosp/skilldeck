@@ -1,3 +1,4 @@
+// src/components/conversation/subagent-card.tsx
 /**
  * SubagentCard — shown when the orchestrator spawns a subagent to handle
  * a workflow step. Displays real-time status, token usage, and a link to
@@ -44,11 +45,15 @@ export function SubagentCard({
       role={onOpen ? 'button' : undefined}
       tabIndex={onOpen ? 0 : undefined}
       onClick={onOpen}
-      onKeyDown={(e) => e.key === 'Enter' && onOpen?.()}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onOpen?.()
+        }
+      }}
       className={cn(
         'my-2 flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2 text-sm',
-        onOpen &&
-          'cursor-pointer hover:border-primary/50 hover:shadow-sm transition-all'
+        onOpen && 'cursor-pointer hover:border-primary/50 hover:shadow-sm transition-all'
       )}
     >
       <Bot className="size-4 shrink-0 text-muted-foreground" />

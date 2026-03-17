@@ -3,10 +3,11 @@
  * Sidebar conversation list item with inline rename and context menu.
  */
 
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { formatDistanceToNow } from 'date-fns'
-import { AnimatePresence, motion } from 'framer-motion'
 import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -19,7 +20,6 @@ import {
   useRenameConversation
 } from '@/hooks/use-conversations'
 import type { ConversationSummary } from '@/lib/bindings'
-import { cn } from '@/lib/utils'
 
 interface ConversationItemProps {
   conversation: ConversationSummary
@@ -67,20 +67,17 @@ export function ConversationItem({
 
   // Click outside to cancel rename (without saving)
   useEffect(() => {
-    if (!isRenaming) return
+    if (!isRenaming) return;
 
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
-      ) {
-        cancelRename()
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        cancelRename();
       }
-    }
+    };
 
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [isRenaming, cancelRename])
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isRenaming, cancelRename]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -102,7 +99,7 @@ export function ConversationItem({
   const relativeTime = (() => {
     try {
       const date = new Date(conversation.updated_at)
-      if (isNaN(date.getTime())) return 'recently'
+      if (Number.isNaN(date.getTime())) return 'recently'
       return formatDistanceToNow(date, { addSuffix: true })
     } catch {
       return 'recently'
@@ -115,9 +112,7 @@ export function ConversationItem({
       role="button"
       tabIndex={0}
       onClick={() => !isRenaming && !isDeleting && onClick()}
-      onKeyDown={(e) =>
-        e.key === 'Enter' && !isRenaming && !isDeleting && onClick()
-      }
+      onKeyDown={(e) => e.key === 'Enter' && !isRenaming && !isDeleting && onClick()}
       className={cn(
         'group relative flex items-start gap-2 w-full px-2 py-2 rounded-md text-left transition-colors cursor-pointer',
         isActive
@@ -129,9 +124,7 @@ export function ConversationItem({
       {/* Main content */}
       <div className="flex-1 min-w-0">
         {/* Title row – fixed height to prevent layout shift */}
-        <div className="flex items-center gap-1 h-5">
-          {' '}
-          {/* h-5 = 20px, matches text-xs line height */}
+        <div className="flex items-center gap-1 h-5"> {/* h-5 = 20px, matches text-xs line height */}
           <AnimatePresence mode="wait">
             {isRenaming ? (
               <motion.div
@@ -167,6 +160,7 @@ export function ConversationItem({
               </motion.span>
             )}
           </AnimatePresence>
+
           {/* Pencil icon – only visible on hover */}
           {!isRenaming && !isDeleting && (
             <Button

@@ -1,7 +1,6 @@
 // src/components/chat/security-warning-dialog.tsx
-
-import { AlertTriangle } from 'lucide-react'
-import type React from 'react'
+import React from 'react'
+import type { RegistrySkillData } from '@/lib/bindings'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,7 +11,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from '@/components/ui/alert-dialog'
-import type { RegistrySkillData } from '@/lib/bindings'
+import { AlertTriangle } from 'lucide-react'
 
 interface SecurityWarningDialogProps {
   skill: RegistrySkillData
@@ -33,7 +32,7 @@ export const SecurityWarningDialog: React.FC<SecurityWarningDialogProps> = ({
   }>
 
   const securityWarnings = rawWarnings.filter(
-    (w) => (w.rule_id && w.rule_id.includes('sec-')) || w.severity === 'error'
+    (w) => w.rule_id?.includes('sec-') || w.severity === 'error'
   )
 
   return (
@@ -47,16 +46,19 @@ export const SecurityWarningDialog: React.FC<SecurityWarningDialogProps> = ({
           <AlertDialogDescription asChild>
             <div>
               <p>
-                The skill <strong>{skill.name}</strong> has been flagged for
-                potentially dangerous behaviour.
+                The skill <strong>{skill.name}</strong> has been flagged for potentially
+                dangerous behaviour.
               </p>
               {securityWarnings.length > 0 && (
                 <div className="mt-2 p-2 bg-destructive/10 rounded text-sm text-destructive border border-destructive/20 max-h-40 overflow-y-auto">
-                  {securityWarnings.map((w, i) => (
-                    <div key={i} className="mb-1">
-                      • {w.message ?? String(w)}
-                    </div>
-                  ))}
+                  {securityWarnings.map((w, i) => {
+                    const key = `${w.rule_id ?? 'warning'}-${i}`
+                    return (
+                      <div key={key} className="mb-1">
+                        • {w.message ?? String(w)}
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>

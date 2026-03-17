@@ -1,7 +1,5 @@
 // src/components/conversation/message-bubble.tsx
-
-import rehypeShiki from '@shikijs/rehype'
-import { motion } from 'framer-motion'
+import { useState } from 'react'
 import {
   AlertCircle,
   Bot,
@@ -13,11 +11,12 @@ import {
   User,
   Wrench
 } from 'lucide-react'
-import { useState } from 'react'
+import { motion } from 'framer-motion'
 import { MarkdownHooks } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import type { MessageData } from '@/lib/bindings'
+import rehypeShiki from '@shikijs/rehype'
 import { cn } from '@/lib/utils'
+import type { MessageData } from '@/lib/bindings'
 import { SubagentCard } from './subagent-card'
 
 interface MessageBubbleProps {
@@ -51,6 +50,7 @@ const CodePre = ({ children, ...props }: any) => {
     <div className="my-3 rounded-lg border border-border flex flex-col text-xs font-mono">
       <div className="flex items-center justify-between px-3 py-1.5 border-b border-border bg-muted rounded-t-lg">
         <button
+          type="button"
           onClick={() => setCollapsed((v) => !v)}
           className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
           aria-label={collapsed ? 'Expand' : 'Collapse'}
@@ -64,6 +64,7 @@ const CodePre = ({ children, ...props }: any) => {
           <span>{language}</span>
         </button>
         <button
+          type="button"
           onClick={copy}
           className="p-1 text-muted-foreground hover:text-foreground transition-colors rounded"
           aria-label="Copy code"
@@ -108,15 +109,15 @@ export function MessageBubble({
   // Check if this is a subagent spawn message
   if (isAssistant && !isStreaming && message.content) {
     try {
-      const data = JSON.parse(message.content)
+      const data = JSON.parse(message.content);
       if (data.subagentId) {
         return (
           <SubagentCard
             stepName={data.task || 'Subagent'}
             status="running"
-            onOpen={() => {}} // TODO: navigate to subagent conversation
+            onOpen={() => { }} // TODO: navigate to subagent conversation
           />
-        )
+        );
       }
     } catch {
       // not JSON, continue to normal rendering
@@ -180,6 +181,7 @@ export function MessageBubble({
                 {isAssistant ? 'Assistant' : isSystem ? 'System' : 'Tool'}
               </span>
               <motion.button
+                type="button"
                 onClick={() => setCollapsed((v) => !v)}
                 className="p-0.5 hover:bg-muted-foreground/20 rounded transition-colors ml-2"
                 aria-label={isCollapsed ? 'Expand message' : 'Collapse message'}
