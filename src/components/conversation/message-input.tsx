@@ -52,10 +52,11 @@ export function MessageInput({ conversationId }: MessageInputProps) {
   const activeWorkspaceId = useUIStore((s) => s.activeWorkspaceId)
   const { data: workspaces } = useWorkspaces()
   const activeWorkspace = workspaces?.find(w => w.id === activeWorkspaceId)
-  const workspaceRoot = activeWorkspace?.path ?? undefined // <-- CHANGED: null → undefined
+  const workspaceRoot = activeWorkspace?.path ?? undefined
 
   // ── Profiles (for auto‑create) ──────────────────────────────────────────
   const { data: profiles = [] } = useProfiles()
+  const defaultProfile = profiles.find(p => p.is_default) ?? profiles[0]
 
   // ── Draft / UI store ──────────────────────────────────────────────────────
   const draft = useUIStore((s) => s.drafts[conversationId] ?? '')
@@ -70,7 +71,10 @@ export function MessageInput({ conversationId }: MessageInputProps) {
   const [content, setContent] = useState(draft)
 
   const sendMutation = useSendMessage(conversationId)
-  const createConversation = useCreateConversation()
+
+  // FIXED: pass profile ID to the hook
+  const createConversation = useCreateConversation(defaultProfile?.id)
+
   const shouldReduceMotion = useReducedMotion()
 
   // ── Unified skills for @ picker ─────────────────────────────────────────
@@ -380,7 +384,8 @@ export function MessageInput({ conversationId }: MessageInputProps) {
         return
       }
       try {
-        finalConversationId = await createConversation.mutateAsync({ profileId: defaultProfile.id })
+        // FIXED: call mutateAsync with empty object (profileId already passed to hook)
+        finalConversationId = await createConversation.mutateAsync({})
         setActiveConversation(finalConversationId)
       } catch (err) {
         toast.error(`Failed to create conversation: ${err}`)

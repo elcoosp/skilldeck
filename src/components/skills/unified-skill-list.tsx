@@ -270,7 +270,7 @@ function EmptyState({
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-4">
       <img
-        src="/illustrations/empty-skills.svg"
+        src="/illustrations/empty-skills.jpeg"
         alt="No skills"
         className="w-48 h-48 mb-2 opacity-90 rounded-3xl"
       />

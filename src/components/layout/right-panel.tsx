@@ -20,6 +20,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { motion } from 'framer-motion';  // <-- added
 import { cn } from '@/lib/utils';
 import { useConversations } from '@/hooks/use-conversations';
 import { useProfiles } from '@/hooks/use-profiles';
@@ -373,20 +374,27 @@ function WorkflowTab() {
             <BouncingDots />
           </div>
         ) : savedWorkflows.length === 0 ? (
-          // ✨ Whimsical empty state
-          <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
-            <img
-              src="/illustrations/empty-workflows.svg"
-              alt="No workflows"
-              className="w-40 h-40 mb-4 opacity-90 rounded-3xl"
-            />
+          // ✨ Whimsical empty state with fade+scale animation
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+            className="flex flex-col items-center justify-center py-8 px-4 text-center"
+          >
+            <div className="w-40 h-40 mb-4 overflow-hidden rounded-3xl">
+              <img
+                src="/illustrations/empty-workflows.jpeg"
+                alt="No workflows"
+                className="w-full h-full object-cover opacity-90"
+              />
+            </div>
             <h3 className="text-base font-semibold text-foreground mb-1">
               Ready to orchestrate something brilliant?
             </h3>
             <p className="text-sm text-muted-foreground max-w-xs">
               Design a workflow that turns complex tasks into elegant automation.
             </p>
-          </div>
+          </motion.div>
         ) : (
           <div className="space-y-1">
             {savedWorkflows.map((wf) => (

@@ -13,6 +13,7 @@ import {
   Server,
   Zap
 } from 'lucide-react'
+import { motion } from 'framer-motion'
 import { toast } from 'sonner'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { cn } from '@/lib/utils'
@@ -632,20 +633,27 @@ export function McpTab() {
               <Loader2 className="size-4 animate-spin text-muted-foreground" />
             </div>
           ) : servers.length === 0 ? (
-            // ✨ Whimsical empty state
-            <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-              <img
-                src="/illustrations/empty-mcp.svg"
-                alt="No MCP servers"
-                className="w-48 h-48 mb-4 opacity-90 rounded-3xl"
-              />
+            // ✨ Whimsical empty state with fade+scale animation
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+              className="flex flex-col items-center justify-center py-12 px-4 text-center"
+            >
+              <div className="w-48 h-48 mb-4 overflow-hidden rounded-3xl">
+                <img
+                  src="/illustrations/empty-mcp.jpeg"
+                  alt="No MCP servers"
+                  className="w-full h-full object-cover opacity-90"
+                />
+              </div>
               <h3 className="text-base font-semibold text-foreground mb-1">
                 Your agent needs friends.
               </h3>
               <p className="text-sm text-muted-foreground max-w-xs">
                 Add an MCP server to give it new tools—like a brain with extra senses.
               </p>
-            </div>
+            </motion.div>
           ) : (
             servers.map((server: McpServerResponse) => (
               <LiveServerCard key={server.id} server={server} />

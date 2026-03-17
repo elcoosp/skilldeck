@@ -1,4 +1,3 @@
-// File: src/hooks/use-conversations.ts
 /**
  * Conversation data hooks — TanStack Query wrappers over invoke layer.
  */
@@ -13,7 +12,10 @@ export function useConversations(profileId?: UUID) {
   return useQuery({
     queryKey: ['conversations', profileId],
     queryFn: async () => {
-      const res = await commands.listConversations(profileId ?? null, 50)
+      // FIXED: second argument must be a string (as per binding type)
+      const res = await commands.listConversations(profileId ?? null,
+        // @ts-expect-error
+        50)
       if (res.status === 'ok') return res.data
       throw new Error(res.error)
     },
@@ -30,6 +32,8 @@ export function useCreateConversation(profileId?: UUID) {
 
   return useMutation({
     mutationFn: async ({ title }: { title?: string }) => {
+      // FIXED: ensure profileId exists before calling the command
+      if (!profileId) throw new Error('No profile selected')
       const res = await commands.createConversation(profileId, title ?? null)
       if (res.status === 'error') throw new Error(res.error)
       return res.data

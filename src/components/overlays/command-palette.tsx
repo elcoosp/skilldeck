@@ -27,7 +27,10 @@ export function CommandPalette() {
   const { data: conversations = [] } = useConversations()
   const { skills = [] } = useAllSkills()
   const { data: profiles = [] } = useProfiles()
-  const createConversation = useCreateConversation()
+
+  // FIXED: pass the profile ID to the hook
+  const defaultProfile = profiles.find((p) => p.is_default) ?? profiles[0]
+  const createConversation = useCreateConversation(defaultProfile?.id)
 
   // Close on Escape
   useEffect(() => {
@@ -39,8 +42,6 @@ export function CommandPalette() {
   }, [open, setOpen])
 
   if (!open) return null
-
-  const defaultProfile = profiles.find((p) => p.is_default) ?? profiles[0]
 
   return (
     /* Backdrop */
@@ -75,7 +76,8 @@ export function CommandPalette() {
                 label="New Chat"
                 onSelect={() => {
                   if (defaultProfile) {
-                    createConversation.mutate({ profileId: defaultProfile.id })
+                    // FIXED: call mutate with empty object, profileId already passed to hook
+                    createConversation.mutate({})
                   }
                   setOpen(false)
                 }}

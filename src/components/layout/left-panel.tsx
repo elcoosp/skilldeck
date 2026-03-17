@@ -1,3 +1,4 @@
+// src/components/left-panel.tsx
 /**
  * Left panel — conversation list, search, new chat, workspace switcher.
  */
@@ -45,7 +46,7 @@ export function LeftPanel() {
   // Pass the profile ID to conversations query
   const { data: conversations, isLoading: conversationsLoading } = useConversations(defaultProfile?.id)
 
-  // CRITICAL FIX: Pass the profile ID to useCreateConversation so it can invalidate the correct query key
+  // Pass the profile ID to useCreateConversation so it can invalidate the correct query key
   const createConversation = useCreateConversation(defaultProfile?.id)
 
   const { data: workspaces = [] } = useWorkspaces()
@@ -163,19 +164,26 @@ export function LeftPanel() {
               </p>
             ) : (
               // ✨ Whimsical empty state
-              <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-                <img
-                  src="/illustrations/empty-conversations.svg"
-                  alt="No conversations"
-                  className="w-48 h-48 mb-4 opacity-90 rounded-3xl"
-                />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                className="flex flex-col items-center justify-center py-12 px-4 text-center"
+              >
+                <div className="w-48 h-48 mb-4 overflow-hidden rounded-3xl">
+                  <img
+                    src="/illustrations/empty-conversations.svg"
+                    alt="No conversations"
+                    className="w-full h-full object-cover opacity-90"
+                  />
+                </div>
                 <h3 className="text-base font-semibold text-foreground mb-1">
                   Your deck is empty—time to deal the first card.
                 </h3>
                 <p className="text-sm text-muted-foreground max-w-xs">
                   Start a new conversation and build something brilliant.
                 </p>
-              </div>
+              </motion.div>
             )
           ) : (
             <AnimatePresence mode="popLayout" onExitComplete={handleDeleteComplete}>
@@ -195,7 +203,7 @@ export function LeftPanel() {
                     conversation={c}
                     isActive={c.id === activeConversationId}
                     isDeleting={c.id === deletingId}
-                    onDeleteStart={() => handleDeleteStart(c.id)}
+                    onDeleteStart={handleDeleteStart}
                     onClick={() => setActiveConversation(c.id)}
                   />
                 </motion.div>
