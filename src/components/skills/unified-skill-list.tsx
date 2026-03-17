@@ -163,6 +163,7 @@ export function UnifiedSkillList() {
           <div
             ref={parentRef}
             className="flex-1 overflow-auto px-4 py-4 overflow-x-hidden"
+            style={{ scrollbarGutter: 'stable' }}
           >
             {/* Virtual scroll container */}
             <div
