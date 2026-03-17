@@ -199,7 +199,7 @@ export function MessageBubble({
                 ? 'bg-primary text-primary-foreground rounded-tr-sm'
                 : isTool
                   ? 'bg-muted/70 font-mono text-xs w-full rounded-tl-sm'
-                  : 'bg-muted rounded-tl-sm'
+                  : 'bg-muted/50 rounded-tl-sm'
             )}
           >
             {/* Queued indicator for user messages */}
