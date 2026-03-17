@@ -1,0 +1,94 @@
+// src/hooks/use-queued-messages.ts
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { commands } from '@/lib/bindings'
+import type { UUID } from '@/lib/types'
+
+export interface QueuedMessage {
+  id: UUID
+  conversation_id: UUID
+  content: string
+  position: number
+  created_at: string
+  updated_at: string
+}
+
+export function useQueuedMessages(conversationId: UUID | null) {
+  return useQuery({
+    queryKey: ['queued-messages', conversationId],
+    queryFn: async () => {
+      if (!conversationId) return []
+      const res = await commands.listQueuedMessages(conversationId)
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data as QueuedMessage[]
+    },
+    enabled: !!conversationId,
+    staleTime: 0, // always refetch when invalidated
+  })
+}
+
+export function useAddQueuedMessage(conversationId: UUID) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (content: string) => {
+      const res = await commands.addQueuedMessage(conversationId, content)
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['queued-messages', conversationId] })
+    },
+  })
+}
+
+export function useUpdateQueuedMessage(conversationId: UUID) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, content }: { id: UUID; content: string }) => {
+      const res = await commands.updateQueuedMessage(id, content)
+      if (res.status === 'error') throw new Error(res.error)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['queued-messages', conversationId] })
+    },
+  })
+}
+
+export function useDeleteQueuedMessage(conversationId: UUID) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: UUID) => {
+      const res = await commands.deleteQueuedMessage(id)
+      if (res.status === 'error') throw new Error(res.error)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['queued-messages', conversationId] })
+    },
+  })
+}
+
+export function useReorderQueuedMessages(conversationId: UUID) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (orderedIds: UUID[]) => {
+      const res = await commands.reorderQueuedMessages(conversationId, orderedIds)
+      if (res.status === 'error') throw new Error(res.error)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['queued-messages', conversationId] })
+    },
+  })
+}
+
+export function useMergeQueuedMessages(conversationId: UUID) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (ids: UUID[]) => {
+      const res = await commands.mergeQueuedMessages(ids)
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['queued-messages', conversationId] })
+    },
+  })
+}
