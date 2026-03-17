@@ -6,6 +6,7 @@
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { TrustBadge } from './trust-badge'
+import { motion } from 'framer-motion'
 import type { UnifiedSkill } from '@/types/skills'
 
 interface Props {
@@ -37,8 +38,11 @@ export function UnifiedSkillCard({ skill, onClick, isSelected }: Props) {
   const qualityScore = skill.registryData?.qualityScore
 
   return (
-    <button
+    <motion.button
       type="button"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.2 }}
       className={cn(
         'group w-full text-left p-4 border rounded-lg cursor-pointer',
         'transition-all duration-150 hover:border-primary/50 hover:shadow-sm',
@@ -88,6 +92,6 @@ export function UnifiedSkillCard({ skill, onClick, isSelected }: Props) {
           )}
         </div>
       </div>
-    </button>
+    </motion.button>
   )
 }
