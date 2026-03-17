@@ -6,6 +6,9 @@ import { useQueueStore } from '@/store/queue'
 import { Button } from '@/components/ui/button'
 import type { QueuedMessage } from '@/hooks/use-queued-messages'
 
+// Stable empty array – same reference on every render
+const EMPTY_ARRAY: string[] = []
+
 interface QueueHeaderProps {
   conversationId: string
   messages: QueuedMessage[]
@@ -15,12 +18,11 @@ export function QueueHeader({ conversationId, messages }: QueueHeaderProps) {
   const expanded = useQueueStore((s) => s.expanded[conversationId] ?? false)
   const mode = useQueueStore((s) => s.mode[conversationId] ?? 'view')
 
-  // selectedIds is now an array – stable reference when unchanged
+  // ✅ Use stable empty array fallback
   const selectedIdsArray = useQueueStore(
-    (s) => s.selectedIds[conversationId] ?? []
+    (s) => s.selectedIds[conversationId] ?? EMPTY_ARRAY
   )
 
-  // Convert to Set for efficient lookup, memoized to prevent re-creation
   const selectedIds = useMemo(() => new Set(selectedIdsArray), [selectedIdsArray])
 
   const setExpanded = useQueueStore((s) => s.setExpanded)

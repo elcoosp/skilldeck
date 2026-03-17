@@ -3,13 +3,14 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { GripVertical, Pencil, Trash2, CheckSquare, Square } from 'lucide-react'
 import { useCallback, useEffect, useMemo } from 'react'
-import { shallow } from 'zustand/shallow'
 import { useQueueStore } from '@/store/queue'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { QueuedMessage } from '@/hooks/use-queued-messages'
 import { QueueEditForm } from './queue-edit-form'
 import { useDeleteQueuedMessage } from '@/hooks/use-queued-messages'
+
+const EMPTY_ARRAY: string[] = []
 
 interface QueueItemProps {
   message: QueuedMessage
@@ -19,27 +20,15 @@ interface QueueItemProps {
 }
 
 export function QueueItem({ message, conversationId, position, total }: QueueItemProps) {
-  const {
-    mode,
-    selectedIdsArray,
-    editingId,
-    toggleSelected,
-    setEditingId,
-    setIsDragging,
-  } = useQueueStore(
-    useCallback(
-      (s) => ({
-        mode: s.mode[conversationId] ?? 'view',
-        selectedIdsArray: s.selectedIds[conversationId] ?? [],
-        editingId: s.editingId[conversationId],
-        toggleSelected: s.toggleSelected,
-        setEditingId: s.setEditingId,
-        setIsDragging: s.setIsDragging,
-      }),
-      [conversationId]
-    ),
-    shallow
+  // Individual selectors – each returns a stable value
+  const mode = useQueueStore((s) => s.mode[conversationId] ?? 'view')
+  const selectedIdsArray = useQueueStore(
+    (s) => s.selectedIds[conversationId] ?? EMPTY_ARRAY
   )
+  const editingId = useQueueStore((s) => s.editingId[conversationId])
+  const toggleSelected = useQueueStore((s) => s.toggleSelected)
+  const setEditingId = useQueueStore((s) => s.setEditingId)
+  const setIsDragging = useQueueStore((s) => s.setIsDragging)
 
   const selectedIds = useMemo(() => new Set(selectedIdsArray), [selectedIdsArray])
   const deleteMutation = useDeleteQueuedMessage(conversationId)
@@ -53,7 +42,7 @@ export function QueueItem({ message, conversationId, position, total }: QueueIte
     isDragging: isDraggingItem,
   } = useSortable({ id: message.id })
 
-  // Update global dragging state – MUST be in useEffect, not during render
+  // Update global dragging state
   useEffect(() => {
     setIsDragging(conversationId, isDraggingItem)
   }, [isDraggingItem, conversationId, setIsDragging])

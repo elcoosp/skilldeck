@@ -1,11 +1,14 @@
 // src/components/conversation/queue/queue-selection-toolbar.tsx
-import { CheckSquare, Combine, Square, Trash2 } from 'lucide-react'
+import { useMemo, useCallback } from 'react'
+import { CheckSquare, Square, Trash2, Combine } from 'lucide-react'
+import { useQueueStore } from '@/store/queue'
 import { Button } from '@/components/ui/button'
 import {
   useDeleteQueuedMessage,
-  useMergeQueuedMessages
+  useMergeQueuedMessages,
 } from '@/hooks/use-queued-messages'
-import { useQueueStore } from '@/store/queue'
+
+const EMPTY_ARRAY: string[] = []
 
 interface QueueSelectionToolbarProps {
   conversationId: string
@@ -14,10 +17,11 @@ interface QueueSelectionToolbarProps {
 
 export function QueueSelectionToolbar({
   conversationId,
-  messageIds
+  messageIds,
 }: QueueSelectionToolbarProps) {
-  const selectedIds = useQueueStore(
-    (s) => s.selectedIds[conversationId] ?? new Set()
+  // ✅ Use stable empty array fallback (store stores arrays, not Sets)
+  const selectedIdsArray = useQueueStore(
+    (s) => s.selectedIds[conversationId] ?? EMPTY_ARRAY
   )
   const selectAll = useQueueStore((s) => s.selectAll)
   const clearSelected = useQueueStore((s) => s.clearSelected)
@@ -26,36 +30,36 @@ export function QueueSelectionToolbar({
   const deleteMutation = useDeleteQueuedMessage(conversationId)
   const mergeMutation = useMergeQueuedMessages(conversationId)
 
-  const allSelected =
-    messageIds.length > 0 && selectedIds.size === messageIds.length
-  const someSelected = selectedIds.size > 0
+  // Convert array to Set for efficient lookup, memoized
+  const selectedSet = useMemo(() => new Set(selectedIdsArray), [selectedIdsArray])
+  const allSelected = messageIds.length > 0 && selectedSet.size === messageIds.length
+  const someSelected = selectedSet.size > 0
 
-  const handleSelectAll = () => {
+  const handleSelectAll = useCallback(() => {
     if (allSelected) {
       clearSelected(conversationId)
     } else {
       selectAll(conversationId, messageIds)
     }
-  }
+  }, [allSelected, conversationId, clearSelected, selectAll, messageIds])
 
-  const handleDelete = () => {
+  const handleDelete = useCallback(() => {
     if (!someSelected) return
-    // Confirm? Could add a dialog.
-    Array.from(selectedIds).forEach((id) => {
+    Array.from(selectedSet).forEach((id) => {
       deleteMutation.mutate(id)
     })
     clearSelected(conversationId)
-  }
+  }, [someSelected, selectedSet, deleteMutation, clearSelected, conversationId])
 
-  const handleMerge = () => {
-    if (selectedIds.size < 2) return
-    mergeMutation.mutate(Array.from(selectedIds), {
+  const handleMerge = useCallback(() => {
+    if (selectedSet.size < 2) return
+    mergeMutation.mutate(Array.from(selectedSet), {
       onSuccess: () => {
         clearSelected(conversationId)
         setMode(conversationId, 'view')
-      }
+      },
     })
-  }
+  }, [selectedSet, mergeMutation, clearSelected, setMode, conversationId])
 
   return (
     <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/30 border-t border-border">
@@ -90,7 +94,7 @@ export function QueueSelectionToolbar({
         variant="ghost"
         size="xs"
         onClick={handleMerge}
-        disabled={selectedIds.size < 2}
+        disabled={selectedSet.size < 2}
         className="h-6 px-2 text-xs"
       >
         <Combine className="size-3 mr-1" />
