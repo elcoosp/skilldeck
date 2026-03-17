@@ -19,10 +19,6 @@ export function useAgentStream(conversationId: string | null) {
   const appendStreamingText = useUIStore((s) => s.appendStreamingText)
   const clearStreamingText = useUIStore((s) => s.clearStreamingText)
   const setAgentRunning = useUIStore((s) => s.setAgentRunning)
-  const queuedMessage = useUIStore(
-    (s) => s.queuedMessages[conversationId ?? '']
-  )
-  const clearQueuedMessage = useUIStore((s) => s.clearQueuedMessage)
 
   // Buffer deltas between rAF ticks to avoid per-token setState calls.
   const pendingBuffer = useRef('')
@@ -79,15 +75,8 @@ export function useAgentStream(conversationId: string | null) {
           setAgentRunning(conversationId, false)
           clearStreamingText(conversationId)
 
-          // If there's a queued message, send it now
-          if (queuedMessage) {
-            window.dispatchEvent(
-              new CustomEvent('skilldeck:send-queued-message', {
-                detail: { conversationId, content: queuedMessage }
-              })
-            )
-            clearQueuedMessage(conversationId)
-          }
+          // Invalidate queued messages query so the UI updates after auto-send
+          queryClient.invalidateQueries({ queryKey: ['queued-messages', conversationId] })
           break
 
         case 'error':
@@ -156,9 +145,7 @@ export function useAgentStream(conversationId: string | null) {
     appendStreamingText,
     clearStreamingText,
     setAgentRunning,
-    queryClient,
-    queuedMessage,
-    clearQueuedMessage
+    queryClient
   ])
 
   const streamingText = useUIStore(
