@@ -1,6 +1,8 @@
 // src/components/chat/folder-scope-modal.tsx
-import React, { useState, useEffect, useRef } from 'react'
-import { File, FolderTree, ChevronLeft } from 'lucide-react'
+
+import { ChevronLeft, File, FolderTree } from 'lucide-react'
+import type React from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 
 interface FolderScopeModalProps {
@@ -26,11 +28,11 @@ export const FolderScopeModal: React.FC<FolderScopeModalProps> = ({
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault()
-        setSelectedIndex(prev => (prev === 0 ? 1 : 1))
+        setSelectedIndex((prev) => (prev === 0 ? 1 : 1))
         break
       case 'ArrowUp':
         e.preventDefault()
-        setSelectedIndex(prev => (prev === 1 ? 0 : 0))
+        setSelectedIndex((prev) => (prev === 1 ? 0 : 0))
         break
       case 'Enter':
         e.preventDefault()

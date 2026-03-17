@@ -1,10 +1,12 @@
 // src/components/chat/context-chip.tsx
-import React, { useState } from 'react'
-import type { AttachedItem } from '@/types/chat-context'
+
+import { AlertTriangle, File, Folder, X, Zap } from 'lucide-react'
+import type React from 'react'
+import { useState } from 'react'
 import { TrustBadge } from '@/components/skills/trust-badge'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-import { X, File, Folder, Zap, AlertTriangle } from 'lucide-react'
+import type { AttachedItem } from '@/types/chat-context'
 
 interface ContextChipProps {
   item: AttachedItem
@@ -16,9 +18,10 @@ export const ContextChip: React.FC<ContextChipProps> = ({ item, onRemove }) => {
   const isSkill = item.type === 'skill'
   const isFolder = item.type === 'folder'
 
-  const lintWarnings = isSkill ? (item.data as any).lintWarnings ?? [] : []
+  const lintWarnings = isSkill ? ((item.data as any).lintWarnings ?? []) : []
   const hasWarnings = lintWarnings.length > 0
-  const hasError = hasWarnings && lintWarnings.some((w: any) => w.severity === 'error')
+  const hasError =
+    hasWarnings && lintWarnings.some((w: any) => w.severity === 'error')
 
   const variant = hasError ? 'destructive' : 'secondary'
   const icon = isSkill ? (
@@ -36,8 +39,8 @@ export const ContextChip: React.FC<ContextChipProps> = ({ item, onRemove }) => {
       className={cn(
         'flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium group relative transition-all cursor-default',
         hasWarnings &&
-        !hasError &&
-        'bg-yellow-100 border-yellow-500 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+          !hasError &&
+          'bg-yellow-100 border-yellow-500 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
       )}
     >
       {icon}
@@ -92,7 +95,9 @@ export const ContextChip: React.FC<ContextChipProps> = ({ item, onRemove }) => {
                   key={key}
                   className={cn(
                     'flex items-start gap-1',
-                    w.severity === 'error' ? 'text-destructive' : 'text-yellow-600 dark:text-yellow-400'
+                    w.severity === 'error'
+                      ? 'text-destructive'
+                      : 'text-yellow-600 dark:text-yellow-400'
                   )}
                 >
                   <span className="capitalize font-bold">{w.severity}:</span>

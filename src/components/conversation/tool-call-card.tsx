@@ -4,8 +4,8 @@
  * Shown inside assistant message bubbles after a tool round-trip completes.
  */
 
-import { useState } from 'react'
 import { ChevronDown, ChevronRight, Wrench } from 'lucide-react'
+import { useState } from 'react'
 import { cn } from '@/lib/utils'
 
 interface ToolCallCardProps {

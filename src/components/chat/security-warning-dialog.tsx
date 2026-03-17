@@ -1,6 +1,7 @@
 // src/components/chat/security-warning-dialog.tsx
-import React from 'react'
-import type { RegistrySkillData } from '@/lib/bindings'
+
+import { AlertTriangle } from 'lucide-react'
+import type React from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -11,7 +12,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from '@/components/ui/alert-dialog'
-import { AlertTriangle } from 'lucide-react'
+import type { RegistrySkillData } from '@/lib/bindings'
 
 interface SecurityWarningDialogProps {
   skill: RegistrySkillData
@@ -46,8 +47,8 @@ export const SecurityWarningDialog: React.FC<SecurityWarningDialogProps> = ({
           <AlertDialogDescription asChild>
             <div>
               <p>
-                The skill <strong>{skill.name}</strong> has been flagged for potentially
-                dangerous behaviour.
+                The skill <strong>{skill.name}</strong> has been flagged for
+                potentially dangerous behaviour.
               </p>
               {securityWarnings.length > 0 && (
                 <div className="mt-2 p-2 bg-destructive/10 rounded text-sm text-destructive border border-destructive/20 max-h-40 overflow-y-auto">
