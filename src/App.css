@@ -84,6 +84,12 @@
   --error-bg: #dc2626;
   /* destructive red */
   --error-text: #ffffff;
+
+  /* Queue pause indicator colors */
+  --warning: #fef3c7;
+  /* amber-100 */
+  --warning-foreground: #92400e;
+  /* amber-800 */
 }
 
 .dark {
@@ -132,6 +138,12 @@
   --warning-text: #0f172a;
   --error-bg: #ef4444;
   --error-text: #ffffff;
+
+  /* Queue pause indicator colors – dark mode */
+  --warning: #451a03;
+  /* amber-950 */
+  --warning-foreground: #fbbf24;
+  /* amber-400 */
 }
 
 @theme inline {
