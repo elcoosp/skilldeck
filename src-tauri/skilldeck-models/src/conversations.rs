@@ -15,6 +15,7 @@ pub struct Model {
     pub created_at: DateTimeWithTimeZone,
     pub updated_at: DateTimeWithTimeZone,
     pub archived_at: Option<DateTimeWithTimeZone>,
+    pub pinned: bool, // <-- added
 
     // Relations
     #[sea_orm(belongs_to, from = "profile_id", to = "id")]

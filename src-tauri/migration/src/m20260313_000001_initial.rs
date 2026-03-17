@@ -187,6 +187,7 @@ impl MigrationTrait for Migration {
                             .default(Expr::current_timestamp()),
                     )
                     .col(timestamp_with_time_zone(Conversations::ArchivedAt).null())
+                    .col(boolean(Conversations::Pinned).not_null().default(false)) // <-- added
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_conversations_profile_id")
@@ -1489,6 +1490,7 @@ enum Conversations {
     CreatedAt,
     UpdatedAt,
     ArchivedAt,
+    Pinned, // <-- added
 }
 
 #[derive(DeriveIden)]
