@@ -9,65 +9,70 @@
  *  4. Done     — launch CTA
  */
 
-import { useState } from 'react';
-import { ArrowRight, Check, Key, Mail, Rocket, Shield } from 'lucide-react';
-import { toast } from 'sonner';
-import { useUIStore } from '@/store/ui';
-import { commands } from '@/lib/bindings';
-import { updatePlatformPreferences, ensurePlatformRegistration } from '@/lib/platform';
+import { ArrowRight, Check, Key, Mail, Rocket, Shield } from 'lucide-react'
+import { useState } from 'react'
+import { toast } from 'sonner'
+import { commands } from '@/lib/bindings'
+import {
+  ensurePlatformRegistration,
+  updatePlatformPreferences
+} from '@/lib/platform'
+import { useUIStore } from '@/store/ui'
 
-type Step = 'welcome' | 'apikey' | 'platform' | 'done';
+type Step = 'welcome' | 'apikey' | 'platform' | 'done'
 
 export function OnboardingWizard() {
-  const onboardingComplete = useUIStore((s) => s.onboardingComplete);
-  const setOnboardingComplete = useUIStore((s) => s.setOnboardingComplete);
-  const setPlatformFeaturesEnabled = useUIStore((s) => s.setPlatformFeaturesEnabled);
+  const onboardingComplete = useUIStore((s) => s.onboardingComplete)
+  const setOnboardingComplete = useUIStore((s) => s.setOnboardingComplete)
+  const setPlatformFeaturesEnabled = useUIStore(
+    (s) => s.setPlatformFeaturesEnabled
+  )
 
-  const [step, setStep] = useState<Step>('welcome');
-  const [email, setEmail] = useState('');
-  const [apiKeyDraft, setApiKeyDraft] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [step, setStep] = useState<Step>('welcome')
+  const [email, setEmail] = useState('')
+  const [apiKeyDraft, setApiKeyDraft] = useState('')
+  const [saving, setSaving] = useState(false)
 
   // If onboarding already completed, don't render anything
-  if (onboardingComplete) return null;
+  if (onboardingComplete) return null
 
   async function saveApiKey() {
     if (!apiKeyDraft.trim()) {
-      setStep('platform');
-      return;
+      setStep('platform')
+      return
     }
-    setSaving(true);
+    setSaving(true)
     try {
-      const res = await commands.setApiKey('claude', apiKeyDraft.trim());
-      if (res.status === 'error') throw new Error(res.error);
-      toast.success('API key saved');
-      setStep('platform');
+      const res = await commands.setApiKey('claude', apiKeyDraft.trim())
+      if (res.status === 'error') throw new Error(res.error)
+      toast.success('API key saved')
+      setStep('platform')
     } catch (e: any) {
-      toast.error(e?.message ?? 'Failed to save key');
+      toast.error(e?.message ?? 'Failed to save key')
     } finally {
-      setSaving(false);
+      setSaving(false)
     }
   }
 
   async function savePlatformEmail() {
-    setSaving(true);
+    setSaving(true)
     try {
-      await ensurePlatformRegistration();
+      await ensurePlatformRegistration()
       if (email.trim()) {
         await updatePlatformPreferences({
           email: email.trim(),
-          analytics_opt_in: false,
-        });
-        toast.success('Email saved — check your inbox to verify');
+          analytics_opt_in: false
+        })
+        toast.success('Email saved — check your inbox to verify')
       }
-      setPlatformFeaturesEnabled(true);
-      setStep('done');
+      setPlatformFeaturesEnabled(true)
+      setStep('done')
     } catch {
       // Non-fatal — platform features are optional
-      setPlatformFeaturesEnabled(false);
-      setStep('done');
+      setPlatformFeaturesEnabled(false)
+      setStep('done')
     } finally {
-      setSaving(false);
+      setSaving(false)
     }
   }
 
@@ -86,13 +91,15 @@ export function OnboardingWizard() {
                     ? '50%'
                     : step === 'platform'
                       ? '75%'
-                      : '100%',
+                      : '100%'
             }}
           />
         </div>
 
         <div className="p-8">
-          {step === 'welcome' && <WelcomeStep onNext={() => setStep('apikey')} />}
+          {step === 'welcome' && (
+            <WelcomeStep onNext={() => setStep('apikey')} />
+          )}
           {step === 'apikey' && (
             <ApiKeyStep
               draft={apiKeyDraft}
@@ -108,17 +115,19 @@ export function OnboardingWizard() {
               onChange={setEmail}
               onNext={savePlatformEmail}
               onSkip={() => {
-                setPlatformFeaturesEnabled(false);
-                setStep('done');
+                setPlatformFeaturesEnabled(false)
+                setStep('done')
               }}
               saving={saving}
             />
           )}
-          {step === 'done' && <DoneStep onFinish={() => setOnboardingComplete(true)} />}
+          {step === 'done' && (
+            <DoneStep onFinish={() => setOnboardingComplete(true)} />
+          )}
         </div>
       </div>
     </div>
-  );
+  )
 }
 
 // ── Step components ───────────────────────────────────────────────────────────
@@ -132,8 +141,10 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
       <div>
         <h1 className="text-2xl font-bold mb-2">Welcome to SkillDeck</h1>
         <p className="text-muted-foreground">
-          Build, share, and control AI workflows—<strong>without the cloud</strong>.
-          Your code never leaves your machine, and your skills are version‑controlled like any other dev artifact.
+          Build, share, and control AI workflows—
+          <strong>without the cloud</strong>. Your code never leaves your
+          machine, and your skills are version‑controlled like any other dev
+          artifact.
         </p>
       </div>
       <div className="grid gap-3 text-left">
@@ -141,18 +152,18 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
           {
             icon: <Shield size={16} className="text-emerald-500" />,
             title: 'Your data stays local',
-            desc: 'API keys live in your OS keychain; conversations never leave your device.',
+            desc: 'API keys live in your OS keychain; conversations never leave your device.'
           },
           {
             icon: <Key size={16} className="text-blue-500" />,
             title: 'Skills are code',
-            desc: 'Version‑controlled, shareable as Gists, and composable like any other dev tool.',
+            desc: 'Version‑controlled, shareable as Gists, and composable like any other dev tool.'
           },
           {
             icon: <Rocket size={16} className="text-violet-500" />,
             title: 'From chat to intelligence',
-            desc: 'Orchestrate multi‑agent workflows with parallel execution and evaluator‑optimizer patterns.',
-          },
+            desc: 'Orchestrate multi‑agent workflows with parallel execution and evaluator‑optimizer patterns.'
+          }
         ].map(({ icon, title, desc }) => (
           <div key={title} className="flex gap-3 p-3 rounded-lg bg-muted/40">
             <div className="mt-0.5 shrink-0">{icon}</div>
@@ -171,7 +182,7 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
         Deal me in <ArrowRight size={16} />
       </button>
     </div>
-  );
+  )
 }
 
 function ApiKeyStep({
@@ -179,24 +190,29 @@ function ApiKeyStep({
   onChange,
   onNext,
   onSkip,
-  saving,
+  saving
 }: {
-  draft: string;
-  onChange: (v: string) => void;
-  onNext: () => void;
-  onSkip: () => void;
-  saving: boolean;
+  draft: string
+  onChange: (v: string) => void
+  onNext: () => void
+  onSkip: () => void
+  saving: boolean
 }) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-bold mb-1">Connect your first AI provider</h2>
+        <h2 className="text-xl font-bold mb-1">
+          Connect your first AI provider
+        </h2>
         <p className="text-sm text-muted-foreground">
-          SkillDeck needs an API key to chat with models. Start with Claude (Anthropic) – you can add more providers later in Settings.
+          SkillDeck needs an API key to chat with models. Start with Claude
+          (Anthropic) – you can add more providers later in Settings.
         </p>
       </div>
       <div className="space-y-2">
-        <label htmlFor="api-key" className="text-sm font-medium">Anthropic API Key</label>
+        <label htmlFor="api-key" className="text-sm font-medium">
+          Anthropic API Key
+        </label>
         <input
           id="api-key"
           type="password"
@@ -206,7 +222,8 @@ function ApiKeyStep({
           className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring font-mono"
         />
         <p className="text-xs text-muted-foreground">
-          Stored encrypted in your OS keychain — we never see it, and it never touches the cloud.
+          Stored encrypted in your OS keychain — we never see it, and it never
+          touches the cloud.
         </p>
       </div>
       <div className="flex gap-3">
@@ -223,7 +240,9 @@ function ApiKeyStep({
           disabled={saving}
           className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2"
         >
-          {saving ? 'Saving…' : (
+          {saving ? (
+            'Saving…'
+          ) : (
             <>
               <span>Next</span> <ArrowRight size={14} />
             </>
@@ -231,7 +250,7 @@ function ApiKeyStep({
         </button>
       </div>
     </div>
-  );
+  )
 }
 
 function PlatformStep({
@@ -239,21 +258,23 @@ function PlatformStep({
   onChange,
   onNext,
   onSkip,
-  saving,
+  saving
 }: {
-  email: string;
-  onChange: (v: string) => void;
-  onNext: () => void;
-  onSkip: () => void;
-  saving: boolean;
+  email: string
+  onChange: (v: string) => void
+  onNext: () => void
+  onSkip: () => void
+  saving: boolean
 }) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-bold mb-1">Join the SkillDeck community (optional)</h2>
+        <h2 className="text-xl font-bold mb-1">
+          Join the SkillDeck community (optional)
+        </h2>
         <p className="text-sm text-muted-foreground">
-          Get weekly skill‑sharing tips, referral rewards, and product updates that matter to developers.
-          No spam – unsubscribe anytime.
+          Get weekly skill‑sharing tips, referral rewards, and product updates
+          that matter to developers. No spam – unsubscribe anytime.
         </p>
       </div>
       <div className="flex gap-3 p-4 rounded-lg bg-primary/5 border border-primary/20">
@@ -268,7 +289,9 @@ function PlatformStep({
         </div>
       </div>
       <div className="space-y-2">
-        <label htmlFor="email" className="text-sm font-medium">Email address</label>
+        <label htmlFor="email" className="text-sm font-medium">
+          Email address
+        </label>
         <input
           id="email"
           type="email"
@@ -292,7 +315,9 @@ function PlatformStep({
           disabled={saving}
           className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2"
         >
-          {saving ? 'Saving…' : email ? (
+          {saving ? (
+            'Saving…'
+          ) : email ? (
             <>
               <span>Save & continue</span> <ArrowRight size={14} />
             </>
@@ -304,7 +329,7 @@ function PlatformStep({
         </button>
       </div>
     </div>
-  );
+  )
 }
 
 function DoneStep({ onFinish }: { onFinish: () => void }) {
@@ -316,7 +341,8 @@ function DoneStep({ onFinish }: { onFinish: () => void }) {
       <div>
         <h2 className="text-xl font-bold mb-2">You're ready to deal!</h2>
         <p className="text-sm text-muted-foreground">
-          Your deck is assembled. Start a conversation, explore the skill marketplace, or build your first multi‑agent workflow.
+          Your deck is assembled. Start a conversation, explore the skill
+          marketplace, or build your first multi‑agent workflow.
         </p>
       </div>
       <button
@@ -327,5 +353,5 @@ function DoneStep({ onFinish }: { onFinish: () => void }) {
         Open SkillDeck
       </button>
     </div>
-  );
+  )
 }

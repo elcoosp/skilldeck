@@ -9,7 +9,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query'
-import { motion } from 'framer-motion' // <-- added
+import { motion } from 'framer-motion'
 import {
   BarChart2,
   ChevronRight,
@@ -240,7 +240,7 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
         </h3>
 
         <div className="space-y-1">
-          <label className="text-xs text-muted-foreground">Provider</label>
+          <span className="text-xs text-muted-foreground">Provider</span>
           <div className="text-xs font-medium px-2 py-1 rounded bg-muted/50 flex items-center gap-1.5">
             {effectiveProvider}
             {isUsingFallback && (
@@ -279,11 +279,11 @@ function ModelSelector({
 
   return (
     <div className="space-y-1">
-      <label className="text-xs text-muted-foreground">
+      <label htmlFor="model-select" className="text-xs text-muted-foreground">
         Model {isLoading && <span className="opacity-50">(loading…)</span>}
       </label>
       <Select value={safeSelected} onValueChange={setSelected}>
-        <SelectTrigger className="h-7 text-xs">
+        <SelectTrigger id="model-select" className="h-7 text-xs">
           <SelectValue placeholder="Select model" />
         </SelectTrigger>
         <SelectContent>
@@ -311,7 +311,7 @@ function WorkflowTab() {
     if (confirm(`Delete workflow "${name}"?`)) {
       deleteWorkflow.mutate(id, {
         onSuccess: () => toast.success('Workflow deleted'),
-        onError: (err) => toast.error('Failed to delete: ' + err)
+        onError: (err) => toast.error(`Failed to delete: ${err}`)
       })
     }
   }

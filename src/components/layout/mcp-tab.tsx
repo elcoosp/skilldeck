@@ -3,8 +3,9 @@
  * McpTab — full MCP server management panel.
  */
 
-import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { openUrl } from '@tauri-apps/plugin-opener'
+import { motion } from 'framer-motion'
 import {
   ChevronRight,
   ExternalLink,
@@ -13,17 +14,16 @@ import {
   Server,
   Zap
 } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { useState } from 'react'
 import { toast } from 'sonner'
-import { openUrl } from '@tauri-apps/plugin-opener'
-import { cn } from '@/lib/utils'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import type { AddMcpServerPayload, McpServerResponse } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
-import type { McpServerResponse, AddMcpServerPayload } from '@/lib/bindings'
+import { cn } from '@/lib/utils'
 
 import { CatalogCard } from './catalog-card'
-import { LiveServerCard } from './live-server-card'
 import { CustomServerForm } from './custom-server-form'
+import { LiveServerCard } from './live-server-card'
 
 // Export types needed by child components
 export interface CatalogEntry {
@@ -36,13 +36,13 @@ export interface CatalogEntry {
   url?: string
   docsUrl: string
   category:
-  | 'filesystem'
-  | 'web'
-  | 'data'
-  | 'dev'
-  | 'productivity'
-  | 'cloud'
-  | 'observability'
+    | 'filesystem'
+    | 'web'
+    | 'data'
+    | 'dev'
+    | 'productivity'
+    | 'cloud'
+    | 'observability'
   tags: string[]
 }
 
@@ -496,7 +496,9 @@ export function McpTab() {
     })
   }
 
-  const addedNames = new Set(servers.map((s: McpServerResponse) => s.name.toLowerCase()))
+  const addedNames = new Set(
+    servers.map((s: McpServerResponse) => s.name.toLowerCase())
+  )
   const isAdded = (entry: CatalogEntry) =>
     addedNames.has(entry.name.toLowerCase())
   const filteredCatalog =
@@ -651,7 +653,8 @@ export function McpTab() {
                 Your agent needs friends.
               </h3>
               <p className="text-sm text-muted-foreground max-w-xs">
-                Add an MCP server to give it new tools—like a brain with extra senses.
+                Add an MCP server to give it new tools—like a brain with extra
+                senses.
               </p>
             </motion.div>
           ) : (
@@ -664,11 +667,19 @@ export function McpTab() {
             <div className="flex items-center gap-3 px-1 pt-1 text-[11px] text-muted-foreground">
               <span className="flex items-center gap-1">
                 <span className="size-1.5 rounded-full bg-green-500 inline-block" />
-                {servers.filter((s: McpServerResponse) => s.status === 'connected').length}{' '}
+                {
+                  servers.filter(
+                    (s: McpServerResponse) => s.status === 'connected'
+                  ).length
+                }{' '}
                 connected
               </span>
               <span>
-                {servers.reduce((n: number, s: McpServerResponse) => n + s.tools.length, 0)} tools
+                {servers.reduce(
+                  (n: number, s: McpServerResponse) => n + s.tools.length,
+                  0
+                )}{' '}
+                tools
               </span>
             </div>
           )}
