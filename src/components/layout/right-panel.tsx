@@ -141,8 +141,17 @@ function useAvailableModels(provider: string) {
 }
 
 function SessionTab({ conversationId }: { conversationId: string | null }) {
-  const { data: conversations } = useConversations();
+  // Get profiles and default profile to pass to conversations query
   const { data: profiles } = useProfiles();
+  const defaultProfile = profiles?.find((p) => p.is_default) ?? profiles?.[0];
+
+  // Pass profileId to useConversations() so it uses the SAME query key as left-panel
+  const {
+    data: conversations,
+    isLoading: conversationsLoading,
+    refetch
+  } = useConversations(defaultProfile?.id);
+
   const { data: keyStatuses = [] } = useQuery({
     queryKey: ['api-keys'],
     queryFn: async () => {
@@ -157,14 +166,44 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
     return <div className="p-4 text-xs text-muted-foreground">No active conversation.</div>;
   }
 
+  if (conversationsLoading) {
+    return (
+      <div className="p-4 text-xs text-muted-foreground flex items-center gap-2">
+        <div className="size-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        Loading conversations...
+      </div>
+    );
+  }
+
   const conversation = conversations?.find((c) => c.id === conversationId);
+
   if (!conversation) {
-    return <div className="p-4 text-xs text-muted-foreground">Loading conversation…</div>;
+    return (
+      <div className="p-4 space-y-3">
+        <p className="text-xs text-muted-foreground">
+          Conversation not found. It may still be loading or may have been deleted.
+        </p>
+        <div className="flex gap-2">
+          <Button size="xs" variant="outline" onClick={() => refetch()}>
+            Refresh
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   const profile = profiles?.find((p) => p.id === conversation.profile_id);
   if (!profile) {
-    return <div className="p-4 text-xs text-muted-foreground">Profile not found.</div>;
+    return (
+      <div className="p-4 space-y-3">
+        <p className="text-xs text-muted-foreground">
+          Profile for this conversation not found.
+        </p>
+        <Button size="xs" variant="outline" onClick={() => refetch()}>
+          Refresh
+        </Button>
+      </div>
+    );
   }
 
   const hasKeyForProvider = (p: string) => keyStatuses.find((k) => k.provider === p)?.has_key ?? false;
@@ -192,7 +231,9 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
           <div className="text-xs font-medium px-2 py-1 rounded bg-muted/50 flex items-center gap-1.5">
             {effectiveProvider}
             {isUsingFallback && (
-              <span className="text-[10px] text-amber-500 font-normal">(no API key — using Ollama)</span>
+              <span className="text-[10px] text-amber-500 font-normal" title={`No API key found for ${profile.model_provider}. Using local Ollama instead.`}>
+                (fallback)
+              </span>
             )}
           </div>
         </div>

@@ -23,6 +23,8 @@ import { useProfiles } from '@/hooks/use-profiles'
 import { useWorkspaces, useOpenWorkspace } from '@/hooks/use-workspaces'
 import { useUIStore } from '@/store/ui'
 import { cn } from '@/lib/utils'
+import { useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 
 export function LeftPanel() {
   const searchQuery = useUIStore((s) => s.searchQuery)
@@ -33,13 +35,22 @@ export function LeftPanel() {
   const activeWorkspaceId = useUIStore((s) => s.activeWorkspaceId)
   const setActiveWorkspace = useUIStore((s) => s.setActiveWorkspace)
 
-  const { data: conversations, isLoading } = useConversations()
-  const { data: profiles } = useProfiles()
+  // Track which conversation is being deleted for animation
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  // Get profiles first
+  const { data: profiles, isLoading: profilesLoading } = useProfiles()
+  const defaultProfile = profiles?.find((p) => p.is_default) ?? profiles?.[0]
+
+  // Pass the profile ID to conversations query
+  const { data: conversations, isLoading: conversationsLoading } = useConversations(defaultProfile?.id)
+
+  // CRITICAL FIX: Pass the profile ID to useCreateConversation so it can invalidate the correct query key
+  const createConversation = useCreateConversation(defaultProfile?.id)
+
   const { data: workspaces = [] } = useWorkspaces()
   const openWorkspace = useOpenWorkspace()
-  const createConversation = useCreateConversation()
 
-  const defaultProfile = profiles?.find((p) => p.is_default) ?? profiles?.[0]
   const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId)
 
   const filtered = conversations?.filter((c) =>
@@ -53,7 +64,7 @@ export function LeftPanel() {
       toast.error('No profile found. Add one in Settings.')
       return
     }
-    createConversation.mutate({ profileId: defaultProfile.id })
+    createConversation.mutate({ title: undefined })
   }
 
   const handleOpenWorkspace = async () => {
@@ -89,6 +100,16 @@ export function LeftPanel() {
     }
   }
 
+  const handleDeleteStart = (conversationId: string) => {
+    setDeletingId(conversationId)
+  }
+
+  const handleDeleteComplete = () => {
+    setDeletingId(null)
+  }
+
+  const isLoading = profilesLoading || conversationsLoading
+
   return (
     <div className="flex flex-col h-full select-none">
       {/* Header */}
@@ -111,7 +132,7 @@ export function LeftPanel() {
           className="w-full mb-2"
           size="sm"
           onClick={handleNew}
-          disabled={createConversation.isPending}
+          disabled={createConversation.isPending || !defaultProfile}
         >
           <Plus className="size-4 mr-1.5" />
           New Chat
@@ -157,14 +178,29 @@ export function LeftPanel() {
               </div>
             )
           ) : (
-            filtered?.map((c) => (
-              <ConversationItem
-                key={c.id}
-                conversation={c}
-                isActive={c.id === activeConversationId}
-                onClick={() => setActiveConversation(c.id)}
-              />
-            ))
+            <AnimatePresence mode="popLayout" onExitComplete={handleDeleteComplete}>
+              {filtered?.map((c) => (
+                <motion.div
+                  key={c.id}
+                  layout
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{
+                    opacity: 0,
+                    x: -10,
+                    transition: { duration: 0.2 }
+                  }}
+                >
+                  <ConversationItem
+                    conversation={c}
+                    isActive={c.id === activeConversationId}
+                    isDeleting={c.id === deletingId}
+                    onDeleteStart={() => handleDeleteStart(c.id)}
+                    onClick={() => setActiveConversation(c.id)}
+                  />
+                </motion.div>
+              ))}
+            </AnimatePresence>
           )}
         </div>
       </ScrollArea>

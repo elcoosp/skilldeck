@@ -19,12 +19,15 @@ export function useMessages(
   return useQuery({
     queryKey: ['messages', conversationId, branchId],
     queryFn: async () => {
+      if (!conversationId) return [];
       const res = await commands.listMessages(conversationId!, branchId ?? null);
       if (res.status === 'ok') return res.data;
       throw new Error(res.error);
     },
     enabled: !!conversationId,
     staleTime: 0, // Always fresh after agent completes
+    // FIX: Keep previous data while refetching to avoid UI flicker
+    placeholderData: (previousData) => previousData,
   });
 }
 

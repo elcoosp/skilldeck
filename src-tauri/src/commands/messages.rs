@@ -112,7 +112,7 @@ pub async fn send_message(
     };
     user_msg.insert(db).await.map_err(|e| e.to_string())?;
 
-    // NEW: Emit Persisted event immediately so UI shows the user message right away.
+    // CRITICAL FIX: Emit Persisted event immediately so UI shows the user message right away
     let _ = app.emit(
         "agent-event",
         AgentEvent::Persisted {
@@ -269,6 +269,17 @@ impl SubagentSpawner for SpawnerWithContext {
             .get(subagent_id)
             .map(|r| r.clone())
     }
+}
+
+/// Check if an error is retryable (transient)
+fn is_retryable_error(e: &skilldeck_core::CoreError) -> bool {
+    matches!(
+        e,
+        skilldeck_core::CoreError::ModelConnection { .. }
+            | skilldeck_core::CoreError::ModelRateLimited { .. }
+            | skilldeck_core::CoreError::ModelTimeout { .. }
+            | skilldeck_core::CoreError::ModelInternal { .. }
+    )
 }
 
 /// Drive the `AgentLoop` and forward every event to the Tauri bus.

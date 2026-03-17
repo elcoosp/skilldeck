@@ -164,16 +164,6 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
-        manager
-            .create_index(
-                Index::create()
-                    .name("idx_registry_skills_name")
-                    .table(RegistrySkills::Table)
-                    .col(RegistrySkills::Name)
-                    .to_owned(),
-            )
-            .await?;
-
         // conversations
         manager
             .create_table(
