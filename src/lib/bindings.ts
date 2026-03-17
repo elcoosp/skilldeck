@@ -6,6 +6,17 @@
 
 export const commands = {
 /**
+ * Manually trigger processing of queued messages for a conversation.
+ */
+async processQueuedMessages(conversationId: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("process_queued_messages", { conversationId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Set the auto-send paused flag for a conversation.
  */
 async setAutoSendPaused(conversationId: string, paused: boolean) : Promise<Result<null, string>> {

@@ -8,12 +8,13 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
+  Clock,
   Copy,
   Loader2,
   User,
   Wrench
 } from 'lucide-react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { MarkdownHooks } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { MessageData } from '@/lib/bindings'
@@ -107,6 +108,20 @@ export function MessageBubble({
   const isSystem = message.role === 'system'
   const syntheticStreaming = message.id === '__streaming__'
 
+  // Check if this message was sent from the queue (only user messages can be queued)
+  const isFromQueue = useMemo(() => {
+    if (!isUser) return false
+    if (!message.metadata) return false
+    try {
+      const meta = typeof message.metadata === 'string'
+        ? JSON.parse(message.metadata)
+        : message.metadata
+      return meta.from_queue === true
+    } catch {
+      return false
+    }
+  }, [message.metadata, isUser])
+
   // Check if this is a subagent spawn message
   if (isAssistant && !isStreaming && message.content) {
     try {
@@ -116,7 +131,7 @@ export function MessageBubble({
           <SubagentCard
             stepName={data.task || 'Subagent'}
             status="running"
-            onOpen={() => {}} // TODO: navigate to subagent conversation
+            onOpen={() => { }} // TODO: navigate to subagent conversation
           />
         )
       }
@@ -162,9 +177,7 @@ export function MessageBubble({
       </div>
 
       {/* Bubble */}
-      <div
-        className={cn('relative max-w-[78%] min-w-0', isUser && 'text-right')}
-      >
+      <div className={cn('relative max-w-[78%] min-w-0', isUser && 'text-right')}>
         <div
           className={cn(
             'inline-block px-3.5 py-2.5 rounded-xl text-sm leading-relaxed',
@@ -175,6 +188,16 @@ export function MessageBubble({
                 : 'bg-muted rounded-tl-sm'
           )}
         >
+          {/* Queued indicator for user messages */}
+          {isFromQueue && (
+            <div
+              className="absolute top-1 right-1 text-primary-foreground/50 hover:text-primary-foreground transition-colors"
+              title="Sent from queue"
+            >
+              <Clock className="size-3" />
+            </div>
+          )}
+
           {/* Collapse header — only shown once streaming is done */}
           {canCollapse && (
             <div className="flex items-center justify-between mb-1 text-muted-foreground">

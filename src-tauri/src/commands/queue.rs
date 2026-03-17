@@ -315,11 +315,6 @@ pub async fn auto_send_next_queued(
         if let Some(first) = queued.first() {
             // Delete it from queue
             if let Ok(()) = delete_queued_message_internal(&state, &first.id).await {
-                // Build metadata
-                let metadata = serde_json::json!({
-                    "from_queue": true,
-                    "queued_at": first.created_at,
-                });
                 // Send it in a spawned task
                 let state_clone = state.clone();
                 let conv_clone = conversation_id.to_string();
