@@ -127,17 +127,8 @@ export function MessageBubble({
   }, [message.metadata, isUser])
 
   // Extract context items from metadata
-  const contextItems = useMemo(() => {
-    if (!message.metadata) return []
-    try {
-      const meta = typeof message.metadata === 'string'
-        ? JSON.parse(message.metadata)
-        : message.metadata
-      return meta.context_items || []
-    } catch {
-      return []
-    }
-  }, [message.metadata])
+
+  const contextItems = message.context_items || [];
 
   // Check if this is a subagent spawn message
   if (isAssistant && !isStreaming && message.content) {

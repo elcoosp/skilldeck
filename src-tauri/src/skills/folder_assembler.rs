@@ -1,7 +1,7 @@
 //! Folder content assembler — walks a directory and concatenates file contents.
 //! Uses the `ignore` crate to respect .gitignore, hidden files, etc.
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use ignore::WalkBuilder;
 use std::fs;
 use std::path::Path;
@@ -46,7 +46,7 @@ pub fn assemble_folder_context(
             if total_bytes + content.len() > limit {
                 let remaining = limit.saturating_sub(total_bytes);
                 output.push_str(&content[..remaining]);
-                total_bytes = limit;
+                // total_bytes = limit; // <-- removed, not needed after break
                 break;
             }
         }

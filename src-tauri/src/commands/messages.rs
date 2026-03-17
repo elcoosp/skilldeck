@@ -27,6 +27,8 @@ pub struct MessageData {
     pub role: String,
     pub content: String,
     pub created_at: String,
+
+    pub context_items: Option<Vec<ContextItem>>,
 }
 
 #[specta]
@@ -63,12 +65,18 @@ pub async fn list_messages(
 
     Ok(rows
         .into_iter()
-        .map(|m| MessageData {
-            id: m.id.to_string(),
-            conversation_id: m.conversation_id.to_string(),
-            role: m.role,
-            content: m.content,
-            created_at: m.created_at.to_string(),
+        .map(|m| {
+            let context_items = m
+                .context_items
+                .and_then(|json| serde_json::from_value::<Vec<ContextItem>>(json).ok());
+            MessageData {
+                id: m.id.to_string(),
+                conversation_id: m.conversation_id.to_string(),
+                role: m.role,
+                content: m.content,
+                created_at: m.created_at.to_string(),
+                context_items,
+            }
         })
         .collect())
 }
@@ -495,8 +503,14 @@ fn run_agent_loop(
             }
         }
 
+        // Log all skill names currently in the registry for debugging
+        let all_skills = state.registry.skill_registry.skills().await;
+        let skill_names: Vec<String> = all_skills.into_iter().map(|s| s.name).collect();
+        tracing::info!("Skills in registry: {:?}", skill_names);
+
         // Inject attached context items (if any)
         if let Some(items) = context_items {
+            tracing::info!("Processing {} context items", items.len());
             let mut combined_context = String::new();
             for item in items {
                 match item {
@@ -527,20 +541,34 @@ fn run_agent_loop(
                         }
                     }
                     ContextItem::Skill { name } => {
+                        tracing::info!("Looking up skill: '{}'", name);
                         if let Some(skill) = state.registry.skill_registry.get_skill(&name).await {
+                            tracing::info!(
+                                "Found skill '{}' with content length {}",
+                                name,
+                                skill.content_md.len()
+                            );
                             combined_context.push_str(&format!(
                                 "--- Skill: {} ---\n{}\n\n",
                                 name, skill.content_md
                             ));
                         } else {
-                            tracing::warn!("Skill not found: {}", name);
+                            tracing::warn!("Skill not found in registry: '{}'", name);
                         }
                     }
                 }
             }
             if !combined_context.is_empty() {
+                tracing::info!(
+                    "Injecting combined context of length {}",
+                    combined_context.len()
+                );
                 agent = agent.with_skill(combined_context);
+            } else {
+                tracing::warn!("No skill content to inject (combined_context empty)");
             }
+        } else {
+            tracing::info!("No context items to inject");
         }
 
         let loop_handle = tokio::spawn(async move { agent.run(user_message).await });
@@ -616,6 +644,7 @@ fn run_agent_loop(
                         role: Set(role_str.to_string()),
                         content: Set(msg.content),
                         created_at: Set(now),
+                        context_items: Set(Some(serde_json::Value::Array(vec![]))),
                         ..Default::default()
                     };
                     if let Err(e) = active.insert(db).await {
