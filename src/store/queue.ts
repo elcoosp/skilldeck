@@ -25,7 +25,7 @@ interface QueueUIState {
 
 export const useQueueStore = create<QueueUIState>()(
   persist(
-    (set, get) => ({
+    (set, _get) => ({
       expanded: {},
       mode: {},
       selectedIds: {},

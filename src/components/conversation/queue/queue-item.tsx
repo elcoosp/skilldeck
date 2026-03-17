@@ -1,11 +1,11 @@
 // src/components/conversation/queue/queue-item.tsx
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, Pencil, Trash2, CheckSquare, Square } from 'lucide-react'
-import { useQueueStore } from '@/store/queue'
+import { CheckSquare, GripVertical, Pencil, Square, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
 import type { QueuedMessage } from '@/hooks/use-queued-messages'
+import { cn } from '@/lib/utils'
+import { useQueueStore } from '@/store/queue'
 import { QueueEditForm } from './queue-edit-form'
 
 interface QueueItemProps {
@@ -15,21 +15,26 @@ interface QueueItemProps {
   total: number
 }
 
-export function QueueItem({ message, conversationId, position, total }: QueueItemProps) {
+export function QueueItem({
+  message,
+  conversationId,
+  position,
+  total
+}: QueueItemProps) {
   const {
     mode,
     selectedIds,
     editingId,
     toggleSelected,
     setEditingId,
-    setIsDragging,
+    setIsDragging
   } = useQueueStore((s) => ({
     mode: s.mode[conversationId] ?? 'view',
     selectedIds: s.selectedIds[conversationId] ?? new Set(),
     editingId: s.editingId[conversationId],
     toggleSelected: s.toggleSelected,
     setEditingId: s.setEditingId,
-    setIsDragging: s.setIsDragging,
+    setIsDragging: s.setIsDragging
   }))
 
   const {
@@ -38,7 +43,7 @@ export function QueueItem({ message, conversationId, position, total }: QueueIte
     setNodeRef,
     transform,
     transition,
-    isDragging: isDraggingItem,
+    isDragging: isDraggingItem
   } = useSortable({ id: message.id })
 
   // Update global dragging state
@@ -50,7 +55,7 @@ export function QueueItem({ message, conversationId, position, total }: QueueIte
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
+    transition
   }
 
   const isSelected = selectedIds.has(message.id)

@@ -1,8 +1,8 @@
 // src/components/conversation/queue/queue-header.tsx
 import { ChevronDown, ChevronRight, Edit2, X } from 'lucide-react'
-import { useQueueStore } from '@/store/queue'
 import { Button } from '@/components/ui/button'
 import type { QueuedMessage } from '@/hooks/use-queued-messages'
+import { useQueueStore } from '@/store/queue'
 
 interface QueueHeaderProps {
   conversationId: string
@@ -12,7 +12,9 @@ interface QueueHeaderProps {
 export function QueueHeader({ conversationId, messages }: QueueHeaderProps) {
   const expanded = useQueueStore((s) => s.expanded[conversationId] ?? false)
   const mode = useQueueStore((s) => s.mode[conversationId] ?? 'view')
-  const selectedIds = useQueueStore((s) => s.selectedIds[conversationId] ?? new Set())
+  const selectedIds = useQueueStore(
+    (s) => s.selectedIds[conversationId] ?? new Set()
+  )
   const setExpanded = useQueueStore((s) => s.setExpanded)
   const setMode = useQueueStore((s) => s.setMode)
   const clearSelected = useQueueStore((s) => s.clearSelected)

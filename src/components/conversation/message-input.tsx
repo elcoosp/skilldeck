@@ -25,7 +25,10 @@ import { Textarea } from '@/components/ui/textarea'
 import { useCreateConversation } from '@/hooks/use-conversations'
 import { useSendMessage } from '@/hooks/use-messages'
 import { useProfiles } from '@/hooks/use-profiles'
-import { useQueuedMessages, useAddQueuedMessage } from '@/hooks/use-queued-messages'
+import {
+  useAddQueuedMessage,
+  useQueuedMessages
+} from '@/hooks/use-queued-messages'
 import { useUnifiedSkills } from '@/hooks/use-unified-skills'
 import { useWorkspaces } from '@/hooks/use-workspaces'
 import type { RegistrySkillData } from '@/lib/bindings'
@@ -84,7 +87,9 @@ export function MessageInput({ conversationId }: MessageInputProps) {
   // ── Queue ─────────────────────────────────────────────────────────────────
   const { data: queuedMessages = [] } = useQueuedMessages(conversationId)
   const addQueuedMessage = useAddQueuedMessage(conversationId)
-  const queueExpanded = useQueueStore((s) => s.expanded[conversationId] ?? false)
+  const queueExpanded = useQueueStore(
+    (s) => s.expanded[conversationId] ?? false
+  )
 
   // ── Unified skills for @ picker ─────────────────────────────────────────
   const { unifiedSkills = [], isLoading: skillsLoading } = useUnifiedSkills()
@@ -471,7 +476,10 @@ export function MessageInput({ conversationId }: MessageInputProps) {
       {/* Queue header – always visible when there are messages */}
       {queuedMessages.length > 0 && (
         <div className="space-y-1">
-          <QueueHeader conversationId={conversationId} messages={queuedMessages} />
+          <QueueHeader
+            conversationId={conversationId}
+            messages={queuedMessages}
+          />
           {queueExpanded && <QueueList conversationId={conversationId} />}
         </div>
       )}
@@ -530,7 +538,9 @@ export function MessageInput({ conversationId }: MessageInputProps) {
           <Button
             size="icon-sm"
             className="shrink-0 mb-0.5"
-            onClick={isRunning ? () => addQueuedMessage.mutate(content) : submit}
+            onClick={
+              isRunning ? () => addQueuedMessage.mutate(content) : submit
+            }
             disabled={
               (!content.trim() && selectedFiles.length === 0) ||
               sendMutation.isPending ||

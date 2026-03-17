@@ -1,6 +1,7 @@
 // src/components/conversation/queue/queue-edit-form.tsx
-import { useState } from 'react'
+
 import { Check, X } from 'lucide-react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { useUpdateQueuedMessage } from '@/hooks/use-queued-messages'
@@ -17,7 +18,7 @@ export function QueueEditForm({
   conversationId,
   messageId,
   initialContent,
-  onCancel,
+  onCancel
 }: QueueEditFormProps) {
   const [content, setContent] = useState(initialContent)
   const updateMutation = useUpdateQueuedMessage(conversationId)
@@ -31,7 +32,7 @@ export function QueueEditForm({
         onSuccess: () => {
           setEditingId(conversationId, null)
           onCancel()
-        },
+        }
       }
     )
   }

@@ -7,7 +7,9 @@ interface QueuePauseIndicatorProps {
   conversationId: string
 }
 
-export function QueuePauseIndicator({ conversationId }: QueuePauseIndicatorProps) {
+export function QueuePauseIndicator({
+  conversationId
+}: QueuePauseIndicatorProps) {
   const editingId = useQueueStore((s) => s.editingId[conversationId])
   const isDragging = useQueueStore((s) => s.isDragging[conversationId] ?? false)
   const mode = useQueueStore((s) => s.mode[conversationId] ?? 'view')

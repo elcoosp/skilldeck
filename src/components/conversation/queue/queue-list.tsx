@@ -16,7 +16,6 @@ import {
 import {
   useQueuedMessages,
   useReorderQueuedMessages,
-  useDeleteQueuedMessage,
 } from '@/hooks/use-queued-messages'
 import { useQueueStore } from '@/store/queue'
 import { QueuePauseIndicator } from './queue-pause-indicator'
@@ -30,7 +29,6 @@ interface QueueListProps {
 export function QueueList({ conversationId }: QueueListProps) {
   const { data: messages = [], isLoading } = useQueuedMessages(conversationId)
   const reorderMutation = useReorderQueuedMessages(conversationId)
-  const deleteMutation = useDeleteQueuedMessage(conversationId)
 
   const mode = useQueueStore((s) => s.mode[conversationId] ?? 'view')
   const setIsDragging = useQueueStore((s) => s.setIsDragging)

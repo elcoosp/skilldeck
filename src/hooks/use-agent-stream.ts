@@ -76,7 +76,9 @@ export function useAgentStream(conversationId: string | null) {
           clearStreamingText(conversationId)
 
           // Invalidate queued messages query so the UI updates after auto-send
-          queryClient.invalidateQueries({ queryKey: ['queued-messages', conversationId] })
+          queryClient.invalidateQueries({
+            queryKey: ['queued-messages', conversationId]
+          })
           break
 
         case 'error':
