@@ -46,8 +46,8 @@ export function SubagentCard({
       onClick={onOpen}
       onKeyDown={(e) => e.key === 'Enter' && onOpen?.()}
       className={cn(
-        'my-2 flex items-center gap-3 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm',
-        onOpen && 'cursor-pointer hover:bg-muted transition-colors'
+        'my-2 flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2 text-sm',
+        onOpen && 'cursor-pointer hover:border-primary/50 hover:shadow-sm transition-all'
       )}
     >
       <Bot className="size-4 shrink-0 text-muted-foreground" />

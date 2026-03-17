@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { AlertTriangle, Check, Edit2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
 import { commands } from '@/lib/bindings'
 import { useAchievements } from '@/hooks/use-achievements'
 import type { ToolCallInfo } from '@/lib/events'
@@ -37,7 +38,6 @@ export function ToolApprovalCard({
           return
         }
       }
-      // JsonValue is compatible with Record<string,unknown> | null at runtime
       const jsonValue = parsed as any
       const res = await commands.resolveToolApproval(toolCallId, approved, jsonValue)
       if (res.status === 'error') throw new Error(res.error)
@@ -53,8 +53,8 @@ export function ToolApprovalCard({
   }
 
   return (
-    <div className="my-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
-      <div className="flex items-center gap-2 mb-2">
+    <div className="my-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 text-sm">
+      <div className="flex items-center gap-2 mb-3">
         <AlertTriangle className="size-4 text-amber-500 shrink-0" />
         <span className="font-medium text-amber-700 dark:text-amber-400">
           Tool approval required
@@ -71,14 +71,16 @@ export function ToolApprovalCard({
       <div className="mb-3">
         <div className="flex items-center justify-between mb-1">
           <span className="text-xs text-muted-foreground">Arguments</span>
-          <button
+          <Button
+            size="xs"
+            variant="ghost"
             onClick={() => setIsEditing((v) => !v)}
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
             disabled={resolving}
+            className="h-6 px-2 text-xs"
           >
-            <Edit2 className="size-3" />
+            <Edit2 className="size-3 mr-1" />
             {isEditing ? 'Lock' : 'Edit'}
-          </button>
+          </Button>
         </div>
 
         {isEditing ? (
@@ -100,28 +102,24 @@ export function ToolApprovalCard({
       </div>
 
       <div className="flex items-center gap-2">
-        <button
+        <Button
+          size="sm"
           onClick={() => resolve(true)}
           disabled={resolving}
-          className={cn(
-            'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
-            'bg-green-600 text-white hover:bg-green-700 disabled:opacity-50'
-          )}
+          className="bg-green-600 hover:bg-green-700 text-white"
         >
-          <Check className="size-3.5" />
+          <Check className="size-3.5 mr-1" />
           Approve
-        </button>
-        <button
+        </Button>
+        <Button
+          size="sm"
+          variant="destructive"
           onClick={() => resolve(false)}
           disabled={resolving}
-          className={cn(
-            'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
-            'bg-destructive/15 text-destructive hover:bg-destructive/25 disabled:opacity-50'
-          )}
         >
-          <X className="size-3.5" />
+          <X className="size-3.5 mr-1" />
           Deny
-        </button>
+        </Button>
       </div>
     </div>
   )

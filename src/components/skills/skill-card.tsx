@@ -3,13 +3,7 @@
 // Ensures one card per line with no horizontal overflow.
 
 import { useState } from 'react'
-import {
-  Bot,
-  ExternalLink,
-  Package,
-  Tag,
-  User
-} from 'lucide-react'
+import { Bot, ExternalLink, Package, Tag, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -45,11 +39,9 @@ export function SkillCard({
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
   const uninstallSkill = useUninstallSkill()
 
-  // Discriminate based on presence of _sourceType
   const isLocal = '_sourceType' in skill && skill._sourceType === 'local'
   const isRegistry = !isLocal
 
-  // Safe casts with unknown to avoid type errors
   const registrySkill = isRegistry ? (skill as unknown as RegistrySkillData) : null
   const localSkill = isLocal ? (skill as SkillInfo & { _sourceType: 'local' }) : null
 
@@ -105,15 +97,15 @@ export function SkillCard({
               qualityScore={registrySkill.qualityScore}
             />
           ) : (
-            <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+            <Badge variant="secondary" className="inline-flex items-center gap-1">
               <Tag className="size-2.5" />
               Local
-            </span>
+            </Badge>
           )}
           {isInstalled && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+            <Badge variant="default" className="bg-primary/10 text-primary border-primary/20">
               Installed
-            </span>
+            </Badge>
           )}
         </div>
 
@@ -155,9 +147,7 @@ export function SkillCard({
                 <span className="truncate">{registrySkill.author}</span>
               </span>
             )}
-            {localSkill && (
-              <span className="truncate max-w-full">Source: {localSkill.source}</span>
-            )}
+            {/* Removed redundant "Source: local" line */}
             {errorCount > 0 && (
               <span className="text-destructive shrink-0">
                 {errorCount} issue{errorCount > 1 ? 's' : ''}
@@ -169,7 +159,6 @@ export function SkillCard({
             {isLocal && (
               <Button
                 size="sm"
-                className="h-7 text-xs"
                 variant="destructive"
                 onClick={handleRemove}
               >
@@ -179,7 +168,6 @@ export function SkillCard({
             {isRegistry && !isInstalled && onInstall && (
               <Button
                 size="sm"
-                className="h-7 text-xs"
                 onClick={(e) => {
                   e.stopPropagation()
                   onInstall()
@@ -189,16 +177,17 @@ export function SkillCard({
               </Button>
             )}
             {registrySkill?.sourceUrl && (
-              <a
-                href={registrySkill.sourceUrl}
-                target="_blank"
-                rel="noopener noreferrer"
+              <Button
+                size="icon-xs"
+                variant="ghost"
+                asChild
                 onClick={(e) => e.stopPropagation()}
-                className="text-muted-foreground hover:text-foreground transition-colors"
                 title="View source"
               >
-                <ExternalLink className="size-3" />
-              </a>
+                <a href={registrySkill.sourceUrl} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="size-3" />
+                </a>
+              </Button>
             )}
           </div>
         </div>

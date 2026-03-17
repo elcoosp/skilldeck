@@ -35,7 +35,6 @@ export function MessageThread({
     })
   }, [messages.length, streamingMessageId, virtualizer])
 
-  // Determine which content to show
   const showLoading = isLoading
   const showEmpty = !isLoading && messages.length === 0
   const showList = !isLoading && messages.length > 0
@@ -62,13 +61,23 @@ export function MessageThread({
         {showEmpty && (
           <motion.div
             key="empty"
-            className="flex items-center justify-center h-full text-sm text-muted-foreground"
+            className="flex flex-col items-center justify-center h-full text-center px-8"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
-            Send a message to start the conversation.
+            <img
+              src="/illustrations/empty-messages.svg"
+              alt="Empty conversation"
+              className="w-48 h-48 mb-4 opacity-90"
+            />
+            <h3 className="text-lg font-semibold text-foreground mb-1">
+              This conversation is empty
+            </h3>
+            <p className="text-sm text-muted-foreground max-w-xs">
+              Type a message below to begin your chat with the agent.
+            </p>
           </motion.div>
         )}
 

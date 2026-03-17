@@ -4,6 +4,7 @@ import { ChevronRight, Loader2, PlugZap, Server, Trash2, Unplug } from 'lucide-r
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { commands } from '@/lib/bindings'
 import type { McpServerResponse, McpToolResponse } from '@/lib/bindings'
 
@@ -103,40 +104,44 @@ export function LiveServerCard({ server }: LiveServerCardProps) {
 
         <div className="flex items-center gap-0.5 shrink-0">
           {isConnected ? (
-            <button
+            <Button
+              size="icon-xs"
+              variant="ghost"
               onClick={() => disconnectMut.mutate()}
               disabled={isBusy}
               title="Disconnect"
-              className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
             >
               {isBusy ? (
                 <Loader2 className="size-3 animate-spin" />
               ) : (
                 <Unplug className="size-3" />
               )}
-            </button>
+            </Button>
           ) : (
-            <button
+            <Button
+              size="icon-xs"
+              variant="ghost"
               onClick={() => connectMut.mutate()}
               disabled={isBusy}
               title="Connect"
-              className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
             >
               {isBusy ? (
                 <Loader2 className="size-3 animate-spin" />
               ) : (
                 <PlugZap className="size-3" />
               )}
-            </button>
+            </Button>
           )}
-          <button
+          <Button
+            size="icon-xs"
+            variant="ghost"
             onClick={() => removeMut.mutate()}
             disabled={isBusy}
             title="Remove server"
-            className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40"
+            className="text-muted-foreground hover:text-destructive"
           >
             <Trash2 className="size-3" />
-          </button>
+          </Button>
         </div>
       </div>
 

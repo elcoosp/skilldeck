@@ -25,10 +25,10 @@ export function ToolCallCard({
   return (
     <div
       className={cn(
-        'my-1.5 rounded-md border text-xs font-mono overflow-hidden',
+        'my-1.5 rounded-lg border text-xs font-mono overflow-hidden',
         isError
           ? 'border-destructive/40 bg-destructive/5'
-          : 'border-border bg-muted/50'
+          : 'border-border bg-card'
       )}
     >
       {/* Collapsed header — always visible */}

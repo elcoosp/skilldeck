@@ -1,8 +1,11 @@
 // src/components/skills/unified-skill-card.tsx
 // Presentational card for a single unified skill in the marketplace grid.
+// Aligned with the new card system – neutral borders, consistent hover,
+// and status badges using brand colors.
 
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
+import { TrustBadge } from './trust-badge'
 import type { UnifiedSkill } from '@/types/skills'
 
 interface Props {
@@ -11,14 +14,7 @@ interface Props {
   isSelected?: boolean
 }
 
-const STATUS_BORDER: Record<UnifiedSkill['status'], string> = {
-  installed: 'border-green-500 bg-green-50 dark:bg-green-950/40',
-  local_only: 'border-green-500 bg-green-50 dark:bg-green-950/40',
-  available: 'border-border bg-card',
-  update_available: 'border-orange-500 bg-orange-50 dark:bg-orange-950/40'
-}
-
-const BADGE_VARIANT: Record<
+const STATUS_BADGE_VARIANT: Record<
   UnifiedSkill['status'],
   'default' | 'secondary' | 'outline' | 'destructive'
 > = {
@@ -36,16 +32,19 @@ const STATUS_LABEL: Record<UnifiedSkill['status'], string> = {
 }
 
 export function UnifiedSkillCard({ skill, onClick, isSelected }: Props) {
+  const hasRegistryData = !!skill.registryData
+  const securityScore = skill.registryData?.securityScore
+  const qualityScore = skill.registryData?.qualityScore
+
   return (
     <button
       type="button"
       className={cn(
-        'w-full text-left p-4 border-2 rounded-lg cursor-pointer',
-        'transition-all duration-150 hover:shadow-md',
+        'group w-full text-left p-4 border rounded-lg cursor-pointer',
+        'transition-all duration-150 hover:border-primary/50 hover:shadow-sm',
         'flex flex-col h-full min-h-[140px] focus-visible:outline-none',
         'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
-        STATUS_BORDER[skill.status],
-        isSelected && 'ring-2 ring-primary ring-offset-1'
+        isSelected ? 'border-primary ring-2 ring-primary/20' : 'border-border bg-card',
       )}
       onClick={() => onClick(skill)}
     >
@@ -55,8 +54,13 @@ export function UnifiedSkillCard({ skill, onClick, isSelected }: Props) {
           {skill.name}
         </h3>
         <Badge
-          variant={BADGE_VARIANT[skill.status]}
-          className="shrink-0 text-[10px] px-1.5 py-0"
+          variant={STATUS_BADGE_VARIANT[skill.status]}
+          className={cn(
+            'shrink-0 text-[10px] px-1.5 py-0',
+            skill.status === 'installed' && 'bg-primary/10 text-primary border-primary/20',
+            skill.status === 'local_only' && 'bg-secondary text-secondary-foreground',
+            skill.status === 'update_available' && 'bg-amber-500/10 text-amber-600 border-amber-500/20',
+          )}
         >
           {STATUS_LABEL[skill.status]}
         </Badge>
@@ -72,27 +76,15 @@ export function UnifiedSkillCard({ skill, onClick, isSelected }: Props) {
       {/* Footer row */}
       <div className="mt-3 pt-2 border-t border-dashed border-border/60 flex items-center justify-between text-[10px] text-muted-foreground">
         <span className="truncate">
-          {skill.registryData?.author ?? (skill.localData ? 'Local' : '—')}
+          {hasRegistryData ? skill.registryData?.author : '—'}
         </span>
         <div className="flex items-center gap-1 shrink-0 ml-2">
-          {skill.registryData?.securityScore !== undefined && (
-            <span
-              className={cn(
-                'px-1 py-0.5 rounded font-medium',
-                skill.registryData.securityScore >= 80
-                  ? 'bg-green-500/15 text-green-700 dark:text-green-400'
-                  : skill.registryData.securityScore >= 50
-                    ? 'bg-yellow-500/15 text-yellow-700 dark:text-yellow-400'
-                    : 'bg-red-500/15 text-red-700 dark:text-red-400'
-              )}
-            >
-              {skill.registryData.securityScore}
-            </span>
-          )}
-          {skill.registryData?.tags?.[0] && (
-            <span className="bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded">
-              {skill.registryData.tags[0]}
-            </span>
+          {securityScore !== undefined && qualityScore !== undefined && (
+            <TrustBadge
+              securityScore={securityScore}
+              qualityScore={qualityScore}
+              className="scale-75 origin-right"
+            />
           )}
         </div>
       </div>
