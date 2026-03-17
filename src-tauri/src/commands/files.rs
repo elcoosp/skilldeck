@@ -216,3 +216,35 @@ pub async fn read_file(req: ReadFileRequest) -> Result<ReadFileResponse, String>
     .await
     .map_err(|e| e.to_string())?
 }
+#[derive(Debug, Deserialize, Type)]
+pub struct AssembleFolderRequest {
+    pub path: String,
+    pub deep: bool,
+    pub max_bytes: Option<usize>,
+}
+
+#[derive(Debug, Serialize, Type)]
+pub struct AssembleFolderResponse {
+    pub assembled_content: String,
+    pub file_count: usize,
+}
+
+#[specta]
+#[tauri::command]
+pub async fn assemble_folder(req: AssembleFolderRequest) -> Result<AssembleFolderResponse, String> {
+    tokio::task::spawn_blocking(move || {
+        let path = std::path::PathBuf::from(&req.path);
+        let (content, count) = crate::skills::folder_assembler::assemble_folder_context(
+            &path,
+            req.deep,
+            req.max_bytes,
+        )
+        .map_err(|e| e.to_string())?;
+        Ok(AssembleFolderResponse {
+            assembled_content: content,
+            file_count: count,
+        })
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
