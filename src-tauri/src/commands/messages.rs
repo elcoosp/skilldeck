@@ -617,7 +617,7 @@ fn run_agent_loop(
                 let is_paused = state
                     .auto_send_paused
                     .get(&conversation_id)
-                    .copied()
+                    .map(|r| *r) // Dereference the Ref to get the bool
                     .unwrap_or(false);
                 if !is_paused {
                     if let Ok(queued) = crate::commands::queue::list_queued_messages_internal(
