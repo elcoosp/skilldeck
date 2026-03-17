@@ -61,13 +61,24 @@ export function SkillCard({
     setShowRemoveConfirm(true)
   }
 
+  const handleClick = () => {
+    if (onSelect) onSelect()
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      if (onSelect) onSelect()
+    }
+  }
+
   return (
     <>
-      <div
-        role={onSelect ? 'button' : undefined}
-        tabIndex={onSelect ? 0 : undefined}
-        onClick={onSelect}
-        onKeyDown={(e) => e.key === 'Enter' && onSelect?.()}
+      <button
+        type="button"
+        onClick={handleClick}
+        onKeyDown={handleKeyDown}
+        disabled={!onSelect}
         className={cn(
           'group flex flex-col gap-3 rounded-lg border border-border bg-card p-4 text-sm transition-all w-full min-w-0 overflow-hidden',
           onSelect && 'cursor-pointer hover:border-primary/50 hover:shadow-sm',
@@ -204,7 +215,7 @@ export function SkillCard({
             )}
           </div>
         </div>
-      </div>
+      </button>
 
       {/* Remove confirmation dialog */}
       {showRemoveConfirm && localSkill && (

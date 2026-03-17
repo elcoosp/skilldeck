@@ -3,7 +3,6 @@
 // Aligned with the new card system – neutral borders, consistent hover,
 // and status badges using brand colors.
 
-import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import type { UnifiedSkill } from '@/types/skills'
@@ -38,11 +37,8 @@ export function UnifiedSkillCard({ skill, onClick, isSelected }: Props) {
   const qualityScore = skill.registryData?.qualityScore
 
   return (
-    <motion.button
+    <button
       type="button"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.2 }}
       className={cn(
         'group w-full text-left p-4 border rounded-lg cursor-pointer',
         'transition-all duration-150 hover:border-primary/50 hover:shadow-sm',
@@ -64,11 +60,11 @@ export function UnifiedSkillCard({ skill, onClick, isSelected }: Props) {
           className={cn(
             'shrink-0 text-[10px] px-1.5 py-0',
             skill.status === 'installed' &&
-              'bg-primary/10 text-primary border-primary/20',
+            'bg-primary/10 text-primary border-primary/20',
             skill.status === 'local_only' &&
-              'bg-secondary text-secondary-foreground',
+            'bg-secondary text-secondary-foreground',
             skill.status === 'update_available' &&
-              'bg-amber-500/10 text-amber-600 border-amber-500/20'
+            'bg-amber-500/10 text-amber-600 border-amber-500/20'
           )}
         >
           {STATUS_LABEL[skill.status]}
@@ -97,6 +93,6 @@ export function UnifiedSkillCard({ skill, onClick, isSelected }: Props) {
           )}
         </div>
       </div>
-    </motion.button>
+    </button>
   )
 }

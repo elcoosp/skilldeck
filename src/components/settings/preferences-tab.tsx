@@ -3,8 +3,8 @@
  * PreferencesTab — Platform preferences panel inside SettingsOverlay.
  */
 
-import { useState } from 'react'
 import { Bell, Globe, Mail, Palette, Shield } from 'lucide-react'
+import { useState } from 'react'
 import { usePlatformPreferences } from '@/hooks/use-platform'
 import type { UpdatePreferencesPayload } from '@/lib/platform'
 
@@ -135,8 +135,8 @@ export function PreferencesTab() {
         ).map(({ value, label }) => {
           const rawChannels = prefs?.notification_channels ?? ['in-app']
           // Ensure type safety
-          const channels = rawChannels.filter((c): c is 'in-app' | 'email' =>
-            c === 'in-app' || c === 'email'
+          const channels = rawChannels.filter(
+            (c): c is 'in-app' | 'email' => c === 'in-app' || c === 'email'
           )
           const checked = channels.includes(value)
           return (

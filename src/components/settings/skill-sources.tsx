@@ -110,20 +110,23 @@ export function SkillSources() {
           },
           { icon: Home, label: 'Personal (~/.agents/skills/)', priority: 2 },
           { icon: Globe, label: 'Registry (platform)', priority: 3 }
-        ].map((item, i) => (
-          <div key={i} className="flex items-center gap-2">
-            {i > 0 && (
-              <ArrowDown className="size-3 text-muted-foreground ml-4" />
-            )}
-            <div className="flex items-center gap-1.5 ml-0">
-              <item.icon className="size-3.5 text-muted-foreground" />
-              <span>{item.label}</span>
-              <span className="text-[10px] bg-primary/10 text-primary px-1 rounded">
-                Priority {item.priority}
-              </span>
+        ].map((item, idx) => {
+          const key = `order-${item.priority}-${item.label}`
+          return (
+            <div key={key} className="flex items-center gap-2">
+              {idx > 0 && (
+                <ArrowDown className="size-3 text-muted-foreground ml-4" />
+              )}
+              <div className="flex items-center gap-1.5 ml-0">
+                <item.icon className="size-3.5 text-muted-foreground" />
+                <span>{item.label}</span>
+                <span className="text-[10px] bg-primary/10 text-primary px-1 rounded">
+                  Priority {item.priority}
+                </span>
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       {/* Source list */}

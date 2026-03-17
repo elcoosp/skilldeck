@@ -4,19 +4,34 @@
  * profiles, tool approval policies, and theme preferences.
  */
 
-import { X } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  Bell,
+  Eye,
+  EyeOff,
+  Globe,
+  Key,
+  Layers,
+  Plus,
+  Share2,
+  ShieldCheck,
+  Star,
+  Sun,
+  Trash2,
+  X
+} from 'lucide-react'
+import { useState } from 'react'
 import { toast } from 'sonner'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { cn } from '@/lib/utils'
-import { useUIStore } from '@/store/ui'
-import { useSettingsStore } from '@/store/settings'
-import { commands } from '@/lib/bindings'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import type { ProfileData, ApiKeyStatus } from '@/lib/bindings'
+import { PlatformTab } from '@/components/settings/platform-tab'
 import { PreferencesTab } from '@/components/settings/preferences-tab'
 import { ReferralTab } from '@/components/settings/referral-tab'
-import { PlatformTab } from '@/components/settings/platform-tab'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import type { ApiKeyStatus, ProfileData } from '@/lib/bindings'
+import { commands } from '@/lib/bindings'
+import { cn } from '@/lib/utils'
+import { useSettingsStore } from '@/store/settings'
+import { useUIStore } from '@/store/ui'
 
 export function SettingsOverlay() {
   const settingsTab = useUIStore((s) => s.settingsTab)
@@ -24,16 +39,16 @@ export function SettingsOverlay() {
   const setSettingsOpen = useUIStore((s) => s.setSettingsOpen)
 
   return (
-    <div
-      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+    <button
+      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 cursor-default"
       onClick={() => setSettingsOpen(false)}
       onKeyDown={(e) => {
         if (e.key === 'Escape') {
           setSettingsOpen(false)
         }
       }}
-      role="button"
-      tabIndex={0}
+      aria-label="Close settings"
+      type="button"
     >
       <div
         onClick={(e) => e.stopPropagation()}
@@ -49,13 +64,13 @@ export function SettingsOverlay() {
           </p>
           {(
             [
-              { id: 'apikeys', label: 'API Keys', Icon: X },
-              { id: 'profiles', label: 'Profiles', Icon: X },
-              { id: 'approvals', label: 'Tool Approvals', Icon: X },
-              { id: 'appearance', label: 'Appearance', Icon: X },
-              { id: 'preferences', label: 'Preferences', Icon: X },
-              { id: 'platform', label: 'Platform', Icon: X },
-              { id: 'referral', label: 'Refer & Earn', Icon: X }
+              { id: 'apikeys', label: 'API Keys', Icon: Key },
+              { id: 'profiles', label: 'Profiles', Icon: Layers },
+              { id: 'approvals', label: 'Tool Approvals', Icon: ShieldCheck },
+              { id: 'appearance', label: 'Appearance', Icon: Sun },
+              { id: 'preferences', label: 'Preferences', Icon: Bell },
+              { id: 'platform', label: 'Platform', Icon: Globe },
+              { id: 'referral', label: 'Refer & Earn', Icon: Share2 }
             ] as const
           ).map(({ id, label, Icon }) => (
             <button
@@ -97,7 +112,7 @@ export function SettingsOverlay() {
           {settingsTab === 'referral' && <ReferralTab />}
         </div>
       </div>
-    </div>
+    </button>
   )
 }
 
@@ -177,7 +192,10 @@ function ApiKeysTab() {
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">{label}</span>
               {hasKey && (
-                <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
+                <Badge
+                  variant="outline"
+                  className="bg-primary/10 text-primary border-primary/20"
+                >
                   Key stored
                 </Badge>
               )}
@@ -205,9 +223,9 @@ function ApiKeysTab() {
                   className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
                   {visible[id] ? (
-                    <X className="size-3.5" />
+                    <EyeOff className="size-3.5" />
                   ) : (
-                    <X className="size-3.5" />
+                    <Eye className="size-3.5" />
                   )}
                 </button>
               </div>
@@ -343,7 +361,7 @@ function ProfilesTab() {
           </p>
         </div>
         <Button size="sm" onClick={() => setShowNew((v) => !v)}>
-          <X className="size-3 mr-1" />
+          <Plus className="size-3 mr-1" />
           New
         </Button>
       </div>
@@ -399,7 +417,11 @@ function ProfilesTab() {
             >
               {createMut.isPending ? 'Creating…' : 'Create'}
             </Button>
-            <Button size="sm" variant="outline" onClick={() => setShowNew(false)}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowNew(false)}
+            >
               Cancel
             </Button>
           </div>
@@ -429,7 +451,10 @@ function ProfilesTab() {
                 <div className="flex items-center gap-1.5">
                   <span className="text-sm font-medium truncate">{p.name}</span>
                   {p.is_default && (
-                    <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
+                    <Badge
+                      variant="outline"
+                      className="bg-primary/10 text-primary border-primary/20"
+                    >
                       default
                     </Badge>
                   )}
@@ -448,7 +473,7 @@ function ProfilesTab() {
                     disabled={defaultMut.isPending}
                     title="Set as default"
                   >
-                    <X className="size-3.5" />
+                    <Star className="size-3.5" />
                   </Button>
                 )}
                 <Button
@@ -459,7 +484,7 @@ function ProfilesTab() {
                   title="Delete profile"
                   className="text-muted-foreground hover:text-destructive"
                 >
-                  <X className="size-3.5" />
+                  <Trash2 className="size-3.5" />
                 </Button>
               </div>
             </div>
@@ -477,27 +502,27 @@ const APPROVAL_FIELDS: Array<{
   label: string
   description: string
 }> = [
-    {
-      key: 'autoApproveReads',
-      label: 'Auto-approve file reads',
-      description: 'Skip the approval dialog for read-only filesystem tools'
-    },
-    {
-      key: 'autoApproveWrites',
-      label: 'Auto-approve file writes',
-      description: 'Skip approval for file creation and modification'
-    },
-    {
-      key: 'autoApproveShell',
-      label: 'Auto-approve shell commands',
-      description: 'Never require approval for shell execution (⚠ dangerous)'
-    },
-    {
-      key: 'autoApproveHttpRequests',
-      label: 'Auto-approve HTTP requests',
-      description: 'Skip approval for outbound HTTP tool calls'
-    }
-  ]
+  {
+    key: 'autoApproveReads',
+    label: 'Auto-approve file reads',
+    description: 'Skip the approval dialog for read-only filesystem tools'
+  },
+  {
+    key: 'autoApproveWrites',
+    label: 'Auto-approve file writes',
+    description: 'Skip approval for file creation and modification'
+  },
+  {
+    key: 'autoApproveShell',
+    label: 'Auto-approve shell commands',
+    description: 'Never require approval for shell execution (⚠ dangerous)'
+  },
+  {
+    key: 'autoApproveHttpRequests',
+    label: 'Auto-approve HTTP requests',
+    description: 'Skip approval for outbound HTTP tool calls'
+  }
+]
 
 function ApprovalsTab() {
   const toolApprovals = useSettingsStore((s) => s.toolApprovals)

@@ -62,6 +62,7 @@ export function ConflictResolver({
             <pre className="p-3 text-xs font-mono leading-5">
               {lines.map((line, i) => (
                 <div
+                  // biome-ignore lint/suspicious/noArrayIndexKey: diff lines are static for this dialog, index is stable
                   key={i}
                   className={cn(
                     'px-1 rounded-sm',

@@ -45,9 +45,9 @@ export function LintWarningPanel({
 
   return (
     <div className={cn('space-y-1.5', className)}>
-      {visible.map((w, idx) => (
+      {visible.map((w) => (
         <WarningRow
-          key={`${w.rule_id}-${idx}`}
+          key={w.rule_id}
           warning={w}
           onFix={onApplyFix ? () => onApplyFix(w) : undefined}
           onIgnore={() =>

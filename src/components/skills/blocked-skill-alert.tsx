@@ -47,8 +47,8 @@ export function BlockedSkillAlert({
           <p className="text-xs font-semibold text-red-700 dark:text-red-400 uppercase tracking-wide">
             Issues detected ({securityErrors.length})
           </p>
-          {securityErrors.map((w: any, i: number) => (
-            <div key={i} className="text-sm">
+          {securityErrors.map((w: any) => (
+            <div key={w.rule_id} className="text-sm">
               <p className="font-medium text-red-700 dark:text-red-300">
                 {w.message}
               </p>

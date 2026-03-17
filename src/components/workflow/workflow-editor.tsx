@@ -1,3 +1,5 @@
+// src/components/workflow/workflow-editor.tsx
+
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -47,13 +49,13 @@ export function WorkflowEditor({
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      let parsed
+      let parsed: any
       try {
         parsed = JSON.parse(definitionText)
       } catch (e) {
         const msg = (e as Error).message
-        setError('Invalid JSON: ' + msg)
-        throw new Error('Invalid JSON: ' + msg)
+        setError(`Invalid JSON: ${msg}`)
+        throw new Error(`Invalid JSON: ${msg}`)
       }
       setError(null)
       // Cast to any if command missing
@@ -71,7 +73,7 @@ export function WorkflowEditor({
       onSaved?.()
     },
     onError: (err: Error) => {
-      toast.error('Failed to save workflow: ' + err.message)
+      toast.error(`Failed to save workflow: ${err.message}`)
     }
   })
 
@@ -83,16 +85,25 @@ export function WorkflowEditor({
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div>
-            <label className="text-sm font-medium">Workflow Name</label>
+            <label htmlFor="workflow-name" className="text-sm font-medium">
+              Workflow Name
+            </label>
             <Input
+              id="workflow-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="My Workflow"
             />
           </div>
           <div>
-            <label className="text-sm font-medium">Definition (JSON)</label>
+            <label
+              htmlFor="workflow-definition"
+              className="text-sm font-medium"
+            >
+              Definition (JSON)
+            </label>
             <Textarea
+              id="workflow-definition"
               value={definitionText}
               onChange={(e) => setDefinitionText(e.target.value)}
               rows={20}

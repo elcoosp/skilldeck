@@ -7,7 +7,6 @@ import { useSubagentStore } from '@/store/subagent'
 export function useSubagentEvents() {
   const updateStatus = useSubagentStore((s) => s.updateSubagentStatus)
   const setResult = useSubagentStore((s) => s.setSubagentResult)
-  const setError = useSubagentStore((s) => s.setSubagentError)
 
   useEffect(() => {
     let unlistenStatus: (() => void) | undefined
@@ -38,5 +37,5 @@ export function useSubagentEvents() {
       unlistenStatus?.()
       unlistenArtifact?.()
     }
-  }, [updateStatus, setResult, setError])
+  }, [updateStatus, setResult])
 }

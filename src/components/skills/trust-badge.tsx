@@ -66,12 +66,15 @@ export function TrustBadge({
 /** Compact score dots used inside SkillCard. */
 export function ScoreDots({ score, max = 5 }: { score: number; max?: number }) {
   return (
-    <span
+    // biome-ignore lint/a11y/useSemanticElements: role="group" is appropriate for grouping decorative dots
+    <div
+      role="group"
       className="inline-flex items-center gap-0.5"
       aria-label={`Score ${score} of ${max}`}
     >
       {Array.from({ length: max }).map((_, i) => (
         <span
+          // biome-ignore lint/suspicious/noArrayIndexKey: static list of dots
           key={i}
           className={cn(
             'inline-block size-1.5 rounded-full',
@@ -79,6 +82,6 @@ export function ScoreDots({ score, max = 5 }: { score: number; max?: number }) {
           )}
         />
       ))}
-    </span>
+    </div>
   )
 }

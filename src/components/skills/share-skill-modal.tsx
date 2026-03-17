@@ -1,3 +1,4 @@
+// src/components/skills/share-skill-modal.tsx
 /**
  * ShareSkillModal — share a skill as a public GitHub Gist.
  *
@@ -86,7 +87,11 @@ export function ShareSkillModal({ skillName, contentMd, onClose }: Props) {
             <Share2 size={16} className="text-primary" />
             <span className="font-semibold text-sm">Share Skill</span>
           </div>
-          <button onClick={onClose} className="p-1 hover:bg-muted rounded-md">
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1 hover:bg-muted rounded-md"
+          >
             <X size={14} />
           </button>
         </div>
@@ -105,10 +110,14 @@ export function ShareSkillModal({ skillName, contentMd, onClose }: Props) {
                 </p>
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium">
+                <label
+                  htmlFor="gist-description"
+                  className="text-xs font-medium"
+                >
                   Description (optional)
                 </label>
                 <input
+                  id="gist-description"
                   type="text"
                   placeholder={`SkillDeck skill: ${skillName}`}
                   value={description}
@@ -117,6 +126,7 @@ export function ShareSkillModal({ skillName, contentMd, onClose }: Props) {
                 />
               </div>
               <button
+                type="button"
                 onClick={handleShare}
                 disabled={saving}
                 className="w-full py-2 rounded-lg bg-primary text-primary-foreground font-medium text-sm hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2"
@@ -145,8 +155,11 @@ export function ShareSkillModal({ skillName, contentMd, onClose }: Props) {
                 </a>
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium">GitHub Token</label>
+                <label htmlFor="github-token" className="text-xs font-medium">
+                  GitHub Token
+                </label>
                 <input
+                  id="github-token"
                   type="password"
                   placeholder="ghp_…"
                   value={tokenDraft}
@@ -158,6 +171,7 @@ export function ShareSkillModal({ skillName, contentMd, onClose }: Props) {
                 </p>
               </div>
               <button
+                type="button"
                 onClick={handleSaveToken}
                 disabled={!tokenDraft.trim() || saving}
                 className="w-full py-2 rounded-lg bg-primary text-primary-foreground font-medium text-sm hover:bg-primary/90 disabled:opacity-50"
@@ -187,6 +201,7 @@ export function ShareSkillModal({ skillName, contentMd, onClose }: Props) {
                     {result.html_url}
                   </code>
                   <button
+                    type="button"
                     onClick={() => {
                       navigator.clipboard.writeText(result.html_url)
                       toast.success('Copied!')
@@ -206,6 +221,7 @@ export function ShareSkillModal({ skillName, contentMd, onClose }: Props) {
                 View on GitHub <ExternalLink size={13} />
               </a>
               <button
+                type="button"
                 onClick={onClose}
                 className="w-full py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90"
               >

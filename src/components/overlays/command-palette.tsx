@@ -45,8 +45,8 @@ export function CommandPalette() {
 
   return (
     /* Backdrop – softer, matches brand neutral */
-    <div
-      className="fixed inset-0 z-50 bg-black/20 backdrop-blur-sm flex items-start justify-center pt-[15vh]"
+    <button
+      className="fixed inset-0 z-50 bg-black/20 backdrop-blur-sm flex items-start justify-center pt-[15vh] cursor-default"
       onClick={() => setOpen(false)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -54,18 +54,15 @@ export function CommandPalette() {
           setOpen(false)
         }
       }}
-      role="button"
-      tabIndex={0}
+      aria-label="Close command palette"
+      type="button"
     >
       {/* Panel */}
       <div
         role="dialog"
         aria-modal="true"
         onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => {
-          // Prevent closing when interacting with the panel
-          e.stopPropagation()
-        }}
+        onKeyDown={(e) => e.stopPropagation()}
         className="w-full max-w-xl mx-4 rounded-xl border border-border bg-background shadow-2xl overflow-hidden"
       >
         <Command className="[&_[cmdk-input-wrapper]]:border-b [&_[cmdk-input-wrapper]]:border-border">
@@ -152,7 +149,7 @@ export function CommandPalette() {
           </Command.List>
         </Command>
       </div>
-    </div>
+    </button>
   )
 }
 

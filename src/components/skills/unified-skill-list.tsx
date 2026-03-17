@@ -1,11 +1,26 @@
 // src/components/skills/unified-skill-list.tsx
 // Virtualized marketplace grid — merges local + registry skills via
 // useUnifiedSkills, renders rows with responsive column count.
+//
+// ── Card entrance animation ───────────────────────────────────────────────────
+// Add the following to your global CSS (e.g. globals.css / index.css):
+//
+//   @keyframes skill-card-in {
+//     from { opacity: 0; transform: translateY(8px) scale(0.97); }
+//     to   { opacity: 1; transform: translateY(0)   scale(1);    }
+//   }
+//   .skill-card-enter {
+//     animation: skill-card-in 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+//   }
+//
+// If you'd rather keep it co-located, the <style> tag below injects it once.
+// ─────────────────────────────────────────────────────────────────────────────
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useVirtualizer } from '@tanstack/react-virtual'
+import { motion } from 'framer-motion'
 import { AlertCircle, RefreshCw, Search } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useDebounce } from 'use-debounce'
 import { useUnifiedSkills } from '@/hooks/use-unified-skills'
 import { commands } from '@/lib/bindings'
@@ -46,12 +61,15 @@ function useColumnCount(ref: React.RefObject<HTMLElement | null>) {
   return columns
 }
 
-const ROW_HEIGHT_ESTIMATE = 160 // px
+const ROW_HEIGHT_ESTIMATE = 164 // px
 
 export function UnifiedSkillList() {
   const [search, setSearch] = useState('')
   const [debouncedSearch] = useDebounce(search, 300)
   const [selected, setSelected] = useState<UnifiedSkill | null>(null)
+  const [isMeasured, setIsMeasured] = useState(false)
+  const isMeasuredRef = useRef(false)
+  const measurementsRef = useRef<Map<Element, number>>(new Map())
 
   const containerRef = useRef<HTMLDivElement>(null)
   const columns = useColumnCount(containerRef)
@@ -75,12 +93,37 @@ export function UnifiedSkillList() {
 
   const rowCount = Math.ceil(unifiedSkills.length / columns)
 
+  // measureElement stabilises row heights so the virtualizer doesn't
+  // re-measure on every scroll tick, which was causing the flash.
+  const measureElement = useCallback((el: Element | null) => {
+    if (!el) return ROW_HEIGHT_ESTIMATE
+
+    // Return cached measurement if available
+    if (measurementsRef.current.has(el)) {
+      return measurementsRef.current.get(el)!
+    }
+
+    // Measure and cache
+    const height = (el as HTMLElement).getBoundingClientRect().height
+    measurementsRef.current.set(el, height)
+    return height
+  }, [])
+
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
     getScrollElement: () => parentRef.current,
     estimateSize: () => ROW_HEIGHT_ESTIMATE,
-    overscan: 5
+    measureElement,
+    overscan: 2,
   })
+
+  // Only set isMeasured once to prevent constant rerenders
+  useEffect(() => {
+    if (!isMeasuredRef.current && rowVirtualizer.getTotalSize() > 0 && unifiedSkills.length > 0) {
+      isMeasuredRef.current = true
+      setIsMeasured(true)
+    }
+  }, [rowVirtualizer.getTotalSize(), unifiedSkills.length])
 
   // Keep selected skill in sync if data refreshes
   const resolvedSelected = selected
@@ -157,6 +200,15 @@ export function UnifiedSkillList() {
               </p>
             </div>
           </div>
+        ) : !isMeasured ? (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center space-y-2">
+              <div className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+              <p className="text-xs text-muted-foreground">
+                Preparing marketplace…
+              </p>
+            </div>
+          </div>
         ) : unifiedSkills.length === 0 ? (
           <EmptyState search={search} hasRegistryError={!!registryError} />
         ) : (
@@ -182,29 +234,48 @@ export function UnifiedSkillList() {
 
                 return (
                   <div
-                    key={virtualRow.key}
+                    key={virtualRow.index}
+                    data-index={virtualRow.index}
+                    ref={rowVirtualizer.measureElement}
                     style={{
                       position: 'absolute',
                       top: 0,
                       left: 0,
                       width: '100%',
-                      height: `${virtualRow.size}px`,
                       transform: `translateY(${virtualRow.start}px)`,
                       display: 'grid',
                       gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
                       gap: '0.75rem',
-                      paddingBottom: '0.75rem'
+                      paddingBottom: '0.75rem',
+                      contain: 'layout style',
                     }}
                   >
-                    {rowItems.map((skill) => (
-                      <UnifiedSkillCard
+                    {rowItems.map((skill, colIdx) => (
+                      <motion.div
+                        layout="position"
                         key={skill.id}
-                        skill={skill}
-                        isSelected={resolvedSelected?.id === skill.id}
-                        onClick={(s) =>
-                          setSelected((prev) => (prev?.id === s.id ? null : s))
-                        }
-                      />
+                        style={{
+                          contain: 'content',
+                        }}
+                        initial={{ opacity: 0, y: 12, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        transition={{
+                          type: 'spring',
+                          stiffness: 100,
+                          damping: 12,
+                          delay: colIdx * 0.03,
+                        }}
+                      >
+                        <UnifiedSkillCard
+                          skill={skill}
+                          isSelected={resolvedSelected?.id === skill.id}
+                          onClick={(s) =>
+                            setSelected((prev) =>
+                              prev?.id === s.id ? null : s
+                            )
+                          }
+                        />
+                      </motion.div>
                     ))}
                     {/* Pad incomplete last row */}
                     {Array.from({

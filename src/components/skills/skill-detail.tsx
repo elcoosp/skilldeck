@@ -111,7 +111,7 @@ export function SkillDetail({
           toast.success('Skill overwritten with registry version')
           setShowConflict(false)
         },
-        onError: (err) => toast.error('Failed to overwrite: ' + err)
+        onError: (err) => toast.error(`Failed to overwrite: ${err}`)
       }
     )
   }
@@ -128,7 +128,7 @@ export function SkillDetail({
     try {
       await commands.openFolder(localPath)
       toast.info('Opening folder...')
-    } catch (error) {
+    } catch (_error) {
       toast.error('Could not open folder')
     }
   }

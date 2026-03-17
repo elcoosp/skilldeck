@@ -1,3 +1,4 @@
+// src/components/skills/community-skills-tab.tsx
 /**
  * CommunitySkillsTab — browse and one-click install community skills from the platform registry.
  */
@@ -106,6 +107,7 @@ export function CommunitySkillsTab({ onInstall }: Props) {
           />
           {query && (
             <button
+              type="button"
               onClick={() => setQuery('')}
               className="absolute right-2.5 top-1/2 -translate-y-1/2"
             >
@@ -159,6 +161,7 @@ function SkillCard({
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <button
+            type="button"
             onClick={onInstall}
             disabled={installing}
             className="flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 hover:bg-primary/20 text-primary text-xs font-medium disabled:opacity-50 transition-colors"
