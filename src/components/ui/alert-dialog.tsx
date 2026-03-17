@@ -1,8 +1,9 @@
 // src/components/ui/alert-dialog.tsx
-import * as React from 'react'
+
 import { AlertDialog as AlertDialogPrimitive } from 'radix-ui'
-import { cn } from '@/lib/utils'
+import * as React from 'react'
 import { buttonVariants } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 const AlertDialog = AlertDialogPrimitive.Root
 
@@ -54,7 +55,10 @@ const AlertDialogHeader = ({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
-    className={cn('flex flex-col space-y-2 text-center sm:text-left', className)}
+    className={cn(
+      'flex flex-col space-y-2 text-center sm:text-left',
+      className
+    )}
     {...props}
   />
 )
@@ -116,7 +120,11 @@ const AlertDialogCancel = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <AlertDialogPrimitive.Cancel
     ref={ref}
-    className={cn(buttonVariants({ variant: 'outline' }), 'mt-2 sm:mt-0', className)}
+    className={cn(
+      buttonVariants({ variant: 'outline' }),
+      'mt-2 sm:mt-0',
+      className
+    )}
     {...props}
   />
 ))

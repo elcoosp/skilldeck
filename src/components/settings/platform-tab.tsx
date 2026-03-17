@@ -1,17 +1,19 @@
 // src/components/settings/platform-tab.tsx
 import { useState } from 'react'
-import { usePlatformPreferences } from '@/hooks/use-platform'
-import { Switch } from '@/components/ui/switch'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
+import { usePlatformPreferences } from '@/hooks/use-platform'
 
 export function PlatformTab() {
   const { query, update } = usePlatformPreferences()
   const prefs = query.data
 
   const [enabled, setEnabled] = useState(prefs?.platformEnabled ?? true)
-  const [url, setUrl] = useState(prefs?.platformUrl ?? 'https://platform.skilldeck.dev')
+  const [url, setUrl] = useState(
+    prefs?.platformUrl ?? 'https://platform.skilldeck.dev'
+  )
 
   const save = () => {
     update.mutate(

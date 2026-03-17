@@ -1,15 +1,19 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { useUIStore } from '@/store/ui'
-import { useMessagesWithStream } from '@/hooks/use-messages'
-import { renderHook } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import * as bindings from '@/lib/bindings'
-import type { MessageData } from '@/lib/bindings'
+import { renderHook } from '@testing-library/react'
 import React from 'react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { useMessagesWithStream } from '@/hooks/use-messages'
+import type { MessageData } from '@/lib/bindings'
+import * as bindings from '@/lib/bindings'
+import { useUIStore } from '@/store/ui'
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
-const msg = (id: string, role: MessageData['role'], content: string): MessageData => ({
+const msg = (
+  id: string,
+  role: MessageData['role'],
+  content: string
+): MessageData => ({
   id,
   conversation_id: 'conv-1',
   role,
@@ -29,10 +33,7 @@ const wrapper = ({ children }: { children: React.ReactNode }) =>
 beforeEach(() => {
   vi.spyOn(bindings.commands, 'listMessages').mockResolvedValue({
     status: 'ok',
-    data: [
-      msg('m1', 'user', 'Hello'),
-      msg('m2', 'assistant', 'Hi there')
-    ]
+    data: [msg('m1', 'user', 'Hello'), msg('m2', 'assistant', 'Hi there')]
   })
 
   useUIStore.setState({

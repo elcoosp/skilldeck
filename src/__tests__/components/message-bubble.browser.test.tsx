@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { MessageBubble } from '@/components/conversation/message-bubble'
 import type { MessageData } from '@/lib/bindings'
@@ -18,28 +18,36 @@ const makeMessage = (overrides: Partial<MessageData> = {}): MessageData => ({
 
 describe('MessageBubble styling', () => {
   it('user message bubble has primary background', async () => {
-    const screen = await render(<MessageBubble message={makeMessage({ role: 'user' })} />)
+    const screen = await render(
+      <MessageBubble message={makeMessage({ role: 'user' })} />
+    )
     const bubble = screen.getByText('Hello, world!')
     const bubbleElement = bubble.element()
     expect(bubbleElement?.closest('div')?.className).toMatch(/bg-primary/)
   })
 
   it('assistant message bubble has muted background', async () => {
-    const screen = await render(<MessageBubble message={makeMessage({ role: 'assistant' })} />)
+    const screen = await render(
+      <MessageBubble message={makeMessage({ role: 'assistant' })} />
+    )
     const bubble = screen.getByText('Hello, world!')
     const bubbleElement = bubble.element()
     expect(bubbleElement?.closest('div')?.className).toMatch(/bg-muted/)
   })
 
   it('user message container is right-aligned', async () => {
-    const screen = await render(<MessageBubble message={makeMessage({ role: 'user' })} />)
+    const screen = await render(
+      <MessageBubble message={makeMessage({ role: 'user' })} />
+    )
     const bubble = screen.getByText('Hello, world!')
     const rootElement = bubble.element()?.closest('.flex')
     expect(rootElement?.className).toMatch(/flex-row-reverse/)
   })
 
   it('assistant message container is left-aligned', async () => {
-    const screen = await render(<MessageBubble message={makeMessage({ role: 'assistant' })} />)
+    const screen = await render(
+      <MessageBubble message={makeMessage({ role: 'assistant' })} />
+    )
     const bubble = screen.getByText('Hello, world!')
     const rootElement = bubble.element()?.closest('.flex')
     expect(rootElement?.className).not.toMatch(/flex-row-reverse/)
@@ -50,25 +58,33 @@ describe('MessageBubble styling', () => {
 
 describe('MessageBubble avatars', () => {
   it('renders an avatar for user messages', async () => {
-    const screen = await render(<MessageBubble message={makeMessage({ role: 'user' })} />)
+    const screen = await render(
+      <MessageBubble message={makeMessage({ role: 'user' })} />
+    )
     const avatar = screen.getByLabelText('User avatar') // assume aria-label is set
     await expect.element(avatar).toBeInTheDocument()
   })
 
   it('renders an avatar for assistant messages', async () => {
-    const screen = await render(<MessageBubble message={makeMessage({ role: 'assistant' })} />)
+    const screen = await render(
+      <MessageBubble message={makeMessage({ role: 'assistant' })} />
+    )
     const avatar = screen.getByLabelText('Assistant avatar')
     await expect.element(avatar).toBeInTheDocument()
   })
 
   it('user avatar has primary background', async () => {
-    const screen = await render(<MessageBubble message={makeMessage({ role: 'user' })} />)
+    const screen = await render(
+      <MessageBubble message={makeMessage({ role: 'user' })} />
+    )
     const avatar = screen.getByLabelText('User avatar')
     expect(avatar.element()?.className).toMatch(/bg-primary/)
   })
 
   it('assistant avatar has muted background', async () => {
-    const screen = await render(<MessageBubble message={makeMessage({ role: 'assistant' })} />)
+    const screen = await render(
+      <MessageBubble message={makeMessage({ role: 'assistant' })} />
+    )
     const avatar = screen.getByLabelText('Assistant avatar')
     expect(avatar.element()?.className).toMatch(/bg-muted/)
   })
@@ -78,14 +94,18 @@ describe('MessageBubble avatars', () => {
 
 describe('MessageBubble content', () => {
   it('renders message content', async () => {
-    const screen = await render(<MessageBubble message={makeMessage({ content: 'Test content' })} />)
+    const screen = await render(
+      <MessageBubble message={makeMessage({ content: 'Test content' })} />
+    )
     const content = screen.getByText('Test content')
     await expect.element(content).toBeInTheDocument()
   })
 
   it('renders multiline content with whitespace preserved', async () => {
     const content = 'line one\nline two'
-    const screen = await render(<MessageBubble message={makeMessage({ role: 'user', content })} />)
+    const screen = await render(
+      <MessageBubble message={makeMessage({ role: 'user', content })} />
+    )
     const rendered = screen.getByText(content)
     await expect.element(rendered).toBeInTheDocument()
   })

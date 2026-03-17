@@ -2,7 +2,7 @@
 // E2E tests for the skill installation flow.
 // Run with: pnpm exec playwright test
 
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 
 test.describe('Skill Installation Flow', () => {
   test.beforeEach(async ({ page }) => {
@@ -42,7 +42,9 @@ test.describe('Skill Installation Flow', () => {
       await expect(page.getByText('Install Skill')).toBeVisible()
       await expect(page.getByText(/personal/i)).toBeVisible()
       await expect(page.getByText(/workspace/i)).toBeVisible()
-      await expect(page.getByRole('button', { name: /install copy/i })).toBeVisible()
+      await expect(
+        page.getByRole('button', { name: /install copy/i })
+      ).toBeVisible()
 
       // Close the dialog.
       await page.keyboard.press('Escape')
@@ -60,7 +62,9 @@ test.describe('Skill Installation Flow', () => {
 
     if (isVisible) {
       // Find the parent card and click install.
-      const card = securityBadge.locator('xpath=ancestor::div[contains(@class,"rounded-lg")]')
+      const card = securityBadge.locator(
+        'xpath=ancestor::div[contains(@class,"rounded-lg")]'
+      )
       const installBtn = card.getByRole('button', { name: /install/i })
       if (await installBtn.isVisible()) {
         await installBtn.click()
@@ -78,7 +82,9 @@ test.describe('Skill Installation Flow', () => {
     await skillsTab.click()
 
     // Click on a skill card to open detail.
-    const cards = page.locator('[role="button"]').filter({ has: page.getByText(/install/i) })
+    const cards = page
+      .locator('[role="button"]')
+      .filter({ has: page.getByText(/install/i) })
     if ((await cards.count()) > 0) {
       await cards.first().click()
 
@@ -92,7 +98,9 @@ test.describe('Skill Installation Flow', () => {
 })
 
 test.describe('Skill Sources Settings', () => {
-  test('skill sources section is accessible from settings', async ({ page }) => {
+  test('skill sources section is accessible from settings', async ({
+    page
+  }) => {
     await page.goto('/')
     await page.waitForSelector('[data-testid="app-shell"]', { timeout: 10_000 })
 

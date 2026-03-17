@@ -1,11 +1,13 @@
-import type { RegistrySkillData, LintWarning } from '@/lib/bindings'
+import type { LintWarning, RegistrySkillData } from '@/lib/bindings'
 
 export type ContextItemType = 'skill' | 'file' | 'folder'
 
 export interface AttachedSkill {
   type: 'skill'
   // Omit the original lintWarnings (JsonValue[]) and add our own optional LintWarning[]
-  data: Omit<RegistrySkillData, 'lintWarnings'> & { lintWarnings?: LintWarning[] }
+  data: Omit<RegistrySkillData, 'lintWarnings'> & {
+    lintWarnings?: LintWarning[]
+  }
 }
 
 // (rest of the file unchanged)

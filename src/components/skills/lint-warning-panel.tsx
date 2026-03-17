@@ -2,11 +2,18 @@
 // UX: Displays lint warnings with actionable "Fix" and "Ignore" buttons.
 // Security warnings render with red styling, distinct from style/quality warnings.
 
-import { AlertTriangle, CheckCircle2, Info, ShieldAlert, Wrench, X } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Info,
+  ShieldAlert,
+  Wrench,
+  X
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useDisableRule } from '@/hooks/use-lint'
 import type { LintWarning } from '@/lib/bindings'
+import { cn } from '@/lib/utils'
 
 interface LintWarningPanelProps {
   warnings: LintWarning[]
@@ -67,14 +74,15 @@ function WarningRow({ warning, onFix, onIgnore }: WarningRowProps) {
     <div
       className={cn(
         'flex items-start gap-2 rounded-md border px-3 py-2 text-sm',
-        warning.severity === 'error' && isSecurity &&
-        'border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/20',
-        warning.severity === 'error' && !isSecurity &&
-        'border-destructive/30 bg-destructive/5',
+        warning.severity === 'error' &&
+          isSecurity &&
+          'border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/20',
+        warning.severity === 'error' &&
+          !isSecurity &&
+          'border-destructive/30 bg-destructive/5',
         warning.severity === 'warning' &&
-        'border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/20',
-        warning.severity === 'info' &&
-        'border-border bg-muted/30'
+          'border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/20',
+        warning.severity === 'info' && 'border-border bg-muted/30'
       )}
     >
       {/* Icon */}
@@ -88,9 +96,12 @@ function WarningRow({ warning, onFix, onIgnore }: WarningRowProps) {
           <span
             className={cn(
               'font-medium text-xs uppercase tracking-wide',
-              warning.severity === 'error' && isSecurity && 'text-red-600 dark:text-red-400',
+              warning.severity === 'error' &&
+                isSecurity &&
+                'text-red-600 dark:text-red-400',
               warning.severity === 'error' && !isSecurity && 'text-destructive',
-              warning.severity === 'warning' && 'text-amber-600 dark:text-amber-400',
+              warning.severity === 'warning' &&
+                'text-amber-600 dark:text-amber-400',
               warning.severity === 'info' && 'text-muted-foreground'
             )}
           >

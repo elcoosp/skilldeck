@@ -1,6 +1,6 @@
 import { useCallback } from 'react'
 import { toast } from 'sonner'
-import { ACHIEVEMENTS, AchievementId } from '@/lib/achievements'
+import { ACHIEVEMENTS, type AchievementId } from '@/lib/achievements'
 
 const STORAGE_KEY = 'skilldeck-achievements'
 

@@ -64,15 +64,12 @@ export function TrustBadge({
 }
 
 /** Compact score dots used inside SkillCard. */
-export function ScoreDots({
-  score,
-  max = 5
-}: {
-  score: number
-  max?: number
-}) {
+export function ScoreDots({ score, max = 5 }: { score: number; max?: number }) {
   return (
-    <span className="inline-flex items-center gap-0.5" aria-label={`Score ${score} of ${max}`}>
+    <span
+      className="inline-flex items-center gap-0.5"
+      aria-label={`Score ${score} of ${max}`}
+    >
       {Array.from({ length: max }).map((_, i) => (
         <span
           key={i}

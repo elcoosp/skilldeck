@@ -2,31 +2,35 @@
  * CommunitySkillsTab — browse and one-click install community skills from the platform registry.
  */
 
-import { useState } from 'react';
-import { Download, Search, X } from 'lucide-react';
-import { toast } from 'sonner';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { commands } from '@/lib/bindings';
-import type { RegistrySkillData } from '@/lib/bindings';
-import { sendActivityEvent } from '@/lib/platform';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Download, Search, X } from 'lucide-react'
+import { useState } from 'react'
+import { toast } from 'sonner'
+import type { RegistrySkillData } from '@/lib/bindings'
+import { commands } from '@/lib/bindings'
+import { sendActivityEvent } from '@/lib/platform'
 
 interface Props {
-  onInstall?: (skillName: string) => void;
+  onInstall?: (skillName: string) => void
 }
 
 export function CommunitySkillsTab({ onInstall }: Props) {
-  const [query, setQuery] = useState('');
-  const queryClient = useQueryClient();
+  const [query, setQuery] = useState('')
+  const queryClient = useQueryClient()
 
   // Fetch registry skills
-  const { data: skills = [], isLoading, error } = useQuery({
+  const {
+    data: skills = [],
+    isLoading,
+    error
+  } = useQuery({
     queryKey: ['registry-skills'],
     queryFn: async () => {
-      const res = await commands.fetchRegistrySkills(null, null);
-      if (res.status === 'ok') return res.data;
-      throw new Error(res.error);
-    },
-  });
+      const res = await commands.fetchRegistrySkills(null, null)
+      if (res.status === 'ok') return res.data
+      throw new Error(res.error)
+    }
+  })
 
   const installMutation = useMutation({
     mutationFn: async (skill: RegistrySkillData) => {
@@ -35,31 +39,36 @@ export function CommunitySkillsTab({ onInstall }: Props) {
         skillName: skill.name,
         skillContent: skill.content,
         target: 'personal',
-        source: 'registry',
-      });
-      if (res.status === 'error') throw new Error(res.error);
-      return res.data;
+        source: 'registry'
+      })
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
     },
     onSuccess: (_data, skill) => {
-      queryClient.invalidateQueries({ queryKey: ['skills'] }); // refresh local skills
-      toast.success(`${skill.name} installed!`);
-      sendActivityEvent('skill_created', { source: 'community', skill_name: skill.name }).catch(() => { });
-      onInstall?.(skill.name);
+      queryClient.invalidateQueries({ queryKey: ['skills'] }) // refresh local skills
+      toast.success(`${skill.name} installed!`)
+      sendActivityEvent('skill_created', {
+        source: 'community',
+        skill_name: skill.name
+      }).catch(() => {})
+      onInstall?.(skill.name)
     },
     onError: (err: any) => {
-      toast.error(`Install failed: ${err.message}`);
-    },
-  });
+      toast.error(`Install failed: ${err.message}`)
+    }
+  })
 
   const filtered = skills.filter(
     (s) =>
       s.name.toLowerCase().includes(query.toLowerCase()) ||
       s.description.toLowerCase().includes(query.toLowerCase()) ||
       s.tags.some((t) => t.toLowerCase().includes(query.toLowerCase()))
-  );
+  )
 
   if (isLoading) {
-    return <div className="flex justify-center p-8">Loading community skills...</div>;
+    return (
+      <div className="flex justify-center p-8">Loading community skills...</div>
+    )
   }
 
   if (error) {
@@ -67,7 +76,7 @@ export function CommunitySkillsTab({ onInstall }: Props) {
       <div className="p-4 text-center text-destructive">
         Failed to load community skills. Please check your connection.
       </div>
-    );
+    )
   }
 
   return (
@@ -77,13 +86,17 @@ export function CommunitySkillsTab({ onInstall }: Props) {
         <div>
           <h3 className="font-semibold text-sm">Community Skills</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            One-click install from the community. Skills are version-controlled — contribute yours.
+            One-click install from the community. Skills are version-controlled
+            — contribute yours.
           </p>
         </div>
 
         {/* Search */}
         <div className="relative">
-          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Search
+            size={13}
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+          />
           <input
             type="text"
             placeholder="Search skills…"
@@ -113,24 +126,27 @@ export function CommunitySkillsTab({ onInstall }: Props) {
             <SkillCard
               key={skill.id}
               skill={skill}
-              installing={installMutation.isPending && installMutation.variables?.id === skill.id}
+              installing={
+                installMutation.isPending &&
+                installMutation.variables?.id === skill.id
+              }
               onInstall={() => installMutation.mutate(skill)}
             />
           ))
         )}
       </div>
     </div>
-  );
+  )
 }
 
 function SkillCard({
   skill,
   installing,
-  onInstall,
+  onInstall
 }: {
-  skill: RegistrySkillData;
-  installing: boolean;
-  onInstall: () => void;
+  skill: RegistrySkillData
+  installing: boolean
+  onInstall: () => void
 }) {
   return (
     <div className="rounded-lg border border-border p-3 hover:border-primary/40 transition-colors">
@@ -152,7 +168,9 @@ function SkillCard({
           </button>
         </div>
       </div>
-      <p className="text-xs text-muted-foreground line-clamp-2">{skill.description}</p>
+      <p className="text-xs text-muted-foreground line-clamp-2">
+        {skill.description}
+      </p>
       <div className="flex flex-wrap gap-1 mt-2">
         {skill.tags.slice(0, 3).map((tag) => (
           <span
@@ -164,5 +182,5 @@ function SkillCard({
         ))}
       </div>
     </div>
-  );
+  )
 }

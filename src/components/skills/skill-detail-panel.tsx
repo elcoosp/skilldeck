@@ -2,12 +2,12 @@
 // Side panel shown when a unified skill card is selected.
 // Supports install, uninstall, open-folder and sync actions.
 
-import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Download, ExternalLink, RefreshCw, Trash2, X } from 'lucide-react'
-import { commands } from '@/lib/bindings'
-import { Button } from '@/components/ui/button'
+import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { commands } from '@/lib/bindings'
 import type { UnifiedSkill } from '@/types/skills'
 
 interface Props {
@@ -31,7 +31,8 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
       const res = await commands.installSkill(
         skill.registryData.name,
         skill.registryData.content,
-        'personal', null
+        'personal',
+        null
       )
       if (res.status === 'error') throw new Error(res.error)
       return res.data

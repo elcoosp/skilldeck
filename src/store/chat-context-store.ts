@@ -1,11 +1,11 @@
 import { create } from 'zustand'
+import type { LintWarning, RegistrySkillData } from '@/lib/bindings'
 import type {
-  AttachedItem,
   AttachedFile,
   AttachedFolder,
+  AttachedItem,
   AttachedSkill
 } from '@/types/chat-context'
-import type { LintWarning, RegistrySkillData } from '@/lib/bindings'
 
 interface ChatContextState {
   items: AttachedItem[]
@@ -22,7 +22,11 @@ export const useChatContextStore = create<ChatContextState>((set) => ({
 
   addSkill: (skill) =>
     set((state) => {
-      if (state.items.some((item) => item.type === 'skill' && item.data.id === skill.id))
+      if (
+        state.items.some(
+          (item) => item.type === 'skill' && item.data.id === skill.id
+        )
+      )
         return state
       // Remove the original lintWarnings (JsonValue[]) and store our own (initially undefined)
       const { lintWarnings: _ignored, ...rest } = skill
@@ -35,14 +39,22 @@ export const useChatContextStore = create<ChatContextState>((set) => ({
 
   addFile: (file) =>
     set((state) => {
-      if (state.items.some((item) => item.type === 'file' && item.data.id === file.id))
+      if (
+        state.items.some(
+          (item) => item.type === 'file' && item.data.id === file.id
+        )
+      )
         return state
       return { items: [...state.items, { type: 'file', data: file }] }
     }),
 
   addFolder: (folder) =>
     set((state) => {
-      if (state.items.some((item) => item.type === 'folder' && item.data.id === folder.id))
+      if (
+        state.items.some(
+          (item) => item.type === 'folder' && item.data.id === folder.id
+        )
+      )
         return state
       return { items: [...state.items, { type: 'folder', data: folder }] }
     }),

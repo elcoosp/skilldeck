@@ -7,19 +7,21 @@
  *   Rust ring-buffer → 50 ms debounce → Tauri emit → this hook → rAF → render
  */
 
-import { useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { onAgentEvent } from '@/lib/events'
-import { useUIStore } from '@/store/ui'
+import { useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import type { AgentEvent } from '@/lib/events'
+import { onAgentEvent } from '@/lib/events'
+import { useUIStore } from '@/store/ui'
 
 export function useAgentStream(conversationId: string | null) {
   const queryClient = useQueryClient()
   const appendStreamingText = useUIStore((s) => s.appendStreamingText)
   const clearStreamingText = useUIStore((s) => s.clearStreamingText)
   const setAgentRunning = useUIStore((s) => s.setAgentRunning)
-  const queuedMessage = useUIStore((s) => s.queuedMessages[conversationId ?? ''])
+  const queuedMessage = useUIStore(
+    (s) => s.queuedMessages[conversationId ?? '']
+  )
   const clearQueuedMessage = useUIStore((s) => s.clearQueuedMessage)
 
   // Buffer deltas between rAF ticks to avoid per-token setState calls.
@@ -54,7 +56,7 @@ export function useAgentStream(conversationId: string | null) {
           // Invalidate messages query to show the persisted user message
           queryClient.invalidateQueries({
             queryKey: ['messages', conversationId],
-            exact: false,
+            exact: false
           })
           break
 
@@ -93,14 +95,16 @@ export function useAgentStream(conversationId: string | null) {
           setAgentRunning(conversationId, false)
           clearStreamingText(conversationId)
           // Show error toast and invalidate queries to show the user message
-          toast.error(event.message || 'An error occurred while processing your message')
+          toast.error(
+            event.message || 'An error occurred while processing your message'
+          )
           queryClient.invalidateQueries({
             queryKey: ['messages', conversationId],
-            exact: false,
+            exact: false
           })
           queryClient.invalidateQueries({
             queryKey: ['conversations'],
-            exact: false,
+            exact: false
           })
           break
 
@@ -108,11 +112,11 @@ export function useAgentStream(conversationId: string | null) {
           // New messages have been saved to the database; refetch.
           queryClient.invalidateQueries({
             queryKey: ['messages', conversationId],
-            exact: false,
+            exact: false
           })
           queryClient.invalidateQueries({
             queryKey: ['conversations'],
-            exact: false,
+            exact: false
           })
           break
       }

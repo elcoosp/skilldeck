@@ -1,5 +1,5 @@
 // tests/e2e/context-injection.spec.ts
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 
 test.describe('Context Injection — File picker (#)', () => {
   test('User can attach a file via # trigger and send', async ({ page }) => {

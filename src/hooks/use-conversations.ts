@@ -2,27 +2,29 @@
  * Conversation data hooks — TanStack Query wrappers over invoke layer.
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { commands } from '@/lib/bindings'
-import { useUIStore } from '@/store/ui'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { commands } from '@/lib/bindings'
 import type { UUID } from '@/lib/types'
+import { useUIStore } from '@/store/ui'
 
 export function useConversations(profileId?: UUID) {
   return useQuery({
     queryKey: ['conversations', profileId],
     queryFn: async () => {
       // FIXED: second argument must be a string (as per binding type)
-      const res = await commands.listConversations(profileId ?? null,
+      const res = await commands.listConversations(
+        profileId ?? null,
         // @ts-expect-error
-        50)
+        50
+      )
       if (res.status === 'ok') return res.data
       throw new Error(res.error)
     },
     staleTime: 30_000,
     refetchOnWindowFocus: true,
     refetchOnMount: true,
-    retry: 2,
+    retry: 2
   })
 }
 
@@ -42,17 +44,17 @@ export function useCreateConversation(profileId?: UUID) {
       // Invalidate the exact query key that matches useConversations
       queryClient.invalidateQueries({
         queryKey: ['conversations', profileId],
-        exact: true,
+        exact: true
       })
 
       // Force a refetch and wait for it to complete
       await queryClient.refetchQueries({
         queryKey: ['conversations', profileId],
-        exact: true,
+        exact: true
       })
 
       // Small delay to ensure everything is updated
-      await new Promise(resolve => setTimeout(resolve, 50))
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       setActiveConversation(newId)
 
@@ -79,7 +81,7 @@ export function useDeleteConversation() {
       // Invalidate all conversation queries since we don't know the profileId
       queryClient.invalidateQueries({
         queryKey: ['conversations'],
-        exact: false,
+        exact: false
       })
 
       // Clear active selection if we just deleted the active conversation
@@ -108,7 +110,7 @@ export function useRenameConversation() {
       // Invalidate all conversation queries since we don't know the profileId
       queryClient.invalidateQueries({
         queryKey: ['conversations'],
-        exact: false,
+        exact: false
       })
       toast.success('Conversation renamed')
     },

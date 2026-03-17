@@ -1,6 +1,7 @@
 // src/components/settings/lint-config.tsx
-import { useState } from 'react'
+
 import { Settings2, ToggleLeft, ToggleRight } from 'lucide-react'
+import { useState } from 'react'
 import { useDisableRule, useLintRules } from '@/hooks/use-lint'
 import { cn } from '@/lib/utils'
 
@@ -18,7 +19,8 @@ const RULE_DESCRIPTIONS: Record<string, string> = {
   'struct-references-exist': 'Referenced files must exist',
   'struct-references-depth': 'Directory nesting should not be too deep',
   'sec-dangerous-tools': 'Detect potentially dangerous shell commands',
-  'sec-allowed-tools-mismatch': 'Tools used should be declared in allowed_tools',
+  'sec-allowed-tools-mismatch':
+    'Tools used should be declared in allowed_tools',
   'quality-content-clarity': 'Skill body should have reasonable length',
   'quality-content-examples': 'Skill should provide usage examples',
   'quality-content-steps': 'Skill should have structured instructions',
@@ -58,7 +60,7 @@ const RULE_CATEGORIES: Record<string, string[]> = {
 }
 
 export function LintConfig() {
-  const { data: _allRules, isLoading } = useLintRules()   // renamed to _allRules
+  const { data: _allRules, isLoading } = useLintRules() // renamed to _allRules
   const disableRule = useDisableRule()
   const [disabledRules, setDisabledRules] = useState<Set<string>>(new Set())
 
@@ -81,9 +83,7 @@ export function LintConfig() {
   }
 
   if (isLoading) {
-    return (
-      <div className="text-xs text-muted-foreground">Loading rules…</div>
-    )
+    return <div className="text-xs text-muted-foreground">Loading rules…</div>
   }
 
   return (

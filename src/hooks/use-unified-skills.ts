@@ -2,12 +2,11 @@
 // Merges local skills (from Tauri registry) and remote registry skills
 // (from the platform cache) into a single sorted UnifiedSkill[].
 
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { commands } from '@/lib/bindings'
 import type { RegistrySkillData, SkillInfo } from '@/lib/bindings'
+import { commands } from '@/lib/bindings'
 import type { SkillStatus, UnifiedSkill } from '@/types/skills'
-import { keepPreviousData } from '@tanstack/react-query'
 
 // ── Data fetchers ─────────────────────────────────────────────────────────────
 
@@ -94,7 +93,9 @@ export function useUnifiedSkills(options: UseUnifiedSkillsOptions = {}) {
         // version is newer (detected by the skill being present without
         // "registry" source).
         const isRegistry = local.source === 'registry'
-        const status: SkillStatus = isRegistry ? 'installed' : 'update_available'
+        const status: SkillStatus = isRegistry
+          ? 'installed'
+          : 'update_available'
 
         map.set(local.name, {
           ...existing,
@@ -117,10 +118,10 @@ export function useUnifiedSkills(options: UseUnifiedSkillsOptions = {}) {
     const filtered =
       search && registrySkills.length === 0
         ? Array.from(map.values()).filter(
-          (s) =>
-            s.name.toLowerCase().includes(search.toLowerCase()) ||
-            s.description.toLowerCase().includes(search.toLowerCase())
-        )
+            (s) =>
+              s.name.toLowerCase().includes(search.toLowerCase()) ||
+              s.description.toLowerCase().includes(search.toLowerCase())
+          )
         : Array.from(map.values())
 
     // 4. Sort: installed/local first, then update_available, then available;

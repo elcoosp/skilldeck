@@ -66,9 +66,9 @@ export function ConflictResolver({
                   className={cn(
                     'px-1 rounded-sm',
                     line.startsWith('-') &&
-                    'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400',
+                      'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400',
                     line.startsWith('+') &&
-                    'bg-green-100 text-green-700 dark:bg-green-950/30 dark:text-green-400'
+                      'bg-green-100 text-green-700 dark:bg-green-950/30 dark:text-green-400'
                   )}
                 >
                   {line || ' '}
@@ -79,24 +79,13 @@ export function ConflictResolver({
         </div>
 
         <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
-          <Button
-            variant="outline"
-            onClick={onKeepLocal}
-            className="flex-1"
-          >
+          <Button variant="outline" onClick={onKeepLocal} className="flex-1">
             Keep Local
           </Button>
-          <Button
-            variant="outline"
-            onClick={onClose}
-            className="flex-1"
-          >
+          <Button variant="outline" onClick={onClose} className="flex-1">
             Manual Merge
           </Button>
-          <Button
-            onClick={onOverwrite}
-            className="flex-1"
-          >
+          <Button onClick={onOverwrite} className="flex-1">
             Overwrite with Registry
           </Button>
         </DialogFooter>

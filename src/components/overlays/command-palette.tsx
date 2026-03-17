@@ -7,16 +7,16 @@
  *   • Actions       — new chat, open workspace, settings
  */
 
-import { useEffect } from 'react'
 import { Command } from 'cmdk'
-import { MessageSquare, Plus, Layers, Settings, FolderOpen } from 'lucide-react'
-import { useUIStore } from '@/store/ui'
+import { FolderOpen, Layers, MessageSquare, Plus, Settings } from 'lucide-react'
+import { useEffect } from 'react'
 import {
   useConversations,
   useCreateConversation
 } from '@/hooks/use-conversations'
-import { useAllSkills } from '@/hooks/use-skills'
 import { useProfiles } from '@/hooks/use-profiles'
+import { useAllSkills } from '@/hooks/use-skills'
+import { useUIStore } from '@/store/ui'
 
 export function CommandPalette() {
   const open = useUIStore((s) => s.commandPaletteOpen)

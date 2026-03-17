@@ -1,5 +1,7 @@
 // src/components/conversation/message-bubble.tsx
-import { useState } from 'react'
+
+import rehypeShiki from '@shikijs/rehype'
+import { motion } from 'framer-motion'
 import {
   AlertCircle,
   Bot,
@@ -11,12 +13,11 @@ import {
   User,
   Wrench
 } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { useState } from 'react'
 import { MarkdownHooks } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import rehypeShiki from '@shikijs/rehype'
-import { cn } from '@/lib/utils'
 import type { MessageData } from '@/lib/bindings'
+import { cn } from '@/lib/utils'
 import { SubagentCard } from './subagent-card'
 
 interface MessageBubbleProps {
@@ -107,15 +108,15 @@ export function MessageBubble({
   // Check if this is a subagent spawn message
   if (isAssistant && !isStreaming && message.content) {
     try {
-      const data = JSON.parse(message.content);
+      const data = JSON.parse(message.content)
       if (data.subagentId) {
         return (
           <SubagentCard
             stepName={data.task || 'Subagent'}
             status="running"
-            onOpen={() => { }} // TODO: navigate to subagent conversation
+            onOpen={() => {}} // TODO: navigate to subagent conversation
           />
-        );
+        )
       }
     } catch {
       // not JSON, continue to normal rendering

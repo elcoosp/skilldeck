@@ -1,16 +1,19 @@
 // src/hooks/use-skills.ts
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { commands } from '@/lib/bindings'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { RegistrySkillData, SkillInfo } from '@/lib/bindings'
+import { commands } from '@/lib/bindings'
 
 export type CombinedSkill =
   | (SkillInfo & { _sourceType: 'local' })
   | (RegistrySkillData & { _sourceType: 'registry' })
 
-export function useAllSkills(options?: { category?: string; search?: string }): {
-  skills: CombinedSkill[];
-  isLoading: boolean;
-  isError: boolean;
+export function useAllSkills(options?: {
+  category?: string
+  search?: string
+}): {
+  skills: CombinedSkill[]
+  isLoading: boolean
+  isError: boolean
 } {
   const { data: localSkills = [], isLoading: localLoading } = useQuery({
     queryKey: ['skills'],
@@ -24,7 +27,10 @@ export function useAllSkills(options?: { category?: string; search?: string }): 
   const { data: registrySkills = [], isLoading: registryLoading } = useQuery({
     queryKey: ['registry-skills', options?.category, options?.search],
     queryFn: async () => {
-      const res = await commands.fetchRegistrySkills(options?.category ?? null, options?.search ?? null)
+      const res = await commands.fetchRegistrySkills(
+        options?.category ?? null,
+        options?.search ?? null
+      )
       if (res.status === 'ok') return res.data
       throw new Error(res.error)
     }
@@ -32,8 +38,8 @@ export function useAllSkills(options?: { category?: string; search?: string }): 
 
   // Combine with type discrimination
   const combined: CombinedSkill[] = [
-    ...localSkills.map(s => ({ ...s, _sourceType: 'local' as const })),
-    ...registrySkills.map(s => ({ ...s, _sourceType: 'registry' as const }))
+    ...localSkills.map((s) => ({ ...s, _sourceType: 'local' as const })),
+    ...registrySkills.map((s) => ({ ...s, _sourceType: 'registry' as const }))
   ]
 
   return {
@@ -80,25 +86,36 @@ export function useInstallSkill() {
     mutationFn: async ({
       skillName,
       skillContent,
-      target,
+      target
     }: {
-      skillName: string;
-      skillContent: string;
-      target: 'personal' | 'workspace';
+      skillName: string
+      skillContent: string
+      target: 'personal' | 'workspace'
     }) => {
-      const res = await commands.installSkill(skillName, skillContent, target, null); // <-- added null
-      if (res.status === 'error') throw new Error(res.error);
-      return res.data;
+      const res = await commands.installSkill(
+        skillName,
+        skillContent,
+        target,
+        null
+      ) // <-- added null
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['skills'] });
-    },
-  });
+      queryClient.invalidateQueries({ queryKey: ['skills'] })
+    }
+  })
 }
 export function useUninstallSkill() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ skillName, target }: { skillName: string; target: 'personal' | 'workspace' }) => {
+    mutationFn: async ({
+      skillName,
+      target
+    }: {
+      skillName: string
+      target: 'personal' | 'workspace'
+    }) => {
       const res = await commands.uninstallSkill(skillName, target)
       if (res.status === 'error') throw new Error(res.error)
       return res.data
@@ -123,7 +140,15 @@ export function useSkillsSources() {
 export function useAddSkillSource() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ sourceType, path, label }: { sourceType: string; path: string; label?: string }) => {
+    mutationFn: async ({
+      sourceType,
+      path,
+      label
+    }: {
+      sourceType: string
+      path: string
+      label?: string
+    }) => {
       const res = await commands.addSkillSource(sourceType, path, label ?? null)
       if (res.status === 'error') throw new Error(res.error)
       return res.data

@@ -1,5 +1,5 @@
 // src/components/chat/attached-items-list.tsx
-import React from 'react'
+import type React from 'react'
 import { useChatContextStore } from '@/store/chat-context-store'
 import { ContextChip } from './context-chip'
 

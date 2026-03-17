@@ -2,37 +2,37 @@
 // UX: Shows skill source resolution order so users understand why a local
 // skill overrides a remote one.
 
-import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query'
 import {
   ArrowDown,
   FolderOpen,
   Globe,
   Home,
   Plus,
-  Trash2,
   RefreshCw,
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+  Trash2
+} from 'lucide-react'
+import { useState } from 'react'
+import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
   useAddSkillSource,
   useRemoveSkillSource,
-  useSkillsSources,
-} from '@/hooks/use-skills';
-import type { SkillSourceInfo } from '@/lib/bindings';
-import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
-import { useQueryClient } from '@tanstack/react-query';
+  useSkillsSources
+} from '@/hooks/use-skills'
+import type { SkillSourceInfo } from '@/lib/bindings'
+import { cn } from '@/lib/utils'
 
 export function SkillSources() {
-  const { data: sources = [], isLoading, refetch } = useSkillsSources();
-  const addSource = useAddSkillSource();
-  const removeSource = useRemoveSkillSource();
-  const queryClient = useQueryClient();
+  const { data: sources = [], isLoading, refetch } = useSkillsSources()
+  const addSource = useAddSkillSource()
+  const removeSource = useRemoveSkillSource()
+  const queryClient = useQueryClient()
 
-  const [showAdd, setShowAdd] = useState(false);
-  const [newPath, setNewPath] = useState('');
-  const [newLabel, setNewLabel] = useState('');
+  const [showAdd, setShowAdd] = useState(false)
+  const [newPath, setNewPath] = useState('')
+  const [newLabel, setNewLabel] = useState('')
 
   // Sort sources by priority (lower number = higher priority)
   const sortedSources = [...sources].sort((a, b) => {
@@ -40,38 +40,42 @@ export function SkillSources() {
     const priorityMap: Record<string, number> = {
       workspace: 1,
       personal: 2,
-      registry: 3,
-    };
-    const aPriority = priorityMap[a.source_type] ?? 999;
-    const bPriority = priorityMap[b.source_type] ?? 999;
-    return aPriority - bPriority;
-  });
+      registry: 3
+    }
+    const aPriority = priorityMap[a.source_type] ?? 999
+    const bPriority = priorityMap[b.source_type] ?? 999
+    return aPriority - bPriority
+  })
 
   function handleAdd() {
-    if (!newPath.trim()) return;
+    if (!newPath.trim()) return
     addSource.mutate(
-      { sourceType: 'local_path', path: newPath.trim(), label: newLabel.trim() || undefined },
+      {
+        sourceType: 'local_path',
+        path: newPath.trim(),
+        label: newLabel.trim() || undefined
+      },
       {
         onSuccess: () => {
-          setShowAdd(false);
-          setNewPath('');
-          setNewLabel('');
-          toast.success('Skill source added');
-        },
+          setShowAdd(false)
+          setNewPath('')
+          setNewLabel('')
+          toast.success('Skill source added')
+        }
       }
-    );
+    )
   }
 
   const handleRemove = (id: string) => {
     removeSource.mutate(id, {
-      onSuccess: () => toast.success('Skill source removed'),
-    });
-  };
+      onSuccess: () => toast.success('Skill source removed')
+    })
+  }
 
   const handleRefresh = () => {
-    queryClient.invalidateQueries({ queryKey: ['skill-sources'] });
-    refetch();
-  };
+    queryClient.invalidateQueries({ queryKey: ['skill-sources'] })
+    refetch()
+  }
 
   return (
     <div className="space-y-4">
@@ -79,10 +83,16 @@ export function SkillSources() {
         <div>
           <h3 className="text-sm font-semibold">Skill Source Directories</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Skills are resolved in priority order — sources listed earlier override later ones.
+            Skills are resolved in priority order — sources listed earlier
+            override later ones.
           </p>
         </div>
-        <Button variant="ghost" size="icon-sm" onClick={handleRefresh} title="Refresh">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={handleRefresh}
+          title="Refresh"
+        >
           <RefreshCw className="size-3.5" />
         </Button>
       </div>
@@ -93,12 +103,18 @@ export function SkillSources() {
           Resolution order
         </p>
         {[
-          { icon: FolderOpen, label: 'Workspace (.skilldeck/skills/)', priority: 1 },
+          {
+            icon: FolderOpen,
+            label: 'Workspace (.skilldeck/skills/)',
+            priority: 1
+          },
           { icon: Home, label: 'Personal (~/.agents/skills/)', priority: 2 },
-          { icon: Globe, label: 'Registry (platform)', priority: 3 },
+          { icon: Globe, label: 'Registry (platform)', priority: 3 }
         ].map((item, i) => (
           <div key={i} className="flex items-center gap-2">
-            {i > 0 && <ArrowDown className="size-3 text-muted-foreground ml-4" />}
+            {i > 0 && (
+              <ArrowDown className="size-3 text-muted-foreground ml-4" />
+            )}
             <div className="flex items-center gap-1.5 ml-0">
               <item.icon className="size-3.5 text-muted-foreground" />
               <span>{item.label}</span>
@@ -116,7 +132,9 @@ export function SkillSources() {
       ) : (
         <div className="space-y-1.5">
           {sortedSources.length === 0 && (
-            <p className="text-xs text-muted-foreground">No custom sources added.</p>
+            <p className="text-xs text-muted-foreground">
+              No custom sources added.
+            </p>
           )}
           {sortedSources.map((source, index) => (
             <SourceRow
@@ -176,19 +194,19 @@ export function SkillSources() {
         </Button>
       )}
     </div>
-  );
+  )
 }
 
 function SourceRow({
   source,
   priority,
-  onRemove,
+  onRemove
 }: {
-  source: SkillSourceInfo;
-  priority: number;
-  onRemove: () => void;
+  source: SkillSourceInfo
+  priority: number
+  onRemove: () => void
 }) {
-  const Icon = source.source_type === 'registry' ? Globe : FolderOpen;
+  const Icon = source.source_type === 'registry' ? Globe : FolderOpen
 
   return (
     <div className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs">
@@ -216,5 +234,5 @@ function SourceRow({
         <Trash2 className="size-3" />
       </Button>
     </div>
-  );
+  )
 }

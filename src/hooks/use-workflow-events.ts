@@ -6,8 +6,8 @@
  */
 
 import { useEffect, useState } from 'react'
-import { onWorkflowEvent } from '@/lib/events'
 import type { WorkflowEvent } from '@/lib/events'
+import { onWorkflowEvent } from '@/lib/events'
 import type { UUID } from '@/lib/types'
 
 export interface WorkflowStepProgress {

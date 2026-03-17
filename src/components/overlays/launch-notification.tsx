@@ -5,12 +5,12 @@
  * Collects email via the platform preferences endpoint.
  */
 
-import { useState, useEffect } from 'react'
 import { Rocket, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import {
-  updatePlatformPreferences,
-  ensurePlatformRegistration
+  ensurePlatformRegistration,
+  updatePlatformPreferences
 } from '@/lib/platform'
 
 const DISMISSED_KEY = 'skilldeck:launch-banner-dismissed'

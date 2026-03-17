@@ -6,37 +6,37 @@
  * "N of M" and the branch title.
  */
 
-import { ChevronLeft, ChevronRight, GitBranch } from 'lucide-react';
-import { useUIStore } from '@/store/ui';
-import { useBranches } from '@/hooks/use-branches';
+import { ChevronLeft, ChevronRight, GitBranch } from 'lucide-react'
+import { useBranches } from '@/hooks/use-branches'
+import { useUIStore } from '@/store/ui'
 
 interface BranchNavProps {
-  conversationId: string;
+  conversationId: string
 }
 
 export function BranchNav({ conversationId }: BranchNavProps) {
-  const activeBranchId = useUIStore((s) => s.activeBranchId);
-  const setActiveBranch = useUIStore((s) => s.setActiveBranch);
-  const { data: branches = [], isLoading } = useBranches(conversationId);
+  const activeBranchId = useUIStore((s) => s.activeBranchId)
+  const setActiveBranch = useUIStore((s) => s.setActiveBranch)
+  const { data: branches = [], isLoading } = useBranches(conversationId)
 
-  if (isLoading || branches.length <= 1) return null; // don't show if only main trunk
+  if (isLoading || branches.length <= 1) return null // don't show if only main trunk
 
-  const currentIndex = branches.findIndex((b) => b.id === activeBranchId) + 1; // 1-based for display
-  const total = branches.length;
+  const currentIndex = branches.findIndex((b) => b.id === activeBranchId) + 1 // 1-based for display
+  const total = branches.length
 
   const goPrev = () => {
     if (currentIndex > 1) {
-      setActiveBranch(branches[currentIndex - 2].id);
+      setActiveBranch(branches[currentIndex - 2].id)
     }
-  };
+  }
 
   const goNext = () => {
     if (currentIndex < total) {
-      setActiveBranch(branches[currentIndex].id);
+      setActiveBranch(branches[currentIndex].id)
     }
-  };
+  }
 
-  const currentBranch = branches.find((b) => b.id === activeBranchId);
+  const currentBranch = branches.find((b) => b.id === activeBranchId)
 
   return (
     <div className="flex items-center gap-2 px-4 py-1.5 text-xs text-muted-foreground bg-muted/40">
@@ -65,7 +65,9 @@ export function BranchNav({ conversationId }: BranchNavProps) {
       </button>
 
       {currentBranch?.name && (
-        <span className="truncate text-muted-foreground/70">{currentBranch.name}</span>
+        <span className="truncate text-muted-foreground/70">
+          {currentBranch.name}
+        </span>
       )}
 
       <button
@@ -75,5 +77,5 @@ export function BranchNav({ conversationId }: BranchNavProps) {
         Exit branch
       </button>
     </div>
-  );
+  )
 }

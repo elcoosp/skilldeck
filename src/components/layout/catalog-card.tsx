@@ -1,5 +1,5 @@
-import { Package, ExternalLink, Plus, Loader2 } from 'lucide-react'
 import { openUrl } from '@tauri-apps/plugin-opener'
+import { ExternalLink, Loader2, Package, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import type { CatalogEntry } from './mcp-tab'
@@ -11,7 +11,12 @@ interface CatalogCardProps {
   onAdd: (entry: CatalogEntry) => void
 }
 
-export function CatalogCard({ entry, alreadyAdded, adding, onAdd }: CatalogCardProps) {
+export function CatalogCard({
+  entry,
+  alreadyAdded,
+  adding,
+  onAdd
+}: CatalogCardProps) {
   const handleDocsClick = async (e: React.MouseEvent) => {
     e.stopPropagation()
     try {

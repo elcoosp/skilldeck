@@ -49,7 +49,9 @@ export function BlockedSkillAlert({
           </p>
           {securityErrors.map((w: any, i: number) => (
             <div key={i} className="text-sm">
-              <p className="font-medium text-red-700 dark:text-red-300">{w.message}</p>
+              <p className="font-medium text-red-700 dark:text-red-300">
+                {w.message}
+              </p>
               {w.suggested_fix && (
                 <p className="text-xs text-red-600/80 dark:text-red-400/70 mt-0.5">
                   {w.suggested_fix}
@@ -60,11 +62,7 @@ export function BlockedSkillAlert({
         </div>
 
         <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
-          <Button
-            variant="outline"
-            onClick={onCancel}
-            className="flex-1"
-          >
+          <Button variant="outline" onClick={onCancel} className="flex-1">
             Cancel (Recommended)
           </Button>
           <Button

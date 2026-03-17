@@ -3,11 +3,12 @@
  * profiles, tool approval policies, and theme preferences.
  */
 
-import { useState, useEffect } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Bell,
   Eye,
   EyeOff,
+  Globe,
   Key,
   Layers,
   Plus,
@@ -16,21 +17,20 @@ import {
   Star,
   Sun,
   Trash2,
-  X,
-  Globe
+  X
 } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { cn } from '@/lib/utils'
-import { useUIStore } from '@/store/ui'
-import { useSettingsStore } from '@/store/settings'
-import { commands } from '@/lib/bindings'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import type { ProfileData, ApiKeyStatus } from '@/lib/bindings'
+import { PlatformTab } from '@/components/settings/platform-tab'
 import { PreferencesTab } from '@/components/settings/preferences-tab'
 import { ReferralTab } from '@/components/settings/referral-tab'
-import { PlatformTab } from '@/components/settings/platform-tab'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import type { ApiKeyStatus, ProfileData } from '@/lib/bindings'
+import { commands } from '@/lib/bindings'
+import { cn } from '@/lib/utils'
+import { useSettingsStore } from '@/store/settings'
+import { useUIStore } from '@/store/ui'
 
 export function SettingsOverlay() {
   const settingsTab = useUIStore((s) => s.settingsTab)
@@ -181,7 +181,10 @@ function ApiKeysTab() {
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium">{label}</label>
               {hasKey && (
-                <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
+                <Badge
+                  variant="outline"
+                  className="bg-primary/10 text-primary border-primary/20"
+                >
                   Key stored
                 </Badge>
               )}
@@ -403,7 +406,11 @@ function ProfilesTab() {
             >
               {createMut.isPending ? 'Creating…' : 'Create'}
             </Button>
-            <Button size="sm" variant="outline" onClick={() => setShowNew(false)}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowNew(false)}
+            >
               Cancel
             </Button>
           </div>
@@ -433,7 +440,10 @@ function ProfilesTab() {
                 <div className="flex items-center gap-1.5">
                   <span className="text-sm font-medium truncate">{p.name}</span>
                   {p.is_default && (
-                    <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
+                    <Badge
+                      variant="outline"
+                      className="bg-primary/10 text-primary border-primary/20"
+                    >
                       default
                     </Badge>
                   )}
@@ -481,27 +491,27 @@ const APPROVAL_FIELDS: Array<{
   label: string
   description: string
 }> = [
-    {
-      key: 'autoApproveReads',
-      label: 'Auto-approve file reads',
-      description: 'Skip the approval dialog for read-only filesystem tools'
-    },
-    {
-      key: 'autoApproveWrites',
-      label: 'Auto-approve file writes',
-      description: 'Skip approval for file creation and modification'
-    },
-    {
-      key: 'autoApproveShell',
-      label: 'Auto-approve shell commands',
-      description: 'Never require approval for shell execution (⚠ dangerous)'
-    },
-    {
-      key: 'autoApproveHttpRequests',
-      label: 'Auto-approve HTTP requests',
-      description: 'Skip approval for outbound HTTP tool calls'
-    }
-  ]
+  {
+    key: 'autoApproveReads',
+    label: 'Auto-approve file reads',
+    description: 'Skip the approval dialog for read-only filesystem tools'
+  },
+  {
+    key: 'autoApproveWrites',
+    label: 'Auto-approve file writes',
+    description: 'Skip approval for file creation and modification'
+  },
+  {
+    key: 'autoApproveShell',
+    label: 'Auto-approve shell commands',
+    description: 'Never require approval for shell execution (⚠ dangerous)'
+  },
+  {
+    key: 'autoApproveHttpRequests',
+    label: 'Auto-approve HTTP requests',
+    description: 'Skip approval for outbound HTTP tool calls'
+  }
+]
 
 function ApprovalsTab() {
   const toolApprovals = useSettingsStore((s) => s.toolApprovals)

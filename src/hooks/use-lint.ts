@@ -2,9 +2,9 @@
 // React Query hooks for skill linting.
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { commands } from '@/lib/bindings'
-import type { LintWarning } from '@/lib/bindings'
 import { toast } from 'sonner'
+import type { LintWarning } from '@/lib/bindings'
+import { commands } from '@/lib/bindings'
 
 // ── Single skill lint ─────────────────────────────────────────────────────────
 

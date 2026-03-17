@@ -1,3 +1,4 @@
+// src/components/conversation/tool-call-card.tsx
 /**
  * ToolCallCard — read-only display of a tool invocation and its result.
  * Shown inside assistant message bubbles after a tool round-trip completes.
@@ -33,6 +34,7 @@ export function ToolCallCard({
     >
       {/* Collapsed header — always visible */}
       <button
+        type="button"
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-muted/80 transition-colors"
       >

@@ -1,13 +1,10 @@
 // src/components/skills/skill-browser.tsx
 // Main skill browser — grid view with search, category filter, and detail panel.
 
-import { useState, useMemo } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import { RefreshCw, Search } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { useMemo, useState } from 'react'
+import { toast } from 'sonner'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,14 +13,27 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogTitle,
+  AlertDialogTitle
 } from '@/components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
+import {
+  type CombinedSkill,
+  useAllSkills,
+  useSyncRegistry
+} from '@/hooks/use-skills'
+import { cn } from '@/lib/utils'
+import { useUIStore } from '@/store/ui'
 import { SkillCard } from './skill-card'
 import { SkillDetail } from './skill-detail'
-import { useAllSkills, useSyncRegistry, type CombinedSkill } from '@/hooks/use-skills'
-import { useUIStore } from '@/store/ui'
-import { cn } from '@/lib/utils'
-import { toast } from 'sonner'
 
 const CATEGORIES = [
   'All',
@@ -62,10 +72,15 @@ export function SkillBrowser({ className }: { className?: string }) {
       toast.success(`Synced ${result} skills from registry`)
       setLastSync(new Date())
     } catch (error) {
-      if (error instanceof Error && error.message === 'PLATFORM_NOT_CONFIGURED') {
+      if (
+        error instanceof Error &&
+        error.message === 'PLATFORM_NOT_CONFIGURED'
+      ) {
         setShowPlatformAlert(true)
       } else {
-        toast.error(`Sync failed: ${error instanceof Error ? error.message : String(error)}`)
+        toast.error(
+          `Sync failed: ${error instanceof Error ? error.message : String(error)}`
+        )
       }
     } finally {
       const elapsed = Date.now() - start
@@ -133,7 +148,10 @@ export function SkillBrowser({ className }: { className?: string }) {
           title="Sync from registry"
         >
           <RefreshCw
-            className={cn('size-3.5 transition-transform duration-200', syncing && 'animate-spin')}
+            className={cn(
+              'size-3.5 transition-transform duration-200',
+              syncing && 'animate-spin'
+            )}
           />
         </Button>
       </div>
@@ -190,7 +208,8 @@ export function SkillBrowser({ className }: { className?: string }) {
       <div className="flex items-center justify-between px-3 py-1.5 border-t border-border text-[11px] text-muted-foreground shrink-0">
         <span>
           {filtered.length} skill{filtered.length !== 1 ? 's' : ''}
-          {filtered.length !== skills.length && ` (filtered from ${skills.length})`}
+          {filtered.length !== skills.length &&
+            ` (filtered from ${skills.length})`}
         </span>
         {lastSync && (
           <span className="text-[10px]">
@@ -206,17 +225,19 @@ export function SkillBrowser({ className }: { className?: string }) {
             <AlertDialogHeader>
               <AlertDialogTitle>Platform sync unavailable</AlertDialogTitle>
               <AlertDialogDescription>
-                You need to connect to the SkillDeck Platform to sync community skills.
-                Configure your platform settings to enable this feature.
+                You need to connect to the SkillDeck Platform to sync community
+                skills. Configure your platform settings to enable this feature.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={() => {
-                setShowPlatformAlert(false)
-                setSettingsTab('platform')
-                setSettingsOpen(true)
-              }}>
+              <AlertDialogAction
+                onClick={() => {
+                  setShowPlatformAlert(false)
+                  setSettingsTab('platform')
+                  setSettingsOpen(true)
+                }}
+              >
                 Open Settings
               </AlertDialogAction>
             </AlertDialogFooter>

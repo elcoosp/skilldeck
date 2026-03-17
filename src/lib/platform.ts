@@ -25,7 +25,6 @@ export interface PlatformPreferences {
   platformUrl: string
 }
 
-
 export interface UpdatePreferencesPayload {
   email?: string
   nudge_frequency?: 'daily' | 'weekly' | 'important_only'

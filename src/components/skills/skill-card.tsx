@@ -2,12 +2,8 @@
 // Skill card for the browser grid — shows trust badge, AI tag indicator, and lint summary.
 // Ensures one card per line with no horizontal overflow.
 
-import { useState } from 'react'
 import { Bot, ExternalLink, Package, Tag, User } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { TrustBadge } from './trust-badge'
+import { useState } from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,10 +12,14 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogTitle,
+  AlertDialogTitle
 } from '@/components/ui/alert-dialog'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { useUninstallSkill } from '@/hooks/use-skills'
 import type { RegistrySkillData, SkillInfo } from '@/lib/bindings'
+import { cn } from '@/lib/utils'
+import { TrustBadge } from './trust-badge'
 
 interface SkillCardProps {
   skill: RegistrySkillData | (SkillInfo & { _sourceType: 'local' })
@@ -42,11 +42,16 @@ export function SkillCard({
   const isLocal = '_sourceType' in skill && skill._sourceType === 'local'
   const isRegistry = !isLocal
 
-  const registrySkill = isRegistry ? (skill as unknown as RegistrySkillData) : null
-  const localSkill = isLocal ? (skill as SkillInfo & { _sourceType: 'local' }) : null
+  const registrySkill = isRegistry
+    ? (skill as unknown as RegistrySkillData)
+    : null
+  const localSkill = isLocal
+    ? (skill as SkillInfo & { _sourceType: 'local' })
+    : null
 
   const errorCount = registrySkill
-    ? registrySkill.lintWarnings.filter((w: any) => w.severity === 'error').length
+    ? registrySkill.lintWarnings.filter((w: any) => w.severity === 'error')
+        .length
     : 0
   const isAiTagged = registrySkill?.metadataSource === 'llm_enrichment'
   const tags = registrySkill?.tags ?? []
@@ -76,7 +81,9 @@ export function SkillCard({
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-semibold truncate max-w-full">{skill.name}</span>
+              <span className="font-semibold truncate max-w-full">
+                {skill.name}
+              </span>
               {registrySkill?.version && (
                 <span className="text-[10px] text-muted-foreground font-mono shrink-0">
                   v{registrySkill.version}
@@ -97,13 +104,19 @@ export function SkillCard({
               qualityScore={registrySkill.qualityScore}
             />
           ) : (
-            <Badge variant="secondary" className="inline-flex items-center gap-1">
+            <Badge
+              variant="secondary"
+              className="inline-flex items-center gap-1"
+            >
               <Tag className="size-2.5" />
               Local
             </Badge>
           )}
           {isInstalled && (
-            <Badge variant="default" className="bg-primary/10 text-primary border-primary/20">
+            <Badge
+              variant="default"
+              className="bg-primary/10 text-primary border-primary/20"
+            >
               Installed
             </Badge>
           )}
@@ -157,11 +170,7 @@ export function SkillCard({
 
           <div className="flex items-center gap-1 shrink-0">
             {isLocal && (
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={handleRemove}
-              >
+              <Button size="sm" variant="destructive" onClick={handleRemove}>
                 Remove
               </Button>
             )}
@@ -184,7 +193,11 @@ export function SkillCard({
                 onClick={(e) => e.stopPropagation()}
                 title="View source"
               >
-                <a href={registrySkill.sourceUrl} target="_blank" rel="noopener noreferrer">
+                <a
+                  href={registrySkill.sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   <ExternalLink className="size-3" />
                 </a>
               </Button>
@@ -211,7 +224,10 @@ export function SkillCard({
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 onClick={() => {
-                  uninstallSkill.mutate({ skillName: skill.name, target: 'personal' })
+                  uninstallSkill.mutate({
+                    skillName: skill.name,
+                    target: 'personal'
+                  })
                   setShowRemoveConfirm(false)
                 }}
               >

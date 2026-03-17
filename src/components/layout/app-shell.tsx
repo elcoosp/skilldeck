@@ -5,18 +5,18 @@
  * logic; every data operation goes through invoke() or event listeners.
  */
 
+import { useEffect } from 'react'
+import { useHotkeys } from 'react-hotkeys-hook'
 import { Group, Panel, Separator } from 'react-resizable-panels'
 import { Toaster } from 'sonner'
-import { useHotkeys } from 'react-hotkeys-hook'
-import { useEffect } from 'react'
-import { LeftPanel } from './left-panel'
-import { CenterPanel } from './center-panel'
-import { RightPanel } from './right-panel'
 import { CommandPalette } from '@/components/overlays/command-palette'
-import { SettingsOverlay } from '@/components/overlays/settings-overlay'
 import { LaunchNotificationBanner } from '@/components/overlays/launch-notification'
-import { useUIStore } from '@/store/ui'
+import { SettingsOverlay } from '@/components/overlays/settings-overlay'
 import { useNudgeListener, usePlatformRegistration } from '@/hooks/use-platform'
+import { useUIStore } from '@/store/ui'
+import { CenterPanel } from './center-panel'
+import { LeftPanel } from './left-panel'
+import { RightPanel } from './right-panel'
 
 export function AppShell() {
   const panelSizes = useUIStore((s) => s.panelSizes)

@@ -1,65 +1,79 @@
-import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { toast } from 'sonner';
-import { commands } from '@/lib/bindings';
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
+import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { commands } from '@/lib/bindings'
 
 interface WorkflowEditorProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  initialDefinition?: any;
-  onSaved?: () => void;
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  initialDefinition?: any
+  onSaved?: () => void
 }
 
-export function WorkflowEditor({ open, onOpenChange, initialDefinition, onSaved }: WorkflowEditorProps) {
-  const [name, setName] = useState('');
+export function WorkflowEditor({
+  open,
+  onOpenChange,
+  initialDefinition,
+  onSaved
+}: WorkflowEditorProps) {
+  const [name, setName] = useState('')
   const [definitionText, setDefinitionText] = useState(
     initialDefinition
       ? JSON.stringify(initialDefinition, null, 2)
       : JSON.stringify(
-        {
-          name: '',
-          pattern: 'sequential',
-          steps: [],
-          dependencies: [],
-        },
-        null,
-        2
-      )
-  );
-  const [error, setError] = useState<string | null>(null);
+          {
+            name: '',
+            pattern: 'sequential',
+            steps: [],
+            dependencies: []
+          },
+          null,
+          2
+        )
+  )
+  const [error, setError] = useState<string | null>(null)
 
-  const queryClient = useQueryClient();
+  const queryClient = useQueryClient()
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      let parsed;
+      let parsed
       try {
-        parsed = JSON.parse(definitionText);
+        parsed = JSON.parse(definitionText)
       } catch (e) {
-        const msg = (e as Error).message;
-        setError('Invalid JSON: ' + msg);
-        throw new Error('Invalid JSON: ' + msg);
+        const msg = (e as Error).message
+        setError('Invalid JSON: ' + msg)
+        throw new Error('Invalid JSON: ' + msg)
       }
-      setError(null);
+      setError(null)
       // Cast to any if command missing
-      const res = await (commands as any).saveWorkflowDefinition({ name, definition: parsed });
-      if (res.status === 'error') throw new Error(res.error);
-      return res.data;
+      const res = await (commands as any).saveWorkflowDefinition({
+        name,
+        definition: parsed
+      })
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['workflow-definitions'] });
-      toast.success('Workflow saved');
-      onOpenChange(false);
-      onSaved?.();
+      queryClient.invalidateQueries({ queryKey: ['workflow-definitions'] })
+      toast.success('Workflow saved')
+      onOpenChange(false)
+      onSaved?.()
     },
     onError: (err: Error) => {
-      toast.error('Failed to save workflow: ' + err.message);
-    },
-  });
+      toast.error('Failed to save workflow: ' + err.message)
+    }
+  })
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -92,11 +106,14 @@ export function WorkflowEditor({ open, onOpenChange, initialDefinition, onSaved 
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+          <Button
+            onClick={() => saveMutation.mutate()}
+            disabled={saveMutation.isPending}
+          >
             {saveMutation.isPending ? 'Saving...' : 'Save'}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

@@ -1,9 +1,9 @@
-import * as React from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { AnimatePresence, motion } from 'framer-motion'
+import * as React from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { MessageBubble } from './message-bubble'
 import type { MessageData } from '@/lib/bindings'
+import { MessageBubble } from './message-bubble'
 
 interface MessageThreadProps {
   messages: MessageData[]

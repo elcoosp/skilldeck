@@ -1,55 +1,55 @@
 // src/hooks/use-platform.ts
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { commands } from '@/lib/bindings';
-import type { PlatformPreferences as ApiPlatformPreferences } from '@/lib/bindings';
-import { useEffect } from 'react';
-import { listen } from '@tauri-apps/api/event';
-import { toast } from 'sonner';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { listen } from '@tauri-apps/api/event'
+import { useEffect } from 'react'
+import { toast } from 'sonner'
+import type { PlatformPreferences as ApiPlatformPreferences } from '@/lib/bindings'
+import { commands } from '@/lib/bindings'
 
 // Extended platform preferences including local-only settings
 export interface PlatformPreferences extends ApiPlatformPreferences {
-  platformEnabled: boolean;
-  platformUrl: string;
+  platformEnabled: boolean
+  platformUrl: string
 }
 
 export interface UpdatePreferencesPayload {
-  email?: string;
-  nudge_frequency?: 'daily' | 'weekly' | 'important_only';
-  nudge_opt_out?: boolean;
-  notification_channels?: Array<'in-app' | 'email'>;
-  theme_preference?: 'system' | 'light' | 'dark';
-  timezone?: string;
-  analytics_opt_in?: boolean;
-  platformEnabled?: boolean;
-  platformUrl?: string;
+  email?: string
+  nudge_frequency?: 'daily' | 'weekly' | 'important_only'
+  nudge_opt_out?: boolean
+  notification_channels?: Array<'in-app' | 'email'>
+  theme_preference?: 'system' | 'light' | 'dark'
+  timezone?: string
+  analytics_opt_in?: boolean
+  platformEnabled?: boolean
+  platformUrl?: string
 }
 
 export interface NudgePayload {
-  id: string;
-  message: string;
-  cta_label: string | null;
-  cta_action: string | null;
+  id: string
+  message: string
+  cta_label: string | null
+  cta_action: string | null
 }
 
 export function usePlatformPreferences() {
-  const queryClient = useQueryClient();
+  const queryClient = useQueryClient()
 
   const query = useQuery({
     queryKey: ['platform-preferences'],
     queryFn: async (): Promise<PlatformPreferences> => {
-      const res = await commands.getPlatformPreferences();
-      if (res.status === 'error') throw new Error(res.error);
+      const res = await commands.getPlatformPreferences()
+      if (res.status === 'error') throw new Error(res.error)
 
       // Merge with local defaults for platform-specific settings
       // In a real implementation, these would be stored in local DB
       return {
         ...res.data,
         platformEnabled: true, // Placeholder – read from local DB or config
-        platformUrl: 'https://platform.skilldeck.dev',
-      };
+        platformUrl: 'https://platform.skilldeck.dev'
+      }
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  });
+    staleTime: 5 * 60 * 1000 // 5 minutes
+  })
 
   const update = useMutation({
     mutationFn: async (payload: UpdatePreferencesPayload) => {
@@ -61,118 +61,129 @@ export function usePlatformPreferences() {
         notification_channels: payload.notification_channels ?? null,
         theme_preference: payload.theme_preference ?? null,
         timezone: payload.timezone ?? null,
-        analytics_opt_in: payload.analytics_opt_in ?? null,
-      };
+        analytics_opt_in: payload.analytics_opt_in ?? null
+      }
 
-      const res = await commands.updatePlatformPreferences(apiPayload);
-      if (res.status === 'error') throw new Error(res.error);
+      const res = await commands.updatePlatformPreferences(apiPayload)
+      if (res.status === 'error') throw new Error(res.error)
 
       // Here you would also persist platformEnabled and platformUrl locally
       // For now, we just return the merged result
       return {
         ...res.data,
-        platformEnabled: payload.platformEnabled ?? query.data?.platformEnabled ?? true,
-        platformUrl: payload.platformUrl ?? query.data?.platformUrl ?? 'https://platform.skilldeck.dev',
-      };
+        platformEnabled:
+          payload.platformEnabled ?? query.data?.platformEnabled ?? true,
+        platformUrl:
+          payload.platformUrl ??
+          query.data?.platformUrl ??
+          'https://platform.skilldeck.dev'
+      }
     },
     onSuccess: (data) => {
-      queryClient.setQueryData(['platform-preferences'], data);
-    },
-  });
+      queryClient.setQueryData(['platform-preferences'], data)
+    }
+  })
 
   const resendVerification = useMutation({
     mutationFn: async () => {
-      const res = await commands.resendVerificationEmail();
-      if (res.status === 'error') throw new Error(res.error);
-      return res.data;
-    },
-  });
+      const res = await commands.resendVerificationEmail()
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
+    }
+  })
 
   return {
     query,
     update,
-    resendVerification,
-  };
+    resendVerification
+  }
 }
 
 export function useReferral() {
-  const queryClient = useQueryClient();
+  const queryClient = useQueryClient()
 
   const stats = useQuery({
     queryKey: ['referral-stats'],
     queryFn: async () => {
-      const res = await commands.getReferralStats();
-      if (res.status === 'error') throw new Error(res.error);
-      return res.data;
-    },
-  });
+      const res = await commands.getReferralStats()
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
+    }
+  })
 
   const create = useMutation({
     mutationFn: async () => {
-      const res = await commands.createReferralCode();
-      if (res.status === 'error') throw new Error(res.error);
-      return res.data;
+      const res = await commands.createReferralCode()
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['referral-stats'] });
-    },
-  });
+      queryClient.invalidateQueries({ queryKey: ['referral-stats'] })
+    }
+  })
 
-  return { stats, create };
+  return { stats, create }
 }
 
 export function usePlatformRegistration() {
-  const queryClient = useQueryClient();
+  const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async () => {
-      const res = await commands.ensurePlatformRegistration();
-      if (res.status === 'error') throw new Error(res.error);
-      return res.data;
+      const res = await commands.ensurePlatformRegistration()
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['platform-preferences'] });
-      toast.success('Platform registration successful');
+      queryClient.invalidateQueries({ queryKey: ['platform-preferences'] })
+      toast.success('Platform registration successful')
     },
     onError: (error) => {
-      toast.error(`Platform registration failed: ${error}`);
-    },
-  });
+      toast.error(`Platform registration failed: ${error}`)
+    }
+  })
 }
 
 export function useNudgeListener() {
   useEffect(() => {
-    let unlisten: (() => void) | null = null;
+    let unlisten: (() => void) | null = null
 
     const setupListener = async () => {
       try {
         unlisten = await listen<NudgePayload>('nudge://pending', (event) => {
-          const { message, cta_label, cta_action } = event.payload;
+          const { message, cta_label, cta_action } = event.payload
           toast.info(message, {
             duration: 10000,
-            action: cta_label && cta_action ? {
-              label: cta_label,
-              onClick: () => {
-                // Handle CTA action - could open a URL or trigger an app navigation
-                if (cta_action.startsWith('open:')) {
-                  const target = cta_action.replace('open:', '');
-                  // Dispatch a custom event or use router
-                  window.dispatchEvent(new CustomEvent('skilldeck:navigate', { detail: { target } }));
-                } else if (cta_action.startsWith('http')) {
-                  window.open(cta_action, '_blank');
-                }
-              },
-            } : undefined,
-          });
-        });
+            action:
+              cta_label && cta_action
+                ? {
+                    label: cta_label,
+                    onClick: () => {
+                      // Handle CTA action - could open a URL or trigger an app navigation
+                      if (cta_action.startsWith('open:')) {
+                        const target = cta_action.replace('open:', '')
+                        // Dispatch a custom event or use router
+                        window.dispatchEvent(
+                          new CustomEvent('skilldeck:navigate', {
+                            detail: { target }
+                          })
+                        )
+                      } else if (cta_action.startsWith('http')) {
+                        window.open(cta_action, '_blank')
+                      }
+                    }
+                  }
+                : undefined
+          })
+        })
       } catch (error) {
-        console.error('Failed to set up nudge listener:', error);
+        console.error('Failed to set up nudge listener:', error)
       }
-    };
+    }
 
-    setupListener();
+    setupListener()
 
     return () => {
-      if (unlisten) unlisten();
-    };
-  }, []);
+      if (unlisten) unlisten()
+    }
+  }, [])
 }

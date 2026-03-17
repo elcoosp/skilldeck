@@ -3,11 +3,11 @@
 // Aligned with the new card system – neutral borders, consistent hover,
 // and status badges using brand colors.
 
-import { cn } from '@/lib/utils'
-import { Badge } from '@/components/ui/badge'
-import { TrustBadge } from './trust-badge'
 import { motion } from 'framer-motion'
+import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
 import type { UnifiedSkill } from '@/types/skills'
+import { TrustBadge } from './trust-badge'
 
 interface Props {
   skill: UnifiedSkill
@@ -48,7 +48,9 @@ export function UnifiedSkillCard({ skill, onClick, isSelected }: Props) {
         'transition-all duration-150 hover:border-primary/50 hover:shadow-sm',
         'flex flex-col h-full min-h-[140px] focus-visible:outline-none',
         'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
-        isSelected ? 'border-primary ring-2 ring-primary/20' : 'border-border bg-card',
+        isSelected
+          ? 'border-primary ring-2 ring-primary/20'
+          : 'border-border bg-card'
       )}
       onClick={() => onClick(skill)}
     >
@@ -61,9 +63,12 @@ export function UnifiedSkillCard({ skill, onClick, isSelected }: Props) {
           variant={STATUS_BADGE_VARIANT[skill.status]}
           className={cn(
             'shrink-0 text-[10px] px-1.5 py-0',
-            skill.status === 'installed' && 'bg-primary/10 text-primary border-primary/20',
-            skill.status === 'local_only' && 'bg-secondary text-secondary-foreground',
-            skill.status === 'update_available' && 'bg-amber-500/10 text-amber-600 border-amber-500/20',
+            skill.status === 'installed' &&
+              'bg-primary/10 text-primary border-primary/20',
+            skill.status === 'local_only' &&
+              'bg-secondary text-secondary-foreground',
+            skill.status === 'update_available' &&
+              'bg-amber-500/10 text-amber-600 border-amber-500/20'
           )}
         >
           {STATUS_LABEL[skill.status]}

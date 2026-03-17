@@ -27,7 +27,7 @@
     "tauri:build": "tauri build",
     "lint": "biome check .",
     "check": "tsc --noEmit",
-    "lint:fix": "biome check --apply .",
+    "lint:fix": "biome check --fix .",
     "format": "biome format . --write",
     "format:check": "biome format .",
     "types": "tsc --noEmit",

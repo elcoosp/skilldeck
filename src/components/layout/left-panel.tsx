@@ -3,29 +3,29 @@
  * Left panel — conversation list, search, new chat, workspace switcher.
  */
 
-import { FolderOpen, Plus, Search, Settings, ChevronDown } from 'lucide-react'
 import { open } from '@tauri-apps/plugin-dialog'
+import { AnimatePresence, motion } from 'framer-motion'
+import { ChevronDown, FolderOpen, Plus, Search, Settings } from 'lucide-react'
+import { useState } from 'react'
 import { toast } from 'sonner'
+import { ConversationItem } from '@/components/conversation/conversation-item'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
-import { ConversationItem } from '@/components/conversation/conversation-item'
+import { Input } from '@/components/ui/input'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   useConversations,
   useCreateConversation
 } from '@/hooks/use-conversations'
 import { useProfiles } from '@/hooks/use-profiles'
-import { useWorkspaces, useOpenWorkspace } from '@/hooks/use-workspaces'
-import { useUIStore } from '@/store/ui'
+import { useOpenWorkspace, useWorkspaces } from '@/hooks/use-workspaces'
 import { cn } from '@/lib/utils'
-import { useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { useUIStore } from '@/store/ui'
 
 export function LeftPanel() {
   const searchQuery = useUIStore((s) => s.searchQuery)
@@ -44,7 +44,8 @@ export function LeftPanel() {
   const defaultProfile = profiles?.find((p) => p.is_default) ?? profiles?.[0]
 
   // Pass the profile ID to conversations query
-  const { data: conversations, isLoading: conversationsLoading } = useConversations(defaultProfile?.id)
+  const { data: conversations, isLoading: conversationsLoading } =
+    useConversations(defaultProfile?.id)
 
   // Pass the profile ID to useCreateConversation so it can invalidate the correct query key
   const createConversation = useCreateConversation(defaultProfile?.id)
@@ -167,7 +168,7 @@ export function LeftPanel() {
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.3, ease: "easeOut" }}
+                transition={{ duration: 0.3, ease: 'easeOut' }}
                 className="flex flex-col items-center justify-center py-12 px-4 text-center"
               >
                 <div className="w-48 h-48 mb-4 overflow-hidden rounded-3xl">
@@ -186,7 +187,10 @@ export function LeftPanel() {
               </motion.div>
             )
           ) : (
-            <AnimatePresence mode="popLayout" onExitComplete={handleDeleteComplete}>
+            <AnimatePresence
+              mode="popLayout"
+              onExitComplete={handleDeleteComplete}
+            >
               {filtered?.map((c) => (
                 <motion.div
                   key={c.id}

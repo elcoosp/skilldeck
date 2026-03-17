@@ -2,8 +2,8 @@
 // UX: Explicitly informs the user where the skill is being copied to.
 // "Copy" mental model — not a live link.
 
-import { useState } from 'react'
 import { FolderOpen, Home } from 'lucide-react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -33,7 +33,12 @@ export function InstallDialog({ skill, onClose }: InstallDialogProps) {
     )
   }
 
-  const targets: { value: InstallTarget; label: string; path: string; icon: React.ReactNode }[] = [
+  const targets: {
+    value: InstallTarget
+    label: string
+    path: string
+    icon: React.ReactNode
+  }[] = [
     {
       value: 'personal',
       label: 'Personal',
@@ -87,14 +92,20 @@ export function InstallDialog({ skill, onClose }: InstallDialogProps) {
               </div>
               <div>
                 <p className="text-sm font-medium">{t.label}</p>
-                <p className="text-xs text-muted-foreground font-mono">{t.path}</p>
+                <p className="text-xs text-muted-foreground font-mono">
+                  {t.path}
+                </p>
               </div>
             </button>
           ))}
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={install.isPending}>
+          <Button
+            variant="outline"
+            onClick={onClose}
+            disabled={install.isPending}
+          >
             Cancel
           </Button>
           <Button onClick={handleInstall} disabled={install.isPending}>

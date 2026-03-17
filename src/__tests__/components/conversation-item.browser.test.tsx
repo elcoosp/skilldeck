@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render } from 'vitest-browser-react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { render } from 'vitest-browser-react'
 import { ConversationItem } from '@/components/conversation/conversation-item'
-import * as bindings from '@/lib/bindings'
 import type { ConversationSummary } from '@/lib/bindings'
+import * as bindings from '@/lib/bindings'
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -27,9 +27,18 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 )
 
 beforeEach(() => {
-  vi.spyOn(bindings.commands, 'deleteConversation').mockResolvedValue({ status: 'ok', data: null })
-  vi.spyOn(bindings.commands, 'renameConversation').mockResolvedValue({ status: 'ok', data: null })
-  vi.spyOn(bindings.commands, 'listConversations').mockResolvedValue({ status: 'ok', data: [] })
+  vi.spyOn(bindings.commands, 'deleteConversation').mockResolvedValue({
+    status: 'ok',
+    data: null
+  })
+  vi.spyOn(bindings.commands, 'renameConversation').mockResolvedValue({
+    status: 'ok',
+    data: null
+  })
+  vi.spyOn(bindings.commands, 'listConversations').mockResolvedValue({
+    status: 'ok',
+    data: []
+  })
 })
 
 // ── Rendering ─────────────────────────────────────────────────────────────────
@@ -139,7 +148,9 @@ describe('ConversationItem interaction', () => {
 
     const item = screen.getByText('My Conversation')
     const element = item.element()
-    element?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    element?.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })
+    )
     expect(onClick).toHaveBeenCalledOnce()
   })
 
@@ -156,7 +167,9 @@ describe('ConversationItem interaction', () => {
 
     const item = screen.getByText('My Conversation')
     const element = item.element()
-    element?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Space', bubbles: true }))
+    element?.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Space', bubbles: true })
+    )
     expect(onClick).not.toHaveBeenCalled()
   })
 })

@@ -3,8 +3,8 @@
  * Supports copy-to-clipboard and (future) save-to-file.
  */
 
-import { useState } from 'react'
 import { Check, Copy, FileCode, FileText } from 'lucide-react'
+import { useState } from 'react'
 
 type ArtifactType = 'code' | 'text' | 'markdown'
 

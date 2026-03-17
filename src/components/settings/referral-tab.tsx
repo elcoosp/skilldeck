@@ -7,7 +7,7 @@
 
 import { Copy, ExternalLink, Gift, Users } from 'lucide-react'
 import { toast } from 'sonner'
-import { useReferral, usePlatformPreferences } from '@/hooks/use-platform'
+import { usePlatformPreferences, useReferral } from '@/hooks/use-platform'
 
 const REFERRAL_BASE_URL = 'https://skilldeck.dev/r'
 
@@ -45,7 +45,8 @@ export function ReferralTab() {
     )
   }
 
-  const platformConfigured = prefsQuery.data?.platformEnabled && prefsQuery.data?.platformUrl
+  const platformConfigured =
+    prefsQuery.data?.platformEnabled && prefsQuery.data?.platformUrl
 
   return (
     <div className="space-y-6 text-sm">
@@ -102,7 +103,11 @@ export function ReferralTab() {
                 className="px-4 py-2 rounded-md bg-primary text-primary-foreground font-medium hover:bg-primary/90"
                 onClick={() => {
                   // Dispatch event to open settings on platform tab
-                  window.dispatchEvent(new CustomEvent('skilldeck:open-settings', { detail: { tab: 'platform' } }))
+                  window.dispatchEvent(
+                    new CustomEvent('skilldeck:open-settings', {
+                      detail: { tab: 'platform' }
+                    })
+                  )
                 }}
               >
                 Configure Platform

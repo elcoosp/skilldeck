@@ -1,11 +1,11 @@
-import { useState } from 'react'
 import { AlertTriangle, Check, Edit2, X } from 'lucide-react'
+import { useState } from 'react'
 import { toast } from 'sonner'
-import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { commands } from '@/lib/bindings'
 import { useAchievements } from '@/hooks/use-achievements'
+import { commands } from '@/lib/bindings'
 import type { ToolCallInfo } from '@/lib/events'
+import { cn } from '@/lib/utils'
 
 interface ToolApprovalCardProps {
   toolCallId: string
@@ -39,7 +39,11 @@ export function ToolApprovalCard({
         }
       }
       const jsonValue = parsed as any
-      const res = await commands.resolveToolApproval(toolCallId, approved, jsonValue)
+      const res = await commands.resolveToolApproval(
+        toolCallId,
+        approved,
+        jsonValue
+      )
       if (res.status === 'error') throw new Error(res.error)
       if (approved) {
         unlock('firstToolApproval')

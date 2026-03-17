@@ -5,14 +5,14 @@
  * Every skill shared becomes a reusable asset for your team.
  */
 
-import { useState } from 'react'
 import { ExternalLink, Github, Share2, X } from 'lucide-react'
+import { useState } from 'react'
 import { toast } from 'sonner'
 import {
-  shareSkillAsGist,
+  type GistInfo,
   hasGithubToken,
   setGithubToken,
-  type GistInfo
+  shareSkillAsGist
 } from '@/lib/gist'
 import { sendActivityEvent } from '@/lib/platform'
 
@@ -23,11 +23,16 @@ interface Props {
 }
 
 export function ShareSkillModal({ skillName, contentMd, onClose }: Props) {
-  const [step, setStep] useState<'share' | 'github-auth' | 'done'>('share')
-  const [description, setDescription] useState('')
-  const [tokenDraft, setTokenDraft] useState('')
-  const [saving, setSaving] useState(false)
-  const [result, setResult] useState<GistInfo | null > (null)
+  const [step, setStep]
+  useState<'share' | 'github-auth' | 'done'>('share')
+  const [description, setDescription]
+  useState('')
+  const [tokenDraft, setTokenDraft]
+  useState('')
+  const [saving, setSaving]
+  useState(false)
+  const [result, setResult]
+  useState<GistInfo | null>(null)
 
   async function handleShare() {
     setSaving(true)
@@ -71,7 +76,7 @@ export function ShareSkillModal({ skillName, contentMd, onClose }: Props) {
       setResult(gist)
       setStep('done')
       sendActivityEvent('skill_shared', { skill_name: skillName }).catch(
-        () => { }
+        () => {}
       )
     } finally {
       setSaving(false)
@@ -206,6 +211,7 @@ export function ShareSkillModal({ skillName, contentMd, onClose }: Props) {
                 View on GitHub <ExternalLink size={13} />
               </a>
               <button
+                type="button"
                 onClick={onClose}
                 className="w-full py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90"
               >

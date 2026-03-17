@@ -1,18 +1,20 @@
 // src/components/chat/file-mention-picker.tsx
-import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+
 import {
+  CheckCircle,
   ChevronLeft,
   FileIcon,
   FolderIcon,
-  CheckCircle,
   Loader2,
   XCircle
 } from 'lucide-react'
+import type React from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Input } from '@/components/ui/input'
-import { FolderScopeModal } from './folder-scope-modal'
-import type { FileEntry, FolderCounts } from '@/types/chat-context'
 import { cn } from '@/lib/utils'
+import type { FileEntry, FolderCounts } from '@/types/chat-context'
+import { FolderScopeModal } from './folder-scope-modal'
 
 interface FileMentionPickerProps {
   open: boolean
@@ -20,7 +22,10 @@ interface FileMentionPickerProps {
   position: { top: number; left: number } | null
   items: FileEntry[]
   loading: boolean
-  uploadingFiles?: Map<string, { status: 'pending' | 'success' | 'error'; error?: string }>
+  uploadingFiles?: Map<
+    string,
+    { status: 'pending' | 'success' | 'error'; error?: string }
+  >
   currentFolderCounts?: FolderCounts
   onSelect: (file: FileEntry, isDeep?: boolean) => void
   onClose: () => void
@@ -84,7 +89,9 @@ export const FileMentionPicker: React.FC<FileMentionPickerProps> = ({
   // Scroll selected item into view
   useEffect(() => {
     if (view === 'list' && listRef.current) {
-      const selectedEl = listRef.current.children[selectedIndex] as HTMLElement | undefined
+      const selectedEl = listRef.current.children[selectedIndex] as
+        | HTMLElement
+        | undefined
       selectedEl?.scrollIntoView({ block: 'nearest' })
     }
   }, [selectedIndex, view])
@@ -224,7 +231,9 @@ export const FileMentionPicker: React.FC<FileMentionPickerProps> = ({
               {!hasWorkspace ? (
                 <>
                   <p className="font-medium mb-1">No workspace open</p>
-                  <p className="text-xs">Open a workspace first to browse files.</p>
+                  <p className="text-xs">
+                    Open a workspace first to browse files.
+                  </p>
                 </>
               ) : (
                 'No files found'
@@ -235,7 +244,8 @@ export const FileMentionPicker: React.FC<FileMentionPickerProps> = ({
           {!loading &&
             filtered.map((file, index) => {
               const sizeFormatted = file.is_dir ? '—' : formatBytes(file.size)
-              const isLarge = !file.is_dir && (file.size ?? 0) > FILE_SIZE_WARN_THRESHOLD
+              const isLarge =
+                !file.is_dir && (file.size ?? 0) > FILE_SIZE_WARN_THRESHOLD
               return (
                 <div
                   key={file.path}
@@ -274,7 +284,9 @@ export const FileMentionPicker: React.FC<FileMentionPickerProps> = ({
                   >
                     {sizeFormatted}
                   </span>
-                  <span className="w-3 h-3 shrink-0">{renderStatusIcon(file)}</span>
+                  <span className="w-3 h-3 shrink-0">
+                    {renderStatusIcon(file)}
+                  </span>
                 </div>
               )
             })}

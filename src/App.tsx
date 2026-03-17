@@ -3,15 +3,15 @@
  * Shows the OnboardingWizard on first run.
  */
 
-import { useEffect } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { useEffect } from 'react'
 import './App.css'
 import { AppShell } from '@/components/layout/app-shell'
 import { OnboardingWizard } from '@/components/overlays/onboarding-wizard'
-import { useSettingsStore } from '@/store/settings'
-import { useUIStore } from '@/store/ui'
 import { useMcpEvents } from '@/hooks/use-mcp-events'
 import { useSubagentEvents } from '@/hooks/use-subagent-events'
+import { useSettingsStore } from '@/store/settings'
+import { useUIStore } from '@/store/ui'
 
 const queryClient = new QueryClient({
   defaultOptions: {

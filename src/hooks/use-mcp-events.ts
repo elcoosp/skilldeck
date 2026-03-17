@@ -3,10 +3,10 @@
  * query fresh whenever a server connects, disconnects, or discovers a tool.
  */
 
-import { useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { onMcpEvent } from '@/lib/events'
+import { useEffect } from 'react'
 import type { McpEvent } from '@/lib/events'
+import { onMcpEvent } from '@/lib/events'
 
 export function useMcpEvents() {
   const queryClient = useQueryClient()

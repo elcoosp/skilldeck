@@ -19,7 +19,14 @@ interface PanelSizes {
   right: number
 }
 
-type SettingsTab = 'apikeys' | 'profiles' | 'approvals' | 'appearance' | 'preferences' | 'referral' | 'platform'
+type SettingsTab =
+  | 'apikeys'
+  | 'profiles'
+  | 'approvals'
+  | 'appearance'
+  | 'preferences'
+  | 'referral'
+  | 'platform'
 
 interface UIState {
   // ── Active workspace ──────────────────────────────────────────────────
@@ -100,14 +107,19 @@ export const useUIStore = create<UIState>()(
       // Onboarding – read from localStorage so the wizard only shows once
       onboardingComplete: (() => {
         try {
-          return localStorage.getItem('skilldeck-onboarding-complete') === 'true'
+          return (
+            localStorage.getItem('skilldeck-onboarding-complete') === 'true'
+          )
         } catch {
           return false
         }
       })(),
       setOnboardingComplete: (complete) => {
         try {
-          localStorage.setItem('skilldeck-onboarding-complete', String(complete))
+          localStorage.setItem(
+            'skilldeck-onboarding-complete',
+            String(complete)
+          )
         } catch {
           // ignore
         }
@@ -118,7 +130,9 @@ export const useUIStore = create<UIState>()(
       platformFeaturesEnabled: (() => {
         try {
           // If explicitly set to false, respect that; otherwise default to true
-          const stored = localStorage.getItem('skilldeck-platform-features-enabled')
+          const stored = localStorage.getItem(
+            'skilldeck-platform-features-enabled'
+          )
           return stored !== 'false'
         } catch {
           return true
@@ -126,7 +140,10 @@ export const useUIStore = create<UIState>()(
       })(),
       setPlatformFeaturesEnabled: (enabled) => {
         try {
-          localStorage.setItem('skilldeck-platform-features-enabled', String(enabled))
+          localStorage.setItem(
+            'skilldeck-platform-features-enabled',
+            String(enabled)
+          )
         } catch {
           // ignore
         }

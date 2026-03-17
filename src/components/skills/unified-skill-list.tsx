@@ -2,17 +2,17 @@
 // Virtualized marketplace grid — merges local + registry skills via
 // useUnifiedSkills, renders rows with responsive column count.
 
-import { useRef, useState, useEffect } from 'react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { AlertCircle, RefreshCw, Search } from 'lucide-react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useRef, useState } from 'react'
 import { useDebounce } from 'use-debounce'
+import { useUnifiedSkills } from '@/hooks/use-unified-skills'
 import { commands } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
-import { useUnifiedSkills } from '@/hooks/use-unified-skills'
-import { UnifiedSkillCard } from './unified-skill-card'
-import { SkillDetailPanel } from './skill-detail-panel'
 import type { UnifiedSkill } from '@/types/skills'
+import { SkillDetailPanel } from './skill-detail-panel'
+import { UnifiedSkillCard } from './unified-skill-card'
 
 // Responsive column count based on container width
 const BREAKPOINTS = {
@@ -202,9 +202,7 @@ export function UnifiedSkillList() {
                         skill={skill}
                         isSelected={resolvedSelected?.id === skill.id}
                         onClick={(s) =>
-                          setSelected((prev) =>
-                            prev?.id === s.id ? null : s
-                          )
+                          setSelected((prev) => (prev?.id === s.id ? null : s))
                         }
                       />
                     ))}

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { ToolCallCard } from '@/components/conversation/tool-call-card'
 
@@ -37,7 +37,9 @@ describe('ToolCallCard', () => {
   })
 
   it('shows result section when result is provided and expanded', async () => {
-    const screen = await render(<ToolCallCard {...defaultProps} result="file contents here" />)
+    const screen = await render(
+      <ToolCallCard {...defaultProps} result="file contents here" />
+    )
     await screen.getByText('read_file').click()
     const output = screen.getByText('Output')
     await expect.element(output).toBeInTheDocument()
@@ -53,7 +55,7 @@ describe('ToolCallCard', () => {
       />
     )
     await screen.getByText('execute').click()
-    const foo = screen.getByText(/\"FOO\"/)
+    const foo = screen.getByText(/"FOO"/)
     await expect.element(foo).toBeInTheDocument()
   })
 })
