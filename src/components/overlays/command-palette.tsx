@@ -28,7 +28,6 @@ export function CommandPalette() {
   const { skills = [] } = useAllSkills()
   const { data: profiles = [] } = useProfiles()
 
-  // FIXED: pass the profile ID to the hook
   const defaultProfile = profiles.find((p) => p.is_default) ?? profiles[0]
   const createConversation = useCreateConversation(defaultProfile?.id)
 
@@ -44,12 +43,12 @@ export function CommandPalette() {
   if (!open) return null
 
   return (
-    /* Backdrop */
+    /* Backdrop – softer, matches brand neutral */
     <div
-      className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-start justify-center pt-[15vh]"
+      className="fixed inset-0 z-50 bg-black/20 backdrop-blur-sm flex items-start justify-center pt-[15vh]"
       onClick={() => setOpen(false)}
     >
-      {/* Panel — stop propagation so clicks inside don't close */}
+      {/* Panel */}
       <div
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-xl mx-4 rounded-xl border border-border bg-background shadow-2xl overflow-hidden"
@@ -76,7 +75,6 @@ export function CommandPalette() {
                 label="New Chat"
                 onSelect={() => {
                   if (defaultProfile) {
-                    // FIXED: call mutate with empty object, profileId already passed to hook
                     createConversation.mutate({})
                   }
                   setOpen(false)
@@ -143,7 +141,7 @@ export function CommandPalette() {
   )
 }
 
-// ── Internal helper ───────────────────────────────────────────────────────────
+// ── Internal helper with brand‑consistent styling ───────────────────────────
 
 interface CommandItemProps {
   icon: React.ReactNode
@@ -163,13 +161,16 @@ function CommandItem({
   return (
     <Command.Item
       onSelect={onSelect}
-      className="flex items-center gap-2.5 px-2 py-2 rounded-md text-sm cursor-pointer
-        aria-selected:bg-accent aria-selected:text-accent-foreground
-        hover:bg-accent hover:text-accent-foreground transition-colors outline-none"
+      className={`
+        flex items-center gap-2.5 px-2 py-2 rounded-md text-sm cursor-pointer
+        transition-colors outline-none
+        aria-selected:bg-primary/10 aria-selected:text-foreground
+        hover:bg-muted hover:text-foreground
+      `}
     >
       <span className="text-muted-foreground shrink-0">{icon}</span>
       <span className="flex-1 min-w-0">
-        <span className="block truncate">{label}</span>
+        <span className="block truncate font-medium">{label}</span>
         {sublabel && (
           <span className="block truncate text-xs text-muted-foreground">
             {sublabel}
