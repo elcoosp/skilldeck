@@ -85,10 +85,10 @@ pub async fn list_messages(
 // =============================================================================
 
 async fn send_message_internal(
-    state: &Arc<AppState>,
-    conversation_id: &str,
+    state: Arc<AppState>,
+    conversation_id: String,
     content: String,
-    app: &tauri::AppHandle,
+    app: tauri::AppHandle,
 ) -> Result<(), String> {
     let db = state
         .registry
@@ -96,7 +96,7 @@ async fn send_message_internal(
         .connection()
         .await
         .map_err(|e| e.to_string())?;
-    let conv_uuid = Uuid::parse_str(conversation_id).map_err(|e| e.to_string())?;
+    let conv_uuid = Uuid::parse_str(&conversation_id).map_err(|e| e.to_string())?;
     let msg_id = Uuid::new_v4();
     let now = chrono::Utc::now().fixed_offset();
 
@@ -115,7 +115,7 @@ async fn send_message_internal(
     let _ = app.emit(
         "agent-event",
         AgentEvent::Persisted {
-            conversation_id: conversation_id.to_string(),
+            conversation_id: conversation_id.clone(),
         },
     );
 
@@ -123,13 +123,13 @@ async fn send_message_internal(
     let _ = app.emit(
         "agent-event",
         AgentEvent::Started {
-            conversation_id: conversation_id.to_string(),
+            conversation_id: conversation_id.clone(),
         },
     );
 
     // Clone the Arc for the background task
     let state_arc = state.clone();
-    let conv_id_clone = conversation_id.to_string();
+    let conv_id_clone = conversation_id.clone();
     let content_clone = content.clone();
     let app_clone = app.clone();
 
@@ -167,7 +167,9 @@ pub async fn send_message(
         return Ok(());
     }
 
-    send_message_internal(&state, &conversation_id, content, &app).await
+    // Clone the Arc for the internal call
+    let state_clone = (*state).clone();
+    send_message_internal(state_clone, conversation_id, content, app).await
 }
 
 /// Resolve a pending tool-approval from the frontend.
@@ -619,12 +621,12 @@ async fn run_agent_loop(
                         crate::commands::queue::delete_queued_message_internal(&state, &first.id)
                             .await
                     {
-                        // Send it using internal send function
+                        // Send it using internal send function with owned values
                         let _ = send_message_internal(
-                            &state,
-                            &conversation_id,
+                            state.clone(),
+                            conversation_id.clone(),
                             first.content.clone(),
-                            &app,
+                            app.clone(),
                         )
                         .await;
                     }
