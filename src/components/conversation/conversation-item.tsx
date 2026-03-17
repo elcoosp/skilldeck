@@ -1,11 +1,11 @@
 // src/components/conversation/conversation-item.tsx
 /**
- * Sidebar conversation list item with inline rename and context menu.
+ * Sidebar conversation list item with inline rename, context menu, and pin toggle.
  */
 
 import { formatDistanceToNow } from 'date-fns'
 import { AnimatePresence, motion } from 'framer-motion'
-import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
+import { MoreHorizontal, Pencil, Pin, PinOff, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -16,7 +16,9 @@ import {
 } from '@/components/ui/dropdown-menu'
 import {
   useDeleteConversation,
-  useRenameConversation
+  usePinConversation,
+  useRenameConversation,
+  useUnpinConversation
 } from '@/hooks/use-conversations'
 import type { ConversationSummary } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
@@ -43,6 +45,8 @@ export function ConversationItem({
 
   const deleteMutation = useDeleteConversation()
   const renameMutation = useRenameConversation()
+  const pinMutation = usePinConversation()
+  const unpinMutation = useUnpinConversation()
 
   const cancelRename = useCallback(() => {
     setDraft(conversation.title ?? '')
@@ -55,6 +59,15 @@ export function ConversationItem({
       renameMutation.mutate({ id: conversation.id, title: trimmed })
     }
     setIsRenaming(false)
+  }
+
+  const togglePin = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (conversation.pinned) {
+      unpinMutation.mutate(conversation.id)
+    } else {
+      pinMutation.mutate(conversation.id)
+    }
   }
 
   useEffect(() => {
@@ -174,6 +187,26 @@ export function ConversationItem({
             )}
           </AnimatePresence>
 
+          {/* Pin icon – always visible but faint when unpinned */}
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            className={cn(
+              '-my-1 -mr-1 h-5 w-5',
+              conversation.pinned
+                ? 'text-primary opacity-100'
+                : 'opacity-0 group-hover:opacity-50'
+            )}
+            onClick={togglePin}
+            aria-label={conversation.pinned ? 'Unpin conversation' : 'Pin conversation'}
+          >
+            {conversation.pinned ? (
+              <Pin className="size-3 fill-primary" />
+            ) : (
+              <PinOff className="size-3" />
+            )}
+          </Button>
+
           {/* Pencil icon – only visible on hover */}
           {!isRenaming && !isDeleting && (
             <Button
@@ -193,8 +226,15 @@ export function ConversationItem({
         </div>
 
         {/* Metadata – always visible */}
-        <p className="text-[11px] text-muted-foreground/70 truncate mt-0.5">
-          {conversation.message_count} msg · {relativeTime}
+        <p className="text-[11px] text-muted-foreground/70 truncate mt-0.5 flex items-center gap-1">
+          {conversation.pinned && (
+            <span className="inline-flex items-center gap-0.5 text-primary">
+              <Pin className="size-2.5 fill-primary" /> Pinned
+            </span>
+          )}
+          <span>
+            {conversation.message_count} msg · {relativeTime}
+          </span>
         </p>
       </div>
 
