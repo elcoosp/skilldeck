@@ -13,6 +13,7 @@ pub struct Model {
     pub position: i32,
     pub created_at: DateTimeWithTimeZone,
     pub updated_at: DateTimeWithTimeZone,
+    pub context_items: Option<Json>, // <-- added
 
     // Relation to conversations (belongs-to)
     #[sea_orm(belongs_to, from = "conversation_id", to = "id")]

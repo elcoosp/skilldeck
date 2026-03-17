@@ -236,6 +236,7 @@ impl MigrationTrait for Migration {
                     .col(text(Messages::Content).not_null())
                     .col(json(Messages::Metadata).null())
                     .col(integer(Messages::InputTokens).null())
+                    .col(json(QueuedMessages::ContextItems))
                     .col(integer(Messages::OutputTokens).null())
                     .col(integer(Messages::CacheReadTokens).null())
                     .col(integer(Messages::CacheWriteTokens).null())
@@ -333,6 +334,7 @@ impl MigrationTrait for Migration {
                     .col(uuid(QueuedMessages::Id).primary_key())
                     .col(uuid(QueuedMessages::ConversationId).not_null())
                     .col(text(QueuedMessages::Content).not_null())
+                    .col(json(QueuedMessages::ContextItems))
                     .col(integer(QueuedMessages::Position).not_null())
                     .col(
                         timestamp_with_time_zone(QueuedMessages::CreatedAt)
@@ -1497,6 +1499,8 @@ enum Conversations {
 enum Messages {
     Table,
     Id,
+
+    ContextItems,
     ConversationId,
     ParentId,
     BranchId,
@@ -1526,6 +1530,7 @@ enum ConversationBranches {
 enum QueuedMessages {
     Table,
     Id,
+    ContextItems,
     ConversationId,
     Content,
     Position,
