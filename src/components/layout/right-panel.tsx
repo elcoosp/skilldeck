@@ -84,26 +84,21 @@ export function RightPanel() {
             type="button"
             onClick={() => setActiveTab(id)}
             className={cn(
-              // Each tab owns an equal portion of the bar — layout never shifts
               'group relative flex items-center justify-center',
-              'flex-1 px-1 py-2.5 text-xs font-medium',
-              'overflow-hidden',
-              'transition-colors duration-200',
+              // min-w holds space for the icon; width grows smoothly to fit label
+              'min-w-[2.25rem] px-2 py-2.5 text-xs font-medium',
+              'transition-[color,width] duration-200 ease-in-out',
               activeTab === id
                 ? 'text-foreground border-b-2 border-primary -mb-px'
                 : 'text-muted-foreground hover:text-foreground'
             )}
           >
             <Icon className="size-3.5 shrink-0" />
-            {/*
-              Label slides in from zero width. Because the button already
-              occupies its full flex-1 share, this expansion is clipped inside
-              the existing space — siblings don't move.
-            */}
             <span
               className={cn(
                 'whitespace-nowrap overflow-hidden pointer-events-none',
-                'max-w-0 group-hover:max-w-[5rem]',
+                // width:0 → auto via max-width; smooth, no jump
+                'max-w-0 group-hover:max-w-[6rem]',
                 'ml-0 group-hover:ml-1.5',
                 'opacity-0 group-hover:opacity-100',
                 'transition-[max-width,margin-left,opacity] duration-200 ease-in-out'
