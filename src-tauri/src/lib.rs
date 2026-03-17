@@ -148,6 +148,9 @@ pub fn run() {
             delete_queued_message,
             reorder_queued_messages,
             merge_queued_messages,
+            // pin/unpin conversations (added)
+            pin_conversation,
+            unpin_conversation,
         ])
         .events(collect_events![AgentEvent, McpEvent, WorkflowEvent]);
 
