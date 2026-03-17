@@ -4,22 +4,28 @@
  *
  * Context injection: type `@` to search skills, `#` to browse the file system.
  * Selected items appear as chips above the textarea and are cleared on send.
+ *
+ * Queued messages are now persisted in the database and managed via React Query.
  */
 
 import { open } from '@tauri-apps/plugin-dialog'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { AtSign, Hash, Paperclip, Send, Timer, X } from 'lucide-react'
+import { AtSign, Hash, Paperclip, Send, Timer } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
+
 import { AttachedItemsList } from '@/components/chat/attached-items-list'
 import { ChatCommandPalette } from '@/components/chat/chat-command-palette'
 import { FileMentionPicker } from '@/components/chat/file-mention-picker'
 import { SecurityWarningDialog } from '@/components/chat/security-warning-dialog'
+import { QueueHeader } from '@/components/conversation/queue/queue-header'
+import { QueueList } from '@/components/conversation/queue/queue-list'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { useCreateConversation } from '@/hooks/use-conversations'
 import { useSendMessage } from '@/hooks/use-messages'
 import { useProfiles } from '@/hooks/use-profiles'
+import { useQueuedMessages, useAddQueuedMessage } from '@/hooks/use-queued-messages'
 import { useUnifiedSkills } from '@/hooks/use-unified-skills'
 import { useWorkspaces } from '@/hooks/use-workspaces'
 import type { RegistrySkillData } from '@/lib/bindings'
@@ -27,6 +33,7 @@ import { commands } from '@/lib/bindings'
 import type { UUID } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { useChatContextStore } from '@/store/chat-context-store'
+import { useQueueStore } from '@/store/queue'
 import { useUIStore } from '@/store/ui'
 import type {
   FileEntry,
@@ -65,19 +72,19 @@ export function MessageInput({ conversationId }: MessageInputProps) {
   const setDraft = useUIStore((s) => s.setDraft)
   const clearDraft = useUIStore((s) => s.clearDraft)
   const isRunning = useUIStore((s) => s.agentRunning[conversationId] ?? false)
-  const queuedMessage = useUIStore((s) => s.queuedMessages[conversationId])
-  const setQueuedMessage = useUIStore((s) => s.setQueuedMessage)
-  const clearQueuedMessage = useUIStore((s) => s.clearQueuedMessage)
   const setActiveConversation = useUIStore((s) => s.setActiveConversation)
 
   const [content, setContent] = useState(draft)
 
   const sendMutation = useSendMessage(conversationId)
-
-  // FIXED: pass profile ID to the hook
   const createConversation = useCreateConversation(defaultProfile?.id)
 
   const shouldReduceMotion = useReducedMotion()
+
+  // ── Queue ─────────────────────────────────────────────────────────────────
+  const { data: queuedMessages = [] } = useQueuedMessages(conversationId)
+  const addQueuedMessage = useAddQueuedMessage(conversationId)
+  const queueExpanded = useQueueStore((s) => s.expanded[conversationId] ?? false)
 
   // ── Unified skills for @ picker ─────────────────────────────────────────
   const { unifiedSkills = [], isLoading: skillsLoading } = useUnifiedSkills()
@@ -314,7 +321,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
       if (isRunning) {
         // Queue the current draft instead of sending
         if (content.trim()) {
-          setQueuedMessage(conversationId, content)
+          addQueuedMessage.mutate(content)
           setContent('')
         }
       } else {
@@ -421,7 +428,6 @@ export function MessageInput({ conversationId }: MessageInputProps) {
         return
       }
       try {
-        // FIXED: call mutateAsync with empty object (profileId already passed to hook)
         finalConversationId = await createConversation.mutateAsync({})
         setActiveConversation(finalConversationId)
       } catch (err) {
@@ -458,51 +464,15 @@ export function MessageInput({ conversationId }: MessageInputProps) {
     sendMutation
   ])
 
-  const queueCurrent = useCallback(() => {
-    if (content.trim()) {
-      setQueuedMessage(conversationId, content)
-      setContent('')
-    }
-  }, [content, conversationId, setQueuedMessage])
-
-  const cancelQueued = useCallback(() => {
-    clearQueuedMessage(conversationId)
-  }, [conversationId, clearQueuedMessage])
-
-  const editQueued = useCallback(() => {
-    if (queuedMessage) {
-      setContent(queuedMessage)
-      clearQueuedMessage(conversationId)
-    }
-  }, [queuedMessage, conversationId, clearQueuedMessage])
-
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="p-3 space-y-2">
-      {/* Queued message indicator */}
-      {queuedMessage && (
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs">
-          <Timer className="size-3.5" />
-          <span className="flex-1 truncate">
-            Message queued: "{queuedMessage}"
-          </span>
-          <button
-            type="button"
-            onClick={editQueued}
-            className="text-muted-foreground hover:text-foreground underline"
-            aria-label="Edit queued message"
-          >
-            Edit
-          </button>
-          <button
-            type="button"
-            onClick={cancelQueued}
-            className="text-muted-foreground hover:text-foreground"
-            aria-label="Cancel queued message"
-          >
-            <X className="size-3" />
-          </button>
+      {/* Queue header – always visible when there are messages */}
+      {queuedMessages.length > 0 && (
+        <div className="space-y-1">
+          <QueueHeader conversationId={conversationId} messages={queuedMessages} />
+          {queueExpanded && <QueueList conversationId={conversationId} />}
         </div>
       )}
 
@@ -546,9 +516,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
             onCompositionEnd={() => setIsComposing(false)}
             placeholder={
               isRunning
-                ? queuedMessage
-                  ? 'Agent running – message queued'
-                  : 'Agent is running… (type to queue)'
+                ? 'Agent is running… (type to queue)'
                 : 'Type a message… (@ for skills · # for files)'
             }
             disabled={false}
@@ -562,12 +530,12 @@ export function MessageInput({ conversationId }: MessageInputProps) {
           <Button
             size="icon-sm"
             className="shrink-0 mb-0.5"
-            onClick={isRunning ? queueCurrent : submit}
+            onClick={isRunning ? () => addQueuedMessage.mutate(content) : submit}
             disabled={
               (!content.trim() && selectedFiles.length === 0) ||
               sendMutation.isPending ||
               isSending ||
-              !!(isRunning && queuedMessage)
+              (isRunning && addQueuedMessage.isPending)
             }
             aria-label={isRunning ? 'Queue message' : 'Send'}
           >
@@ -686,13 +654,4 @@ export function MessageInput({ conversationId }: MessageInputProps) {
       )}
     </div>
   )
-}
-
-// Module augmentation to add queued messages to UIStore
-declare module '@/store/ui' {
-  interface UIState {
-    queuedMessages: Record<string, string>
-    setQueuedMessage: (conversationId: string, content: string) => void
-    clearQueuedMessage: (conversationId: string) => void
-  }
 }
