@@ -39,11 +39,13 @@ impl From<queued_messages::Model> for QueuedMessage {
     }
 }
 
-#[specta]
-#[tauri::command]
-pub async fn add_queued_message(
-    state: State<'_, Arc<AppState>>,
-    conversation_id: String,
+// =============================================================================
+// Internal functions (used by both Tauri commands and other modules)
+// =============================================================================
+
+pub async fn add_queued_message_internal(
+    state: &AppState,
+    conversation_id: &str,
     content: String,
 ) -> Result<String, String> {
     let db = state
@@ -52,7 +54,7 @@ pub async fn add_queued_message(
         .connection()
         .await
         .map_err(|e| e.to_string())?;
-    let conv_uuid = Uuid::parse_str(&conversation_id).map_err(|e| e.to_string())?;
+    let conv_uuid = Uuid::parse_str(conversation_id).map_err(|e| e.to_string())?;
 
     // Determine next position
     let max_pos = Queued::find()
@@ -80,11 +82,9 @@ pub async fn add_queued_message(
     Ok(id.to_string())
 }
 
-#[specta]
-#[tauri::command]
-pub async fn list_queued_messages(
-    state: State<'_, Arc<AppState>>,
-    conversation_id: String,
+pub async fn list_queued_messages_internal(
+    state: &AppState,
+    conversation_id: &str,
 ) -> Result<Vec<QueuedMessage>, String> {
     let db = state
         .registry
@@ -92,7 +92,7 @@ pub async fn list_queued_messages(
         .connection()
         .await
         .map_err(|e| e.to_string())?;
-    let conv_uuid = Uuid::parse_str(&conversation_id).map_err(|e| e.to_string())?;
+    let conv_uuid = Uuid::parse_str(conversation_id).map_err(|e| e.to_string())?;
 
     let rows = Queued::find()
         .filter(queued_messages::Column::ConversationId.eq(conv_uuid))
@@ -104,11 +104,9 @@ pub async fn list_queued_messages(
     Ok(rows.into_iter().map(Into::into).collect())
 }
 
-#[specta]
-#[tauri::command]
-pub async fn update_queued_message(
-    state: State<'_, Arc<AppState>>,
-    id: String,
+pub async fn update_queued_message_internal(
+    state: &AppState,
+    id: &str,
     content: String,
 ) -> Result<(), String> {
     let db = state
@@ -117,7 +115,7 @@ pub async fn update_queued_message(
         .connection()
         .await
         .map_err(|e| e.to_string())?;
-    let uuid = Uuid::parse_str(&id).map_err(|e| e.to_string())?;
+    let uuid = Uuid::parse_str(id).map_err(|e| e.to_string())?;
 
     let row = Queued::find_by_id(uuid)
         .one(db)
@@ -133,19 +131,14 @@ pub async fn update_queued_message(
     Ok(())
 }
 
-#[specta]
-#[tauri::command]
-pub async fn delete_queued_message(
-    state: State<'_, Arc<AppState>>,
-    id: String,
-) -> Result<(), String> {
+pub async fn delete_queued_message_internal(state: &AppState, id: &str) -> Result<(), String> {
     let db = state
         .registry
         .db
         .connection()
         .await
         .map_err(|e| e.to_string())?;
-    let uuid = Uuid::parse_str(&id).map_err(|e| e.to_string())?;
+    let uuid = Uuid::parse_str(id).map_err(|e| e.to_string())?;
 
     Queued::delete_by_id(uuid)
         .exec(db)
@@ -155,11 +148,9 @@ pub async fn delete_queued_message(
     Ok(())
 }
 
-#[specta]
-#[tauri::command]
-pub async fn reorder_queued_messages(
-    state: State<'_, Arc<AppState>>,
-    conversation_id: String,
+pub async fn reorder_queued_messages_internal(
+    state: &AppState,
+    conversation_id: &str,
     ordered_ids: Vec<String>,
 ) -> Result<(), String> {
     let db = state
@@ -168,7 +159,7 @@ pub async fn reorder_queued_messages(
         .connection()
         .await
         .map_err(|e| e.to_string())?;
-    let conv_uuid = Uuid::parse_str(&conversation_id).map_err(|e| e.to_string())?;
+    let conv_uuid = Uuid::parse_str(conversation_id).map_err(|e| e.to_string())?;
 
     let txn = db.begin().await.map_err(|e| e.to_string())?;
 
@@ -187,7 +178,6 @@ pub async fn reorder_queued_messages(
 
     // Update positions according to ordered_ids
     for (pos, id_str) in ordered_ids.iter().enumerate() {
-        let uuid = Uuid::parse_str(id_str).map_err(|e| e.to_string())?;
         if let Some(msg) = by_id.get(id_str) {
             if msg.position != (pos as i32) + 1 {
                 let mut active: queued_messages::ActiveModel = (*msg).clone().into();
@@ -204,10 +194,8 @@ pub async fn reorder_queued_messages(
     Ok(())
 }
 
-#[specta]
-#[tauri::command]
-pub async fn merge_queued_messages(
-    state: State<'_, Arc<AppState>>,
+pub async fn merge_queued_messages_internal(
+    state: &AppState,
     ids: Vec<String>,
 ) -> Result<String, String> {
     if ids.len() < 2 {
@@ -285,4 +273,65 @@ pub async fn merge_queued_messages(
 
     txn.commit().await.map_err(|e| e.to_string())?;
     Ok(new_id.to_string())
+}
+
+// =============================================================================
+// Tauri command wrappers
+// =============================================================================
+
+#[specta]
+#[tauri::command]
+pub async fn add_queued_message(
+    state: State<'_, Arc<AppState>>,
+    conversation_id: String,
+    content: String,
+) -> Result<String, String> {
+    add_queued_message_internal(&state, &conversation_id, content).await
+}
+
+#[specta]
+#[tauri::command]
+pub async fn list_queued_messages(
+    state: State<'_, Arc<AppState>>,
+    conversation_id: String,
+) -> Result<Vec<QueuedMessage>, String> {
+    list_queued_messages_internal(&state, &conversation_id).await
+}
+
+#[specta]
+#[tauri::command]
+pub async fn update_queued_message(
+    state: State<'_, Arc<AppState>>,
+    id: String,
+    content: String,
+) -> Result<(), String> {
+    update_queued_message_internal(&state, &id, content).await
+}
+
+#[specta]
+#[tauri::command]
+pub async fn delete_queued_message(
+    state: State<'_, Arc<AppState>>,
+    id: String,
+) -> Result<(), String> {
+    delete_queued_message_internal(&state, &id).await
+}
+
+#[specta]
+#[tauri::command]
+pub async fn reorder_queued_messages(
+    state: State<'_, Arc<AppState>>,
+    conversation_id: String,
+    ordered_ids: Vec<String>,
+) -> Result<(), String> {
+    reorder_queued_messages_internal(&state, &conversation_id, ordered_ids).await
+}
+
+#[specta]
+#[tauri::command]
+pub async fn merge_queued_messages(
+    state: State<'_, Arc<AppState>>,
+    ids: Vec<String>,
+) -> Result<String, String> {
+    merge_queued_messages_internal(&state, ids).await
 }

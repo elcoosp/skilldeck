@@ -15,7 +15,7 @@ use std::sync::Arc;
 use tauri::{Emitter, State};
 use uuid::Uuid;
 
-use crate::commands::queue; // <-- added for queued message handling
+use crate::commands::queue;
 use crate::{events::AgentEvent, state::AppState};
 use async_trait::async_trait;
 use skilldeck_core::agent::{AgentLoop, AgentLoopConfig, AgentLoopEvent, all_built_in_tools};
@@ -80,39 +80,23 @@ pub async fn list_messages(
         .collect())
 }
 
-/// Persist the user turn and kick off the agent loop on a background task.
-///
-/// Returns immediately once the message is persisted; the agent loop emits
-/// `agent-event` payloads asynchronously.
-#[specta]
-#[tauri::command]
-pub async fn send_message(
-    state: State<'_, Arc<AppState>>,
-    conversation_id: String,
-    content: String,
-    app: tauri::AppHandle,
-) -> Result<(), String> {
-    // If agent already running for this conversation → queue the message
-    if state.is_agent_running(&conversation_id) {
-        let id = queue::add_queued_message(state.clone(), conversation_id.clone(), content).await?;
-        // Emit event so UI knows queue changed (optional but good)
-        let _ = app.emit(
-            "queued-message-added",
-            serde_json::json!({
-                "conversation_id": conversation_id,
-                "id": id
-            }),
-        );
-        return Ok(());
-    }
+// =============================================================================
+// Internal send function (used by both command and auto-send)
+// =============================================================================
 
+async fn send_message_internal(
+    state: &Arc<AppState>,
+    conversation_id: &str,
+    content: String,
+    app: &tauri::AppHandle,
+) -> Result<(), String> {
     let db = state
         .registry
         .db
         .connection()
         .await
         .map_err(|e| e.to_string())?;
-    let conv_uuid = Uuid::parse_str(&conversation_id).map_err(|e| e.to_string())?;
+    let conv_uuid = Uuid::parse_str(conversation_id).map_err(|e| e.to_string())?;
     let msg_id = Uuid::new_v4();
     let now = chrono::Utc::now().fixed_offset();
 
@@ -127,11 +111,11 @@ pub async fn send_message(
     };
     user_msg.insert(db).await.map_err(|e| e.to_string())?;
 
-    // CRITICAL FIX: Emit Persisted event immediately so UI shows the user message right away
+    // Emit Persisted event immediately so UI shows the user message right away
     let _ = app.emit(
         "agent-event",
         AgentEvent::Persisted {
-            conversation_id: conversation_id.clone(),
+            conversation_id: conversation_id.to_string(),
         },
     );
 
@@ -139,22 +123,51 @@ pub async fn send_message(
     let _ = app.emit(
         "agent-event",
         AgentEvent::Started {
-            conversation_id: conversation_id.clone(),
+            conversation_id: conversation_id.to_string(),
         },
     );
 
-    // Clone what the background task needs (Arc clones are cheap).
-    let state_arc = Arc::clone(&state);
-    let conv_id_clone = conversation_id.clone();
+    // Clone the Arc for the background task
+    let state_arc = state.clone();
+    let conv_id_clone = conversation_id.to_string();
     let content_clone = content.clone();
     let app_clone = app.clone();
 
-    // Spawn detached — the Tauri command returns right away.
+    // Spawn detached — the command returns right away.
     tokio::spawn(async move {
         run_agent_loop(state_arc, conv_id_clone, content_clone, app_clone).await;
     });
 
     Ok(())
+}
+
+/// Persist the user turn and kick off the agent loop on a background task.
+///
+/// Returns immediately once the message is persisted; the agent loop emits
+/// `agent-event` payloads asynchronously.
+#[specta]
+#[tauri::command]
+pub async fn send_message(
+    state: State<'_, Arc<AppState>>,
+    conversation_id: String,
+    content: String,
+    app: tauri::AppHandle,
+) -> Result<(), String> {
+    // If agent already running for this conversation → queue the message
+    if state.is_agent_running(&conversation_id) {
+        let id = queue::add_queued_message_internal(&state, &conversation_id, content).await?;
+        // Emit event so UI knows queue changed (optional but good)
+        let _ = app.emit(
+            "queued-message-added",
+            serde_json::json!({
+                "conversation_id": conversation_id,
+                "id": id
+            }),
+        );
+        return Ok(());
+    }
+
+    send_message_internal(&state, &conversation_id, content, &app).await
 }
 
 /// Resolve a pending tool-approval from the frontend.
@@ -597,19 +610,21 @@ async fn run_agent_loop(
             // === AUTO-SEND QUEUED MESSAGES ===
             // Check if there are queued messages for this conversation
             if let Ok(queued) =
-                queue::list_queued_messages(state.clone(), conversation_id.clone()).await
+                crate::commands::queue::list_queued_messages_internal(&state, &conversation_id)
+                    .await
             {
                 if let Some(first) = queued.first() {
                     // Delete it from queue
                     if let Ok(()) =
-                        queue::delete_queued_message(state.clone(), first.id.clone()).await
+                        crate::commands::queue::delete_queued_message_internal(&state, &first.id)
+                            .await
                     {
-                        // Send it (this will start a new agent loop)
-                        let _ = send_message(
-                            state,
-                            conversation_id,
+                        // Send it using internal send function
+                        let _ = send_message_internal(
+                            &state,
+                            &conversation_id,
                             first.content.clone(),
-                            app.clone(),
+                            &app,
                         )
                         .await;
                     }
