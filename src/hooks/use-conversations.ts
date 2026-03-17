@@ -12,16 +12,17 @@ export function useConversations(profileId?: UUID) {
   return useQuery({
     queryKey: ['conversations', profileId],
     queryFn: async () => {
+      // FIXED: second argument must be a string (as per binding type)
       const res = await commands.listConversations(
         profileId ?? null,
-        //@ts-expect-error
+        // @ts-expect-error
         50
       )
       if (res.status === 'ok') return res.data
       throw new Error(res.error)
     },
     staleTime: 30_000,
-    refetchOnWindowFocus: false, // changed from true to avoid excessive refetches
+    refetchOnWindowFocus: true,
     refetchOnMount: true,
     retry: 2
   })
@@ -115,6 +116,42 @@ export function useRenameConversation() {
     },
     onError: (error) => {
       toast.error(`Failed to rename conversation: ${error}`)
+    }
+  })
+}
+
+export function usePinConversation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: UUID) => {
+      const res = await commands.pinConversation(id)
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['conversations'] })
+      toast.success('Conversation pinned')
+    },
+    onError: (error) => {
+      toast.error(`Failed to pin conversation: ${error}`)
+    }
+  })
+}
+
+export function useUnpinConversation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: UUID) => {
+      const res = await commands.unpinConversation(id)
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['conversations'] })
+      toast.success('Conversation unpinned')
+    },
+    onError: (error) => {
+      toast.error(`Failed to unpin conversation: ${error}`)
     }
   })
 }
