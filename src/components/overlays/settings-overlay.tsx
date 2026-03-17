@@ -25,25 +25,17 @@ import { cn } from '@/lib/utils'
 import { useUIStore } from '@/store/ui'
 import { useSettingsStore } from '@/store/settings'
 import { commands } from '@/lib/bindings'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import type { ProfileData, ApiKeyStatus } from '@/lib/bindings'
 import { PreferencesTab } from '@/components/settings/preferences-tab'
 import { ReferralTab } from '@/components/settings/referral-tab'
 import { PlatformTab } from '@/components/settings/platform-tab'
 
-// SettingsTab type is no longer needed; removed.
-
 export function SettingsOverlay() {
   const settingsTab = useUIStore((s) => s.settingsTab)
   const setSettingsTab = useUIStore((s) => s.setSettingsTab)
   const setSettingsOpen = useUIStore((s) => s.setSettingsOpen)
-
-  // Reset settingsTab to default when overlay closes
-  useEffect(() => {
-    return () => {
-      // Optional: reset to default when unmounting, but we want to preserve
-      // the tab when reopening? Probably keep as is.
-    }
-  }, [])
 
   return (
     <div
@@ -189,9 +181,9 @@ function ApiKeysTab() {
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium">{label}</label>
               {hasKey && (
-                <span className="text-xs text-green-600 dark:text-green-400 font-medium">
-                  ● Key stored
-                </span>
+                <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
+                  Key stored
+                </Badge>
               )}
             </div>
 
@@ -224,25 +216,22 @@ function ApiKeysTab() {
                 </button>
               </div>
 
-              <button
+              <Button
+                size="sm"
                 onClick={() => handleSave(id)}
                 disabled={!values[id]?.trim() || saving[id]}
-                className={cn(
-                  'px-3 h-8 rounded-md text-sm font-medium transition-colors',
-                  'bg-primary text-primary-foreground hover:bg-primary/90',
-                  'disabled:opacity-50 disabled:cursor-not-allowed'
-                )}
               >
                 {saving[id] ? '…' : 'Save'}
-              </button>
+              </Button>
 
               {hasKey && (
-                <button
+                <Button
+                  size="sm"
+                  variant="destructive"
                   onClick={() => handleDelete(id)}
-                  className="px-3 h-8 rounded-md text-sm font-medium border border-destructive/40 text-destructive hover:bg-destructive/10 transition-colors"
                 >
                   Remove
-                </button>
+                </Button>
               )}
             </div>
           </div>
@@ -340,7 +329,6 @@ function ProfilesTab() {
     return ''
   }
 
-  // Helper to safely render provider name (handles both string and object)
   const getProviderName = (provider: string | { id: string; name: string }) => {
     if (typeof provider === 'string') {
       const found = PROVIDER_OPTIONS.find((p) => p.id === provider)
@@ -358,13 +346,10 @@ function ProfilesTab() {
             Each profile pairs a name with a model provider and ID.
           </p>
         </div>
-        <button
-          onClick={() => setShowNew((v) => !v)}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-        >
-          <Plus className="size-3" />
+        <Button size="sm" onClick={() => setShowNew((v) => !v)}>
+          <Plus className="size-3 mr-1" />
           New
-        </button>
+        </Button>
       </div>
 
       {/* New profile form */}
@@ -411,19 +396,16 @@ function ProfilesTab() {
             />
           )}
           <div className="flex gap-2 pt-1">
-            <button
+            <Button
+              size="sm"
               onClick={() => createMut.mutate()}
               disabled={!newName.trim() || createMut.isPending}
-              className="px-3 h-7 rounded-md text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {createMut.isPending ? 'Creating…' : 'Create'}
-            </button>
-            <button
-              onClick={() => setShowNew(false)}
-              className="px-3 h-7 rounded-md text-xs font-medium border border-border hover:bg-muted transition-colors"
-            >
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setShowNew(false)}>
               Cancel
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -451,9 +433,9 @@ function ProfilesTab() {
                 <div className="flex items-center gap-1.5">
                   <span className="text-sm font-medium truncate">{p.name}</span>
                   {p.is_default && (
-                    <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded-full shrink-0">
+                    <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
                       default
-                    </span>
+                    </Badge>
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground truncate">
@@ -463,23 +445,26 @@ function ProfilesTab() {
 
               <div className="flex items-center gap-1 shrink-0">
                 {!p.is_default && (
-                  <button
+                  <Button
+                    size="icon-xs"
+                    variant="ghost"
                     onClick={() => defaultMut.mutate(p.id)}
                     disabled={defaultMut.isPending}
                     title="Set as default"
-                    className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground disabled:opacity-50"
                   >
                     <Star className="size-3.5" />
-                  </button>
+                  </Button>
                 )}
-                <button
+                <Button
+                  size="icon-xs"
+                  variant="ghost"
                   onClick={() => deleteMut.mutate(p.id)}
                   disabled={deleteMut.isPending}
                   title="Delete profile"
-                  className="p-1.5 rounded hover:bg-destructive/10 transition-colors text-muted-foreground hover:text-destructive disabled:opacity-50"
+                  className="text-muted-foreground hover:text-destructive"
                 >
                   <Trash2 className="size-3.5" />
-                </button>
+                </Button>
               </div>
             </div>
           ))}
