@@ -1,12 +1,13 @@
 // src/components/conversation/queue/queue-item.tsx
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { CheckSquare, GripVertical, Pencil, Square, Trash2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import type { QueuedMessage } from '@/hooks/use-queued-messages'
-import { cn } from '@/lib/utils'
+import { GripVertical, Pencil, Trash2, CheckSquare, Square } from 'lucide-react'
 import { useQueueStore } from '@/store/queue'
+import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
+import type { QueuedMessage } from '@/hooks/use-queued-messages'
 import { QueueEditForm } from './queue-edit-form'
+import { useDeleteQueuedMessage } from '@/hooks/use-queued-messages'
 
 interface QueueItemProps {
   message: QueuedMessage
@@ -15,27 +16,24 @@ interface QueueItemProps {
   total: number
 }
 
-export function QueueItem({
-  message,
-  conversationId,
-  position,
-  total
-}: QueueItemProps) {
+export function QueueItem({ message, conversationId, position, total }: QueueItemProps) {
   const {
     mode,
     selectedIds,
     editingId,
     toggleSelected,
     setEditingId,
-    setIsDragging
+    setIsDragging,
   } = useQueueStore((s) => ({
     mode: s.mode[conversationId] ?? 'view',
     selectedIds: s.selectedIds[conversationId] ?? new Set(),
     editingId: s.editingId[conversationId],
     toggleSelected: s.toggleSelected,
     setEditingId: s.setEditingId,
-    setIsDragging: s.setIsDragging
+    setIsDragging: s.setIsDragging,
   }))
+
+  const deleteMutation = useDeleteQueuedMessage(conversationId)
 
   const {
     attributes,
@@ -43,23 +41,25 @@ export function QueueItem({
     setNodeRef,
     transform,
     transition,
-    isDragging: isDraggingItem
+    isDragging: isDraggingItem,
   } = useSortable({ id: message.id })
 
   // Update global dragging state
   if (isDraggingItem) {
     setIsDragging(conversationId, true)
-  } else {
-    // We can't know when it stops globally, but the store will be updated on drag end
   }
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition
+    transition,
   }
 
   const isSelected = selectedIds.has(message.id)
   const isEditing = editingId === message.id
+
+  const handleDelete = () => {
+    deleteMutation.mutate(message.id)
+  }
 
   if (isEditing) {
     return (
@@ -111,10 +111,10 @@ export function QueueItem({
         </button>
       )}
 
-      {/* Position badge – only in view mode */}
+      {/* Position badge – shows position/total in view mode */}
       {mode === 'view' && (
-        <span className="w-5 text-center text-[10px] font-medium text-muted-foreground bg-muted rounded-full py-0.5">
-          {position}
+        <span className="w-10 text-center text-[10px] font-medium text-muted-foreground bg-muted rounded-full py-0.5">
+          {position}/{total}
         </span>
       )}
 
@@ -139,10 +139,7 @@ export function QueueItem({
           <Button
             variant="ghost"
             size="icon-xs"
-            onClick={() => {
-              // Delete will be handled via mutation, we'll add a useDeleteQueuedMessage call
-              // For now just placeholder
-            }}
+            onClick={handleDelete}
             className="text-muted-foreground hover:text-destructive"
           >
             <Trash2 className="size-3" />

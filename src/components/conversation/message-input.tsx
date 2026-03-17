@@ -10,7 +10,7 @@
 
 import { open } from '@tauri-apps/plugin-dialog'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { AtSign, Hash, Paperclip, Send, Timer } from 'lucide-react'
+import { AtSign, Hash, Paperclip, Send, Timer, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
@@ -470,7 +470,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
   ])
 
   // ── Render ────────────────────────────────────────────────────────────────
-
+  console.log({ queuedMessages })
   return (
     <div className="p-3 space-y-2">
       {/* Queue header – always visible when there are messages */}

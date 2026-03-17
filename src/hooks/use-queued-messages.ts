@@ -1,5 +1,6 @@
 // src/hooks/use-queued-messages.ts
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { commands } from '@/lib/bindings'
 import type { UUID } from '@/lib/types'
 
@@ -17,12 +18,18 @@ export function useQueuedMessages(conversationId: UUID | null) {
     queryKey: ['queued-messages', conversationId],
     queryFn: async () => {
       if (!conversationId) return []
+      console.log('[useQueuedMessages] fetching for', conversationId)
       const res = await commands.listQueuedMessages(conversationId)
-      if (res.status === 'error') throw new Error(res.error)
+      if (res.status === 'error') {
+        console.error('[useQueuedMessages] error:', res.error)
+        throw new Error(res.error)
+      }
+      console.log('[useQueuedMessages] received:', res.data)
       return res.data as QueuedMessage[]
     },
     enabled: !!conversationId,
-    staleTime: 0 // always refetch when invalidated
+    staleTime: 0, // always refetch when invalidated
+    refetchInterval: false, // don't poll
   })
 }
 
@@ -30,13 +37,29 @@ export function useAddQueuedMessage(conversationId: UUID) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (content: string) => {
+      console.log('[useAddQueuedMessage] sending:', { conversationId, content })
       const res = await commands.addQueuedMessage(conversationId, content)
-      if (res.status === 'error') throw new Error(res.error)
+      if (res.status === 'error') {
+        console.error('[useAddQueuedMessage] error:', res.error)
+        throw new Error(res.error)
+      }
+      console.log('[useAddQueuedMessage] success, id:', res.data)
       return res.data
     },
-    onSuccess: () => {
+    onSuccess: (id) => {
+      console.log('[useAddQueuedMessage] onSuccess, invalidating query')
+      // Invalidate and force refetch
       qc.invalidateQueries({ queryKey: ['queued-messages', conversationId] })
-    }
+      // Also refetch immediately to update UI
+      setTimeout(() => {
+        qc.refetchQueries({ queryKey: ['queued-messages', conversationId] })
+      }, 50)
+      toast.success('Message queued')
+    },
+    onError: (error) => {
+      console.error('[useAddQueuedMessage] mutation error:', error)
+      toast.error(`Failed to queue message: ${error.message}`)
+    },
   })
 }
 
@@ -49,7 +72,7 @@ export function useUpdateQueuedMessage(conversationId: UUID) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['queued-messages', conversationId] })
-    }
+    },
   })
 }
 
@@ -62,7 +85,7 @@ export function useDeleteQueuedMessage(conversationId: UUID) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['queued-messages', conversationId] })
-    }
+    },
   })
 }
 
@@ -70,15 +93,12 @@ export function useReorderQueuedMessages(conversationId: UUID) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (orderedIds: UUID[]) => {
-      const res = await commands.reorderQueuedMessages(
-        conversationId,
-        orderedIds
-      )
+      const res = await commands.reorderQueuedMessages(conversationId, orderedIds)
       if (res.status === 'error') throw new Error(res.error)
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['queued-messages', conversationId] })
-    }
+    },
   })
 }
 
@@ -92,6 +112,6 @@ export function useMergeQueuedMessages(conversationId: UUID) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['queued-messages', conversationId] })
-    }
+    },
   })
 }
