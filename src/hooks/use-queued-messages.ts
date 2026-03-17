@@ -4,6 +4,8 @@ import { toast } from 'sonner'
 import { commands } from '@/lib/bindings'
 import type { UUID } from '@/lib/types'
 
+import type { ContextItem } from '@/lib/bindings'
+
 export interface QueuedMessage {
   id: UUID
   conversation_id: UUID
@@ -36,28 +38,23 @@ export function useQueuedMessages(conversationId: UUID | null) {
 export function useAddQueuedMessage(conversationId: UUID) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (content: string) => {
-      console.log('[useAddQueuedMessage] sending:', { conversationId, content })
-      const res = await commands.addQueuedMessage(conversationId, content)
-      if (res.status === 'error') {
-        console.error('[useAddQueuedMessage] error:', res.error)
-        throw new Error(res.error)
-      }
-      console.log('[useAddQueuedMessage] success, id:', res.data)
+    mutationFn: async ({ content, contextItems }: { content: string; contextItems?: ContextItem[] }) => {
+      const res = await commands.addQueuedMessage({
+        conversation_id: conversationId,
+        content,
+        context_items: contextItems,
+      })
+      if (res.status === 'error') throw new Error(res.error)
       return res.data
     },
     onSuccess: (id) => {
-      console.log('[useAddQueuedMessage] onSuccess, invalidating query')
-      // Invalidate and force refetch
       qc.invalidateQueries({ queryKey: ['queued-messages', conversationId] })
-      // Also refetch immediately to update UI
       setTimeout(() => {
         qc.refetchQueries({ queryKey: ['queued-messages', conversationId] })
       }, 50)
       toast.success('Message queued')
     },
     onError: (error) => {
-      console.error('[useAddQueuedMessage] mutation error:', error)
       toast.error(`Failed to queue message: ${error.message}`)
     },
   })

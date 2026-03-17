@@ -49,6 +49,7 @@ import type {
   TriggerState
 } from '@/types/chat-context'
 import type { UnifiedSkill } from '@/types/skills'
+import type { ContextItem } from '@/lib/bindings'   // <-- import auto-generated type
 
 interface MessageInputProps {
   conversationId: UUID
@@ -119,6 +120,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
     useState<RegistrySkillData | null>(null)
 
   // Context store actions
+  const items = useChatContextStore((s) => s.items)
   const addFile = useChatContextStore((s) => s.addFile)
   const addFolder = useChatContextStore((s) => s.addFolder)
   const addSkill = useChatContextStore((s) => s.addSkill)
@@ -446,6 +448,32 @@ export function MessageInput({ conversationId }: MessageInputProps) {
       }
     }
 
+    // Build metadata-only context items from the store
+    const metadataItems: ContextItem[] = items.map((item) => {
+      if (item.type === 'file') {
+        return {
+          type: 'file',
+          path: item.data.path,
+          name: item.data.name,
+          size: item.data.size,
+        }
+      }
+      if (item.type === 'folder') {
+        return {
+          type: 'folder',
+          path: item.data.path,
+          name: item.data.name,
+          scope: item.data.scope,
+          file_count: item.data.fileCount,
+        }
+      }
+      // skill
+      return {
+        type: 'skill',
+        name: item.data.name,
+      }
+    })
+
     setIsSending(true)
     setContent('')
     setSelectedFiles([])
@@ -453,7 +481,11 @@ export function MessageInput({ conversationId }: MessageInputProps) {
     clearItems()
 
     try {
-      await sendMutation.mutateAsync(finalContent)
+      await sendMutation.mutateAsync({
+        conversationId: finalConversationId,
+        content: finalContent,
+        contextItems: metadataItems.length > 0 ? metadataItems : undefined,
+      })
     } catch (err) {
       toast.error(`Failed to send message: ${err}`)
       setContent(finalContent) // restore draft
@@ -471,7 +503,8 @@ export function MessageInput({ conversationId }: MessageInputProps) {
     setActiveConversation,
     clearDraft,
     clearItems,
-    sendMutation
+    items,
+    sendMutation,
   ])
 
   // ── Render ────────────────────────────────────────────────────────────────
