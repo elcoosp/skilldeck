@@ -831,6 +831,28 @@ async mergeQueuedMessages(ids: string[]) : Promise<Result<string, string>> {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+/**
+ * Pin a conversation.
+ */
+async pinConversation(id: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("pin_conversation", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Unpin a conversation.
+ */
+async unpinConversation(id: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("unpin_conversation", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
@@ -873,7 +895,7 @@ export type ConfigScope = "global" | "workspace"
 /**
  * Lightweight summary used by the sidebar list.
  */
-export type ConversationSummary = { id: string; title: string | null; profile_id: string; workspace_id: string | null; created_at: string; updated_at: string; message_count: string }
+export type ConversationSummary = { id: string; title: string | null; profile_id: string; workspace_id: string | null; created_at: string; updated_at: string; message_count: string; pinned: boolean }
 export type CreateBranchRequest = { conversation_id: string; parent_message_id: string; name: string | null }
 export type DiffResult = { diff: string; has_changes: boolean }
 export type ExportFormat = "markdown" | "json"
