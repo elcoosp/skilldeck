@@ -71,6 +71,23 @@
   --sidebar-accent-foreground: var(--brand-neutral-900);
   --sidebar-border: var(--brand-neutral-300);
   --sidebar-ring: var(--brand-primary-light);
+
+  /* Sonner toast custom colors */
+  --normal-bg: #FFFFFF;
+  --normal-border: #E2E8F0;
+  --normal-text: #0F172A;
+  --success-bg: #3B82F6;
+  /* brand primary blue */
+  --success-text: #FFFFFF;
+  --info-bg: #6C47FF;
+  /* brand secondary purple */
+  --info-text: #FFFFFF;
+  --warning-bg: #FF8A4C;
+  /* brand accent orange */
+  --warning-text: #0F172A;
+  --error-bg: #DC2626;
+  /* destructive red */
+  --error-text: #FFFFFF;
 }
 
 .dark {
@@ -105,6 +122,20 @@
   --sidebar-accent-foreground: var(--brand-neutral-100);
   --sidebar-border: var(--brand-neutral-700);
   --sidebar-ring: var(--brand-primary-light);
+
+  /* Sonner toast custom colors – dark mode */
+  --normal-bg: #1E293B;
+  --normal-border: #334155;
+  --normal-text: #F9FAFB;
+  --success-bg: #3B82F6;
+  --success-text: #FFFFFF;
+  --info-bg: #8F6EFF;
+  /* lighter purple for dark mode */
+  --info-text: #FFFFFF;
+  --warning-bg: #FF8A4C;
+  --warning-text: #0F172A;
+  --error-bg: #EF4444;
+  --error-text: #FFFFFF;
 }
 
 @theme inline {
