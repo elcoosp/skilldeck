@@ -23,11 +23,11 @@ interface Props {
 }
 
 export function ShareSkillModal({ skillName, contentMd, onClose }: Props) {
-  const [step, setStep] = useState<'share' | 'github-auth' | 'done'>('share')
-  const [description, setDescription] = useState('')
-  const [tokenDraft, setTokenDraft] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [result, setResult] = useState<GistInfo | null>(null)
+  const [step, setStep] useState<'share' | 'github-auth' | 'done'>('share')
+  const [description, setDescription] useState('')
+  const [tokenDraft, setTokenDraft] useState('')
+  const [saving, setSaving] useState(false)
+  const [result, setResult] useState<GistInfo | null > (null)
 
   async function handleShare() {
     setSaving(true)
@@ -59,9 +59,13 @@ export function ShareSkillModal({ skillName, contentMd, onClose }: Props) {
 
   async function doShare() {
     try {
+      // Append brand footer to content
+      const footer = `\n\n---\n*Generated with [SkillDeck](https://skilldeck.dev) – local‑first AI orchestration for developers.*`
+      const finalContent = contentMd + footer
+
       const gist = await shareSkillAsGist({
         skillName,
-        contentMd,
+        contentMd: finalContent,
         description: description || `SkillDeck skill: ${skillName}`
       })
       setResult(gist)
