@@ -22,6 +22,11 @@ import { QueueHeader } from '@/components/conversation/queue/queue-header'
 import { QueueList } from '@/components/conversation/queue/queue-list'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { useCreateConversation } from '@/hooks/use-conversations'
 import { useSendMessage } from '@/hooks/use-messages'
 import { useProfiles } from '@/hooks/use-profiles'
@@ -592,22 +597,31 @@ export function MessageInput({ conversationId }: MessageInputProps) {
           size="sm"
           className="h-6 px-2 text-xs gap-1"
           onClick={triggerSkillPicker}
-          title="Attach skill (@)"
         >
           <AtSign className="size-3" />
           Skill
         </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-6 px-2 text-xs gap-1"
-          onClick={triggerFilePicker}
-          title="Attach file (#)"
-          disabled={!activeWorkspace}
-        >
-          <Hash className="size-3" />
-          File
-        </Button>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-xs gap-1"
+              onClick={triggerFilePicker}
+              disabled={!activeWorkspace}
+            >
+              <Hash className="size-3" />
+              File
+            </Button>
+          </TooltipTrigger>
+          {!activeWorkspace && (
+            <TooltipContent side="top">
+              <p>Open a workspace first to browse files.</p>
+            </TooltipContent>
+          )}
+        </Tooltip>
+
         <Button
           variant="ghost"
           size="sm"
