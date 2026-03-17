@@ -96,6 +96,9 @@ pub struct AppState {
 }
 
 impl AppState {
+    pub fn is_agent_running(&self, conversation_id: &str) -> bool {
+        self.agent_cancel_tokens.contains_key(conversation_id)
+    }
     pub async fn initialize(app: &tauri::AppHandle) -> Result<Self, Box<dyn std::error::Error>> {
         let data_dir = app.path().app_data_dir()?;
         std::fs::create_dir_all(&data_dir)?;

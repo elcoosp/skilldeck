@@ -15,6 +15,7 @@ use std::sync::Arc;
 use tauri::{Emitter, State};
 use uuid::Uuid;
 
+use crate::commands::queue; // <-- added for queued message handling
 use crate::{events::AgentEvent, state::AppState};
 use async_trait::async_trait;
 use skilldeck_core::agent::{AgentLoop, AgentLoopConfig, AgentLoopEvent, all_built_in_tools};
@@ -91,6 +92,20 @@ pub async fn send_message(
     content: String,
     app: tauri::AppHandle,
 ) -> Result<(), String> {
+    // If agent already running for this conversation → queue the message
+    if state.is_agent_running(&conversation_id) {
+        let id = queue::add_queued_message(state.clone(), conversation_id.clone(), content).await?;
+        // Emit event so UI knows queue changed (optional but good)
+        let _ = app.emit(
+            "queued-message-added",
+            serde_json::json!({
+                "conversation_id": conversation_id,
+                "id": id
+            }),
+        );
+        return Ok(());
+    }
+
     let db = state
         .registry
         .db
@@ -578,6 +593,28 @@ async fn run_agent_loop(
                     conversation_id: conversation_id.clone(),
                 },
             );
+
+            // === AUTO-SEND QUEUED MESSAGES ===
+            // Check if there are queued messages for this conversation
+            if let Ok(queued) =
+                queue::list_queued_messages(state.clone(), conversation_id.clone()).await
+            {
+                if let Some(first) = queued.first() {
+                    // Delete it from queue
+                    if let Ok(()) =
+                        queue::delete_queued_message(state.clone(), first.id.clone()).await
+                    {
+                        // Send it (this will start a new agent loop)
+                        let _ = send_message(
+                            state,
+                            conversation_id,
+                            first.content.clone(),
+                            app.clone(),
+                        )
+                        .await;
+                    }
+                }
+            }
         }
         Ok(Err(e)) => {
             let _ = app.emit(

@@ -11,6 +11,7 @@ pub mod messages;
 pub mod ollama;
 pub mod platform;
 pub mod profiles;
+pub mod queue;
 pub mod settings;
 pub mod skills;
 pub mod workflows;

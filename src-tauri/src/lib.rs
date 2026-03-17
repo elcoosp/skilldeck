@@ -23,7 +23,7 @@ pub use subagent_server::SubagentServer;
 
 use commands::{
     branches::*, conversations::*, export::*, files::*, gist::*, mcp::*, messages::*, ollama::*,
-    platform::*, profiles::*, settings::*, skills::*, workflows::*, workspaces::*,
+    platform::*, profiles::*, queue::*, settings::*, skills::*, workflows::*, workspaces::*,
 };
 use events::{AgentEvent, McpEvent, WorkflowEvent};
 use state::AppState;
@@ -139,6 +139,13 @@ pub fn run() {
             // file browsing (chat context injection)
             list_directory_contents,
             count_folder_files,
+            // queued messages
+            add_queued_message,
+            list_queued_messages,
+            update_queued_message,
+            delete_queued_message,
+            reorder_queued_messages,
+            merge_queued_messages,
         ])
         .events(collect_events![AgentEvent, McpEvent, WorkflowEvent]);
 
