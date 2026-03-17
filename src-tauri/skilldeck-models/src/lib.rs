@@ -6,6 +6,7 @@
 pub mod artifacts;
 pub mod attachments;
 pub mod bookmarks;
+pub mod context_item;
 pub mod conversation_branches;
 pub mod conversation_mcp_overrides;
 pub mod conversation_model_override;
@@ -20,7 +21,7 @@ pub mod mcp_servers;
 pub mod mcp_tool_cache;
 pub mod message_embeddings;
 pub mod messages;
-pub mod model_pricing; // <-- add
+pub mod model_pricing;
 pub mod profile_mcps;
 pub mod profile_skills;
 pub mod profiles;
