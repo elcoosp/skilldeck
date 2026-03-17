@@ -135,8 +135,8 @@ export const ChatCommandPalette: React.FC<ChatCommandPaletteProps> = ({
               className={cn(
                 'flex items-center justify-between px-2 py-1.5 rounded-sm cursor-pointer text-sm',
                 index === selectedIndex
-                  ? 'bg-accent text-accent-foreground'
-                  : 'hover:bg-accent/50'
+                  ? 'bg-primary/20 text-foreground'
+                  : 'hover:bg-primary/10'
               )}
               onClick={() => {
                 onSelect(skill)
@@ -164,12 +164,14 @@ export const ChatCommandPalette: React.FC<ChatCommandPaletteProps> = ({
                   {skill.description}
                 </span>
               </div>
-              {sourceType === 'registry' ? (
-                <TrustBadge
-                  securityScore={securityScore}
-                  qualityScore={qualityScore}
-                />
-              ) : null}
+              <div className="flex-shrink-0 ml-2">
+                {sourceType === 'registry' ? (
+                  <TrustBadge
+                    securityScore={securityScore}
+                    qualityScore={qualityScore}
+                  />
+                ) : null}
+              </div>
             </div>
           )
         })}
