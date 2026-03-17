@@ -3,7 +3,7 @@
  * Sidebar conversation list item with inline rename and context menu.
  */
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -44,6 +44,20 @@ export function ConversationItem({
   const deleteMutation = useDeleteConversation()
   const renameMutation = useRenameConversation()
 
+  // Define cancelRename before the effect that uses it
+  const cancelRename = useCallback(() => {
+    setDraft(conversation.title ?? '')
+    setIsRenaming(false)
+  }, [conversation.title])
+
+  const commitRename = () => {
+    const trimmed = draft.trim()
+    if (trimmed && trimmed !== conversation.title) {
+      renameMutation.mutate({ id: conversation.id, title: trimmed })
+    }
+    setIsRenaming(false)
+  }
+
   useEffect(() => {
     if (isRenaming) {
       inputRef.current?.focus()
@@ -64,19 +78,6 @@ export function ConversationItem({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isRenaming, cancelRename]);
-
-  const commitRename = () => {
-    const trimmed = draft.trim()
-    if (trimmed && trimmed !== conversation.title) {
-      renameMutation.mutate({ id: conversation.id, title: trimmed })
-    }
-    setIsRenaming(false)
-  }
-
-  const cancelRename = () => {
-    setDraft(conversation.title ?? '')
-    setIsRenaming(false)
-  }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
