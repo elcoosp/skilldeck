@@ -15,14 +15,13 @@ export function useConversations(profileId?: UUID) {
       // FIXED: second argument must be a string (as per binding type)
       const res = await commands.listConversations(
         profileId ?? null,
-        // @ts-expect-error
         50
       )
       if (res.status === 'ok') return res.data
       throw new Error(res.error)
     },
     staleTime: 30_000,
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false, // changed from true to avoid excessive refetches
     refetchOnMount: true,
     retry: 2
   })

@@ -41,7 +41,7 @@ export function MessageThread({
 
   return (
     <ScrollArea ref={scrollRef} className="h-full overflow-hidden">
-      <AnimatePresence mode="wait">
+      <AnimatePresence mode="sync"> {/* changed from "wait" to "sync" to avoid blank screen on conversation switch */}
         {showLoading && (
           <motion.div
             key="loading"

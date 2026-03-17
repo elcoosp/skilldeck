@@ -25,7 +25,7 @@ export function useMessages(
       throw new Error(res.error)
     },
     enabled: !!conversationId,
-    staleTime: 0, // Always fresh after agent completes
+    staleTime: 10_000, // changed from 0 to 10 seconds – messages are stable between agent runs
     // FIX: Keep previous data while refetching to avoid UI flicker
     placeholderData: (previousData) => previousData
   })
