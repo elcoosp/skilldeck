@@ -6,6 +6,17 @@
 
 export const commands = {
 /**
+ * Set the auto-send paused flag for a conversation.
+ */
+async setAutoSendPaused(conversationId: string, paused: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_auto_send_paused", { conversationId, paused }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Create a new branch from a parent message.
  */
 async createBranch(req: CreateBranchRequest) : Promise<Result<string, string>> {

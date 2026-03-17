@@ -14,6 +14,7 @@ use std::sync::Arc;
 use tauri::State;
 use uuid::Uuid;
 
+use crate::commands::messages::send_message_internal;
 use crate::state::AppState;
 use skilldeck_models::queued_messages::{self, Entity as Queued};
 
@@ -290,6 +291,51 @@ pub async fn merge_queued_messages_internal(
     Ok(new_id.to_string())
 }
 
+/// Automatically send the next queued message if conditions allow.
+pub async fn auto_send_next_queued(
+    state: Arc<AppState>,
+    conversation_id: &str,
+    app: tauri::AppHandle,
+) -> Result<(), String> {
+    // Check if agent is running
+    if state.is_agent_running(conversation_id) {
+        return Ok(());
+    }
+    // Check pause flag
+    let is_paused = state
+        .auto_send_paused
+        .get(conversation_id)
+        .map(|r| *r)
+        .unwrap_or(false);
+    if is_paused {
+        return Ok(());
+    }
+    // List queued messages
+    if let Ok(queued) = list_queued_messages_internal(&state, conversation_id).await {
+        if let Some(first) = queued.first() {
+            // Delete it from queue
+            if let Ok(()) = delete_queued_message_internal(&state, &first.id).await {
+                // Build metadata
+                let metadata = serde_json::json!({
+                    "from_queue": true,
+                    "queued_at": first.created_at,
+                });
+                // Send it in a spawned task
+                let state_clone = state.clone();
+                let conv_clone = conversation_id.to_string();
+                let content_clone = first.content.clone();
+                let app_clone = app.clone();
+                tokio::spawn(async move {
+                    let _ =
+                        send_message_internal(state_clone, conv_clone, content_clone, app_clone)
+                            .await;
+                });
+            }
+        }
+    }
+    Ok(())
+}
+
 // =============================================================================
 // Tauri command wrappers
 // =============================================================================
@@ -361,4 +407,15 @@ pub async fn set_auto_send_paused(
 ) -> Result<(), String> {
     state.auto_send_paused.insert(conversation_id, paused);
     Ok(())
+}
+
+/// Manually trigger processing of queued messages for a conversation.
+#[specta]
+#[tauri::command]
+pub async fn process_queued_messages(
+    state: State<'_, Arc<AppState>>,
+    conversation_id: String,
+    app: tauri::AppHandle,
+) -> Result<(), String> {
+    auto_send_next_queued((*state).clone(), &conversation_id, app).await
 }

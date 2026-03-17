@@ -41,10 +41,16 @@ export function QueueList({ conversationId }: QueueListProps) {
 
   const isPaused = editingId !== null || isDragging || mode === 'select'
 
-  // Sync pause state to backend
+  // Sync pause state to backend and trigger processing when unpaused
   useEffect(() => {
     commands.setAutoSendPaused(conversationId, isPaused)
       .catch(err => console.error('Failed to set auto-send pause:', err))
+
+    // When unpaused, trigger processing of queued messages
+    if (!isPaused) {
+      commands.processQueuedMessages(conversationId)
+        .catch(err => console.error('Failed to process queued messages:', err))
+    }
   }, [conversationId, isPaused])
 
   const sensors = useSensors(
