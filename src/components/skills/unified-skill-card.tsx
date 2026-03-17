@@ -60,11 +60,11 @@ export function UnifiedSkillCard({ skill, onClick, isSelected }: Props) {
           className={cn(
             'shrink-0 text-[10px] px-1.5 py-0',
             skill.status === 'installed' &&
-            'bg-primary/10 text-primary border-primary/20',
+              'bg-primary/10 text-primary border-primary/20',
             skill.status === 'local_only' &&
-            'bg-secondary text-secondary-foreground',
+              'bg-secondary text-secondary-foreground',
             skill.status === 'update_available' &&
-            'bg-amber-500/10 text-amber-600 border-amber-500/20'
+              'bg-amber-500/10 text-amber-600 border-amber-500/20'
           )}
         >
           {STATUS_LABEL[skill.status]}

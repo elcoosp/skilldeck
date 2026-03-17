@@ -114,12 +114,17 @@ export function UnifiedSkillList() {
     getScrollElement: () => parentRef.current,
     estimateSize: () => ROW_HEIGHT_ESTIMATE,
     measureElement,
-    overscan: 2,
+    overscan: 2
   })
 
   // Only set isMeasured once to prevent constant rerenders
+  // biome-ignore lint/correctness/useExhaustiveDependencies:ok
   useEffect(() => {
-    if (!isMeasuredRef.current && rowVirtualizer.getTotalSize() > 0 && unifiedSkills.length > 0) {
+    if (
+      !isMeasuredRef.current &&
+      rowVirtualizer.getTotalSize() > 0 &&
+      unifiedSkills.length > 0
+    ) {
       isMeasuredRef.current = true
       setIsMeasured(true)
     }
@@ -247,7 +252,7 @@ export function UnifiedSkillList() {
                       gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
                       gap: '0.75rem',
                       paddingBottom: '0.75rem',
-                      contain: 'layout style',
+                      contain: 'layout style'
                     }}
                   >
                     {rowItems.map((skill, colIdx) => (
@@ -255,7 +260,7 @@ export function UnifiedSkillList() {
                         layout="position"
                         key={skill.id}
                         style={{
-                          contain: 'content',
+                          contain: 'content'
                         }}
                         initial={{ opacity: 0, y: 12, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -263,7 +268,7 @@ export function UnifiedSkillList() {
                           type: 'spring',
                           stiffness: 100,
                           damping: 12,
-                          delay: colIdx * 0.03,
+                          delay: colIdx * 0.03
                         }}
                       >
                         <UnifiedSkillCard
@@ -280,7 +285,7 @@ export function UnifiedSkillList() {
                     {/* Pad incomplete last row */}
                     {Array.from({
                       length: columns - rowItems.length
-                    }).map((_, i) => (
+                    }).map((i) => (
                       <div key={`pad-${i}`} />
                     ))}
                   </div>

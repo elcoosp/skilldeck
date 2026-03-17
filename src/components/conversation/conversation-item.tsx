@@ -39,7 +39,7 @@ export function ConversationItem({
   const [isRenaming, setIsRenaming] = useState(false)
   const [draft, setDraft] = useState(conversation.title ?? '')
   const inputRef = useRef<HTMLInputElement>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLButtonElement>(null)
 
   const deleteMutation = useDeleteConversation()
   const renameMutation = useRenameConversation()
