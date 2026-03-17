@@ -117,7 +117,7 @@ function SelectItem({
       className={cn(
         "relative flex w-full cursor-default items-center gap-1.5 rounded-md py-1 pr-8 pl-1.5 text-sm outline-hidden select-none",
         "data-[state=checked]:bg-primary/10 data-[state=checked]:text-foreground",
-        "data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground transition-colors",
+        "data-[highlighted]:bg-primary/10 data-[highlighted]:text-foreground transition-colors",
         "data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
         className
       )}
