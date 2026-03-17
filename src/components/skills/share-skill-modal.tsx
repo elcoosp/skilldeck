@@ -5,14 +5,14 @@
  * Every skill shared becomes a reusable asset for your team.
  */
 
-import { useState } from 'react'
 import { ExternalLink, Github, Share2, X } from 'lucide-react'
+import { useState } from 'react'
 import { toast } from 'sonner'
 import {
-  shareSkillAsGist,
+  type GistInfo,
   hasGithubToken,
   setGithubToken,
-  type GistInfo
+  shareSkillAsGist
 } from '@/lib/gist'
 import { sendActivityEvent } from '@/lib/platform'
 
@@ -71,7 +71,7 @@ export function ShareSkillModal({ skillName, contentMd, onClose }: Props) {
       setResult(gist)
       setStep('done')
       sendActivityEvent('skill_shared', { skill_name: skillName }).catch(
-        () => { }
+        () => {}
       )
     } finally {
       setSaving(false)

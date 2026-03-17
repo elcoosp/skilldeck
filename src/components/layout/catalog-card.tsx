@@ -1,3 +1,5 @@
+// src/components/layout/catalog-card.tsx
+
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { ExternalLink, Loader2, Package, Plus } from 'lucide-react'
 import { toast } from 'sonner'
@@ -61,6 +63,7 @@ export function CatalogCard({
 
       <div className="flex flex-col gap-1 shrink-0 items-end w-14">
         <button
+          type="button"
           onClick={() => !alreadyAdded && onAdd(entry)}
           disabled={alreadyAdded || adding}
           className={cn(

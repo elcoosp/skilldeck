@@ -1,3 +1,5 @@
+// src/components/layout/live-server-card.tsx
+
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ChevronRight,
@@ -94,6 +96,7 @@ export function LiveServerCard({ server }: LiveServerCardProps) {
     <div className="rounded-lg border border-border bg-card overflow-hidden">
       <div className="flex items-center gap-2 px-3 py-2 min-w-0">
         <button
+          type="button"
           onClick={() => setExpanded((v) => !v)}
           className="flex items-center gap-1.5 flex-1 min-w-0 text-left overflow-hidden"
         >

@@ -110,10 +110,9 @@ export function ConversationItem({
   })()
 
   return (
-    <div
+    <button
+      type="button"
       ref={containerRef}
-      role="button"
-      tabIndex={0}
       onClick={() => !isRenaming && !isDeleting && onClick()}
       onKeyDown={(e) =>
         e.key === 'Enter' && !isRenaming && !isDeleting && onClick()
@@ -130,8 +129,6 @@ export function ConversationItem({
       <div className="flex-1 min-w-0">
         {/* Title row – fixed height to prevent layout shift */}
         <div className="flex items-center gap-1 h-5">
-          {' '}
-          {/* h-5 = 20px, matches text-xs line height */}
           <AnimatePresence mode="wait">
             {isRenaming ? (
               <motion.div
@@ -167,6 +164,7 @@ export function ConversationItem({
               </motion.span>
             )}
           </AnimatePresence>
+
           {/* Pencil icon – only visible on hover */}
           {!isRenaming && !isDeleting && (
             <Button
@@ -226,6 +224,6 @@ export function ConversationItem({
           </DropdownMenuContent>
         </DropdownMenu>
       )}
-    </div>
+    </button>
   )
 }

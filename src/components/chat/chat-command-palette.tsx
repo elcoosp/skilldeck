@@ -40,6 +40,7 @@ export const ChatCommandPalette: React.FC<ChatCommandPaletteProps> = ({
   // Reset selection when filter changes
   useEffect(() => {
     setSelectedIndex(0)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query])
 
   // Scroll selected item into view

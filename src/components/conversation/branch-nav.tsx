@@ -1,3 +1,4 @@
+// src/components/conversation/branch-nav.tsx
 /**
  * BranchNav — compact navigation bar shown above the message thread when the
  * active conversation has multiple branches.
@@ -43,6 +44,7 @@ export function BranchNav({ conversationId }: BranchNavProps) {
       <GitBranch className="size-3.5 shrink-0" />
 
       <button
+        type="button"
         onClick={goPrev}
         disabled={currentIndex <= 1}
         aria-label="Previous branch"
@@ -56,6 +58,7 @@ export function BranchNav({ conversationId }: BranchNavProps) {
       </span>
 
       <button
+        type="button"
         onClick={goNext}
         disabled={currentIndex >= total}
         aria-label="Next branch"
@@ -71,6 +74,7 @@ export function BranchNav({ conversationId }: BranchNavProps) {
       )}
 
       <button
+        type="button"
         onClick={() => setActiveBranch(null)}
         className="ml-auto text-[11px] hover:text-foreground transition-colors"
       >

@@ -1,3 +1,5 @@
+// src/components/layout/custom-server-form.tsx
+
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Loader2, Plus } from 'lucide-react'
 import { useState } from 'react'
@@ -97,10 +99,14 @@ export function CustomServerForm({ onSuccess }: CustomServerFormProps) {
   return (
     <div className="space-y-2.5">
       <div>
-        <label className="block text-[11px] text-muted-foreground mb-1">
+        <label
+          htmlFor="server-name"
+          className="block text-[11px] text-muted-foreground mb-1"
+        >
           Name
         </label>
         <input
+          id="server-name"
           className={inp}
           placeholder="my-server"
           value={form.name}
@@ -108,10 +114,14 @@ export function CustomServerForm({ onSuccess }: CustomServerFormProps) {
         />
       </div>
       <div>
-        <label className="block text-[11px] text-muted-foreground mb-1">
+        <label
+          htmlFor="server-transport"
+          className="block text-[11px] text-muted-foreground mb-1"
+        >
           Transport
         </label>
         <select
+          id="server-transport"
           className={inp}
           value={form.transport}
           onChange={setField('transport')}
@@ -123,10 +133,14 @@ export function CustomServerForm({ onSuccess }: CustomServerFormProps) {
       {form.transport === 'stdio' ? (
         <>
           <div>
-            <label className="block text-[11px] text-muted-foreground mb-1">
+            <label
+              htmlFor="server-command"
+              className="block text-[11px] text-muted-foreground mb-1"
+            >
               Command
             </label>
             <input
+              id="server-command"
               className={inp}
               placeholder="npx"
               value={form.command}
@@ -134,10 +148,14 @@ export function CustomServerForm({ onSuccess }: CustomServerFormProps) {
             />
           </div>
           <div>
-            <label className="block text-[11px] text-muted-foreground mb-1">
+            <label
+              htmlFor="server-args"
+              className="block text-[11px] text-muted-foreground mb-1"
+            >
               Arguments <span className="opacity-60">(space-separated)</span>
             </label>
             <input
+              id="server-args"
               className={inp}
               placeholder="-y @modelcontextprotocol/server-filesystem ."
               value={form.args}
@@ -147,10 +165,14 @@ export function CustomServerForm({ onSuccess }: CustomServerFormProps) {
         </>
       ) : (
         <div>
-          <label className="block text-[11px] text-muted-foreground mb-1">
+          <label
+            htmlFor="server-url"
+            className="block text-[11px] text-muted-foreground mb-1"
+          >
             URL
           </label>
           <input
+            id="server-url"
             className={inp}
             placeholder="http://localhost:8080/sse"
             value={form.url}
@@ -159,10 +181,14 @@ export function CustomServerForm({ onSuccess }: CustomServerFormProps) {
         </div>
       )}
       <div>
-        <label className="block text-[11px] text-muted-foreground mb-1">
+        <label
+          htmlFor="server-env"
+          className="block text-[11px] text-muted-foreground mb-1"
+        >
           Env vars <span className="opacity-60">(optional JSON)</span>
         </label>
         <input
+          id="server-env"
           className={inp}
           placeholder='{"GITHUB_TOKEN": "ghp_..."}'
           value={form.env}

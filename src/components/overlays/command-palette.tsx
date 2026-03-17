@@ -1,3 +1,4 @@
+// src/components/overlays/command-palette.tsx
 /**
  * CommandPalette — global ⌘K overlay powered by cmdk.
  *
@@ -45,12 +46,26 @@ export function CommandPalette() {
   return (
     /* Backdrop – softer, matches brand neutral */
     <div
+      role="button"
+      tabIndex={0}
       className="fixed inset-0 z-50 bg-black/20 backdrop-blur-sm flex items-start justify-center pt-[15vh]"
       onClick={() => setOpen(false)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          setOpen(false)
+        }
+      }}
     >
       {/* Panel */}
       <div
+        role="dialog"
+        aria-modal="true"
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          // Prevent closing when interacting with the panel
+          e.stopPropagation()
+        }}
         className="w-full max-w-xl mx-4 rounded-xl border border-border bg-background shadow-2xl overflow-hidden"
       >
         <Command className="[&_[cmdk-input-wrapper]]:border-b [&_[cmdk-input-wrapper]]:border-border">

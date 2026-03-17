@@ -181,6 +181,8 @@ export const FileMentionPicker: React.FC<FileMentionPickerProps> = ({
   return createPortal(
     <div
       ref={pickerRef}
+      role="dialog"
+      aria-label="File picker"
       className="fixed z-50 w-80 bg-popover text-popover-foreground shadow-lg border rounded-lg overflow-hidden"
       style={{ top: position.top, left: position.left }}
       onKeyDown={handleKeyDown}
@@ -259,6 +261,12 @@ export const FileMentionPicker: React.FC<FileMentionPickerProps> = ({
                       : 'hover:bg-accent/50'
                   )}
                   onClick={() => handleItemSelect(file)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      handleItemSelect(file)
+                    }
+                  }}
                   onMouseEnter={() => setSelectedIndex(index)}
                 >
                   <span className="w-4 h-4 flex items-center justify-center text-muted-foreground shrink-0">
