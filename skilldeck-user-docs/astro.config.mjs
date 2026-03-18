@@ -12,6 +12,9 @@ export default defineConfig({
         src: './src/assets/logo.svg',
         replacesTitle: true,
       },
+      editLink: {
+        baseUrl: 'https://github.com/elcoosp/skilldeck/edit/main/skilldeck-user-docs/',
+      },
       social: [
         { icon: 'github', label: 'GitHub', href: 'https://github.com/elcoosp/skilldeck' },
         { icon: 'discord', label: 'Discord', href: 'https://discord.gg/skilldeck' },
