@@ -1,7 +1,7 @@
 // src/components/conversation/message-bubble.tsx
 
 import rehypeShiki from '@shikijs/rehype'
-import { motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import {
   AlertCircle,
   Bot,
@@ -252,14 +252,14 @@ export function MessageBubble({
 
             {/* Collapse header — only shown once streaming is done */}
             {canCollapse && (
-              <div className="flex items-center justify-between mb-1 text-muted-foreground">
+              <div className="flex items-center gap-1 mb-1 text-muted-foreground">
                 <span className="text-xs font-medium">
                   {isAssistant ? 'Assistant' : isSystem ? 'System' : 'Tool'}
                 </span>
                 <motion.button
                   type="button"
                   onClick={() => setCollapsed((v) => !v)}
-                  className="p-0.5 hover:bg-muted-foreground/20 rounded transition-colors ml-2"
+                  className="p-0.5 hover:bg-muted-foreground/20 rounded transition-colors"
                   aria-label={isCollapsed ? 'Expand message' : 'Collapse message'}
                   whileTap={{ scale: 0.9 }}
                 >
@@ -350,20 +350,27 @@ export function MessageBubble({
           </div>
         </div>
 
-        {/* Copy button – always visible below the bubble */}
-        {!isStreaming && !syntheticStreaming && message.content && (
-          <button
-            onClick={copyMessage}
-            className="mt-1 p-1 text-muted-foreground hover:text-foreground transition-colors bg-transparent border-0 shadow-none"
-            aria-label="Copy message"
-          >
-            {copied ? (
-              <Check className="size-3.5 text-green-500" />
-            ) : (
-              <Copy className="size-3.5" />
-            )}
-          </button>
-        )}
+        {/* Copy button – only shown when not collapsed, fades in/out */}
+        <AnimatePresence>
+          {!isStreaming && !syntheticStreaming && message.content && !isCollapsed && (
+            <motion.button
+              key="copy-button"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              onClick={copyMessage}
+              className="mt-1 p-1 text-muted-foreground hover:text-foreground transition-colors bg-transparent border-0 shadow-none"
+              aria-label="Copy message"
+            >
+              {copied ? (
+                <Check className="size-3.5 text-green-500" />
+              ) : (
+                <Copy className="size-3.5" />
+              )}
+            </motion.button>
+          )}
+        </AnimatePresence>
       </div>
     </motion.div>
   )
