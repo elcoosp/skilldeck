@@ -1,0 +1,84 @@
+---
+title: Workflows
+description: An overview of SkillDeck's workflow engine – patterns, execution, and use cases.
+sidebar:
+  order: 4
+---
+
+import Feedback from '../../../../../components/mdx/Feedback.astro';
+
+Workflows let you automate multi‑step tasks by chaining together skills, prompts, and tools. SkillDeck supports three core workflow patterns, each suited to different problem domains.
+
+## Workflow Definition
+
+A workflow is defined as a JSON object with these fields:
+
+```json
+{
+  "name": "Workflow Name",
+  "pattern": "sequential | parallel | evaluator_optimizer",
+  "steps": [
+    {
+      "id": "step1",
+      "name": "Step Name",
+      "skill": "optional-skill-name",
+      "prompt": "Instruction for the agent"
+    }
+  ],
+  "dependencies": [
+    { "from": "step1", "to": "step2" }
+  ]
+}
+```
+
+- `pattern` determines how steps are executed.
+- `dependencies` define order (only needed if order differs from the array).
+
+## Workflow Patterns
+
+### Sequential
+
+Steps run one after another, in the order specified. This is the simplest pattern and works for most linear tasks.
+
+**Use when:** Each step depends on the previous one.
+
+### Parallel
+
+Independent steps run concurrently, improving performance. Dependencies still apply – a step will not start until all its dependencies are complete.
+
+**Use when:** You have multiple independent tasks that can be done simultaneously (e.g., reviewing several files).
+
+### Evaluator‑Optimizer
+
+This pattern runs a loop: a generator produces an output, an evaluator assesses it. If the evaluator fails, the generator runs again, optionally incorporating feedback. The loop continues until the evaluator passes or a maximum iteration count is reached.
+
+**Use when:** The task benefits from iterative refinement (e.g., writing, code generation, translation).
+
+## Execution
+
+When you run a workflow:
+
+1. SkillDeck validates the definition and builds a dependency graph.
+2. Steps are executed according to the pattern.
+3. Each step's output is available to subsequent steps via `{{step_id.output}}`.
+4. The UI shows real‑time progress (which step is running, results as they arrive).
+
+## Persistence
+
+Workflow definitions are saved in the local database (`workflow_definitions` table). You can have multiple saved workflows and run them anytime.
+
+## Use Cases
+
+| Pattern | Example |
+|---------|---------|
+| Sequential | Summarize a document, then translate the summary. |
+| Parallel | Review two code files at the same time, then combine reviews. |
+| Evaluator‑Optimizer | Write a story, evaluate it, rewrite based on feedback. |
+
+## Related
+
+- [Sequential Workflow Tutorial](/en/latest/tutorials/create-a-workflow/sequential)
+- [Parallel Workflow Tutorial](/en/latest/tutorials/create-a-workflow/parallel)
+- [Evaluator‑Optimizer Tutorial](/en/latest/tutorials/create-a-workflow/evaluator-optimizer)
+
+<Feedback />

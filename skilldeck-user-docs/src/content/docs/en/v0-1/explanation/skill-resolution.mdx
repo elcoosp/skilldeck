@@ -1,0 +1,64 @@
+---
+title: Skill Resolution
+description: How SkillDeck resolves skill names when multiple sources provide the same skill.
+sidebar:
+  order: 2
+---
+
+import Feedback from '../../../../../components/mdx/Feedback.astro';
+
+When the same skill name exists in multiple locations (e.g., workspace, personal folder, and registry), SkillDeck uses a **priority order** to decide which version is active. This ensures that you can override community skills with your own customized versions.
+
+## Priority Order (Highest to Lowest)
+
+1. **Workspace** – `./.skilldeck/skills/`
+2. **Personal** – `~/.agents/skills/`
+3. **Registry** – cached skills from the SkillDeck Platform
+
+Skills from higher‑priority sources **shadow** (hide) those from lower‑priority sources. If you have `code-review` in your workspace and also in the registry, the workspace version is used.
+
+## Why This Matters
+
+- **Local overrides**: You can tweak a community skill to fit your team's needs and place it in your workspace – it will take precedence.
+- **Consistent behavior**: Skills are resolved deterministically; you always know which version will run.
+- **Safe defaults**: If no local version exists, the registry provides a fallback.
+
+## How Resolution Works
+
+When the agent needs to load a skill (e.g., when you mention `@code-review`), the resolver:
+
+1. Looks in the **workspace** directory (if a workspace is open).
+2. If not found, checks the **personal** directory.
+3. Finally, falls back to the **registry cache**.
+
+The first match is used. If no match is found, the agent reports that the skill does not exist.
+
+## Shadowing and Visibility
+
+In the Skills tab, you'll see both local and registry skills, but only the highest‑priority version will be marked as **active**. Lower‑priority versions are still visible but may be dimmed or have a note indicating they are shadowed.
+
+## Example
+
+Assume you have:
+
+- **Workspace**: `code-review` (modified version)
+- **Personal**: `code-review` (older version)
+- **Registry**: `code-review` (original)
+
+The workspace version wins. If you remove the workspace version, the personal version becomes active. If you remove that too, the registry version is used.
+
+## Resolving Conflicts
+
+If you accidentally have conflicting versions, you can:
+
+- Delete the unwanted version from its directory.
+- Rename one of the skills (if they are actually different skills).
+- Use the Skills tab to toggle which version is active (not yet implemented).
+
+## Related
+
+- [Workspaces Explanation](/en/latest/explanation/workspaces)
+- [Install a Skill](/en/latest/how-to/install-a-skill)
+- [Skill Format Reference](/en/latest/reference/skill-format)
+
+<Feedback />
