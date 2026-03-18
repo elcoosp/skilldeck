@@ -353,7 +353,7 @@ impl AppState {
             .into_iter()
             .next()
             .map(|m| m.id)
-            .unwrap_or_else(|| "llama3.2:latest".to_string());
+            .unwrap_or_else(|| "glm-5:cloud".to_string());  // changed from llama3.2:latest
 
         let now = chrono::Utc::now().fixed_offset();
         let id = uuid::Uuid::new_v4();

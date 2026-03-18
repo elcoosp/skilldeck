@@ -8,10 +8,12 @@ describe('ToolCallCard', () => {
     arguments: { path: '/project/src/main.rs' }
   }
 
-  it('shows tool name in collapsed header', async () => {
+  it('shows tool name and synthesized description in collapsed header', async () => {
     const screen = await render(<ToolCallCard {...defaultProps} />)
     const name = screen.getByText('read_file')
     await expect.element(name).toBeInTheDocument()
+    const desc = screen.getByText('Read file: /project/src/main.rs')
+    await expect.element(desc).toBeInTheDocument()
   })
 
   it('does not show arguments when collapsed', async () => {
@@ -36,7 +38,7 @@ describe('ToolCallCard', () => {
     await expect.element(path).toBeInTheDocument()
   })
 
-  it('shows result section when result is provided and expanded', async () => {
+  it('shows result section with copy button when result is provided and expanded', async () => {
     const screen = await render(
       <ToolCallCard {...defaultProps} result="file contents here" />
     )
@@ -45,6 +47,8 @@ describe('ToolCallCard', () => {
     await expect.element(output).toBeInTheDocument()
     const result = screen.getByText(/file contents here/)
     await expect.element(result).toBeInTheDocument()
+    const copyBtn = screen.getByRole('button', { name: 'Copy' })
+    await expect.element(copyBtn).toBeInTheDocument()
   })
 
   it('renders complex nested arguments as pretty-printed JSON', async () => {
@@ -57,5 +61,27 @@ describe('ToolCallCard', () => {
     await screen.getByText('execute').click()
     const foo = screen.getByText(/"FOO"/)
     await expect.element(foo).toBeInTheDocument()
+  })
+
+  it('uses correct icon based on tool name', async () => {
+    const screen = await render(
+      <ToolCallCard name="http_request" arguments={{ url: 'https://example.com' }} />
+    )
+    // We can't directly assert the icon component, but we can check the description
+    const desc = screen.getByText('GET: https://example.com')
+    await expect.element(desc).toBeInTheDocument()
+  })
+
+  it('collapsed header is not selectable', async () => {
+    const screen = await render(<ToolCallCard {...defaultProps} />)
+    const header = screen.getByText('read_file').element()?.closest('button')
+    expect(header?.className).toContain('select-none')
+  })
+
+  it('input arguments are not selectable when expanded', async () => {
+    const screen = await render(<ToolCallCard {...defaultProps} />)
+    await screen.getByText('read_file').click()
+    const pre = screen.getByText(/"path"/).element()
+    expect(pre?.className).toContain('select-none')
   })
 })

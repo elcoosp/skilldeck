@@ -31,9 +31,11 @@ interface SettingsState {
   notificationsEnabled: boolean
   setNotificationsEnabled: (enabled: boolean) => void
 
-  // Default model
+  // Default model (used when no profile exists or as fallback)
   defaultModelId: string
+  defaultProvider: string   // new
   setDefaultModelId: (id: string) => void
+  setDefaultProvider: (provider: string) => void
 
   // Language
   language: string
@@ -71,8 +73,10 @@ export const useSettingsStore = create<SettingsState>()(
         set({ notificationsEnabled: enabled }),
 
       // Default model
-      defaultModelId: 'claude-sonnet-4-5',
+      defaultModelId: 'glm-5:cloud',   // changed from claude-sonnet-4-5
+      defaultProvider: 'ollama',        // new
       setDefaultModelId: (id) => set({ defaultModelId: id }),
+      setDefaultProvider: (provider) => set({ defaultProvider: provider }),
 
       // Language
       language: 'en',

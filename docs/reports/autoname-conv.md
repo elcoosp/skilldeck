@@ -1,0 +1,52 @@
+
+Issue 3 — Auto-name conversations from the first message
+This spans two layers:
+Frontend — src/hooks/use-conversations.ts
+Add a new useAutoNameConversation hook (or extend useRenameConversation) that fires after the first user message is persisted:
+tsexport function useAutoNameConversation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, firstMessage }: { id: UUID; firstMessage: string }) => {
+      const title = firstMessage.trim().slice(0, 60)
+      const capitalized = title.charAt(0).toUpperCase() + title.slice(1)
+      const res = await commands.renameConversation(id, capitalized)
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['conversations'], exact: false })
+    }
+  })
+}
+Frontend — src/components/conversation/message-input.tsx
+In submit(), after a successful send, check if this is the first message of the conversation (i.e., the conversation was just created, or has no prior messages). Rename it immediately:
+tsconst autoName = useAutoNameConversation()
+
+// Inside submit(), after sendMutation.mutate succeeds (in onSuccess callback or after mutation):
+// Check if conversation has no title yet (pass it down as a prop or read from query cache)
+const convoData = queryClient.getQueryData<ConversationData[]>(['conversations', profileId])
+const convo = convoData?.find(c => c.id === finalConversationId)
+if (!convo?.title) {
+  autoName.mutate({ id: finalConversationId, firstMessage: finalContent })
+}
+For cleanliness, the check for "no title" is best done inside useAgentStream on the 'persisted' event (since that's when the message is guaranteed saved), by invalidating conversations and triggering a rename if title is null:
+ts// In processEvent, case 'persisted':
+case 'persisted':
+  queryClient.invalidateQueries({ queryKey: ['messages', conversationId] })
+  // Auto-name: rename if conversation has no title
+  const conversations = queryClient.getQueryData<any[]>(['conversations'])
+  const currentConvo = conversations?.find(c => c.id === conversationId)
+  if (currentConvo && !currentConvo.title) {
+    // Get the first user message from the messages cache
+    const messages = queryClient.getQueryData<any[]>(['messages', conversationId])
+    const firstUserMsg = messages?.find(m => m.role === 'user')
+    if (firstUserMsg?.content) {
+      const raw = firstUserMsg.content.trim().slice(0, 60)
+      const title = raw.charAt(0).toUpperCase() + raw.slice(1)
+      commands.renameConversation(conversationId, title)
+        .then(() => queryClient.invalidateQueries({ queryKey: ['conversations'] }))
+    }
+  }
+  queryClient.invalidateQueries({ queryKey: ['conversations'] })
+  break
+This is the cleanest placement — it fires exactly once, after messages are persisted, with no race condition.

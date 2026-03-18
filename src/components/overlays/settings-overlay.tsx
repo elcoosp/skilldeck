@@ -102,7 +102,7 @@ export function SettingsOverlay() {
         </nav>
 
         {/* Content pane */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-6 text-left">
           {settingsTab === 'apikeys' && <ApiKeysTab />}
           {settingsTab === 'profiles' && <ProfilesTab />}
           {settingsTab === 'approvals' && <ApprovalsTab />}
@@ -337,12 +337,11 @@ function ProfilesTab() {
 
   function defaultModel() {
     if (newProvider === 'ollama')
-      return ollamaModels[0]?.id ?? 'llama3.2:latest'
-    if (newProvider === 'claude') return 'claude-sonnet-4-5'
-    if (newProvider === 'openai') return 'gpt-4o'
-    return ''
+      return ollamaModels[0]?.id ?? 'glm-5:cloud';   // changed
+    if (newProvider === 'claude') return 'claude-sonnet-4-5';
+    if (newProvider === 'openai') return 'gpt-4o';
+    return '';
   }
-
   const getProviderName = (provider: string | { id: string; name: string }) => {
     if (typeof provider === 'string') {
       const found = PROVIDER_OPTIONS.find((p) => p.id === provider)
@@ -502,27 +501,27 @@ const APPROVAL_FIELDS: Array<{
   label: string
   description: string
 }> = [
-  {
-    key: 'autoApproveReads',
-    label: 'Auto-approve file reads',
-    description: 'Skip the approval dialog for read-only filesystem tools'
-  },
-  {
-    key: 'autoApproveWrites',
-    label: 'Auto-approve file writes',
-    description: 'Skip approval for file creation and modification'
-  },
-  {
-    key: 'autoApproveShell',
-    label: 'Auto-approve shell commands',
-    description: 'Never require approval for shell execution (⚠ dangerous)'
-  },
-  {
-    key: 'autoApproveHttpRequests',
-    label: 'Auto-approve HTTP requests',
-    description: 'Skip approval for outbound HTTP tool calls'
-  }
-]
+    {
+      key: 'autoApproveReads',
+      label: 'Auto-approve file reads',
+      description: 'Skip the approval dialog for read-only filesystem tools'
+    },
+    {
+      key: 'autoApproveWrites',
+      label: 'Auto-approve file writes',
+      description: 'Skip approval for file creation and modification'
+    },
+    {
+      key: 'autoApproveShell',
+      label: 'Auto-approve shell commands',
+      description: 'Never require approval for shell execution (⚠ dangerous)'
+    },
+    {
+      key: 'autoApproveHttpRequests',
+      label: 'Auto-approve HTTP requests',
+      description: 'Skip approval for outbound HTTP tool calls'
+    }
+  ]
 
 function ApprovalsTab() {
   const toolApprovals = useSettingsStore((s) => s.toolApprovals)
@@ -538,7 +537,7 @@ function ApprovalsTab() {
         </p>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-3 text-left">
         {APPROVAL_FIELDS.map(({ key, label, description }) => (
           <label
             key={key}

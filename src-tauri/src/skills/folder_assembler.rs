@@ -1,7 +1,7 @@
 //! Folder content assembler — walks a directory and concatenates file contents.
 //! Uses the `ignore` crate to respect .gitignore, hidden files, etc.
 
-use anyhow::{Result, bail};
+use anyhow::{Result};
 use ignore::WalkBuilder;
 use std::fs;
 use std::path::Path;

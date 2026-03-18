@@ -88,7 +88,7 @@ const CodePre = ({ children, ...props }: any) => {
       >
         <div className="overflow-hidden rounded-b-lg">
           <div
-            className="overflow-auto max-h-96 transition-opacity duration-200 [&>pre]:!m-0 [&>pre]:!rounded-none [&>pre]:!border-none [&>pre]:p-3 [&>pre]:text-xs [&>pre]:leading-relaxed"
+            className="overflow-auto max-h-96 thin-scrollbar transition-opacity duration-200 bg-card [&>pre]:!m-0 [&>pre]:!rounded-none [&>pre]:!border-none [&>pre]:p-3 [&>pre]:text-xs [&>pre]:leading-relaxed [&>pre]:!bg-transparent"
             style={{ opacity: collapsed ? 0 : 1 }}
           >
             <pre {...props}>{children}</pre>
