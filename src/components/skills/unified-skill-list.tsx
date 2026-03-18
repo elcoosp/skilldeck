@@ -98,7 +98,6 @@ export function UnifiedSkillList() {
     return ['all', ...Array.from(cats).sort()]
   }, [unifiedSkills])
 
-
   // Filter by category (if not "all")
   const filteredSkills = useMemo(() => {
     if (category === 'all') return unifiedSkills
@@ -175,8 +174,8 @@ export function UnifiedSkillList() {
     <div className="flex h-full min-h-0" ref={containerRef}>
       {/* ── Main area ─────────────────────────────────────────────────────── */}
       <div className="flex flex-col flex-1 min-w-0 h-full">
-        {/* Platform status banner */}
-        <div className="px-5 pt-5">
+        {/* Platform status banner - flush with sides, only top padding */}
+        <div className="px-3 pt-3">
           <PlatformStatusBanner
             variant={!platformFeaturesEnabled ? 'disabled' : registryError ? 'error' : null}
             onEnable={handleEnablePlatform}
@@ -184,79 +183,57 @@ export function UnifiedSkillList() {
           />
         </div>
 
-        {/* Toolbar */}
-        <div className="px-5 pt-5 pb-3 border-b border-border/50 shrink-0 space-y-3">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h1 className="text-xl font-bold leading-tight">
-                Skill Marketplace
-              </h1>
-              {!isLoading && (
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {installedCount} installed · {filteredSkills.length} total
-                  {registryError && (
-                    <span className="ml-2 text-amber-500">
-                      (registry offline)
-                    </span>
-                  )}
-                </p>
-              )}
-            </div>
-
-            <button
-              type="button"
-              title={!platformFeaturesEnabled ? "Enable platform to sync" : "Sync registry"}
-              onClick={() => syncMutation.mutate()}
-              disabled={!platformFeaturesEnabled || syncMutation.isPending}
-              className={cn(
-                'h-7 w-7 flex items-center justify-center rounded-md',
-                'text-muted-foreground hover:text-foreground hover:bg-muted',
-                'transition-colors shrink-0 mt-0.5',
-                !platformFeaturesEnabled && 'opacity-50 cursor-not-allowed'
-              )}
-            >
-              <RefreshCw
-                className={cn(
-                  'h-3.5 w-3.5',
-                  syncMutation.isPending && 'animate-spin'
-                )}
-              />
-            </button>
-          </div>
-
-          {/* Search and category filter row */}
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-              <input
-                type="text"
-                placeholder="Search skills…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className={cn(
-                  'w-full h-8 pl-8 pr-3 rounded-md border border-input bg-background',
-                  'text-sm placeholder:text-muted-foreground',
-                  'focus:outline-none focus:ring-1 focus:ring-ring'
-                )}
-              />
-            </div>
-
-            {/* Only show category filter if there is at least one category besides "all" */}
-            {categories.length > 1 && (
-              <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger className="w-[140px] h-8">
-                  <SelectValue placeholder="Category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat} value={cat} className="text-xs">
-                      {cat === 'all' ? 'All categories' : cat}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+        {/* Header row - matches MCP tab exactly */}
+        <div className="flex items-center justify-between px-3 pt-0 pb-2 shrink-0">
+          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            Skill Registry
+          </span>
+          <button
+            type="button"
+            onClick={() => syncMutation.mutate()}
+            disabled={!platformFeaturesEnabled || syncMutation.isPending}
+            title={!platformFeaturesEnabled ? "Enable platform to sync" : "Refresh"}
+            className={cn(
+              'p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40',
+              syncMutation.isPending && 'animate-spin'
             )}
+          >
+            <RefreshCw className="h-3 w-3" />
+          </button>
+        </div>
+
+        {/* Search and category filter row - matching side padding */}
+        <div className="px-3 pb-3 flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search skills…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className={cn(
+                'w-full h-8 pl-8 pr-3 rounded-md border border-input bg-background',
+                'text-sm placeholder:text-muted-foreground',
+                'focus:outline-none focus:ring-1 focus:ring-ring'
+              )}
+            />
           </div>
+
+          {/* Only show category filter if there is at least one category besides "all" */}
+          {categories.length > 1 && (
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger className="w-[140px] h-8">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((cat) => (
+                  <SelectItem key={cat} value={cat} className="text-xs">
+                    {cat === 'all' ? 'All categories' : cat}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
 
         {/* Grid area */}
@@ -384,7 +361,12 @@ function EmptyState({
 }) {
   if (hasRegistryError) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-3">
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-4">
+        <img
+          src="/illustrations/empty-skills.jpeg"
+          alt="No skills"
+          className="w-48 h-48 mb-2 opacity-90 rounded-3xl"
+        />
         <AlertCircle className="h-8 w-8 text-amber-500" />
         <p className="text-sm font-medium">Registry unavailable</p>
         <p className="text-xs text-muted-foreground max-w-xs">
@@ -397,17 +379,24 @@ function EmptyState({
 
   if (search) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-3">
-        <Search className="h-8 w-8 text-muted-foreground/40" />
-        <p className="text-sm font-medium">No skills match "{search}"</p>
-        <p className="text-xs text-muted-foreground">
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-4">
+        <img
+          src="/illustrations/empty-skills.jpeg"
+          alt="No skills"
+          className="w-48 h-48 mb-2 opacity-90 rounded-3xl"
+        />
+        <div className="flex items-center justify-center gap-2">
+          <Search className="h-4 w-4 text-muted-foreground" />
+          <p className="text-sm font-medium">No skills match "{search}"</p>
+        </div>
+        <p className="text-xs text-muted-foreground max-w-xs">
           Try a different search term or clear the filter.
         </p>
       </div>
     )
   }
 
-  // ✨ Whimsical empty state for no skills at all
+  // Default empty state (no skills at all)
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-4">
       <img
