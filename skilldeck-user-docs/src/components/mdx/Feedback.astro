@@ -1,6 +1,3 @@
----
-import { trackEvent } from '../../lib/analytics';
----
 
 <div class="feedback">
   <p>Was this page helpful?</p>
@@ -12,13 +9,13 @@ import { trackEvent } from '../../lib/analytics';
   const yesBtn = document.querySelector('.feedback-yes');
   const noBtn = document.querySelector('.feedback-no');
   yesBtn?.addEventListener('click', () => {
-    trackEvent('Page Helpful', { page: window.location.pathname, rating: 'yes' });
+    console.log('Page Helpful', { page: window.location.pathname, rating: 'yes' });
     yesBtn.disabled = true;
     noBtn.disabled = true;
     yesBtn.innerText = 'Thank you!';
   });
   noBtn?.addEventListener('click', () => {
-    trackEvent('Page Helpful', { page: window.location.pathname, rating: 'no' });
+    console.log('Page Helpful', { page: window.location.pathname, rating: 'no' });
     // Optionally show a form for more feedback
     noBtn.disabled = true;
     yesBtn.disabled = true;

@@ -7,7 +7,7 @@ const docsDir = path.resolve(__dirname, '../src/content/docs');
 
 const languages = ['en', 'fr'];
 const versions = ['v0-1', 'v0-2', 'latest'];
-const baseVersion = 'v0-2'; // the version with canonical content
+const baseVersion = 'latest'; // the version with canonical content
 
 async function syncVersion(version) {
   if (version === baseVersion) return;
