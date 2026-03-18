@@ -20,6 +20,7 @@ jobs:
 
       - uses: pnpm/action-setup@v4
         with:
+          version: 10
           cache: true
           cache_dependency_path: skilldeck-user-docs/pnpm-lock.yaml
 
