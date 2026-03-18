@@ -1,0 +1,73 @@
+---
+title: "Case Study: How FinTech Co. Achieved Compliance with Local AI"
+description: A financial technology company uses SkillDeck to give developers AI assistance while meeting strict data residency requirements.
+sidebar:
+  order: 4
+---
+
+import Feedback from '../../../../../components/mdx/Feedback.astro';
+
+**FinTech Co.** (name anonymized) is a rapidly growing financial technology company handling sensitive customer financial data. Their engineering team wanted to leverage AI‑assisted development to accelerate feature delivery, but faced strict regulatory constraints: **no customer data could leave their controlled environment**.
+
+## The Challenge
+
+- **Regulatory compliance:** As a financial services provider, they were subject to regulations that prohibited sending customer data – including code snippets containing financial logic – to third‑party cloud AI services.
+- **Developer productivity:** Their team of 50+ engineers was spending hours manually documenting code, reviewing pull requests, and answering questions about legacy systems.
+- **Competitive pressure:** Competitors using AI tools were shipping features faster, creating a productivity gap.
+
+## Why Cloud AI Wasn't an Option
+
+The team evaluated cloud‑based AI coding assistants but found they couldn't pass security review:
+
+- Code containing financial formulas and internal APIs would be processed on external servers.
+- Terms of service allowed providers to use prompts for model training – a non‑negotiable risk.
+- Data residency requirements meant data had to stay within their geographic region.
+
+## The Solution: SkillDeck + Local Models
+
+FinTech Co. deployed SkillDeck with locally‑hosted models via Ollama, keeping everything on‑premises.
+
+### Architecture
+
+- **Models:** Llama 3.2 (for general code assistance) and a fine‑tuned version of Qwen2.5-Coder (for financial domain knowledge)
+- **Hardware:** Two on‑premises servers with consumer GPUs (cost ~$15,000 one‑time)
+- **Integration:** SkillDeck connected to their internal Git repositories and issue tracker via MCP servers
+- **Skills:** Custom skills for code review, documentation generation, and legacy code explanation
+
+### Implementation Timeline
+
+| Phase | Duration | Activities |
+|-------|----------|------------|
+| Pilot | 2 weeks | 5 engineers test basic code assistance |
+| Rollout | 1 month | Deploy to entire engineering team; integrate with GitLab |
+| Optimization | Ongoing | Fine‑tune models on internal codebase |
+
+## Results
+
+### Compliance Achieved
+- All AI processing remained on‑premises; no data exfiltration.
+- Passed external security audit with zero findings related to AI tooling.
+
+### Developer Productivity
+- **35% reduction** in time spent on code documentation.
+- **50% faster** pull request reviews using custom code review skill.
+- Junior engineers became productive **2x faster** with legacy code explanation skill.
+
+### Cost Savings
+- Cloud AI would have cost an estimated **$8,000–12,000 per month** for their usage volume.
+- Local infrastructure cost **$15,000 one‑time + minimal maintenance** – breakeven in 2 months.
+
+## Key Takeaways
+
+> "SkillDeck gave us the productivity gains of AI without compromising our security posture. Our developers are shipping faster, and our compliance team is happy."
+> – VP of Engineering, FinTech Co.
+
+- **Local AI is viable for enterprise:** Modern models run well on commodity hardware.
+- **Custom skills multiply value:** By creating skills tailored to their codebase, they automated tasks generic tools couldn't.
+- **Compliance doesn't require sacrificing productivity:** With the right architecture, you can have both.
+
+## Next Steps
+
+FinTech Co. is now expanding their use of SkillDeck to automate testing and generate synthetic financial data for development sandboxes.
+
+<Feedback />
