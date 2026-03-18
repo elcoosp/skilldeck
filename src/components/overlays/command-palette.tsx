@@ -16,7 +16,7 @@ import {
   useCreateConversation
 } from '@/hooks/use-conversations'
 import { useProfiles } from '@/hooks/use-profiles'
-import { useAllSkills } from '@/hooks/use-skills'
+import { useUnifiedSkills } from '@/hooks/use-unified-skills' // changed
 import { useUIStore } from '@/store/ui'
 
 export function CommandPalette() {
@@ -26,7 +26,7 @@ export function CommandPalette() {
   const setSettingsOpen = useUIStore((s) => s.setSettingsOpen)
 
   const { data: conversations = [] } = useConversations()
-  const { skills = [] } = useAllSkills()
+  const { unifiedSkills } = useUnifiedSkills() // use unified skills
   const { data: profiles = [] } = useProfiles()
 
   const defaultProfile = profiles.find((p) => p.is_default) ?? profiles[0]
@@ -130,17 +130,17 @@ export function CommandPalette() {
             )}
 
             {/* Skills */}
-            {skills.length > 0 && (
+            {unifiedSkills.length > 0 && (
               <Command.Group
                 heading="Skills"
                 className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1 [&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-muted-foreground"
               >
-                {skills.slice(0, 6).map((s) => (
+                {unifiedSkills.slice(0, 6).map((skill) => (
                   <CommandItem
-                    key={s.name}
+                    key={skill.name}
                     icon={<Layers className="size-4" />}
-                    label={s.name}
-                    sublabel={s.description}
+                    label={skill.name}
+                    sublabel={skill.description}
                     onSelect={() => setOpen(false)}
                   />
                 ))}

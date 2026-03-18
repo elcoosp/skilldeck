@@ -41,7 +41,7 @@ export function useAddQueuedMessage(conversationId: UUID) {
       const res = await commands.addQueuedMessage({
         conversation_id: conversationId,
         content,
-        context_items: contextItems,
+        context_items: contextItems ?? null // convert undefined to null
       })
       if (res.status === 'error') throw new Error(res.error)
       return res.data

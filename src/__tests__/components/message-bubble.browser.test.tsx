@@ -11,6 +11,7 @@ const makeMessage = (overrides: Partial<MessageData> = {}): MessageData => ({
   role: 'user',
   content: 'Hello, world!',
   created_at: '2024-01-01T00:00:00Z',
+  context_items: null, // add required field
   ...overrides
 })
 
@@ -61,7 +62,7 @@ describe('MessageBubble avatars', () => {
     const screen = await render(
       <MessageBubble message={makeMessage({ role: 'user' })} />
     )
-    const avatar = screen.getByLabelText('User avatar') // assume aria-label is set
+    const avatar = screen.getByLabelText('User avatar')
     await expect.element(avatar).toBeInTheDocument()
   })
 
@@ -117,7 +118,7 @@ describe('MessageBubble content', () => {
         isStreaming
       />
     )
-    const spinner = screen.getByRole('status', { name: /loading/i }) // assume spinner has role="status"
+    const spinner = screen.getByRole('status', { name: /loading/i })
     await expect.element(spinner).toBeInTheDocument()
   })
 

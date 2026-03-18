@@ -13,45 +13,37 @@ import {
   DialogHeader,
   DialogTitle
 } from '@/components/ui/dialog'
-import { useInstallSkill } from '@/hooks/use-skills'
-import type { InstallTarget, RegistrySkillData } from '@/lib/bindings'
+import type { RegistrySkillData } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
 
 interface InstallDialogProps {
   skill: RegistrySkillData
   onClose: () => void
+  onConfirm: (target: 'personal' | 'workspace') => void
 }
 
-export function InstallDialog({ skill, onClose }: InstallDialogProps) {
-  const [target, setTarget] = useState<InstallTarget>('personal')
-  const install = useInstallSkill()
-
-  function handleInstall() {
-    install.mutate(
-      { skillName: skill.name, skillContent: skill.content, target },
-      { onSuccess: onClose, onError: onClose }
-    )
-  }
+export function InstallDialog({ skill, onClose, onConfirm }: InstallDialogProps) {
+  const [target, setTarget] = useState<'personal' | 'workspace'>('personal')
 
   const targets: {
-    value: InstallTarget
+    value: 'personal' | 'workspace'
     label: string
     path: string
     icon: React.ReactNode
   }[] = [
-    {
-      value: 'personal',
-      label: 'Personal',
-      path: '~/.agents/skills/',
-      icon: <Home className="size-4" />
-    },
-    {
-      value: 'workspace',
-      label: 'Workspace',
-      path: './.skilldeck/skills/',
-      icon: <FolderOpen className="size-4" />
-    }
-  ]
+      {
+        value: 'personal',
+        label: 'Personal',
+        path: '~/.agents/skills/',
+        icon: <Home className="size-4" />
+      },
+      {
+        value: 'workspace',
+        label: 'Workspace',
+        path: './.skilldeck/skills/',
+        icon: <FolderOpen className="size-4" />
+      }
+    ]
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -101,15 +93,11 @@ export function InstallDialog({ skill, onClose }: InstallDialogProps) {
         </div>
 
         <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={onClose}
-            disabled={install.isPending}
-          >
+          <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={handleInstall} disabled={install.isPending}>
-            {install.isPending ? 'Installing…' : 'Install Copy'}
+          <Button onClick={() => onConfirm(target)}>
+            Install Copy
           </Button>
         </DialogFooter>
       </DialogContent>

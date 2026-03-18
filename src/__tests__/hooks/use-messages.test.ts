@@ -18,7 +18,8 @@ const msg = (
   conversation_id: 'conv-1',
   role,
   content,
-  created_at: '2024-01-01T00:00:00Z'
+  created_at: '2024-01-01T00:00:00Z',
+  context_items: null // add required field
 })
 
 const wrapper = ({ children }: { children: React.ReactNode }) =>
@@ -58,14 +59,12 @@ describe('useMessagesWithStream', () => {
       wrapper
     })
 
-    // Wait for query to resolve
     await vi.waitFor(() => {
       expect(result.current.length).toBe(2)
     })
   })
 
   it('appends synthetic streaming bubble when agent is running', async () => {
-    // Seed store with streaming text and running flag
     useUIStore.setState({
       streamingText: { 'conv-1': 'Partial response…' },
       agentRunning: { 'conv-1': true }
@@ -75,9 +74,8 @@ describe('useMessagesWithStream', () => {
       wrapper
     })
 
-    // Wait for query to resolve
     await vi.waitFor(() => {
-      expect(result.current.length).toBe(3) // 2 persisted + 1 streaming
+      expect(result.current.length).toBe(3)
     })
 
     const streamBubble = result.current.find((m) => m.id === '__streaming__')

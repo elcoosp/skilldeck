@@ -1,12 +1,9 @@
 // src/components/skills/unified-skill-card.tsx
-// Presentational card for a single unified skill in the marketplace grid.
-// Aligned with the new card system – neutral borders, consistent hover,
-// and status badges using brand colors.
-
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { UnifiedSkill } from '@/types/skills'
+import type { LintWarning } from '@/lib/bindings' // import LintWarning
 import { TrustBadge } from './trust-badge'
 import { useUIStore } from '@/store/ui'
 
@@ -41,9 +38,10 @@ export function UnifiedSkillCard({ skill, onClick, onInstall, onUpdate, isSelect
   const securityScore = skill.registryData?.securityScore
   const qualityScore = skill.registryData?.qualityScore
 
-  // Compute lint warning counts
-  const errorCount = skill.registryData?.lintWarnings?.filter(w => w.severity === 'error').length || 0
-  const warningCount = skill.registryData?.lintWarnings?.filter(w => w.severity === 'warning').length || 0
+  // Cast lintWarnings to LintWarning[] safely
+  const lintWarnings = (skill.registryData?.lintWarnings || []) as unknown as LintWarning[]
+  const errorCount = lintWarnings.filter(w => w.severity === 'error').length
+  const warningCount = lintWarnings.filter(w => w.severity === 'warning').length
 
   return (
     <button

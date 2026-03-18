@@ -449,14 +449,14 @@ export function MessageInput({ conversationId }: MessageInputProps) {
       }
     }
 
-    // Build metadata-only context items from the store
+    // Build metadata-only context items from the store, converting types to match ContextItem
     const metadataItems: ContextItem[] = items.map((item) => {
       if (item.type === 'file') {
         return {
           type: 'file',
           path: item.data.path,
           name: item.data.name,
-          size: item.data.size,
+          size: item.data.size ? String(item.data.size) : null, // convert to string | null
         }
       }
       if (item.type === 'folder') {
@@ -465,7 +465,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
           path: item.data.path,
           name: item.data.name,
           scope: item.data.scope,
-          file_count: item.data.fileCount,
+          file_count: String(item.data.fileCount), // convert to string
         }
       }
       // skill
@@ -482,8 +482,8 @@ export function MessageInput({ conversationId }: MessageInputProps) {
     clearItems()
 
     try {
+      // Pass only content and contextItems; conversationId is already known by the mutation
       await sendMutation.mutateAsync({
-        conversationId: finalConversationId,
         content: finalContent,
         contextItems: metadataItems.length > 0 ? metadataItems : undefined,
       })

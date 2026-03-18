@@ -320,8 +320,8 @@ export function UnifiedSkillList() {
                               prev?.id === s.id ? null : s
                             )
                           }
-                          onInstall={() => setSelected(s)}
-                          onUpdate={() => setSelected(s)}
+                          onInstall={() => setSelected(skill)} // fixed: use skill
+                          onUpdate={() => setSelected(skill)}   // fixed: use skill
                         />
                       </motion.div>
                     ))}

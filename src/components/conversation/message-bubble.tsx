@@ -1,5 +1,3 @@
-// src/components/conversation/message-bubble.tsx
-
 import rehypeShiki from '@shikijs/rehype'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
@@ -17,7 +15,7 @@ import {
   Wrench,
   Zap
 } from 'lucide-react'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { MarkdownHooks } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { MessageData } from '@/lib/bindings'
@@ -112,19 +110,19 @@ export function MessageBubble({
   const isSystem = message.role === 'system'
   const syntheticStreaming = message.id === '__streaming__'
 
-  // Check if this message was sent from the queue (only user messages can be queued)
-  const isFromQueue = useMemo(() => {
-    if (!isUser) return false
-    if (!message.metadata) return false
-    try {
-      const meta = typeof message.metadata === 'string'
-        ? JSON.parse(message.metadata)
-        : message.metadata
-      return meta.from_queue === true
-    } catch {
-      return false
-    }
-  }, [message.metadata, isUser])
+  // Queue detection is disabled until metadata is added to MessageData
+  // const isFromQueue = useMemo(() => {
+  //   if (!isUser) return false
+  //   if (!message.metadata) return false
+  //   try {
+  //     const meta = typeof message.metadata === 'string'
+  //       ? JSON.parse(message.metadata)
+  //       : message.metadata
+  //     return meta.from_queue === true
+  //   } catch {
+  //     return false
+  //   }
+  // }, [message.metadata, isUser])
 
   // Extract context items from metadata
   const contextItems = message.context_items || [];
@@ -221,7 +219,7 @@ export function MessageBubble({
         className={cn(
           'flex flex-col min-w-0',
           isUser ? 'items-end' : 'items-start',
-          isAssistant ? 'w-full max-w-full' : 'max-w-[78%]' // assistant takes full width, others capped
+          isAssistant ? 'w-full max-w-full' : 'max-w-[78%]'
         )}
       >
         {/* Message bubble */}
@@ -234,19 +232,9 @@ export function MessageBubble({
                 : isTool
                   ? 'bg-muted/70 font-mono text-xs w-full rounded-tl-sm'
                   : 'bg-muted/50 rounded-tl-sm',
-              isAssistant && 'block w-full bg-transparent' // full width, no background
+              isAssistant && 'block w-full bg-transparent'
             )}
           >
-            {/* Queued indicator for user messages */}
-            {isFromQueue && (
-              <div
-                className="absolute top-1 right-1 text-primary-foreground/50 hover:text-primary-foreground transition-colors"
-                title="Sent from queue"
-              >
-                <Clock className="size-3" />
-              </div>
-            )}
-
             {/* Context chips (if any) */}
             {renderContextChips()}
 

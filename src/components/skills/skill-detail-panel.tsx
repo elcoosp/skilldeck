@@ -251,7 +251,6 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
             <SectionLabel>Lint Issues</SectionLabel>
             <LintWarningPanel
               warnings={skill.registryData.lintWarnings as any}
-              onIgnore={handleIgnoreRule}
             />
           </div>
         )}
