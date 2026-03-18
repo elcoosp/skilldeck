@@ -1,0 +1,61 @@
+---
+title: "Skill of the Month"
+description: Each month we highlight a community‑developed skill that exemplifies quality, creativity, and usefulness.
+sidebar:
+  order: 4
+---
+
+import Feedback from '../../../../../components/mdx/Feedback.astro';
+
+Every month, the SkillDeck community selects a standout skill to feature. These are the skills that demonstrate exceptional quality, solve real problems, and inspire others.
+
+## March 2026: Python Code Reviewer
+
+**Author:** [@coder-alex](https://github.com/coder-alex)  
+**Installs:** 1,200+  
+**Rating:** ⭐⭐⭐⭐⭐ (4.9/5 from 87 reviews)
+
+The **Python Code Reviewer** skill helps developers catch bugs, style issues, and performance problems before code review. It's become an essential tool for Python teams using SkillDeck.
+
+### What makes it special?
+
+- **Comprehensive checks**: PEP 8 compliance, common anti‑patterns, type hint validation, and security hotspots.
+- **Actionable feedback**: Each issue comes with a suggested fix and a clear explanation.
+- **Fast**: Runs locally using a lightweight model, typically under 2 seconds for a 500‑line file.
+- **Open source**: The skill is fully open source, and the community has contributed 15+ improvements.
+
+### What users are saying
+
+> "This skill caught a subtle security vulnerability that our manual review missed. It's now part of our mandatory pre‑review checklist."  
+> – **@devsecops**, Senior Engineer
+
+> "I used to spend 30 minutes per PR on style nits. Now I just paste the code and get instant feedback. Huge time saver."  
+> – **@pythonista**, Open Source Maintainer
+
+### Install it today
+
+Ready to try it? Install the Python Code Reviewer from the registry:
+
+[![Install from Registry](/assets/install-button.svg)](/en/latest/how-to/install-a-skill)
+
+Or grab it directly from GitHub:
+```bash
+npx skills coder-alex/skill-python-reviewer
+```
+
+---
+
+## Previous Winners
+
+| Month | Skill | Author | Description |
+|-------|-------|--------|-------------|
+| February 2026 | **Markdown Formatter** | @docs-whisperer | Formats markdown with consistent headings and tables |
+| January 2026 | **Git Commit Writer** | @dev-advocate | Generates conventional commit messages |
+| December 2025 | **SQL Formatter** | @data-wrangler | Pretty‑prints SQL queries |
+| November 2025 | **Dockerfile Linter** | @ops-queen | Checks Dockerfiles for best practices |
+
+## Nominate a Skill
+
+Do you know a skill that deserves recognition? [Nominate it using our template](/en/latest/community/spotlight-template). We review nominations monthly and feature the best ones here!
+
+<Feedback />
