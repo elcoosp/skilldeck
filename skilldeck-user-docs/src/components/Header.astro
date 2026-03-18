@@ -1,0 +1,46 @@
+---
+import SiteTitle from '@astrojs/starlight/components/SiteTitle.astro';
+import Search from '@astrojs/starlight/components/Search.astro';
+import SocialIcons from '@astrojs/starlight/components/SocialIcons.astro';
+import ThemeSelect from '@astrojs/starlight/components/ThemeSelect.astro';
+import VersionSwitcher from './VersionSwitcher.astro';
+import LanguageSwitcher from './LanguageSwitcher.astro';
+
+export interface Props {
+  lang: string;
+  version: string;
+}
+
+const { lang, version } = Astro.props;
+---
+
+<header class="header">
+  <div class="header__left">
+    <SiteTitle />
+    <!-- Mobile menu toggle could be added here -->
+  </div>
+  <div class="header__right">
+    <VersionSwitcher currentVersion={version} currentLang={lang} />
+    <LanguageSwitcher currentLang={lang} currentVersion={version} />
+    <Search />
+    <SocialIcons />
+    <ThemeSelect />
+  </div>
+</header>
+
+<style>
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1rem;
+    height: var(--sl-nav-height);
+    background: var(--sl-color-bg-nav);
+    border-bottom: 1px solid var(--sl-color-gray-5);
+  }
+  .header__left, .header__right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+</style>
