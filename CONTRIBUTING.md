@@ -26,7 +26,47 @@ Unsure where to begin? You can start by looking through `help-wanted` and `good-
 - [Good first issues](https://github.com/skilldeck/skilldeck/labels/good%20first%20issue) – small changes ideal for newcomers.
 - [Help wanted issues](https://github.com/skilldeck/skilldeck/labels/help%20wanted) – a bit more involved.
 
-### Pull Requests
+### Contributing to Documentation
+
+The SkillDeck documentation site lives in the `skilldeck-user-docs/` folder and is built with [Astro Starlight](https://starlight.astro.build/). We welcome improvements to the docs, including:
+
+- Fixing typos or clarifying existing content
+- Adding new tutorials, how‑to guides, or explanations
+- Improving code examples
+- Translating content into other languages
+
+#### Setting Up the Docs Site Locally
+
+1. Ensure you have [Node.js](https://nodejs.org/) (v20 or later) and [pnpm](https://pnpm.io/) installed.
+2. Navigate to the docs folder:
+   ```bash
+   cd skilldeck-user-docs
+   ```
+3. Install dependencies:
+   ```bash
+   pnpm install
+   ```
+4. Start the development server:
+   ```bash
+   pnpm run dev
+   ```
+5. Open `http://localhost:4321` in your browser. The site will automatically reload when you save changes.
+
+#### Making Changes
+
+- All documentation content is in `src/content/docs/`. Files are organized by language (e.g., `en/`) and then by version (`latest/`, `v0-2/`, etc.). Most contributions should go under `en/latest/`.
+- If you're adding a new page, remember to include frontmatter at the top with `title` and `description` fields.
+- Use the custom components (`Nudge`, `Checkpoint`, `Feedback`) where appropriate – they're already imported and ready to use.
+
+#### Submitting Docs Changes
+
+1. Fork the repository and create a branch (e.g., `docs/fix-typo`).
+2. Make your changes in the `skilldeck-user-docs/` folder.
+3. Test locally to ensure everything looks correct.
+4. Commit your changes with a clear message (e.g., `docs: fix typo in installation guide`).
+5. Open a pull request against the `main` branch.
+
+### Pull Requests (Code)
 
 1. Fork the repo and create your branch from `main`.
 2. If you've added code that should be tested, add tests.
@@ -44,7 +84,7 @@ Unsure where to begin? You can start by looking through `help-wanted` and `good-
 - **Tauri CLI** – `cargo install tauri-cli`
 - **pnpm** (package manager) – `npm install -g pnpm`
 
-### Building and Running
+### Building and Running the App
 
 1. Clone the repository:
    ```bash
