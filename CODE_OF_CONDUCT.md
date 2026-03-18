@@ -1,5 +1,9 @@
 # Contributor Covenant Code of Conduct
 
+## Our Commitment
+
+As members, contributors, and leaders of the SkillDeck community, we are committed to creating a harassment‑free, respectful, and inclusive environment for everyone. This Code of Conduct applies to all project spaces – including GitHub repositories, the Discord server, official social media accounts, and any other communication channels used by the community.
+
 ## Our Pledge
 
 We as members, contributors, and leaders pledge to make participation in our
@@ -60,7 +64,7 @@ representative at an online or offline event.
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
 reported to the community leaders responsible for enforcement at
-[conduct@skilldeck.dev](mailto:conduct@skilldeck.dev).
+**[conduct@skilldeck.dev](mailto:conduct@skilldeck.dev)**.
 All complaints will be reviewed and investigated promptly and fairly.
 
 All community leaders are obligated to respect the privacy and security of the
