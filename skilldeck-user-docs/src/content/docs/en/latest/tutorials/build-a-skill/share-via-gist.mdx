@@ -1,0 +1,100 @@
+---
+title: "Tutorial: Share Your Skill via GitHub Gist"
+description: Learn how to publish your skill as a public Gist so others can install it.
+sidebar:
+  order: 4
+---
+
+import Nudge from '../../../../../components/mdx/Nudge.astro';
+import Checkpoint from '../../../../../components/mdx/Checkpoint.astro';
+import Feedback from '../../../../../components/mdx/Feedback.astro';
+
+Now that your skill works locally, you can share it with the world! The easiest way is to publish it as a **GitHub Gist**. Others can then import your skill directly from the Gist URL.
+
+<Nudge type="tip" title="Prerequisites">
+  - A [GitHub account](https://github.com)
+  - Your skill directory with a working `SKILL.md`
+  - SkillDeck installed (to test the import)
+</Nudge>
+
+## Step 1: Create a GitHub Personal Access Token
+
+To publish a Gist via the command line or SkillDeck, you need a token with `gist` scope.
+
+1. Go to [GitHub Settings → Tokens](https://github.com/settings/tokens)
+2. Click **Generate new token (classic)**
+3. Give it a name like "SkillDeck Gist Publishing"
+4. Select the **`gist`** scope (only this one is needed)
+5. Click **Generate token**
+6. **Copy the token immediately** – you won't see it again!
+
+<Checkpoint question="Did you copy your token?" onYes="Great! Keep it handy." onNo="Go back and copy it now." />
+
+## Step 2: Store the Token in SkillDeck
+
+SkillDeck can store your GitHub token securely in your system keychain.
+
+1. Open SkillDeck and go to **Settings** (click the gear icon in the left panel)
+2. Navigate to the **GitHub** section (or find the Gist settings)
+3. Paste your token and click **Save**
+
+Alternatively, you can use the command line (if you have `skilldeck-cli` installed):
+
+```bash
+skilldeck config set github.token YOUR_TOKEN
+```
+
+<Checkpoint question="Is your token saved?" onYes="Perfect! Now you're ready to publish." onNo="Try saving again or check the token format." />
+
+## Step 3: Prepare Your Skill for Sharing
+
+Your skill directory should contain only `SKILL.md`. Make sure there are no extra files (like `.DS_Store` or editor backups) – they aren't needed and might confuse users.
+
+If you have additional files (e.g., example code), you can include them, but the core skill definition is just the markdown file.
+
+## Step 4: Share via SkillDeck (Recommended)
+
+1. In SkillDeck, go to the **Skills** tab.
+2. Find your skill in the **Local** list.
+3. Click the **Share** icon (it looks like a share arrow or Gist logo).
+4. A dialog will appear – you can edit the description if you like.
+5. Click **Publish as Gist**.
+
+SkillDeck will create a public Gist containing your `SKILL.md` and return a URL like `https://gist.github.com/yourname/123abc...`.
+
+<Checkpoint question="Did you get a Gist URL?" onYes="Awesome! Your skill is now public." onNo="Check your token permissions and try again." />
+
+## Step 5: (Alternative) Share via Command Line
+
+If you prefer the command line, you can use the GitHub CLI or `curl`. Here's an example using `curl` (replace `YOUR_TOKEN` and `PATH_TO_SKILL`):
+
+```bash
+curl -X POST -H "Authorization: token YOUR_TOKEN" \
+  -d "{\"description\":\"My awesome skill\",\"public\":true,\"files\":{\"SKILL.md\":{\"content\":\"$(cat ~/.agents/skills/my-awesome-skill/SKILL.md | jq -s -R .)\"}}}" \
+  https://api.github.com/gists
+```
+
+(Note: this requires `jq` for JSON escaping – it's easier to use the SkillDeck UI.)
+
+## Step 6: Test Importing Your Gist
+
+To make sure others can install your skill, try importing it yourself:
+
+1. Copy your Gist URL (e.g., `https://gist.github.com/yourname/123abc`)
+2. In SkillDeck, go to **Skills** → **Import from Gist**
+3. Paste the URL and click **Import**
+4. Choose a target location (Personal or Workspace) and confirm.
+
+The skill should appear in your list with the same content.
+
+<Checkpoint question="Did the import succeed?" onYes="Perfect! Your skill is ready for the world." onNo="Double‑check the Gist URL and that the Gist is public." />
+
+## Next Steps
+
+Congratulations! You've built, tested, and shared your first skill. Now you can:
+
+- [Contribute your skill to the official registry](/en/latest/community/contribute-skill)
+- [Create a more advanced workflow](/en/latest/tutorials/create-a-workflow/sequential)
+- [Explore the MCP ecosystem](/en/latest/market-insights/mcp-ecosystem/what-is-mcp)
+
+<Feedback />

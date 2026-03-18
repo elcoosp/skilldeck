@@ -17,6 +17,7 @@
     "url": "https://github.com/elcoosp/skilldeck/issues"
   },
   "homepage": "https://github.com/elcoosp/skilldeck#readme",
+  "packageManager": "pnpm@10.32.1",
   "scripts": {
     "dev": "vite",
     "build": "lingui compile && tsc && vite build",
