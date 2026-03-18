@@ -21,32 +21,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 1. Install pnpm using the official action – version auto-detected from packageManager field
+      # 1. Setup pnpm – version auto-detected from packageManager field, caches store automatically
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        # no `with:` needed – reads version from package.json
+        with:
+          run_install: false  # ensures store path is registered
 
-      # 2. Now setup Node (pnpm is already in PATH)
+      # 2. Setup Node.js – no cache line; pnpm/action-setup handles caching
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: 24
-          cache: 'pnpm'
-          cache-dependency-path: skilldeck-user-docs/pnpm-lock.yaml
 
-      # 3. Get pnpm store path for caching (optional but speeds up installs)
-      - name: Get pnpm store directory
-        id: pnpm-store
-        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
-
-      - name: Cache pnpm store
-        uses: actions/cache@v4
-        with:
-          path: ${{ steps.pnpm-store.outputs.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-
+      # 3. Install dependencies
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
