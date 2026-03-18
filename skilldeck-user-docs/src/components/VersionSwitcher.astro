@@ -1,13 +1,13 @@
 ---
-const versions = ['v0.1', 'v0.2', 'latest'];
+import { getVersions, formatVersionLabel } from '../utils/versions';
 
-// Get current language and version from the URL path
 const url = Astro.url;
 const pathParts = url.pathname.split('/').filter(p => p);
 const currentLang = pathParts[0] || 'en';
 const currentVersion = pathParts[1] || 'latest';
-// The rest of the path after language and version
 const restPath = pathParts.slice(2).join('/');
+
+const versions = await getVersions(currentLang);
 ---
 
 <select
@@ -15,14 +15,18 @@ const restPath = pathParts.slice(2).join('/');
   aria-label="Select version"
   onChange="window.location.href = this.value"
 >
-  {versions.map(v => (
-    <option
-      value={`/${currentLang}/${v}/${restPath}`}
-      selected={v === currentVersion}
-    >
-      {v}
-    </option>
-  ))}
+  {versions.map(v => {
+    // Force hyphens in URL for all non-latest versions
+    const urlVersion = v === 'latest' ? 'latest' : v.replace(/\./g, '-');
+    return (
+      <option
+        value={`/${currentLang}/${urlVersion}/${restPath}`}
+        selected={urlVersion === currentVersion}
+      >
+        {formatVersionLabel(v)}
+      </option>
+    );
+  })}
 </select>
 
 <style>

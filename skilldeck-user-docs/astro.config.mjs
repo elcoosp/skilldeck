@@ -1,6 +1,7 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import mdx from '@astrojs/mdx';
+import { buildSidebarItems } from './src/utils/versions';
 
 export default defineConfig({
   site: 'https://docs.skilldeck.dev',
@@ -20,25 +21,7 @@ export default defineConfig({
         en: { label: 'English', lang: 'en' },
         fr: { label: 'Français', lang: 'fr' },
       },
-      // Sidebar – version groups with autogenerate relative to locale root
-      sidebar: [
-        {
-          label: 'Latest',
-          badge: { text: 'current', variant: 'tip' },
-          autogenerate: { directory: 'latest' },
-          collapsed: false,
-        },
-        {
-          label: 'v0.2',
-          autogenerate: { directory: 'v0-2' },
-          collapsed: true,
-        },
-        {
-          label: 'v0.1',
-          autogenerate: { directory: 'v0-1' },
-          collapsed: true,
-        },
-      ],
+      sidebar: buildSidebarItems(),
       components: {
         Head: './src/components/Head.astro',
         Header: './src/components/Header.astro',
