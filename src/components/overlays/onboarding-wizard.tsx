@@ -76,6 +76,23 @@ export function OnboardingWizard() {
     }
   }
 
+  // Create default Ollama profile when user skips API key entry
+  const handleApiKeySkip = async () => {
+    setSaving(true)
+    try {
+      const profilesRes = await commands.listProfiles()
+      if (profilesRes.status === 'ok' && profilesRes.data.length === 0) {
+        await commands.createProfile('Local (Ollama)', 'ollama', 'glm-5:cloud')
+        toast.info('Default local profile created')
+      }
+    } catch (e) {
+      console.error('Failed to create default profile', e)
+    } finally {
+      setSaving(false)
+      setStep('platform')
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="w-full max-w-lg rounded-2xl border border-border bg-background shadow-2xl overflow-hidden">
@@ -105,7 +122,7 @@ export function OnboardingWizard() {
               draft={apiKeyDraft}
               onChange={setApiKeyDraft}
               onNext={saveApiKey}
-              onSkip={() => setStep('platform')}
+              onSkip={handleApiKeySkip}
               saving={saving}
             />
           )}
@@ -230,7 +247,8 @@ function ApiKeyStep({
         <button
           type="button"
           onClick={onSkip}
-          className="flex-1 py-2 rounded-lg border border-border text-sm hover:bg-muted"
+          disabled={saving}
+          className="flex-1 py-2 rounded-lg border border-border text-sm hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
         >
           I'll do this later
         </button>
@@ -305,7 +323,8 @@ function PlatformStep({
         <button
           type="button"
           onClick={onSkip}
-          className="flex-1 py-2 rounded-lg border border-border text-sm hover:bg-muted"
+          disabled={saving}
+          className="flex-1 py-2 rounded-lg border border-border text-sm hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Not now
         </button>
