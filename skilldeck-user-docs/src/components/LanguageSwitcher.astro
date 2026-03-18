@@ -1,0 +1,45 @@
+---
+export interface Props {
+  currentLang: string;
+  currentVersion: string;
+}
+
+const { currentLang, currentVersion } = Astro.props;
+const languages = [
+  { code: 'en', label: 'English' },
+  { code: 'fr', label: 'Français' },
+];
+
+const url = Astro.url;
+const pathParts = url.pathname.split('/').filter(p => p);
+const slug = pathParts.slice(2).join('/') || '';
+---
+
+<select
+  class="language-switcher"
+  aria-label="Select language"
+  onChange="window.location.href = this.value"
+>
+  {languages.map(lang => (
+    <option
+      value={`/${lang.code}/${currentVersion}/${slug}`}
+      selected={lang.code === currentLang}
+    >
+      {lang.label}
+    </option>
+  ))}
+</select>
+
+<style>
+  .language-switcher {
+    padding: 0.25rem 1.5rem 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    border: 1px solid var(--sl-color-gray-5);
+    background: var(--sl-color-black);
+    color: var(--sl-color-white);
+    cursor: pointer;
+  }
+  .language-switcher:hover {
+    border-color: var(--sl-color-gray-4);
+  }
+</style>
