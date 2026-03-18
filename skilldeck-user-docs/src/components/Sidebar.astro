@@ -1,0 +1,85 @@
+---
+import { getSidebar } from '../utils/sidebar';
+import type { SidebarItem } from '../utils/sidebar';
+
+export interface Props {
+  lang: string;
+  version: string;
+  currentPath: string;
+}
+
+const { lang, version, currentPath } = Astro.props;
+const sidebarItems = await getSidebar(lang, version, currentPath);
+---
+
+<aside class="sidebar">
+  <nav>
+    <ul>
+      {sidebarItems.map(item => (
+        <li class={item.items ? 'group' : ''}>
+          {item.items ? (
+            <>
+              <span class="group-label">{item.text}</span>
+              <ul>
+                {item.items.map(sub => (
+                  <li>
+                    <a
+                      href={sub.link}
+                      class={sub.link === currentPath ? 'active' : ''}
+                    >
+                      {sub.text}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <a
+              href={item.link}
+              class={item.link === currentPath ? 'active' : ''}
+            >
+              {item.text}
+            </a>
+          )}
+        </li>
+      ))}
+    </ul>
+  </nav>
+</aside>
+
+<style>
+  .sidebar {
+    width: 260px;
+    padding: 1.5rem 1rem;
+    border-right: 1px solid var(--sl-color-gray-5);
+    overflow-y: auto;
+  }
+  ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  li {
+    margin: 0.25rem 0;
+  }
+  a {
+    color: var(--sl-color-gray-3);
+    text-decoration: none;
+    display: block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+  }
+  a:hover {
+    background: var(--sl-color-gray-6);
+  }
+  a.active {
+    color: var(--sl-color-accent);
+    font-weight: 600;
+    background: var(--sl-color-gray-6);
+  }
+  .group-label {
+    font-weight: 600;
+    margin-top: 1rem;
+    display: block;
+  }
+</style>
