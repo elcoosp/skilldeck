@@ -1,0 +1,100 @@
+---
+title: "SkillDeck Cheat Sheet"
+description: Quick reference for essential commands, skill anatomy, and workflow patterns.
+sidebar:
+  order: 100
+---
+
+import Feedback from '../../../../../components/mdx/Feedback.astro';
+
+This cheat sheet summarizes the most important SkillDeck concepts and commands. Print it out or keep it handy as you work.
+
+---
+
+## 📁 Skill Directory Structure
+
+A skill is a folder containing a `SKILL.md` file:
+
+```
+my-skill/
+  SKILL.md
+```
+
+Optionally, you can include additional files (examples, configs), but the core is the markdown file.
+
+---
+
+## 📝 SKILL.md Frontmatter
+
+```yaml
+---
+name: my-skill                # Required: kebab-case
+description: "..."            # Required: ≥20 chars
+license: MIT                  # Optional: SPDX identifier
+version: "1.0.0"              # Optional
+author: "Your Name"           # Optional
+compatibility: ["claude-3-5-sonnet", "gpt-4o"]  # Optional
+allowed_tools: ["read_file", "write_file"]      # Optional
+---
+```
+
+---
+
+## ⌨️ Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Cmd/Ctrl + K` | Open command palette |
+| `Cmd/Ctrl + ,` | Open settings |
+| `@` in chat | Invoke a skill |
+| `#` in chat | Attach a file/folder |
+| `Shift + Enter` | New line in message input |
+
+---
+
+## 🧩 Built‑in Tools
+
+| Tool | Description |
+|------|-------------|
+| `loadSkill` | Dynamically load a skill by name |
+| `spawnSubagent` | Launch a parallel subagent for a task |
+| `mergeSubagentResults` | Combine outputs from subagents |
+
+---
+
+## 🔌 MCP Transport Types
+
+| Transport | Use Case | Example Command |
+|-----------|----------|-----------------|
+| `stdio` | Local process | `npx -y @modelcontextprotocol/server-filesystem .` |
+| `sse` | Remote HTTP server | `http://localhost:8080/sse` |
+
+---
+
+## ⚙️ Workflow Patterns
+
+| Pattern | Description |
+|---------|-------------|
+| **Sequential** | Steps run one after another. |
+| **Parallel** | Independent steps run concurrently. |
+| **Evaluator‑Optimizer** | Loop until evaluator passes. |
+
+---
+
+## 📦 Useful Links
+
+| Resource | URL |
+|----------|-----|
+| Official Documentation | https://docs.skilldeck.dev |
+| GitHub Repository | https://github.com/elcoosp/skilldeck |
+| Skill Format Spec | https://agentskills.io |
+| MCP Documentation | https://modelcontextprotocol.io |
+| Community Discord | https://discord.gg/skilldeck |
+
+---
+
+## 🖨️ PDF Version
+
+A printer‑friendly PDF version of this cheat sheet is [coming soon](). Check back later or print this page directly.
+
+<Feedback />

@@ -20,6 +20,7 @@
   },
   "devDependencies": {
     "fs-extra": "^11.3.4",
+    "gray-matter": "^4.0.3",
     "linkinator": "^7.6.1",
     "markdownlint-cli2": "^0.21.0"
   }

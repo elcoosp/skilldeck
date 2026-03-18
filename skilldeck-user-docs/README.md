@@ -8,32 +8,44 @@ As a brilliant documenter, you need a systematic approach that balances deep tec
 - **Platform**: [Astro Starlight](https://starlight.astro.build) with custom theming.
 - **Internationalization**: English (`en`) and French (`fr`) – fully configured with locale‑aware routing.
 - **Versioning**: Three version folders (`latest`, `v0-2`, `v0-1`) automatically synced from a base version.
-- **Custom Header**: Includes version switcher, language switcher, search, theme toggle, and social links.
+- **Custom Header**: Includes version switcher, language switcher, search, theme toggle, and social links (language switcher now last, increased padding).
 - **Reusable MDX Components**: `Nudge`, `Checkpoint`, `Feedback` for interactive documentation.
 - **Analytics**: Plausible integration with custom event tracking.
 - **Content Sync Script**: `scripts/sync-versions.js` copies content across versions to avoid duplication.
+- **Dynamic Sidebar Generation**: Script that builds nested sidebars from folder structure, respecting `sidebar.label` and `title` in `index.md` files, with correct slug handling for i18n.
+- **CI/CD**: GitHub Actions workflow using pnpm, Node 24, with linting, building, and link checking.
 
-### 🏗️ In Progress (Sprint 1)
-- **Version Switcher** – now fixed to use correct folder names (`v0-2`, `v0-1`).
-- **CI/CD** – GitHub Actions workflow for linting, building, and testing.
-- **Contribution Guidelines** for the documentation site.
+### ✅ Core Content (Complete)
+- **Getting Started**: Installation, first conversation, first skill guides.
+- **Tutorials**: Build‑a‑Skill series (frontmatter, instructions, testing, sharing) and Workflow series (sequential, parallel, evaluator‑optimizer).
+- **How‑to Guides**: Installing skills, adding MCP servers (filesystem, stdio, SSE), configuring profiles, using workspaces, setting up API keys, configuring lint rules, enabling platform features, exporting conversations, importing from Gist, using command palette, managing queued messages, environment setup.
+- **Troubleshooting Guides**: MCP connection issues, skill not found, agent not responding.
+- **Reference**: SKILL.md format (link to agentskills.io), configuration, lint configuration, error codes, Tauri commands, workflow schema, MCP server config, lint warning codes.
+- **Market Insights**: Local AI hub (privacy, cloud vs local, case study), MCP ecosystem (what is MCP, comparison, directory), Agentic workflows (from chat to autonomous, patterns, documentation case study).
+- **Community**: Skill showcase, community spotlight (template + first spotlight), skill of the month, contributor onboarding, feedback review process, monthly feedback report, feedback acknowledgment system, contribute skill page.
 
-### 📅 Planned (Sprints 2–6)
-- **Getting Started** guides (installation, first conversation, first skill).
-- **Tutorials** (build a skill, create workflows).
-- **How‑to Guides** (install a skill, add MCP servers, configure profiles).
-- **Reference** (error codes, configuration, API).
-- **Market Insights** hub (local AI, MCP ecosystem).
-- **Community** features (skill showcase, contributor spotlight).
+### 🏗️ In Progress / Ongoing
+- **Broken Link Audit**: Addressing remaining 404s (mostly external placeholders).
+- **Feedback Integration**: Implementing user feedback loop and internal dashboards.
 
-### ✅ Done (Sprint 1 Foundation)
+### 📅 Planned (Optional)
+- **Feedback Dashboard** – internal tool for tracking user feedback.
+- **Content Health Dashboard** – monitor docs quality.
+- **A/B Testing Framework** – experiment with content variations.
+- **Accessibility Audit** – ensure WCAG compliance.
+- **Printable Cheat Sheets** – PDF version of quick reference (placeholder added).
+
+### ✅ Done (Foundation & Infrastructure)
 - [x] Astro Starlight setup with custom theme
 - [x] i18n configuration (en, fr)
 - [x] Versioned content structure (`latest`, `v0-2`, `v0-1`)
-- [x] Custom header with version/language switchers
-- [x] Feedback widget and analytics
+- [x] Custom header with version/language switchers (styling complete)
+- [x] Feedback widget and analytics (Plausible)
 - [x] MDX components (Nudge, Checkpoint, Feedback)
 - [x] Content sync script
+- [x] Dynamic sidebar generation script
+- [x] CI/CD with pnpm and Node 24
+- [x] All major documentation epics (Getting Started, Tutorials, How‑to, Reference, Market Insights, Community)
 
 ---
 

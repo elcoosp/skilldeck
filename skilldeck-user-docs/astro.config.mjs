@@ -2,7 +2,6 @@ import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import mdx from '@astrojs/mdx';
 import { buildSidebarItems } from './src/utils/versions';
-
 export default defineConfig({
   site: 'https://docs.skilldeck.dev',
   integrations: [
