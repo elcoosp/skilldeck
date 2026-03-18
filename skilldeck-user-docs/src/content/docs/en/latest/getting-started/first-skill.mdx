@@ -1,0 +1,51 @@
+---
+title: First Skill
+description: Install and use your first skill to give the agent new abilities.
+sidebar:
+  order: 3
+---
+
+import Nudge from '../../../components/mdx/Nudge.astro';
+import Checkpoint from '../../../components/mdx/Checkpoint.astro';
+import Feedback from '../../../components/mdx/Feedback.astro';
+
+Skills are the building blocks of SkillDeck. They give the agent specialized abilities – like reviewing code, summarizing text, or interacting with external tools.
+
+In this guide, you'll install the **Code Review** skill from the registry and use it to analyze a piece of code.
+
+<Nudge type="tip" title="Prerequisites">
+  - SkillDeck installed and running
+  - Completed your [first conversation](/en/latest/getting-started/first-conversation)
+</Nudge>
+
+## Step 1: Open the Skills Tab
+
+1. In the right sidebar, click the **Skills** tab (the one with the layers icon).
+2. You'll see the **Unified Skill List**, which shows both registry skills (available to install) and your locally installed skills.
+
+## Step 2: Find a Skill
+
+In the search bar, type `code review`. The list will filter to show matching skills.
+
+Look for the **Code Review** skill. It should have a high trust badge (green) and a good quality score.
+
+<Checkpoint question="Can you see the Code Review skill in the list?" onYes="Perfect! Let's install it." onNo="Make sure you're connected to the internet and try refreshing the registry by clicking the sync button (circular arrow)." />
+
+## Step 3: Install the Skill
+
+1. Click on the **Code Review** skill card to open the detail panel.
+2. Review the description, tags, and lint warnings (if any). This skill is verified safe.
+3. Click the **Install** button.
+4. In the install dialog, choose where to install it:
+   - **Personal**: `~/.agents/skills/` – available across all your projects.
+   - **Workspace**: `./.skilldeck/skills/` – only available in the current workspace.
+5. Click **Install Copy**.
+
+After a moment, the skill will be installed and the card will show an "Installed" badge.
+
+<Checkpoint question="Did the skill install successfully?" onYes="Great! Now let's use it." onNo="Check your internet connection and try again. If the problem persists, see the [troubleshooting guide](/en/latest/troubleshooting/skill-not-found)." />
+
+## Step 4: Use the Skill in a Conversation
+
+1. Go back to the **Conversation** tab (or start a new conversation).
+2. In the message input, type:
