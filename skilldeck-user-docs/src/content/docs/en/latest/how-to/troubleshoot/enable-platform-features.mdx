@@ -1,0 +1,94 @@
+---
+title: "How to Enable Platform Features"
+description: Connect to SkillDeck Platform to unlock nudges, referrals, and community skill discovery.
+sidebar:
+  order: 9
+---
+
+import Nudge from '../../../../../components/mdx/Nudge.astro';
+import Checkpoint from '../../../../../components/mdx/Checkpoint.astro';
+import Feedback from '../../../../../components/mdx/Feedback.astro';
+
+SkillDeck Platform is an optional service that adds community features to your local installation. By enabling it, you can browse the skill registry, receive helpful nudges, and earn referral rewards.
+
+<Nudge type="tip" title="What you'll learn">
+  How to connect your local SkillDeck to the platform and manage your preferences.
+</Nudge>
+
+## Prerequisites
+
+- SkillDeck installed and running
+- (Optional) An email address for notifications
+
+## Step 1: Open Platform Settings
+
+1. Click the **Settings** icon (gear) in the left sidebar.
+2. Navigate to the **Platform** tab.
+
+## Step 2: Enable Platform Sync
+
+1. Toggle **Enable platform sync** to the ON position.
+2. The default platform URL is `https://platform.skilldeck.dev`. If you're using a self‑hosted instance, change it to your custom URL.
+3. Click **Save Settings**.
+
+SkillDeck will now attempt to register your installation with the platform.
+
+<Checkpoint question="Did you see a success message?" onYes="Great! Your installation is now connected." onNo="Check your internet connection and try again. If using a custom URL, ensure it's correct." />
+
+## Step 3: (Optional) Add Your Email
+
+Adding your email allows you to receive nudge notifications and referral rewards.
+
+1. In the same **Platform** tab, find the **Email** section.
+2. Enter your email address and click **Save**.
+3. You'll receive a verification email – click the link to confirm.
+
+<Nudge type="tip" title="Privacy">
+  Your email is stored securely and only used for platform communications. You can opt out anytime.
+</Nudge>
+
+<Checkpoint question="Did you verify your email?" onYes="Perfect! You'll now receive nudges and can participate in referrals." onNo="Check your spam folder and click the verification link." />
+
+## Step 4: Adjust Nudge Frequency
+
+Nudges are helpful tips and reminders delivered via in‑app toasts or email (if you've added email). You can control how often you receive them:
+
+- **Daily** – a nudge every day (can be frequent)
+- **Weekly** – one nudge per week
+- **Important only** – only when there's critical information (e.g., security updates)
+
+Choose your preference in the **Nudge Frequency** dropdown.
+
+## Step 5: Explore the Skill Registry
+
+With platform sync enabled, the **Skills** tab now shows community skills from the registry. You can browse, search, and install them just like local skills.
+
+<Checkpoint question="Can you see community skills in the Skills tab?" onYes="Awesome! You're now part of the SkillDeck ecosystem." onNo="Try refreshing the Skills tab or restarting SkillDeck." />
+
+## Referral Program
+
+When you refer other developers to SkillDeck, you can earn rewards. To get started:
+
+1. In the **Platform** tab, click the **Referral** subtab (or go to **Settings → Refer & Earn**).
+2. Click **Create my referral link**.
+3. Share your unique link with colleagues.
+
+You'll see stats on signups, conversions, and rewards earned.
+
+## Disabling Platform Features
+
+If you ever want to go back to a fully local setup:
+
+1. Go to **Settings → Platform**.
+2. Toggle **Enable platform sync** OFF.
+3. Click **Save Settings**.
+
+Your local data (conversations, skills, profiles) remains untouched. Only future platform interactions stop.
+
+## Next Steps
+
+- [Browse and install community skills](/en/latest/how-to/install-a-skill)
+- [Check your referral stats](/en/latest/community/referrals)
+- [Learn about nudges](/en/latest/explanation/platform-features#nudges)
+
+<Feedback />
