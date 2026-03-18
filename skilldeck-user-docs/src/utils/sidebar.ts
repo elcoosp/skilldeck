@@ -14,12 +14,13 @@ export async function getSidebar(lang: string, version: string, currentPath: str
   const groups: Record<string, SidebarItem[]> = {};
 
   for (const doc of filtered) {
+    // Remove the 'index.md' special case if needed
     const parts = doc.id.split('/').slice(2); // remove lang/version
     const slug = parts.join('/').replace(/\.mdx?$/, '');
     const title = doc.data.title || slug.split('/').pop() || 'Untitled';
 
     if (parts.length === 1) {
-      // Top-level page
+      // Top-level page (e.g., index.md)
       items.push({ text: title, link: `/${lang}/${version}/${slug}` });
     } else {
       const group = parts[0];
@@ -28,7 +29,7 @@ export async function getSidebar(lang: string, version: string, currentPath: str
     }
   }
 
-  // Add groups to sidebar
+  // Convert groups to sidebar items
   for (const [groupName, groupItems] of Object.entries(groups)) {
     items.push({
       text: groupName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),

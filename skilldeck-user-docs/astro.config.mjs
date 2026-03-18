@@ -15,11 +15,17 @@ export default defineConfig({
         { icon: 'github', label: 'GitHub', href: 'https://github.com/elcoosp/skilldeck' },
         { icon: 'discord', label: 'Discord', href: 'https://discord.gg/skilldeck' },
       ],
-      // We use a dynamic sidebar generated per version/lang, so disable default
-      sidebar: [],
+      defaultLocale: 'en',
+      locales: {
+        en: { label: 'English', lang: 'en' },
+        fr: { label: 'Français', lang: 'fr' },
+      },
+      // We'll generate sidebar dynamically via custom component, but can also use autogenerate
+      sidebar: [], // will be handled by custom sidebar
       components: {
         Head: './src/components/Head.astro',
-        Header: './src/components/Header.astro', // custom header with switchers
+        Header: './src/components/Header.astro',
+        Sidebar: './src/components/Sidebar.astro',
       },
       customCss: ['./src/styles/custom.css'],
     }),

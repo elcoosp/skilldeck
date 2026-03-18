@@ -5,24 +5,25 @@ template: splash
 hero:
   tagline: Build, share, and control AI workflows—without the cloud
   image:
-    file: ../../assets/skilldeck-hero.jpeg
+    file: ../../../../assets/skilldeck-hero.jpeg
     alt: SkillDeck hero illustration
   actions:
     - text: Get Started
-      link: /getting-started/installation/
+      link: /en/latest/getting-started/installation/
       icon: right-arrow
       variant: primary
     - text: Explore Skills
-      link: /how-to/install-a-skill/
+      link: /en/latest/how-to/install-a-skill/
       icon: rocket
       variant: minimal
     - text: Read the Docs
-      link: /explanation/agent-loop/
+      link: /en/latest/explanation/agent-loop/
       icon: open-book
       variant: minimal
 ---
 
 import { Card, CardGrid } from '@astrojs/starlight/components';
+import VersionAwareLink from '../../../../components/VersionAwareLink.astro';
 
 ## Why SkillDeck?
 
@@ -49,38 +50,38 @@ SkillDeck is designed for developers who need AI that understands their code—w
   <Card title="Get Started in 5 Minutes" icon="rocket">
     Install SkillDeck, create your first conversation, and run a skill.
     <br />
-    <a href="/getting-started/installation/">Start here →</a>
+    <VersionAwareLink href="getting-started/installation/">Start here →</VersionAwareLink>
   </Card>
   <Card title="Learn Core Concepts" icon="open-book">
     Understand skills, MCP servers, agent loops, and workspaces.
     <br />
-    <a href="/explanation/">Read the explanations →</a>
+    <VersionAwareLink href="explanation/">Read the explanations →</VersionAwareLink>
   </Card>
   <Card title="Follow a Tutorial" icon="pencil">
     Build a skill, create a workflow, or integrate with GitHub.
     <br />
-    <a href="/tutorials/">Browse tutorials →</a>
+    <VersionAwareLink href="tutorials/">Browse tutorials →</VersionAwareLink>
   </Card>
   <Card title="Solve a Specific Task" icon="setting">
     Install a skill, add an MCP server, configure profiles, or troubleshoot.
     <br />
-    <a href="/how-to/">Find how‑to guides →</a>
+    <VersionAwareLink href="how-to/">Find how‑to guides →</VersionAwareLink>
   </Card>
   <Card title="Look Up Reference" icon="document">
     Check SKILL.md format, error codes, configuration, and API.
     <br />
-    <a href="/reference/">Go to reference →</a>
+    <VersionAwareLink href="reference/">Go to reference →</VersionAwareLink>
   </Card>
   <Card title="Join the Community" icon="team">
     Share your skills, get help, and connect with other developers.
     <br />
-    <a href="/community/">Explore community →</a>
+    <VersionAwareLink href="community/">Explore community →</VersionAwareLink>
   </Card>
 </CardGrid>
 
 ## Ready to dive in?
 
-Choose your path above, or jump straight to the **[Installation Guide](/getting-started/installation/)** to get SkillDeck running on your machine in minutes.
+Choose your path above, or jump straight to the <VersionAwareLink href="getting-started/installation/">Installation Guide</VersionAwareLink> to get SkillDeck running on your machine in minutes.
 
 ---
 

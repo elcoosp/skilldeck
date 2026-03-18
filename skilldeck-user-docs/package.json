@@ -3,12 +3,11 @@
   "type": "module",
   "version": "0.0.1",
   "scripts": {
-    "dev": "astro dev",
-    "start": "astro dev",
-    "build": "astro build",
+    "dev": "pnpm prebuild && astro dev",
+    "start": "pnpm prebuild && astro dev",
+    "build": "pnpm prebuild && astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "init:docs": "node scripts/init-docs.js",
     "prebuild": "node scripts/sync-versions.js"
   },
   "dependencies": {

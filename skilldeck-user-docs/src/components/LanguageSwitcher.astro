@@ -1,10 +1,4 @@
 ---
-export interface Props {
-  currentLang: string;
-  currentVersion: string;
-}
-
-const { currentLang, currentVersion } = Astro.props;
 const languages = [
   { code: 'en', label: 'English' },
   { code: 'fr', label: 'Français' },
@@ -12,7 +6,9 @@ const languages = [
 
 const url = Astro.url;
 const pathParts = url.pathname.split('/').filter(p => p);
-const slug = pathParts.slice(2).join('/') || '';
+const currentLang = pathParts[0] || 'en';
+const currentVersion = pathParts[1] || 'latest';
+const restPath = pathParts.slice(2).join('/');
 ---
 
 <select
@@ -22,7 +18,7 @@ const slug = pathParts.slice(2).join('/') || '';
 >
   {languages.map(lang => (
     <option
-      value={`/${lang.code}/${currentVersion}/${slug}`}
+      value={`/${lang.code}/${currentVersion}/${restPath}`}
       selected={lang.code === currentLang}
     >
       {lang.label}

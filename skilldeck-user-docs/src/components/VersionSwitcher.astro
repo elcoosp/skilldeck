@@ -1,16 +1,13 @@
 ---
-export interface Props {
-  currentVersion: string;
-  currentLang: string;
-}
-
-const { currentVersion, currentLang } = Astro.props;
 const versions = ['v0.1', 'v0.2', 'latest'];
 
-// Get the current slug (after language and version)
+// Get current language and version from the URL path
 const url = Astro.url;
 const pathParts = url.pathname.split('/').filter(p => p);
-const slug = pathParts.slice(2).join('/') || '';
+const currentLang = pathParts[0] || 'en';
+const currentVersion = pathParts[1] || 'latest';
+// The rest of the path after language and version
+const restPath = pathParts.slice(2).join('/');
 ---
 
 <select
@@ -20,7 +17,7 @@ const slug = pathParts.slice(2).join('/') || '';
 >
   {versions.map(v => (
     <option
-      value={`/${currentLang}/${v}/${slug}`}
+      value={`/${currentLang}/${v}/${restPath}`}
       selected={v === currentVersion}
     >
       {v}

@@ -5,12 +5,12 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const docsDir = path.resolve(__dirname, '../src/content/docs');
 
-const languages = ['en', 'fr']; // add as needed
-const versions = ['v0.1', 'v0.2'];
-const baseVersion = 'v0.2'; // the version that contains the canonical content
+const languages = ['en', 'fr'];
+const versions = ['v0.1', 'v0.2', 'latest'];
+const baseVersion = 'v0.2';
 
 async function syncVersion(version) {
-  if (version === baseVersion) return; // base is already there
+  if (version === baseVersion) return;
 
   for (const lang of languages) {
     const srcBase = path.join(docsDir, lang, baseVersion);

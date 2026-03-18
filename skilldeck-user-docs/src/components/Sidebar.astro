@@ -1,15 +1,14 @@
 ---
 import { getSidebar } from '../utils/sidebar';
-import type { SidebarItem } from '../utils/sidebar';
 
-export interface Props {
-  lang: string;
-  version: string;
-  currentPath: string;
-}
+// Get current language and version from URL
+const url = Astro.url;
+const pathParts = url.pathname.split('/').filter(p => p);
+const currentLang = pathParts[0] || 'en';
+const currentVersion = pathParts[1] || 'latest';
+const currentPath = url.pathname;
 
-const { lang, version, currentPath } = Astro.props;
-const sidebarItems = await getSidebar(lang, version, currentPath);
+const sidebarItems = await getSidebar(currentLang, currentVersion, currentPath);
 ---
 
 <aside class="sidebar">
