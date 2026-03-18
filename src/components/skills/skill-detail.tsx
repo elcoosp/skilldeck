@@ -302,7 +302,18 @@ export function SkillDetail({
 
       {/* Dialogs */}
       {showInstall && (
-        <InstallDialog skill={skill} onClose={() => setShowInstall(false)} />
+        <InstallDialog
+          skill={skill}
+          onClose={() => setShowInstall(false)}
+          onConfirm={(target) => {
+            setShowInstall(false)
+            install.mutate({
+              skillName: skill.name,
+              skillContent: skill.content,
+              target
+            })
+          }}
+        />
       )}
       {showBlocked && (
         <BlockedSkillAlert
