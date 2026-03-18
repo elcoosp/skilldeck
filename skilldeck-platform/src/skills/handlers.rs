@@ -8,10 +8,7 @@ use axum::{
     http::StatusCode,
 };
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, QueryOrder, QuerySelect};
-use std::sync::Arc;
 use uuid::Uuid;
-
-pub type AppState = Arc<crate::AppState>;
 
 /// GET /api/v1/skills
 ///

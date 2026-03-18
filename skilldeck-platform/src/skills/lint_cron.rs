@@ -3,8 +3,8 @@
 use crate::skills::models::{ActiveModel as SkillActiveModel, Entity as Skills};
 use anyhow::Result;
 use sea_orm::{ActiveModelTrait, ActiveValue::Set, DatabaseConnection, EntityTrait};
-use skilldeck_lint::{compute_quality_score, compute_security_score, lint_skill, LintConfig};
-use tracing::{error, info, warn};
+use skilldeck_lint::{LintConfig, compute_quality_score, compute_security_score, lint_skill};
+use tracing::{info, warn};
 
 /// Re-lint all skills in the platform database.
 ///
@@ -29,10 +29,7 @@ pub async fn run_lint_cron(db: &DatabaseConnection) -> Result<()> {
         }
     }
 
-    info!(
-        "Lint cron finished: {} updated, {} failed",
-        updated, failed
-    );
+    info!("Lint cron finished: {} updated, {} failed", updated, failed);
     Ok(())
 }
 

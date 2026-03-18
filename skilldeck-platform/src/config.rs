@@ -25,8 +25,13 @@ pub struct Config {
     pub from_email: String,
     #[serde(default)]
     pub team_emails: Vec<String>,
-}
 
+    #[serde(default = "default_ollama_host")]
+    pub ollama_host: String,
+}
+fn default_ollama_host() -> String {
+    "http://localhost:11434".to_string()
+}
 fn default_db_url() -> String {
     "sqlite:./platform.db".into()
 }

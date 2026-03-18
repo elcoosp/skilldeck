@@ -1,10 +1,11 @@
 use axum::{
-    Json,
+    Extension, Json,
     extract::{Path, Query, State},
     http::StatusCode,
 };
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, Condition, EntityTrait, QueryFilter, QueryOrder, Set,
+    ActiveModelTrait, ColumnTrait, EntityTrait, ModelTrait, QueryFilter, QueryOrder, QuerySelect,
+    Set,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -13,7 +14,7 @@ use uuid::Uuid;
 use crate::{
     app::AppState,
     error::{AppError, Result},
-    feedback::models::{self, Entity as Feedback, feedback_comment},
+    feedback::models::{self, feedback_comment},
     middleware::AuthUser,
     preferences::models::user_preferences,
 };
@@ -60,7 +61,7 @@ pub async fn create_feedback(
     Json(req): Json<CreateFeedbackRequest>,
 ) -> Result<StatusCode> {
     let now = chrono::Utc::now().fixed_offset();
-    let feedback = models::ActiveModel {
+    let feedback = models::feedback::ActiveModel {
         id: Set(Uuid::new_v4()),
         source: Set(req.source),
         source_id: Set(req.source_id),
@@ -73,7 +74,6 @@ pub async fn create_feedback(
         assigned_to: Set(None),
         tags: Set(None),
         metadata: Set(req.metadata),
-        comments: Default::default(), // not used on insert
     };
     feedback.insert(&state.db).await.map_err(AppError::Db)?;
     Ok(StatusCode::CREATED)
@@ -109,8 +109,14 @@ pub struct CommentResponse {
     pub created_at: String,
 }
 
-impl From<models::Model> for FeedbackResponse {
-    fn from(m: models::Model) -> Self {
+impl From<models::feedback::Model> for FeedbackResponse {
+    fn from(m: models::feedback::Model) -> Self {
+        // Convert Json tags back to Vec<String> (if present)
+        let tags = m
+            .tags
+            .and_then(|t| serde_json::from_value(t).ok())
+            .unwrap_or_default();
+
         Self {
             id: m.id,
             source: m.source,
@@ -122,7 +128,7 @@ impl From<models::Model> for FeedbackResponse {
             created_at: m.created_at.to_rfc3339(),
             status: m.status,
             assigned_to: m.assigned_to,
-            tags: m.tags.unwrap_or_default(),
+            tags,
             metadata: m.metadata,
             comments: vec![], // filled separately
         }
@@ -160,17 +166,19 @@ pub async fn list_feedback(
         return Err(AppError::Unauthorized);
     }
 
-    let mut query = Feedback::find().order_by_desc(models::Column::CreatedAt);
+    let mut query =
+        models::feedback::Entity::find().order_by_desc(models::feedback::Column::CreatedAt);
 
     if let Some(source) = params.source {
-        query = query.filter(models::Column::Source.eq(source));
+        query = query.filter(models::feedback::Column::Source.eq(source));
     }
     if let Some(status) = params.status {
-        query = query.filter(models::Column::Status.eq(status));
+        query = query.filter(models::feedback::Column::Status.eq(status));
     }
-    if let Some(tag) = params.tag {
-        query = query.filter(models::Column::Tags.contains(vec![tag]));
-    }
+    // TODO: tag filtering would require JSONB containment; skip for now
+    // if let Some(tag) = params.tag {
+    //     query = query.filter(models::feedback::Column::Tags.contains(vec![tag]));
+    // }
 
     let per_page = params.per_page.unwrap_or(50).min(100);
     let page = params.page.unwrap_or(0);
@@ -222,7 +230,7 @@ pub async fn get_feedback(
         return Err(AppError::Unauthorized);
     }
 
-    let feedback = Feedback::find_by_id(id)
+    let feedback = models::feedback::Entity::find_by_id(id)
         .one(&state.db)
         .await
         .map_err(AppError::Db)?
@@ -257,14 +265,14 @@ pub async fn update_feedback(
         return Err(AppError::Unauthorized);
     }
 
-    let feedback = Feedback::find_by_id(id)
+    let feedback = models::feedback::Entity::find_by_id(id)
         .one(&state.db)
         .await
         .map_err(AppError::Db)?
         .ok_or_else(|| AppError::NotFound("Feedback not found".into()))?;
 
     let old_status = feedback.status.clone();
-    let mut active: models::ActiveModel = feedback.into();
+    let mut active: models::feedback::ActiveModel = feedback.into();
 
     if let Some(status) = req.status {
         active.status = Set(status);
@@ -273,22 +281,26 @@ pub async fn update_feedback(
         active.assigned_to = Set(Some(assigned_to));
     }
     if let Some(tags) = req.tags {
-        active.tags = Set(Some(tags));
+        let tags_json = serde_json::to_value(tags)
+            .map_err(|_| AppError::BadRequest("Invalid tags format".into()))?;
+        active.tags = Set(Some(tags_json));
     }
 
-    let updated = active.update(&state.db).await.map_err(AppError::Db)?;
+    let updated: models::feedback::Model = active.update(&state.db).await.map_err(AppError::Db)?;
 
     // If status changed to resolved, notify user if they left email
     if updated.status == "resolved" && old_status != "resolved" {
         if let Some(email) = updated.user_email.clone() {
+            // Clone url before moving into task to avoid partial move
+            let url = updated.url.clone();
             let state_clone = state.clone();
             tokio::spawn(async move {
-                let _ = notify_resolved(state_clone, email, updated.url.as_deref()).await;
+                let _ = notify_resolved(state_clone, email, url.as_deref()).await;
             });
         }
     }
 
-    // Reload comments (simplest: fetch again)
+    // Reload comments
     let comments = updated
         .find_related(feedback_comment::Entity)
         .all(&state.db)

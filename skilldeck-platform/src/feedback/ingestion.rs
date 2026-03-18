@@ -1,14 +1,12 @@
 use crate::app::AppState;
 use anyhow::Result;
-use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
 use std::sync::Arc;
-use uuid::Uuid;
 
 /// Fetch GitHub issues with label "documentation" and store as feedback.
 pub async fn fetch_github_issues(
-    state: Arc<AppState>,
-    repo: &str,
-    token: Option<&str>,
+    _state: Arc<AppState>,
+    _repo: &str,
+    _token: Option<&str>,
 ) -> Result<()> {
     // Use octocrab or reqwest to call GitHub API.
     // For each issue, check if already exists (by source_id = issue number).
@@ -51,9 +49,9 @@ pub async fn fetch_github_issues(
 
 /// Fetch Discord messages from a specific channel and store as feedback.
 pub async fn fetch_discord_messages(
-    state: Arc<AppState>,
-    channel_id: &str,
-    bot_token: &str,
+    _state: Arc<AppState>,
+    _channel_id: &str,
+    _bot_token: &str,
 ) -> Result<()> {
     // Use reqwest to call Discord API.
     // For each message, store as feedback (maybe only those with certain keywords?).

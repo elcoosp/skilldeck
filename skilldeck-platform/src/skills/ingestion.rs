@@ -1,13 +1,12 @@
 //! GitHub ingestion — crawl repositories and import SKILL.md files.
 
-use crate::skills::models::{ActiveModel as SkillActiveModel, Entity as Skills, Model as SkillModel};
+use crate::skills::models::{ActiveModel as SkillActiveModel, Entity as Skills};
 use anyhow::{Context, Result};
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait,
-    QueryFilter,
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
 };
 use sha2::{Digest, Sha256};
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 use uuid::Uuid;
 
 /// Ingest all skills from a GitHub organisation's repositories.
@@ -44,16 +43,7 @@ pub async fn crawl_github_org(
         let default_branch = repo["default_branch"].as_str().unwrap_or("main");
         let html_url = repo["html_url"].as_str().unwrap_or("");
 
-        match ingest_repo(
-            db,
-            &client,
-            org,
-            repo_name,
-            default_branch,
-            html_url,
-        )
-        .await
-        {
+        match ingest_repo(db, &client, org, repo_name, default_branch, html_url).await {
             Ok(Some(id)) => {
                 info!("Ingested skill '{}' from {}/{}", repo_name, org, repo_name);
                 ingested_ids.push(id);
@@ -65,7 +55,11 @@ pub async fn crawl_github_org(
         }
     }
 
-    info!("Crawled {} repos, ingested {} skills", repos.len(), ingested_ids.len());
+    info!(
+        "Crawled {} repos, ingested {} skills",
+        repos.len(),
+        ingested_ids.len()
+    );
     Ok(ingested_ids)
 }
 
@@ -98,10 +92,7 @@ pub async fn ingest_repo(
     // Parse frontmatter fields.
     let fm = parse_frontmatter_simple(&content);
 
-    let name = fm
-        .get("name")
-        .cloned()
-        .unwrap_or_else(|| repo.to_string());
+    let name = fm.get("name").cloned().unwrap_or_else(|| repo.to_string());
     let description = fm
         .get("description")
         .cloned()
@@ -199,10 +190,7 @@ fn parse_frontmatter_simple(content: &str) -> std::collections::HashMap<String, 
     for line in rest[..end].lines() {
         if let Some(colon_pos) = line.find(':') {
             let key = line[..colon_pos].trim().to_string();
-            let value = line[colon_pos + 1..]
-                .trim()
-                .trim_matches('"')
-                .to_string();
+            let value = line[colon_pos + 1..].trim().trim_matches('"').to_string();
             if !key.is_empty() {
                 map.insert(key, value);
             }

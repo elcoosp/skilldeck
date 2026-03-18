@@ -6,8 +6,8 @@
 use crate::skills::models::{ActiveModel as SkillActiveModel, Entity as Skills};
 use anyhow::{Context, Result};
 use sea_orm::{ActiveModelTrait, ActiveValue::Set, DatabaseConnection, EntityTrait};
-use serde::{Deserialize, Serialize};
-use tracing::{error, info, warn};
+use serde::Deserialize;
+use tracing::{info, warn};
 use uuid::Uuid;
 
 /// LLM-enrichment response schema.
@@ -54,17 +54,17 @@ pub async fn enrich_skill(
     active.updated_at = Set(now);
     active.update(db).await?;
 
-    info!("Enriched skill {} (quality={}, security={})", skill_id, quality_score, security_score);
+    info!(
+        "Enriched skill {} (quality={}, security={})",
+        skill_id, quality_score, security_score
+    );
     Ok(())
 }
 
 /// Enrich all skills that have never been enriched (metadata_source = "author").
-pub async fn enrich_pending_skills(
-    db: &DatabaseConnection,
-    ollama_host: &str,
-) -> Result<usize> {
-    use sea_orm::{ColumnTrait, QueryFilter};
+pub async fn enrich_pending_skills(db: &DatabaseConnection, ollama_host: &str) -> Result<usize> {
     use crate::skills::models::Column;
+    use sea_orm::{ColumnTrait, QueryFilter};
 
     let pending = Skills::find()
         .filter(Column::MetadataSource.eq("author"))
@@ -126,10 +126,7 @@ async fn call_ollama(host: &str, prompt: &str) -> Result<String> {
         .await
         .context("Failed to parse Ollama response")?;
 
-    Ok(resp["response"]
-        .as_str()
-        .unwrap_or("{}")
-        .to_string())
+    Ok(resp["response"].as_str().unwrap_or("{}").to_string())
 }
 
 fn parse_enrichment_response(text: &str) -> EnrichmentResponse {
