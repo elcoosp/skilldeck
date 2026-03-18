@@ -1,4 +1,6 @@
 ---
+import { Icon } from '@astrojs/starlight/components';
+
 export interface Props {
   question: string;
   onYes?: string;
@@ -9,7 +11,7 @@ const { question, onYes, onNo } = Astro.props;
 ---
 
 <div class="checkpoint" data-question={question} data-on-yes={onYes} data-on-no={onNo}>
-  <p><strong>✅ Checkpoint:</strong> {question}</p>
+  <p><Icon name="check-circle" /> <strong>Checkpoint:</strong> {question}</p>
   <div class="checkpoint-actions">
     <button class="checkpoint-yes">Yes</button>
     <button class="checkpoint-no">No</button>
@@ -63,14 +65,23 @@ const { question, onYes, onNo } = Astro.props;
   }
   .checkpoint p {
     margin: 0 0 0.75rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .checkpoint p :global(svg) {
+    width: 1.2em;
+    height: 1.2em;
+    color: var(--sl-color-accent);
   }
   .checkpoint-actions {
     display: flex;
     gap: 0.75rem;
   }
   .checkpoint button {
-    padding: 0.5rem 1.2rem;          /* Equal padding */
-    font-size: 0.9rem;                /* Same font size */
+    padding: 0.5rem 0;         /* remove side padding */
+    width: 80px;               /* fixed width */
+    font-size: 0.9rem;
     font-weight: 500;
     border: 1px solid var(--sl-color-gray-4);
     background: var(--sl-color-gray-7);
@@ -79,7 +90,8 @@ const { question, onYes, onNo } = Astro.props;
     cursor: pointer;
     transition: background 0.1s ease;
     line-height: 1.5;
-    min-width: 80px;                  /* Optional: equal width */
+    text-align: center;
+    box-sizing: border-box;    /* include padding and border in width */
   }
   .checkpoint button:hover {
     background: var(--sl-color-gray-5);
@@ -95,7 +107,6 @@ const { question, onYes, onNo } = Astro.props;
     border-radius: 0.375rem;
     border-left: 3px solid var(--sl-color-accent);
   }
-  /* Dark mode adjustments */
   :global(html[data-theme='dark']) .checkpoint button {
     background: var(--sl-color-gray-6);
     color: var(--sl-color-gray-1);
