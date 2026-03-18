@@ -52,8 +52,7 @@ export default defineConfig({
         },
       ],
       components: {
-        // Override default components with custom ones later
-        // ThemeProvider: './src/components/ThemeProvider.astro',
+        Search: './src/components/Search.astro',
       },
       customCss: [
         './src/styles/custom.css',
