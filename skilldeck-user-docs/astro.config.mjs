@@ -54,6 +54,9 @@ export default defineConfig({
       components: {
         Search: './src/components/Search.astro',
         Head: './src/components/Head.astro',
+        Nudge: './src/components/mdx/Nudge.astro',
+        Checkpoint: './src/components/mdx/Checkpoint.astro',
+        Feedback: './src/components/mdx/Feedback.astro',
       },
       customCss: [
         './src/styles/custom.css',
