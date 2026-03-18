@@ -1,64 +1,8 @@
 // src/hooks/use-skills.ts
+// Mutations and skill-related operations (install, uninstall, sync, diff, disable rule, source management).
+
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { RegistrySkillData, SkillInfo } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
-
-export type CombinedSkill =
-  | (SkillInfo & { _sourceType: 'local' })
-  | (RegistrySkillData & { _sourceType: 'registry' })
-
-export function useAllSkills(options?: {
-  category?: string
-  search?: string
-}): {
-  skills: CombinedSkill[]
-  isLoading: boolean
-  isError: boolean
-} {
-  const { data: localSkills = [], isLoading: localLoading } = useQuery({
-    queryKey: ['skills'],
-    queryFn: async () => {
-      const res = await commands.listSkills()
-      if (res.status === 'ok') return res.data
-      throw new Error(res.error)
-    }
-  })
-
-  const { data: registrySkills = [], isLoading: registryLoading } = useQuery({
-    queryKey: ['registry-skills', options?.category, options?.search],
-    queryFn: async () => {
-      const res = await commands.fetchRegistrySkills(
-        options?.category ?? null,
-        options?.search ?? null
-      )
-      if (res.status === 'ok') return res.data
-      throw new Error(res.error)
-    }
-  })
-
-  // Combine with type discrimination
-  const combined: CombinedSkill[] = [
-    ...localSkills.map((s) => ({ ...s, _sourceType: 'local' as const })),
-    ...registrySkills.map((s) => ({ ...s, _sourceType: 'registry' as const }))
-  ]
-
-  return {
-    skills: combined,
-    isLoading: localLoading || registryLoading,
-    isError: false // TODO: handle errors properly
-  }
-}
-
-export function useRegistrySkills() {
-  return useQuery({
-    queryKey: ['registry-skills'],
-    queryFn: async () => {
-      const res = await commands.fetchRegistrySkills(null, null)
-      if (res.status === 'ok') return res.data
-      throw new Error(res.error)
-    }
-  })
-}
 
 export function useSyncRegistry() {
   const queryClient = useQueryClient()
@@ -66,7 +10,6 @@ export function useSyncRegistry() {
     mutationFn: async () => {
       const res = await commands.syncRegistrySkills()
       if (res.status === 'error') {
-        // Check for platform not configured error
         if (res.error.includes('Platform not configured')) {
           throw new Error('PLATFORM_NOT_CONFIGURED')
         }
@@ -75,7 +18,7 @@ export function useSyncRegistry() {
       return res.data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['registry-skills'] })
+      queryClient.invalidateQueries({ queryKey: ['registry_skills'] })
     }
   })
 }
@@ -105,6 +48,7 @@ export function useInstallSkill() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['skills'] })
+      queryClient.invalidateQueries({ queryKey: ['local_skills'] })
     }
   })
 }
@@ -121,10 +65,33 @@ export function useUninstallSkill() {
     }) => {
       const res = await commands.uninstallSkill(skillName, target)
       if (res.status === 'error') throw new Error(res.error)
-      return res.data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['skills'] })
+      queryClient.invalidateQueries({ queryKey: ['local_skills'] })
+    }
+  })
+}
+
+export function useDiffSkillVersions() {
+  return useMutation({
+    mutationFn: async ({ localPath, registryContent }: { localPath: string; registryContent: string }) => {
+      const res = await commands.diffSkillVersions(localPath, registryContent)
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
+    }
+  })
+}
+
+export function useDisableRule() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ ruleId, scope }: { ruleId: string; scope: 'global' | 'workspace' }) => {
+      const res = await commands.disableLintRule(ruleId, scope)
+      if (res.status === 'error') throw new Error(res.error)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['lint-rules'] })
     }
   })
 }
@@ -172,32 +139,6 @@ export function useRemoveSkillSource() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['skill-sources'] })
-    }
-  })
-}
-
-// NEW: diff mutation
-export function useDiffSkillVersions() {
-  return useMutation({
-    mutationFn: async ({ localPath, registryContent }: { localPath: string; registryContent: string }) => {
-      const res = await commands.diffSkillVersions(localPath, registryContent)
-      if (res.status === 'error') throw new Error(res.error)
-      return res.data
-    }
-  })
-}
-
-// NEW: disable rule mutation
-export function useDisableRule() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: async ({ ruleId, scope }: { ruleId: string; scope: 'global' | 'workspace' }) => {
-      const res = await commands.disableLintRule(ruleId, scope)
-      if (res.status === 'error') throw new Error(res.error)
-    },
-    onSuccess: () => {
-      // Invalidate lint-related queries if any
-      queryClient.invalidateQueries({ queryKey: ['lint-rules'] })
     }
   })
 }

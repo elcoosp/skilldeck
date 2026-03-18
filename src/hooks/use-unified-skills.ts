@@ -34,7 +34,7 @@ function useRegistrySkills(search?: string, enabled?: boolean) {
     placeholderData: keepPreviousData,
     retry: false,
     staleTime: 60_000,
-    enabled: enabled // <-- conditionally enable
+    enabled: enabled
   })
 }
 
@@ -66,7 +66,7 @@ export function useUnifiedSkills(options: UseUnifiedSkillsOptions = {}) {
     data: registrySkills = [],
     isLoading: loadingRegistry,
     error: registryError
-  } = useRegistrySkills(search, platformFeaturesEnabled) // <-- enabled flag
+  } = useRegistrySkills(search, platformFeaturesEnabled)
 
   const isLoading = loadingLocal || loadingRegistry
 
@@ -89,12 +89,6 @@ export function useUnifiedSkills(options: UseUnifiedSkillsOptions = {}) {
       const existing = map.get(local.name)
 
       if (existing?.registryData) {
-        // Present in both: compare content hash to detect stale installs.
-        // SkillInfo doesn't carry a hash but RegistrySkillData has `content`.
-        // We use source field as a heuristic: if source is "registry" the
-        // backend already synced it; treat it as installed unless the registry
-        // version is newer (detected by the skill being present without
-        // "registry" source).
         const isRegistry = local.source === 'registry'
         const status: SkillStatus = isRegistry
           ? 'installed'
@@ -143,7 +137,7 @@ export function useUnifiedSkills(options: UseUnifiedSkillsOptions = {}) {
     unifiedSkills,
     isLoading,
     localError,
-    registryError, // <-- exposed
+    registryError,
     installedCount
   }
 }
