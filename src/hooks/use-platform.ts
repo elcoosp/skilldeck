@@ -40,12 +40,14 @@ export function usePlatformPreferences() {
       const res = await commands.getPlatformPreferences()
       if (res.status === 'error') throw new Error(res.error)
 
-      // Merge with local defaults for platform-specific settings
-      // In a real implementation, these would be stored in local DB
+      const defaultPlatformUrl = import.meta.env.DEV
+        ? 'http://localhost:8080'
+        : 'https://platform.skilldeck.dev'
+
       return {
         ...res.data,
-        platformEnabled: true, // Placeholder – read from local DB or config
-        platformUrl: 'https://platform.skilldeck.dev'
+        platformEnabled: true,
+        platformUrl: defaultPlatformUrl
       }
     },
     staleTime: 5 * 60 * 1000 // 5 minutes
@@ -156,22 +158,22 @@ export function useNudgeListener() {
             action:
               cta_label && cta_action
                 ? {
-                    label: cta_label,
-                    onClick: () => {
-                      // Handle CTA action - could open a URL or trigger an app navigation
-                      if (cta_action.startsWith('open:')) {
-                        const target = cta_action.replace('open:', '')
-                        // Dispatch a custom event or use router
-                        window.dispatchEvent(
-                          new CustomEvent('skilldeck:navigate', {
-                            detail: { target }
-                          })
-                        )
-                      } else if (cta_action.startsWith('http')) {
-                        window.open(cta_action, '_blank')
-                      }
+                  label: cta_label,
+                  onClick: () => {
+                    // Handle CTA action - could open a URL or trigger an app navigation
+                    if (cta_action.startsWith('open:')) {
+                      const target = cta_action.replace('open:', '')
+                      // Dispatch a custom event or use router
+                      window.dispatchEvent(
+                        new CustomEvent('skilldeck:navigate', {
+                          detail: { target }
+                        })
+                      )
+                    } else if (cta_action.startsWith('http')) {
+                      window.open(cta_action, '_blank')
                     }
                   }
+                }
                 : undefined
           })
         })
