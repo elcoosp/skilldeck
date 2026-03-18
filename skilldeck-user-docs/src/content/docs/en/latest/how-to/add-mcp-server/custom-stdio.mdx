@@ -1,0 +1,83 @@
+---
+title: "How to Add a Custom stdio MCP Server"
+description: Connect any local process as an MCP server using the stdio transport.
+sidebar:
+  order: 2
+---
+
+import Nudge from '../../../../../../components/mdx/Nudge.astro';
+import Checkpoint from '../../../../../../components/mdx/Checkpoint.astro';
+import Feedback from '../../../../../../components/mdx/Feedback.astro';
+
+The stdio transport lets you run an MCP server as a local subprocess. This is the most common way to add tools like databases, version control systems, or custom scripts.
+
+<Nudge type="tip" title="What you'll learn">
+  How to configure and add any stdio‑based MCP server to SkillDeck.
+</Nudge>
+
+## Prerequisites
+
+- SkillDeck installed and running
+- The server's command and arguments (e.g., `npx`, `python`, `node`)
+- Any required environment variables
+
+## Step 1: Open the MCP Tab
+
+1. In the right sidebar, click the **MCP** tab (plug icon).
+2. Click **Add Custom Server** (or a similar button).
+
+## Step 2: Fill in the Server Details
+
+A form will appear with the following fields:
+
+- **Name** – a friendly name (e.g., "My SQLite Server")
+- **Transport** – select **stdio**
+- **Command** – the executable to run (e.g., `npx`, `python`, `node`)
+- **Arguments** – space‑separated arguments (e.g., `-y @modelcontextprotocol/server-sqlite /path/to/db`)
+- **Environment** – optional JSON object of environment variables (e.g., `{ "DEBUG": "true" }`)
+
+<Nudge type="warning" title="Command must be in PATH">
+  The command must be available in your system's PATH. Use absolute paths if necessary (e.g., `/usr/local/bin/node`).
+</Nudge>
+
+## Step 3: Example – SQLite Server
+
+Here's a concrete example for a SQLite MCP server:
+
+- **Name:** `SQLite`
+- **Transport:** `stdio`
+- **Command:** `npx`
+- **Arguments:** `-y @modelcontextprotocol/server-sqlite /Users/name/projects/data.db`
+- **Environment:** (optional) `{}`
+
+This server will allow the agent to run SQL queries on the specified database.
+
+## Step 4: Save and Connect
+
+1. After filling in the details, click **Add Server**.
+2. SkillDeck will attempt to start the server. You should see its status change to **connected** (green) or **error** (red) with a message.
+
+<Checkpoint question="Is the server showing as 'connected'?" onYes="Perfect! Your custom stdio server is now available to the agent." onNo="Check the command and arguments for typos. Verify that the command runs correctly in a terminal." />
+
+## Step 5: Test the Server
+
+To verify it works, try a conversation that uses one of its tools. For the SQLite example, you could ask:
+
+```
+What tables are in my database?
+```
+
+The agent should invoke the appropriate tool and return results.
+
+## Troubleshooting
+
+- **Command not found** – use an absolute path or ensure the command is installed.
+- **Permission denied** – make sure the executable has proper permissions.
+- **Server crashes** – check the server's logs (SkillDeck may display error messages). Run the command manually in a terminal to debug.
+
+## Next Steps
+
+- [Add an SSE MCP server](/en/latest/how-to/add-mcp-server/custom-sse) for network‑based tools.
+- [Explore the MCP ecosystem](/en/latest/market-insights/mcp-ecosystem/what-is-mcp) for more server ideas.
+
+<Feedback />
