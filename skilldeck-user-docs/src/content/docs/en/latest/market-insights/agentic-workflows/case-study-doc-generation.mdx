@@ -1,0 +1,209 @@
+---
+title: "Case Study: Automating Documentation Generation with Agentic Workflows"
+description: How a development team used SkillDeck workflows to cut documentation time by 80%.
+order: 23
+---
+
+import Feedback from '../../../../../../components/mdx/Feedback.astro';
+
+Documentation is critical but often neglected – it's time‑consuming, tedious, and quickly outdated. This case study shows how a mid‑sized SaaS company automated their API documentation generation using SkillDeck's agentic workflows.
+
+## The Challenge
+
+**Company:** CloudScale (fictional, based on real‑world patterns)
+**Team size:** 25 engineers
+**Problem:** Maintaining accurate API documentation across 15 microservices
+
+Before automation:
+- Documentation was written manually after each release
+- Average time per service: 8 hours per month
+- Total team effort: 120+ hours monthly
+- Documentation was often weeks out of date
+- New engineers struggled to onboard
+
+The team needed a solution that could:
+1. Scan codebases automatically
+2. Generate human‑readable documentation
+3. Keep documentation in sync with code changes
+4. Run without disrupting developer workflows
+
+## The Solution: A Multi‑Agent Documentation Workflow
+
+The team built a SkillDeck workflow that runs nightly, triggered by code commits. The workflow uses three specialized agents:
+
+### Agent 1: Code Scanner
+- **Skill:** `code-scanner` (custom‑built)
+- **Task:** Traverse each microservice repository, identify public APIs, extract docstrings and type hints
+- **Output:** Structured JSON of endpoints, parameters, and descriptions
+
+### Agent 2: Documentation Writer
+- **Skill:** `technical-writer` (custom‑built)
+- **Task:** Convert scanner output into markdown documentation with examples
+- **Prompt:** "Write clear, user‑friendly documentation for these API endpoints. Include example requests and responses."
+
+### Agent 3: Integration Updater
+- **Task:** Update the central documentation site (built with Starlight) by committing changes to the docs repository
+- **Skill:** `git-committer` (custom MCP server)
+
+## The Workflow Definition
+
+```json
+{
+  "name": "API Documentation Generator",
+  "pattern": "sequential",
+  "steps": [
+    {
+      "id": "scan",
+      "name": "Scan microservices",
+      "skill": "code-scanner",
+      "prompt": "Scan the following repositories: {{repos}}"
+    },
+    {
+      "id": "generate",
+      "name": "Generate markdown docs",
+      "skill": "technical-writer",
+      "prompt": "Create documentation from this scanner output:\n\n{{scan.output}}"
+    },
+    {
+      "id": "commit",
+      "name": "Commit to docs repo",
+      "skill": "git-committer",
+      "prompt": "Commit these changes to the documentation repository:\n\n{{generate.output}}"
+    }
+  ],
+  "dependencies": [
+    { "from": "scan", "to": "generate" },
+    { "from": "generate", "to": "commit" }
+  ]
+}
+```
+
+## Results
+
+After implementing the workflow:
+
+| Metric | Before | After | Improvement |
+|--------|--------|-------|-------------|
+| Time per service | 8 hours/month | 1.5 hours/month | 81% reduction |
+| Total team hours | 120+ hours/month | 22 hours/month | 82% reduction |
+| Documentation freshness | Weeks out of date | Updated daily | Real‑time sync |
+| Onboarding time for new devs | 2 weeks | 3 days | 79% faster |
+
+## Key Success Factors
+
+### 1. **Specialized Agents**
+Instead of one agent doing everything, the team built three focused agents. Each had a single responsibility and excelled at it.
+
+### 2. **Structured Data Between Steps**
+The scanner output was strict JSON with typed schemas. This made the writer agent's job easier and reduced errors .
+
+### 3. **Idempotent Operations**
+The scanner could be rerun safely – it never modified code, only read it. The committer used commit messages like `docs: auto‑update from workflow run #{{run_id}}` so duplicates were easy to identify .
+
+### 4. **Human Oversight**
+All commits were made to a pull request branch, not directly to main. A senior engineer reviewed the PR each morning. This caught occasional formatting issues and kept a human in the loop .
+
+### 5. **Observability**
+Every step logged its output to a central dashboard. When the writer produced weird formatting, the team could trace back to the scanner's JSON and fix it.
+
+## Lessons Learned
+
+### What Went Well
+- **Parallelizing by service** (though not shown here) could have improved speed further, but sequential was fine for nightly runs.
+- **Using existing docstrings** – the scanner respected what developers already wrote, making the AI output more consistent with team style.
+- **Storing scanner output** in a database allowed reruns without rescanning.
+
+### What Could Be Improved
+- **Prompt drift** – over time, the writer's style subtly changed. The team added an evaluator step that scored output against a style guide, triggering refinement when needed (evaluator‑optimizer pattern) .
+- **Repository discovery** – initially, the workflow needed a hard‑coded list of repos. Later, they added a discovery agent that queried GitHub for all repos with a certain topic.
+
+## Adapting This Pattern to Your Needs
+
+The same approach can be adapted for:
+
+- **User documentation** – scan UI component libraries, generate usage guides
+- **Internal knowledge bases** – convert Slack threads and Notion pages into structured docs
+- **API changelogs** – compare scanner outputs across versions, generate changelogs
+- **Code comments** – generate missing comments for legacy code
+
+## Technical Implementation Details
+
+### Custom Skill: `code-scanner`
+
+The scanner was built as a Python script wrapped in a SkillDeck skill. It used:
+
+- `ast` module to parse Python files
+- `jsdoc`‑like parser for JavaScript
+- `pydoc` integration for docstring extraction
+
+Output format:
+
+```json
+{
+  "service": "auth-api",
+  "version": "2.3.1",
+  "endpoints": [
+    {
+      "path": "/v1/login",
+      "method": "POST",
+      "description": "Authenticate user and return token",
+      "parameters": [
+        {"name": "username", "type": "string", "required": true},
+        {"name": "password", "type": "string", "required": true}
+      ],
+      "responses": [
+        {"code": 200, "description": "Success, returns token"},
+        {"code": 401, "description": "Invalid credentials"}
+      ]
+    }
+  ]
+}
+```
+
+### Custom Skill: `technical-writer`
+
+The writer used a fine‑tuned model (via Ollama) with a system prompt that enforced the team's style guide. It converted the JSON into markdown like:
+
+```markdown
+## POST /v1/login
+
+Authenticate user and return a session token.
+
+**Request Body**
+- `username` (string, required)
+- `password` (string, required)
+
+**Response**
+- `200 OK`: `{ "token": "jwt-token-here" }`
+- `401 Unauthorized`: `{ "error": "Invalid credentials" }`
+
+**Example**
+
+```bash
+curl -X POST https://api.example.com/v1/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"alice","password":"secret"}'
+```
+```
+
+### Custom MCP Server: `git-committer`
+
+This server exposed a single tool: `commit_files`. It:
+
+- Cloned the docs repository
+- Created a new branch
+- Wrote files to the appropriate location
+- Committed and pushed
+- Opened a pull request via GitHub API
+
+## Scaling the Solution
+
+CloudScale now runs this workflow for 25+ repositories, generating documentation that developers actually use. The team estimates they've saved over **2,000 engineering hours** in the past year – time now spent on feature development instead.
+
+## Next Steps
+
+- [Build your own custom skill](/en/latest/tutorials/build-a-skill/create-frontmatter)
+- [Learn about workflow patterns](/en/latest/market-insights/agentic-workflows/patterns-and-anti-patterns)
+- [Explore the MCP ecosystem for more tools](/en/latest/market-insights/mcp-ecosystem/ecosystem-directory)
+
+<Feedback />
