@@ -1,40 +1,87 @@
 ---
-title: Welcome to Starlight
-description: Get started building your docs site with Starlight.
-template: splash # Remove or comment out this line to display the site sidebar on this page.
+title: Welcome to SkillDeck
+description: Your local‑first AI orchestration platform for developers. Build, share, and control AI workflows—without the cloud.
+template: splash
 hero:
-  tagline: Congrats on setting up a new Starlight project!
+  tagline: Build, share, and control AI workflows—without the cloud
   image:
-    file: ../../assets/houston.webp
+    file: ../../assets/skilldeck-hero.jpeg
+    alt: SkillDeck hero illustration
   actions:
-    - text: Example Guide
-      link: /guides/example/
+    - text: Get Started
+      link: /getting-started/installation/
       icon: right-arrow
-    - text: Read the Starlight docs
-      link: https://starlight.astro.build
-      icon: external
+      variant: primary
+    - text: Explore Skills
+      link: /how-to/install-a-skill/
+      icon: rocket
+      variant: minimal
+    - text: Read the Docs
+      link: /explanation/agent-loop/
+      icon: open-book
       variant: minimal
 ---
 
 import { Card, CardGrid } from '@astrojs/starlight/components';
 
-## Next steps
+## Why SkillDeck?
+
+SkillDeck is designed for developers who need AI that understands their code—without compromising security or control. Your data stays on your machine, your skills are version‑controlled like code, and your team shares knowledge that compounds over time.
+
+<CardGrid>
+  <Card title="Local‑First by Default" icon="key">
+    Your code never leaves your machine. API keys live in your OS keychain, conversations stay local.
+  </Card>
+  <Card title="Skills as Code" icon="puzzle">
+    Version‑controlled, sharable as Gists, and composable like any other dev tool. Install from our registry or create your own.
+  </Card>
+  <Card title="Agentic Workflows" icon="rocket">
+    From simple chat to complex parallel orchestrations. Use sequential, parallel, or evaluator‑optimizer patterns.
+  </Card>
+  <Card title="MCP Ecosystem" icon="link">
+    Connect to any tool via the Model Context Protocol—filesystem, GitHub, Slack, databases, and more.
+  </Card>
+</CardGrid>
+
+## What would you like to do?
 
 <CardGrid stagger>
-	<Card title="Update content" icon="pencil">
-		Edit `src/content/docs/index.mdx` to see this page change.
-	</Card>
-	<Card title="Change page layout" icon="document">
-		Delete `template: splash` in `src/content/docs/index.mdx` to display a
-		sidebar on this page.
-	</Card>
-	<Card title="Add new content" icon="add-document">
-		Add Markdown or MDX files to `src/content/docs` to create new pages.
-	</Card>
-	<Card title="Configure your site" icon="setting">
-		Edit your `sidebar` and other config in `astro.config.mjs`.
-	</Card>
-	<Card title="Read the docs" icon="open-book">
-		Learn more in [the Starlight Docs](https://starlight.astro.build/).
-	</Card>
+  <Card title="Get Started in 5 Minutes" icon="rocket">
+    Install SkillDeck, create your first conversation, and run a skill.
+    <br />
+    <a href="/getting-started/installation/">Start here →</a>
+  </Card>
+  <Card title="Learn Core Concepts" icon="open-book">
+    Understand skills, MCP servers, agent loops, and workspaces.
+    <br />
+    <a href="/explanation/">Read the explanations →</a>
+  </Card>
+  <Card title="Follow a Tutorial" icon="pencil">
+    Build a skill, create a workflow, or integrate with GitHub.
+    <br />
+    <a href="/tutorials/">Browse tutorials →</a>
+  </Card>
+  <Card title="Solve a Specific Task" icon="setting">
+    Install a skill, add an MCP server, configure profiles, or troubleshoot.
+    <br />
+    <a href="/how-to/">Find how‑to guides →</a>
+  </Card>
+  <Card title="Look Up Reference" icon="document">
+    Check SKILL.md format, error codes, configuration, and API.
+    <br />
+    <a href="/reference/">Go to reference →</a>
+  </Card>
+  <Card title="Join the Community" icon="team">
+    Share your skills, get help, and connect with other developers.
+    <br />
+    <a href="/community/">Explore community →</a>
+  </Card>
 </CardGrid>
+
+## Ready to dive in?
+
+Choose your path above, or jump straight to the **[Installation Guide](/getting-started/installation/)** to get SkillDeck running on your machine in minutes.
+
+---
+
+*Have feedback? We'd love to hear it! Use the feedback widget at the bottom of any page.*

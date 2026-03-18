@@ -13,7 +13,6 @@
     "@astrojs/mdx": "^5.0.1",
     "@astrojs/partytown": "^2.1.5",
     "@astrojs/starlight": "^0.38.1",
-    "@barnabask/astro-minisearch": "^2.1.1",
     "astro": "^6.0.1",
     "astro-seo-plugin": "^1.3.5",
     "sharp": "^0.34.2"
