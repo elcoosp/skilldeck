@@ -20,6 +20,7 @@ pub struct Model {
     #[sea_orm(column_type = "Text")]
     pub content: String,
     pub metadata: Option<Json>,
+    pub context_items: Option<Json>, // <-- added
     pub input_tokens: Option<i32>,
     pub output_tokens: Option<i32>,
     pub cache_read_tokens: Option<i32>,

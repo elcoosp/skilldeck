@@ -10,9 +10,12 @@ import {
   ChevronRight,
   Clock,
   Copy,
+  File,
+  Folder,
   Loader2,
   User,
-  Wrench
+  Wrench,
+  Zap
 } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { MarkdownHooks } from 'react-markdown'
@@ -123,6 +126,10 @@ export function MessageBubble({
     }
   }, [message.metadata, isUser])
 
+  // Extract context items from metadata
+
+  const contextItems = message.context_items || [];
+
   // Check if this is a subagent spawn message
   if (isAssistant && !isStreaming && message.content) {
     try {
@@ -150,6 +157,33 @@ export function MessageBubble({
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }, [message.content])
+
+  // Render context chips if present
+  const renderContextChips = () => {
+    if (contextItems.length === 0) return null
+    return (
+      <div className="flex flex-wrap gap-1 mb-2">
+        {contextItems.map((item: any, idx: number) => (
+          <div
+            key={idx}
+            className="inline-flex items-center gap-1 bg-muted/50 text-xs rounded-full px-2 py-0.5"
+          >
+            {item.type === 'file' && <File className="size-3" />}
+            {item.type === 'folder' && <Folder className="size-3" />}
+            {item.type === 'skill' && <Zap className="size-3" />}
+            <span className="max-w-[120px] truncate">
+              {item.name || (item.path ? item.path.split('/').pop() : '')}
+            </span>
+            {item.type === 'folder' && (
+              <span className="text-[10px] opacity-75">
+                ({item.scope === 'deep' ? 'All' : 'Top'}, {item.file_count} files)
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+    )
+  }
 
   return (
     <motion.div
@@ -190,7 +224,7 @@ export function MessageBubble({
           isUser ? 'items-end' : 'items-start'
         )}
       >
-        {/* Message bubble (unchanged, but without pb-8) */}
+        {/* Message bubble */}
         <div className={cn(isUser && 'text-right')}>
           <div
             className={cn(
@@ -211,6 +245,9 @@ export function MessageBubble({
                 <Clock className="size-3" />
               </div>
             )}
+
+            {/* Context chips (if any) */}
+            {renderContextChips()}
 
             {/* Collapse header — only shown once streaming is done */}
             {canCollapse && (

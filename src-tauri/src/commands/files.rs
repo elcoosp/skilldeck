@@ -4,11 +4,10 @@
 //! Provides directory listing and file-count commands consumed by the
 //! `FileMentionPicker` and `FolderScopeModal` frontend components.
 
+use ignore::WalkBuilder;
 use serde::{Deserialize, Serialize};
 use specta::{Type, specta};
-use std::fs;
 use std::path::PathBuf;
-use walkdir::WalkDir;
 
 /// A single file or directory entry returned by `list_directory_contents`.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -60,47 +59,34 @@ pub async fn list_directory_contents(path: String) -> Result<Vec<FileEntry>, Str
             size: None,
         });
 
-        // Directory children
-        match fs::read_dir(&dir_path) {
-            Ok(read_dir) => {
-                let mut children: Vec<FileEntry> = read_dir
-                    .flatten()
-                    .filter_map(|entry| {
-                        let name = entry.file_name().to_string_lossy().to_string();
-                        // Skip hidden files and common build/dependency dirs
-                        if name.starts_with('.')
-                            || name == "node_modules"
-                            || name == "target"
-                            || name == "dist"
-                        {
-                            return None;
-                        }
-                        let meta = entry.metadata().ok();
-                        let is_dir = meta.as_ref().map(|m| m.is_dir()).unwrap_or(false);
-                        let size = if is_dir {
-                            None
-                        } else {
-                            meta.as_ref().map(|m| m.len())
-                        };
-                        Some(FileEntry {
-                            name,
-                            path: entry.path().to_string_lossy().to_string(),
-                            is_dir,
-                            size,
-                        })
-                    })
-                    .collect();
+        // Use ignore::WalkBuilder to respect .gitignore and hidden files
+        let walker = WalkBuilder::new(&dir_path)
+            .hidden(true) // skip hidden files/dirs
+            .git_ignore(true) // respect .gitignore
+            .ignore(true) // respect .ignore
+            .max_depth(Some(1)) // immediate children only
+            .build();
 
-                // Dirs first, then files, each group sorted alphabetically
-                children.sort_by(|a, b| match (a.is_dir, b.is_dir) {
-                    (true, false) => std::cmp::Ordering::Less,
-                    (false, true) => std::cmp::Ordering::Greater,
-                    _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
-                });
-
-                entries.extend(children);
+        for result in walker {
+            match result {
+                Ok(entry) if entry.depth() > 0 => {
+                    let file_type = entry.file_type();
+                    let is_dir = file_type.map(|ft| ft.is_dir()).unwrap_or(false);
+                    let name = entry.file_name().to_string_lossy().to_string();
+                    let size = entry
+                        .metadata()
+                        .ok()
+                        .and_then(|m| if is_dir { None } else { Some(m.len()) });
+                    entries.push(FileEntry {
+                        name,
+                        path: entry.path().to_string_lossy().to_string(),
+                        is_dir,
+                        size,
+                    });
+                }
+                Err(e) => tracing::warn!("Walk error: {}", e),
+                _ => {}
             }
-            Err(e) => return Err(format!("Failed to read directory: {}", e)),
         }
 
         Ok(entries)
@@ -123,30 +109,31 @@ pub async fn count_folder_files(path: String) -> Result<FolderCounts, String> {
             return Err(format!("'{}' is not a valid directory", path));
         }
 
-        // Shallow: direct file children only
-        let shallow = fs::read_dir(&dir_path)
-            .map(|rd| {
-                rd.flatten()
-                    .filter(|e| {
-                        let name = e.file_name().to_string_lossy().to_string();
-                        !name.starts_with('.')
-                            && name != "node_modules"
-                            && name != "target"
-                            && e.path().is_file()
-                    })
-                    .count()
-            })
-            .unwrap_or(0);
+        // Shallow: direct file children only (using ignore to filter hidden/build dirs)
+        let shallow_builder = WalkBuilder::new(&dir_path)
+            .hidden(true)
+            .git_ignore(true)
+            .ignore(true)
+            .max_depth(Some(1))
+            .build();
+
+        let shallow = shallow_builder
+            .into_iter()
+            .filter_map(Result::ok)
+            .filter(|e| e.depth() > 0 && e.file_type().map(|ft| ft.is_file()).unwrap_or(false))
+            .count();
 
         // Deep: all files recursively, skipping ignored dirs
-        let deep = WalkDir::new(&dir_path)
+        let deep_builder = WalkBuilder::new(&dir_path)
+            .hidden(true)
+            .git_ignore(true)
+            .ignore(true)
+            .build();
+
+        let deep = deep_builder
             .into_iter()
-            .filter_entry(|e| {
-                let name = e.file_name().to_string_lossy().to_string();
-                !name.starts_with('.') && name != "node_modules" && name != "target"
-            })
-            .flatten()
-            .filter(|e| e.file_type().is_file())
+            .filter_map(Result::ok)
+            .filter(|e| e.file_type().map(|ft| ft.is_file()).unwrap_or(false))
             .count();
 
         Ok(FolderCounts { shallow, deep })
@@ -181,4 +168,81 @@ pub async fn open_folder(path: String) -> Result<(), String> {
             .map_err(|e| e.to_string())?;
     }
     Ok(())
+}
+#[derive(Debug, Deserialize, Type)]
+pub struct ReadFileRequest {
+    pub path: String,
+    pub max_bytes: Option<usize>,
+}
+
+#[derive(Debug, Serialize, Type)]
+pub struct ReadFileResponse {
+    pub content: String,
+    pub size: u64,
+}
+
+#[specta]
+#[tauri::command]
+pub async fn read_file(req: ReadFileRequest) -> Result<ReadFileResponse, String> {
+    tokio::task::spawn_blocking(move || {
+        let path = std::path::PathBuf::from(&req.path);
+        let metadata = std::fs::metadata(&path).map_err(|e| e.to_string())?;
+        if !metadata.is_file() {
+            return Err("Path is not a file".to_string());
+        }
+        let file_size = metadata.len();
+        let content = if let Some(limit) = req.max_bytes {
+            if file_size > limit as u64 {
+                // read only first `limit` bytes
+                let mut file = std::fs::File::open(&path).map_err(|e| e.to_string())?;
+                let mut buffer = vec![0; limit];
+                use std::io::Read;
+                let n = file.read(&mut buffer).map_err(|e| e.to_string())?;
+                buffer.truncate(n);
+                String::from_utf8(buffer).map_err(|e| e.to_string())?
+            } else {
+                std::fs::read_to_string(&path).map_err(|e| e.to_string())?
+            }
+        } else {
+            std::fs::read_to_string(&path).map_err(|e| e.to_string())?
+        };
+        Ok(ReadFileResponse {
+            content,
+            size: file_size,
+        })
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+#[derive(Debug, Deserialize, Type)]
+pub struct AssembleFolderRequest {
+    pub path: String,
+    pub deep: bool,
+    pub max_bytes: Option<usize>,
+}
+
+#[derive(Debug, Serialize, Type)]
+pub struct AssembleFolderResponse {
+    pub assembled_content: String,
+    pub file_count: usize,
+}
+
+#[specta]
+#[tauri::command]
+pub async fn assemble_folder(req: AssembleFolderRequest) -> Result<AssembleFolderResponse, String> {
+    tokio::task::spawn_blocking(move || {
+        let path = std::path::PathBuf::from(&req.path);
+        let (content, count) = crate::skills::folder_assembler::assemble_folder_context(
+            &path,
+            req.deep,
+            req.max_bytes,
+        )
+        .map_err(|e| e.to_string())?;
+        Ok(AssembleFolderResponse {
+            assembled_content: content,
+            file_count: count,
+        })
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }

@@ -141,6 +141,8 @@ pub fn run() {
             // file browsing (chat context injection)
             list_directory_contents,
             count_folder_files,
+            read_file,
+            assemble_folder,
             // queued messages
             add_queued_message,
             list_queued_messages,
@@ -148,7 +150,7 @@ pub fn run() {
             delete_queued_message,
             reorder_queued_messages,
             merge_queued_messages,
-            // pin/unpin conversations (added)
+            // pin/unpin conversations
             pin_conversation,
             unpin_conversation,
         ])

@@ -1,16 +1,10 @@
 // File: src-tauri/src/commands/messages.rs
 //! Message Tauri commands.
-//!
-//! `send_message` is the critical hot-path: it persists the user turn,
-//! then spawns a detached Tokio task running the `AgentLoop`.  The loop
-//! emits `AgentEvent` payloads to the frontend via the Tauri event bus at the
-//! 50 ms / 100-char debounce cadence required by ASR-PERF-001.
 
-use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, QueryFilter, QueryOrder,
-};
-use serde::Serialize;
+use sea_orm::{ActiveModelTrait, ActiveValue::Set, EntityTrait, QueryFilter, QueryOrder};
+use serde::{Deserialize, Serialize};
 use specta::{Type, specta};
+use std::pin::Pin;
 use std::sync::Arc;
 use tauri::{Emitter, State};
 use uuid::Uuid;
@@ -18,8 +12,10 @@ use uuid::Uuid;
 use crate::commands::queue;
 use crate::{events::AgentEvent, state::AppState};
 use async_trait::async_trait;
+use futures::Future;
 use skilldeck_core::agent::{AgentLoop, AgentLoopConfig, AgentLoopEvent, all_built_in_tools};
 use skilldeck_core::traits::subagent_spawner::SubagentSpawner;
+use skilldeck_models::context_item::{ContextItem, FolderScope};
 use skilldeck_models::conversations::{self, Entity as Conversations};
 use skilldeck_models::messages::{self, Entity as Messages};
 
@@ -31,6 +27,8 @@ pub struct MessageData {
     pub role: String,
     pub content: String,
     pub created_at: String,
+
+    pub context_items: Option<Vec<ContextItem>>,
 }
 
 #[specta]
@@ -43,9 +41,6 @@ pub async fn cancel_agent(
     Ok(())
 }
 
-/// List all messages for a conversation, oldest-first.
-///
-/// `branch_id` is reserved for branch-aware retrieval (v1.1).
 #[specta]
 #[tauri::command]
 pub async fn list_messages(
@@ -62,34 +57,41 @@ pub async fn list_messages(
     let conv_uuid = Uuid::parse_str(&conversation_id).map_err(|e| e.to_string())?;
 
     let rows = Messages::find()
-        .filter(messages::Column::ConversationId.eq(conv_uuid))
-        .order_by_asc(messages::Column::CreatedAt)
+        .filter(messages::COLUMN.conversation_id.eq(conv_uuid))
+        .order_by_asc(messages::COLUMN.created_at)
         .all(db)
         .await
         .map_err(|e| e.to_string())?;
 
     Ok(rows
         .into_iter()
-        .map(|m| MessageData {
-            id: m.id.to_string(),
-            conversation_id: m.conversation_id.to_string(),
-            role: m.role,
-            content: m.content,
-            created_at: m.created_at.to_string(),
+        .map(|m| {
+            let context_items = m
+                .context_items
+                .and_then(|json| serde_json::from_value::<Vec<ContextItem>>(json).ok());
+            MessageData {
+                id: m.id.to_string(),
+                conversation_id: m.conversation_id.to_string(),
+                role: m.role,
+                content: m.content,
+                created_at: m.created_at.to_string(),
+                context_items,
+            }
         })
         .collect())
 }
 
 // =============================================================================
-// Internal send function (used by both command and auto-send)
+// Internal send function
 // =============================================================================
 
 pub(crate) async fn send_message_internal(
     state: Arc<AppState>,
     conversation_id: String,
     content: String,
+    context_items: Option<Vec<ContextItem>>,
     app: tauri::AppHandle,
-    metadata: Option<serde_json::Value>, // <-- metadata parameter added
+    metadata: Option<serde_json::Value>,
 ) -> Result<(), String> {
     let db = state
         .registry
@@ -101,19 +103,25 @@ pub(crate) async fn send_message_internal(
     let msg_id = Uuid::new_v4();
     let now = chrono::Utc::now().fixed_offset();
 
-    // Persist user message.
+    // Convert context_items to JSON, default to empty array if None
+    let items_json = context_items
+        .as_ref()
+        .map(|items| serde_json::to_value(items).map_err(|e| e.to_string()))
+        .transpose()?
+        .unwrap_or(serde_json::Value::Array(vec![]));
+
     let user_msg = messages::ActiveModel {
         id: Set(msg_id),
         conversation_id: Set(conv_uuid),
         role: Set("user".to_string()),
         content: Set(content.clone()),
-        metadata: Set(metadata), // <-- store metadata
+        metadata: Set(metadata),
+        context_items: Set(Some(items_json)),
         created_at: Set(now),
         ..Default::default()
     };
     user_msg.insert(db).await.map_err(|e| e.to_string())?;
 
-    // Emit Persisted event immediately so UI shows the user message right away
     let _ = app.emit(
         "agent-event",
         AgentEvent::Persisted {
@@ -121,7 +129,6 @@ pub(crate) async fn send_message_internal(
         },
     );
 
-    // Emit "started" immediately so the UI can show a spinner.
     let _ = app.emit(
         "agent-event",
         AgentEvent::Started {
@@ -129,52 +136,70 @@ pub(crate) async fn send_message_internal(
         },
     );
 
-    // Clone the Arc for the background task
     let state_arc = state.clone();
     let conv_id_clone = conversation_id.clone();
     let content_clone = content.clone();
     let app_clone = app.clone();
+    let context_items_clone = context_items;
 
-    // Spawn detached — the command returns right away.
-    tokio::spawn(async move { run_agent_loop(state_arc, conv_id_clone, content_clone, app_clone) });
+    let future: Pin<Box<dyn Future<Output = ()> + Send + 'static>> = Box::pin(async move {
+        run_agent_loop(
+            state_arc,
+            conv_id_clone,
+            content_clone,
+            context_items_clone,
+            app_clone,
+        )
+    });
+    tokio::spawn(future);
 
     Ok(())
 }
 
-/// Persist the user turn and kick off the agent loop on a background task.
-///
-/// Returns immediately once the message is persisted; the agent loop emits
-/// `agent-event` payloads asynchronously.
+#[derive(Debug, Deserialize, Type)]
+pub struct SendMessageRequest {
+    pub conversation_id: String,
+    pub content: String,
+    pub context_items: Option<Vec<ContextItem>>,
+}
+
 #[specta]
 #[tauri::command]
 pub async fn send_message(
     state: State<'_, Arc<AppState>>,
-    conversation_id: String,
-    content: String,
+    req: SendMessageRequest,
     app: tauri::AppHandle,
 ) -> Result<(), String> {
-    // If agent already running for this conversation → queue the message
-    if state.is_agent_running(&conversation_id) {
-        let id = queue::add_queued_message_internal(&state, &conversation_id, content).await?;
-        // Emit event so UI knows queue changed (optional but good)
+    if state.is_agent_running(&req.conversation_id) {
+        let id = queue::add_queued_message_internal(
+            &state,
+            &req.conversation_id,
+            req.content,
+            req.context_items,
+        )
+        .await?;
         let _ = app.emit(
             "queued-message-added",
             serde_json::json!({
-                "conversation_id": conversation_id,
+                "conversation_id": req.conversation_id,
                 "id": id
             }),
         );
         return Ok(());
     }
 
-    // Clone the Arc for the internal call
     let state_clone = (*state).clone();
-    send_message_internal(state_clone, conversation_id, content, app, None).await
+    send_message_internal(
+        state_clone,
+        req.conversation_id,
+        req.content,
+        req.context_items,
+        app,
+        None,
+    )
+    .await
 }
 
-/// Resolve a pending tool-approval from the frontend.
-///
-/// Called when the user clicks "Approve" or "Deny" on a `ToolApprovalCard`.
 #[specta]
 #[tauri::command]
 pub async fn resolve_tool_approval(
@@ -199,7 +224,6 @@ pub async fn resolve_tool_approval(
 
 // ── Internal helper ───────────────────────────────────────────────────────────
 
-/// Convert an MCP tool into a core `ToolDefinition`.
 use skilldeck_core::traits::{McpTool, ToolDefinition};
 
 fn mcp_tool_to_tool_def(mcp_tool: &McpTool) -> ToolDefinition {
@@ -210,21 +234,12 @@ fn mcp_tool_to_tool_def(mcp_tool: &McpTool) -> ToolDefinition {
     }
 }
 
-/// Resolve which provider and model ID to use for a conversation.
-///
-/// Lookup order:
-/// 1. Read the conversation's profile from the DB.
-/// 2. If the profile's provider is registered in the registry, use it.
-/// 3. Otherwise fall back to `"ollama"` with its first available model.
-///
-/// Returns `(provider_id, model_id)`.
 async fn resolve_provider_and_model(state: &AppState, conversation_id: &str) -> (String, String) {
     use skilldeck_models::{conversations::Entity as Conversations, profiles::Entity as Profiles};
 
     const FALLBACK_PROVIDER: &str = "ollama";
     const FALLBACK_MODEL: &str = "llama3.2:latest";
 
-    // Try to read conversation → profile from DB.
     let db = match state.registry.db.connection().await {
         Ok(db) => db,
         Err(_) => return (FALLBACK_PROVIDER.into(), FALLBACK_MODEL.into()),
@@ -244,7 +259,6 @@ async fn resolve_provider_and_model(state: &AppState, conversation_id: &str) -> 
         _ => return (FALLBACK_PROVIDER.into(), FALLBACK_MODEL.into()),
     };
 
-    // Use the profile's provider if it's registered; otherwise fall back.
     if state
         .registry
         .get_provider(&profile.model_provider)
@@ -257,7 +271,6 @@ async fn resolve_provider_and_model(state: &AppState, conversation_id: &str) -> 
             profile.model_provider,
             FALLBACK_PROVIDER
         );
-        // Pick the first available ollama model, or the known fallback.
         let model = skilldeck_core::providers::OllamaProvider::fetch_installed_models()
             .await
             .into_iter()
@@ -267,8 +280,6 @@ async fn resolve_provider_and_model(state: &AppState, conversation_id: &str) -> 
         (FALLBACK_PROVIDER.into(), model)
     }
 }
-
-// ── SubagentSpawner wrapper for AppState ──────────────────────────────────────
 
 struct SpawnerWithContext {
     state: Arc<AppState>,
@@ -301,7 +312,6 @@ impl SubagentSpawner for SpawnerWithContext {
     }
 }
 
-/// Check if an error is retryable (transient)
 fn is_retryable_error(e: &skilldeck_core::CoreError) -> bool {
     matches!(
         e,
@@ -312,23 +322,19 @@ fn is_retryable_error(e: &skilldeck_core::CoreError) -> bool {
     )
 }
 
-/// Drive the `AgentLoop` and forward every event to the Tauri bus.
-///
-/// This function runs on a background Tokio task and never panics — all errors
-/// are emitted as `AgentEvent::Error` so the frontend can display them.
+/// Run the agent loop in a spawned task.
 fn run_agent_loop(
     state: Arc<AppState>,
     conversation_id: String,
     user_message: String,
+    context_items: Option<Vec<ContextItem>>,
     app: tauri::AppHandle,
 ) {
     use skilldeck_core::agent::tool_dispatcher::ToolDispatcher;
     use skilldeck_core::traits::ChatMessage;
     use tokio::sync::mpsc;
 
-    // Spawn the actual async work
     tokio::spawn(async move {
-        // Resolve provider + model from the conversation's profile.
         let (provider_id, model_id) = resolve_provider_and_model(&state, &conversation_id).await;
 
         let provider = match state.registry.get_provider(&provider_id) {
@@ -358,14 +364,12 @@ fn run_agent_loop(
 
         let (tx, mut rx) = mpsc::channel::<Result<AgentLoopEvent, skilldeck_core::CoreError>>(128);
 
-        // Create spawner wrapper
         let spawner = Arc::new(SpawnerWithContext {
             state: state.clone(),
             provider: provider.clone(),
             model_id: model_id.clone(),
         });
 
-        // Create ToolDispatcher with spawner
         let dispatcher = Arc::new(ToolDispatcher::new(
             Arc::clone(&state.registry.mcp_registry),
             Arc::clone(&state.approval_gate),
@@ -374,7 +378,6 @@ fn run_agent_loop(
             Some(spawner as Arc<dyn SubagentSpawner>),
         ));
 
-        // Load existing messages to provide history.
         let db = match state.registry.db.connection().await {
             Ok(conn) => conn,
             Err(e) => {
@@ -402,8 +405,8 @@ fn run_agent_loop(
             }
         };
         let history_rows = match Messages::find()
-            .filter(messages::Column::ConversationId.eq(conv_uuid))
-            .order_by_asc(messages::Column::CreatedAt)
+            .filter(messages::COLUMN.conversation_id.eq(conv_uuid))
+            .order_by_asc(messages::COLUMN.created_at)
             .all(db)
             .await
         {
@@ -438,7 +441,6 @@ fn run_agent_loop(
             .with_history(history)
             .with_dispatcher(dispatcher);
 
-        // Inject MCP tools (from all connected servers)
         let all_mcp_tools = state.registry.mcp_registry.all_tools();
         for (server_name, mcp_tool) in all_mcp_tools {
             let tool_def = mcp_tool_to_tool_def(&mcp_tool);
@@ -450,14 +452,12 @@ fn run_agent_loop(
             );
         }
 
-        // Inject built-in tools (always available)
         let built_in_tools = all_built_in_tools();
         for tool_def in built_in_tools {
             tracing::debug!("Added built-in tool '{}'", tool_def.name);
             agent = agent.with_tool(tool_def);
         }
 
-        // Inject skill catalog (Toon if supported)
         let skills = state.registry.skill_registry.skills().await;
         let active_skills: Vec<(String, String)> = skills
             .into_iter()
@@ -467,7 +467,6 @@ fn run_agent_loop(
 
         if !active_skills.is_empty() {
             if provider.supports_toon() {
-                // Build a JSON array of skill objects
                 let skills_json: Vec<serde_json::Value> = active_skills
                     .iter()
                     .map(|(name, desc)| serde_json::json!({ "name": name, "description": desc }))
@@ -489,7 +488,6 @@ fn run_agent_loop(
                 if let Some(catalog) = toon_catalog {
                     agent = agent.with_skill(format!("<toon>\n{}\n</toon>", catalog));
                 } else {
-                    // Fallback to markdown
                     let mut catalog = String::from("\n\n## Available Skills\n");
                     for (name, desc) in active_skills {
                         catalog.push_str(&format!("- **{}**: {}\n", name, desc));
@@ -497,7 +495,6 @@ fn run_agent_loop(
                     agent = agent.with_skill(catalog);
                 }
             } else {
-                // Fallback to markdown catalog
                 let mut catalog = String::from("\n\n## Available Skills\n");
                 for (name, desc) in active_skills {
                     catalog.push_str(&format!("- **{}**: {}\n", name, desc));
@@ -506,10 +503,76 @@ fn run_agent_loop(
             }
         }
 
-        // Run the loop concurrently while we drain the event channel.
+        // Log all skill names currently in the registry for debugging
+        let all_skills = state.registry.skill_registry.skills().await;
+        let skill_names: Vec<String> = all_skills.into_iter().map(|s| s.name).collect();
+        tracing::info!("Skills in registry: {:?}", skill_names);
+
+        // Inject attached context items (if any)
+        if let Some(items) = context_items {
+            tracing::info!("Processing {} context items", items.len());
+            let mut combined_context = String::new();
+            for item in items {
+                match item {
+                    ContextItem::File { path, .. } => {
+                        if let Ok(content) = std::fs::read_to_string(&path) {
+                            combined_context
+                                .push_str(&format!("--- File: {} ---\n{}\n\n", path, content));
+                        } else {
+                            tracing::warn!("Could not read file: {}", path);
+                        }
+                    }
+                    ContextItem::Folder { path, scope, .. } => {
+                        let deep = match scope {
+                            FolderScope::Shallow => false,
+                            FolderScope::Deep => true,
+                        };
+                        if let Ok((content, _)) =
+                            crate::skills::folder_assembler::assemble_folder_context(
+                                std::path::Path::new(&path),
+                                deep,
+                                Some(500_000),
+                            )
+                        {
+                            combined_context.push_str(&format!(
+                                "--- Folder: {} (scope: {:?}) ---\n{}\n\n",
+                                path, scope, content
+                            ));
+                        }
+                    }
+                    ContextItem::Skill { name } => {
+                        tracing::info!("Looking up skill: '{}'", name);
+                        if let Some(skill) = state.registry.skill_registry.get_skill(&name).await {
+                            tracing::info!(
+                                "Found skill '{}' with content length {}",
+                                name,
+                                skill.content_md.len()
+                            );
+                            combined_context.push_str(&format!(
+                                "--- Skill: {} ---\n{}\n\n",
+                                name, skill.content_md
+                            ));
+                        } else {
+                            tracing::warn!("Skill not found in registry: '{}'", name);
+                        }
+                    }
+                }
+            }
+            if !combined_context.is_empty() {
+                tracing::info!(
+                    "Injecting combined context of length {}",
+                    combined_context.len()
+                );
+                agent = agent.with_skill(combined_context);
+            } else {
+                tracing::warn!("No skill content to inject (combined_context empty)");
+            }
+        } else {
+            tracing::info!("No context items to inject");
+        }
+
         let loop_handle = tokio::spawn(async move { agent.run(user_message).await });
 
-        // Forward loop events to Tauri event bus.
         while let Some(event) = rx.recv().await {
             let tauri_event = match event {
                 Ok(AgentLoopEvent::Token { delta }) => AgentEvent::Token {
@@ -546,7 +609,6 @@ fn run_agent_loop(
             let _ = app.emit("agent-event", tauri_event);
         }
 
-        // Loop has finished. Retrieve new messages and persist them.
         let loop_result = loop_handle.await;
         match loop_result {
             Ok(Ok(new_messages)) => {
@@ -568,7 +630,6 @@ fn run_agent_loop(
                 };
                 let now = chrono::Utc::now().fixed_offset();
 
-                // Insert each new message.
                 for msg in new_messages {
                     let role_str = match msg.role {
                         skilldeck_core::traits::MessageRole::User => "user",
@@ -583,6 +644,7 @@ fn run_agent_loop(
                         role: Set(role_str.to_string()),
                         content: Set(msg.content),
                         created_at: Set(now),
+                        context_items: Set(Some(serde_json::Value::Array(vec![]))),
                         ..Default::default()
                     };
                     if let Err(e) = active.insert(db).await {
@@ -593,11 +655,9 @@ fn run_agent_loop(
                                 message: format!("Failed to persist message: {}", e),
                             },
                         );
-                        // Continue trying to persist other messages.
                     }
                 }
 
-                // Update conversation's updated_at timestamp.
                 if let Ok(Some(conv)) = Conversations::find_by_id(conv_uuid).one(db).await {
                     let mut active: conversations::ActiveModel = conv.into();
                     active.updated_at = Set(now);
@@ -606,7 +666,6 @@ fn run_agent_loop(
                     }
                 }
 
-                // Emit persisted event to notify frontend to refresh.
                 let _ = app.emit(
                     "agent-event",
                     AgentEvent::Persisted {
@@ -614,13 +673,7 @@ fn run_agent_loop(
                     },
                 );
 
-                // === AUTO-SEND QUEUED MESSAGES ===
-                let _ = crate::commands::queue::auto_send_next_queued(
-                    state.clone(),
-                    &conversation_id,
-                    app.clone(),
-                )
-                .await;
+                queue::auto_send_next_queued(state.clone(), conversation_id.clone(), app.clone());
             }
             Ok(Err(e)) => {
                 let _ = app.emit(

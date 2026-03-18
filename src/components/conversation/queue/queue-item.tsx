@@ -1,7 +1,7 @@
 // src/components/conversation/queue/queue-item.tsx
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, Pencil, Trash2, CheckSquare, Square } from 'lucide-react'
+import { GripVertical, Pencil, Trash2, CheckSquare, Square, Paperclip } from 'lucide-react'
 import { useCallback, useEffect, useMemo } from 'react'
 import { useQueueStore } from '@/store/queue'
 import { Button } from '@/components/ui/button'
@@ -57,6 +57,11 @@ export function QueueItem({ message, conversationId, position }: QueueItemProps)
   const handleDelete = useCallback(() => {
     deleteMutation.mutate(message.id)
   }, [deleteMutation, message.id])
+
+  // Check if the message has context items
+  const hasContext = useMemo(() => {
+    return message.context_items && message.context_items.length > 0
+  }, [message.context_items])
 
   if (isEditing) {
     return (
@@ -117,7 +122,14 @@ export function QueueItem({ message, conversationId, position }: QueueItemProps)
 
       {/* Message preview */}
       <div className="flex-1 min-w-0">
-        <p className="text-xs truncate">{message.content}</p>
+        <p className="text-xs truncate">
+          {hasContext && (
+            <span className="inline-flex items-center gap-1 mr-1 text-muted-foreground" title="Has attachments">
+              <Paperclip className="size-3 inline" />
+            </span>
+          )}
+          {message.content}
+        </p>
         <p className="text-[10px] text-muted-foreground">
           {new Date(message.created_at).toLocaleTimeString()}
         </p>

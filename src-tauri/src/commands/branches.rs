@@ -11,8 +11,9 @@ use tauri::State;
 use uuid::Uuid;
 
 use crate::state::AppState;
+use skilldeck_models::context_item::ContextItem;
 use skilldeck_models::conversation_branches::{self, Entity as Branches};
-use skilldeck_models::messages::{self, Entity as Messages};
+use skilldeck_models::messages::{self, Entity as Messages}; // <-- added
 
 #[derive(Debug, Serialize, Type)]
 pub struct BranchInfo {
@@ -131,12 +132,18 @@ pub async fn get_branch_messages(
 
     Ok(messages
         .into_iter()
-        .map(|m| crate::commands::messages::MessageData {
-            id: m.id.to_string(),
-            conversation_id: m.conversation_id.to_string(),
-            role: m.role,
-            content: m.content,
-            created_at: m.created_at.to_string(),
+        .map(|m| {
+            let context_items = m
+                .context_items
+                .and_then(|json| serde_json::from_value::<Vec<ContextItem>>(json).ok());
+            crate::commands::messages::MessageData {
+                id: m.id.to_string(),
+                conversation_id: m.conversation_id.to_string(),
+                role: m.role,
+                content: m.content,
+                created_at: m.created_at.to_string(),
+                context_items,
+            }
         })
         .collect())
 }
