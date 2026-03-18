@@ -147,6 +147,7 @@ pub(crate) async fn send_message_internal(
             state_arc,
             conv_id_clone,
             content_clone,
+            msg_id, // Pass the ID of the message we just inserted
             context_items_clone,
             app_clone,
         )
@@ -327,6 +328,7 @@ fn run_agent_loop(
     state: Arc<AppState>,
     conversation_id: String,
     user_message: String,
+    current_msg_id: Uuid, // ID of the user message we just inserted, to be excluded from history
     context_items: Option<Vec<ContextItem>>,
     app: tauri::AppHandle,
 ) {
@@ -423,8 +425,10 @@ fn run_agent_loop(
             }
         };
 
+        // Build history, excluding the message we just inserted (it will be added again by agent.run)
         let history = history_rows
             .into_iter()
+            .filter(|m| m.id != current_msg_id)
             .map(|m| ChatMessage {
                 role: match m.role.as_str() {
                     "user" => skilldeck_core::traits::MessageRole::User,
@@ -508,70 +512,79 @@ fn run_agent_loop(
         let skill_names: Vec<String> = all_skills.into_iter().map(|s| s.name).collect();
         tracing::info!("Skills in registry: {:?}", skill_names);
 
-        // Inject attached context items (if any)
-        if let Some(items) = context_items {
+        // Build enriched user message with attached context inlined (instead of injecting into system prompt)
+        let enriched_user_message = if let Some(items) = context_items {
             tracing::info!("Processing {} context items", items.len());
             let mut combined_context = String::new();
+
             for item in items {
                 match item {
                     ContextItem::File { path, .. } => {
-                        if let Ok(content) = std::fs::read_to_string(&path) {
-                            combined_context
-                                .push_str(&format!("--- File: {} ---\n{}\n\n", path, content));
-                        } else {
-                            tracing::warn!("Could not read file: {}", path);
+                        match std::fs::read_to_string(&path) {
+                            Ok(content) => {
+                                combined_context
+                                    .push_str(&format!("--- File: {} ---\n{}\n\n", path, content));
+                            }
+                            Err(_) => tracing::warn!("Could not read file: {}", path),
                         }
                     }
                     ContextItem::Folder { path, scope, .. } => {
-                        let deep = match scope {
-                            FolderScope::Shallow => false,
-                            FolderScope::Deep => true,
-                        };
-                        if let Ok((content, _)) =
-                            crate::skills::folder_assembler::assemble_folder_context(
-                                std::path::Path::new(&path),
-                                deep,
-                                Some(500_000),
-                            )
-                        {
-                            combined_context.push_str(&format!(
-                                "--- Folder: {} (scope: {:?}) ---\n{}\n\n",
-                                path, scope, content
-                            ));
+                        let deep = matches!(scope, FolderScope::Deep);
+                        match crate::skills::folder_assembler::assemble_folder_context(
+                            std::path::Path::new(&path),
+                            deep,
+                            Some(500_000),
+                        ) {
+                            Ok((content, _)) => {
+                                combined_context.push_str(&format!(
+                                    "--- Folder: {} (scope: {:?}) ---\n{}\n\n",
+                                    path, scope, content
+                                ));
+                            }
+                            Err(e) => tracing::warn!("Could not assemble folder {}: {}", path, e),
                         }
                     }
                     ContextItem::Skill { name } => {
                         tracing::info!("Looking up skill: '{}'", name);
-                        if let Some(skill) = state.registry.skill_registry.get_skill(&name).await {
-                            tracing::info!(
-                                "Found skill '{}' with content length {}",
+                        match state.registry.skill_registry.get_skill(&name).await {
+                            Some(skill) => {
+                                tracing::info!(
+                                    "Found skill '{}', content length {}",
+                                    name,
+                                    skill.content_md.len()
+                                );
+                                combined_context.push_str(&format!(
+                                    "--- Skill: {} ---\n{}\n\n",
+                                    name, skill.content_md
+                                ));
+                            }
+                            None => tracing::warn!(
+                                "Skill '{}' not found in registry. Available: {:?}",
                                 name,
-                                skill.content_md.len()
-                            );
-                            combined_context.push_str(&format!(
-                                "--- Skill: {} ---\n{}\n\n",
-                                name, skill.content_md
-                            ));
-                        } else {
-                            tracing::warn!("Skill not found in registry: '{}'", name);
+                                state.registry.skill_registry.skills().await
+                                    .iter().map(|s| s.name.as_str()).collect::<Vec<_>>()
+                            ),
                         }
                     }
                 }
             }
-            if !combined_context.is_empty() {
-                tracing::info!(
-                    "Injecting combined context of length {}",
-                    combined_context.len()
-                );
-                agent = agent.with_skill(combined_context);
+
+            if combined_context.is_empty() {
+                tracing::warn!("Context items present but combined_context is empty after resolution");
+                user_message
             } else {
-                tracing::warn!("No skill content to inject (combined_context empty)");
+                tracing::info!("Injecting {} bytes of context into user turn", combined_context.len());
+                format!(
+                    "<context>\n{}</context>\n\n{}",
+                    combined_context.trim_end(),
+                    user_message
+                )
             }
         } else {
-            tracing::info!("No context items to inject");
-        }
+            user_message
+        };
 
-        let loop_handle = tokio::spawn(async move { agent.run(user_message).await });
+        let loop_handle = tokio::spawn(async move { agent.run(enriched_user_message).await });
 
         while let Some(event) = rx.recv().await {
             let tauri_event = match event {
