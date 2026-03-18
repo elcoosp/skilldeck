@@ -65,7 +65,10 @@ describe('ToolCallCard', () => {
 
   it('uses correct icon based on tool name', async () => {
     const screen = await render(
-      <ToolCallCard name="http_request" arguments={{ url: 'https://example.com' }} />
+      <ToolCallCard
+        name="http_request"
+        arguments={{ url: 'https://example.com' }}
+      />
     )
     // We can't directly assert the icon component, but we can check the description
     const desc = screen.getByText('GET: https://example.com')

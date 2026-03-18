@@ -22,7 +22,11 @@ interface InstallDialogProps {
   onConfirm: (target: 'personal' | 'workspace') => void
 }
 
-export function InstallDialog({ skill, onClose, onConfirm }: InstallDialogProps) {
+export function InstallDialog({
+  skill,
+  onClose,
+  onConfirm
+}: InstallDialogProps) {
   const [target, setTarget] = useState<'personal' | 'workspace'>('personal')
 
   const targets: {
@@ -31,19 +35,19 @@ export function InstallDialog({ skill, onClose, onConfirm }: InstallDialogProps)
     path: string
     icon: React.ReactNode
   }[] = [
-      {
-        value: 'personal',
-        label: 'Personal',
-        path: '~/.agents/skills/',
-        icon: <Home className="size-4" />
-      },
-      {
-        value: 'workspace',
-        label: 'Workspace',
-        path: './.skilldeck/skills/',
-        icon: <FolderOpen className="size-4" />
-      }
-    ]
+    {
+      value: 'personal',
+      label: 'Personal',
+      path: '~/.agents/skills/',
+      icon: <Home className="size-4" />
+    },
+    {
+      value: 'workspace',
+      label: 'Workspace',
+      path: './.skilldeck/skills/',
+      icon: <FolderOpen className="size-4" />
+    }
+  ]
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -96,9 +100,7 @@ export function InstallDialog({ skill, onClose, onConfirm }: InstallDialogProps)
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={() => onConfirm(target)}>
-            Install Copy
-          </Button>
+          <Button onClick={() => onConfirm(target)}>Install Copy</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

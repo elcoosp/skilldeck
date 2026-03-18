@@ -20,14 +20,6 @@ import { motion } from 'framer-motion'
 import { AlertCircle, RefreshCw, Search } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useDebounce } from 'use-debounce'
-import { useUnifiedSkills } from '@/hooks/use-unified-skills'
-import { commands } from '@/lib/bindings'
-import { cn } from '@/lib/utils'
-import type { UnifiedSkill } from '@/types/skills'
-import { SkillDetailPanel } from './skill-detail-panel'
-import { UnifiedSkillCard } from './unified-skill-card'
-import { PlatformStatusBanner } from './platform-status-banner'
-import { useUIStore } from '@/store/ui'
 import {
   Select,
   SelectContent,
@@ -35,6 +27,14 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
+import { useUnifiedSkills } from '@/hooks/use-unified-skills'
+import { commands } from '@/lib/bindings'
+import { cn } from '@/lib/utils'
+import { useUIStore } from '@/store/ui'
+import type { UnifiedSkill } from '@/types/skills'
+import { PlatformStatusBanner } from './platform-status-banner'
+import { SkillDetailPanel } from './skill-detail-panel'
+import { UnifiedSkillCard } from './unified-skill-card'
 
 // Responsive column count based on container width
 const BREAKPOINTS = {
@@ -88,9 +88,12 @@ export function UnifiedSkillList() {
   // Compute unique categories from registry skills that have a category
   const categories = useMemo(() => {
     const cats = new Set<string>()
-    unifiedSkills.forEach(skill => {
+    unifiedSkills.forEach((skill) => {
       // Only include registry skills that have a non-null category
-      if (skill.registryData?.category && skill.registryData.category.trim() !== '') {
+      if (
+        skill.registryData?.category &&
+        skill.registryData.category.trim() !== ''
+      ) {
         cats.add(skill.registryData.category)
       }
     })
@@ -101,7 +104,7 @@ export function UnifiedSkillList() {
   // Filter by category (if not "all")
   const filteredSkills = useMemo(() => {
     if (category === 'all') return unifiedSkills
-    return unifiedSkills.filter(s => s.registryData?.category === category)
+    return unifiedSkills.filter((s) => s.registryData?.category === category)
   }, [unifiedSkills, category])
 
   const qc = useQueryClient()
@@ -116,9 +119,9 @@ export function UnifiedSkillList() {
     }
   })
 
-  const platformFeaturesEnabled = useUIStore(s => s.platformFeaturesEnabled)
-  const setSettingsTab = useUIStore(s => s.setSettingsTab)
-  const setSettingsOpen = useUIStore(s => s.setSettingsOpen)
+  const platformFeaturesEnabled = useUIStore((s) => s.platformFeaturesEnabled)
+  const setSettingsTab = useUIStore((s) => s.setSettingsTab)
+  const setSettingsOpen = useUIStore((s) => s.setSettingsOpen)
 
   const parentRef = useRef<HTMLDivElement>(null)
 
@@ -177,7 +180,13 @@ export function UnifiedSkillList() {
         {/* Platform status banner - flush with sides, only top padding */}
         <div className="px-3 pt-3">
           <PlatformStatusBanner
-            variant={!platformFeaturesEnabled ? 'disabled' : registryError ? 'error' : null}
+            variant={
+              !platformFeaturesEnabled
+                ? 'disabled'
+                : registryError
+                  ? 'error'
+                  : null
+            }
             onEnable={handleEnablePlatform}
             onRetry={() => syncMutation.mutate()}
           />
@@ -192,7 +201,9 @@ export function UnifiedSkillList() {
             type="button"
             onClick={() => syncMutation.mutate()}
             disabled={!platformFeaturesEnabled || syncMutation.isPending}
-            title={!platformFeaturesEnabled ? "Enable platform to sync" : "Refresh"}
+            title={
+              !platformFeaturesEnabled ? 'Enable platform to sync' : 'Refresh'
+            }
             className={cn(
               'p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40',
               syncMutation.isPending && 'animate-spin'
@@ -321,7 +332,7 @@ export function UnifiedSkillList() {
                             )
                           }
                           onInstall={() => setSelected(skill)} // fixed: use skill
-                          onUpdate={() => setSelected(skill)}   // fixed: use skill
+                          onUpdate={() => setSelected(skill)} // fixed: use skill
                         />
                       </motion.div>
                     ))}

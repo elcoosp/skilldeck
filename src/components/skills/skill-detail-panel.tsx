@@ -9,14 +9,14 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { commands } from '@/lib/bindings'
-import type { UnifiedSkill } from '@/types/skills'
 import { useDisableRule } from '@/hooks/use-skills'
+import { commands } from '@/lib/bindings'
 import { useUIStore } from '@/store/ui'
-import { LintWarningPanel } from './lint-warning-panel'
+import type { UnifiedSkill } from '@/types/skills'
 import { BlockedSkillAlert } from './blocked-skill-alert'
 import { ConflictResolver } from './conflict-resolver'
 import { InstallDialog } from './install-dialog'
+import { LintWarningPanel } from './lint-warning-panel'
 
 interface Props {
   skill: UnifiedSkill
@@ -25,7 +25,7 @@ interface Props {
 
 export function SkillDetailPanel({ skill, onClose }: Props) {
   const qc = useQueryClient()
-  const platformFeaturesEnabled = useUIStore(s => s.platformFeaturesEnabled)
+  const platformFeaturesEnabled = useUIStore((s) => s.platformFeaturesEnabled)
 
   const [actionError, setActionError] = useState<string | null>(null)
   const [showInstallDialog, setShowInstallDialog] = useState(false)
@@ -35,8 +35,10 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
 
   const isInstalled =
     skill.status === 'installed' || skill.status === 'local_only'
-  const canInstall = !!skill.registryData && !isInstalled && platformFeaturesEnabled
-  const canUpdate = skill.status === 'update_available' && platformFeaturesEnabled
+  const canInstall =
+    !!skill.registryData && !isInstalled && platformFeaturesEnabled
+  const canUpdate =
+    skill.status === 'update_available' && platformFeaturesEnabled
   const isBlocked = skill.registryData && skill.registryData.securityScore < 2
 
   // ── Install ────────────────────────────────────────────────────────────────
@@ -44,7 +46,10 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
     mutationFn: async ({
       target,
       overwrite
-    }: { target: 'personal' | 'workspace'; overwrite?: boolean }) => {
+    }: {
+      target: 'personal' | 'workspace'
+      overwrite?: boolean
+    }) => {
       if (!skill.registryData) throw new Error('No registry data')
       const res = await commands.installSkill(
         skill.registryData.name,
@@ -131,7 +136,11 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
     disableRule.mutate({ ruleId, scope: 'workspace' })
   }
 
-  const isBusy = install.isPending || uninstall.isPending || sync.isPending || diffMutation.isPending
+  const isBusy =
+    install.isPending ||
+    uninstall.isPending ||
+    sync.isPending ||
+    diffMutation.isPending
 
   const handleInstallClick = () => {
     if (!skill.registryData) return
@@ -246,14 +255,15 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
         )}
 
         {/* Lint warnings */}
-        {skill.registryData?.lintWarnings && skill.registryData.lintWarnings.length > 0 && (
-          <div>
-            <SectionLabel>Lint Issues</SectionLabel>
-            <LintWarningPanel
-              warnings={skill.registryData.lintWarnings as any}
-            />
-          </div>
-        )}
+        {skill.registryData?.lintWarnings &&
+          skill.registryData.lintWarnings.length > 0 && (
+            <div>
+              <SectionLabel>Lint Issues</SectionLabel>
+              <LintWarningPanel
+                warnings={skill.registryData.lintWarnings as any}
+              />
+            </div>
+          )}
 
         {/* Local path */}
         {skill.localData?.path && (

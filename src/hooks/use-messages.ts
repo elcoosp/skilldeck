@@ -1,7 +1,7 @@
 // src/hooks/use-messages.ts
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAchievements } from '@/hooks/use-achievements'
-import type { MessageData, ContextItem } from '@/lib/bindings'
+import type { ContextItem, MessageData } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
 import type { UUID } from '@/lib/types'
 import { useUIStore } from '@/store/ui'

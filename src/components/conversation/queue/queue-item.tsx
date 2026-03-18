@@ -1,24 +1,28 @@
 // src/components/conversation/queue/queue-item.tsx
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, Pencil, Trash2, CheckSquare, Square } from 'lucide-react' // removed Paperclip
+import { CheckSquare, GripVertical, Pencil, Square, Trash2 } from 'lucide-react' // removed Paperclip
 import { useCallback, useEffect, useMemo } from 'react'
-import { useQueueStore } from '@/store/queue'
 import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
 import type { QueuedMessage } from '@/hooks/use-queued-messages'
-import { QueueEditForm } from './queue-edit-form'
 import { useDeleteQueuedMessage } from '@/hooks/use-queued-messages'
+import { cn } from '@/lib/utils'
+import { useQueueStore } from '@/store/queue'
+import { QueueEditForm } from './queue-edit-form'
 
 const EMPTY_ARRAY: string[] = []
 
 interface QueueItemProps {
   message: QueuedMessage
   conversationId: string
-  position: number  // 1-based position in the queue
+  position: number // 1-based position in the queue
 }
 
-export function QueueItem({ message, conversationId, position }: QueueItemProps) {
+export function QueueItem({
+  message,
+  conversationId,
+  position
+}: QueueItemProps) {
   // Individual selectors – each returns a stable value
   const mode = useQueueStore((s) => s.mode[conversationId] ?? 'view')
   const selectedIdsArray = useQueueStore(
@@ -29,7 +33,10 @@ export function QueueItem({ message, conversationId, position }: QueueItemProps)
   const setEditingId = useQueueStore((s) => s.setEditingId)
   const setIsDragging = useQueueStore((s) => s.setIsDragging)
 
-  const selectedIds = useMemo(() => new Set(selectedIdsArray), [selectedIdsArray])
+  const selectedIds = useMemo(
+    () => new Set(selectedIdsArray),
+    [selectedIdsArray]
+  )
   const deleteMutation = useDeleteQueuedMessage(conversationId)
 
   const {
@@ -38,7 +45,7 @@ export function QueueItem({ message, conversationId, position }: QueueItemProps)
     setNodeRef,
     transform,
     transition,
-    isDragging: isDraggingItem,
+    isDragging: isDraggingItem
   } = useSortable({ id: message.id })
 
   // Update global dragging state
@@ -48,7 +55,7 @@ export function QueueItem({ message, conversationId, position }: QueueItemProps)
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
+    transition
   }
 
   const isSelected = selectedIds.has(message.id)

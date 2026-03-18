@@ -33,7 +33,7 @@ interface SettingsState {
 
   // Default model (used when no profile exists or as fallback)
   defaultModelId: string
-  defaultProvider: string   // new
+  defaultProvider: string // new
   setDefaultModelId: (id: string) => void
   setDefaultProvider: (provider: string) => void
 
@@ -73,8 +73,8 @@ export const useSettingsStore = create<SettingsState>()(
         set({ notificationsEnabled: enabled }),
 
       // Default model
-      defaultModelId: 'glm-5:cloud',   // changed from claude-sonnet-4-5
-      defaultProvider: 'ollama',        // new
+      defaultModelId: 'glm-5:cloud', // changed from claude-sonnet-4-5
+      defaultProvider: 'ollama', // new
       setDefaultModelId: (id) => set({ defaultModelId: id }),
       setDefaultProvider: (provider) => set({ defaultProvider: provider }),
 

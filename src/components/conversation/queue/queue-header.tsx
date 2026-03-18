@@ -1,10 +1,11 @@
 // src/components/conversation/queue/queue-header.tsx
+
+import { ChevronDown, ChevronRight, Edit2, X } from 'lucide-react'
 import { useCallback, useMemo } from 'react'
 import { shallow } from 'zustand/shallow'
-import { ChevronDown, ChevronRight, Edit2, X } from 'lucide-react'
-import { useQueueStore } from '@/store/queue'
 import { Button } from '@/components/ui/button'
 import type { QueuedMessage } from '@/hooks/use-queued-messages'
+import { useQueueStore } from '@/store/queue'
 
 // Stable empty array – same reference on every render
 const EMPTY_ARRAY: string[] = []
@@ -23,7 +24,10 @@ export function QueueHeader({ conversationId, messages }: QueueHeaderProps) {
     (s) => s.selectedIds[conversationId] ?? EMPTY_ARRAY
   )
 
-  const selectedIds = useMemo(() => new Set(selectedIdsArray), [selectedIdsArray])
+  const selectedIds = useMemo(
+    () => new Set(selectedIdsArray),
+    [selectedIdsArray]
+  )
 
   const setExpanded = useQueueStore((s) => s.setExpanded)
   const setMode = useQueueStore((s) => s.setMode)

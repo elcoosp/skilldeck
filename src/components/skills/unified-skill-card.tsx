@@ -1,11 +1,11 @@
 // src/components/skills/unified-skill-card.tsx
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
-import type { UnifiedSkill } from '@/types/skills'
 import type { LintWarning } from '@/lib/bindings' // import LintWarning
-import { TrustBadge } from './trust-badge'
+import { cn } from '@/lib/utils'
 import { useUIStore } from '@/store/ui'
+import type { UnifiedSkill } from '@/types/skills'
+import { TrustBadge } from './trust-badge'
 
 interface Props {
   skill: UnifiedSkill
@@ -32,16 +32,25 @@ const STATUS_LABEL: Record<UnifiedSkill['status'], string> = {
   update_available: 'Update'
 }
 
-export function UnifiedSkillCard({ skill, onClick, onInstall, onUpdate, isSelected }: Props) {
-  const platformFeaturesEnabled = useUIStore(s => s.platformFeaturesEnabled)
+export function UnifiedSkillCard({
+  skill,
+  onClick,
+  onInstall,
+  onUpdate,
+  isSelected
+}: Props) {
+  const platformFeaturesEnabled = useUIStore((s) => s.platformFeaturesEnabled)
   const hasRegistryData = !!skill.registryData
   const securityScore = skill.registryData?.securityScore
   const qualityScore = skill.registryData?.qualityScore
 
   // Cast lintWarnings to LintWarning[] safely
-  const lintWarnings = (skill.registryData?.lintWarnings || []) as unknown as LintWarning[]
-  const errorCount = lintWarnings.filter(w => w.severity === 'error').length
-  const warningCount = lintWarnings.filter(w => w.severity === 'warning').length
+  const lintWarnings = (skill.registryData?.lintWarnings ||
+    []) as unknown as LintWarning[]
+  const errorCount = lintWarnings.filter((w) => w.severity === 'error').length
+  const warningCount = lintWarnings.filter(
+    (w) => w.severity === 'warning'
+  ).length
 
   return (
     <button
@@ -67,11 +76,11 @@ export function UnifiedSkillCard({ skill, onClick, onInstall, onUpdate, isSelect
           className={cn(
             'shrink-0 text-[10px] px-1.5 py-0',
             skill.status === 'installed' &&
-            'bg-primary/10 text-primary border-primary/20',
+              'bg-primary/10 text-primary border-primary/20',
             skill.status === 'local_only' &&
-            'bg-secondary text-secondary-foreground',
+              'bg-secondary text-secondary-foreground',
             skill.status === 'update_available' &&
-            'bg-amber-500/10 text-amber-600 border-amber-500/20'
+              'bg-amber-500/10 text-amber-600 border-amber-500/20'
           )}
         >
           {STATUS_LABEL[skill.status]}
@@ -93,12 +102,18 @@ export function UnifiedSkillCard({ skill, onClick, onInstall, onUpdate, isSelect
         <div className="flex items-center gap-2 shrink-0 ml-2">
           {/* Lint warning counts */}
           {errorCount > 0 && (
-            <span className="text-destructive font-medium" title={`${errorCount} error${errorCount > 1 ? 's' : ''}`}>
+            <span
+              className="text-destructive font-medium"
+              title={`${errorCount} error${errorCount > 1 ? 's' : ''}`}
+            >
               {errorCount} ⚠️
             </span>
           )}
           {warningCount > 0 && errorCount === 0 && (
-            <span className="text-amber-500 font-medium" title={`${warningCount} warning${warningCount > 1 ? 's' : ''}`}>
+            <span
+              className="text-amber-500 font-medium"
+              title={`${warningCount} warning${warningCount > 1 ? 's' : ''}`}
+            >
               {warningCount} ⚠️
             </span>
           )}
@@ -114,33 +129,34 @@ export function UnifiedSkillCard({ skill, onClick, onInstall, onUpdate, isSelect
       </div>
 
       {/* Action buttons */}
-      {(skill.status === 'available' || skill.status === 'update_available') && platformFeaturesEnabled && (
-        <div className="mt-2 flex justify-end gap-2">
-          {skill.status === 'available' && onInstall && (
-            <Button
-              size="xs"
-              onClick={(e) => {
-                e.stopPropagation()
-                onInstall(skill)
-              }}
-            >
-              Install
-            </Button>
-          )}
-          {skill.status === 'update_available' && onUpdate && (
-            <Button
-              size="xs"
-              variant="outline"
-              onClick={(e) => {
-                e.stopPropagation()
-                onUpdate(skill)
-              }}
-            >
-              Update
-            </Button>
-          )}
-        </div>
-      )}
+      {(skill.status === 'available' || skill.status === 'update_available') &&
+        platformFeaturesEnabled && (
+          <div className="mt-2 flex justify-end gap-2">
+            {skill.status === 'available' && onInstall && (
+              <Button
+                size="xs"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onInstall(skill)
+                }}
+              >
+                Install
+              </Button>
+            )}
+            {skill.status === 'update_available' && onUpdate && (
+              <Button
+                size="xs"
+                variant="outline"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onUpdate(skill)
+                }}
+              >
+                Update
+              </Button>
+            )}
+          </div>
+        )}
     </button>
   )
 }

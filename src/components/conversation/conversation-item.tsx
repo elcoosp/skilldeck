@@ -198,7 +198,9 @@ export function ConversationItem({
                 : 'opacity-0 group-hover:opacity-50'
             )}
             onClick={togglePin}
-            aria-label={conversation.pinned ? 'Unpin conversation' : 'Pin conversation'}
+            aria-label={
+              conversation.pinned ? 'Unpin conversation' : 'Pin conversation'
+            }
           >
             {conversation.pinned ? (
               <Pin className="size-3 fill-primary" />

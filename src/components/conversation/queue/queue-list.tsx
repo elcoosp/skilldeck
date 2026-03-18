@@ -1,28 +1,29 @@
 // src/components/conversation/queue/queue-list.tsx
-import { useEffect } from 'react'
+
 import {
-  DndContext,
   closestCenter,
+  DndContext,
+  type DragEndEvent,
   KeyboardSensor,
   PointerSensor,
   useSensor,
-  useSensors,
-  DragEndEvent,
+  useSensors
 } from '@dnd-kit/core'
 import {
   SortableContext,
   sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
+  verticalListSortingStrategy
 } from '@dnd-kit/sortable'
+import { useEffect } from 'react'
 import {
   useQueuedMessages,
-  useReorderQueuedMessages,
+  useReorderQueuedMessages
 } from '@/hooks/use-queued-messages'
-import { useQueueStore } from '@/store/queue'
 import { commands } from '@/lib/bindings'
+import { useQueueStore } from '@/store/queue'
+import { QueueItem } from './queue-item'
 import { QueuePauseIndicator } from './queue-pause-indicator'
 import { QueueSelectionToolbar } from './queue-selection-toolbar'
-import { QueueItem } from './queue-item'
 
 interface QueueListProps {
   conversationId: string
@@ -43,20 +44,24 @@ export function QueueList({ conversationId }: QueueListProps) {
 
   // Sync pause state to backend and trigger processing when unpaused
   useEffect(() => {
-    commands.setAutoSendPaused(conversationId, isPaused)
-      .catch(err => console.error('Failed to set auto-send pause:', err))
+    commands
+      .setAutoSendPaused(conversationId, isPaused)
+      .catch((err) => console.error('Failed to set auto-send pause:', err))
 
     // When unpaused, trigger processing of queued messages
     if (!isPaused) {
-      commands.processQueuedMessages(conversationId)
-        .catch(err => console.error('Failed to process queued messages:', err))
+      commands
+        .processQueuedMessages(conversationId)
+        .catch((err) =>
+          console.error('Failed to process queued messages:', err)
+        )
     }
   }, [conversationId, isPaused])
 
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
+      coordinateGetter: sortableKeyboardCoordinates
     })
   )
 
@@ -81,7 +86,9 @@ export function QueueList({ conversationId }: QueueListProps) {
   }
 
   if (isLoading) {
-    return <div className="p-3 text-xs text-muted-foreground">Loading queue...</div>
+    return (
+      <div className="p-3 text-xs text-muted-foreground">Loading queue...</div>
+    )
   }
 
   if (messages.length === 0) {

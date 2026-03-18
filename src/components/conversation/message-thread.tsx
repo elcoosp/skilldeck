@@ -41,7 +41,9 @@ export function MessageThread({
 
   return (
     <ScrollArea ref={scrollRef} className="h-full overflow-hidden">
-      <AnimatePresence mode="sync"> {/* changed from "wait" to "sync" to avoid blank screen on conversation switch */}
+      <AnimatePresence mode="sync">
+        {' '}
+        {/* changed from "wait" to "sync" to avoid blank screen on conversation switch */}
         {showLoading && (
           <motion.div
             key="loading"
@@ -57,7 +59,6 @@ export function MessageThread({
             </div>
           </motion.div>
         )}
-
         {showEmpty && (
           <motion.div
             key="empty"
@@ -80,7 +81,6 @@ export function MessageThread({
             </p>
           </motion.div>
         )}
-
         {showList && (
           <motion.div
             key="list"

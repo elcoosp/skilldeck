@@ -75,7 +75,13 @@ export function useUninstallSkill() {
 
 export function useDiffSkillVersions() {
   return useMutation({
-    mutationFn: async ({ localPath, registryContent }: { localPath: string; registryContent: string }) => {
+    mutationFn: async ({
+      localPath,
+      registryContent
+    }: {
+      localPath: string
+      registryContent: string
+    }) => {
       const res = await commands.diffSkillVersions(localPath, registryContent)
       if (res.status === 'error') throw new Error(res.error)
       return res.data
@@ -86,7 +92,13 @@ export function useDiffSkillVersions() {
 export function useDisableRule() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ ruleId, scope }: { ruleId: string; scope: 'global' | 'workspace' }) => {
+    mutationFn: async ({
+      ruleId,
+      scope
+    }: {
+      ruleId: string
+      scope: 'global' | 'workspace'
+    }) => {
       const res = await commands.disableLintRule(ruleId, scope)
       if (res.status === 'error') throw new Error(res.error)
     },

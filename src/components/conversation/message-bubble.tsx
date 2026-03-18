@@ -125,7 +125,7 @@ export function MessageBubble({
   // }, [message.metadata, isUser])
 
   // Extract context items from metadata
-  const contextItems = message.context_items || [];
+  const contextItems = message.context_items || []
 
   // Check if this is a subagent spawn message
   if (isAssistant && !isStreaming && message.content) {
@@ -136,7 +136,7 @@ export function MessageBubble({
           <SubagentCard
             stepName={data.task || 'Subagent'}
             status="running"
-            onOpen={() => { }} // TODO: navigate to subagent conversation
+            onOpen={() => {}} // TODO: navigate to subagent conversation
           />
         )
       }
@@ -173,7 +173,8 @@ export function MessageBubble({
             </span>
             {item.type === 'folder' && (
               <span className="text-[10px] opacity-75">
-                ({item.scope === 'deep' ? 'All' : 'Top'}, {item.file_count} files)
+                ({item.scope === 'deep' ? 'All' : 'Top'}, {item.file_count}{' '}
+                files)
               </span>
             )}
           </div>
@@ -248,7 +249,9 @@ export function MessageBubble({
                   type="button"
                   onClick={() => setCollapsed((v) => !v)}
                   className="p-0.5 hover:bg-muted-foreground/20 rounded transition-colors"
-                  aria-label={isCollapsed ? 'Expand message' : 'Collapse message'}
+                  aria-label={
+                    isCollapsed ? 'Expand message' : 'Collapse message'
+                  }
                   whileTap={{ scale: 0.9 }}
                 >
                   <motion.div
@@ -340,24 +343,27 @@ export function MessageBubble({
 
         {/* Copy button – only shown when not collapsed, fades in/out */}
         <AnimatePresence>
-          {!isStreaming && !syntheticStreaming && message.content && !isCollapsed && (
-            <motion.button
-              key="copy-button"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
-              onClick={copyMessage}
-              className="mt-1 p-1 text-muted-foreground hover:text-foreground transition-colors bg-transparent border-0 shadow-none"
-              aria-label="Copy message"
-            >
-              {copied ? (
-                <Check className="size-3.5 text-green-500" />
-              ) : (
-                <Copy className="size-3.5" />
-              )}
-            </motion.button>
-          )}
+          {!isStreaming &&
+            !syntheticStreaming &&
+            message.content &&
+            !isCollapsed && (
+              <motion.button
+                key="copy-button"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                onClick={copyMessage}
+                className="mt-1 p-1 text-muted-foreground hover:text-foreground transition-colors bg-transparent border-0 shadow-none"
+                aria-label="Copy message"
+              >
+                {copied ? (
+                  <Check className="size-3.5 text-green-500" />
+                ) : (
+                  <Copy className="size-3.5" />
+                )}
+              </motion.button>
+            )}
         </AnimatePresence>
       </div>
     </motion.div>

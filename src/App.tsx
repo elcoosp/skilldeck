@@ -8,11 +8,11 @@ import { useEffect } from 'react'
 import './App.css'
 import { AppShell } from '@/components/layout/app-shell'
 import { OnboardingWizard } from '@/components/overlays/onboarding-wizard'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { useMcpEvents } from '@/hooks/use-mcp-events'
 import { useSubagentEvents } from '@/hooks/use-subagent-events'
 import { useSettingsStore } from '@/store/settings'
 import { useUIStore } from '@/store/ui'
-import { TooltipProvider } from '@/components/ui/tooltip'
 
 const queryClient = new QueryClient({
   defaultOptions: {

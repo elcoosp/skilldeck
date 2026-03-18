@@ -1,12 +1,13 @@
 // src/components/conversation/queue/queue-selection-toolbar.tsx
-import { useMemo, useCallback } from 'react'
-import { CheckSquare, Square, Trash2, Combine } from 'lucide-react'
-import { useQueueStore } from '@/store/queue'
+
+import { CheckSquare, Combine, Square, Trash2 } from 'lucide-react'
+import { useCallback, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   useDeleteQueuedMessage,
-  useMergeQueuedMessages,
+  useMergeQueuedMessages
 } from '@/hooks/use-queued-messages'
+import { useQueueStore } from '@/store/queue'
 
 const EMPTY_ARRAY: string[] = []
 
@@ -17,7 +18,7 @@ interface QueueSelectionToolbarProps {
 
 export function QueueSelectionToolbar({
   conversationId,
-  messageIds,
+  messageIds
 }: QueueSelectionToolbarProps) {
   const selectedIdsArray = useQueueStore(
     (s) => s.selectedIds[conversationId] ?? EMPTY_ARRAY
@@ -29,8 +30,12 @@ export function QueueSelectionToolbar({
   const deleteMutation = useDeleteQueuedMessage(conversationId)
   const mergeMutation = useMergeQueuedMessages(conversationId)
 
-  const selectedSet = useMemo(() => new Set(selectedIdsArray), [selectedIdsArray])
-  const allSelected = messageIds.length > 0 && selectedSet.size === messageIds.length
+  const selectedSet = useMemo(
+    () => new Set(selectedIdsArray),
+    [selectedIdsArray]
+  )
+  const allSelected =
+    messageIds.length > 0 && selectedSet.size === messageIds.length
   const someSelected = selectedSet.size > 0
 
   const handleSelectAll = useCallback(() => {
@@ -55,7 +60,7 @@ export function QueueSelectionToolbar({
       onSuccess: () => {
         clearSelected(conversationId)
         setMode(conversationId, 'view')
-      },
+      }
     })
   }, [selectedSet, mergeMutation, clearSelected, setMode, conversationId])
 

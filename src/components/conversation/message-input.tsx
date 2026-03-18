@@ -25,7 +25,7 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   Tooltip,
   TooltipContent,
-  TooltipTrigger,
+  TooltipTrigger
 } from '@/components/ui/tooltip'
 import { useCreateConversation } from '@/hooks/use-conversations'
 import { useSendMessage } from '@/hooks/use-messages'
@@ -36,7 +36,7 @@ import {
 } from '@/hooks/use-queued-messages'
 import { useUnifiedSkills } from '@/hooks/use-unified-skills'
 import { useWorkspaces } from '@/hooks/use-workspaces'
-import type { RegistrySkillData } from '@/lib/bindings'
+import type { ContextItem, RegistrySkillData } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
 import type { UUID } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -49,7 +49,6 @@ import type {
   TriggerState
 } from '@/types/chat-context'
 import type { UnifiedSkill } from '@/types/skills'
-import type { ContextItem } from '@/lib/bindings'
 
 interface MessageInputProps {
   conversationId: UUID
@@ -456,7 +455,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
           type: 'file',
           path: item.data.path,
           name: item.data.name,
-          size: item.data.size ? String(item.data.size) : null, // convert to string | null
+          size: item.data.size ? String(item.data.size) : null // convert to string | null
         }
       }
       if (item.type === 'folder') {
@@ -465,13 +464,13 @@ export function MessageInput({ conversationId }: MessageInputProps) {
           path: item.data.path,
           name: item.data.name,
           scope: item.data.scope,
-          file_count: String(item.data.fileCount), // convert to string
+          file_count: String(item.data.fileCount) // convert to string
         }
       }
       // skill
       return {
         type: 'skill',
-        name: item.data.name,
+        name: item.data.name
       }
     })
 
@@ -485,7 +484,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
       // Pass only content and contextItems; conversationId is already known by the mutation
       await sendMutation.mutateAsync({
         content: finalContent,
-        contextItems: metadataItems.length > 0 ? metadataItems : undefined,
+        contextItems: metadataItems.length > 0 ? metadataItems : undefined
       })
     } catch (err) {
       toast.error(`Failed to send message: ${err}`)
@@ -505,7 +504,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
     clearDraft,
     clearItems,
     items,
-    sendMutation,
+    sendMutation
   ])
 
   // ── Render ────────────────────────────────────────────────────────────────

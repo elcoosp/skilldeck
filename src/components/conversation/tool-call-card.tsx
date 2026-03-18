@@ -10,7 +10,16 @@
  * - Expandable detail view.
  */
 
-import { ChevronDown, ChevronRight, FileText, FilePen, Terminal, Globe, Search, Wrench } from 'lucide-react'
+import {
+  ChevronDown,
+  ChevronRight,
+  FilePen,
+  FileText,
+  Globe,
+  Search,
+  Terminal,
+  Wrench
+} from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -33,11 +42,14 @@ const TOOL_ICONS: Record<string, React.ElementType> = {
   http_post: Globe,
   search: Search,
   web_search: Search,
-  default: Wrench,
+  default: Wrench
 }
 
 // Human-readable description synthesizer
-function synthesizeDescription(name: string, args: Record<string, unknown>): string {
+function synthesizeDescription(
+  name: string,
+  args: Record<string, unknown>
+): string {
   const lowerName = name.toLowerCase()
 
   if (lowerName.includes('read_file') || lowerName.includes('readfile')) {
@@ -48,7 +60,11 @@ function synthesizeDescription(name: string, args: Record<string, unknown>): str
     const path = args['path'] ?? args['filename'] ?? args['file']
     return `Write to: ${path}`
   }
-  if (lowerName.includes('run_shell') || lowerName.includes('exec') || lowerName.includes('shell')) {
+  if (
+    lowerName.includes('run_shell') ||
+    lowerName.includes('exec') ||
+    lowerName.includes('shell')
+  ) {
     const cmd = args['command'] ?? args['cmd'] ?? ''
     return `Run: ${cmd}`
   }
