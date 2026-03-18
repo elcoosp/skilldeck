@@ -6,6 +6,7 @@ pub mod core;
 pub mod db;
 pub mod email;
 pub mod error;
+pub mod feedback;
 pub mod growth;
 pub mod middleware;
 pub mod preferences;

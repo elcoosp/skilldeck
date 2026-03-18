@@ -1,15 +1,15 @@
 //! Axum HTTP handlers for the skills registry API.
 
+use crate::app::AppState;
+use crate::skills::models::{Entity as Skills, Pagination, SkillResponse};
 use axum::{
+    Json,
     extract::{Path, Query, State},
     http::StatusCode,
-    Json,
 };
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, QueryOrder, QuerySelect};
 use std::sync::Arc;
 use uuid::Uuid;
-
-use crate::skills::models::{Entity as Skills, Pagination, SkillResponse};
 
 pub type AppState = Arc<crate::AppState>;
 
@@ -60,8 +60,8 @@ pub async fn get_skill(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<SkillResponse>, (StatusCode, String)> {
-    let uuid = Uuid::parse_str(&id)
-        .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid UUID".to_string()))?;
+    let uuid =
+        Uuid::parse_str(&id).map_err(|_| (StatusCode::BAD_REQUEST, "Invalid UUID".to_string()))?;
 
     let skill = Skills::find_by_id(uuid)
         .one(&state.db)

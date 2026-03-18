@@ -14,12 +14,7 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(Skills::Table)
                     .if_not_exists()
-                    .col(
-                        ColumnDef::new(Skills::Id)
-                            .uuid()
-                            .not_null()
-                            .primary_key(),
-                    )
+                    .col(ColumnDef::new(Skills::Id).uuid().not_null().primary_key())
                     .col(ColumnDef::new(Skills::Name).string().not_null())
                     .col(ColumnDef::new(Skills::Description).text().not_null())
                     .col(ColumnDef::new(Skills::Source).string().not_null())
@@ -29,28 +24,15 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Skills::License).string())
                     .col(ColumnDef::new(Skills::Compatibility).text())
                     .col(ColumnDef::new(Skills::AllowedTools).text())
-                    .col(
-                        ColumnDef::new(Skills::ContentHash)
-                            .string()
-                            .not_null(),
-                    )
+                    .col(ColumnDef::new(Skills::ContentHash).string().not_null())
                     .col(ColumnDef::new(Skills::Content).text().not_null())
                     .col(ColumnDef::new(Skills::LintWarnings).json_binary())
                     .col(ColumnDef::new(Skills::Tags).json_binary())
                     .col(ColumnDef::new(Skills::Category).string())
-                    .col(ColumnDef::new(Skills::Embedding).blob(BlobSize::Long))
+                    .col(ColumnDef::new(Skills::Embedding).blob())
                     // UX: Trust scores used by TrustBadge component
-                    .col(
-                        ColumnDef::new(Skills::SecurityScore)
-                            .integer()
-                            .default(5),
-                    )
-                    .col(
-                        ColumnDef::new(Skills::QualityScore)
-                            .integer()
-                            .default(5),
-                    )
-                    /// "author" | "llm_enrichment" — drives AI tag badge in UI
+                    .col(ColumnDef::new(Skills::SecurityScore).integer().default(5))
+                    .col(ColumnDef::new(Skills::QualityScore).integer().default(5))
                     .col(
                         ColumnDef::new(Skills::MetadataSource)
                             .string()
@@ -96,20 +78,20 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .primary_key(),
                     )
-                    .col(
-                        ColumnDef::new(SkillSources::SourceType)
-                            .string()
-                            .not_null(),
-                    ) // "github_org" | "github_repo" | "url"
+                    .col(ColumnDef::new(SkillSources::SourceType).string().not_null()) // "github_org" | "github_repo" | "url"
                     .col(
                         ColumnDef::new(SkillSources::Url)
                             .string()
                             .not_null()
-                            .unique(),
+                            .unique_key(),
                     )
                     .col(ColumnDef::new(SkillSources::Label).string())
                     .col(ColumnDef::new(SkillSources::LastCrawledAt).timestamp_with_time_zone())
-                    .col(ColumnDef::new(SkillSources::IsEnabled).boolean().default(true))
+                    .col(
+                        ColumnDef::new(SkillSources::IsEnabled)
+                            .boolean()
+                            .default(true),
+                    )
                     .col(
                         ColumnDef::new(SkillSources::CreatedAt)
                             .timestamp_with_time_zone()

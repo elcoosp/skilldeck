@@ -23,6 +23,8 @@ pub struct Config {
     /// From address used for emails.
     #[serde(default = "default_from_email")]
     pub from_email: String,
+    #[serde(default)]
+    pub team_emails: Vec<String>,
 }
 
 fn default_db_url() -> String {

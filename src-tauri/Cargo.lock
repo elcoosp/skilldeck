@@ -7738,6 +7738,7 @@ dependencies = [
  "chrono",
  "clap",
  "dirs",
+ "dirs-next",
  "regex",
  "serde",
  "serde_json",

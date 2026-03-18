@@ -1,9 +1,8 @@
 //! Axum router wiring and shared application state.
 
 use axum::{
-    middleware,
+    Router, middleware,
     routing::{delete, get, post, put},
-    Router,
 };
 use sea_orm::DatabaseConnection;
 use std::sync::Arc;
@@ -14,6 +13,7 @@ use crate::{
     config::Config,
     core::handlers as core_handlers,
     email::EmailServiceBox,
+    feedback,
     growth::{handlers as growth_handlers, nudge_engine},
     preferences::handlers as pref_handlers,
 };
@@ -60,6 +60,17 @@ fn build_router(state: Arc<AppState>) -> Router {
 
     // Authenticated routes — wrapped with auth middleware.
     let authenticated = Router::new()
+        // Feedback
+        .route("/api/feedback", get(feedback::handlers::list_feedback))
+        .route("/api/feedback/:id", get(feedback::handlers::get_feedback))
+        .route(
+            "/api/feedback/:id",
+            put(feedback::handlers::update_feedback),
+        )
+        .route(
+            "/api/feedback/:id/comments",
+            post(feedback::handlers::add_comment),
+        )
         // Preferences
         .route("/api/preferences", get(pref_handlers::get_preferences))
         .route("/api/preferences", put(pref_handlers::update_preferences))
@@ -105,10 +116,7 @@ fn build_router(state: Arc<AppState>) -> Router {
         ));
 
     // Email verification — token in query string, no bearer required.
-    let verify = Router::new().route(
-        "/api/preferences/verify",
-        get(pref_handlers::verify_email),
-    );
+    let verify = Router::new().route("/api/preferences/verify", get(pref_handlers::verify_email));
 
     Router::new()
         .merge(public)
