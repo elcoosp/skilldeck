@@ -52,7 +52,7 @@ pub async fn run() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn build_router(state: Arc<AppState>) -> Router {
+pub fn build_router(state: Arc<AppState>) -> Router {
     // Auth-free routes.
     let public = Router::new()
         .route("/health", get(health))
