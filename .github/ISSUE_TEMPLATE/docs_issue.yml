@@ -1,0 +1,45 @@
+name: 📚 Documentation Issue
+description: Report a problem or suggest an improvement for the documentation
+title: "[Docs]: "
+labels: ["documentation", "triage"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping us improve the documentation! Please search existing issues before creating a new one.
+
+  - type: input
+    id: page
+    attributes:
+      label: Page URL
+      description: Which page does this issue relate to?
+      placeholder: "https://docs.skilldeck.dev/en/latest/..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What's wrong or missing?
+      description: Describe the issue clearly.
+      placeholder: "The installation guide says to run `x` but that doesn't work on macOS..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested improvement
+      description: If you have a specific suggestion for how to fix it, let us know.
+      placeholder: "Add a note about macOS permissions..."
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched the existing documentation issues
+          required: true
+        - label: I am willing to submit a pull request to fix this (optional)
+          required: false

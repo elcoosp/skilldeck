@@ -6,3 +6,6 @@ contact_links:
   - name: 💬 Discussions
     url: https://github.com/elcoosp/skilldeck/discussions
     about: Ask questions and discuss with the community
+  - name: 📝 Contribute to Docs
+    url: https://github.com/elcoosp/skilldeck/blob/main/CONTRIBUTING.md#contributing-to-documentation
+    about: See how to help improve the documentation
