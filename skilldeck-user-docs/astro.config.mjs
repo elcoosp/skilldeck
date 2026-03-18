@@ -20,12 +20,28 @@ export default defineConfig({
         en: { label: 'English', lang: 'en' },
         fr: { label: 'Français', lang: 'fr' },
       },
-      // We'll generate sidebar dynamically via custom component, but can also use autogenerate
-      sidebar: [], // will be handled by custom sidebar
+      // Sidebar – version groups with autogenerate relative to locale root
+      sidebar: [
+        {
+          label: 'Latest',
+          badge: { text: 'current', variant: 'tip' },
+          autogenerate: { directory: 'latest' },
+          collapsed: false,
+        },
+        {
+          label: 'v0.2',
+          autogenerate: { directory: 'v0.2' },
+          collapsed: true,
+        },
+        {
+          label: 'v0.1',
+          autogenerate: { directory: 'v0.1' },
+          collapsed: true,
+        },
+      ],
       components: {
         Head: './src/components/Head.astro',
         Header: './src/components/Header.astro',
-        Sidebar: './src/components/Sidebar.astro',
       },
       customCss: ['./src/styles/custom.css'],
     }),
