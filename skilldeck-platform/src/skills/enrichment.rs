@@ -16,6 +16,7 @@ struct EnrichmentResponse {
     tags: Vec<String>,
     category: String,
     quality_score: u8,
+    #[allow(dead_code)]
     summary: Option<String>,
 }
 

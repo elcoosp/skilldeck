@@ -62,13 +62,13 @@ fn build_router(state: Arc<AppState>) -> Router {
     let authenticated = Router::new()
         // Feedback
         .route("/api/feedback", get(feedback::handlers::list_feedback))
-        .route("/api/feedback/:id", get(feedback::handlers::get_feedback))
+        .route("/api/feedback/{id}", get(feedback::handlers::get_feedback))
         .route(
-            "/api/feedback/:id",
+            "/api/feedback/{id}",
             put(feedback::handlers::update_feedback),
         )
         .route(
-            "/api/feedback/:id/comments",
+            "/api/feedback/{id}/comments",
             post(feedback::handlers::add_comment),
         )
         // Preferences
@@ -96,7 +96,7 @@ fn build_router(state: Arc<AppState>) -> Router {
             get(growth_handlers::get_referral_stats),
         )
         .route(
-            "/api/growth/referral/validate/:code",
+            "/api/growth/referral/validate/{code}",
             get(growth_handlers::validate_referral_code),
         )
         // Growth — nudges
@@ -105,7 +105,7 @@ fn build_router(state: Arc<AppState>) -> Router {
             get(growth_handlers::get_pending_nudges),
         )
         .route(
-            "/api/growth/nudges/:id/delivered",
+            "/api/growth/nudges/{id}/delivered",
             post(growth_handlers::mark_nudge_delivered),
         )
         // Growth — activity events

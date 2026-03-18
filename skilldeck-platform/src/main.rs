@@ -6,7 +6,13 @@
 
 use anyhow::Context;
 use std::sync::Arc;
-use tracing::{error, info}; // maybe not needed but could be helpful
+use tracing::{error, info};
+
+use skilldeck_platform::app;
+use skilldeck_platform::config::Config;
+use skilldeck_platform::db;
+use skilldeck_platform::email;
+use skilldeck_platform::skills;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -20,14 +26,18 @@ async fn main() -> anyhow::Result<()> {
         )
         .init();
 
-    let config = Arc::new(crate::config::Config::load()?);
-    let db = crate::db::connect(&config.database_url).await?;
+    let config = Arc::new(Config::from_env()?);
+    let db = db::connect(&config.database_url).await?;
 
     // Run pending migrations.
-    crate::db::run_migrations(&db).await?;
+    db::run_migrations(&db).await?;
 
-    let state = Arc::new(crate::AppState {
+    // Build email service
+    let email = email::build_service(&config);
+
+    let state = Arc::new(app::AppState {
         db: db.clone(),
+        email,
         config: Arc::clone(&config),
     });
 
@@ -39,7 +49,7 @@ async fn main() -> anyhow::Result<()> {
             loop {
                 interval.tick().await;
                 info!("Running lint cron…");
-                if let Err(e) = crate::skills::lint_cron::run_lint_cron(&db_clone).await {
+                if let Err(e) = skills::lint_cron::run_lint_cron(&db_clone).await {
                     error!("Lint cron failed: {}", e);
                 }
             }
@@ -54,7 +64,7 @@ async fn main() -> anyhow::Result<()> {
             // Small delay so the server is fully up before enrichment starts.
             tokio::time::sleep(std::time::Duration::from_secs(10)).await;
             info!("Starting initial LLM enrichment pass…");
-            match crate::skills::enrichment::enrich_pending_skills(&db_clone, &ollama_host).await {
+            match skills::enrichment::enrich_pending_skills(&db_clone, &ollama_host).await {
                 Ok(n) => info!("Enriched {} skill(s)", n),
                 Err(e) => error!("Enrichment failed: {}", e),
             }
@@ -66,7 +76,7 @@ async fn main() -> anyhow::Result<()> {
         .listen_addr
         .parse()
         .context("Failed to parse listen address")?;
-    let router = crate::app::build_router(Arc::clone(&state));
+    let router = app::build_router(Arc::clone(&state));
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     info!("SkillDeck Platform listening on {}", addr);
     axum::serve(listener, router).await?;

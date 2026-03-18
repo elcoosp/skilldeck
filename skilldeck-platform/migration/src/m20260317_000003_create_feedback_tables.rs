@@ -15,11 +15,7 @@ impl MigrationTrait for Migration {
                     .table(Feedback::Table)
                     .if_not_exists()
                     .col(
-                        ColumnDef::new(Feedback::Id)
-                            .uuid()
-                            .not_null()
-                            .primary_key()
-                            .default(PgFunc::gen_random_uuid()), // PostgreSQL; adjust for SQLite
+                        ColumnDef::new(Feedback::Id).uuid().not_null().primary_key(), // No default – generate UUID in Rust
                     )
                     .col(ColumnDef::new(Feedback::Source).string().not_null())
                     .col(ColumnDef::new(Feedback::SourceId).string())
@@ -29,7 +25,7 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Feedback::Url).text())
                     .col(
                         ColumnDef::new(Feedback::CreatedAt)
-                            .timestamp_with_time_zone()
+                            .timestamp() // SQLite compatible
                             .not_null(),
                     )
                     .col(
@@ -39,7 +35,7 @@ impl MigrationTrait for Migration {
                             .default("new"),
                     )
                     .col(ColumnDef::new(Feedback::AssignedTo).string())
-                    .col(ColumnDef::new(Feedback::Tags).array(ColumnType::Text))
+                    .col(ColumnDef::new(Feedback::Tags).json()) // Store as JSON
                     .col(ColumnDef::new(Feedback::Metadata).json())
                     .to_owned(),
             )
@@ -55,8 +51,7 @@ impl MigrationTrait for Migration {
                         ColumnDef::new(FeedbackComment::Id)
                             .uuid()
                             .not_null()
-                            .primary_key()
-                            .default(PgFunc::gen_random_uuid()),
+                            .primary_key(), // No default
                     )
                     .col(
                         ColumnDef::new(FeedbackComment::FeedbackId)
@@ -67,7 +62,7 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(FeedbackComment::Comment).text().not_null())
                     .col(
                         ColumnDef::new(FeedbackComment::CreatedAt)
-                            .timestamp_with_time_zone()
+                            .timestamp()
                             .not_null(),
                     )
                     .foreign_key(
