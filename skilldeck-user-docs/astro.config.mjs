@@ -30,12 +30,12 @@ export default defineConfig({
         },
         {
           label: 'v0.2',
-          autogenerate: { directory: 'v0.2' },
+          autogenerate: { directory: 'v0-2' },
           collapsed: true,
         },
         {
           label: 'v0.1',
-          autogenerate: { directory: 'v0.1' },
+          autogenerate: { directory: 'v0-1' },
           collapsed: true,
         },
       ],
