@@ -53,6 +53,7 @@ export default defineConfig({
       ],
       components: {
         Search: './src/components/Search.astro',
+        Head: './src/components/Head.astro',
       },
       customCss: [
         './src/styles/custom.css',
