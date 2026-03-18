@@ -8,6 +8,11 @@ export default defineConfig({
     // ✅ Starlight must come BEFORE mdx so its expressive‑code plugin runs first
     starlight({
       title: 'SkillDeck Documentation',
+      defaultLocale: 'en',
+      locales: {
+        en: { label: 'English', lang: 'en' },
+        fr: { label: 'Français', lang: 'fr' },
+      },
       logo: {
         src: './src/assets/logo.svg',
         replacesTitle: true,
