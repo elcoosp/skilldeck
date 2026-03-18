@@ -12,15 +12,13 @@
 //   .skill-card-enter {
 //     animation: skill-card-in 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
 //   }
-//
-// If you'd rather keep it co-located, the <style> tag below injects it once.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { motion } from 'framer-motion'
 import { AlertCircle, RefreshCw, Search } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useDebounce } from 'use-debounce'
 import { useUnifiedSkills } from '@/hooks/use-unified-skills'
 import { commands } from '@/lib/bindings'
@@ -28,6 +26,8 @@ import { cn } from '@/lib/utils'
 import type { UnifiedSkill } from '@/types/skills'
 import { SkillDetailPanel } from './skill-detail-panel'
 import { UnifiedSkillCard } from './unified-skill-card'
+import { PlatformStatusBanner } from './platform-status-banner'
+import { useUIStore } from '@/store/ui'
 
 // Responsive column count based on container width
 const BREAKPOINTS = {
@@ -65,6 +65,7 @@ const ROW_HEIGHT_ESTIMATE = 164 // px
 
 export function UnifiedSkillList() {
   const [search, setSearch] = useState('')
+  const [category, setCategory] = useState('all')
   const [debouncedSearch] = useDebounce(search, 300)
   const [selected, setSelected] = useState<UnifiedSkill | null>(null)
   const [isMeasured, setIsMeasured] = useState(false)
@@ -76,6 +77,21 @@ export function UnifiedSkillList() {
 
   const { unifiedSkills, isLoading, installedCount, registryError } =
     useUnifiedSkills({ search: debouncedSearch || undefined })
+
+  // Compute categories
+  const categories = useMemo(() => {
+    const cats = new Set<string>()
+    unifiedSkills.forEach(skill => {
+      if (skill.registryData?.category) cats.add(skill.registryData.category)
+    })
+    return ['all', ...Array.from(cats).sort()]
+  }, [unifiedSkills])
+
+  // Filter by category
+  const filteredSkills = useMemo(() => {
+    if (category === 'all') return unifiedSkills
+    return unifiedSkills.filter(s => s.registryData?.category === category)
+  }, [unifiedSkills, category])
 
   const qc = useQueryClient()
   const syncMutation = useMutation({
@@ -89,9 +105,13 @@ export function UnifiedSkillList() {
     }
   })
 
+  const platformFeaturesEnabled = useUIStore(s => s.platformFeaturesEnabled)
+  const setSettingsTab = useUIStore(s => s.setSettingsTab)
+  const setSettingsOpen = useUIStore(s => s.setSettingsOpen)
+
   const parentRef = useRef<HTMLDivElement>(null)
 
-  const rowCount = Math.ceil(unifiedSkills.length / columns)
+  const rowCount = Math.ceil(filteredSkills.length / columns)
 
   // measureElement stabilises row heights so the virtualizer doesn't
   // re-measure on every scroll tick, which was causing the flash.
@@ -118,27 +138,40 @@ export function UnifiedSkillList() {
   })
 
   // Only set isMeasured once to prevent constant rerenders
-  // biome-ignore lint/correctness/useExhaustiveDependencies:ok
   useEffect(() => {
     if (
       !isMeasuredRef.current &&
       rowVirtualizer.getTotalSize() > 0 &&
-      unifiedSkills.length > 0
+      filteredSkills.length > 0
     ) {
       isMeasuredRef.current = true
       setIsMeasured(true)
     }
-  }, [rowVirtualizer.getTotalSize(), unifiedSkills.length])
+  }, [rowVirtualizer.getTotalSize(), filteredSkills.length])
 
   // Keep selected skill in sync if data refreshes
   const resolvedSelected = selected
-    ? (unifiedSkills.find((s) => s.id === selected.id) ?? selected)
+    ? (filteredSkills.find((s) => s.id === selected.id) ?? selected)
     : null
+
+  const handleEnablePlatform = () => {
+    setSettingsTab('platform')
+    setSettingsOpen(true)
+  }
 
   return (
     <div className="flex h-full min-h-0" ref={containerRef}>
       {/* ── Main area ─────────────────────────────────────────────────────── */}
       <div className="flex flex-col flex-1 min-w-0 h-full">
+        {/* Platform status banner */}
+        <div className="px-5 pt-5">
+          <PlatformStatusBanner
+            variant={!platformFeaturesEnabled ? 'disabled' : registryError ? 'error' : null}
+            onEnable={handleEnablePlatform}
+            onRetry={() => syncMutation.mutate()}
+          />
+        </div>
+
         {/* Toolbar */}
         <div className="px-5 pt-5 pb-3 border-b border-border/50 shrink-0 space-y-3">
           <div className="flex items-start justify-between gap-3">
@@ -148,7 +181,7 @@ export function UnifiedSkillList() {
               </h1>
               {!isLoading && (
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {installedCount} installed · {unifiedSkills.length} total
+                  {installedCount} installed · {filteredSkills.length} total
                   {registryError && (
                     <span className="ml-2 text-amber-500">
                       (registry offline)
@@ -160,13 +193,14 @@ export function UnifiedSkillList() {
 
             <button
               type="button"
-              title="Sync registry"
+              title={!platformFeaturesEnabled ? "Enable platform to sync" : "Sync registry"}
               onClick={() => syncMutation.mutate()}
-              disabled={syncMutation.isPending}
+              disabled={!platformFeaturesEnabled || syncMutation.isPending}
               className={cn(
                 'h-7 w-7 flex items-center justify-center rounded-md',
                 'text-muted-foreground hover:text-foreground hover:bg-muted',
-                'transition-colors shrink-0 mt-0.5'
+                'transition-colors shrink-0 mt-0.5',
+                !platformFeaturesEnabled && 'opacity-50 cursor-not-allowed'
               )}
             >
               <RefreshCw
@@ -178,20 +212,33 @@ export function UnifiedSkillList() {
             </button>
           </div>
 
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Search skills…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className={cn(
-                'w-full h-8 pl-8 pr-3 rounded-md border border-input bg-background',
-                'text-sm placeholder:text-muted-foreground',
-                'focus:outline-none focus:ring-1 focus:ring-ring'
-              )}
-            />
+          {/* Search and category filter row */}
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search skills…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className={cn(
+                  'w-full h-8 pl-8 pr-3 rounded-md border border-input bg-background',
+                  'text-sm placeholder:text-muted-foreground',
+                  'focus:outline-none focus:ring-1 focus:ring-ring'
+                )}
+              />
+            </div>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="h-8 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              {categories.map(cat => (
+                <option key={cat} value={cat}>
+                  {cat === 'all' ? 'All categories' : cat}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -214,7 +261,7 @@ export function UnifiedSkillList() {
               </p>
             </div>
           </div>
-        ) : unifiedSkills.length === 0 ? (
+        ) : filteredSkills.length === 0 ? (
           <EmptyState search={search} hasRegistryError={!!registryError} />
         ) : (
           <div
@@ -232,7 +279,7 @@ export function UnifiedSkillList() {
             >
               {rowVirtualizer.getVirtualItems().map((virtualRow) => {
                 const startIdx = virtualRow.index * columns
-                const rowItems = unifiedSkills.slice(
+                const rowItems = filteredSkills.slice(
                   startIdx,
                   startIdx + columns
                 )
@@ -279,13 +326,15 @@ export function UnifiedSkillList() {
                               prev?.id === s.id ? null : s
                             )
                           }
+                          onInstall={() => setSelected(s)}
+                          onUpdate={() => setSelected(s)}
                         />
                       </motion.div>
                     ))}
                     {/* Pad incomplete last row */}
                     {Array.from({
                       length: columns - rowItems.length
-                    }).map((i) => (
+                    }).map((_, i) => (
                       <div key={`pad-${i}`} />
                     ))}
                   </div>

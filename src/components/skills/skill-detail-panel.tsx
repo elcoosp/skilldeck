@@ -1,14 +1,22 @@
 // src/components/skills/skill-detail-panel.tsx
 // Side panel shown when a unified skill card is selected.
-// Supports install, uninstall, open-folder and sync actions.
+// Supports install, uninstall, open-folder, sync, lint warnings, conflict resolution,
+// blocked skill alerts, and platform awareness.
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Download, ExternalLink, RefreshCw, Trash2, X } from 'lucide-react'
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { commands } from '@/lib/bindings'
 import type { UnifiedSkill } from '@/types/skills'
+import { useDisableRule } from '@/hooks/use-skills'
+import { useUIStore } from '@/store/ui'
+import { LintWarningPanel } from './lint-warning-panel'
+import { BlockedSkillAlert } from './blocked-skill-alert'
+import { ConflictResolver } from './conflict-resolver'
+import { InstallDialog } from './install-dialog'
 
 interface Props {
   skill: UnifiedSkill
@@ -17,22 +25,32 @@ interface Props {
 
 export function SkillDetailPanel({ skill, onClose }: Props) {
   const qc = useQueryClient()
+  const platformFeaturesEnabled = useUIStore(s => s.platformFeaturesEnabled)
+
   const [actionError, setActionError] = useState<string | null>(null)
+  const [showInstallDialog, setShowInstallDialog] = useState(false)
+  const [showBlockedAlert, setShowBlockedAlert] = useState(false)
+  const [showConflictResolver, setShowConflictResolver] = useState(false)
+  const [diff, setDiff] = useState('')
 
   const isInstalled =
     skill.status === 'installed' || skill.status === 'local_only'
-  const canInstall = !!skill.registryData && !isInstalled
-  const canUpdate = skill.status === 'update_available'
+  const canInstall = !!skill.registryData && !isInstalled && platformFeaturesEnabled
+  const canUpdate = skill.status === 'update_available' && platformFeaturesEnabled
+  const isBlocked = skill.registryData && skill.registryData.securityScore < 2
 
   // ── Install ────────────────────────────────────────────────────────────────
   const install = useMutation({
-    mutationFn: async () => {
+    mutationFn: async ({
+      target,
+      overwrite
+    }: { target: 'personal' | 'workspace'; overwrite?: boolean }) => {
       if (!skill.registryData) throw new Error('No registry data')
       const res = await commands.installSkill(
         skill.registryData.name,
         skill.registryData.content,
-        'personal',
-        null
+        target,
+        overwrite ?? null
       )
       if (res.status === 'error') throw new Error(res.error)
       return res.data
@@ -40,8 +58,13 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
     onSuccess: () => {
       setActionError(null)
       qc.invalidateQueries({ queryKey: ['local_skills'] })
+      qc.invalidateQueries({ queryKey: ['registry_skills'] })
+      toast.success('Skill installed successfully')
     },
-    onError: (e: Error) => setActionError(e.message)
+    onError: (e: Error) => {
+      setActionError(e.message)
+      toast.error(`Install failed: ${e.message}`)
+    }
   })
 
   // ── Uninstall ──────────────────────────────────────────────────────────────
@@ -53,8 +76,12 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
     onSuccess: () => {
       setActionError(null)
       qc.invalidateQueries({ queryKey: ['local_skills'] })
+      toast.success('Skill uninstalled')
     },
-    onError: (e: Error) => setActionError(e.message)
+    onError: (e: Error) => {
+      setActionError(e.message)
+      toast.error(`Uninstall failed: ${e.message}`)
+    }
   })
 
   // ── Sync ──────────────────────────────────────────────────────────────────
@@ -66,11 +93,67 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
     onSuccess: () => {
       setActionError(null)
       qc.invalidateQueries({ queryKey: ['registry_skills'] })
+      qc.invalidateQueries({ queryKey: ['local_skills'] })
+      toast.success('Registry synced')
     },
-    onError: (e: Error) => setActionError(e.message)
+    onError: (e: Error) => {
+      setActionError(e.message)
+      toast.error(`Sync failed: ${e.message}`)
+    }
   })
 
-  const isBusy = install.isPending || uninstall.isPending || sync.isPending
+  // ── Diff / Conflict resolution ─────────────────────────────────────────────
+  const diffMutation = useMutation({
+    mutationFn: async () => {
+      if (!skill.registryData || !skill.localData?.path) {
+        throw new Error('Cannot compute diff')
+      }
+      const res = await commands.diffSkillVersions(
+        skill.localData.path,
+        skill.registryData.content
+      )
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
+    },
+    onSuccess: (data) => {
+      setDiff(data.diff)
+      setShowConflictResolver(true)
+    },
+    onError: (e: Error) => {
+      toast.error(`Failed to compute diff: ${e.message}`)
+    }
+  })
+
+  // ── Disable rule (for lint warnings) ───────────────────────────────────────
+  const disableRule = useDisableRule()
+
+  const handleIgnoreRule = (ruleId: string) => {
+    disableRule.mutate({ ruleId, scope: 'workspace' })
+  }
+
+  const isBusy = install.isPending || uninstall.isPending || sync.isPending || diffMutation.isPending
+
+  const handleInstallClick = () => {
+    if (!skill.registryData) return
+    if (isBlocked) {
+      setShowBlockedAlert(true)
+    } else {
+      setShowInstallDialog(true)
+    }
+  }
+
+  const handleUpdateClick = () => {
+    diffMutation.mutate()
+  }
+
+  const handleOverwrite = (target: 'personal' | 'workspace') => {
+    install.mutate({ target, overwrite: true })
+    setShowConflictResolver(false)
+  }
+
+  const handleKeepLocal = () => {
+    setShowConflictResolver(false)
+  }
 
   return (
     <div className="w-80 xl:w-96 border-l bg-background flex flex-col h-full shadow-lg z-10 shrink-0">
@@ -80,12 +163,17 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
           <h2 className="font-bold text-base leading-snug truncate">
             {skill.name}
           </h2>
-          <p className="text-xs text-muted-foreground mt-0.5 capitalize">
-            {skill.status.replace('_', ' ')}
+          <p className="text-xs text-muted-foreground mt-0.5 capitalize flex items-center gap-2">
+            <span>{skill.status.replace('_', ' ')}</span>
             {skill.registryData?.version && (
-              <span className="ml-1.5 opacity-70">
+              <span className="ml-1.5 opacity-70 font-mono">
                 v{skill.registryData.version}
               </span>
+            )}
+            {!platformFeaturesEnabled && (
+              <Badge variant="outline" className="text-[9px] h-4 px-1">
+                platform off
+              </Badge>
             )}
           </p>
         </div>
@@ -134,11 +222,11 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
             />
             <MetaField
               label="Security"
-              value={`${skill.registryData.securityScore}/100`}
+              value={`${skill.registryData.securityScore}/5`}
             />
             <MetaField
               label="Quality"
-              value={`${skill.registryData.qualityScore}/100`}
+              value={`${skill.registryData.qualityScore}/5`}
             />
           </div>
         )}
@@ -154,6 +242,17 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
                 </Badge>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Lint warnings */}
+        {skill.registryData?.lintWarnings && skill.registryData.lintWarnings.length > 0 && (
+          <div>
+            <SectionLabel>Lint Issues</SectionLabel>
+            <LintWarningPanel
+              warnings={skill.registryData.lintWarnings as any}
+              onIgnore={handleIgnoreRule}
+            />
           </div>
         )}
 
@@ -195,7 +294,7 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
         {canInstall && (
           <Button
             className="w-full"
-            onClick={() => install.mutate()}
+            onClick={handleInstallClick}
             disabled={isBusy}
           >
             <Download className="mr-2 h-3.5 w-3.5" />
@@ -206,11 +305,11 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
         {canUpdate && (
           <Button
             className="w-full"
-            onClick={() => install.mutate()}
+            onClick={handleUpdateClick}
             disabled={isBusy}
           >
             <RefreshCw className="mr-2 h-3.5 w-3.5" />
-            {install.isPending ? 'Updating…' : 'Update Skill'}
+            {diffMutation.isPending ? 'Checking…' : 'Update Skill'}
           </Button>
         )}
 
@@ -220,7 +319,6 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
             className="w-full"
             disabled={isBusy}
             onClick={async () => {
-              // Use the opener plugin to reveal in file manager
               try {
                 const { openPath } = await import('@tauri-apps/plugin-opener')
                 await openPath(skill.localData!.path!)
@@ -250,7 +348,7 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
           variant="ghost"
           className="w-full text-xs text-muted-foreground"
           onClick={() => sync.mutate()}
-          disabled={isBusy}
+          disabled={!platformFeaturesEnabled || isBusy}
         >
           <RefreshCw
             className={`mr-1.5 h-3 w-3 ${sync.isPending ? 'animate-spin' : ''}`}
@@ -258,6 +356,39 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
           {sync.isPending ? 'Syncing registry…' : 'Sync registry'}
         </Button>
       </div>
+
+      {/* Dialogs */}
+      {showInstallDialog && skill.registryData && (
+        <InstallDialog
+          skill={skill.registryData}
+          onClose={() => setShowInstallDialog(false)}
+          onConfirm={(target) => {
+            setShowInstallDialog(false)
+            install.mutate({ target })
+          }}
+        />
+      )}
+
+      {showBlockedAlert && skill.registryData && (
+        <BlockedSkillAlert
+          skill={skill.registryData}
+          onCancel={() => setShowBlockedAlert(false)}
+          onInstallAnyway={() => {
+            setShowBlockedAlert(false)
+            setShowInstallDialog(true)
+          }}
+        />
+      )}
+
+      {showConflictResolver && skill.registryData && (
+        <ConflictResolver
+          skillName={skill.registryData.name}
+          diff={diff}
+          onKeepLocal={handleKeepLocal}
+          onOverwrite={() => handleOverwrite('personal')}
+          onClose={() => setShowConflictResolver(false)}
+        />
+      )}
     </div>
   )
 }

@@ -86,18 +86,20 @@ export function useInstallSkill() {
     mutationFn: async ({
       skillName,
       skillContent,
-      target
+      target,
+      overwrite
     }: {
       skillName: string
       skillContent: string
       target: 'personal' | 'workspace'
+      overwrite?: boolean
     }) => {
       const res = await commands.installSkill(
         skillName,
         skillContent,
         target,
-        null
-      ) // <-- added null
+        overwrite ?? null
+      )
       if (res.status === 'error') throw new Error(res.error)
       return res.data
     },
@@ -106,6 +108,7 @@ export function useInstallSkill() {
     }
   })
 }
+
 export function useUninstallSkill() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -169,6 +172,32 @@ export function useRemoveSkillSource() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['skill-sources'] })
+    }
+  })
+}
+
+// NEW: diff mutation
+export function useDiffSkillVersions() {
+  return useMutation({
+    mutationFn: async ({ localPath, registryContent }: { localPath: string; registryContent: string }) => {
+      const res = await commands.diffSkillVersions(localPath, registryContent)
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
+    }
+  })
+}
+
+// NEW: disable rule mutation
+export function useDisableRule() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ ruleId, scope }: { ruleId: string; scope: 'global' | 'workspace' }) => {
+      const res = await commands.disableLintRule(ruleId, scope)
+      if (res.status === 'error') throw new Error(res.error)
+    },
+    onSuccess: () => {
+      // Invalidate lint-related queries if any
+      queryClient.invalidateQueries({ queryKey: ['lint-rules'] })
     }
   })
 }

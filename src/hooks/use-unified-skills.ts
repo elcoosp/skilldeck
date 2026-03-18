@@ -7,6 +7,7 @@ import { useMemo } from 'react'
 import type { RegistrySkillData, SkillInfo } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
 import type { SkillStatus, UnifiedSkill } from '@/types/skills'
+import { useUIStore } from '@/store/ui'
 
 // ── Data fetchers ─────────────────────────────────────────────────────────────
 
@@ -22,7 +23,7 @@ function useLocalSkills() {
   })
 }
 
-function useRegistrySkills(search?: string) {
+function useRegistrySkills(search?: string, enabled?: boolean) {
   return useQuery<RegistrySkillData[]>({
     queryKey: ['registry_skills', search ?? null],
     queryFn: async () => {
@@ -30,9 +31,10 @@ function useRegistrySkills(search?: string) {
       if (res.status === 'ok') return res.data
       throw new Error(res.error)
     },
-    placeholderData: keepPreviousData, // <-- added
+    placeholderData: keepPreviousData,
     retry: false,
-    staleTime: 60_000
+    staleTime: 60_000,
+    enabled: enabled // <-- conditionally enable
   })
 }
 
@@ -52,6 +54,7 @@ export interface UseUnifiedSkillsOptions {
 
 export function useUnifiedSkills(options: UseUnifiedSkillsOptions = {}) {
   const { search } = options
+  const platformFeaturesEnabled = useUIStore(s => s.platformFeaturesEnabled)
 
   const {
     data: localSkills = [],
@@ -63,7 +66,7 @@ export function useUnifiedSkills(options: UseUnifiedSkillsOptions = {}) {
     data: registrySkills = [],
     isLoading: loadingRegistry,
     error: registryError
-  } = useRegistrySkills(search)
+  } = useRegistrySkills(search, platformFeaturesEnabled) // <-- enabled flag
 
   const isLoading = loadingLocal || loadingRegistry
 
@@ -118,10 +121,10 @@ export function useUnifiedSkills(options: UseUnifiedSkillsOptions = {}) {
     const filtered =
       search && registrySkills.length === 0
         ? Array.from(map.values()).filter(
-            (s) =>
-              s.name.toLowerCase().includes(search.toLowerCase()) ||
-              s.description.toLowerCase().includes(search.toLowerCase())
-          )
+          (s) =>
+            s.name.toLowerCase().includes(search.toLowerCase()) ||
+            s.description.toLowerCase().includes(search.toLowerCase())
+        )
         : Array.from(map.values())
 
     // 4. Sort: installed/local first, then update_available, then available;
@@ -140,7 +143,7 @@ export function useUnifiedSkills(options: UseUnifiedSkillsOptions = {}) {
     unifiedSkills,
     isLoading,
     localError,
-    registryError,
+    registryError, // <-- exposed
     installedCount
   }
 }
