@@ -1,8 +1,6 @@
 ---
-import type { Props } from '@astrojs/starlight/props';
 import Header from '../components/Header.astro';
 import Sidebar from '../components/Sidebar.astro';
-import Footer from '@astrojs/starlight/components/Footer.astro';
 
 export interface Props {
   lang: string;
@@ -21,32 +19,23 @@ const { lang, version, title, content, isIndex } = Astro.props;
     <meta charset="utf-8" />
     <title>{title} | SkillDeck Docs</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <!-- Starlight's default head content would ideally be included -->
-    <link rel="stylesheet" href="/_astro/... (Starlight's default styles)"/>
+    <!-- Add Starlight's default styles if needed, but rely on global CSS -->
   </head>
   <body>
-    <Header lang={lang} version={version} />
-    <div class="main-panel">
-      <Sidebar lang={lang} version={version} currentPath={Astro.url.pathname} />
+    <Header />
+    <div class="main-container">
+      <Sidebar />
       <main class="content">
-        {isIndex ? (
-          <h1>Welcome to SkillDeck {version} ({lang})</h1>
-          // You can also render a custom index page if you have an index.md
-        ) : (
-          <content />
-        )}
+        {isIndex ? <h1>Welcome to SkillDeck {version}</h1> : <content />}
       </main>
     </div>
-    <Footer />
   </body>
 </html>
 
 <style>
-  /* Copy Starlight's default layout styles or rely on its CSS */
-  .main-panel {
+  .main-container {
     display: flex;
-    flex: 1;
-    min-height: 0;
+    min-height: calc(100vh - var(--sl-nav-height));
   }
   .content {
     flex: 1;

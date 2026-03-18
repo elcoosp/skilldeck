@@ -1,0 +1,45 @@
+---
+import { getCollection, getEntry } from 'astro:content';
+import type { GetStaticPaths } from 'astro';
+import VersionedLayout from '../../../layouts/VersionedLayout.astro';
+
+export const getStaticPaths = (async () => {
+  const docs = await getCollection('docs');
+  const paths = [];
+
+  for (const doc of docs) {
+    const parts = doc.id.split('/');
+    if (parts.length < 3) continue;
+    const lang = parts[0];
+    const version = parts[1];
+    const slug = parts.slice(2).join('/').replace(/\.mdx?$/, '');
+    paths.push({
+      params: { lang, version, slug },
+      // We don't pass the whole doc; just the info to reconstruct the ID
+      props: { lang, version, slug },
+    });
+  }
+  return paths;
+}) satisfies GetStaticPaths;
+
+const { lang, version, slug } = Astro.props;
+
+// Reconstruct the ID
+const id = `${lang}/${version}/${slug}`;
+const entry = await getEntry('docs', id);
+
+if (!entry) {
+  return Astro.redirect(`/${lang}/${version}`);
+}
+
+const { Content } = await entry.render();
+const pageTitle = entry.data.title || `SkillDeck ${version}`;
+---
+
+<VersionedLayout
+  lang={lang}
+  version={version}
+  title={pageTitle}
+  content={Content}
+  isIndex={slug === ''}
+/>
