@@ -2,6 +2,39 @@
 
 As a brilliant documenter, you need a systematic approach that balances deep technical understanding with a clear user perspective. Below is a phased plan to transform your codebase into clear, actionable, and delightful documentation.
 
+## 📊 Documentation Status
+
+### 🚀 Implemented
+- **Platform**: [Astro Starlight](https://starlight.astro.build) with custom theming.
+- **Internationalization**: English (`en`) and French (`fr`) – fully configured with locale‑aware routing.
+- **Versioning**: Three version folders (`latest`, `v0-2`, `v0-1`) automatically synced from a base version.
+- **Custom Header**: Includes version switcher, language switcher, search, theme toggle, and social links.
+- **Reusable MDX Components**: `Nudge`, `Checkpoint`, `Feedback` for interactive documentation.
+- **Analytics**: Plausible integration with custom event tracking.
+- **Content Sync Script**: `scripts/sync-versions.js` copies content across versions to avoid duplication.
+
+### 🏗️ In Progress (Sprint 1)
+- **Version Switcher** – now fixed to use correct folder names (`v0-2`, `v0-1`).
+- **CI/CD** – GitHub Actions workflow for linting, building, and testing.
+- **Contribution Guidelines** for the documentation site.
+
+### 📅 Planned (Sprints 2–6)
+- **Getting Started** guides (installation, first conversation, first skill).
+- **Tutorials** (build a skill, create workflows).
+- **How‑to Guides** (install a skill, add MCP servers, configure profiles).
+- **Reference** (error codes, configuration, API).
+- **Market Insights** hub (local AI, MCP ecosystem).
+- **Community** features (skill showcase, contributor spotlight).
+
+### ✅ Done (Sprint 1 Foundation)
+- [x] Astro Starlight setup with custom theme
+- [x] i18n configuration (en, fr)
+- [x] Versioned content structure (`latest`, `v0-2`, `v0-1`)
+- [x] Custom header with version/language switchers
+- [x] Feedback widget and analytics
+- [x] MDX components (Nudge, Checkpoint, Feedback)
+- [x] Content sync script
+
 ---
 
 ## Phase 1: Brainstorm & Research  
