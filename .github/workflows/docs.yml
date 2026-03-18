@@ -1,5 +1,4 @@
 name: Docs CI
-
 on:
   push:
     branches: [main]
@@ -10,30 +9,23 @@ on:
     branches: [main]
     paths:
       - 'skilldeck-user-docs/**'
-
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ./skilldeck-user-docs
-
     steps:
       - uses: actions/checkout@v4
 
-      # 1. Setup pnpm – version auto-detected from packageManager field, caches store automatically
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          run_install: false  # ensures store path is registered
+      - uses: pnpm/action-setup@v4
 
-      # 2. Setup Node.js – no cache line; pnpm/action-setup handles caching
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
+      - uses: actions/setup-node@v4
         with:
           node-version: 24
+          cache: 'pnpm'
+          cache-dependency-path: skilldeck-user-docs/pnpm-lock.yaml
 
-      # 3. Install dependencies
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
