@@ -1,0 +1,93 @@
+---
+title: Local vs. Cloud AI: A Technical and Business Comparison
+description: A side‑by‑side analysis of costs, performance, privacy, and control with current 2026 models.
+order: 3
+---
+
+import Feedback from '../../../../../../components/mdx/Feedback.astro';
+
+Choosing between local and cloud AI isn't just a technical decision – it affects your team's workflow, budget, and long‑term flexibility. This guide compares both approaches across the dimensions that matter most, using the latest 2026 models from major providers.
+
+## Current Model Landscape (2026)
+
+### Cloud Flagship Models
+| Provider | Model | Key Features |
+|----------|-------|--------------|
+| **OpenAI** | GPT-5.4 | 400k context, computer-use capabilities, agentic workflows |
+| **OpenAI** | GPT-5.4 Pro | Enhanced reasoning, available to Pro/Enterprise subscribers |
+| **OpenAI** | GPT-5.4 mini | 2x faster than previous mini, 400k context, $0.75/1M input tokens |
+| **Anthropic** | Claude Opus 4.6 | 1M token context, state‑of‑the‑art coding, agentic planning |
+| **Anthropic** | Claude Sonnet 4.6 | Balance of intelligence and speed, $3/1M input tokens |
+| **Google** | Gemini 3.1 Pro | 1M token context, reasoning improvements, agentic systems |
+| **Google** | Gemini 3 Flash | Agentic Vision for image understanding |
+
+### Local / Open‑Source Models
+| Model | Key Features | Hardware Requirements |
+|-------|--------------|----------------------|
+| **Llama 4 Scout** | 10M token context window (industry‑leading), open‑source | Can run on consumer hardware |
+| **Qwen3-Coder-Next** | Optimized for agentic coding, 80B params with sparse MoE | ~3B active params per inference |
+| **GLM-OCR** | Multimodal OCR for complex documents, 0.9B params | Lightweight, runs on most hardware |
+
+## Comparison at a Glance
+
+| Aspect | Cloud AI (2026) | Local AI (2026) |
+|--------|-----------------|-----------------|
+| **Privacy** | Code leaves your machine; may be used for training | Everything stays on your hardware |
+| **Cost** | Pay‑per‑token; e.g., Claude Opus 4.6: $5–$25/1M tokens; GPT-5.4 mini: $0.75–$4.50/1M | Fixed hardware cost; no per‑request fees |
+| **Latency** | Network‑dependent (often 1‑3 seconds) | Instant (sub‑100ms) |
+| **Context Window** | 400k (OpenAI) to 1M (Anthropic, Google) | Up to 10M tokens (Llama 4 Scout) |
+| **Model Choice** | Limited to provider's offerings | Run any model you can fit on your hardware |
+| **Specialization** | Agentic workflows, computer‑use, multimodal | Massive context tasks, code completion, OCR |
+| **Compliance** | May violate data residency rules | Data never leaves your premises |
+
+## Deep Dive
+
+### Privacy and Security
+**Cloud:** Your prompts and code are sent to third‑party servers. Even with newer models like GPT-5.4 and Claude Opus 4.6, which include enhanced safety features and cyber defense capabilities, data processing still occurs on infrastructure you don't control. For regulated industries, this often remains unacceptable.
+
+**Local:** All data stays on your machine. Models like Llama 4 Scout and Qwen3-Coder-Next run entirely locally, with no network calls, no third‑party access.
+
+### Cost Analysis
+**Cloud:** Costs scale with usage. Claude Opus 4.6 is priced at $5 per million input tokens and $25 per million output tokens. GPT-5.4 mini offers a more economical entry at $0.75 input / $4.50 output. At high volume, costs can become significant.
+
+**Local:** After the initial hardware investment, the marginal cost of each request is near zero. For teams with steady or high usage, local AI is dramatically cheaper.
+
+### Performance
+**Cloud:** Each request incurs network latency – typically 1‑3 seconds round‑trip. Even with optimized models like GPT-5.4 mini claiming "2x faster" performance, network overhead remains.
+
+**Local:** Models run directly on your machine. Qwen3-Coder-Next uses sparse Mixture‑of‑Experts to activate only 3B parameters per inference, enabling fast response times even on consumer hardware.
+
+### Context and Capabilities
+**Cloud:** Leading models now offer 400k–1M token context windows. GPT-5.4 introduces computer‑use capabilities for agentic workflows. Claude Opus 4.6 excels at multi‑step agentic tasks and can sustain performance across long‑horizon contexts.
+
+**Local:** Llama 4 Scout shatters context window limits with **10 million tokens** – enough to process entire codebases or years of documents in a single pass. New local models like GLM-OCR bring specialized capabilities like handwritten text recognition to the desktop.
+
+### Specialization Trends
+**Cloud:** Labs are optimizing for different economic outcomes. Anthropic's Claude 4.5 Sonnet leads on SWE-bench (70.6% bug resolution) for "AI programmer" tasks, while Moonshot's Kimi K2 excels at customer support automation. GPT-5.4 Pro targets enterprise knowledge work.
+
+**Local:** The open‑source ecosystem now offers specialized tools: Qwen3-Coder-Next for coding agents, GLM-OCR for document processing, and massive‑context models for data analysis.
+
+## Cost‑Per‑Task Analysis
+
+Recent benchmarks reveal a fascinating split: Claude 4.5 Sonnet achieves a 70.6% score on SWE-bench for $0.56 per task, while GPT-5.4 mini delivers 59.8% for only $0.04 per task. This transforms "best model" into a production‑level cost‑benefit analysis. The optimal choice for a startup may be the cheapest model that's "good enough," leading to agentic routers that escalate only when tasks fail.
+
+## When to Choose Each
+
+### Choose Cloud AI if:
+- You need access to the largest proprietary models with computer‑use capabilities (GPT-5.4, Claude Opus 4.6).
+- You have sporadic, low‑volume usage where cloud economics favor pay‑per‑token.
+- You require specialized agentic workflows that are pre‑optimized for cloud deployment.
+- You don't have strict privacy or compliance constraints.
+
+### Choose Local AI if:
+- You handle sensitive or proprietary code that cannot leave your infrastructure.
+- You have steady, high‑volume usage where fixed hardware costs beat per‑token pricing.
+- You need massive context windows (millions of tokens) for whole‑codebase analysis.
+- You want predictable costs and zero vendor lock‑in.
+- You need to run models offline or in air‑gapped environments.
+
+## SkillDeck's Hybrid Approach
+
+SkillDeck is built for a hybrid world. You can use local models (via Ollama, supporting models like Qwen3-Coder-Next and GLM-OCR) alongside cloud providers (Claude Opus 4.6, GPT-5.4, Gemini 3.1 Pro) in the same conversation, switching seamlessly. This gives you the best of both: privacy when you need it, scale when you want it.
+
+<Feedback />

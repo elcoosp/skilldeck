@@ -1,0 +1,121 @@
+---
+title: "Troubleshoot Agent Not Responding"
+description: Why the agent might not reply and how to fix it.
+sidebar:
+  order: 3
+---
+
+import Nudge from '../../../../../../components/mdx/Nudge.astro';
+import Checkpoint from '../../../../../../components/mdx/Checkpoint.astro';
+import Feedback from '../../../../../../components/mdx/Feedback.astro';
+
+When you send a message and the agent doesn't respond, it can be frustrating. This guide covers the most common reasons and how to resolve them.
+
+<Nudge type="tip" title="Before you start">
+  Make sure you've had at least one successful conversation before. If this is your first time, check the [First Conversation guide](/en/latest/getting-started/first-conversation).
+</Nudge>
+
+## Issue: No Response at All
+
+### Possible Cause 1: No Active Profile
+
+Every conversation requires a profile to determine which model provider and model to use. If no profile is selected, the agent won't respond.
+
+**Solution:**
+
+1. In the right sidebar, open the **Session** tab.
+2. Look for the profile selector. If it shows "No profile", click it and choose an existing profile, or create a new one in **Settings → Profiles**.
+3. Once a profile is selected, try sending your message again.
+
+### Possible Cause 2: API Key Missing or Invalid
+
+If you're using Claude or OpenAI, a missing or invalid API key will prevent responses.
+
+**Solution:**
+
+1. Go to **Settings → API Keys**.
+2. Check that the provider you're using shows a "Key stored" badge.
+3. If not, add your key (see [Set up API keys](/en/latest/how-to/set-up-api-keys)).
+4. If the key is present but still failing, try removing and re-adding it.
+
+### Possible Cause 3: Ollama Not Running
+
+For local profiles using Ollama, the Ollama service must be running.
+
+**Solution:**
+
+- Open a terminal and run `ollama serve` to start Ollama (if not already running).
+- Ensure the model you're using has been pulled: `ollama list` should show it. If not, run `ollama pull <model-name>`.
+- Restart SkillDeck after starting Ollama.
+
+<Checkpoint question="Did you verify your profile and API key?" onYes="If still no response, proceed to the next section." onNo="Fix any issues and test again." />
+
+## Issue: Agent Starts Typing but Never Finishes
+
+### Possible Cause 1: Network Issues
+
+The agent may be waiting for a response from the model provider that never arrives due to network problems.
+
+**Solution:**
+
+- Check your internet connection.
+- If using a cloud provider (Claude/OpenAI), visit their status page to see if there's an outage.
+- Try switching to a different model or provider (e.g., from Claude to Ollama) to isolate the issue.
+
+### Possible Cause 2: Model Overloaded or Rate Limited
+
+Cloud providers may rate‑limit your requests or be temporarily overloaded.
+
+**Solution:**
+
+- Wait a few minutes and try again.
+- If you're on a free tier, you may have hit usage limits. Consider upgrading or using a different model.
+- The agent should eventually show an error message; check for that.
+
+### Possible Cause 3: Skill or Tool Hang
+
+If your conversation includes a skill or MCP tool call, that tool might be stuck or taking too long.
+
+**Solution:**
+
+- Try a simple message without any `@` mentions to see if the agent responds.
+- If it does, the issue is likely with the skill or tool. Check the tool's configuration and logs.
+
+## Issue: Agent Responds with an Error Message
+
+### Possible Cause 1: Model‑Specific Error
+
+The model provider may return an error (e.g., "context length exceeded", "invalid request").
+
+**Solution:**
+
+- Read the error message carefully – it often tells you what's wrong.
+- For "context length exceeded", your conversation may be too long. Start a new conversation.
+- For other errors, check the provider's documentation.
+
+### Possible Cause 2: Skill‑Related Error
+
+If you invoked a skill, the skill itself might have an error in its instructions or require specific input.
+
+**Solution:**
+
+- Test the skill in isolation: mention it with minimal input.
+- Run the linter on the skill: `skilldeck-lint ~/.agents/skills/your-skill`.
+- Check the skill's documentation for required input format.
+
+## General Troubleshooting Steps
+
+1. **Check the agent status** – in the top right, you may see an indicator if the agent is running.
+2. **Look for error messages** – they often appear in the chat or in the console (if you run SkillDeck from a terminal).
+3. **Try a different profile** – switch to Ollama (which doesn't need an API key) to see if the issue is provider‑specific.
+4. **Restart SkillDeck** – clears temporary state and often resolves mysterious issues.
+
+<Checkpoint question="Did one of these solutions get the agent responding?" onYes="Great! You're back in business." onNo="If the problem persists, reach out on [Discord](/en/latest/community) with details." />
+
+## Next Steps
+
+- [Troubleshoot MCP connection issues](/en/latest/how-to/troubleshoot/mcp-connection)
+- [Troubleshoot skill not found](/en/latest/how-to/troubleshoot/skill-not-found)
+- [Configure profiles](/en/latest/how-to/configure-profiles)
+
+<Feedback />

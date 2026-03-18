@@ -1,0 +1,107 @@
+---
+title: "How to Configure Profiles"
+description: Set up and manage profiles to connect SkillDeck with different AI model providers.
+sidebar:
+  order: 4
+---
+
+import Nudge from '../../../../../components/mdx/Nudge.astro';
+import Checkpoint from '../../../../../components/mdx/Checkpoint.astro';
+import Feedback from '../../../../../components/mdx/Feedback.astro';
+
+Profiles in SkillDeck define which AI model provider (e.g., Ollama, Claude, OpenAI) and which specific model to use for your conversations. You can have multiple profiles and switch between them easily.
+
+<Nudge type="tip" title="What you'll learn">
+  How to create, configure, and switch between profiles for different AI providers.
+</Nudge>
+
+## Prerequisites
+
+- SkillDeck installed and running
+- API keys for the providers you want to use (Claude, OpenAI) or a local Ollama installation
+
+## Step 1: Open Settings
+
+1. Click the **Settings** icon (gear) in the left sidebar.
+2. Navigate to the **Profiles** tab.
+
+## Step 2: Create a New Profile
+
+Click the **New Profile** button. A form will appear with the following fields:
+
+- **Profile Name** – a friendly name (e.g., "Claude Sonnet", "Local Ollama")
+- **Model Provider** – select from the dropdown (Ollama, Claude, OpenAI)
+- **Model ID** – the specific model identifier (e.g., `claude-sonnet-4-5`, `gpt-4o`, `llama3.2`)
+
+<Nudge type="tip" title="Finding Model IDs">
+  - For Ollama, run `ollama list` in your terminal to see installed models.
+  - For Claude/OpenAI, refer to their documentation for available model IDs.
+</Nudge>
+
+## Step 3: Fill in Provider‑Specific Details
+
+### For Ollama (Local)
+
+- **Provider:** Ollama
+- **Model ID:** e.g., `llama3.2`, `mistral`, `codellama` (must be already pulled)
+
+No API key needed – Ollama runs locally.
+
+### For Claude (Anthropic)
+
+- **Provider:** Claude
+- **Model ID:** e.g., `claude-sonnet-4-5`, `claude-opus-4`
+- You'll need an API key from [Anthropic Console](https://console.anthropic.com/)
+
+### For OpenAI
+
+- **Provider:** OpenAI
+- **Model ID:** e.g., `gpt-4o`, `gpt-4-turbo`
+- You'll need an API key from [OpenAI Platform](https://platform.openai.com/)
+
+<Checkpoint question="Have you entered all required fields?" onYes="Great! Now save the profile." onNo="Double‑check the provider and model ID." />
+
+## Step 4: Save the Profile
+
+Click **Create** (or **Save**). The new profile will appear in your profiles list.
+
+## Step 5: Add API Keys (If Needed)
+
+If you created a Claude or OpenAI profile, you'll need to add the API key:
+
+1. Go to the **API Keys** tab in Settings.
+2. Find your provider (e.g., Claude) and paste your key.
+3. Click **Save**. The key is stored securely in your system keychain.
+
+<Nudge type="warning" title="Security">
+  API keys are never stored in the database – they live in your OS keychain (macOS Keychain, Windows Credential Manager, or libsecret on Linux).
+</Nudge>
+
+## Step 6: Set a Default Profile
+
+1. In the Profiles list, find the profile you want as default.
+2. Click the **star** icon next to it. This profile will be used for new conversations unless overridden.
+
+## Step 7: Switch Profiles in a Conversation
+
+You can change the profile for an existing conversation:
+
+1. Open the conversation.
+2. In the right sidebar, look for the profile selector (usually near the top of the Session tab).
+3. Choose a different profile from the dropdown. The next message will use the new provider.
+
+<Checkpoint question="Can you switch profiles in a conversation?" onYes="Perfect! You're ready to use different models." onNo="Make sure the profile is properly configured and the API key (if needed) is saved." />
+
+## Troubleshooting
+
+- **Profile not appearing** – check that you've created at least one profile.
+- **Model not responding** – verify the API key and that the model ID is correct.
+- **Ollama not working** – ensure Ollama is running (`ollama serve`) and that you've pulled the model.
+
+## Next Steps
+
+- [Use workspaces](/en/latest/how-to/use-workspaces) to give the agent project context.
+- [Install a skill](/en/latest/how-to/install-a-skill) to extend capabilities.
+- [Explore workflows](/en/latest/tutorials/create-a-workflow/sequential) for multi‑step tasks.
+
+<Feedback />

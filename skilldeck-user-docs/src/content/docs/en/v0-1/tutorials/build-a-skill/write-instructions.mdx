@@ -1,0 +1,118 @@
+---
+title: "Tutorial: Write Instructions for Your Skill"
+description: Learn how to write clear, effective markdown instructions that guide the AI agent.
+sidebar:
+  order: 2
+---
+
+import Nudge from '../../../../../../components/mdx/Nudge.astro';
+import Checkpoint from '../../../../../../components/mdx/Checkpoint.astro';
+import Feedback from '../../../../../../components/mdx/Feedback.astro';
+
+Now that your `SKILL.md` has valid frontmatter, it's time to write the instructions – the markdown content that tells the agent what to do when your skill is invoked.
+
+<Nudge type="tip" title="What you'll learn">
+  How to structure skill instructions, include examples, and use best practices for clarity.
+</Nudge>
+
+## Step 1: Open Your SKILL.md
+
+Navigate to your skill directory and open `SKILL.md` in your editor:
+
+```bash
+cd ~/.agents/skills/my-awesome-skill
+code SKILL.md
+```
+
+You should already have the frontmatter block. Below it, you'll add the instructions.
+
+## Step 2: Start with a Clear Goal
+
+Begin the instructions with a one‑sentence summary of what the skill does. This helps the agent understand when to use it.
+
+```markdown
+---
+name: my-awesome-skill
+description: "Reviews Python code for style and common mistakes"
+---
+
+This skill reviews Python code and suggests improvements following PEP 8.
+```
+
+## Step 3: Break Down the Task
+
+Use headings to organize the instructions. The agent understands markdown, so structure matters.
+
+```markdown
+## Step 1: Analyze the code
+Look for indentation errors, missing docstrings, and variable naming issues.
+
+## Step 2: Provide feedback
+For each issue, explain what's wrong and how to fix it.
+```
+
+## Step 4: Include Examples
+
+Examples are the most effective way to teach. Show both bad and good patterns.
+
+````markdown
+## Example: Good vs. Bad Code
+
+**Bad** – missing docstring, unclear variable name:
+```python
+def f(a, b):
+    return a + b
+```
+
+**Good** – descriptive name and docstring:
+```python
+def add_numbers(a: int, b: int) -> int:
+    """Return the sum of two integers."""
+    return a + b
+```
+````
+
+<Nudge type="tip" title="Pro tip">
+  Use fenced code blocks with language identifiers. This helps the agent distinguish code from instructions.
+</Nudge>
+
+## Step 5: Specify Tools If Needed
+
+If your skill requires specific MCP tools (e.g., `read_file`), mention that in the frontmatter (already done) and include a note in the instructions.
+
+```markdown
+> **Note:** This skill requires the `filesystem` MCP server to read files.
+```
+
+## Step 6: Add a “When to Use” Section
+
+Help the agent decide when to invoke this skill. This is especially useful if you have multiple skills that might overlap.
+
+```markdown
+## When to use this skill
+- The user asks to review Python code.
+- The user pastes a code snippet and asks for improvements.
+- The user wants to check PEP 8 compliance.
+```
+
+## Step 7: Save and Test (Preview)
+
+Save the file. You can test the skill by mentioning it in a conversation with `@my-awesome-skill`. The agent will now have your instructions.
+
+<Checkpoint question="Does your skill appear when you type `@my-awesome-skill` in the chat?" onYes="Awesome! Your skill is ready." onNo="Make sure the skill directory is in the correct location (`~/.agents/skills/`) and that the name matches." />
+
+## Best Practices Summary
+
+- **Be specific** – tell the agent exactly what to look for.
+- **Use examples** – show, don’t just tell.
+- **Structure with headings** – helps the agent parse.
+- **Keep it concise** – avoid long paragraphs; use bullet points.
+- **Test iteratively** – refine based on responses.
+
+## Next Steps
+
+Your skill now has both frontmatter and instructions. Next, you'll learn how to test it locally and share it with others.
+
+- [Test Your Skill Locally](/en/latest/tutorials/build-a-skill/test-locally)
+
+<Feedback />

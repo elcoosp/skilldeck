@@ -1,0 +1,88 @@
+---
+title: "How to Manage Queued Messages"
+description: Use the message queue to draft, reorder, and send messages when the agent is busy.
+sidebar:
+  order: 13
+---
+
+import Nudge from '../../../../../components/mdx/Nudge.astro';
+import Checkpoint from '../../../../../components/mdx/Checkpoint.astro';
+import Feedback from '../../../../../components/mdx/Feedback.astro';
+
+When the agent is processing a message, you can still type new ones. They'll be placed in a queue and automatically sent once the agent is free. You can also edit, reorder, or delete queued messages.
+
+<Nudge type="tip" title="What you'll learn">
+  How to use the message queue effectively, including editing, reordering, and merging messages.
+</Nudge>
+
+## How Queuing Works
+
+- While the agent is running, any message you send is added to a queue instead of being processed immediately.
+- The queue appears above the input area, showing all pending messages.
+- Messages are sent in order (FIFO) as soon as the agent finishes the current one.
+
+## Step 1: Send a Message While Agent is Busy
+
+1. Start a conversation and send a message that will take some time (e.g., a complex skill invocation).
+2. While the agent is typing, type another message and press Enter.
+3. You'll see a new section appear above the input: **Queued** with a count and your message listed.
+
+## Step 2: View Queued Messages
+
+The queue shows each message with:
+
+- A position number (1, 2, 3…)
+- A preview of the content
+- The time it was queued
+
+## Step 3: Edit a Queued Message
+
+1. Hover over a queued message and click the **pencil** icon.
+2. The message expands into an editor. Make your changes.
+3. Click **Save** to update it, or **Cancel** to discard changes.
+
+## Step 4: Reorder Messages
+
+1. Hover over a queued message and drag the **grip** icon (six dots) on the left.
+2. Drag it up or down to change its position in the queue.
+3. The numbers will update to reflect the new order.
+
+## Step 5: Delete a Message
+
+Click the **trash** icon next to any queued message to remove it. It will be permanently deleted.
+
+## Step 6: Select Multiple Messages (Batch Operations)
+
+1. Click the **Select** button in the queue header.
+2. Checkboxes appear next to each message. Select the ones you want to act on.
+3. Use the toolbar at the bottom to:
+   - **Delete** all selected messages
+   - **Merge** selected messages into one (combines their content)
+
+## Step 7: Merge Messages
+
+Merging combines multiple queued messages into a single message, separated by `---`. This is useful when you want to combine related thoughts.
+
+1. Select at least two messages.
+2. Click **Merge**.
+3. A new message appears with the combined content. The original messages are removed.
+
+<Checkpoint question="Did you successfully merge two messages?" onYes="Great! The queue is a powerful tool." onNo="Make sure you selected at least two messages." />
+
+## Step 8: Cancel Selection
+
+When you're done with batch operations, click **Cancel** in the queue header to return to normal view.
+
+## Auto‑Send Behavior
+
+- The queue processes automatically when the agent is idle.
+- If you're editing a message, reordering, or have selection mode active, auto‑send is **paused** until you finish.
+- You can also manually trigger sending by clicking the **Send** button (which will now say "Queue" if the agent is busy).
+
+## Next Steps
+
+- [Use the command palette](/en/latest/how-to/use-command-palette)
+- [Install a skill](/en/latest/how-to/install-a-skill)
+- [Configure profiles](/en/latest/how-to/configure-profiles)
+
+<Feedback />

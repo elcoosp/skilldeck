@@ -1,0 +1,115 @@
+---
+title: "How to Add a Filesystem MCP Server"
+description: Give SkillDeck access to your local files by adding a filesystem MCP server.
+sidebar:
+  order: 1
+---
+
+
+import Nudge from '../../../../../../components/mdx/Nudge.astro';
+import Checkpoint from '../../../../../../components/mdx/Checkpoint.astro';
+import Feedback from '../../../../../../components/mdx/Feedback.astro';
+
+MCP (Model Context Protocol) servers allow SkillDeck to interact with external tools and data sources. The **filesystem server** is one of the most useful – it lets the agent read and write files on your local machine, enabling skills that work with your code, documents, or any other files.
+
+<Nudge type="tip" title="What you'll accomplish">
+  By the end of this guide, your agent will be able to read files from your computer, opening up possibilities like code review, documentation generation, and data analysis.
+</Nudge>
+
+## Prerequisites
+
+- SkillDeck installed and running
+- [Node.js](https://nodejs.org/) (v18 or later) and `npx` available on your system
+- A directory you want the agent to access (e.g., your project folder)
+
+## Step 1: Open the MCP Tab
+
+1. In the right sidebar, click the **MCP** tab (the plug icon).
+2. You'll see a list of your configured MCP servers (initially empty) and options to add new ones.
+
+## Step 2: Choose the Filesystem Server from the Catalog
+
+1. In the MCP tab, click **Browse Catalog** (or look for a "Add from catalog" button).
+2. Find **Filesystem** in the list (it's usually near the top).
+3. Click **Add** next to it.
+
+<Nudge type="tip" title="Don't see it?">
+  You can also add it manually using the command:  
+  `npx -y @modelcontextprotocol/server-filesystem /path/to/your/folder`
+</Nudge>
+
+## Step 3: Configure the Server
+
+A dialog will appear asking for the directory to serve. Enter the absolute path to the folder you want the agent to access. For example:
+
+- **macOS/Linux:** `/Users/yourname/projects/myapp`
+- **Windows:** `C:\Users\yourname\projects\myapp`
+
+You can also add multiple paths separated by spaces if needed (the filesystem server supports multiple root directories).
+
+<Nudge type="warning" title="Security note">
+  The agent will have read/write access to any file under these directories. Be careful not to expose sensitive data.
+</Nudge>
+
+## Step 4: Start the Server
+
+1. After entering the path, click **Add Server**. SkillDeck will save the configuration and attempt to start the server.
+2. You should see the server appear in the list with a status of **connected** (green dot) or **connecting** (yellow).
+
+<Checkpoint question="Is the filesystem server showing as 'connected'?" onYes="Great! Now the agent can access your files." onNo="Check that the path is correct and that Node.js is installed. You can also try starting it manually from the terminal (see Step 5)." />
+
+## Step 5: (Alternative) Manual Start from Terminal
+
+If the UI method doesn't work, you can start the server manually:
+
+1. Open a terminal.
+2. Run the following command (replace `/path/to/your/folder` with your actual directory):
+
+   ```bash
+   npx -y @modelcontextprotocol/server-filesystem /path/to/your/folder
+   ```
+
+   This will start the server and keep it running. Keep the terminal window open while you use SkillDeck.
+
+3. In SkillDeck, go to the MCP tab and click **Add Custom Server**. Fill in:
+   - **Name:** Filesystem (or any name)
+   - **Transport:** stdio
+   - **Command:** `npx`
+   - **Arguments:** `-y @modelcontextprotocol/server-filesystem /path/to/your/folder`
+   - **Environment:** (leave blank)
+
+4. Click **Add Server**.
+
+## Step 6: Test File Access
+
+Now let's verify that the agent can use the filesystem server.
+
+1. Go to the **Conversation** tab.
+2. Type a message like:  
+   ```
+   Can you list the files in my project directory?
+   ```
+3. The agent should respond with a list of files (it may need to invoke the appropriate tool – you can also try more specific prompts like `list_files` if you know the exact tool name).
+
+<Checkpoint question="Did the agent successfully list your files?" onYes="Perfect! Your filesystem MCP server is working." onNo="Check that the server is still connected and that your prompt was clear. You may need to explicitly mention 'use the filesystem server'." />
+
+## How It Works
+
+The filesystem server exposes several tools to the agent, including:
+
+- `read_file` – read the contents of a file
+- `write_file` – write or overwrite a file
+- `list_directory` – list files and folders in a directory
+- `file_info` – get metadata about a file or folder
+
+When you ask the agent to perform a file operation, it will call the appropriate tool, which the filesystem server executes on your local machine.
+
+## Next Steps
+
+Now that your agent has filesystem access, try:
+
+- [Install a code review skill](/en/latest/how-to/install-a-skill) that reads your source files.
+- [Create a workflow](/en/latest/tutorials/create-a-workflow/sequential) that processes multiple files.
+- [Add another MCP server](/en/latest/how-to/add-mcp-server/custom-stdio) like GitHub or SQLite.
+
+<Feedback />
