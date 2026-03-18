@@ -1,0 +1,57 @@
+name: Docs CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'skilldeck-user-docs/**'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'skilldeck-user-docs/**'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./skilldeck-user-docs
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'pnpm'
+          cache-dependency-path: skilldeck-user-docs/pnpm-lock.yaml
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8
+          run_install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint with Vale
+        uses: errata-ai/vale-action@v2
+        with:
+          styles: |
+            https://github.com/errata-ai/Microsoft/releases/latest/download/Microsoft.zip
+            https://github.com/errata-ai/write-good/releases/latest/download/write-good.zip
+          files: skilldeck-user-docs/src
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Markdown lint
+        run: npx markdownlint-cli2 "src/**/*.md" "src/**/*.mdx"
+
+      - name: Build site
+        run: pnpm run build
+
+      - name: Check for broken links
+        run: npx linkinator --recurse ./dist

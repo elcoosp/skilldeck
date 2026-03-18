@@ -1,0 +1,47 @@
+---
+export interface Props {
+  type?: 'info' | 'success' | 'warning' | 'tip';
+  cta?: string;
+  href?: string;
+}
+
+const { type = 'info', cta, href } = Astro.props;
+---
+
+<div class={`nudge nudge-${type}`}>
+  <slot />
+  {cta && href && <a href={href} class="nudge-cta">{cta}</a>}
+</div>
+
+<style>
+.nudge {
+  padding: 1rem;
+  border-radius: 0.5rem;
+  margin: 1rem 0;
+}
+.nudge-info {
+  background: #e2e8f0;
+  border-left: 4px solid #3b82f6;
+}
+.nudge-success {
+  background: #dcfce7;
+  border-left: 4px solid #22c55e;
+}
+.nudge-warning {
+  background: #fef9c3;
+  border-left: 4px solid #eab308;
+}
+.nudge-tip {
+  background: #dbeafe;
+  border-left: 4px solid #3b82f6;
+}
+.nudge-cta {
+  display: inline-block;
+  margin-top: 0.5rem;
+  padding: 0.25rem 1rem;
+  background: var(--sl-color-accent);
+  color: white;
+  border-radius: 0.25rem;
+  text-decoration: none;
+}
+</style>

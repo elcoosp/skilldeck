@@ -1,0 +1,57 @@
+---
+export interface Props {
+  question: string;
+  onYes?: string;
+  onNo?: string;
+}
+---
+
+<div class="checkpoint">
+  <p><strong>✅ Checkpoint:</strong> {question}</p>
+  <div class="checkpoint-actions">
+    <button class="checkpoint-yes">Yes</button>
+    <button class="checkpoint-no">No</button>
+  </div>
+</div>
+
+<script>
+  const buttons = document.querySelectorAll('.checkpoint button');
+  buttons.forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const answer = e.target.classList.contains('checkpoint-yes') ? 'yes' : 'no';
+      // track event
+      if (window.plausible) {
+        window.plausible('Checkpoint', { props: { question: Astro.props.question, answer } });
+      }
+      // show follow-up
+      const parent = e.target.closest('.checkpoint');
+      if (Astro.props[`on${answer}`]) {
+        parent.insertAdjacentHTML('afterend', `<div class="checkpoint-feedback">${Astro.props[`on${answer}`]}</div>`);
+      }
+    });
+  });
+</script>
+
+<style>
+.checkpoint {
+  background: var(--sl-color-gray-6);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin: 1rem 0;
+}
+.checkpoint-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+.checkpoint button {
+  padding: 0.25rem 1rem;
+  border: 1px solid var(--sl-color-gray-4);
+  background: white;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+.checkpoint button:hover {
+  background: var(--sl-color-gray-3);
+}
+</style>

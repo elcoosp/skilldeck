@@ -120,6 +120,42 @@ export function useRenameConversation() {
   })
 }
 
+/**
+ * Auto-name conversation from the first user message.
+ * Takes the first message content, trims it to 60 characters,
+ * capitalizes the first letter, and renames the conversation.
+ */
+export function useAutoNameConversation() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      firstMessage
+    }: {
+      id: UUID
+      firstMessage: string
+    }) => {
+      // Trim to 60 characters and capitalize first letter
+      const title = firstMessage.trim().slice(0, 60)
+      const capitalized = title.charAt(0).toUpperCase() + title.slice(1)
+      const res = await commands.renameConversation(id, capitalized)
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['conversations'],
+        exact: false
+      })
+    },
+    onError: (error) => {
+      // Silently fail - auto-naming is not critical
+      console.error('Failed to auto-name conversation:', error)
+    }
+  })
+}
+
 export function usePinConversation() {
   const queryClient = useQueryClient()
   return useMutation({

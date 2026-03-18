@@ -5,12 +5,17 @@
  *
  * Implements the rAF-gated rendering loop required by ASR-PERF-001:
  *   Rust ring-buffer → 50 ms debounce → Tauri emit → this hook → rAF → render
+ *
+ * Also handles auto-naming conversations from the first user message
+ * when the 'persisted' event fires.
  */
 
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
 import { toast } from 'sonner'
-import type { AgentEvent } from '@/lib/events'
+import type { AgentEvent, MessageData } from '@/lib/bindings'
+import { commands } from '@/lib/bindings'
+import type { AgentEvent as LocalAgentEvent } from '@/lib/events'
 import { onAgentEvent } from '@/lib/events'
 import { useUIStore } from '@/store/ui'
 
@@ -25,7 +30,9 @@ export function useAgentStream(conversationId: string | null) {
   const rafHandle = useRef<number>(0)
   // Track listener readiness to avoid race conditions
   const listenerReady = useRef(false)
-  const eventBuffer = useRef<AgentEvent[]>([])
+  const eventBuffer = useRef<LocalAgentEvent[]>([])
+  // Track auto-name attempts per conversation to prevent duplicates
+  const autoNameAttempted = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     if (!conversationId) return
@@ -45,11 +52,65 @@ export function useAgentStream(conversationId: string | null) {
       }
     }
 
-    const processEvent = (event: AgentEvent) => {
+    /**
+     * Auto-name the conversation from the first user message.
+     * Triggered on 'persisted' event when conversation has no title.
+     */
+    const autoNameConversation = async () => {
+      // Prevent duplicate attempts
+      if (autoNameAttempted.current.has(conversationId)) {
+        return
+      }
+      autoNameAttempted.current.add(conversationId)
+
+      try {
+        // Get conversations from cache
+        const conversations = queryClient.getQueryData<
+          Array<{ id: string; title: string | null }>
+        >(['conversations'])
+
+        const currentConvo = conversations?.find(
+          (c) => c.id === conversationId
+        )
+
+        // Only auto-name if no title exists
+        if (!currentConvo || currentConvo.title) {
+          return
+        }
+
+        // Get first user message from messages cache
+        const messages = queryClient.getQueryData<MessageData[]>([
+          'messages',
+          conversationId
+        ])
+
+        const firstUserMsg = messages?.find((m) => m.role === 'user')
+
+        if (!firstUserMsg?.content) {
+          return
+        }
+
+        // Generate title: trim to 60 chars, capitalize first letter
+        const raw = firstUserMsg.content.trim().slice(0, 60)
+        const title = raw.charAt(0).toUpperCase() + raw.slice(1)
+
+        // Call rename command
+        const res = await commands.renameConversation(conversationId, title)
+        if (res.status === 'ok') {
+          queryClient.invalidateQueries({
+            queryKey: ['conversations'],
+            exact: false
+          })
+        }
+      } catch (error) {
+        console.error('Failed to auto-name conversation:', error)
+      }
+    }
+
+    const processEvent = (event: LocalAgentEvent) => {
       switch (event.type) {
         case 'started':
           setAgentRunning(conversationId, true)
-          // Invalidate messages query to show the persisted user message
           queryClient.invalidateQueries({
             queryKey: ['messages', conversationId],
             exact: false
@@ -59,7 +120,6 @@ export function useAgentStream(conversationId: string | null) {
         case 'token':
           if (event.delta) {
             pendingBuffer.current += event.delta
-            // Schedule a single rAF flush — coalesces multiple tokens per frame.
             if (!rafHandle.current) {
               rafHandle.current = requestAnimationFrame(flushBuffer)
             }
@@ -67,15 +127,12 @@ export function useAgentStream(conversationId: string | null) {
           break
 
         case 'done':
-          // Flush any remaining buffered tokens before clearing.
           if (pendingBuffer.current) {
             appendStreamingText(conversationId, pendingBuffer.current)
             pendingBuffer.current = ''
           }
           setAgentRunning(conversationId, false)
           clearStreamingText(conversationId)
-
-          // Invalidate queued messages query so the UI updates after auto-send
           queryClient.invalidateQueries({
             queryKey: ['queued-messages', conversationId]
           })
@@ -85,7 +142,6 @@ export function useAgentStream(conversationId: string | null) {
           pendingBuffer.current = ''
           setAgentRunning(conversationId, false)
           clearStreamingText(conversationId)
-          // Show error toast and invalidate queries to show the user message
           toast.error(
             event.message || 'An error occurred while processing your message'
           )
@@ -100,7 +156,6 @@ export function useAgentStream(conversationId: string | null) {
           break
 
         case 'persisted':
-          // New messages have been saved to the database; refetch.
           queryClient.invalidateQueries({
             queryKey: ['messages', conversationId],
             exact: false
@@ -109,14 +164,15 @@ export function useAgentStream(conversationId: string | null) {
             queryKey: ['conversations'],
             exact: false
           })
+          // Auto-name: rename if conversation has no title
+          autoNameConversation()
           break
       }
     }
 
-    const handleEvent = (event: AgentEvent) => {
+    const handleEvent = (event: LocalAgentEvent) => {
       if (event.conversation_id !== conversationId) return
 
-      // If listener isn't ready yet, buffer the event
       if (!listenerReady.current) {
         eventBuffer.current.push(event)
         return
@@ -125,13 +181,11 @@ export function useAgentStream(conversationId: string | null) {
       processEvent(event)
     }
 
-    // Set up listener synchronously
     let unlisten: (() => void) | null = null
 
     onAgentEvent(handleEvent).then((fn) => {
       unlisten = fn
       listenerReady.current = true
-      // Process any events that arrived while listener was setting up
       processBufferedEvents()
     })
 

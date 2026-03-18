@@ -1,0 +1,48 @@
+---
+import { trackEvent } from '../../lib/analytics';
+---
+
+<div class="feedback">
+  <p>Was this page helpful?</p>
+  <button class="feedback-yes">👍 Yes</button>
+  <button class="feedback-no">👎 No</button>
+</div>
+
+<script>
+  const yesBtn = document.querySelector('.feedback-yes');
+  const noBtn = document.querySelector('.feedback-no');
+  yesBtn?.addEventListener('click', () => {
+    trackEvent('Page Helpful', { page: window.location.pathname, rating: 'yes' });
+    yesBtn.disabled = true;
+    noBtn.disabled = true;
+    yesBtn.innerText = 'Thank you!';
+  });
+  noBtn?.addEventListener('click', () => {
+    trackEvent('Page Helpful', { page: window.location.pathname, rating: 'no' });
+    // Optionally show a form for more feedback
+    noBtn.disabled = true;
+    yesBtn.disabled = true;
+    noBtn.innerText = 'Thanks for feedback';
+  });
+</script>
+
+<style>
+.feedback {
+  border-top: 1px solid var(--sl-color-gray-5);
+  margin-top: 2rem;
+  padding-top: 1rem;
+  text-align: center;
+}
+.feedback button {
+  margin: 0 0.5rem;
+  padding: 0.25rem 1rem;
+  background: var(--sl-color-gray-6);
+  border: 1px solid var(--sl-color-gray-4);
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+.feedback button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+</style>
