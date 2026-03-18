@@ -1,0 +1,118 @@
+---
+title: Error Codes Reference
+description: Complete list of error codes returned by SkillDeck, with explanations and suggested actions.
+sidebar:
+  order: 4
+---
+
+When something goes wrong, SkillDeck returns an error code to help you diagnose the issue. This reference lists all possible error codes, their meanings, and recommended next steps.
+
+## How to Read Errors
+
+Errors typically appear in:
+
+- The conversation area (as a message from the agent)
+- The developer console (if you run SkillDeck from a terminal)
+- Log files (located in the app's data directory)
+
+Each error includes a code (e.g., `MODEL_RATE_LIMITED`) and a human‑readable message.
+
+## Error Categories
+
+Errors are grouped by the component that generated them.
+
+### Model Provider Errors
+
+| Code | Description | Suggested Action |
+|------|-------------|------------------|
+| `MODEL_REQUEST_REJECTED` | The model provider rejected the request (e.g., due to content policy). | Review your input and try a different phrasing. If the problem persists, check the provider's documentation. |
+| `MODEL_RATE_LIMITED` | You have hit the provider's rate limit. | Wait a few seconds and retry. Consider upgrading your API plan for higher limits. |
+| `MODEL_INTERNAL` | The provider returned an internal server error (5xx). | Wait a moment and retry. If the error persists, check the provider's status page. |
+| `MODEL_CONNECTION` | Network error while contacting the provider. | Check your internet connection and firewall settings. Ensure the provider's API is reachable. |
+| `MODEL_INVALID_RESPONSE` | The provider returned an unexpected or malformed response. | This is usually a transient issue – try again. If it happens often, report it. |
+| `MODEL_AUTHENTICATION` | API key is invalid or missing. | Go to Settings → API Keys and verify that your key is correct and stored. |
+| `MODEL_TIMEOUT` | The provider took too long to respond. | Try again later. If you're using a large model, consider reducing the request size. |
+
+### MCP Errors
+
+| Code | Description | Suggested Action |
+|------|-------------|------------------|
+| `MCP_SERVER_NOT_FOUND` | The requested MCP server does not exist. | Check the server name in the MCP tab. Make sure it's added and enabled. |
+| `MCP_CONNECTION_FAILED` | Could not connect to the MCP server. | Verify that the server is running and the command/URL is correct. Check the server logs. |
+| `MCP_DISCONNECTED` | The server disconnected unexpectedly. | Check the server's stability. It may have crashed – restart it. |
+| `MCP_TOOL_NOT_FOUND` | The tool you requested is not provided by the server. | Verify the tool name. The server may not support it – check its documentation. |
+| `MCP_TOOL_EXECUTION` | The tool execution failed. | Look at the error message for details. It might be invalid arguments or a server error. |
+| `MCP_TOOL_TIMEOUT` | The tool did not respond in time. | The operation may be too slow. Consider increasing timeouts if possible. |
+| `MCP_JSON_RPC` | JSON‑RPC protocol error (code included). | Check the server's implementation. It may not be fully MCP‑compliant. |
+| `MCP_MAX_RESTARTS` | The supervisor gave up restarting the server. | The server repeatedly crashed. Check its logs and fix the underlying issue. |
+
+### Skill Errors
+
+| Code | Description | Suggested Action |
+|------|-------------|------------------|
+| `SKILL_NOT_FOUND` | The requested skill does not exist in the registry. | Check the skill name. If it's a local skill, ensure it's installed. |
+| `SKILL_PARSE` | Failed to parse `SKILL.md`. | Run `skilldeck-lint` on the skill directory to see detailed errors. |
+| `SKILL_INVALID_YAML` | The frontmatter YAML is invalid. | Check for syntax errors (missing colons, unclosed quotes). |
+| `SKILL_TRAVERSAL_NOT_ALLOWED` | Attempted to access a file outside the skill directory. | Skills cannot read arbitrary files for security reasons. |
+| `SKILL_SOURCE_NOT_FOUND` | The skill source directory does not exist. | Verify the installation path. |
+
+### Workflow Errors
+
+| Code | Description | Suggested Action |
+|------|-------------|------------------|
+| `WORKFLOW_CYCLE` | The workflow graph contains a cycle. | Remove circular dependencies between steps. |
+| `WORKFLOW_STEP_NOT_FOUND` | A step referenced in dependencies does not exist. | Check your workflow definition for typos. |
+| `WORKFLOW_EXECUTION` | Step execution failed. | Look at the error message. It may be a problem with the step's prompt or skill. |
+| `WORKFLOW_INVALID_DEFINITION` | The workflow JSON is malformed. | Validate your JSON (e.g., using a linter). |
+| `SUBAGENT_SPAWN` | Failed to spawn a subagent. | Check that the required skills are available and that you haven't exceeded the subagent limit. |
+| `SUBAGENT_EXECUTION` | Subagent execution failed. | Check the subagent's conversation for details. |
+| `SUBAGENT_MAX_DEPTH` | Too many nested subagents. | Simplify your workflow – avoid deep recursion. |
+
+### Database Errors
+
+| Code | Description | Suggested Action |
+|------|-------------|------------------|
+| `DATABASE_CONNECTION` | Could not connect to the SQLite database. | Check file permissions and disk space. If the problem persists, the database may be corrupted. |
+| `DATABASE_QUERY` | A database query failed. | This is usually a transient error – try again. If it happens often, report it. |
+| `DATABASE_MIGRATION` | Database migration failed. | Ensure you have the latest version. If you're on a dev build, you may need to delete the old database. |
+| `DATABASE_ENTITY_NOT_FOUND` | The requested record does not exist. | It may have been deleted. Refresh and try again. |
+| `DATABASE_TRANSACTION` | A transaction failed. | Retry the operation. If it persists, check for concurrent modifications. |
+
+### Workspace Errors
+
+| Code | Description | Suggested Action |
+|------|-------------|------------------|
+| `WORKSPACE_NOT_FOUND` | The workspace path does not exist. | Verify the path and try again. |
+| `WORKSPACE_DETECTION` | Could not detect project type. | This is informational – workspaces still work, but context may be limited. |
+| `WORKSPACE_CONTEXT_NOT_FOUND` | Expected context file (e.g., README) not found. | No action needed; the workspace will still load. |
+
+### I/O Errors
+
+| Code | Description | Suggested Action |
+|------|-------------|------------------|
+| `FILE_OPERATION` | File read/write failed. | Check permissions and disk space. |
+| `FILE_PERMISSION_DENIED` | Permission denied when accessing a file. | Ensure SkillDeck has read/write access to the file or directory. |
+| `DIRECTORY_OPERATION` | Directory operation failed. | Similar to file operation – check permissions. |
+
+### Internal Errors
+
+| Code | Description | Suggested Action |
+|------|-------------|------------------|
+| `INTERNAL` | An unexpected internal error occurred. | Please report this with steps to reproduce. |
+| `CANCELLED` | The operation was cancelled (e.g., user stopped agent). | No action needed – it's expected. |
+| `NOT_IMPLEMENTED` | A feature is not yet implemented. | Stay tuned for future releases! |
+| `INVALID_CONFIGURATION` | Invalid configuration value. | Check your `config.toml` for mistakes. |
+| `CHANNEL` | Internal communication error. | Usually transient – try again. |
+| `LOCK_ACQUISITION` | Could not acquire a lock. | Another process may be using the same resource. Wait and retry. |
+
+## Reporting Unknown Errors
+
+If you encounter an error not listed here, or if the suggested action doesn't help, please:
+
+1. Check the [GitHub Issues](https://github.com/elcoosp/skilldeck/issues) to see if it's already reported.
+2. If not, open a new issue with:
+   - The full error message
+   - Steps to reproduce
+   - Your environment (OS, SkillDeck version)
+
+<Feedback />
