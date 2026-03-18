@@ -127,7 +127,6 @@ export function MessageBubble({
   }, [message.metadata, isUser])
 
   // Extract context items from metadata
-
   const contextItems = message.context_items || [];
 
   // Check if this is a subagent spawn message
@@ -220,12 +219,13 @@ export function MessageBubble({
       {/* Message container: bubble + copy button */}
       <div
         className={cn(
-          'flex flex-col max-w-[78%] min-w-0',
-          isUser ? 'items-end' : 'items-start'
+          'flex flex-col min-w-0',
+          isUser ? 'items-end' : 'items-start',
+          isAssistant ? 'w-full max-w-full' : 'max-w-[78%]' // assistant takes full width, others capped
         )}
       >
         {/* Message bubble */}
-        <div className={cn(isUser && 'text-right')}>
+        <div className={cn(isUser && 'text-right', 'w-full')}>
           <div
             className={cn(
               'inline-block px-3.5 py-2.5 rounded-xl text-sm leading-relaxed',
@@ -233,7 +233,8 @@ export function MessageBubble({
                 ? 'bg-primary text-primary-foreground rounded-tr-sm'
                 : isTool
                   ? 'bg-muted/70 font-mono text-xs w-full rounded-tl-sm'
-                  : 'bg-muted/50 rounded-tl-sm'
+                  : 'bg-muted/50 rounded-tl-sm',
+              isAssistant && 'block w-full bg-transparent' // full width, no background
             )}
           >
             {/* Queued indicator for user messages */}

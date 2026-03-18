@@ -28,6 +28,13 @@ import { SkillDetailPanel } from './skill-detail-panel'
 import { UnifiedSkillCard } from './unified-skill-card'
 import { PlatformStatusBanner } from './platform-status-banner'
 import { useUIStore } from '@/store/ui'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
 
 // Responsive column count based on container width
 const BREAKPOINTS = {
@@ -78,16 +85,21 @@ export function UnifiedSkillList() {
   const { unifiedSkills, isLoading, installedCount, registryError } =
     useUnifiedSkills({ search: debouncedSearch || undefined })
 
-  // Compute categories
+  // Compute unique categories from registry skills that have a category
   const categories = useMemo(() => {
     const cats = new Set<string>()
     unifiedSkills.forEach(skill => {
-      if (skill.registryData?.category) cats.add(skill.registryData.category)
+      // Only include registry skills that have a non-null category
+      if (skill.registryData?.category && skill.registryData.category.trim() !== '') {
+        cats.add(skill.registryData.category)
+      }
     })
+    // Convert to sorted array, with "all" always first
     return ['all', ...Array.from(cats).sort()]
   }, [unifiedSkills])
 
-  // Filter by category
+
+  // Filter by category (if not "all")
   const filteredSkills = useMemo(() => {
     if (category === 'all') return unifiedSkills
     return unifiedSkills.filter(s => s.registryData?.category === category)
@@ -228,17 +240,22 @@ export function UnifiedSkillList() {
                 )}
               />
             </div>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="h-8 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-            >
-              {categories.map(cat => (
-                <option key={cat} value={cat}>
-                  {cat === 'all' ? 'All categories' : cat}
-                </option>
-              ))}
-            </select>
+
+            {/* Only show category filter if there is at least one category besides "all" */}
+            {categories.length > 1 && (
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger className="w-[140px] h-8">
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat} value={cat} className="text-xs">
+                      {cat === 'all' ? 'All categories' : cat}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
         </div>
 
