@@ -10,6 +10,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip' // <-- new
 import { useDisableRule } from '@/hooks/use-skills'
 import { commands } from '@/lib/bindings'
 import { useUIStore } from '@/store/ui'
@@ -18,7 +19,6 @@ import { BlockedSkillAlert } from './blocked-skill-alert'
 import { ConflictResolver } from './conflict-resolver'
 import { InstallDialog } from './install-dialog'
 import { LintWarningPanel } from './lint-warning-panel'
-import { dirname } from '@tauri-apps/api/path'
 
 interface Props {
   skill: UnifiedSkill
@@ -42,6 +42,13 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
   const canUpdate =
     skill.status === 'update_available' && platformFeaturesEnabled
   const isBlocked = skill.registryData && skill.registryData.securityScore < 2
+
+  // Combine lint warnings from both sources
+  const lintWarnings = (
+    skill.localData?.lint_warnings ??
+    skill.registryData?.lintWarnings ??
+    []
+  ) as LintWarning[]
 
   // ── Install ────────────────────────────────────────────────────────────────
   const install = useMutation({
@@ -109,6 +116,21 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
     }
   })
 
+  // ── Re-lint (for local skills) ─────────────────────────────────────────────
+  const relint = useMutation({
+    mutationFn: async () => {
+      if (!skill.localData?.path) throw new Error('No path')
+      const res = await commands.lintSkill(skill.localData.path, null)
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['local_skills'] })
+      toast.success('Lint check complete')
+    },
+    onError: (e: Error) => toast.error(`Lint failed: ${e.message}`)
+  })
+
   // ── Diff / Conflict resolution ─────────────────────────────────────────────
   const diffMutation = useMutation({
     mutationFn: async () => {
@@ -142,7 +164,8 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
     install.isPending ||
     uninstall.isPending ||
     sync.isPending ||
-    diffMutation.isPending
+    diffMutation.isPending ||
+    relint.isPending
 
   const handleInstallClick = () => {
     if (!skill.registryData) return
@@ -251,6 +274,32 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
           </div>
         )}
 
+        {/* Local scores with tooltips */}
+        {skill.localData && (
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div>
+                  <MetaField label="Security" value={`${skill.localData.security_score}/5`} />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p>Based on security lint warnings. 5 = no errors, 1 = critical errors.</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div>
+                  <MetaField label="Quality" value={`${skill.localData.quality_score}/5`} />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p>Based on style and documentation warnings. 5 = no warnings, 1 = many warnings.</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        )}
+
         {/* Tags */}
         {skill.registryData?.tags && skill.registryData.tags.length > 0 && (
           <div>
@@ -266,15 +315,25 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
         )}
 
         {/* Lint warnings */}
-        {skill.registryData?.lintWarnings &&
-          skill.registryData.lintWarnings.length > 0 && (
-            <div>
+        {lintWarnings.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
               <SectionLabel>Lint Issues</SectionLabel>
-              <LintWarningPanel
-                warnings={skill.registryData.lintWarnings as any}
-              />
+              <a
+                href="https://docs.skilldeck.dev/en/latest/guides/skill-linting"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-primary hover:underline"
+              >
+                Learn more about linting
+              </a>
             </div>
-          )}
+            <LintWarningPanel
+              warnings={lintWarnings}
+              onIgnore={skill.localData ? handleIgnoreRule : undefined}
+            />
+          </div>
+        )}
 
         {/* Local path */}
         {skill.localData?.path && (
@@ -330,6 +389,18 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
           >
             <RefreshCw className="mr-2 h-3.5 w-3.5" />
             {diffMutation.isPending ? 'Checking…' : 'Update Skill'}
+          </Button>
+        )}
+
+        {skill.localData?.path && (
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => relint.mutate()}
+            disabled={isBusy || relint.isPending}
+          >
+            <RefreshCw className={`mr-2 h-3.5 w-3.5 ${relint.isPending ? 'animate-spin' : ''}`} />
+            {relint.isPending ? 'Linting…' : 'Re-lint'}
           </Button>
         )}
 
