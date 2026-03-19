@@ -6,11 +6,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { commands } from '@/lib/bindings'
 import type { UUID } from '@/lib/types'
 
-export function useProfiles() {
+export function useProfiles(includeDeleted?: boolean) { // <-- added parameter
   return useQuery({
-    queryKey: ['profiles'],
+    queryKey: ['profiles', includeDeleted],
     queryFn: async () => {
-      const res = await commands.listProfiles()
+      const res = await commands.listProfiles(includeDeleted ?? false)
       if (res.status === 'ok') return res.data
       throw new Error(res.error)
     },
@@ -24,13 +24,15 @@ export function useCreateProfile() {
     mutationFn: async ({
       name,
       modelProvider,
-      modelId
+      modelId,
+      systemPrompt
     }: {
       name: string
       modelProvider: string
       modelId: string
+      systemPrompt?: string | null
     }) => {
-      const res = await commands.createProfile(name, modelProvider, modelId)
+      const res = await commands.createProfile(name, modelProvider, modelId, systemPrompt ?? null)
       if (res.status === 'error') throw new Error(res.error)
       return res.data
     },
@@ -79,5 +81,19 @@ export function useDeleteProfile() {
       return res.data
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['profiles'] })
+  })
+}
+
+export function useRestoreProfile() { // <-- new hook
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: UUID) => {
+      const res = await commands.restoreProfile(id)
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profiles'] })
+    }
   })
 }

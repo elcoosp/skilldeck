@@ -263,16 +263,12 @@ function ProfilesTab() {
   const [newName, setNewName] = useState('')
   const [newProvider, setNewProvider] = useState('ollama')
   const [newModel, setNewModel] = useState('')
-  const [newSystemPrompt, setNewSystemPrompt] = useState('') // <-- new state
+  const [newSystemPrompt, setNewSystemPrompt] = useState('')
 
-  const { data: profiles = [], isLoading } = useQuery({
-    queryKey: ['profiles'],
-    queryFn: async () => {
-      const res = await commands.listProfiles()
-      if (res.status === 'ok') return res.data
-      throw new Error(res.error)
-    }
-  })
+  // Fetch profiles (including deleted) and separate them
+  const { data: allProfiles = [], isLoading } = useProfiles(true)
+  const activeProfiles = allProfiles.filter(p => !p.deleted_at)
+  const deletedProfiles = allProfiles.filter(p => p.deleted_at)
 
   const { data: ollamaModels = [] } = useQuery({
     queryKey: ['available-models', 'ollama'],
@@ -285,12 +281,11 @@ function ProfilesTab() {
 
   const createMut = useMutation({
     mutationFn: async () => {
-      // Call createProfile with optional systemPrompt
       const res = await commands.createProfile(
         newName.trim(),
         newProvider,
         newModel.trim() || defaultModel(),
-        newSystemPrompt.trim() || null // pass system prompt
+        newSystemPrompt.trim() || null
       )
       if (res.status === 'error') throw new Error(res.error)
       return res.data
@@ -302,36 +297,14 @@ function ProfilesTab() {
       setNewName('')
       setNewModel('')
       setNewProvider('ollama')
-      setNewSystemPrompt('') // reset
+      setNewSystemPrompt('')
     },
     onError: (e: unknown) => toast.error(String(e))
   })
 
-  const deleteMut = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await commands.deleteProfile(id)
-      if (res.status === 'error') throw new Error(res.error)
-      return res.data
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['profiles'] })
-      toast.success('Profile deleted')
-    },
-    onError: (e: unknown) => toast.error(String(e))
-  })
-
-  const defaultMut = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await commands.setDefaultProfile(id)
-      if (res.status === 'error') throw new Error(res.error)
-      return res.data
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['profiles'] })
-      toast.success('Default profile updated')
-    },
-    onError: (e: unknown) => toast.error(String(e))
-  })
+  const deleteMut = useDeleteProfile()
+  const defaultMut = useSetDefaultProfileMutation() // assume exists
+  const restoreMut = useRestoreProfile() // <-- new
 
   const PROVIDER_OPTIONS = [
     { id: 'ollama', label: 'Ollama (local)' },
@@ -448,76 +421,99 @@ function ProfilesTab() {
         </div>
       )}
 
-      {/* Profile list */}
+      {/* Active profiles list */}
       {isLoading ? (
         <div className="flex justify-center py-6">
           <div className="size-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
         </div>
-      ) : profiles.length === 0 ? (
+      ) : activeProfiles.length === 0 ? (
         <p className="text-sm text-muted-foreground italic">No profiles yet.</p>
       ) : (
         <div className="space-y-2">
-          {profiles.map((p: ProfileData) => {
-
-            console.log('Profile model_provider:', p.model_provider, typeof p.model_provider);
-            return (
-              <div
-                key={p.id}
-                className={cn(
-                  'flex items-center gap-3 rounded-lg border px-3 py-2.5',
-                  p.is_default
-                    ? 'border-primary/40 bg-primary/5'
-                    : 'border-border'
-                )}
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-medium truncate">{p.name}</span>
-                    {p.is_default && (
-                      <Badge
-                        variant="outline"
-                        className="bg-primary/10 text-primary border-primary/20"
-                      >
-                        default
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {getProviderName(p.model_provider)} · {p.model_id}
-                  </p>
-                  {p.system_prompt && (
-                    <p className="text-xs text-muted-foreground/70 truncate mt-0.5 italic">
-                      {p.system_prompt}
-                    </p>
+          {activeProfiles.map((p: ProfileData) => (
+            <div
+              key={p.id}
+              className={cn(
+                'flex items-center gap-3 rounded-lg border px-3 py-2.5',
+                p.is_default
+                  ? 'border-primary/40 bg-primary/5'
+                  : 'border-border'
+              )}
+            >
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-medium truncate">{p.name}</span>
+                  {p.is_default && (
+                    <Badge
+                      variant="outline"
+                      className="bg-primary/10 text-primary border-primary/20"
+                    >
+                      default
+                    </Badge>
                   )}
                 </div>
+                <p className="text-xs text-muted-foreground truncate">
+                  {getProviderName(p.model_provider)} · {p.model_id}
+                </p>
+                {p.system_prompt && (
+                  <p className="text-xs text-muted-foreground/70 truncate mt-0.5 italic">
+                    {p.system_prompt}
+                  </p>
+                )}
+              </div>
 
-                <div className="flex items-center gap-1 shrink-0">
-                  {!p.is_default && (
-                    <Button
-                      size="icon-xs"
-                      variant="ghost"
-                      onClick={() => defaultMut.mutate(p.id)}
-                      disabled={defaultMut.isPending}
-                      title="Set as default"
-                    >
-                      <Star className="size-3.5" />
-                    </Button>
-                  )}
+              <div className="flex items-center gap-1 shrink-0">
+                {!p.is_default && (
                   <Button
                     size="icon-xs"
                     variant="ghost"
-                    onClick={() => deleteMut.mutate(p.id)}
-                    disabled={deleteMut.isPending}
-                    title="Delete profile"
-                    className="text-muted-foreground hover:text-destructive"
+                    onClick={() => defaultMut.mutate(p.id)}
+                    disabled={defaultMut.isPending}
+                    title="Set as default"
                   >
-                    <Trash2 className="size-3.5" />
+                    <Star className="size-3.5" />
                   </Button>
-                </div>
+                )}
+                <Button
+                  size="icon-xs"
+                  variant="ghost"
+                  onClick={() => deleteMut.mutate(p.id)}
+                  disabled={deleteMut.isPending}
+                  title="Delete profile"
+                  className="text-muted-foreground hover:text-destructive"
+                >
+                  <Trash2 className="size-3.5" />
+                </Button>
               </div>
-            )
-          })}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Deleted profiles section */}
+      {deletedProfiles.length > 0 && (
+        <div className="mt-4 pt-4 border-t">
+          <h3 className="text-sm font-medium mb-2">Deleted Profiles</h3>
+          <p className="text-xs text-muted-foreground mb-3">
+            These profiles are hidden from the list. Restore them to make conversations reappear.
+          </p>
+          <div className="space-y-2">
+            {deletedProfiles.map(p => (
+              <div key={p.id} className="flex items-center justify-between p-2 rounded border border-border">
+                <div>
+                  <p className="text-sm font-medium">{p.name}</p>
+                  <p className="text-xs text-muted-foreground">Deleted</p>
+                </div>
+                <Button
+                  size="xs"
+                  onClick={() => restoreMut.mutate(p.id)}
+                  disabled={restoreMut.isPending}
+                >
+                  Restore
+                </Button>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
