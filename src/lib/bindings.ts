@@ -218,6 +218,17 @@ async listMessages(conversationId: string, branchId: string | null) : Promise<Re
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * Search messages within a conversation using FTS5.
+ */
+async searchMessages(req: SearchMessagesRequest) : Promise<Result<SearchMessagesResult[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("search_messages", { req }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async sendMessage(req: SendMessageRequest) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("send_message", { req }) };
@@ -1004,6 +1015,14 @@ export type ReferralCode = { id: string; code: string; uses: number; max_uses: n
 export type ReferralStats = { code: ReferralCode; total_signups: string; total_conversions: string; rewards_earned: string }
 export type RegistrySkillData = { id: string; name: string; description: string; source: string; sourceUrl: string | null; version: string | null; author: string | null; license: string | null; tags: string[]; category: string | null; lintWarnings: JsonValue[]; securityScore: number; qualityScore: number; metadataSource: string; content: string; createdAt: string; updatedAt: string }
 export type SaveWorkflowDefinitionRequest = { name: string; definition: JsonValue }
+/**
+ * Request for searching messages within a conversation.
+ */
+export type SearchMessagesRequest = { conversation_id: string; query: string; limit: string | null }
+/**
+ * Result of a search within a conversation.
+ */
+export type SearchMessagesResult = { message_id: string; snippet: string }
 export type SendMessageRequest = { conversation_id: string; content: string; context_items: ContextItem[] | null }
 /**
  * Severity level of a lint warning.

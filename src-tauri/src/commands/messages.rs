@@ -2,8 +2,8 @@
 //! Message Tauri commands.
 
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ConnectionTrait, EntityTrait, QueryFilter, QueryOrder,
-    Statement,
+    ActiveModelTrait, ActiveValue::Set, ConnectionTrait, DbBackend, EntityTrait, QueryFilter,
+    QueryOrder, Statement,
 };
 use serde::{Deserialize, Serialize};
 use specta::{Type, specta};
@@ -131,29 +131,25 @@ pub async fn search_messages(
         .await
         .map_err(|e| e.to_string())?;
     let conv_uuid = Uuid::parse_str(&req.conversation_id).map_err(|e| e.to_string())?;
-    let limit = req.limit.unwrap_or(50).min(100);
+    let limit = req.limit.unwrap_or(50).min(100) as i64;
 
-    // Use FTS5 to search within this conversation.
-    // Join with messages to ensure we only get messages from that conversation.
-    // FTS5 provides a rank, we order by rank.
     let sql = r#"
         SELECT m.id, snippet(messages_fts, 0, '<mark>', '</mark>', '…', 20) as snippet
         FROM messages_fts
         JOIN messages m ON m.id = messages_fts.message_id
-        WHERE messages_fts.content MATCH ?1
-          AND m.conversation_id = ?2
+        WHERE messages_fts.content MATCH ?
+          AND m.conversation_id = ?
         ORDER BY rank
-        LIMIT ?3
+        LIMIT ?
     "#;
 
-    let rows = db
-        .query_all(Statement::from_sql_and_values(
-            sea_orm::DatabaseBackend::Sqlite,
-            sql,
-            [req.query.into(), conv_uuid.into(), (limit as i64).into()],
-        ))
-        .await
-        .map_err(|e| e.to_string())?;
+    let stmt = Statement::from_sql_and_values(
+        DbBackend::Sqlite,
+        sql,
+        [req.query.into(), conv_uuid.into(), limit.into()],
+    );
+
+    let rows = db.query_all_raw(stmt).await.map_err(|e| e.to_string())?;
 
     let mut results = Vec::new();
     for row in rows {
@@ -180,29 +176,24 @@ pub async fn search_all_messages(
         .connection()
         .await
         .map_err(|e| e.to_string())?;
-    let limit = req.limit.unwrap_or(50).min(100);
+    let limit = req.limit.unwrap_or(50).min(100) as i64;
 
-    // Use FTS5 to search across all messages, joining with conversations to get titles.
     let sql = r#"
-        SELECT m.id, m.conversation_id, m.created_at,
+        SELECT m.id as message_id, m.conversation_id, m.created_at,
                c.title as conversation_title,
-               snippet(messages_fts, 0, '<mark>', '</mark>', '…', 20) as snippet
+               snippet(messages_fts, 0, '<mark>', '</mark>', '…', 20) as message_snippet
         FROM messages_fts
         JOIN messages m ON m.id = messages_fts.message_id
         JOIN conversations c ON c.id = m.conversation_id
-        WHERE messages_fts.content MATCH ?1
+        WHERE messages_fts.content MATCH ?
         ORDER BY rank
-        LIMIT ?2
+        LIMIT ?
     "#;
 
-    let rows = db
-        .query_all(&Statement::from_sql_and_values(
-            sea_orm::DatabaseBackend::Sqlite,
-            sql,
-            [req.query.into(), (limit as i64).into()],
-        ))
-        .await
-        .map_err(|e| e.to_string())?;
+    let stmt =
+        Statement::from_sql_and_values(DbBackend::Sqlite, sql, [req.query.into(), limit.into()]);
+
+    let rows = db.query_all_raw(stmt).await.map_err(|e| e.to_string())?;
 
     let mut results = Vec::new();
     for row in rows {
@@ -210,8 +201,10 @@ pub async fn search_all_messages(
             .try_get("", "conversation_id")
             .map_err(|e| e.to_string())?;
         let conversation_title: Option<String> = row.try_get("", "conversation_title").ok();
-        let message_id: String = row.try_get("", "id").map_err(|e| e.to_string())?;
-        let snippet: String = row.try_get("", "snippet").map_err(|e| e.to_string())?;
+        let message_id: String = row.try_get("", "message_id").map_err(|e| e.to_string())?;
+        let snippet: String = row
+            .try_get("", "message_snippet")
+            .map_err(|e| e.to_string())?;
         let created_at: chrono::DateTime<chrono::FixedOffset> =
             row.try_get("", "created_at").map_err(|e| e.to_string())?;
         results.push(GlobalSearchResult {
@@ -224,7 +217,6 @@ pub async fn search_all_messages(
     }
     Ok(results)
 }
-
 // =============================================================================
 // Internal send function
 // =============================================================================
