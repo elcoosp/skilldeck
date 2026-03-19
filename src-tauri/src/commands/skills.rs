@@ -9,6 +9,7 @@ use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, Condition, EntityTrait, QueryFilter,
     QueryOrder,
 };
+use skilldeck_lint::{LintWarning, compute_security_score, compute_quality_score};
 use serde::{Deserialize, Serialize};
 use specta::{Type, specta};
 use std::collections::HashMap;
@@ -30,6 +31,9 @@ pub struct SkillInfo {
     pub is_active: bool,
     pub source: String,
     pub path: Option<String>,
+    pub lint_warnings: Vec<LintWarning>,
+     pub security_score: u8,
+     pub quality_score: u8,
 }
 
 #[specta]
@@ -44,6 +48,9 @@ pub async fn list_skills(state: State<'_, Arc<AppState>>) -> Result<Vec<SkillInf
             is_active: s.is_active,
             source: s.source,
             path: s.disk_path.map(|p| p.to_string_lossy().into_owned()),
+            lint_warnings: s.lint_warnings.unwrap_or_default(),
+            security_score: s.security_score,
+            quality_score: s.quality_score,
         })
         .collect())
 }
