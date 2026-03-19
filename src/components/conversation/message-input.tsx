@@ -10,7 +10,7 @@
 
 import { open } from '@tauri-apps/plugin-dialog'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { AtSign, Hash, Paperclip, Send, Timer, X } from 'lucide-react'
+import { AtSign, Hash, Paperclip, Send, Timer } from 'lucide-react' // removed X
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
@@ -677,7 +677,9 @@ export function MessageInput({
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <span tabIndex={0} className="inline-block">
+            <span className="inline-block">
+              {' '}
+              {/* tabIndex removed */}
               <Button
                 variant="ghost"
                 size="sm"

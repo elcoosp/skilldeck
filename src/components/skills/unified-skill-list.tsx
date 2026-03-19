@@ -77,8 +77,9 @@ export function UnifiedSkillList() {
     }
   }, [columns])
 
-  const { unifiedSkills, isLoading, installedCount, registryError } =
-    useUnifiedSkills({ search: debouncedSearch || undefined })
+  const { unifiedSkills, isLoading, registryError } = useUnifiedSkills({
+    search: debouncedSearch || undefined
+  })
 
   const localWithIssues = unifiedSkills
     .filter((s) => s.status === 'local_only' || s.status === 'installed')
@@ -184,16 +185,15 @@ export function UnifiedSkillList() {
     overscan: 2
   })
 
+  // Capture stable values for dependencies
+  const totalSize = rowVirtualizer.getTotalSize()
+
   useEffect(() => {
-    if (
-      !isMeasuredRef.current &&
-      rowVirtualizer.getTotalSize() > 0 &&
-      filteredSkills.length > 0
-    ) {
+    if (!isMeasuredRef.current && totalSize > 0 && filteredSkills.length > 0) {
       isMeasuredRef.current = true
       setIsMeasured(true)
     }
-  }, [rowVirtualizer.getTotalSize(), filteredSkills.length])
+  }, [totalSize, filteredSkills.length])
 
   const resolvedSelected = selected
     ? (filteredSkills.find((s) => s.id === selected.id) ?? selected)
@@ -385,6 +385,7 @@ export function UnifiedSkillList() {
                     {Array.from({
                       length: columns - rowItems.length
                     }).map((_, i) => (
+                      // biome-ignore lint/suspicious/noArrayIndexKey: static placeholder
                       <div key={`pad-${i}`} />
                     ))}
                   </div>

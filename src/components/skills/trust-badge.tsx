@@ -97,6 +97,7 @@ export function ScoreDots({ score, max = 5 }: { score: number; max?: number }) {
     >
       {Array.from({ length: max }).map((_, i) => (
         <span
+          // biome-ignore lint/suspicious/noArrayIndexKey: static list, index is stable
           key={i}
           className={cn(
             'inline-block size-1.5 rounded-full',

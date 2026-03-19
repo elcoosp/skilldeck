@@ -127,6 +127,7 @@ export function MessageBubble({
   isStreaming = false,
   isHighlighted = false
 }: MessageBubbleProps) {
+  // All hooks must be called unconditionally at the top
   const [collapsed, setCollapsed] = useState(false)
   const [copied, setCopied] = useState(false)
 
@@ -157,24 +158,6 @@ export function MessageBubble({
   // Extract context items from metadata
   const contextItems = message.context_items || []
 
-  // Subagent card handling (unchanged)
-  if (isAssistant && !isStreaming && message.content) {
-    try {
-      const data = JSON.parse(message.content)
-      if (data.subagentId) {
-        return (
-          <SubagentCard
-            stepName={data.task || 'Subagent'}
-            status="running"
-            onOpen={() => {}}
-          />
-        )
-      }
-    } catch {
-      // not JSON, continue
-    }
-  }
-
   const canCollapse =
     (isAssistant || isSystem || isTool) && !isStreaming && !syntheticStreaming
   const isCollapsed = collapsed && canCollapse
@@ -190,23 +173,45 @@ export function MessageBubble({
     if (contextItems.length === 0) return null
     return (
       <div className="flex flex-wrap gap-1 mb-2">
-        {contextItems.map((item: any, idx: number) => (
-          <ContextChip key={`${item.type}-${idx}`} item={item} readonly />
-        ))}
+        {contextItems.map((item: any, idx: number) => {
+          // Use a stable key if available, otherwise fallback to index with suppression
+          const key = item.path || item.name || `item-${idx}`
+          return <ContextChip key={key} item={item} readonly />
+        })}
       </div>
+    )
+  }
+
+  // Subagent card detection – done after hooks, before return
+  let subagentData: any = null
+  if (isAssistant && !isStreaming && message.content) {
+    try {
+      subagentData = JSON.parse(message.content)
+    } catch {
+      // ignore
+    }
+  }
+
+  if (subagentData?.subagentId) {
+    return (
+      <SubagentCard
+        stepName={subagentData.task || 'Subagent'}
+        status="running"
+        onOpen={() => {}}
+      />
     )
   }
 
   return (
     <motion.div
       className={cn(
-        'flex gap-3 max-w-full', // ← removed conflicting Tailwind transition
+        'flex gap-3 max-w-full transition-all duration-500 ease-in-out',
         isUser && 'flex-row-reverse',
         isHighlighted && 'bg-[var(--highlight-bg)] p-3 rounded-lg'
       )}
-      initial={{ opacity: 0, y: 4 }}
+      initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.15, ease: 'easeOut' }}
+      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
     >
       {/* Avatar */}
       <div
@@ -371,6 +376,7 @@ export function MessageBubble({
                               )
                               return (
                                 <button
+                                  type="button"
                                   onClick={async () => {
                                     await navigator.clipboard.writeText(content)
                                     toast.success('Code copied to clipboard')

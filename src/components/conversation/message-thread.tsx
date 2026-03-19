@@ -47,7 +47,7 @@ export const MessageThread = React.forwardRef<
       count: messages.length,
       getScrollElement: () => scrollRef.current,
       estimateSize: () => 80,
-      overscan: 5,
+      overscan: 8,
       measureElement: (el) => el.getBoundingClientRect().height
     })
 
@@ -159,8 +159,7 @@ export const MessageThread = React.forwardRef<
           clearTimeout(programmaticScrollTimer.current)
         }
       }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [virtualizer, !!onVisibleUserIndexChange, messages.length])
+    }, [virtualizer, messages, onVisibleUserIndexChange]) // Fixed dependencies
 
     const showLoading = isLoading
     const showEmpty = !isLoading && messages.length === 0
@@ -207,7 +206,7 @@ export const MessageThread = React.forwardRef<
             </motion.div>
           )}
           {showList && (
-            <div // ← replaced motion.div with plain div
+            <div
               style={{
                 height: virtualizer.getTotalSize(),
                 position: 'relative'
