@@ -1,11 +1,12 @@
 // src/components/conversation/conversation-item.tsx
 /**
- * Sidebar conversation list item with inline rename, context menu, and pin toggle.
+ * Sidebar conversation list item with inline rename, context menu, pin toggle,
+ * and optional workspace badge.
  */
 
 import { formatDistanceToNow } from 'date-fns'
 import { AnimatePresence, motion } from 'framer-motion'
-import { MoreHorizontal, Pencil, Pin, PinOff, Trash2 } from 'lucide-react'
+import { Folder, MoreHorizontal, Pencil, Pin, PinOff, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -29,6 +30,7 @@ interface ConversationItemProps {
   isDeleting?: boolean
   onDeleteStart?: (conversationId: string) => void
   onClick: () => void
+  workspaceName?: string          // optional workspace name to display as badge
 }
 
 export function ConversationItem({
@@ -36,7 +38,8 @@ export function ConversationItem({
   isActive,
   isDeleting,
   onDeleteStart,
-  onClick
+  onClick,
+  workspaceName
 }: ConversationItemProps) {
   const [isRenaming, setIsRenaming] = useState(false)
   const [draft, setDraft] = useState(conversation.title ?? '')
@@ -227,11 +230,17 @@ export function ConversationItem({
           )}
         </div>
 
-        {/* Metadata – always visible */}
-        <p className="text-[11px] text-muted-foreground/70 truncate mt-0.5 flex items-center gap-1">
+        {/* Metadata – always visible, now with optional workspace badge */}
+        <p className="text-[11px] text-muted-foreground/70 truncate mt-0.5 flex items-center gap-1 flex-wrap">
           {conversation.pinned && (
             <span className="inline-flex items-center gap-0.5 text-primary">
               <Pin className="size-2.5 fill-primary" /> Pinned
+            </span>
+          )}
+          {workspaceName && (
+            <span className="inline-flex items-center gap-0.5 bg-muted/50 px-1 py-0.5 rounded-sm">
+              <Folder className="size-2.5" />
+              {workspaceName}
             </span>
           )}
           <span>

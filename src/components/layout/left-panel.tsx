@@ -55,6 +55,13 @@ export function LeftPanel() {
 
   const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId)
 
+  // Helper to get workspace name from ID
+  const getWorkspaceName = (workspaceId: string | null) => {
+    if (!workspaceId) return null
+    const ws = workspaces.find(w => w.id === workspaceId)
+    return ws?.name ?? null
+  }
+
   const filtered = conversations?.filter((c) =>
     searchQuery
       ? (c.title ?? '').toLowerCase().includes(searchQuery.toLowerCase())
@@ -110,13 +117,6 @@ export function LeftPanel() {
   }
 
   const isLoading = profilesLoading || conversationsLoading
-
-  // Helper to get workspace name from ID
-  const getWorkspaceName = (workspaceId: string | null) => {
-    if (!workspaceId) return null
-    const ws = workspaces.find(w => w.id === workspaceId)
-    return ws?.name
-  }
 
   return (
     <div className="flex flex-col h-full select-none">
@@ -214,13 +214,8 @@ export function LeftPanel() {
                     isDeleting={c.id === deletingId}
                     onDeleteStart={handleDeleteStart}
                     onClick={() => setActiveConversation(c.id)}
+                    workspaceName={getWorkspaceName(c.workspace_id)}
                   />
-                  {/* Display workspace badge if present */}
-                  {c.workspace_id && (
-                    <span className="text-[10px] ml-2 text-muted-foreground">
-                      {getWorkspaceName(c.workspace_id)}
-                    </span>
-                  )}
                 </motion.div>
               ))}
             </AnimatePresence>
