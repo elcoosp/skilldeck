@@ -2,9 +2,11 @@
  * Center panel — virtualized message thread and input bar.
  */
 
+import { useRef } from 'react'
 import { BranchNav } from '@/components/conversation/branch-nav'
 import { MessageInput } from '@/components/conversation/message-input'
-import { MessageThread } from '@/components/conversation/message-thread'
+import { MessageThread, MessageThreadHandle } from '@/components/conversation/message-thread'
+import { ThreadNavigator } from '@/components/conversation/thread-navigator'
 import { useAgentStream } from '@/hooks/use-agent-stream'
 import { useMessagesWithStream } from '@/hooks/use-messages'
 import { useUIStore } from '@/store/ui'
@@ -18,11 +20,16 @@ export function CenterPanel() {
   const { data: workspaces = [] } = useWorkspaces()
   const activeWorkspace = workspaces.find((w) => w.id === workspaceId)
   const workspaceRoot = activeWorkspace?.path
+  const threadRef = useRef<MessageThreadHandle>(null)
 
   // Subscribe to streaming events for the active conversation.
   useAgentStream(activeConversationId)
 
   const messages = useMessagesWithStream(activeConversationId, activeBranchId)
+
+  const scrollToMessage = (index: number) => {
+    threadRef.current?.scrollToMessage(index)
+  }
 
   if (!activeConversationId) {
     return (
@@ -39,7 +46,7 @@ export function CenterPanel() {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="relative flex flex-col h-full">
       {/* Branch navigation bar — only shown when a branch is active and branches exist */}
       {activeConversationId && (
         <BranchNav conversationId={activeConversationId} />
@@ -47,8 +54,13 @@ export function CenterPanel() {
 
       {/* Virtualized message thread */}
       <div className="flex-1 min-h-0">
-        <MessageThread messages={messages} />
+        <MessageThread ref={threadRef} messages={messages} />
       </div>
+
+      {/* Thread navigator */}
+      {messages.length > 2 && (
+        <ThreadNavigator messages={messages} onScrollTo={scrollToMessage} />
+      )}
 
       {/* Input bar */}
       <div className="shrink-0 border-t border-border">
