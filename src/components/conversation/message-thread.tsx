@@ -7,12 +7,15 @@ import { MessageBubble } from './message-bubble'
 
 export interface MessageThreadHandle {
   scrollToMessage: (index: number) => void
+  getScrollPosition: () => number
+  scrollToPosition: (position: number) => void
 }
 
 interface MessageThreadProps {
   messages: MessageData[]
   streamingMessageId?: string
   isLoading?: boolean
+  searchQuery?: string // new prop
   /** Called with the nearest user-message index visible in the viewport. */
   onVisibleUserIndexChange?: (index: number) => void
   /** ID of the message that should be highlighted (for animation) */
@@ -28,6 +31,7 @@ export const MessageThread = React.forwardRef<
       messages,
       streamingMessageId,
       isLoading,
+      searchQuery = '',
       onVisibleUserIndexChange,
       highlightedMessageId
     },
@@ -35,16 +39,22 @@ export const MessageThread = React.forwardRef<
   ) => {
     const scrollRef = React.useRef<HTMLDivElement>(null)
 
-    // When a programmatic scroll is in flight we suppress the scroll listener
-    // so intermediate positions during the smooth animation don't overwrite
-    // the intended target index.
+    // Filter messages based on search query (client-side)
+    const filteredMessages = React.useMemo(() => {
+      if (!searchQuery.trim()) return messages
+      const lowerQuery = searchQuery.toLowerCase()
+      return messages.filter(m =>
+        m.content.toLowerCase().includes(lowerQuery)
+      )
+    }, [messages, searchQuery])
+
     const isProgrammaticScroll = React.useRef(false)
     const programmaticScrollTimer = React.useRef<ReturnType<
       typeof setTimeout
     > | null>(null)
 
     const virtualizer = useVirtualizer({
-      count: messages.length,
+      count: filteredMessages.length,
       getScrollElement: () => scrollRef.current,
       estimateSize: () => 80,
       overscan: 8,
@@ -53,25 +63,20 @@ export const MessageThread = React.forwardRef<
 
     const virtualItems = virtualizer.getVirtualItems()
 
-    // Auto-scroll to bottom on new messages
+    // Auto-scroll to bottom on new messages only if search is empty
     React.useEffect(() => {
-      if (messages.length === 0) return
-      virtualizer.scrollToIndex(messages.length - 1, {
+      if (filteredMessages.length === 0 || searchQuery) return
+      virtualizer.scrollToIndex(filteredMessages.length - 1, {
         behavior: streamingMessageId ? 'smooth' : 'auto'
       })
-    }, [messages.length, streamingMessageId, virtualizer])
+    }, [filteredMessages.length, streamingMessageId, virtualizer, searchQuery])
 
     React.useImperativeHandle(ref, () => ({
       scrollToMessage: (index: number) => {
-        // Mark programmatic scroll as in-flight before triggering it.
-        // Clear any previous timer so back-to-back clicks each get a full window.
         if (programmaticScrollTimer.current) {
           clearTimeout(programmaticScrollTimer.current)
         }
         isProgrammaticScroll.current = true
-
-        // Immediately push the target index to the parent so the navigator
-        // highlight jumps to the right pill without waiting for scroll to settle.
         callbackRef.current?.(index)
 
         virtualizer.scrollToIndex(index, {
@@ -79,17 +84,19 @@ export const MessageThread = React.forwardRef<
           align: 'center'
         })
 
-        // Re-enable the listener after the smooth scroll has had time to finish.
-        // 600 ms comfortably covers a typical smooth-scroll duration.
         programmaticScrollTimer.current = setTimeout(() => {
           isProgrammaticScroll.current = false
           programmaticScrollTimer.current = null
         }, 600)
+      },
+      getScrollPosition: () => scrollRef.current?.scrollTop ?? 0,
+      scrollToPosition: (position: number) => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTop = position
+        }
       }
     }))
 
-    // Keep a stable ref to the callback so the scroll effect doesn't need to
-    // re-subscribe on every render.
     const callbackRef = React.useRef(onVisibleUserIndexChange)
     React.useLayoutEffect(() => {
       callbackRef.current = onVisibleUserIndexChange
@@ -100,7 +107,6 @@ export const MessageThread = React.forwardRef<
       if (!el || !onVisibleUserIndexChange) return
 
       const report = () => {
-        // Skip intermediate frames produced by programmatic smooth scrolls.
         if (isProgrammaticScroll.current) return
 
         const items = virtualizer.getVirtualItems()
@@ -109,12 +115,9 @@ export const MessageThread = React.forwardRef<
         const scrollTop = el.scrollTop
         const clientHeight = el.clientHeight
         const scrollHeight = el.scrollHeight
-        // Max reachable scrollTop — accounts for subpixel/fractional rounding
-        // that makes scrollTop + clientHeight fall slightly short of scrollHeight.
         const maxScroll = scrollHeight - clientHeight
 
-        // Pre-compute user indices once for boundary cases
-        const userIndices = messages
+        const userIndices = filteredMessages
           .map((m, i) => (m.role === 'user' ? i : -1))
           .filter((i) => i !== -1)
         if (userIndices.length === 0) return
@@ -159,11 +162,11 @@ export const MessageThread = React.forwardRef<
           clearTimeout(programmaticScrollTimer.current)
         }
       }
-    }, [virtualizer, messages, onVisibleUserIndexChange]) // Fixed dependencies
+    }, [virtualizer, filteredMessages, onVisibleUserIndexChange])
 
     const showLoading = isLoading
-    const showEmpty = !isLoading && messages.length === 0
-    const showList = !isLoading && messages.length > 0
+    const showEmpty = !isLoading && filteredMessages.length === 0
+    const showList = !isLoading && filteredMessages.length > 0
 
     return (
       <ScrollArea ref={scrollRef} className="h-full overflow-hidden">
@@ -198,10 +201,14 @@ export const MessageThread = React.forwardRef<
                 className="w-48 h-48 mb-4 opacity-90"
               />
               <h3 className="text-lg font-semibold text-foreground mb-1">
-                This conversation is empty
+                {searchQuery
+                  ? 'No matching messages'
+                  : 'This conversation is empty'}
               </h3>
               <p className="text-sm text-muted-foreground max-w-xs">
-                Type a message below to begin your chat with the agent.
+                {searchQuery
+                  ? 'Try a different search term.'
+                  : 'Type a message below to begin your chat with the agent.'}
               </p>
             </motion.div>
           )}
@@ -213,7 +220,7 @@ export const MessageThread = React.forwardRef<
               }}
             >
               {virtualItems.map((virtualItem) => {
-                const message = messages[virtualItem.index]
+                const message = filteredMessages[virtualItem.index]
                 return (
                   <div
                     key={message.id}
@@ -232,6 +239,7 @@ export const MessageThread = React.forwardRef<
                         message={message}
                         isStreaming={message.id === streamingMessageId}
                         isHighlighted={message.id === highlightedMessageId}
+                        searchQuery={searchQuery} // pass query down for highlighting
                       />
                     </div>
                   </div>

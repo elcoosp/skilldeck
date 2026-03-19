@@ -19,7 +19,7 @@ interface PanelSizes {
   right: number
 }
 
-export type SettingsTab =
+type SettingsTab =
   | 'apikeys'
   | 'profiles'
   | 'approvals'
@@ -27,12 +27,6 @@ export type SettingsTab =
   | 'preferences'
   | 'referral'
   | 'platform'
-
-// Right panel tabs from right-panel.tsx
-export type RightTab = 'session' | 'skills' | 'mcp' | 'workflow' | 'analytics'
-
-// Left panel tabs (currently only conversations, but could expand)
-export type LeftTab = 'conversations'
 
 interface UIState {
   // ── Active workspace ──────────────────────────────────────────────────
@@ -67,11 +61,15 @@ interface UIState {
 
   // ── Streaming error state (per conversation) ──────────────────────────
   streamingError: Record<string, boolean>
-  setStreamingError: (conversationId: string, hasError: boolean) => void
+  setStreamingError: (conversationId: string, error: boolean) => void
 
   // ── Sidebar search ────────────────────────────────────────────────────
   searchQuery: string
   setSearchQuery: (query: string) => void
+
+  // ── Within‑conversation search ────────────────────────────────────────
+  conversationSearchQuery: string
+  setConversationSearchQuery: (query: string) => void
 
   // ── Overlays ──────────────────────────────────────────────────────────
   settingsOpen: boolean
@@ -85,11 +83,11 @@ interface UIState {
   setSettingsTab: (tab: SettingsTab) => void
 
   // ── Sidebar tabs (persisted) ──────────────────────────────────────────
-  leftTab: LeftTab
-  setLeftTab: (tab: LeftTab) => void
+  leftTab: 'conversations' | 'skills' | 'community'
+  setLeftTab: (tab: 'conversations' | 'skills' | 'community') => void
 
-  rightTab: RightTab
-  setRightTab: (tab: RightTab) => void
+  rightTab: 'session' | 'skills' | 'mcp' | 'workflow' | 'analytics'
+  setRightTab: (tab: 'session' | 'skills' | 'mcp' | 'workflow' | 'analytics') => void
 
   // ── Progressive unlock stage (persisted) ──────────────────────────────
   unlockStage: number
@@ -112,19 +110,14 @@ export const useUIStore = create<UIState>()(
       // Onboarding – read from localStorage so the wizard only shows once
       onboardingComplete: (() => {
         try {
-          return (
-            localStorage.getItem('skilldeck-onboarding-complete') === 'true'
-          )
+          return localStorage.getItem('skilldeck-onboarding-complete') === 'true'
         } catch {
           return false
         }
       })(),
       setOnboardingComplete: (complete) => {
         try {
-          localStorage.setItem(
-            'skilldeck-onboarding-complete',
-            String(complete)
-          )
+          localStorage.setItem('skilldeck-onboarding-complete', String(complete))
         } catch {
           // ignore
         }
@@ -134,9 +127,8 @@ export const useUIStore = create<UIState>()(
       // Platform features – default to true, but can be disabled by onboarding skip
       platformFeaturesEnabled: (() => {
         try {
-          const stored = localStorage.getItem(
-            'skilldeck-platform-features-enabled'
-          )
+          // If explicitly set to false, respect that; otherwise default to true
+          const stored = localStorage.getItem('skilldeck-platform-features-enabled')
           return stored !== 'false'
         } catch {
           return true
@@ -144,10 +136,7 @@ export const useUIStore = create<UIState>()(
       })(),
       setPlatformFeaturesEnabled: (enabled) => {
         try {
-          localStorage.setItem(
-            'skilldeck-platform-features-enabled',
-            String(enabled)
-          )
+          localStorage.setItem('skilldeck-platform-features-enabled', String(enabled))
         } catch {
           // ignore
         }
@@ -189,8 +178,7 @@ export const useUIStore = create<UIState>()(
         set((state) => ({
           streamingText: {
             ...state.streamingText,
-            [conversationId]:
-              (state.streamingText[conversationId] ?? '') + delta
+            [conversationId]: (state.streamingText[conversationId] ?? '') + delta
           }
         })),
       clearStreamingText: (conversationId) =>
@@ -208,17 +196,18 @@ export const useUIStore = create<UIState>()(
 
       // Streaming error
       streamingError: {},
-      setStreamingError: (conversationId, hasError) =>
+      setStreamingError: (conversationId, error) =>
         set((state) => ({
-          streamingError: {
-            ...state.streamingError,
-            [conversationId]: hasError
-          }
+          streamingError: { ...state.streamingError, [conversationId]: error }
         })),
 
-      // Search
+      // Search (sidebar)
       searchQuery: '',
       setSearchQuery: (query) => set({ searchQuery: query }),
+
+      // Within-conversation search (new)
+      conversationSearchQuery: '',
+      setConversationSearchQuery: (query) => set({ conversationSearchQuery: query }),
 
       // Overlays
       settingsOpen: false,
@@ -233,7 +222,7 @@ export const useUIStore = create<UIState>()(
       // Sidebar tabs
       leftTab: 'conversations',
       setLeftTab: (tab) => set({ leftTab: tab }),
-      rightTab: 'session', // default to session tab
+      rightTab: 'session',
       setRightTab: (tab) => set({ rightTab: tab }),
 
       // Unlock stage

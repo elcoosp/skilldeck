@@ -2,6 +2,10 @@
  * Center panel — virtualized message thread and input bar.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useDebounce } from 'use-debounce'
+import { Search, X } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
 import { BranchNav } from '@/components/conversation/branch-nav'
 import { MessageInput } from '@/components/conversation/message-input'
 import {
@@ -23,19 +27,21 @@ export function CenterPanel() {
   const activeWorkspace = workspaces.find((w) => w.id === workspaceId)
   const workspaceRoot = activeWorkspace?.path
 
+  // Within-conversation search state
+  const searchQuery = useUIStore((s) => s.conversationSearchQuery)
+  const setSearchQuery = useUIStore((s) => s.setConversationSearchQuery)
+  const [debouncedSearch] = useDebounce(searchQuery, 300)
+
   const threadRef = useRef<MessageThreadHandle>(null)
 
   useAgentStream(activeConversationId)
 
   const messages = useMessagesWithStream(activeConversationId, activeBranchId)
 
-  // MessageThread reports the nearest user-message index directly —
-  // no re-mapping needed here.
   const [activeUserMessageIndex, setActiveUserMessageIndex] = useState<
     number | undefined
   >(undefined)
 
-  // --- Highlight animation state ---
   const [highlightedMessageId, setHighlightedMessageId] = useState<
     string | null
   >(null)
@@ -47,7 +53,6 @@ export function CenterPanel() {
 
   const scrollToMessage = useCallback(
     (index: number) => {
-      // Clear any pending timeout to avoid overlapping highlights
       if (highlightTimeoutRef.current) {
         clearTimeout(highlightTimeoutRef.current)
       }
@@ -55,7 +60,6 @@ export function CenterPanel() {
       const targetMessage = messages[index]
       if (targetMessage) {
         setHighlightedMessageId(targetMessage.id)
-        // Clear highlight after animation duration (800ms)
         highlightTimeoutRef.current = setTimeout(() => {
           setHighlightedMessageId(null)
         }, 800)
@@ -65,6 +69,11 @@ export function CenterPanel() {
     },
     [messages]
   )
+
+  // Clear search when conversation changes
+  useEffect(() => {
+    setSearchQuery('')
+  }, [activeConversationId, setSearchQuery])
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -95,12 +104,34 @@ export function CenterPanel() {
         <BranchNav conversationId={activeConversationId} />
       )}
 
-      {/* relative here so ThreadNavigator positions against the thread area
-          only — it won't overlap the input bar or branch nav */}
+      {/* Search bar */}
+      <div className="px-4 py-2 border-b border-border flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
+          <Input
+            placeholder="Search in this conversation… (⌘F)"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-8 h-8 text-sm"
+          />
+        </div>
+        {searchQuery && (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => setSearchQuery('')}
+            aria-label="Clear search"
+          >
+            <X className="size-3.5" />
+          </Button>
+        )}
+      </div>
+
       <div className="relative flex-1 min-h-0">
         <MessageThread
           ref={threadRef}
           messages={messages}
+          searchQuery={debouncedSearch}
           onVisibleUserIndexChange={handleVisibleUserIndexChange}
           highlightedMessageId={highlightedMessageId}
         />
