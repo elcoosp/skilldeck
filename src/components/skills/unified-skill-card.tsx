@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { useUIStore } from '@/store/ui'
 import type { UnifiedSkill } from '@/types/skills'
 import { TrustBadge } from './trust-badge'
+import { AlertTriangle } from 'lucide-react'  // added import
 
 interface Props {
   skill: UnifiedSkill
@@ -105,21 +106,21 @@ export function UnifiedSkillCard({
           {hasRegistryData ? skill.registryData?.author : '—'}
         </span>
         <div className="flex items-center gap-2 shrink-0 ml-2">
-          {/* Lint warning counts */}
+          {/* Lint warning counts - now using Lucide icon */}
           {errorCount > 0 && (
             <span
-              className="text-destructive font-medium"
+              className="text-destructive font-medium inline-flex items-center gap-0.5"
               title={`${errorCount} error${errorCount > 1 ? 's' : ''}`}
             >
-              {errorCount} ⚠️
+              {errorCount} <AlertTriangle className="size-3" />
             </span>
           )}
           {warningCount > 0 && errorCount === 0 && (
             <span
-              className="text-amber-500 font-medium"
+              className="text-amber-500 font-medium inline-flex items-center gap-0.5"
               title={`${warningCount} warning${warningCount > 1 ? 's' : ''}`}
             >
-              {warningCount} ⚠️
+              {warningCount} <AlertTriangle className="size-3" />
             </span>
           )}
           {/* Trust badge */}

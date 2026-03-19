@@ -1,0 +1,7 @@
+[defaults]
+severity = "warning"
+
+[rules]
+"fm-compatibility-length" = "off"
+"fm-license-present" = "off"
+"fm-allowed-tools" = "off"

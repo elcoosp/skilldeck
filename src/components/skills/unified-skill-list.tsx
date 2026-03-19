@@ -79,8 +79,18 @@ export function UnifiedSkillList() {
   const isMeasuredRef = useRef(false)
   const measurementsRef = useRef<Map<Element, number>>(new Map())
 
+  // ── Ref for the actual list container (changes width when panel opens) ──
   const containerRef = useRef<HTMLDivElement>(null)
   const columns = useColumnCount(containerRef)
+
+  // Clear row height cache when column count changes (rows are now a different shape)
+  const prevColumnsRef = useRef(columns)
+  useEffect(() => {
+    if (prevColumnsRef.current !== columns) {
+      measurementsRef.current.clear()
+      prevColumnsRef.current = columns
+    }
+  }, [columns])
 
   const { unifiedSkills, isLoading, installedCount, registryError } =
     useUnifiedSkills({ search: debouncedSearch || undefined })
@@ -181,9 +191,13 @@ export function UnifiedSkillList() {
   }
 
   return (
-    <div className="flex h-full min-h-0" ref={containerRef}>
-      {/* ── Main area ─────────────────────────────────────────────────────── */}
-      <div className="flex flex-col flex-1 min-w-0 h-full">
+    <div className="flex h-full min-h-0">
+      {/* ── Main area (list column) ─────────────────────────────────────── */}
+      {/* ref moved here — observes the width that actually changes */}
+      <div
+        className="flex flex-col flex-1 min-w-0 h-full"
+        ref={containerRef}
+      >
         {/* Platform status banner - flush with sides, only top padding */}
         <div className="px-3 pt-3">
           <PlatformStatusBanner

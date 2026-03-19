@@ -4,13 +4,13 @@
 // blocked skill alerts, and platform awareness.
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Download, ExternalLink, RefreshCw, Trash2, X } from 'lucide-react'
+import { Download, ExternalLink, RefreshCw, Trash2, X, AlertTriangle } from 'lucide-react' // added AlertTriangle
 import { openPath, revealItemInDir } from '@tauri-apps/plugin-opener'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip' // <-- new
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useDisableRule } from '@/hooks/use-skills'
 import { commands } from '@/lib/bindings'
 import { useUIStore } from '@/store/ui'
@@ -157,9 +157,18 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
   const disableRule = useDisableRule()
 
   const handleIgnoreRule = (ruleId: string) => {
-    disableRule.mutate({ ruleId, scope: 'workspace' })
+    disableRule.mutate(
+      { ruleId, scope: 'workspace' },
+      {
+        onSuccess: () => {
+          // Only re-lint if this is a local skill (which we already know)
+          if (skill.localData?.path) {
+            relint.mutate()
+          }
+        }
+      }
+    )
   }
-
   const isBusy =
     install.isPending ||
     uninstall.isPending ||
@@ -318,7 +327,10 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
         {lintWarnings.length > 0 && (
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <SectionLabel>Lint Issues</SectionLabel>
+              <div className="flex items-center gap-1.5">
+                <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                <SectionLabel>Lint Issues</SectionLabel>
+              </div>
               <a
                 href="https://docs.skilldeck.dev/en/latest/guides/skill-linting"
                 target="_blank"
