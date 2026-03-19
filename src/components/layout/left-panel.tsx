@@ -75,6 +75,7 @@ export function LeftPanel() {
     return ws?.name ?? null
   }
 
+  // Apply search filter client-side
   const filtered = conversations?.filter((c) =>
     searchQuery
       ? (c.title ?? '').toLowerCase().includes(searchQuery.toLowerCase())
@@ -130,6 +131,14 @@ export function LeftPanel() {
   }
 
   const isLoading = profilesLoading || conversationsLoading
+
+  // Determine if we have any conversations at all (before search)
+  const hasAnyConversations = conversations && conversations.length > 0
+
+  // Find the currently selected profile name (if any)
+  const selectedProfile = filterProfileId
+    ? profiles.find(p => p.id === filterProfileId)
+    : null
 
   return (
     <div className="flex flex-col h-full select-none">
@@ -211,33 +220,59 @@ export function LeftPanel() {
               <div className="size-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
             </div>
           ) : filtered?.length === 0 ? (
+            // No conversations after applying search (or no conversations at all)
             searchQuery ? (
+              // Case: search yielded no results
               <p className="text-center text-xs text-muted-foreground py-8">
                 No matches
               </p>
             ) : (
+              // No conversations at all
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.3, ease: 'easeOut' }}
                 className="flex flex-col items-center justify-center py-12 px-4 text-center"
               >
-                <div className="w-48 h-48 mb-4 overflow-hidden rounded-3xl">
-                  <img
-                    src="/illustrations/empty-conversations.svg"
-                    alt="No conversations"
-                    className="w-full h-full object-cover opacity-90"
-                  />
-                </div>
-                <h3 className="text-base font-semibold text-foreground mb-1">
-                  Your deck is empty—time to deal the first card.
-                </h3>
-                <p className="text-sm text-muted-foreground max-w-xs">
-                  Start a new conversation and build something brilliant.
-                </p>
+                {filterProfileId && selectedProfile ? (
+                  // Contextual empty state for a specific profile
+                  <>
+                    <div className="w-48 h-48 mb-4 overflow-hidden rounded-3xl opacity-70">
+                      <img
+                        src="/illustrations/empty-conversations.svg"
+                        alt="No conversations in this profile"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <h3 className="text-base font-semibold text-foreground mb-1">
+                      No conversations in "{selectedProfile.name}"
+                    </h3>
+                    <p className="text-sm text-muted-foreground max-w-xs mb-4">
+                      Start a new conversation to begin chatting with this profile.
+                    </p>
+                  </>
+                ) : (
+                  // Default empty state (all profiles, no conversations anywhere)
+                  <>
+                    <div className="w-48 h-48 mb-4 overflow-hidden rounded-3xl">
+                      <img
+                        src="/illustrations/empty-conversations.svg"
+                        alt="No conversations"
+                        className="w-full h-full object-cover opacity-90"
+                      />
+                    </div>
+                    <h3 className="text-base font-semibold text-foreground mb-1">
+                      Your deck is empty—time to deal the first card.
+                    </h3>
+                    <p className="text-sm text-muted-foreground max-w-xs">
+                      Start a new conversation and build something brilliant.
+                    </p>
+                  </>
+                )}
               </motion.div>
             )
           ) : (
+            // Has conversations – render the list
             <AnimatePresence
               mode="popLayout"
               onExitComplete={handleDeleteComplete}
@@ -261,7 +296,6 @@ export function LeftPanel() {
                     onDeleteStart={handleDeleteStart}
                     onClick={() => setActiveConversation(c.id)}
                     workspaceName={getWorkspaceName(c.workspace_id)}
-                    // FIX: Use snake_case fields from ConversationSummary
                     profileName={c.profile_name}
                     profileDeleted={c.profile_deleted}
                     showProfileBadge={filterProfileId === null}
