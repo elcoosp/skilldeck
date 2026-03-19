@@ -1,9 +1,11 @@
 // src/components/chat/folder-scope-modal.tsx
 
-import { ChevronLeft, File, FolderTree } from 'lucide-react'
+import { ChevronLeft, File, FolderTree, Loader2 } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { commands } from '@/lib/bindings'
 
 interface FolderScopeModalProps {
   folderPath: string
@@ -21,6 +23,8 @@ export const FolderScopeModal: React.FC<FolderScopeModalProps> = ({
   onBack
 }) => {
   const [selectedIndex, setSelectedIndex] = useState(0)
+  const [previewFiles, setPreviewFiles] = useState<string[]>([])
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false)
   const shallowRef = useRef<HTMLButtonElement>(null)
   const deepRef = useRef<HTMLButtonElement>(null)
 
@@ -50,6 +54,29 @@ export const FolderScopeModal: React.FC<FolderScopeModalProps> = ({
     if (selectedIndex === 0) shallowRef.current?.focus()
     else deepRef.current?.focus()
   }, [selectedIndex])
+
+  // Fetch preview files when component mounts or depth changes
+  useEffect(() => {
+    const fetchPreview = async () => {
+      setIsLoadingPreview(true)
+      try {
+        // For preview, we only need shallow listing (first level)
+        const res = await commands.listDirectoryContents(folderPath)
+        if (res.status === 'ok') {
+          const files = res.data
+            .filter((f: any) => !f.is_dir && f.name !== '.' && f.name !== '..')
+            .map((f: any) => f.name)
+            .slice(0, 5)
+          setPreviewFiles(files)
+        }
+      } catch (err) {
+        console.error('Failed to fetch file preview:', err)
+      } finally {
+        setIsLoadingPreview(false)
+      }
+    }
+    fetchPreview()
+  }, [folderPath])
 
   return (
     <div
@@ -98,6 +125,40 @@ export const FolderScopeModal: React.FC<FolderScopeModalProps> = ({
             </span>
           </div>
         </Button>
+      </div>
+
+      {/* File preview section */}
+      <div className="mt-3 pt-2 border-t">
+        <p className="text-xs font-medium text-muted-foreground mb-1.5">
+          Preview (first files):
+        </p>
+        {isLoadingPreview ? (
+          <div className="flex items-center justify-center py-2">
+            <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+          </div>
+        ) : previewFiles.length > 0 ? (
+          <ScrollArea className="max-h-24">
+            <ul className="text-xs space-y-1">
+              {previewFiles.map((file, i) => (
+                <li key={i} className="truncate text-muted-foreground">
+                  {file}
+                </li>
+              ))}
+              {(shallowCount > 5 || deepCount > 5) && (
+                <li className="text-muted-foreground/60">… and more</li>
+              )}
+            </ul>
+          </ScrollArea>
+        ) : (
+          <p className="text-xs text-muted-foreground italic">
+            No files found in this folder.
+          </p>
+        )}
+        {shallowCount === 0 && deepCount === 0 && (
+          <p className="text-xs text-amber-500 mt-1">
+            This folder contains no files.
+          </p>
+        )}
       </div>
 
       <div className="flex justify-between mt-3 pt-2 border-t">
