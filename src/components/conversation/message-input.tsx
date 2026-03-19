@@ -52,6 +52,7 @@ import type { UnifiedSkill } from '@/types/skills'
 
 interface MessageInputProps {
   conversationId: UUID
+  workspaceRoot?: string
 }
 
 interface FileChip {
@@ -59,7 +60,7 @@ interface FileChip {
   name: string
 }
 
-export function MessageInput({ conversationId }: MessageInputProps) {
+export function MessageInput({ conversationId, workspaceRoot }: MessageInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [isComposing, setIsComposing] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<FileChip[]>([])
@@ -69,7 +70,8 @@ export function MessageInput({ conversationId }: MessageInputProps) {
   const activeWorkspaceId = useUIStore((s) => s.activeWorkspaceId)
   const { data: workspaces } = useWorkspaces()
   const activeWorkspace = workspaces?.find((w) => w.id === activeWorkspaceId)
-  const workspaceRoot = activeWorkspace?.path ?? undefined
+  // Use the prop if provided, otherwise fallback to global active workspace
+  const effectiveWorkspaceRoot = workspaceRoot ?? activeWorkspace?.path
 
   // ── Profiles (for auto‑create) ──────────────────────────────────────────
   const { data: profiles = [] } = useProfiles()
@@ -172,7 +174,6 @@ export function MessageInput({ conversationId }: MessageInputProps) {
 
   const clearTriggerText = useCallback(
     (trigger: TriggerState) => {
-      // Check if the character at trigger.startIndex - 1 is '@' or '#'
       const charBefore = content[trigger.startIndex - 1]
       if (charBefore === '@' || charBefore === '#') {
         const before = content.substring(0, trigger.startIndex - 1)
@@ -206,12 +207,10 @@ export function MessageInput({ conversationId }: MessageInputProps) {
 
       if (file.is_dir) {
         if (file.name === '..') {
-          // Navigate to parent
           loadDirectory(file.path)
           return
         }
         if (file.name === '.') {
-          // Current folder chosen via scope modal
           if (isDeep !== undefined) {
             try {
               const res = await commands.countFolderFiles(file.path)
@@ -233,7 +232,6 @@ export function MessageInput({ conversationId }: MessageInputProps) {
           }
           return
         }
-        // Regular folder: navigate into it and also pre-fetch counts for scope modal
         loadDirectory(file.path)
         const countsRes = await commands.countFolderFiles(file.path)
         if (countsRes.status === 'ok') {
@@ -242,7 +240,6 @@ export function MessageInput({ conversationId }: MessageInputProps) {
         return
       }
 
-      // Plain file selected
       addFile({
         id: file.path,
         name: file.name,
@@ -277,7 +274,6 @@ export function MessageInput({ conversationId }: MessageInputProps) {
   const handleSkillSelect = useCallback(
     (skill: UnifiedSkill) => {
       if (skill.registryData) {
-        // Registry skill
         const rawWarnings = skill.registryData.lintWarnings ?? []
         const hasDanger =
           skill.registryData.securityScore < 2 ||
@@ -293,7 +289,6 @@ export function MessageInput({ conversationId }: MessageInputProps) {
           confirmAddSkill(skill.registryData)
         }
       } else if (skill.localData) {
-        // Local skill – construct minimal RegistrySkillData
         const localSkillData: RegistrySkillData = {
           id: skill.id,
           name: skill.name,
@@ -330,9 +325,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
     if (e.key === 'Enter' && !e.shiftKey && !isComposing && !triggerState) {
       e.preventDefault()
       if (isRunning) {
-        // Queue the current draft instead of sending
         if (content.trim()) {
-          // ✅ FIXED: pass object with content
           addQueuedMessage.mutate({ content })
           setContent('')
         }
@@ -342,14 +335,13 @@ export function MessageInput({ conversationId }: MessageInputProps) {
       return
     }
 
-    // Detect trigger characters
     if (e.key === '@' || e.key === '#') {
       const cursorPos = e.currentTarget.selectionStart ?? 0
       const type = e.key === '@' ? 'skill' : 'file'
       setTriggerState({ type, query: '', startIndex: cursorPos + 1 })
       setPickerPosition(calculatePickerPosition())
-      if (type === 'file' && activeWorkspace) {
-        loadDirectory(workspaceRoot!)
+      if (type === 'file' && effectiveWorkspaceRoot) {
+        loadDirectory(effectiveWorkspaceRoot)
       }
     }
   }
@@ -362,7 +354,6 @@ export function MessageInput({ conversationId }: MessageInputProps) {
 
     const cursorPos = e.target.selectionStart ?? 0
     if (cursorPos < triggerState.startIndex) {
-      // Trigger char was deleted
       closePicker()
     } else {
       const query = value.substring(triggerState.startIndex, cursorPos)
@@ -397,14 +388,13 @@ export function MessageInput({ conversationId }: MessageInputProps) {
   const triggerFilePicker = useCallback(() => {
     setTriggerState({ type: 'file', query: '', startIndex: content.length + 1 })
     setPickerPosition(calculatePickerPosition())
-    if (activeWorkspace) {
-      loadDirectory(workspaceRoot!)
+    if (effectiveWorkspaceRoot) {
+      loadDirectory(effectiveWorkspaceRoot)
     }
     textareaRef.current?.focus()
   }, [
     content,
-    activeWorkspace,
-    workspaceRoot,
+    effectiveWorkspaceRoot,
     loadDirectory,
     calculatePickerPosition
   ])
@@ -424,14 +414,12 @@ export function MessageInput({ conversationId }: MessageInputProps) {
   const submit = useCallback(async () => {
     let finalContent = content.trim()
 
-    // Append legacy file tags for native-picker attachments
     for (const file of selectedFiles) {
       finalContent += `\n<file path="${file.path}" />`
     }
 
     if (!finalContent.trim() || isComposing || isRunning) return
 
-    // Auto‑create conversation if none is active
     let finalConversationId = conversationId
     if (!finalConversationId) {
       const defaultProfile = profiles.find((p) => p.is_default) ?? profiles[0]
@@ -448,14 +436,13 @@ export function MessageInput({ conversationId }: MessageInputProps) {
       }
     }
 
-    // Build metadata-only context items from the store, converting types to match ContextItem
     const metadataItems: ContextItem[] = items.map((item) => {
       if (item.type === 'file') {
         return {
           type: 'file',
           path: item.data.path,
           name: item.data.name,
-          size: item.data.size ? String(item.data.size) : null // convert to string | null
+          size: item.data.size ? String(item.data.size) : null
         }
       }
       if (item.type === 'folder') {
@@ -464,10 +451,9 @@ export function MessageInput({ conversationId }: MessageInputProps) {
           path: item.data.path,
           name: item.data.name,
           scope: item.data.scope,
-          file_count: String(item.data.fileCount) // convert to string
+          file_count: String(item.data.fileCount)
         }
       }
-      // skill
       return {
         type: 'skill',
         name: item.data.name
@@ -481,14 +467,13 @@ export function MessageInput({ conversationId }: MessageInputProps) {
     clearItems()
 
     try {
-      // Pass only content and contextItems; conversationId is already known by the mutation
       await sendMutation.mutateAsync({
         content: finalContent,
         contextItems: metadataItems.length > 0 ? metadataItems : undefined
       })
     } catch (err) {
       toast.error(`Failed to send message: ${err}`)
-      setContent(finalContent) // restore draft
+      setContent(finalContent)
     } finally {
       setIsSending(false)
     }
@@ -507,11 +492,8 @@ export function MessageInput({ conversationId }: MessageInputProps) {
     sendMutation
   ])
 
-  // ── Render ────────────────────────────────────────────────────────────────
-  console.log({ queuedMessages })
   return (
     <div className="p-3 space-y-2">
-      {/* Queue header – always visible when there are messages */}
       {queuedMessages.length > 0 && (
         <div className="space-y-1">
           <QueueHeader
@@ -522,7 +504,6 @@ export function MessageInput({ conversationId }: MessageInputProps) {
         </div>
       )}
 
-      {/* Legacy native-picker file chips */}
       {selectedFiles.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {selectedFiles.map((file) => (
@@ -549,7 +530,6 @@ export function MessageInput({ conversationId }: MessageInputProps) {
           'focus-within:ring-2 focus-within:ring-ring/50'
         )}
       >
-        {/* Context chips (skills / files / folders from picker) */}
         <AttachedItemsList />
 
         <div className="flex items-center gap-2 px-3 py-2">
@@ -623,7 +603,6 @@ export function MessageInput({ conversationId }: MessageInputProps) {
         </div>
       </div>
 
-      {/* Input toolbar */}
       <div className="flex items-center gap-0.5 text-muted-foreground">
         <Button
           variant="ghost"
@@ -643,14 +622,14 @@ export function MessageInput({ conversationId }: MessageInputProps) {
                 size="sm"
                 className="h-6 px-2 text-xs gap-1"
                 onClick={triggerFilePicker}
-                disabled={!activeWorkspace}
+                disabled={!effectiveWorkspaceRoot}
               >
                 <Hash className="size-3" />
                 File
               </Button>
             </span>
           </TooltipTrigger>
-          {!activeWorkspace && (
+          {!effectiveWorkspaceRoot && (
             <TooltipContent side="top">
               <p>Open a workspace first to browse files.</p>
             </TooltipContent>
@@ -672,7 +651,6 @@ export function MessageInput({ conversationId }: MessageInputProps) {
         </span>
       </div>
 
-      {/* File mention picker (portal) */}
       {triggerState?.type === 'file' && (
         <FileMentionPicker
           open
@@ -686,11 +664,10 @@ export function MessageInput({ conversationId }: MessageInputProps) {
           onQueryChange={(q) =>
             setTriggerState((prev) => (prev ? { ...prev, query: q } : null))
           }
-          workspaceRoot={workspaceRoot}
+          workspaceRoot={effectiveWorkspaceRoot}
         />
       )}
 
-      {/* Skill command palette (portal) */}
       {triggerState?.type === 'skill' && (
         <ChatCommandPalette
           type="skill"
@@ -703,7 +680,6 @@ export function MessageInput({ conversationId }: MessageInputProps) {
         />
       )}
 
-      {/* Security warning dialog */}
       {skillForReview && (
         <SecurityWarningDialog
           skill={skillForReview}

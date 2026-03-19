@@ -28,7 +28,7 @@ pub struct ConversationSummary {
     pub created_at: String,
     pub updated_at: String,
     pub message_count: u64,
-    pub pinned: bool, // <-- added
+    pub pinned: bool,
 }
 
 /// Create a new conversation for the given profile.
@@ -38,6 +38,7 @@ pub async fn create_conversation(
     state: State<'_, Arc<AppState>>,
     profile_id: Uuid,
     title: Option<String>,
+    workspace_id: Option<Uuid>,
 ) -> Result<String, String> {
     let db = state
         .registry
@@ -53,11 +54,11 @@ pub async fn create_conversation(
         id: Set(id),
         profile_id: Set(profile_id),
         title: Set(title),
+        workspace_id: Set(workspace_id),
         status: Set("active".to_string()),
-        workspace_id: Set(None),
         created_at: Set(now),
         updated_at: Set(now),
-        pinned: Set(false), // default to false
+        pinned: Set(false),
         ..Default::default()
     };
 
@@ -83,7 +84,7 @@ pub async fn list_conversations(
 
     let mut query = Conversation::find()
         .filter(conversations::Column::Status.eq("active"))
-        .order_by_desc(conversations::Column::Pinned) // <-- pinned first
+        .order_by_desc(conversations::Column::Pinned)
         .order_by_desc(conversations::Column::UpdatedAt)
         .limit(limit);
 
@@ -93,7 +94,6 @@ pub async fn list_conversations(
 
     let rows = query.all(db).await.map_err(|e| e.to_string())?;
 
-    // Build summaries with message counts.
     let mut summaries = Vec::with_capacity(rows.len());
     for row in rows {
         let count = Messages::find()
@@ -215,6 +215,35 @@ pub async fn unpin_conversation(state: State<'_, Arc<AppState>>, id: Uuid) -> Re
 
     let mut active: conversations::ActiveModel = row.into();
     active.pinned = Set(false);
+    active.updated_at = Set(chrono::Utc::now().fixed_offset());
+    active.update(db).await.map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+/// Update the workspace assignment of a conversation.
+#[specta]
+#[tauri::command]
+pub async fn update_conversation_workspace(
+    state: State<'_, Arc<AppState>>,
+    id: Uuid,
+    workspace_id: Option<Uuid>,
+) -> Result<(), String> {
+    let db = state
+        .registry
+        .db
+        .connection()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let row = Conversation::find_by_id(id)
+        .one(db)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("Conversation {id} not found"))?;
+
+    let mut active: conversations::ActiveModel = row.into();
+    active.workspace_id = Set(workspace_id);
     active.updated_at = Set(chrono::Utc::now().fixed_offset());
     active.update(db).await.map_err(|e| e.to_string())?;
 

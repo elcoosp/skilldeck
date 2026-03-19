@@ -88,7 +88,6 @@ export function LeftPanel() {
 
   const handleSwitchWorkspace = async (workspace: (typeof workspaces)[0]) => {
     if (!workspace.is_open) {
-      // Reopen closed workspace
       try {
         const reopened = await openWorkspace.mutateAsync(workspace.path)
         setActiveWorkspace(reopened.id)
@@ -111,6 +110,13 @@ export function LeftPanel() {
   }
 
   const isLoading = profilesLoading || conversationsLoading
+
+  // Helper to get workspace name from ID
+  const getWorkspaceName = (workspaceId: string | null) => {
+    if (!workspaceId) return null
+    const ws = workspaces.find(w => w.id === workspaceId)
+    return ws?.name
+  }
 
   return (
     <div className="flex flex-col h-full select-none">
@@ -164,7 +170,6 @@ export function LeftPanel() {
                 No matches
               </p>
             ) : (
-              // ✨ Whimsical empty state
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -210,6 +215,12 @@ export function LeftPanel() {
                     onDeleteStart={handleDeleteStart}
                     onClick={() => setActiveConversation(c.id)}
                   />
+                  {/* Display workspace badge if present */}
+                  {c.workspace_id && (
+                    <span className="text-[10px] ml-2 text-muted-foreground">
+                      {getWorkspaceName(c.workspace_id)}
+                    </span>
+                  )}
                 </motion.div>
               ))}
             </AnimatePresence>

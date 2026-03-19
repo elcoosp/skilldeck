@@ -17,6 +17,7 @@ interface ChatCommandPaletteProps {
   position: { top: number; left: number } | null
   onSelect: (skill: UnifiedSkill) => void
   onClose: () => void
+  workspaceId?: string | null  // new prop, unused for now
 }
 
 export const ChatCommandPalette: React.FC<ChatCommandPaletteProps> = ({
@@ -25,7 +26,8 @@ export const ChatCommandPalette: React.FC<ChatCommandPaletteProps> = ({
   loading,
   position,
   onSelect,
-  onClose
+  onClose,
+  workspaceId // not used yet, placeholder for future filtering
 }) => {
   const [selectedIndex, setSelectedIndex] = useState(0)
   const listRef = useRef<HTMLDivElement>(null)

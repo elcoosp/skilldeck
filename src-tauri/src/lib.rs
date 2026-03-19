@@ -153,6 +153,8 @@ pub fn run() {
             // pin/unpin conversations
             pin_conversation,
             unpin_conversation,
+            // new command for updating conversation workspace
+            update_conversation_workspace,
         ])
         .events(collect_events![AgentEvent, McpEvent, WorkflowEvent]);
 

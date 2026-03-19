@@ -8,10 +8,16 @@ import { MessageThread } from '@/components/conversation/message-thread'
 import { useAgentStream } from '@/hooks/use-agent-stream'
 import { useMessagesWithStream } from '@/hooks/use-messages'
 import { useUIStore } from '@/store/ui'
+import { useActiveConversationWorkspaceId } from '@/hooks/use-conversations'
+import { useWorkspaces } from '@/hooks/use-workspaces'
 
 export function CenterPanel() {
   const activeConversationId = useUIStore((s) => s.activeConversationId)
   const activeBranchId = useUIStore((s) => s.activeBranchId)
+  const workspaceId = useActiveConversationWorkspaceId()
+  const { data: workspaces = [] } = useWorkspaces()
+  const activeWorkspace = workspaces.find((w) => w.id === workspaceId)
+  const workspaceRoot = activeWorkspace?.path
 
   // Subscribe to streaming events for the active conversation.
   useAgentStream(activeConversationId)
@@ -46,7 +52,7 @@ export function CenterPanel() {
 
       {/* Input bar */}
       <div className="shrink-0 border-t border-border">
-        <MessageInput conversationId={activeConversationId} />
+        <MessageInput conversationId={activeConversationId} workspaceRoot={workspaceRoot} />
       </div>
     </div>
   )

@@ -7,12 +7,12 @@ import { toast } from 'sonner'
 import { commands } from '@/lib/bindings'
 import type { UUID } from '@/lib/types'
 import { useUIStore } from '@/store/ui'
+import { useProfiles } from './use-profiles'
 
 export function useConversations(profileId?: UUID) {
   return useQuery({
     queryKey: ['conversations', profileId],
     queryFn: async () => {
-      // FIXED: second argument must be a string (as per binding type)
       const res = await commands.listConversations(
         profileId ?? null,
         // @ts-expect-error
@@ -31,33 +31,30 @@ export function useConversations(profileId?: UUID) {
 export function useCreateConversation(profileId?: UUID) {
   const queryClient = useQueryClient()
   const setActiveConversation = useUIStore((s) => s.setActiveConversation)
+  const activeWorkspaceId = useUIStore((s) => s.activeWorkspaceId)
 
   return useMutation({
     mutationFn: async ({ title }: { title?: string }) => {
-      // FIXED: ensure profileId exists before calling the command
       if (!profileId) throw new Error('No profile selected')
-      const res = await commands.createConversation(profileId, title ?? null)
+      const res = await commands.createConversation(
+        profileId,
+        title ?? null,
+        activeWorkspaceId ?? null
+      )
       if (res.status === 'error') throw new Error(res.error)
       return res.data
     },
     onSuccess: async (newId) => {
-      // Invalidate the exact query key that matches useConversations
       queryClient.invalidateQueries({
         queryKey: ['conversations', profileId],
         exact: true
       })
-
-      // Force a refetch and wait for it to complete
       await queryClient.refetchQueries({
         queryKey: ['conversations', profileId],
         exact: true
       })
-
-      // Small delay to ensure everything is updated
       await new Promise((resolve) => setTimeout(resolve, 50))
-
       setActiveConversation(newId)
-
       toast.success('Conversation created')
     },
     onError: (error) => {
@@ -78,17 +75,13 @@ export function useDeleteConversation() {
       return res.data
     },
     onSuccess: (_data, deletedId) => {
-      // Invalidate all conversation queries since we don't know the profileId
       queryClient.invalidateQueries({
         queryKey: ['conversations'],
         exact: false
       })
-
-      // Clear active selection if we just deleted the active conversation
       if (activeConversationId === deletedId) {
         setActiveConversation(null)
       }
-
       toast.success('Conversation deleted')
     },
     onError: (error) => {
@@ -107,7 +100,6 @@ export function useRenameConversation() {
       return res.data
     },
     onSuccess: () => {
-      // Invalidate all conversation queries since we don't know the profileId
       queryClient.invalidateQueries({
         queryKey: ['conversations'],
         exact: false
@@ -136,7 +128,6 @@ export function useAutoNameConversation() {
       id: UUID
       firstMessage: string
     }) => {
-      // Trim to 60 characters and capitalize first letter
       const title = firstMessage.trim().slice(0, 60)
       const capitalized = title.charAt(0).toUpperCase() + title.slice(1)
       const res = await commands.renameConversation(id, capitalized)
@@ -150,7 +141,6 @@ export function useAutoNameConversation() {
       })
     },
     onError: (error) => {
-      // Silently fail - auto-naming is not critical
       console.error('Failed to auto-name conversation:', error)
     }
   })
@@ -190,4 +180,22 @@ export function useUnpinConversation() {
       toast.error(`Failed to unpin conversation: ${error}`)
     }
   })
+}
+
+/**
+ * Hook to get the workspace ID of the currently active conversation.
+ * Uses the React Query cache to look up the conversation by ID.
+ */
+export function useActiveConversationWorkspaceId(): string | null {
+  const queryClient = useQueryClient()
+  const activeConversationId = useUIStore((s) => s.activeConversationId)
+  const { data: profiles } = useProfiles()
+  const defaultProfile = profiles?.find(p => p.is_default) ?? profiles?.[0]
+
+  const conversations = queryClient.getQueryData<Array<{ id: string; workspace_id: string | null }>>([
+    'conversations',
+    defaultProfile?.id
+  ])
+  const conversation = conversations?.find((c) => c.id === activeConversationId)
+  return conversation?.workspace_id ?? null
 }
