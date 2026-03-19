@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { cn } from '@/lib/utils'
+import { ScrollArea } from '@/components/ui/scroll-area' // adjust path as needed
 import type { MessageData } from '@/lib/bindings'
 
 interface ThreadNavigatorProps {
@@ -32,7 +33,7 @@ export function ThreadNavigator({ messages, onScrollTo, activeIndex }: ThreadNav
       const rect = containerRef.current!.getBoundingClientRect()
       setCardPosition({
         top: rect.top + rect.height / 2,
-        left: rect.left - 12, // small gap
+        left: rect.left - 12,
       })
     }
 
@@ -46,7 +47,7 @@ export function ThreadNavigator({ messages, onScrollTo, activeIndex }: ThreadNav
     }
   }, [isHovering])
 
-  // Timeout refs for smooth enter/leave
+  // Timers for smooth hover
   const enterTimer = useRef<NodeJS.Timeout>()
   const leaveTimer = useRef<NodeJS.Timeout>()
 
@@ -54,17 +55,16 @@ export function ThreadNavigator({ messages, onScrollTo, activeIndex }: ThreadNav
     if (leaveTimer.current) clearTimeout(leaveTimer.current)
     enterTimer.current = setTimeout(() => {
       setIsHovering(true)
-    }, 100) // small open delay to avoid flicker on quick passes
+    }, 100)
   }
 
   const handleMouseLeave = () => {
     if (enterTimer.current) clearTimeout(enterTimer.current)
     leaveTimer.current = setTimeout(() => {
       setIsHovering(false)
-    }, 300) // longer leave delay to allow moving to card
+    }, 300)
   }
 
-  // Clean up timers on unmount
   useEffect(() => {
     return () => {
       if (enterTimer.current) clearTimeout(enterTimer.current)
@@ -74,7 +74,7 @@ export function ThreadNavigator({ messages, onScrollTo, activeIndex }: ThreadNav
 
   return (
     <>
-      {/* Dots container – hover trigger */}
+      {/* Dots container */}
       <div
         ref={containerRef}
         className="absolute right-2 top-0 bottom-0 flex flex-col justify-center gap-1 z-20"
@@ -83,22 +83,19 @@ export function ThreadNavigator({ messages, onScrollTo, activeIndex }: ThreadNav
       >
         {userMessages.map(({ msg, idx }) => {
           const isActive = idx === activeIndex
-
           return (
             <button
               key={msg.id}
               type="button"
               className="group w-4 h-4 flex items-center justify-center pointer-events-auto"
               onClick={() => onScrollTo(idx)}
-              aria-label={`Jump to message`}
+              aria-label="Jump to message"
             >
               <div className="w-3 h-[3px] flex items-center justify-start">
                 <motion.div
                   className={cn(
                     'h-[2px] w-3 rounded-full origin-left transition-colors duration-150',
-                    isActive
-                      ? 'bg-primary'
-                      : 'bg-muted-foreground/30 group-hover:bg-primary/60'
+                    isActive ? 'bg-primary' : 'bg-muted-foreground/30 group-hover:bg-primary/60'
                   )}
                   animate={{
                     scaleX: isActive ? 1 : 0.6,
@@ -113,7 +110,7 @@ export function ThreadNavigator({ messages, onScrollTo, activeIndex }: ThreadNav
         })}
       </div>
 
-      {/* Floating card portal – appears on hover */}
+      {/* Floating card with ScrollArea */}
       {createPortal(
         <AnimatePresence>
           {isHovering && cardPosition && (
@@ -122,47 +119,47 @@ export function ThreadNavigator({ messages, onScrollTo, activeIndex }: ThreadNav
               animate={{ opacity: 1, x: 0, y: '-50%' }}
               exit={{ opacity: 0, x: -5, y: '-50%' }}
               transition={{ duration: 0.15 }}
-              className="fixed z-50 w-64 p-2 bg-popover rounded-lg border shadow-md overflow-hidden"
+              className="fixed z-50 w-64 p-2 bg-popover rounded-lg border shadow-md"
               style={{
                 top: cardPosition.top,
                 left: cardPosition.left,
                 transform: 'translateY(-50%)',
-                maxHeight: 'min(300px, 70vh)', // prevents page scrollbar
+                maxHeight: 'min(380px, 70vh)', // fits ~10 items comfortably
               }}
               onMouseEnter={() => {
                 if (leaveTimer.current) clearTimeout(leaveTimer.current)
               }}
               onMouseLeave={handleMouseLeave}
             >
-              <div className="max-h-full overflow-y-auto space-y-1 pr-1">
-                {userMessages.map(({ msg, idx }) => {
-                  const isActive = idx === activeIndex
-                  return (
-                    <button
-                      key={msg.id}
-                      className="flex items-start gap-2 w-full text-left hover:bg-muted/50 p-1.5 rounded transition-colors"
-                      onClick={() => {
-                        onScrollTo(idx)
-                        setIsHovering(false) // close card after click
-                      }}
-                    >
-                      {/* Mini dot indicator */}
-                      <div className="w-4 h-4 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <div
-                          className={cn(
-                            'h-[3px] w-3 rounded-full',
-                            isActive ? 'bg-primary' : 'bg-muted-foreground/50'
-                          )}
-                        />
-                      </div>
-                      {/* Message excerpt */}
-                      <p className="text-xs text-muted-foreground break-words line-clamp-2 flex-1">
-                        {msg.content}
-                      </p>
-                    </button>
-                  )
-                })}
-              </div>
+              <ScrollArea className="h-full max-h-[inherit] pr-2">
+                <div className="space-y-1">
+                  {userMessages.map(({ msg, idx }) => {
+                    const isActive = idx === activeIndex
+                    return (
+                      <button
+                        key={msg.id}
+                        className="flex items-start gap-2 w-full text-left hover:bg-muted/50 p-1.5 rounded transition-colors"
+                        onClick={() => {
+                          onScrollTo(idx)
+                          setIsHovering(false)
+                        }}
+                      >
+                        <div className="w-4 h-4 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <div
+                            className={cn(
+                              'h-[3px] w-3 rounded-full',
+                              isActive ? 'bg-primary' : 'bg-muted-foreground/50'
+                            )}
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground break-words line-clamp-2 flex-1">
+                          {msg.content}
+                        </p>
+                      </button>
+                    )
+                  })}
+                </div>
+              </ScrollArea>
             </motion.div>
           )}
         </AnimatePresence>,
