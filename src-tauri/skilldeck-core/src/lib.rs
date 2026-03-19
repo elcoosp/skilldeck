@@ -95,6 +95,18 @@ impl Registry {
             skill_registry: Arc::new(skills::SkillRegistry::new()),
         }
     }
+    pub fn with_lint_config(
+            db: impl Database + 'static,
+            lint_config: Arc<tokio::sync::RwLock<LintConfig>>,
+        ) -> Self {
+            let mcp_registry = mcp::McpRegistry::new();
+            Self {
+                db: Arc::new(db),
+                providers: dashmap::DashMap::new(),
+                mcp_registry: Arc::new(mcp_registry),
+                skill_registry: Arc::new(skills::SkillRegistry::new(lint_config)),
+            }
+        }
     /// Create a registry using a pre-built [`McpRegistry`].
     ///
     /// Use when you need to register transports before wrapping in `Arc`

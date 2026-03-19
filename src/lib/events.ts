@@ -21,24 +21,18 @@ export type AgentEventType =
   | 'tool_result'
   | 'done'
   | 'error'
-  | 'persisted' // <-- new
+  | 'persisted'
 
 export interface AgentEvent {
   type: AgentEventType
   conversation_id: UUID
-  /** `token` variant */
   delta?: string
-  /** `tool_call` variant */
   tool_call?: ToolCallInfo
-  /** `tool_result` variant */
   tool_call_id?: string
   result?: string
-  /** `done` variant */
   input_tokens?: number
   output_tokens?: number
-  /** `error` variant */
   message?: string
-  /** `persisted` variant carries no extra fields */
 }
 
 export interface ToolCallInfo {
@@ -89,33 +83,41 @@ export interface WorkflowEvent {
 }
 
 // ============================================================================
+// Skill events  ("skill-event")
+// ============================================================================
+
+export type SkillEventType = 'updated'
+
+export interface SkillEvent {
+  type: SkillEventType
+  source_label: string
+  skill_name: string
+}
+
+// ============================================================================
 // Listener helpers
 // ============================================================================
 
-/**
- * Subscribe to agent events.
- * Returns an unlisten function — call it in `useEffect` cleanup.
- */
 export function onAgentEvent(
   callback: (event: AgentEvent) => void
 ): Promise<UnlistenFn> {
   return listen<AgentEvent>('agent-event', (e) => callback(e.payload))
 }
 
-/**
- * Subscribe to MCP server / tool lifecycle events.
- */
 export function onMcpEvent(
   callback: (event: McpEvent) => void
 ): Promise<UnlistenFn> {
   return listen<McpEvent>('mcp-event', (e) => callback(e.payload))
 }
 
-/**
- * Subscribe to workflow execution progress events.
- */
 export function onWorkflowEvent(
   callback: (event: WorkflowEvent) => void
 ): Promise<UnlistenFn> {
   return listen<WorkflowEvent>('workflow-event', (e) => callback(e.payload))
+}
+
+export function onSkillEvent(
+  callback: (event: SkillEvent) => void
+): Promise<UnlistenFn> {
+  return listen<SkillEvent>('skill-event', (e) => callback(e.payload))
 }
