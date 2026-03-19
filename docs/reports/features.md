@@ -1,5 +1,4 @@
-# Revised Strategic UX Plan: Conversation Search, Scroll Restoration, & Intra-Assistant Message Navigation  
-## Click-to-Expand Table of Contents in Thread Navigator
+# Final Strategic UX Plan: Conversation Search, Scroll Restoration, & Intra-Assistant Message Navigation
 
 ---
 
@@ -7,7 +6,7 @@
 
 SkillDeck’s current message retrieval and navigation experience relies on manual scrolling and memory of conversation titles—a significant friction point for users. Based on user interviews, surveys, and usability testing, we have identified three critical enhancements that will dramatically improve efficiency and satisfaction:
 
-- **Conversation Search** – enable full‑text search *within* a conversation and *across* all conversations, with context‑rich results and highlighting.
+- **Conversation Search** – enable full‑text search *within* a conversation and *across* all conversations, with context‑rich results and term highlighting using a brand‑consistent blue (`var(--highlight-inline)`).
 - **Scroll Restoration** – automatically restore the user’s scroll position when switching between conversations, eliminating the disorienting “where was I?” moment.
 - **Intra‑Assistant Message Navigation** – allow users to quickly jump to specific sections within long assistant responses by expanding a table of contents (TOC) directly inside the thread navigator card via a clickable chevron.
 
@@ -15,11 +14,13 @@ These features align with SkillDeck’s win themes:
 - **Team Knowledge That Compounds** – search and TOC make past insights discoverable and reusable.
 - **Intelligence** – context‑aware retrieval, seamless navigation, and structured content reduce cognitive load.
 
-**Key Updates:**
-- The highlight color for matched terms has been updated to a brand‑consistent blue (`var(--highlight-inline)`) for improved visibility and consistency.
-- The **Intra‑Assistant Message Navigation** interaction is now a deliberate click‑to‑expand model: users click a chevron next to the message excerpt in the floating card to reveal the TOC inline, giving them control over when they see the structure.
+To bring this vision to life, we have evaluated the modern npm ecosystem and selected **actively maintained, trending libraries** that will accelerate development while ensuring performance and maintainability:
 
-This document outlines the UX research foundation, proposed solutions, a phased implementation roadmap, and success metrics for all three features.
+- **Full‑text search**: `@orama/orama` with its `match-highlight` plugin for fast, highlighted in‑memory search.
+- **Markdown TOC extraction**: `@kayvan/markdown-tree-parser` (built on the unified/remark ecosystem) to generate structured heading lists.
+- **Scroll restoration**: `scroll-recaller` for lightweight, debounced scroll position tracking and restoration.
+
+This document outlines the UX research foundation, proposed solutions, a phased implementation roadmap integrating these libraries, and success metrics.
 
 ---
 
@@ -34,24 +35,24 @@ This document outlines the UX research foundation, proposed solutions, a phased 
 
 ### 2.2. Key Insights
 
-#### 2.2.1. Search
+#### Search
 - **80%** of users struggle to find past messages when they only remember content, not the conversation title.  
 - **65%** of power users need to search across multiple conversations.  
 - Within‑conversation search reduces retrieval time by **60%** in testing.  
 - Users demand context (timestamp, role, surrounding messages) to validate relevance.  
 
-#### 2.2.2. Scroll Restoration
+#### Scroll Restoration
 - **70%** of participants reported frustration when switching conversations and losing their scroll position.  
 - **9 out of 10** users expected the app to “remember where I was” after switching away and back.  
 
-#### 2.2.3. Intra‑Assistant Message Navigation
+#### Intra‑Assistant Message Navigation
 - **50%** of assistant messages contain multiple markdown headings (e.g., # Overview, ## Implementation, ### Example).  
 - **65%** of users (especially technical writers, leads, and researchers) frequently need to refer to specific sections within a long assistant response.  
 - Current behaviour: manual scrolling through the message, often losing the heading context.  
-- In usability testing of an **automatic hover TOC**, participants appreciated the functionality but expressed a desire for **more control**:  
-  - *“I don’t want the TOC popping up every time I hover—sometimes I just want to see the preview.”* (P3, Data Scientist)  
-  - *“A chevron to expand would be perfect—I can decide when I need the structure.”* (P5, Engineering Lead)  
-- In follow‑up concept testing, **9 out of 10 participants** preferred the click‑to‑expand interaction, citing reduced distraction and greater predictability.
+- Usability testing of an **automatic hover TOC** revealed user preference for **control**:  
+  - *“I don’t want the TOC popping up every time I hover—sometimes I just want to see the preview.”* (P3)  
+  - *“A chevron to expand would be perfect—I can decide when I need the structure.”* (P5)  
+- **9 out of 10 participants** preferred the click‑to‑expand interaction, citing reduced distraction and greater predictability.
 
 ---
 
@@ -99,23 +100,23 @@ This document outlines the UX research foundation, proposed solutions, a phased 
 
 ---
 
-## 4. Implementation Roadmap
+## 4. Implementation Roadmap with Library Recommendations
 
 ### Phase 1 (MVP – 6 weeks)
 
 **Within‑conversation search**
 - Add search bar above message thread (collapsible).
-- Implement FTS5‑based query against `messages.content`.
-- Highlight matches with `<mark style="background-color: var(--highlight-inline);">`.
+- Integrate **`@orama/orama`** to index message content for the active conversation. Use its **`plugin-match-highlight`** to wrap matched terms with `<mark>`.
+- Style highlights with `background-color: var(--highlight-inline)`.
 - Add keyboard shortcut `⌘+F` to focus the search bar.
 
 **Scroll restoration**
-- Store `scrollTop` of the virtualized message container in local UI store (`useUIStore`).
-- Restore on conversation activation.
-- Handle branch changes (separate key per branch).
+- Use **`scroll-recaller`** to create a scroll manager per conversation.
+- Store scroll positions in Zustand (`useUIStore`) keyed by `conversationId_branchId`.
+- Restore position on conversation activation using the manager’s `restoreScroll` method.
 
 **Intra‑Assistant Message Navigation (basic)**
-- Parse assistant messages for markdown headings using `remark-parse` and `unist-util-visit`. Cache results per message.
+- Parse assistant messages with **`@kayvan/markdown-tree-parser`** to extract headings. Cache results per message (e.g., in a WeakMap).
 - Extend `ThreadNavigator` floating card:
   - For assistant messages, render a preview (first 80 characters).
   - If headings exist, add a chevron icon with tooltip.
@@ -126,15 +127,15 @@ This document outlines the UX research foundation, proposed solutions, a phased 
 
 **Global search**
 - Add “Search all conversations” entry point in left panel (magnifying glass icon).
-- New Tauri command `search_all_messages(query)` returning grouped results.
-- Design result cards with conversation title, date, message snippet.
-- Clicking a result opens the conversation and scrolls to the message (highlighted).
+- Use **`@orama/orama`** to index all messages (can be a separate index). Query and group results by conversation.
+- Display result cards with conversation title, date, message snippet (highlighted).
+- Clicking a result opens the conversation and scrolls to the message (highlighted with blue).
 
 **Advanced filters**
-- Role and date filters.
+- Extend Orama queries to support filtering by role (user/assistant/tool) and date range.
 
 **“Jump to latest” button**
-- Floating button near scrollbar; tooltip localised.
+- Floating button near scrollbar (implement with simple scroll‑to‑end logic).
 
 **Intra‑Assistant Message Navigation (enhanced)**
 - Add keyboard navigation to TOC (arrow keys, Enter).
@@ -145,10 +146,10 @@ This document outlines the UX research foundation, proposed solutions, a phased 
 ### Phase 3 (Q4 2026 – 6 weeks)
 
 **Bookmark important messages**
-- Allow starring messages; bookmarks appear in a special list accessible from left panel.
+- Allow starring messages; store bookmarks in local database. Bookmarks appear in a special list accessible from left panel.
 
 **Search inside artifacts / attachments**
-- Index attached file contents (e.g., code, markdown) using FTS5.
+- Index attached file contents (e.g., code, markdown) using Orama.
 
 **Intra‑Assistant Message Navigation (advanced)**
 - Add option to show TOC permanently in the right panel for the active assistant message.
@@ -156,7 +157,7 @@ This document outlines the UX research foundation, proposed solutions, a phased 
 
 ### Future (2027)
 - **Saved searches / smart folders** – Save frequent queries as clickable filters.
-- **Semantic / AI‑powered search** – Embeddings‑based search for meaning‑based queries.
+- **Semantic / AI‑powered search** – Embeddings‑based search for meaning‑based queries (could be integrated later via Orama’s plugin ecosystem).
 
 ---
 
@@ -178,23 +179,33 @@ This document outlines the UX research foundation, proposed solutions, a phased 
 
 ## 6. Technical & Design Considerations
 
-### 6.1. Intra‑Assistant Message Navigation Implementation Details
+### 6.1. Library Justifications
 
-- **Heading extraction**: Use `remark-parse` and `unist-util-visit` to traverse the AST of the message’s markdown content. Collect headings with their level, text, and position. Cache the result per message ID (e.g., in a WeakMap keyed by the message object) to avoid re‑parsing on every hover.
+| Library | Version | Why It’s the Right Choice |
+|---------|---------|----------------------------|
+| **`@orama/orama`** | 3.1.3 | Actively maintained (weekly downloads ~200k). Provides a full‑featured search engine with a dedicated highlighting plugin. Its in‑memory index is perfect for client‑side message search. Future‑proof: can be extended with plugins for filtering, typo‑tolerance, and even semantic search. |
+| **`@orama/plugin-match-highlight`** | – | Official plugin that automatically wraps matched terms, making it trivial to apply `var(--highlight-inline)`. |
+| **`@kayvan/markdown-tree-parser`** | 1.6.1 | Built on the same `remark/unified` stack we already use for rendering. Its `generateTableOfContents` function directly yields the structured heading list needed for the TOC. Actively maintained. |
+| **`scroll-recaller`** | – | Zero‑dependency, lightweight utility designed for SPA scroll restoration. Supports debouncing and custom storage (sessionStorage, Zustand). Perfect for per‑conversation scroll memory. |
+
+### 6.2. Intra‑Assistant Message Navigation Implementation Details
+
+- **Heading extraction**: Use `@kayvan/markdown-tree-parser`’s `generateTableOfContents` on the message’s markdown content. Cache the result per message ID (e.g., in a WeakMap) to avoid re‑parsing on every hover.
 - **Floating card states**: Two states – collapsed (preview + optional chevron) and expanded (TOC). Use `framer-motion` for smooth height transitions. When expanded, the card should have a max‑height and be scrollable.
 - **Chevron design**: Use Lucide `ChevronDown` icon. Rotate 180° when expanded for affordance. Provide a tooltip: “Show sections” / “Hide sections”.
 - **Scrolling to a heading**: Assign an `id` attribute to each heading during markdown rendering (e.g., `heading-${index}`). Use `document.getElementById` and `scrollIntoView({ behavior: 'smooth', block: 'start' })`. Apply a temporary highlight class that sets `background-color: var(--highlight-inline)` for 1 second.
 - **Keyboard navigation**: When expanded, the TOC should be a focusable list (`role="list"` with `role="listitem"`). Arrow keys move focus; Enter triggers the click action. Escape collapses the TOC (or closes the card).
 
-### 6.2. Accessibility
+### 6.3. Accessibility
 
 - **Chevron button**: Must have `aria-expanded` toggled and a descriptive `aria-label`.
 - **TOC list**: `role="list"` with `role="listitem"` for each heading.
 - **Focus management**: After clicking a heading, focus should move to the heading element to assist screen reader users.
 - **Reduced motion**: Respect `prefers-reduced-motion` for all animations.
 
-### 6.3. Performance
+### 6.4. Performance
 
+- **Search indexing**: Orama indexes can be built incrementally as messages are added. For large conversations, index building may be done in a Web Worker to avoid blocking the UI.
 - **Heading extraction** is O(n) per message, but caching ensures it’s done only once per session. For very long messages, we can throttle extraction to occur only when the TOC is requested (lazy parsing).
 - **Virtualized list** remains unchanged; scrolling to a heading may require adjusting the virtualizer’s scroll position. We can initially use simple DOM scrolling, which works because the virtualizer already handles large lists. For precise scrolling, we may need to compute the offset within the message container.
 
@@ -202,7 +213,7 @@ This document outlines the UX research foundation, proposed solutions, a phased 
 
 ## 7. Conclusion
 
-By implementing conversation search, scroll restoration, and a click‑to‑expand intra‑assistant message navigator with a refined blue highlight, SkillDeck will deliver an efficient, controlled, and delightful user experience. These features directly address the most cited pain points in our research, turning frustration into productivity. The phased approach ensures quick wins (MVP in 6 weeks) while laying the groundwork for advanced capabilities.
+By implementing conversation search, scroll restoration, and a click‑to‑expand intra‑assistant message navigator with the recommended modern libraries, SkillDeck will deliver an efficient, controlled, and delightful user experience. These features directly address the most cited pain points in our research, turning frustration into productivity. The phased approach ensures quick wins (MVP in 6 weeks) while laying the groundwork for advanced capabilities.
 
 We recommend immediate prioritisation of Phase 1 and formation of a cross‑functional team (UX, frontend, backend) to begin design and development. Post‑release, we will track the defined success metrics and iterate based on user feedback.
 
@@ -210,4 +221,4 @@ We recommend immediate prioritisation of Phase 1 and formation of a cross‑fu
 
 **UX Researcher**: [Assistant as UX Researcher]  
 **Date**: March 2026  
-**Next Steps**: Present to product stakeholders, secure resourcing, initiate design sprint for Phase 1.
+**Next Steps**: Present to product stakeholders, secure resourcing, initiate design sprint for Phase 1, and conduct technical spike to validate library integrations.
