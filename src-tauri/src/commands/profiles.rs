@@ -17,7 +17,7 @@ pub struct ProfileData {
     pub model_provider: String,
     pub model_id: String,
     pub is_default: bool,
-    // Optionally add system_prompt if needed in list; for now not needed.
+    pub system_prompt: Option<String>, // <-- new field
 }
 
 /// List all profiles ordered by default-first, then alphabetically.
@@ -46,6 +46,7 @@ pub async fn list_profiles(state: State<'_, Arc<AppState>>) -> Result<Vec<Profil
             model_provider: r.model_provider,
             model_id: r.model_id,
             is_default: r.is_default,
+            system_prompt: r.system_prompt, // <-- include
         })
         .collect())
 }
@@ -74,6 +75,7 @@ pub async fn create_profile(
         model_provider: Set(model_provider),
         model_id: Set(model_id),
         is_default: Set(false),
+        system_prompt: Set(None), // <-- default to None
         created_at: Set(now),
         updated_at: Set(now),
         ..Default::default()

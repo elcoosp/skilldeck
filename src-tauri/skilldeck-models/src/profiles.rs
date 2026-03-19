@@ -14,6 +14,8 @@ pub struct Model {
     pub model_id: String,
     pub model_params: Option<Json>,
     pub is_default: bool,
+    /// System prompt for this profile, used as the base instruction for the model.
+    pub system_prompt: Option<String>,
     pub created_at: DateTimeWithTimeZone,
     pub updated_at: DateTimeWithTimeZone,
     // Relations (2.0: defined inline on the Model)

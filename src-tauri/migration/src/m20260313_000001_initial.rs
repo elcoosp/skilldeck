@@ -51,6 +51,7 @@ impl MigrationTrait for Migration {
                     .col(uuid(Profiles::Id).primary_key())
                     .col(string(Profiles::Name).not_null())
                     .col(string(Profiles::Description).null())
+                    .col(string(Profiles::SystemPrompt).null())
                     .col(string(Profiles::ModelProvider).not_null().default("claude"))
                     .col(
                         string(Profiles::ModelId)
@@ -1442,6 +1443,7 @@ enum Profiles {
     Table,
     Id,
     Name,
+    SystemPrompt,
     Description,
     ModelProvider,
     ModelId,

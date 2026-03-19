@@ -43,23 +43,30 @@ export function useUpdateProfile() {
   return useMutation({
     mutationFn: async ({
       id,
-      ...updates
+      name,
+      model_provider,
+      model_id,
+      system_prompt,
     }: {
       id: UUID
       name?: string
       model_provider?: string
       model_id?: string
+      system_prompt?: string
     }) => {
       const res = await commands.updateProfile(
         id,
-        updates.name ?? null,
-        updates.model_provider ?? null,
-        updates.model_id ?? null
+        name ?? null,
+        model_provider ?? null,
+        model_id ?? null,
+        system_prompt ?? null
       )
       if (res.status === 'error') throw new Error(res.error)
       return res.data
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['profiles'] })
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profiles'] })
+    },
   })
 }
 
