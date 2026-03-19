@@ -64,11 +64,16 @@ interface FileChip {
 type UploadStatus = 'pending' | 'success' | 'error'
 type UploadStatusMap = Map<string, { status: UploadStatus }>
 
-export function MessageInput({ conversationId, workspaceRoot }: MessageInputProps) {
+export function MessageInput({
+  conversationId,
+  workspaceRoot
+}: MessageInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [isComposing, setIsComposing] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<FileChip[]>([])
-  const [processingFiles, setProcessingFiles] = useState<UploadStatusMap>(new Map())
+  const [processingFiles, setProcessingFiles] = useState<UploadStatusMap>(
+    new Map()
+  )
   const [isSending, setIsSending] = useState(false)
 
   // ── Workspace context ───────────────────────────────────────────────────
@@ -430,12 +435,7 @@ export function MessageInput({ conversationId, workspaceRoot }: MessageInputProp
       loadDirectory(effectiveWorkspaceRoot)
     }
     textareaRef.current?.focus()
-  }, [
-    content,
-    effectiveWorkspaceRoot,
-    loadDirectory,
-    calculatePickerPosition
-  ])
+  }, [content, effectiveWorkspaceRoot, loadDirectory, calculatePickerPosition])
 
   const triggerSkillPicker = useCallback(() => {
     setTriggerState({
@@ -576,7 +576,7 @@ export function MessageInput({ conversationId, workspaceRoot }: MessageInputProp
                     }}
                     onRemove={() => removeFile(file.path)}
                     isLoading={status === 'pending'}
-                    isError={status === 'error'}
+                    // isError removed because ContextChip does not accept it
                   />
                 </motion.div>
               )

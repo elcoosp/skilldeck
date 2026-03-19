@@ -9,7 +9,8 @@ import type { UUID } from '@/lib/types'
 import { useUIStore } from '@/store/ui'
 import { useProfiles } from './use-profiles'
 
-export function useConversations(profileId?: UUID | null) { // <-- changed
+export function useConversations(profileId?: UUID | null) {
+  // <-- changed
   return useQuery({
     queryKey: ['conversations', profileId],
     queryFn: async () => {
@@ -190,12 +191,11 @@ export function useActiveConversationWorkspaceId(): string | null {
   const queryClient = useQueryClient()
   const activeConversationId = useUIStore((s) => s.activeConversationId)
   const { data: profiles } = useProfiles()
-  const defaultProfile = profiles?.find(p => p.is_default) ?? profiles?.[0]
+  const defaultProfile = profiles?.find((p) => p.is_default) ?? profiles?.[0]
 
-  const conversations = queryClient.getQueryData<Array<{ id: string; workspace_id: string | null }>>([
-    'conversations',
-    defaultProfile?.id
-  ])
+  const conversations = queryClient.getQueryData<
+    Array<{ id: string; workspace_id: string | null }>
+  >(['conversations', defaultProfile?.id])
   const conversation = conversations?.find((c) => c.id === activeConversationId)
   return conversation?.workspace_id ?? null
 }

@@ -1,7 +1,7 @@
 // src/hooks/use-platform.ts
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { listen } from '@tauri-apps/api/event'
-import { openUrl } from '@tauri-apps/plugin-opener'   // <-- corrected import
+import { openUrl } from '@tauri-apps/plugin-opener' // <-- corrected import
 import { useEffect } from 'react'
 import { toast } from 'sonner'
 import type { PlatformPreferences as ApiPlatformPreferences } from '@/lib/bindings'
@@ -33,7 +33,9 @@ export interface NudgePayload {
   cta_action: string | null
 }
 
-export function isPlatformNotConfigured(query: ReturnType<typeof usePlatformPreferences>['query']): boolean {
+export function isPlatformNotConfigured(
+  query: ReturnType<typeof usePlatformPreferences>['query']
+): boolean {
   return query.isError && String(query.error).includes('Not configured')
 }
 
@@ -155,24 +157,24 @@ export function useNudgeListener() {
             action:
               cta_label && cta_action
                 ? {
-                  label: cta_label,
-                  onClick: async () => {
-                    if (cta_action.startsWith('open:')) {
-                      const target = cta_action.replace('open:', '')
-                      window.dispatchEvent(
-                        new CustomEvent('skilldeck:navigate', {
-                          detail: { target }
-                        })
-                      )
-                    } else if (cta_action.startsWith('http')) {
-                      try {
-                        await openUrl(cta_action)   // <-- use openUrl
-                      } catch (error) {
-                        console.error('Failed to open URL:', error)
+                    label: cta_label,
+                    onClick: async () => {
+                      if (cta_action.startsWith('open:')) {
+                        const target = cta_action.replace('open:', '')
+                        window.dispatchEvent(
+                          new CustomEvent('skilldeck:navigate', {
+                            detail: { target }
+                          })
+                        )
+                      } else if (cta_action.startsWith('http')) {
+                        try {
+                          await openUrl(cta_action) // <-- use openUrl
+                        } catch (error) {
+                          console.error('Failed to open URL:', error)
+                        }
                       }
                     }
                   }
-                }
                 : undefined
           })
         })

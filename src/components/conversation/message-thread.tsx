@@ -19,22 +19,36 @@ interface MessageThreadProps {
   highlightedMessageId?: string | null
 }
 
-export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThreadProps>(
-  ({ messages, streamingMessageId, isLoading, onVisibleUserIndexChange, highlightedMessageId }, ref) => {
+export const MessageThread = React.forwardRef<
+  MessageThreadHandle,
+  MessageThreadProps
+>(
+  (
+    {
+      messages,
+      streamingMessageId,
+      isLoading,
+      onVisibleUserIndexChange,
+      highlightedMessageId
+    },
+    ref
+  ) => {
     const scrollRef = React.useRef<HTMLDivElement>(null)
 
     // When a programmatic scroll is in flight we suppress the scroll listener
     // so intermediate positions during the smooth animation don't overwrite
     // the intended target index.
     const isProgrammaticScroll = React.useRef(false)
-    const programmaticScrollTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+    const programmaticScrollTimer = React.useRef<ReturnType<
+      typeof setTimeout
+    > | null>(null)
 
     const virtualizer = useVirtualizer({
       count: messages.length,
       getScrollElement: () => scrollRef.current,
       estimateSize: () => 80,
       overscan: 5,
-      measureElement: (el) => el.getBoundingClientRect().height,
+      measureElement: (el) => el.getBoundingClientRect().height
     })
 
     const virtualItems = virtualizer.getVirtualItems()
@@ -43,7 +57,7 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
     React.useEffect(() => {
       if (messages.length === 0) return
       virtualizer.scrollToIndex(messages.length - 1, {
-        behavior: streamingMessageId ? 'smooth' : 'auto',
+        behavior: streamingMessageId ? 'smooth' : 'auto'
       })
     }, [messages.length, streamingMessageId, virtualizer])
 
@@ -60,7 +74,10 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
         // highlight jumps to the right pill without waiting for scroll to settle.
         callbackRef.current?.(index)
 
-        virtualizer.scrollToIndex(index, { behavior: 'smooth', align: 'center' })
+        virtualizer.scrollToIndex(index, {
+          behavior: 'smooth',
+          align: 'center'
+        })
 
         // Re-enable the listener after the smooth scroll has had time to finish.
         // 600 ms comfortably covers a typical smooth-scroll duration.
@@ -68,7 +85,7 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
           isProgrammaticScroll.current = false
           programmaticScrollTimer.current = null
         }, 600)
-      },
+      }
     }))
 
     // Keep a stable ref to the callback so the scroll effect doesn't need to
@@ -126,7 +143,9 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
         }
 
         const nearestUser = userIndices.reduce((best, ui) =>
-          Math.abs(ui - closestIndex) < Math.abs(best - closestIndex) ? ui : best
+          Math.abs(ui - closestIndex) < Math.abs(best - closestIndex)
+            ? ui
+            : best
         )
         callbackRef.current?.(nearestUser)
       }
@@ -190,11 +209,10 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
           {showList && (
             <motion.div
               key="list"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              style={{ height: virtualizer.getTotalSize(), position: 'relative' }}
+              style={{
+                height: virtualizer.getTotalSize(),
+                position: 'relative'
+              }}
             >
               {virtualItems.map((virtualItem) => {
                 const message = messages[virtualItem.index]
@@ -208,7 +226,7 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
                       top: 0,
                       left: 0,
                       width: '100%',
-                      transform: `translateY(${virtualItem.start}px)`,
+                      transform: `translateY(${virtualItem.start}px)`
                     }}
                   >
                     <div className="px-4 py-1.5">

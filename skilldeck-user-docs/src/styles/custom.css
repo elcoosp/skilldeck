@@ -14,7 +14,7 @@
 }
 
 /* Dark mode overrides */
-:root[data-theme='dark'] {
+:root[data-theme="dark"] {
   --sl-color-accent: #60a5fa;
   --sl-color-accent-high: #3b82f6;
   --sl-color-white: #f8fafc;
@@ -31,6 +31,8 @@
 /* Style the hero image using its alt attribute */
 img[alt="SkillDeck hero illustration"] {
   border-radius: 1rem;
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  box-shadow:
+    0 4px 6px -1px rgb(0 0 0 / 0.1),
+    0 2px 4px -2px rgb(0 0 0 / 0.1);
   /* optional */
 }

@@ -1,7 +1,11 @@
 // src/components/conversation/queue/queue-pause-indicator.tsx
 import { AnimatePresence, motion } from 'framer-motion'
 import { Pause } from 'lucide-react'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger
+} from '@/components/ui/tooltip'
 import { useQueueStore } from '@/store/queue'
 
 interface QueuePauseIndicatorProps {
@@ -34,7 +38,8 @@ export function QueuePauseIndicator({
             </TooltipTrigger>
             <TooltipContent side="bottom">
               <p className="max-w-[200px]">
-                Messages in the queue will be sent one by one. Auto‑send is paused while you're editing, dragging, or selecting.
+                Messages in the queue will be sent one by one. Auto‑send is
+                paused while you're editing, dragging, or selecting.
               </p>
             </TooltipContent>
           </Tooltip>

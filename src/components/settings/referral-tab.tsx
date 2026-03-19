@@ -1,7 +1,8 @@
 // src/components/settings/referral-tab.tsx
+
+import { openUrl } from '@tauri-apps/plugin-opener' // <-- corrected import
 import { Copy, ExternalLink, Gift, Users } from 'lucide-react'
 import { toast } from 'sonner'
-import { openUrl } from '@tauri-apps/plugin-opener'   // <-- corrected import
 import { usePlatformPreferences, useReferral } from '@/hooks/use-platform'
 import { PLATFORM_BASE_URL } from '@/lib/config'
 

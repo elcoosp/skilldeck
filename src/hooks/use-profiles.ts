@@ -15,7 +15,7 @@ export function useProfiles(includeDeleted?: boolean) {
       if (res.status === 'ok') return res.data
       throw new Error(res.error)
     },
-    staleTime: 0, // FIX: set to 0 to avoid stale default profile
+    staleTime: 0 // FIX: set to 0 to avoid stale default profile
   })
 }
 
@@ -33,7 +33,12 @@ export function useCreateProfile() {
       modelId: string
       systemPrompt?: string | null
     }) => {
-      const res = await commands.createProfile(name, modelProvider, modelId, systemPrompt ?? null)
+      const res = await commands.createProfile(
+        name,
+        modelProvider,
+        modelId,
+        systemPrompt ?? null
+      )
       if (res.status === 'error') throw new Error(res.error)
       return res.data
     },
@@ -49,7 +54,7 @@ export function useUpdateProfile() {
       name,
       model_provider,
       model_id,
-      system_prompt,
+      system_prompt
     }: {
       id: UUID
       name?: string
@@ -69,7 +74,7 @@ export function useUpdateProfile() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profiles'] })
-    },
+    }
   })
 }
 
@@ -97,9 +102,9 @@ export function useSetDefaultProfile() {
       // FIX: Force a refetch to ensure the new default is immediately reflected
       queryClient.invalidateQueries({
         queryKey: ['profiles'],
-        refetchType: 'all',
+        refetchType: 'all'
       })
-    },
+    }
   })
 }
 
@@ -113,6 +118,6 @@ export function useRestoreProfile() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profiles'] })
-    },
+    }
   })
 }

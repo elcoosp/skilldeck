@@ -53,11 +53,11 @@ function synthesizeDescription(
   const lowerName = name.toLowerCase()
 
   if (lowerName.includes('read_file') || lowerName.includes('readfile')) {
-    const path = args['path'] ?? args['filename'] ?? args['file']
+    const path = args.path ?? args.filename ?? args.file
     return `Read file: ${path}`
   }
   if (lowerName.includes('write_file') || lowerName.includes('writefile')) {
-    const path = args['path'] ?? args['filename'] ?? args['file']
+    const path = args.path ?? args.filename ?? args.file
     return `Write to: ${path}`
   }
   if (
@@ -65,19 +65,19 @@ function synthesizeDescription(
     lowerName.includes('exec') ||
     lowerName.includes('shell')
   ) {
-    const cmd = args['command'] ?? args['cmd'] ?? ''
+    const cmd = args.command ?? args.cmd ?? ''
     return `Run: ${cmd}`
   }
   if (lowerName.includes('http_get') || lowerName.includes('fetch')) {
-    const url = args['url'] ?? args['uri'] ?? ''
+    const url = args.url ?? args.uri ?? ''
     return `GET: ${url}`
   }
   if (lowerName.includes('http_post')) {
-    const url = args['url'] ?? args['uri'] ?? ''
+    const url = args.url ?? args.uri ?? ''
     return `POST: ${url}`
   }
   if (lowerName.includes('search')) {
-    const query = args['query'] ?? ''
+    const query = args.query ?? ''
     return `Search: ${query}`
   }
   // fallback

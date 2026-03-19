@@ -1,4 +1,5 @@
 import rehypeShiki from '@shikijs/rehype'
+import { openUrl } from '@tauri-apps/plugin-opener'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   AlertCircle,
@@ -8,23 +9,20 @@ import {
   ChevronRight,
   Clock,
   Copy,
-  File,
-  Folder,
   Loader2,
   User,
-  Wrench,
-  Zap
+  Wrench
 } from 'lucide-react'
-import { useCallback, useState, useMemo } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { MarkdownHooks } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { openUrl } from '@tauri-apps/plugin-opener'
+import { Shimmer } from 'shimmer-from-structure'
 import { toast } from 'sonner'
+import { ContextChip } from '@/components/chat/context-chip'
 import type { MessageData } from '@/lib/bindings'
+import { rehypeLinkifyCodeUrls } from '@/lib/rehype-linkify-code'
 import { cn } from '@/lib/utils'
 import { SubagentCard } from './subagent-card'
-import { rehypeLinkifyCodeUrls } from '@/lib/rehype-linkify-code'
-import { ContextChip } from '@/components/chat/context-chip'
 
 interface MessageBubbleProps {
   message: MessageData
@@ -32,7 +30,28 @@ interface MessageBubbleProps {
   isHighlighted?: boolean
 }
 
-// Intercept <pre> from Shiki — never touch <code> or whitespace
+// Template for the shimmer – matches the structure of a typical assistant message
+const AssistantMessageTemplate = () => (
+  <div className="prose prose-sm dark:prose-invert max-w-none">
+    <p>
+      Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod
+      tempor incididunt ut labore et dolore magna aliqua.
+    </p>
+    <p>
+      Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut
+      aliquip ex ea commodo consequat.
+    </p>
+    <pre>
+      <code>const example = &quot;code block&quot;;</code>
+    </pre>
+    <p>
+      Duis aute irure dolor in reprehenderit in voluptate velit esse cillum
+      dolore eu fugiat nulla pariatur.
+    </p>
+  </div>
+)
+
+// Code block component (unchanged)
 const CodePre = ({ children, ...props }: any) => {
   const [collapsed, setCollapsed] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -117,13 +136,18 @@ export function MessageBubble({
   const isSystem = message.role === 'system'
   const syntheticStreaming = message.id === '__streaming__'
 
+  // Determine if we should show the shimmer placeholder
+  const showShimmer =
+    (isAssistant || syntheticStreaming) && isStreaming && !message.content
+
   // Check if this message came from the queue
   const isQueued = useMemo(() => {
     if (!message.metadata) return false
     try {
-      const meta = typeof message.metadata === 'string'
-        ? JSON.parse(message.metadata)
-        : message.metadata
+      const meta =
+        typeof message.metadata === 'string'
+          ? JSON.parse(message.metadata)
+          : message.metadata
       return meta.from_queue === true
     } catch {
       return false
@@ -133,7 +157,7 @@ export function MessageBubble({
   // Extract context items from metadata
   const contextItems = message.context_items || []
 
-  // Check if this is a subagent spawn message
+  // Subagent card handling (unchanged)
   if (isAssistant && !isStreaming && message.content) {
     try {
       const data = JSON.parse(message.content)
@@ -142,12 +166,12 @@ export function MessageBubble({
           <SubagentCard
             stepName={data.task || 'Subagent'}
             status="running"
-            onOpen={() => { }} // TODO: navigate to subagent conversation
+            onOpen={() => {}}
           />
         )
       }
     } catch {
-      // not JSON, continue to normal rendering
+      // not JSON, continue
     }
   }
 
@@ -162,17 +186,12 @@ export function MessageBubble({
     toast.success('Message copied')
   }, [message.content])
 
-  // Render context chips using the reusable ContextChip component
   const renderContextChips = () => {
     if (contextItems.length === 0) return null
     return (
       <div className="flex flex-wrap gap-1 mb-2">
         {contextItems.map((item: any, idx: number) => (
-          <ContextChip
-            key={`${item.type}-${idx}`}
-            item={item}
-            readonly // disable removal for history chips
-          />
+          <ContextChip key={`${item.type}-${idx}`} item={item} readonly />
         ))}
       </div>
     )
@@ -183,11 +202,11 @@ export function MessageBubble({
       className={cn(
         'flex gap-3 max-w-full transition-all duration-500 ease-in-out',
         isUser && 'flex-row-reverse',
-        isHighlighted && 'bg-[var(--highlight-bg)] p-3 rounded-lg' // added padding and border radius on highlight
+        isHighlighted && 'bg-[var(--highlight-bg)] p-3 rounded-lg'
       )}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.25 }}
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
     >
       {/* Avatar */}
       <div
@@ -214,7 +233,7 @@ export function MessageBubble({
         )}
       </div>
 
-      {/* Message container: bubble + copy button */}
+      {/* Message container */}
       <div
         className={cn(
           'flex flex-col min-w-0',
@@ -222,31 +241,30 @@ export function MessageBubble({
           isAssistant ? 'w-full max-w-full' : 'max-w-[78%]'
         )}
       >
-        {/* Message bubble */}
         <div className={cn(isUser && 'text-right', 'w-full')}>
+          {/* Message bubble with conditional background and transition */}
           <div
             className={cn(
-              'inline-block px-3.5 py-2.5 rounded-xl text-sm leading-relaxed',
+              'inline-block px-3.5 py-2.5 rounded-xl text-sm leading-relaxed transition-colors duration-300',
               isUser
                 ? 'bg-primary text-primary-foreground rounded-tr-sm'
                 : isTool
                   ? 'bg-muted/70 font-mono text-xs w-full rounded-tl-sm'
-                  : 'bg-muted/50 rounded-tl-sm',
-              isAssistant && 'block w-full bg-transparent',
+                  : // For assistant/system: solid gray when shimmer is active, transparent otherwise
+                    showShimmer
+                    ? 'bg-muted/50'
+                    : 'bg-transparent',
               isQueued && 'border-l-2 border-amber-400 pl-3'
             )}
           >
-            {/* Queued label */}
             {isQueued && (
               <span className="text-xs text-amber-500 mb-1 flex items-center gap-1">
                 <Clock className="size-3" /> Queued
               </span>
             )}
 
-            {/* Context chips (if any) – now using ContextChip */}
             {renderContextChips()}
 
-            {/* Collapse header — only shown once streaming is done */}
             {canCollapse && (
               <div className="flex items-center gap-1 mb-1 text-muted-foreground">
                 <span className="text-xs font-medium">
@@ -285,7 +303,17 @@ export function MessageBubble({
               >
                 {isAssistant || syntheticStreaming ? (
                   <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-headings:my-1 prose-pre:my-0">
-                    {message.content ? (
+                    {/* SHIMMER CONDITION */}
+                    {showShimmer ? (
+                      <Shimmer
+                        loading={true}
+                        shimmerColor="rgba(200,200,200,0.5)" // visible shimmer
+                        backgroundColor="rgba(240,240,240,0.3)"
+                        duration={1.5}
+                      >
+                        <AssistantMessageTemplate />
+                      </Shimmer>
+                    ) : (
                       <MarkdownHooks
                         remarkPlugins={[remarkGfm]}
                         rehypePlugins={[
@@ -321,14 +349,26 @@ export function MessageBubble({
                               {children}
                             </a>
                           ),
-                          // Use 'any' for props to avoid inline type error
-                          code: ({ node, inline, className, children, ...props }: any) => {
+                          code: ({
+                            node,
+                            inline,
+                            className,
+                            children,
+                            ...props
+                          }: any) => {
                             const match = /language-(\w+)/.exec(className || '')
                             if (!inline && match) {
-                              return <code className={className} {...props}>{children}</code>
+                              return (
+                                <code className={className} {...props}>
+                                  {children}
+                                </code>
+                              )
                             }
                             if (inline) {
-                              const content = String(children).replace(/\n$/, '')
+                              const content = String(children).replace(
+                                /\n$/,
+                                ''
+                              )
                               return (
                                 <button
                                   onClick={async () => {
@@ -342,7 +382,11 @@ export function MessageBubble({
                                 </button>
                               )
                             }
-                            return <code className={className} {...props}>{children}</code>
+                            return (
+                              <code className={className} {...props}>
+                                {children}
+                              </code>
+                            )
                           },
                           table: ({ children }) => (
                             <div className="overflow-x-auto my-2">
@@ -365,15 +409,8 @@ export function MessageBubble({
                       >
                         {message.content}
                       </MarkdownHooks>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-                        <span className="relative flex size-2">
-                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
-                          <span className="relative inline-flex size-2 rounded-full bg-primary" />
-                        </span>
-                        Thinking...
-                      </span>
                     )}
+                    {/* Inline spinner when streaming with content */}
                     {(isStreaming || syntheticStreaming) && message.content && (
                       <span className="inline-block ml-0.5 align-middle">
                         <Loader2 className="size-3 animate-spin text-muted-foreground" />
@@ -390,7 +427,6 @@ export function MessageBubble({
           </div>
         </div>
 
-        {/* Copy button – only shown when not collapsed, fades in/out */}
         <AnimatePresence>
           {!isStreaming &&
             !syntheticStreaming &&

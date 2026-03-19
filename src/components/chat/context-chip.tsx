@@ -5,9 +5,9 @@ import type React from 'react'
 import { useState } from 'react'
 import { TrustBadge } from '@/components/skills/trust-badge'
 import { Badge } from '@/components/ui/badge'
+import type { ContextItem } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
 import type { AttachedItem } from '@/types/chat-context'
-import type { ContextItem } from '@/lib/bindings'
 
 type ChipItem = AttachedItem | ContextItem
 
@@ -15,7 +15,7 @@ interface ContextChipProps {
   item: ChipItem
   onRemove?: (id: string) => void
   isLoading?: boolean
-  isError?: boolean
+  _isError?: boolean // unused, kept for API compatibility
   readonly?: boolean
 }
 
@@ -23,41 +23,46 @@ export const ContextChip: React.FC<ContextChipProps> = ({
   item,
   onRemove,
   isLoading,
-  isError,
+  _isError,
   readonly = false
 }) => {
   const [showWarnings, setShowWarnings] = useState(false)
 
-  // Determine if this is an AttachedItem (has .data) or raw ContextItem
   const isAttached = 'data' in item
-  const type = isAttached ? (item as AttachedItem).type : (item as ContextItem).type
+  const type = isAttached
+    ? (item as AttachedItem).type
+    : (item as ContextItem).type
   const data = isAttached ? (item as AttachedItem).data : item
 
-  // Helper to safely get a string value from data
   const getString = (field: string): string | undefined => {
     const val = (data as any)[field]
     return typeof val === 'string' ? val : undefined
   }
 
-  const name = getString('name') || (getString('path') ? getString('path')!.split('/').pop() : '') || 'unknown'
+  const name =
+    getString('name') ||
+    (getString('path') ? getString('path')!.split('/').pop() : '') ||
+    'unknown'
   const id = getString('id') || getString('path') || getString('name') || ''
 
-  // Lint warnings are only present on AttachedSkill items
-  const lintWarnings = isAttached && type === 'skill' ? ((data as any).lintWarnings ?? []) : []
+  const lintWarnings =
+    isAttached && type === 'skill' ? ((data as any).lintWarnings ?? []) : []
   const hasWarnings = lintWarnings.length > 0
-  const hasError = hasWarnings && lintWarnings.some((w: any) => w.severity === 'error')
+  const hasError =
+    hasWarnings && lintWarnings.some((w: any) => w.severity === 'error')
 
   const variant = hasError ? 'destructive' : 'secondary'
-  const icon = type === 'skill' ? (
-    <Zap className="w-3 h-3" />
-  ) : type === 'folder' ? (
-    <Folder className="w-3 h-3" />
-  ) : (
-    <File className="w-3 h-3" />
-  )
+  const icon =
+    type === 'skill' ? (
+      <Zap className="w-3 h-3" />
+    ) : type === 'folder' ? (
+      <Folder className="w-3 h-3" />
+    ) : (
+      <File className="w-3 h-3" />
+    )
 
-  // Only show TrustBadge for AttachedSkill items that have scores
-  const showTrustBadge = isAttached && type === 'skill' && (data as any).securityScore !== undefined
+  const showTrustBadge =
+    isAttached && type === 'skill' && (data as any).securityScore !== undefined
 
   return (
     <Badge
@@ -66,8 +71,8 @@ export const ContextChip: React.FC<ContextChipProps> = ({
       className={cn(
         'flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium group relative transition-all cursor-default',
         hasWarnings &&
-        !hasError &&
-        'bg-yellow-100 border-yellow-500 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+          !hasError &&
+          'bg-yellow-100 border-yellow-500 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
       )}
     >
       {isLoading ? (
@@ -116,7 +121,6 @@ export const ContextChip: React.FC<ContextChipProps> = ({
         </button>
       )}
 
-      {/* Lint warnings tooltip */}
       {showWarnings && hasWarnings && (
         <div className="absolute bottom-full left-0 mb-1 w-52 bg-popover text-popover-foreground text-xs rounded-lg border p-2 z-20 shadow-lg font-normal">
           <div className="font-bold mb-1 border-b pb-1">Lint Issues:</div>

@@ -1,13 +1,13 @@
 ---
-import { getVersions, formatVersionLabel } from '../utils/versions';
+import { formatVersionLabel, getVersions } from '../utils/versions'
 
-const url = Astro.url;
-const pathParts = url.pathname.split('/').filter(p => p);
-const currentLang = pathParts[0] || 'en';
-const currentVersion = pathParts[1] || 'latest';
-const restPath = pathParts.slice(2).join('/');
+const url = Astro.url
+const pathParts = url.pathname.split('/').filter((p) => p)
+const currentLang = pathParts[0] || 'en'
+const currentVersion = pathParts[1] || 'latest'
+const restPath = pathParts.slice(2).join('/')
 
-const versions = await getVersions(currentLang);
+const versions = await getVersions(currentLang)
 ---
 
 <select

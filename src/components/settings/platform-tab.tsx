@@ -4,8 +4,12 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
-import { usePlatformPreferences, usePlatformRegistration, isPlatformNotConfigured } from '@/hooks/use-platform'
-import { platformUrl } from '@/lib/config'   // <-- import central URL
+import {
+  isPlatformNotConfigured,
+  usePlatformPreferences,
+  usePlatformRegistration
+} from '@/hooks/use-platform'
+import { platformUrl } from '@/lib/config' // <-- import central URL
 
 export function PlatformTab() {
   const { query, update } = usePlatformPreferences()
@@ -14,7 +18,7 @@ export function PlatformTab() {
 
   const [enabled, setEnabled] = useState(prefs?.platformEnabled ?? true)
   const [url, setUrl] = useState(
-    prefs?.platformUrl ?? platformUrl('')   // <-- use central URL
+    prefs?.platformUrl ?? platformUrl('') // <-- use central URL
   )
 
   const save = () => {

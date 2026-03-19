@@ -4,15 +4,26 @@
 // blocked skill alerts, and platform awareness.
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import type { LintWarning } from '@/lib/bindings'
-import { Download, ExternalLink, RefreshCw, Trash2, X, AlertTriangle } from 'lucide-react'
 import { revealItemInDir } from '@tauri-apps/plugin-opener'
-import { useState, useRef } from 'react'
+import {
+  AlertTriangle,
+  Download,
+  ExternalLink,
+  RefreshCw,
+  Trash2,
+  X
+} from 'lucide-react'
+import { useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { useDisableRule } from '@/hooks/use-skills'  // <-- corrected import
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger
+} from '@/components/ui/tooltip'
+import { useDisableRule } from '@/hooks/use-skills' // <-- corrected import
+import type { LintWarning } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
 import { useUIStore } from '@/store/ui'
 import type { UnifiedSkill } from '@/types/skills'
@@ -47,11 +58,9 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
   const isBlocked = skill.registryData && skill.registryData.securityScore < 2
 
   // Combine lint warnings from both sources
-  const lintWarnings = (
-    skill.localData?.lint_warnings ??
+  const lintWarnings = (skill.localData?.lint_warnings ??
     skill.registryData?.lintWarnings ??
-    []
-  ) as LintWarning[]
+    []) as LintWarning[]
 
   // Determine active source and shadowed source
   const getSourceInfo = () => {
@@ -61,14 +70,16 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
     if (skill.status === 'installed' || skill.status === 'update_available') {
       // Local source (workspace or personal)
       if (skill.localData) {
-        activeSource = skill.localData.source === 'workspace' ? 'Workspace' : 'Personal'
+        activeSource =
+          skill.localData.source === 'workspace' ? 'Workspace' : 'Personal'
       }
       // If registry data also exists, local shadows registry
       if (skill.registryData) {
         shadowedSource = 'Registry'
       }
     } else if (skill.status === 'local_only') {
-      activeSource = skill.localData?.source === 'workspace' ? 'Workspace' : 'Personal'
+      activeSource =
+        skill.localData?.source === 'workspace' ? 'Workspace' : 'Personal'
       // No shadowing because registry doesn't have it
     } else if (skill.status === 'available') {
       activeSource = 'Registry'
@@ -81,7 +92,10 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
 
   // Scroll to lint warnings section
   const scrollToLint = () => {
-    lintSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    lintSectionRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start'
+    })
   }
 
   // ── Install ────────────────────────────────────────────────────────────────
@@ -242,8 +256,10 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
   }
 
   // Compute security/quality scores for display
-  const securityScore = skill.localData?.security_score ?? skill.registryData?.securityScore ?? 5
-  const qualityScore = skill.localData?.quality_score ?? skill.registryData?.qualityScore ?? 5
+  const securityScore =
+    skill.localData?.security_score ?? skill.registryData?.securityScore ?? 5
+  const qualityScore =
+    skill.localData?.quality_score ?? skill.registryData?.qualityScore ?? 5
 
   return (
     <div className="w-80 xl:w-96 border-l bg-background flex flex-col h-full shadow-lg z-10 shrink-0">
@@ -339,21 +355,33 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
             <Tooltip>
               <TooltipTrigger asChild>
                 <div>
-                  <MetaField label="Security" value={`${skill.localData.security_score}/5`} />
+                  <MetaField
+                    label="Security"
+                    value={`${skill.localData.security_score}/5`}
+                  />
                 </div>
               </TooltipTrigger>
               <TooltipContent side="top">
-                <p>Based on security lint warnings. 5 = no errors, 1 = critical errors.</p>
+                <p>
+                  Based on security lint warnings. 5 = no errors, 1 = critical
+                  errors.
+                </p>
               </TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
                 <div>
-                  <MetaField label="Quality" value={`${skill.localData.quality_score}/5`} />
+                  <MetaField
+                    label="Quality"
+                    value={`${skill.localData.quality_score}/5`}
+                  />
                 </div>
               </TooltipTrigger>
               <TooltipContent side="top">
-                <p>Based on style and documentation warnings. 5 = no warnings, 1 = many warnings.</p>
+                <p>
+                  Based on style and documentation warnings. 5 = no warnings, 1
+                  = many warnings.
+                </p>
               </TooltipContent>
             </Tooltip>
           </div>
@@ -461,7 +489,9 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
             onClick={() => relint.mutate()}
             disabled={isBusy || relint.isPending}
           >
-            <RefreshCw className={`mr-2 h-3.5 w-3.5 ${relint.isPending ? 'animate-spin' : ''}`} />
+            <RefreshCw
+              className={`mr-2 h-3.5 w-3.5 ${relint.isPending ? 'animate-spin' : ''}`}
+            />
             {relint.isPending ? 'Linting…' : 'Re-lint'}
           </Button>
         )}

@@ -27,12 +27,17 @@ import { PreferencesTab } from '@/components/settings/preferences-tab'
 import { ReferralTab } from '@/components/settings/referral-tab'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  useDeleteProfile,
+  useProfiles,
+  useRestoreProfile,
+  useSetDefaultProfile
+} from '@/hooks/use-profiles'
 import type { ApiKeyStatus, ProfileData } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
 import { useSettingsStore } from '@/store/settings'
 import { useUIStore } from '@/store/ui'
-import { useDeleteProfile, useProfiles, useRestoreProfile, useSetDefaultProfile } from '@/hooks/use-profiles'
 
 export function SettingsOverlay() {
   const settingsTab = useUIStore((s) => s.settingsTab)
@@ -268,8 +273,8 @@ function ProfilesTab() {
 
   // Fetch profiles (including deleted) and separate them
   const { data: allProfiles = [], isLoading } = useProfiles(true)
-  const activeProfiles = allProfiles.filter(p => !p.deleted_at)
-  const deletedProfiles = allProfiles.filter(p => p.deleted_at)
+  const activeProfiles = allProfiles.filter((p) => !p.deleted_at)
+  const deletedProfiles = allProfiles.filter((p) => p.deleted_at)
 
   // FIX: Store only model IDs (strings) to avoid cache shape collision with useAvailableModels
   const { data: ollamaModels = [] } = useQuery<string[]>({
@@ -497,11 +502,15 @@ function ProfilesTab() {
         <div className="mt-4 pt-4 border-t">
           <h3 className="text-sm font-medium mb-2">Deleted Profiles</h3>
           <p className="text-xs text-muted-foreground mb-3">
-            These profiles are hidden from the list. Restore them to make conversations reappear.
+            These profiles are hidden from the list. Restore them to make
+            conversations reappear.
           </p>
           <div className="space-y-2">
-            {deletedProfiles.map(p => (
-              <div key={p.id} className="flex items-center justify-between p-2 rounded border border-border">
+            {deletedProfiles.map((p) => (
+              <div
+                key={p.id}
+                className="flex items-center justify-between p-2 rounded border border-border"
+              >
                 <div>
                   <p className="text-sm font-medium">{p.name}</p>
                   <p className="text-xs text-muted-foreground">Deleted</p>
@@ -529,27 +538,27 @@ const APPROVAL_FIELDS: Array<{
   label: string
   description: string
 }> = [
-    {
-      key: 'autoApproveReads',
-      label: 'Auto-approve file reads',
-      description: 'Skip the approval dialog for read-only filesystem tools'
-    },
-    {
-      key: 'autoApproveWrites',
-      label: 'Auto-approve file writes',
-      description: 'Skip approval for file creation and modification'
-    },
-    {
-      key: 'autoApproveShell',
-      label: 'Auto-approve shell commands',
-      description: 'Never require approval for shell execution (⚠ dangerous)'
-    },
-    {
-      key: 'autoApproveHttpRequests',
-      label: 'Auto-approve HTTP requests',
-      description: 'Skip approval for outbound HTTP tool calls'
-    }
-  ]
+  {
+    key: 'autoApproveReads',
+    label: 'Auto-approve file reads',
+    description: 'Skip the approval dialog for read-only filesystem tools'
+  },
+  {
+    key: 'autoApproveWrites',
+    label: 'Auto-approve file writes',
+    description: 'Skip approval for file creation and modification'
+  },
+  {
+    key: 'autoApproveShell',
+    label: 'Auto-approve shell commands',
+    description: 'Never require approval for shell execution (⚠ dangerous)'
+  },
+  {
+    key: 'autoApproveHttpRequests',
+    label: 'Auto-approve HTTP requests',
+    description: 'Skip approval for outbound HTTP tool calls'
+  }
+]
 
 function ApprovalsTab() {
   const toolApprovals = useSettingsStore((s) => s.toolApprovals)

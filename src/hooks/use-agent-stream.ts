@@ -24,6 +24,7 @@ export function useAgentStream(conversationId: string | null) {
   const appendStreamingText = useUIStore((s) => s.appendStreamingText)
   const clearStreamingText = useUIStore((s) => s.clearStreamingText)
   const setAgentRunning = useUIStore((s) => s.setAgentRunning)
+  const setStreamingError = useUIStore((s) => s.setStreamingError)
 
   // Buffer deltas between rAF ticks to avoid per-token setState calls.
   const pendingBuffer = useRef('')
@@ -65,10 +66,14 @@ export function useAgentStream(conversationId: string | null) {
 
       try {
         // Get conversations from cache – use getQueriesData to match all profile keys
-        const conversationQueries = queryClient.getQueriesData<Array<{ id: string; title: string | null }>>({
-          queryKey: ['conversations'],
+        const conversationQueries = queryClient.getQueriesData<
+          Array<{ id: string; title: string | null }>
+        >({
+          queryKey: ['conversations']
         })
-        const conversations = conversationQueries.flatMap(([, data]) => data ?? [])
+        const conversations = conversationQueries.flatMap(
+          ([, data]) => data ?? []
+        )
         const currentConvo = conversations.find((c) => c.id === conversationId)
 
         // Only auto-name if no title exists
@@ -108,6 +113,7 @@ export function useAgentStream(conversationId: string | null) {
     const processEvent = (event: LocalAgentEvent) => {
       switch (event.type) {
         case 'started':
+          setStreamingError(conversationId, false) // clear any previous error
           setAgentRunning(conversationId, true)
           queryClient.invalidateQueries({
             queryKey: ['messages', conversationId],
@@ -139,6 +145,7 @@ export function useAgentStream(conversationId: string | null) {
         case 'error':
           pendingBuffer.current = ''
           setAgentRunning(conversationId, false)
+          setStreamingError(conversationId, true) // record error
           clearStreamingText(conversationId)
           toast.error(
             event.message || 'An error occurred while processing your message'
@@ -199,6 +206,7 @@ export function useAgentStream(conversationId: string | null) {
     appendStreamingText,
     clearStreamingText,
     setAgentRunning,
+    setStreamingError,
     queryClient
   ])
 

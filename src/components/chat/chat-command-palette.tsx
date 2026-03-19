@@ -17,7 +17,7 @@ interface ChatCommandPaletteProps {
   position: { top: number; left: number } | null
   onSelect: (skill: UnifiedSkill) => void
   onClose: () => void
-  workspaceId?: string | null  // new prop, unused for now
+  _workspaceId?: string | null // unused, kept for API compatibility
 }
 
 export const ChatCommandPalette: React.FC<ChatCommandPaletteProps> = ({
@@ -27,7 +27,7 @@ export const ChatCommandPalette: React.FC<ChatCommandPaletteProps> = ({
   position,
   onSelect,
   onClose,
-  workspaceId // not used yet, placeholder for future filtering
+  _workspaceId // renamed to indicate intentional unused
 }) => {
   const [selectedIndex, setSelectedIndex] = useState(0)
   const listRef = useRef<HTMLDivElement>(null)
@@ -39,13 +39,10 @@ export const ChatCommandPalette: React.FC<ChatCommandPaletteProps> = ({
       s.description.toLowerCase().includes(query.toLowerCase())
   )
 
-  // Reset selection when filter changes
-  // biome-ignore lint/correctness/useExhaustiveDependencies: we want to reset on query change
   useEffect(() => {
     setSelectedIndex(0)
   }, [query])
 
-  // Scroll selected item into view
   useEffect(() => {
     if (listRef.current) {
       const el = listRef.current.children[selectedIndex] as
@@ -55,7 +52,6 @@ export const ChatCommandPalette: React.FC<ChatCommandPaletteProps> = ({
     }
   }, [selectedIndex])
 
-  // Keyboard navigation (global listener while palette is open)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowDown') {
@@ -78,7 +74,6 @@ export const ChatCommandPalette: React.FC<ChatCommandPaletteProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [filtered, selectedIndex, onSelect, onClose])
 
-  // Click-outside to close
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (

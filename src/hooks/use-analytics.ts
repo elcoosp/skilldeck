@@ -37,11 +37,11 @@ export function useAnalytics() {
         return {
           total_conversations: Number(data.total_conversations),
           total_messages: Number(data.total_messages),
-          messages_per_day: data.messages_per_day.map(d => ({
+          messages_per_day: data.messages_per_day.map((d) => ({
             date: d.date,
             count: Number(d.count)
           })),
-          skills_used: data.skills_used.map(s => ({
+          skills_used: data.skills_used.map((s) => ({
             name: s.name,
             count: Number(s.count)
           })),
@@ -55,6 +55,6 @@ export function useAnalytics() {
       throw new Error(res.error)
     },
     staleTime: 60_000,
-    refetchInterval: 60_000,
+    refetchInterval: 60_000
   })
 }

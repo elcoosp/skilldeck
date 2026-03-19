@@ -1,11 +1,11 @@
 ---
 export interface Props {
-  type?: 'info' | 'success' | 'warning' | 'tip';
-  cta?: string;
-  href?: string;
+  type?: 'info' | 'success' | 'warning' | 'tip'
+  cta?: string
+  href?: string
 }
 
-const { type = 'info', cta, href } = Astro.props;
+const { type = 'info', cta, href } = Astro.props
 ---
 
 <div class={`nudge nudge-${type}`}>

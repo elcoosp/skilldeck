@@ -1,4 +1,6 @@
 // src/components/skills/unified-skill-card.tsx
+
+import { AlertTriangle, ArrowUp } from 'lucide-react' // <-- import ArrowUp
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import type { LintWarning } from '@/lib/bindings'
@@ -6,13 +8,12 @@ import { cn } from '@/lib/utils'
 import { useUIStore } from '@/store/ui'
 import type { UnifiedSkill } from '@/types/skills'
 import { TrustBadge } from './trust-badge'
-import { AlertTriangle, ArrowUp } from 'lucide-react' // <-- import ArrowUp
 
 interface Props {
   skill: UnifiedSkill
   onClick: (skill: UnifiedSkill) => void
   onInstall?: (skill: UnifiedSkill) => void
-  onUpdate?: (skill: UnifiedSkill) => void  // <-- new prop
+  onUpdate?: (skill: UnifiedSkill) => void // <-- new prop
   isSelected?: boolean
 }
 
@@ -44,15 +45,15 @@ export function UnifiedSkillCard({
   const hasRegistryData = !!skill.registryData
 
   // Use local data if available, fallback to registry data
-  const securityScore = skill.localData?.security_score ?? skill.registryData?.securityScore ?? 5
-  const qualityScore = skill.localData?.quality_score ?? skill.registryData?.qualityScore ?? 5
+  const securityScore =
+    skill.localData?.security_score ?? skill.registryData?.securityScore ?? 5
+  const qualityScore =
+    skill.localData?.quality_score ?? skill.registryData?.qualityScore ?? 5
 
   // Combine lint warnings from both sources
-  const lintWarnings = (
-    skill.localData?.lint_warnings ??
+  const lintWarnings = (skill.localData?.lint_warnings ??
     skill.registryData?.lintWarnings ??
-    []
-  ) as LintWarning[]
+    []) as LintWarning[]
   const errorCount = lintWarnings.filter((w) => w.severity === 'error').length
   const warningCount = lintWarnings.filter(
     (w) => w.severity === 'warning'
@@ -91,9 +92,9 @@ export function UnifiedSkillCard({
             className={cn(
               'shrink-0 text-[10px] px-1.5 py-0',
               skill.status === 'installed' &&
-              'bg-primary/10 text-primary border-primary/20',
+                'bg-primary/10 text-primary border-primary/20',
               skill.status === 'local_only' &&
-              'bg-secondary text-secondary-foreground'
+                'bg-secondary text-secondary-foreground'
             )}
           >
             {STATUS_LABEL[skill.status]}
@@ -155,22 +156,24 @@ export function UnifiedSkillCard({
         </div>
       )}
 
-      {skill.status === 'update_available' && platformFeaturesEnabled && onUpdate && (
-        <div className="mt-2 flex justify-end">
-          <Button
-            size="xs"
-            variant="outline"
-            className="border-amber-500/30 text-amber-600 hover:bg-amber-500/10"
-            onClick={(e) => {
-              e.stopPropagation()
-              onUpdate(skill)
-            }}
-          >
-            <ArrowUp className="size-3 mr-1" />
-            Update
-          </Button>
-        </div>
-      )}
+      {skill.status === 'update_available' &&
+        platformFeaturesEnabled &&
+        onUpdate && (
+          <div className="mt-2 flex justify-end">
+            <Button
+              size="xs"
+              variant="outline"
+              className="border-amber-500/30 text-amber-600 hover:bg-amber-500/10"
+              onClick={(e) => {
+                e.stopPropagation()
+                onUpdate(skill)
+              }}
+            >
+              <ArrowUp className="size-3 mr-1" />
+              Update
+            </Button>
+          </div>
+        )}
     </button>
   )
 }

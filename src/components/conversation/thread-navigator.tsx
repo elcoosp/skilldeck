@@ -1,9 +1,9 @@
-import { motion, AnimatePresence } from 'framer-motion'
-import { useState, useRef, useEffect } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { cn } from '@/lib/utils'
-import { ScrollArea } from '@/components/ui/scroll-area' // adjust path as needed
+import { ScrollArea } from '@/components/ui/scroll-area'
 import type { MessageData } from '@/lib/bindings'
+import { cn } from '@/lib/utils'
 
 interface ThreadNavigatorProps {
   messages: MessageData[]
@@ -11,18 +11,22 @@ interface ThreadNavigatorProps {
   activeIndex?: number
 }
 
-export function ThreadNavigator({ messages, onScrollTo, activeIndex }: ThreadNavigatorProps) {
+export function ThreadNavigator({
+  messages,
+  onScrollTo,
+  activeIndex
+}: ThreadNavigatorProps) {
+  // All hooks must be called unconditionally at the top
   const [isHovering, setIsHovering] = useState(false)
-  const [cardPosition, setCardPosition] = useState<{ top: number; left: number } | null>(null)
+  const [cardPosition, setCardPosition] = useState<{
+    top: number
+    left: number
+  } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const enterTimer = useRef<NodeJS.Timeout | null>(null)
+  const leaveTimer = useRef<NodeJS.Timeout | null>(null)
 
-  const userMessages = messages
-    .map((msg, idx) => ({ msg, idx }))
-    .filter(({ msg }) => msg.role === 'user')
-
-  if (userMessages.length < 3) return null
-
-  // Update card position when hovering starts or container moves
+  // Effect to update floating card position
   useEffect(() => {
     if (!isHovering || !containerRef.current) {
       setCardPosition(null)
@@ -33,7 +37,7 @@ export function ThreadNavigator({ messages, onScrollTo, activeIndex }: ThreadNav
       const rect = containerRef.current!.getBoundingClientRect()
       setCardPosition({
         top: rect.top + rect.height / 2,
-        left: rect.left - 12,
+        left: rect.left - 12
       })
     }
 
@@ -47,10 +51,23 @@ export function ThreadNavigator({ messages, onScrollTo, activeIndex }: ThreadNav
     }
   }, [isHovering])
 
-  // Timers for smooth hover - properly typed with null initial value
-  const enterTimer = useRef<NodeJS.Timeout | null>(null)
-  const leaveTimer = useRef<NodeJS.Timeout | null>(null)
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      if (enterTimer.current) clearTimeout(enterTimer.current)
+      if (leaveTimer.current) clearTimeout(leaveTimer.current)
+    }
+  }, [])
 
+  // Derived data (can be after hooks)
+  const userMessages = messages
+    .map((msg, idx) => ({ msg, idx }))
+    .filter(({ msg }) => msg.role === 'user')
+
+  // Early return – safe now because all hooks are above
+  if (userMessages.length < 3) return null
+
+  // Event handlers (not hooks, can be placed here)
   const handleMouseEnter = () => {
     if (leaveTimer.current) clearTimeout(leaveTimer.current)
     enterTimer.current = setTimeout(() => {
@@ -65,18 +82,13 @@ export function ThreadNavigator({ messages, onScrollTo, activeIndex }: ThreadNav
     }, 300)
   }
 
-  useEffect(() => {
-    return () => {
-      if (enterTimer.current) clearTimeout(enterTimer.current)
-      if (leaveTimer.current) clearTimeout(leaveTimer.current)
-    }
-  }, [])
-
   return (
     <>
       {/* Dots container */}
       <div
         ref={containerRef}
+        role="navigation"
+        aria-label="Thread navigation"
         className="absolute right-2 top-0 bottom-0 flex flex-col justify-center gap-1 z-20"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
@@ -95,12 +107,14 @@ export function ThreadNavigator({ messages, onScrollTo, activeIndex }: ThreadNav
                 <motion.div
                   className={cn(
                     'h-[2px] w-3 rounded-full origin-left transition-colors duration-150',
-                    isActive ? 'bg-primary' : 'bg-muted-foreground/30 group-hover:bg-primary/60'
+                    isActive
+                      ? 'bg-primary'
+                      : 'bg-muted-foreground/30 group-hover:bg-primary/60'
                   )}
                   animate={{
                     scaleX: isActive ? 1 : 0.6,
                     scaleY: isActive ? 1.5 : 1,
-                    opacity: isActive ? 1 : 0.5,
+                    opacity: isActive ? 1 : 0.5
                   }}
                   transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                 />
@@ -110,7 +124,7 @@ export function ThreadNavigator({ messages, onScrollTo, activeIndex }: ThreadNav
         })}
       </div>
 
-      {/* Floating card with ScrollArea */}
+      {/* Floating card portal */}
       {createPortal(
         <AnimatePresence>
           {isHovering && cardPosition && (
@@ -124,7 +138,7 @@ export function ThreadNavigator({ messages, onScrollTo, activeIndex }: ThreadNav
                 top: cardPosition.top,
                 left: cardPosition.left,
                 transform: 'translateY(-50%)',
-                maxHeight: 'min(380px, 70vh)', // fits ~10 items comfortably
+                maxHeight: 'min(380px, 70vh)'
               }}
               onMouseEnter={() => {
                 if (leaveTimer.current) clearTimeout(leaveTimer.current)
@@ -138,6 +152,7 @@ export function ThreadNavigator({ messages, onScrollTo, activeIndex }: ThreadNav
                     return (
                       <button
                         key={msg.id}
+                        type="button"
                         className="flex items-start gap-2 w-full text-left hover:bg-muted/50 p-1.5 rounded transition-colors"
                         onClick={() => {
                           onScrollTo(idx)

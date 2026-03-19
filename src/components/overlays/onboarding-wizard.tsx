@@ -2,14 +2,14 @@
 import { ArrowRight, Check, Key, Mail, Rocket, Shield } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { useCreateConversation } from '@/hooks/use-conversations'
+import { useProfiles } from '@/hooks/use-profiles'
 import { commands } from '@/lib/bindings'
 import {
   ensurePlatformRegistration,
   updatePlatformPreferences
 } from '@/lib/platform'
 import { useUIStore } from '@/store/ui'
-import { useCreateConversation } from '@/hooks/use-conversations'
-import { useProfiles } from '@/hooks/use-profiles'
 
 type Step = 'welcome' | 'apikey' | 'platform' | 'done'
 
@@ -28,7 +28,7 @@ export function OnboardingWizard() {
   const [saving, setSaving] = useState(false)
 
   const { data: profiles } = useProfiles()
-  const defaultProfile = profiles?.find(p => p.is_default) ?? profiles?.[0]
+  const defaultProfile = profiles?.find((p) => p.is_default) ?? profiles?.[0]
   const createConversation = useCreateConversation(defaultProfile?.id)
 
   if (onboardingComplete) return null
@@ -77,7 +77,12 @@ export function OnboardingWizard() {
     try {
       const profilesRes = await commands.listProfiles(false) // <-- pass false
       if (profilesRes.status === 'ok' && profilesRes.data.length === 0) {
-        await commands.createProfile('Local (Ollama)', 'ollama', 'glm-5:cloud', null) // <-- add null for systemPrompt
+        await commands.createProfile(
+          'Local (Ollama)',
+          'ollama',
+          'glm-5:cloud',
+          null
+        ) // <-- add null for systemPrompt
         toast.info('Default local profile created')
       }
     } catch (e) {
@@ -102,7 +107,11 @@ export function OnboardingWizard() {
 
   const handleManageProfiles = () => {
     setOnboardingComplete(true)
-    window.dispatchEvent(new CustomEvent('skilldeck:open-settings', { detail: { tab: 'profiles' } }))
+    window.dispatchEvent(
+      new CustomEvent('skilldeck:open-settings', {
+        detail: { tab: 'profiles' }
+      })
+    )
   }
 
   const handleBrowseSkills = () => {
@@ -130,7 +139,9 @@ export function OnboardingWizard() {
         </div>
 
         <div className="p-8">
-          {step === 'welcome' && <WelcomeStep onNext={() => setStep('apikey')} />}
+          {step === 'welcome' && (
+            <WelcomeStep onNext={() => setStep('apikey')} />
+          )}
           {step === 'apikey' && (
             <ApiKeyStep
               draft={apiKeyDraft}
@@ -315,12 +326,17 @@ function PlatformStep({
       </div>
 
       <div className="rounded-lg bg-primary/5 border border-primary/20 p-3 text-sm">
-        <p className="font-medium mb-2">What you'll get by enabling platform features:</p>
+        <p className="font-medium mb-2">
+          What you'll get by enabling platform features:
+        </p>
         <ul className="list-disc list-inside space-y-1 text-muted-foreground text-xs">
           <li>Sync skills from the community registry</li>
           <li>Share your skills as GitHub Gists</li>
           <li>Get team nudges and referral rewards</li>
-          <li>Your code and API keys <strong>always stay local</strong> – we only sync skill metadata.</li>
+          <li>
+            Your code and API keys <strong>always stay local</strong> – we only
+            sync skill metadata.
+          </li>
         </ul>
       </div>
 
@@ -381,7 +397,11 @@ function PlatformStep({
   )
 }
 
-function DoneStep({ onStartConversation, onManageProfiles, onBrowseSkills }: {
+function DoneStep({
+  onStartConversation,
+  onManageProfiles,
+  onBrowseSkills
+}: {
   onStartConversation: () => void
   onManageProfiles: () => void
   onBrowseSkills: () => void

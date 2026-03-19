@@ -20,7 +20,7 @@ const msg = (
   content,
   created_at: '2024-01-01T00:00:00Z',
   context_items: null,
-  metadata: null, // <-- added
+  metadata: null // <-- added
 })
 
 const wrapper = ({ children }: { children: React.ReactNode }) =>

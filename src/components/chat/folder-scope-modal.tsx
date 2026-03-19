@@ -55,12 +55,10 @@ export const FolderScopeModal: React.FC<FolderScopeModalProps> = ({
     else deepRef.current?.focus()
   }, [selectedIndex])
 
-  // Fetch preview files when component mounts or depth changes
   useEffect(() => {
     const fetchPreview = async () => {
       setIsLoadingPreview(true)
       try {
-        // For preview, we only need shallow listing (first level)
         const res = await commands.listDirectoryContents(folderPath)
         if (res.status === 'ok') {
           const files = res.data
@@ -94,7 +92,6 @@ export const FolderScopeModal: React.FC<FolderScopeModalProps> = ({
       </div>
 
       <div className="space-y-1">
-        {/* Shallow option */}
         <Button
           ref={shallowRef}
           variant="ghost"
@@ -110,7 +107,6 @@ export const FolderScopeModal: React.FC<FolderScopeModalProps> = ({
           </div>
         </Button>
 
-        {/* Deep option */}
         <Button
           ref={deepRef}
           variant="ghost"
@@ -127,7 +123,6 @@ export const FolderScopeModal: React.FC<FolderScopeModalProps> = ({
         </Button>
       </div>
 
-      {/* File preview section */}
       <div className="mt-3 pt-2 border-t">
         <p className="text-xs font-medium text-muted-foreground mb-1.5">
           Preview (first files):
@@ -139,8 +134,8 @@ export const FolderScopeModal: React.FC<FolderScopeModalProps> = ({
         ) : previewFiles.length > 0 ? (
           <ScrollArea className="max-h-24">
             <ul className="text-xs space-y-1">
-              {previewFiles.map((file, i) => (
-                <li key={i} className="truncate text-muted-foreground">
+              {previewFiles.map((file) => (
+                <li key={file} className="truncate text-muted-foreground">
                   {file}
                 </li>
               ))}

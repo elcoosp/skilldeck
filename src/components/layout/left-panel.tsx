@@ -4,12 +4,12 @@
  * and profile filter.
  */
 
+import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 import { open } from '@tauri-apps/plugin-dialog'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ChevronDown, FolderOpen, Plus, Search, Settings } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 import { ConversationItem } from '@/components/conversation/conversation-item'
 import { Button } from '@/components/ui/button'
 import {
@@ -25,8 +25,9 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
+  SelectValue
 } from '@/components/ui/select'
+import { WorkspaceContextBadge } from '@/components/workspace/workspace-context-badge'
 import {
   useConversations,
   useCreateConversation
@@ -35,7 +36,6 @@ import { useProfiles } from '@/hooks/use-profiles'
 import { useOpenWorkspace, useWorkspaces } from '@/hooks/use-workspaces'
 import { cn } from '@/lib/utils'
 import { useUIStore } from '@/store/ui'
-import { WorkspaceContextBadge } from '@/components/workspace/workspace-context-badge'
 
 // ----------------------------------------------------------------------
 // Lottie-powered empty state animation with fallback and reduced motion
@@ -53,7 +53,8 @@ function EmptyStateAnimation({ alt, className }: EmptyStateAnimationProps) {
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
     setPrefersReducedMotion(mediaQuery.matches)
 
-    const handler = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches)
+    const handler = (e: MediaQueryListEvent) =>
+      setPrefersReducedMotion(e.matches)
     mediaQuery.addEventListener('change', handler)
     return () => mediaQuery.removeEventListener('change', handler)
   }, [])
@@ -102,7 +103,8 @@ export function LeftPanel() {
 
   // Get profiles first for default profile fallback
   const { data: allProfiles, isLoading: profilesLoading } = useProfiles(true) // needed for default profile (might be deleted)
-  const defaultProfile = allProfiles?.find((p) => p.is_default) ?? allProfiles?.[0]
+  const defaultProfile =
+    allProfiles?.find((p) => p.is_default) ?? allProfiles?.[0]
 
   // Pass the profile ID to conversations query (null means all profiles)
   const { data: conversations, isLoading: conversationsLoading } =
@@ -119,7 +121,7 @@ export function LeftPanel() {
   // Helper to get workspace name from ID
   const getWorkspaceName = (workspaceId: string | null) => {
     if (!workspaceId) return null
-    const ws = workspaces.find(w => w.id === workspaceId)
+    const ws = workspaces.find((w) => w.id === workspaceId)
     return ws?.name ?? null
   }
 
@@ -185,7 +187,7 @@ export function LeftPanel() {
 
   // Find the currently selected profile name (if any)
   const selectedProfile = filterProfileId
-    ? profiles.find(p => p.id === filterProfileId)
+    ? profiles.find((p) => p.id === filterProfileId)
     : null
 
   return (
@@ -231,15 +233,19 @@ export function LeftPanel() {
           {/* Profile filter dropdown */}
           <Select
             value={filterProfileId ?? 'all'}
-            onValueChange={(val) => setFilterProfileId(val === 'all' ? null : val)}
+            onValueChange={(val) =>
+              setFilterProfileId(val === 'all' ? null : val)
+            }
           >
             <SelectTrigger className="w-[140px] h-7">
               <SelectValue placeholder="Profile" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All profiles</SelectItem>
-              {profiles.map(p => (
-                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+              {profiles.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.name}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -295,7 +301,8 @@ export function LeftPanel() {
                       No conversations in "{selectedProfile.name}"
                     </h3>
                     <p className="text-sm text-muted-foreground max-w-xs mb-4">
-                      Start a new conversation to begin chatting with this profile.
+                      Start a new conversation to begin chatting with this
+                      profile.
                     </p>
                   </>
                 ) : (
@@ -341,7 +348,9 @@ export function LeftPanel() {
                     isDeleting={c.id === deletingId}
                     onDeleteStart={handleDeleteStart}
                     onClick={() => setActiveConversation(c.id)}
-                    workspaceName={getWorkspaceName(c.workspace_id) ?? undefined}
+                    workspaceName={
+                      getWorkspaceName(c.workspace_id) ?? undefined
+                    }
                     profileName={c.profile_name}
                     profileDeleted={c.profile_deleted}
                     showProfileBadge={filterProfileId === null}
@@ -364,7 +373,9 @@ export function LeftPanel() {
             >
               <span className="flex items-center gap-1 truncate">
                 {activeWorkspace ? activeWorkspace.name : 'No workspace'}
-                {activeWorkspace && <WorkspaceContextBadge workspace={activeWorkspace} />}
+                {activeWorkspace && (
+                  <WorkspaceContextBadge workspace={activeWorkspace} />
+                )}
               </span>
               <ChevronDown className="size-3.5 opacity-50 shrink-0" />
             </Button>

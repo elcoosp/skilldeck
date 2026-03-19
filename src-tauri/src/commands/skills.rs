@@ -9,8 +9,8 @@ use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, Condition, EntityTrait, QueryFilter,
     QueryOrder,
 };
-use skilldeck_lint::{LintWarning, compute_security_score, compute_quality_score};
 use serde::{Deserialize, Serialize};
+use skilldeck_lint::LintWarning;
 use specta::{Type, specta};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -20,7 +20,7 @@ use uuid::Uuid;
 
 use crate::state::AppState;
 use crate::sync::skill_sync::sync_registry_skills as do_sync;
-use skilldeck_lint::{LintConfig,  lint_skill as do_lint};
+use skilldeck_lint::{LintConfig, lint_skill as do_lint};
 
 // ── Existing commands (list/toggle) ───────────────────────────────────────────
 
@@ -32,8 +32,8 @@ pub struct SkillInfo {
     pub source: String,
     pub path: Option<String>,
     pub lint_warnings: Vec<LintWarning>,
-     pub security_score: u8,
-     pub quality_score: u8,
+    pub security_score: u8,
+    pub quality_score: u8,
 }
 
 #[specta]

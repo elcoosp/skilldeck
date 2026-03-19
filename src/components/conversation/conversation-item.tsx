@@ -6,8 +6,16 @@
 
 import { formatDistanceToNow } from 'date-fns'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Folder, MoreHorizontal, Pencil, Pin, PinOff, Trash2 } from 'lucide-react'
+import {
+  Folder,
+  MoreHorizontal,
+  Pencil,
+  Pin,
+  PinOff,
+  Trash2
+} from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Badge } from '@/components/ui/badge' // <-- added
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -15,7 +23,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
-import { Badge } from '@/components/ui/badge' // <-- added
 import {
   useDeleteConversation,
   usePinConversation,
@@ -31,10 +38,10 @@ interface ConversationItemProps {
   isDeleting?: boolean
   onDeleteStart?: (conversationId: string) => void
   onClick: () => void
-  workspaceName?: string          // optional workspace name to display as badge
-  profileName?: string | null      // <-- new
-  profileDeleted?: boolean         // <-- new
-  showProfileBadge?: boolean       // <-- new
+  workspaceName?: string // optional workspace name to display as badge
+  profileName?: string | null // <-- new
+  profileDeleted?: boolean // <-- new
+  showProfileBadge?: boolean // <-- new
 }
 
 export function ConversationItem({
@@ -247,7 +254,9 @@ export function ConversationItem({
                 'text-[10px] px-1 py-0',
                 profileDeleted && 'text-muted-foreground border-dashed'
               )}
-              title={profileDeleted ? 'This profile has been deleted' : undefined}
+              title={
+                profileDeleted ? 'This profile has been deleted' : undefined
+              }
             >
               {profileName}
               {profileDeleted && <span className="ml-0.5">(deleted)</span>}

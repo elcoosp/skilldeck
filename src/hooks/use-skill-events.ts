@@ -11,8 +11,12 @@ export function useSkillEvents() {
     onSkillEvent(() => {
       // Any skill change → refetch the local skills list (which now includes lint results)
       queryClient.invalidateQueries({ queryKey: ['local_skills'] })
-    }).then((fn) => { unlisten = fn })
+    }).then((fn) => {
+      unlisten = fn
+    })
 
-    return () => { unlisten?.() }
+    return () => {
+      unlisten?.()
+    }
   }, [queryClient])
 }

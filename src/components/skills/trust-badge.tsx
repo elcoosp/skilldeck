@@ -3,7 +3,11 @@
 // Security warnings use red (distinct from style/quality warnings in amber/grey).
 
 import { AlertTriangle, CheckCircle2, ShieldAlert } from 'lucide-react'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger
+} from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 
 interface TrustBadgeProps {

@@ -36,13 +36,13 @@ export interface CatalogEntry {
   url?: string
   docsUrl: string
   category:
-  | 'filesystem'
-  | 'web'
-  | 'data'
-  | 'dev'
-  | 'productivity'
-  | 'cloud'
-  | 'observability'
+    | 'filesystem'
+    | 'web'
+    | 'data'
+    | 'dev'
+    | 'productivity'
+    | 'cloud'
+    | 'observability'
   tags: string[]
 }
 

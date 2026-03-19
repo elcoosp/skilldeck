@@ -1,16 +1,19 @@
 /**
  * Center panel — virtualized message thread and input bar.
  */
-import { useRef, useState, useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { BranchNav } from '@/components/conversation/branch-nav'
 import { MessageInput } from '@/components/conversation/message-input'
-import { MessageThread, type MessageThreadHandle } from '@/components/conversation/message-thread'
+import {
+  MessageThread,
+  type MessageThreadHandle
+} from '@/components/conversation/message-thread'
 import { ThreadNavigator } from '@/components/conversation/thread-navigator'
 import { useAgentStream } from '@/hooks/use-agent-stream'
-import { useMessagesWithStream } from '@/hooks/use-messages'
-import { useUIStore } from '@/store/ui'
 import { useActiveConversationWorkspaceId } from '@/hooks/use-conversations'
+import { useMessagesWithStream } from '@/hooks/use-messages'
 import { useWorkspaces } from '@/hooks/use-workspaces'
+import { useUIStore } from '@/store/ui'
 
 export function CenterPanel() {
   const activeConversationId = useUIStore((s) => s.activeConversationId)
@@ -28,33 +31,40 @@ export function CenterPanel() {
 
   // MessageThread reports the nearest user-message index directly —
   // no re-mapping needed here.
-  const [activeUserMessageIndex, setActiveUserMessageIndex] = useState<number | undefined>(undefined)
+  const [activeUserMessageIndex, setActiveUserMessageIndex] = useState<
+    number | undefined
+  >(undefined)
 
   // --- Highlight animation state ---
-  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
+  const [highlightedMessageId, setHighlightedMessageId] = useState<
+    string | null
+  >(null)
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const handleVisibleUserIndexChange = useCallback((index: number) => {
     setActiveUserMessageIndex(index)
   }, [])
 
-  const scrollToMessage = useCallback((index: number) => {
-    // Clear any pending timeout to avoid overlapping highlights
-    if (highlightTimeoutRef.current) {
-      clearTimeout(highlightTimeoutRef.current)
-    }
+  const scrollToMessage = useCallback(
+    (index: number) => {
+      // Clear any pending timeout to avoid overlapping highlights
+      if (highlightTimeoutRef.current) {
+        clearTimeout(highlightTimeoutRef.current)
+      }
 
-    const targetMessage = messages[index]
-    if (targetMessage) {
-      setHighlightedMessageId(targetMessage.id)
-      // Clear highlight after animation duration (800ms)
-      highlightTimeoutRef.current = setTimeout(() => {
-        setHighlightedMessageId(null)
-      }, 800)
-    }
+      const targetMessage = messages[index]
+      if (targetMessage) {
+        setHighlightedMessageId(targetMessage.id)
+        // Clear highlight after animation duration (800ms)
+        highlightTimeoutRef.current = setTimeout(() => {
+          setHighlightedMessageId(null)
+        }, 800)
+      }
 
-    threadRef.current?.scrollToMessage(index)
-  }, [messages])
+      threadRef.current?.scrollToMessage(index)
+    },
+    [messages]
+  )
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -105,7 +115,10 @@ export function CenterPanel() {
       </div>
 
       <div className="shrink-0 border-t border-border">
-        <MessageInput conversationId={activeConversationId} workspaceRoot={workspaceRoot} />
+        <MessageInput
+          conversationId={activeConversationId}
+          workspaceRoot={workspaceRoot}
+        />
       </div>
     </div>
   )

@@ -2,7 +2,6 @@
 
 import { ChevronDown, ChevronRight, Edit2, X } from 'lucide-react'
 import { useCallback, useMemo } from 'react'
-import { shallow } from 'zustand/shallow'
 import { Button } from '@/components/ui/button'
 import type { QueuedMessage } from '@/hooks/use-queued-messages'
 import { useQueueStore } from '@/store/queue'
@@ -19,7 +18,6 @@ export function QueueHeader({ conversationId, messages }: QueueHeaderProps) {
   const expanded = useQueueStore((s) => s.expanded[conversationId] ?? false)
   const mode = useQueueStore((s) => s.mode[conversationId] ?? 'view')
 
-  // ✅ Use stable empty array fallback
   const selectedIdsArray = useQueueStore(
     (s) => s.selectedIds[conversationId] ?? EMPTY_ARRAY
   )
@@ -36,8 +34,7 @@ export function QueueHeader({ conversationId, messages }: QueueHeaderProps) {
   const count = messages.length
   const selectedCount = useMemo(() => selectedIds.size, [selectedIds])
 
-  if (count === 0) return null
-
+  // Move all hooks before early return
   const handleSelectClick = useCallback(() => {
     setMode(conversationId, 'select')
     clearSelected(conversationId)
@@ -51,6 +48,9 @@ export function QueueHeader({ conversationId, messages }: QueueHeaderProps) {
   const handleToggleExpanded = useCallback(() => {
     setExpanded(conversationId, !expanded)
   }, [conversationId, expanded, setExpanded])
+
+  // Early return after hooks
+  if (count === 0) return null
 
   return (
     <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border">

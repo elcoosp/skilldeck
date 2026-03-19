@@ -1,13 +1,13 @@
 ---
-import { Icon } from '@astrojs/starlight/components';
+import { Icon } from '@astrojs/starlight/components'
 
 export interface Props {
-  question: string;
-  onYes?: string;
-  onNo?: string;
+  question: string
+  onYes?: string
+  onNo?: string
 }
 
-const { question, onYes, onNo } = Astro.props;
+const { question, onYes, onNo } = Astro.props
 ---
 
 <div class="checkpoint" data-question={question} data-on-yes={onYes} data-on-no={onNo}>

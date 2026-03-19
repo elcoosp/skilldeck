@@ -80,9 +80,24 @@ export function useMessagesWithStream(
   const isRunning = useUIStore(
     (s) => s.agentRunning[conversationId ?? ''] ?? false
   )
+  const hasError = useUIStore(
+    (s) => s.streamingError[conversationId ?? ''] ?? false
+  )
 
-  if (!isRunning || !streamingText) return messages
+  // If there's a streaming error, don't show the placeholder
+  if (hasError) {
+    return messages
+  }
 
+  // If the agent is not running and we're not expecting a response, just return messages
+  const lastMessage = messages[messages.length - 1]
+  const expectingResponse = lastMessage?.role === 'user'
+
+  if (!isRunning && !expectingResponse) {
+    return messages
+  }
+
+  // Add streaming bubble (content may be empty initially)
   const streamBubble: MessageData = {
     id: '__streaming__',
     conversation_id: conversationId!,

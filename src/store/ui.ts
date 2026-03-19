@@ -65,6 +65,10 @@ interface UIState {
   agentRunning: Record<string, boolean>
   setAgentRunning: (conversationId: string, running: boolean) => void
 
+  // ── Streaming error state (per conversation) ──────────────────────────
+  streamingError: Record<string, boolean>
+  setStreamingError: (conversationId: string, hasError: boolean) => void
+
   // ── Sidebar search ────────────────────────────────────────────────────
   searchQuery: string
   setSearchQuery: (query: string) => void
@@ -200,6 +204,16 @@ export const useUIStore = create<UIState>()(
       setAgentRunning: (conversationId, running) =>
         set((state) => ({
           agentRunning: { ...state.agentRunning, [conversationId]: running }
+        })),
+
+      // Streaming error
+      streamingError: {},
+      setStreamingError: (conversationId, hasError) =>
+        set((state) => ({
+          streamingError: {
+            ...state.streamingError,
+            [conversationId]: hasError
+          }
         })),
 
       // Search

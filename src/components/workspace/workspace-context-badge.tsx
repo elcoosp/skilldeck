@@ -7,7 +7,9 @@ interface WorkspaceContextBadgeProps {
   workspace: WorkspaceData
 }
 
-export function WorkspaceContextBadge({ workspace }: WorkspaceContextBadgeProps) {
+export function WorkspaceContextBadge({
+  workspace
+}: WorkspaceContextBadgeProps) {
   if (!workspace.is_open) return null
 
   // Convert string counts to numbers (bindings returns strings for u64)
@@ -32,8 +34,10 @@ export function WorkspaceContextBadge({ workspace }: WorkspaceContextBadgeProps)
           <p className="font-medium mb-1">Loaded context files:</p>
           {workspace.context_files.length > 0 ? (
             <ul className="space-y-0.5 list-disc list-inside">
-              {workspace.context_files.map(file => (
-                <li key={file} className="truncate">{file}</li>
+              {workspace.context_files.map((file) => (
+                <li key={file} className="truncate">
+                  {file}
+                </li>
               ))}
               {fileCount > contextFilesCount && (
                 <li className="text-muted-foreground">

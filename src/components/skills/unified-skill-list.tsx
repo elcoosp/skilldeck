@@ -5,6 +5,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { motion } from 'framer-motion'
 import { AlertCircle, RefreshCw, Search } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { toast } from 'sonner'
 import { useDebounce } from 'use-debounce'
 import {
   Select,
@@ -21,7 +22,6 @@ import type { UnifiedSkill } from '@/types/skills'
 import { PlatformStatusBanner } from './platform-status-banner'
 import { SkillDetailPanel } from './skill-detail-panel'
 import { UnifiedSkillCard } from './unified-skill-card'
-import { toast } from 'sonner'
 
 // Responsive column count based on container width
 const BREAKPOINTS = {
@@ -80,11 +80,9 @@ export function UnifiedSkillList() {
   const { unifiedSkills, isLoading, installedCount, registryError } =
     useUnifiedSkills({ search: debouncedSearch || undefined })
 
-  const localWithIssues = unifiedSkills.filter(
-    (s) => s.status === 'local_only' || s.status === 'installed'
-  ).filter(
-    (s) => (s.localData?.lint_warnings?.length ?? 0) > 0
-  ).length
+  const localWithIssues = unifiedSkills
+    .filter((s) => s.status === 'local_only' || s.status === 'installed')
+    .filter((s) => (s.localData?.lint_warnings?.length ?? 0) > 0).length
 
   const categories = useMemo(() => {
     const cats = new Set<string>()
@@ -375,8 +373,12 @@ export function UnifiedSkillList() {
                               prev?.id === s.id ? null : s
                             )
                           }
-                          onInstall={platformFeaturesEnabled ? handleInstall : undefined}
-                          onUpdate={platformFeaturesEnabled ? handleUpdate : undefined}
+                          onInstall={
+                            platformFeaturesEnabled ? handleInstall : undefined
+                          }
+                          onUpdate={
+                            platformFeaturesEnabled ? handleUpdate : undefined
+                          }
                         />
                       </motion.div>
                     ))}

@@ -5,11 +5,20 @@
 
 import { Bell, Code, Globe, Mail, Palette, Shield } from 'lucide-react'
 import { useState } from 'react'
-import { usePlatformPreferences, isPlatformNotConfigured } from '@/hooks/use-platform'
-import { useProfiles, useUpdateProfile } from '@/hooks/use-profiles'
 import { Button } from '@/components/ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  isPlatformNotConfigured,
+  usePlatformPreferences
+} from '@/hooks/use-platform'
+import { useProfiles, useUpdateProfile } from '@/hooks/use-profiles'
 import type { UpdatePreferencesPayload } from '@/lib/platform'
 
 export function PreferencesTab() {
@@ -19,11 +28,13 @@ export function PreferencesTab() {
   const { data: profiles = [], isLoading: profilesLoading } = useProfiles()
   const updateProfile = useUpdateProfile()
 
-  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null)
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(
+    null
+  )
   const [emailDraft, setEmailDraft] = useState('')
   const [systemPromptDraft, setSystemPromptDraft] = useState('')
 
-  const selectedProfile = profiles.find(p => p.id === selectedProfileId)
+  const selectedProfile = profiles.find((p) => p.id === selectedProfileId)
 
   if (query.isLoading || profilesLoading) {
     return (
@@ -40,7 +51,7 @@ export function PreferencesTab() {
         <p className="text-sm text-muted-foreground mb-2">
           Platform not configured.
         </p>
-        <Button size="sm" onClick={() => window.location.hash = '#platform'}>
+        <Button size="sm" onClick={() => (window.location.hash = '#platform')}>
           Go to Platform Settings
         </Button>
       </div>
@@ -63,7 +74,7 @@ export function PreferencesTab() {
     if (!selectedProfile) return
     updateProfile.mutate({
       id: selectedProfile.id,
-      system_prompt: systemPromptDraft,
+      system_prompt: systemPromptDraft
     })
   }
 
@@ -75,7 +86,7 @@ export function PreferencesTab() {
           value={selectedProfileId ?? ''}
           onValueChange={(id) => {
             setSelectedProfileId(id)
-            const profile = profiles.find(p => p.id === id)
+            const profile = profiles.find((p) => p.id === id)
             setSystemPromptDraft(profile?.system_prompt ?? '')
           }}
         >
