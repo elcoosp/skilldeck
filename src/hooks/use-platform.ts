@@ -1,7 +1,7 @@
 // src/hooks/use-platform.ts
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { listen } from '@tauri-apps/api/event'
-import { open } from '@tauri-apps/plugin-opener'   // <-- import opener
+import { openUrl } from '@tauri-apps/plugin-opener'   // <-- corrected import
 import { useEffect } from 'react'
 import { toast } from 'sonner'
 import type { PlatformPreferences as ApiPlatformPreferences } from '@/lib/bindings'
@@ -166,7 +166,7 @@ export function useNudgeListener() {
                       )
                     } else if (cta_action.startsWith('http')) {
                       try {
-                        await open(cta_action)   // <-- use Tauri opener
+                        await openUrl(cta_action)   // <-- use openUrl
                       } catch (error) {
                         console.error('Failed to open URL:', error)
                       }

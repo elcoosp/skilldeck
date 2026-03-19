@@ -18,14 +18,17 @@ import {
 import { useCallback, useState } from 'react'
 import { MarkdownHooks } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { openUrl } from '@tauri-apps/plugin-opener'   // <-- corrected import
+import { toast } from 'sonner'
 import type { MessageData } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
 import { SubagentCard } from './subagent-card'
+import { rehypeLinkifyCodeUrls } from '@/lib/rehype-linkify-code'
 
 interface MessageBubbleProps {
   message: MessageData
   isStreaming?: boolean
-  isHighlighted?: boolean   // new prop
+  isHighlighted?: boolean
 }
 
 // Intercept <pre> from Shiki — never touch <code> or whitespace
@@ -48,6 +51,7 @@ const CodePre = ({ children, ...props }: any) => {
     )
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+    toast.success('Code copied to clipboard')
   }
 
   return (
@@ -112,20 +116,6 @@ export function MessageBubble({
   const isSystem = message.role === 'system'
   const syntheticStreaming = message.id === '__streaming__'
 
-  // Queue detection is disabled until metadata is added to MessageData
-  // const isFromQueue = useMemo(() => {
-  //   if (!isUser) return false
-  //   if (!message.metadata) return false
-  //   try {
-  //     const meta = typeof message.metadata === 'string'
-  //       ? JSON.parse(message.metadata)
-  //       : message.metadata
-  //     return meta.from_queue === true
-  //   } catch {
-  //     return false
-  //   }
-  // }, [message.metadata, isUser])
-
   // Extract context items from metadata
   const contextItems = message.context_items || []
 
@@ -155,6 +145,7 @@ export function MessageBubble({
     await navigator.clipboard.writeText(message.content)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+    toast.success('Message copied')
   }, [message.content])
 
   // Render context chips if present
@@ -191,7 +182,6 @@ export function MessageBubble({
       initial={{ opacity: 0 }}
       animate={{
         opacity: 1,
-        // Highlight background when isHighlighted is true
         backgroundColor: isHighlighted ? 'var(--highlight-bg)' : 'transparent'
       }}
       transition={{
@@ -300,10 +290,56 @@ export function MessageBubble({
                               },
                               useBackground: false
                             }
-                          ]
+                          ],
+                          rehypeLinkifyCodeUrls
                         ]}
                         components={{
                           pre: CodePre,
+                          // Override links to use Tauri opener
+                          a: ({ href, children }) => (
+                            <a
+                              href={href}
+                              onClick={async (e) => {
+                                e.preventDefault()
+                                if (href) {
+                                  try {
+                                    await openUrl(href)   // <-- use openUrl
+                                  } catch (err) {
+                                    console.error('Failed to open link:', err)
+                                  }
+                                }
+                              }}
+                              className="cursor-pointer underline"
+                            >
+                              {children}
+                            </a>
+                          ),
+                          // Override code: differentiate inline vs block
+                          code: ({ node, inline, className, children, ...props }) => {
+                            const match = /language-(\w+)/.exec(className || '')
+                            if (!inline && match) {
+                              // This is a code block with language – already handled by Shiki
+                              return <code className={className} {...props}>{children}</code>
+                            }
+                            if (inline) {
+                              // Inline code: make it clickable to copy
+                              const content = String(children).replace(/\n$/, '')
+                              return (
+                                <button
+                                  onClick={async () => {
+                                    await navigator.clipboard.writeText(content)
+                                    toast.success('Code copied to clipboard')
+                                  }}
+                                  className="inline-code cursor-pointer rounded bg-muted px-1 py-0.5 font-mono text-sm hover:bg-primary/20 transition-colors"
+                                  title="Click to copy"
+                                >
+                                  {children}
+                                </button>
+                              )
+                            }
+                            // Fallback
+                            return <code className={className} {...props}>{children}</code>
+                          },
                           table: ({ children }) => (
                             <div className="overflow-x-auto my-2">
                               <table className="border-collapse border border-border text-xs">
