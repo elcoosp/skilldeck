@@ -234,3 +234,18 @@
   background-color: var(--border);
   border-radius: 4px;
 }
+
+
+.message-highlight {
+  animation: highlight-flash 600ms ease-out forwards;
+}
+
+@keyframes highlight-flash {
+  0% {
+    background-color: hsl(var(--primary) / 0.15);
+  }
+
+  100% {
+    background-color: transparent;
+  }
+}

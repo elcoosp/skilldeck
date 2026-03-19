@@ -1,7 +1,6 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { AnimatePresence, motion } from 'framer-motion'
+import { motion } from 'framer-motion'
 import * as React from 'react'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import type { MessageData } from '@/lib/bindings'
 import { MessageBubble } from './message-bubble'
 
@@ -10,6 +9,8 @@ export interface MessageThreadHandle {
   scrollToIndex: (index: number, options?: { behavior?: 'auto' | 'smooth' }) => void
   getScrollPosition: () => number
   scrollToPosition: (position: number) => void
+  getTotalHeight: () => number
+  getClientHeight: () => number
 }
 
 interface MessageThreadProps {
@@ -17,9 +18,7 @@ interface MessageThreadProps {
   streamingMessageId?: string
   isLoading?: boolean
   searchQuery?: string
-  /** Called with the nearest user-message index visible in the viewport. */
   onVisibleUserIndexChange?: (index: number) => void
-  /** ID of the message that should be highlighted (for animation) */
   highlightedMessageId?: string | null
 }
 
@@ -40,7 +39,6 @@ export const MessageThread = React.forwardRef<
   ) => {
     const scrollRef = React.useRef<HTMLDivElement>(null)
 
-    // Filter messages based on search query (client-side)
     const filteredMessages = React.useMemo(() => {
       if (!searchQuery.trim()) return messages
       const lowerQuery = searchQuery.toLowerCase()
@@ -49,8 +47,8 @@ export const MessageThread = React.forwardRef<
       )
     }, [messages, searchQuery])
 
-    // Reset scroll to top whenever the search query changes
-    React.useEffect(() => {
+    // Reset scroll to top synchronously before paint whenever search query changes
+    React.useLayoutEffect(() => {
       if (!scrollRef.current) return
       scrollRef.current.scrollTop = 0
     }, [searchQuery])
@@ -64,13 +62,12 @@ export const MessageThread = React.forwardRef<
       count: filteredMessages.length,
       getScrollElement: () => scrollRef.current,
       estimateSize: () => 80,
-      overscan: 8,
+      overscan: 3, // reduced from 8 for better performance
       measureElement: (el) => el.getBoundingClientRect().height
     })
 
     const virtualItems = virtualizer.getVirtualItems()
 
-    // Auto-scroll to bottom on new messages only if search is empty
     React.useEffect(() => {
       if (filteredMessages.length === 0 || searchQuery) return
       virtualizer.scrollToIndex(filteredMessages.length - 1, {
@@ -104,7 +101,9 @@ export const MessageThread = React.forwardRef<
         if (scrollRef.current) {
           scrollRef.current.scrollTop = position
         }
-      }
+      },
+      getTotalHeight: () => virtualizer.getTotalSize(),
+      getClientHeight: () => scrollRef.current?.clientHeight ?? 0,
     }))
 
     const callbackRef = React.useRef(onVisibleUserIndexChange)
@@ -179,86 +178,82 @@ export const MessageThread = React.forwardRef<
     const showList = !isLoading && filteredMessages.length > 0
 
     return (
-      <ScrollArea ref={scrollRef} className="h-full overflow-hidden">
-        <AnimatePresence mode="sync">
-          {showLoading && (
-            <motion.div
-              key="loading"
-              className="flex items-center justify-center h-full text-sm text-muted-foreground"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              <div className="flex flex-col items-center gap-2">
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                <span>Loading your conversation...</span>
-              </div>
-            </motion.div>
-          )}
-          {showEmpty && (
-            <motion.div
-              key="empty"
-              className="flex flex-col items-center justify-center h-full text-center px-8"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              <img
-                src="/illustrations/empty-messages.svg"
-                alt="Empty conversation"
-                className="w-48 h-48 mb-4 opacity-90"
-              />
-              <h3 className="text-lg font-semibold text-foreground mb-1">
-                {searchQuery
-                  ? 'No matching messages'
-                  : 'This conversation is empty'}
-              </h3>
-              <p className="text-sm text-muted-foreground max-w-xs">
-                {searchQuery
-                  ? 'Try a different search term.'
-                  : 'Type a message below to begin your chat with the agent.'}
-              </p>
-            </motion.div>
-          )}
-          {showList && (
-            <div
-              style={{
-                height: virtualizer.getTotalSize(),
-                position: 'relative'
-              }}
-            >
-              {virtualItems.map((virtualItem) => {
-                const message = filteredMessages[virtualItem.index]
-                return (
-                  <div
-                    key={message.id}
-                    ref={virtualizer.measureElement}
-                    data-index={virtualItem.index}
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '100%',
-                      transform: `translateY(${virtualItem.start}px)`
-                    }}
-                  >
-                    <div className="px-4 py-1.5">
-                      <MessageBubble
-                        message={message}
-                        isStreaming={message.id === streamingMessageId}
-                        isHighlighted={message.id === highlightedMessageId}
-                        searchQuery={searchQuery}
-                      />
-                    </div>
-                  </div>
-                )
-              })}
+      <div ref={scrollRef} className="h-full overflow-y-auto">
+        {showLoading && (
+          <motion.div
+            key="loading"
+            className="flex items-center justify-center h-full text-sm text-muted-foreground"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.2 }}
+          >
+            <div className="flex flex-col items-center gap-2">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              <span>Loading your conversation...</span>
             </div>
-          )}
-        </AnimatePresence>
-      </ScrollArea>
+          </motion.div>
+        )}
+        {showEmpty && (
+          <motion.div
+            key="empty"
+            className="flex flex-col items-center justify-center h-full text-center px-8"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.2 }}
+          >
+            <img
+              src="/illustrations/empty-messages.svg"
+              alt="Empty conversation"
+              className="w-48 h-48 mb-4 opacity-90"
+            />
+            <h3 className="text-lg font-semibold text-foreground mb-1">
+              {searchQuery
+                ? 'No matching messages'
+                : 'This conversation is empty'}
+            </h3>
+            <p className="text-sm text-muted-foreground max-w-xs">
+              {searchQuery
+                ? 'Try a different search term.'
+                : 'Type a message below to begin your chat with the agent.'}
+            </p>
+          </motion.div>
+        )}
+        {showList && (
+          <div
+            style={{
+              height: virtualizer.getTotalSize(),
+              position: 'relative'
+            }}
+          >
+            {virtualItems.map((virtualItem) => {
+              const message = filteredMessages[virtualItem.index]
+              return (
+                <div
+                  key={message.id}
+                  ref={virtualizer.measureElement}
+                  data-index={virtualItem.index}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    transform: `translateY(${virtualItem.start}px)`
+                  }}
+                >
+                  <div className="px-4 py-1.5">
+                    <MessageBubble
+                      message={message}
+                      isStreaming={message.id === streamingMessageId}
+                      isHighlighted={message.id === highlightedMessageId}
+                      searchQuery={searchQuery.trim() ? searchQuery : undefined}
+                    />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
     )
   }
 )

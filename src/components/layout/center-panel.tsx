@@ -6,7 +6,7 @@ import { useDebounce } from 'use-debounce'
 import { ChevronDown, Search, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Kbd } from '@/components/ui/kbd'
+import { Kbd, KbdGroup } from '@/components/ui/kbd'
 import { BranchNav } from '@/components/conversation/branch-nav'
 import { MessageInput } from '@/components/conversation/message-input'
 import {
@@ -91,11 +91,19 @@ export function CenterPanel() {
     [messages]
   )
 
-  // Check if near bottom to hide jump button
+  // Check if near bottom to hide jump button (improved logic)
   const checkScrollPosition = useCallback(() => {
-    const pos = threadRef.current?.getScrollPosition() ?? 0
-    const totalHeight = threadRef.current?.getTotalHeight?.() ?? 0
-    const clientHeight = threadRef.current?.getClientHeight?.() ?? 0
+    if (!threadRef.current) return
+    const pos = threadRef.current.getScrollPosition()
+    const totalHeight = threadRef.current.getTotalHeight()
+    const clientHeight = threadRef.current.getClientHeight()
+
+    // If content fits in view, no need for jump button
+    if (totalHeight <= clientHeight) {
+      setShowJumpToLatest(false)
+      return
+    }
+
     const nearBottom = pos + clientHeight >= totalHeight - 100
     setShowJumpToLatest(!nearBottom && messages.length > 0)
   }, [messages.length])
@@ -135,10 +143,7 @@ export function CenterPanel() {
     const handleScroll = () => {
       checkScrollPosition()
     }
-    // We need a way to listen to scroll events from the thread.
-    // Since we don't have direct access to the scroll element, we can use a polling approach
-    // or we can have the thread component expose an onScroll prop. For simplicity, we'll use
-    // a small interval that checks the scroll position. This is not ideal but works.
+    // Use a small interval to poll scroll position
     const interval = setInterval(handleScroll, 200)
     return () => clearInterval(interval)
   }, [checkScrollPosition])
@@ -203,11 +208,17 @@ export function CenterPanel() {
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
           <Input
             ref={searchInputRef}
-            placeholder={`Search in this conversation… (${modifierKey}F)`}
+            placeholder="Search in this conversation…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8 h-8 text-sm"
+            className="pl-8 pr-16 h-8 text-sm" // Add right padding for Kbd
           />
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center pointer-events-none">
+            <KbdGroup>
+              <Kbd>{modifierKey}</Kbd>
+              <Kbd>F</Kbd>
+            </KbdGroup>
+          </div>
         </div>
         {searchQuery && (
           <Button
@@ -219,7 +230,6 @@ export function CenterPanel() {
             <X className="size-3.5" />
           </Button>
         )}
-        <Kbd keys={[modifierKey, 'F']} className="hidden sm:flex" />
       </div>
 
       <div className="relative flex-1 min-h-0">
@@ -246,6 +256,7 @@ export function CenterPanel() {
             onClick={jumpToLatest}
             className="absolute bottom-4 right-4 z-30 flex items-center justify-center w-10 h-10 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-all duration-200 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
             aria-label="Jump to latest message"
+            title="Jump to latest"
           >
             <ChevronDown className="size-5" />
           </button>

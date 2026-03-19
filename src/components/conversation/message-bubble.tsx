@@ -22,14 +22,13 @@ import { ContextChip } from '@/components/chat/context-chip'
 import { BouncingDots } from '@/components/ui/bouncing-dots'
 import type { MessageData } from '@/lib/bindings'
 import { rehypeLinkifyCodeUrls } from '@/lib/rehype-linkify-code'
-import { cn, highlightText } from '@/lib/utils' // Import highlightText
+import { cn, highlightText } from '@/lib/utils'
 import { SubagentCard } from './subagent-card'
 
 interface MessageBubbleProps {
   message: MessageData
   isStreaming?: boolean
-  isHighlighted?: boolean
-  searchQuery?: string
+  searchQuery?: string // used for highlighting search matches
 }
 
 // Singleton highlighter – created once, reused across all instances
@@ -143,7 +142,6 @@ const CodePre = ({ children, ...props }: any) => {
 export function MessageBubble({
   message,
   isStreaming = false,
-  isHighlighted = false,
   searchQuery = ''
 }: MessageBubbleProps) {
   const [collapsed, setCollapsed] = useState(false)
@@ -244,8 +242,7 @@ export function MessageBubble({
     <motion.div
       className={cn(
         'flex gap-3 max-w-full',
-        isUser && 'flex-row-reverse',
-        isHighlighted && 'bg-[var(--highlight-bg)] p-3 rounded-lg'
+        isUser && 'flex-row-reverse'
       )}
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
@@ -285,7 +282,9 @@ export function MessageBubble({
         )}
       >
         <div className={cn(isUser && 'text-right', 'w-full')}>
+          {/* This is the actual bubble – always has padding, and gets data-message-id for highlights */}
           <div
+            data-message-id={message.id}
             className={cn(
               'inline-block px-3.5 py-2.5 rounded-xl text-sm leading-relaxed transition-colors duration-300',
               isUser
