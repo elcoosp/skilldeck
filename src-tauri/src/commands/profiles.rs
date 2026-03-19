@@ -1,6 +1,6 @@
 //! Profile Tauri commands.
 
-use sea_orm::{ActiveModelTrait, ActiveValue::Set, EntityTrait, QueryOrder};
+use sea_orm::{ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, QueryOrder, QueryFilter};
 use serde::{Deserialize, Serialize};
 use specta::{Type, specta};
 use std::sync::Arc;
@@ -18,12 +18,30 @@ pub struct ProfileData {
     pub model_id: String,
     pub is_default: bool,
     pub system_prompt: Option<String>,
+    pub deleted_at: Option<String>, // ISO timestamp if deleted
+}
+
+impl From<profiles::Model> for ProfileData {
+    fn from(p: profiles::Model) -> Self {
+        Self {
+            id: p.id.to_string(),
+            name: p.name,
+            model_provider: p.model_provider,
+            model_id: p.model_id,
+            is_default: p.is_default,
+            system_prompt: p.system_prompt,
+            deleted_at: p.deleted_at.map(|dt| dt.to_rfc3339()),
+        }
+    }
 }
 
 /// List all profiles ordered by default-first, then alphabetically.
 #[specta]
 #[tauri::command]
-pub async fn list_profiles(state: State<'_, Arc<AppState>>) -> Result<Vec<ProfileData>, String> {
+pub async fn list_profiles(
+    state: State<'_, Arc<AppState>>,
+    include_deleted: Option<bool>, // <-- new parameter
+) -> Result<Vec<ProfileData>, String> {
     let db = state
         .registry
         .db
@@ -31,24 +49,17 @@ pub async fn list_profiles(state: State<'_, Arc<AppState>>) -> Result<Vec<Profil
         .await
         .map_err(|e| e.to_string())?;
 
-    let rows = Profiles::find()
+    let mut query = Profiles::find()
         .order_by_desc(profiles::Column::IsDefault)
-        .order_by_asc(profiles::Column::Name)
-        .all(db)
-        .await
-        .map_err(|e| e.to_string())?;
+        .order_by_asc(profiles::Column::Name);
 
-    Ok(rows
-        .into_iter()
-        .map(|r| ProfileData {
-            id: r.id.to_string(),
-            name: r.name,
-            model_provider: r.model_provider,
-            model_id: r.model_id,
-            is_default: r.is_default,
-            system_prompt: r.system_prompt,
-        })
-        .collect())
+    if !include_deleted.unwrap_or(false) {
+        query = query.filter(profiles::Column::DeletedAt.is_null());
+    }
+
+    let rows = query.all(db).await.map_err(|e| e.to_string())?;
+
+    Ok(rows.into_iter().map(Into::into).collect())
 }
 
 /// Create a new profile, optionally with a system prompt.
@@ -59,7 +70,7 @@ pub async fn create_profile(
     name: String,
     model_provider: String,
     model_id: String,
-    system_prompt: Option<String>, // <-- new optional parameter
+    system_prompt: Option<String>,
 ) -> Result<String, String> {
     let db = state
         .registry
@@ -76,9 +87,10 @@ pub async fn create_profile(
         model_provider: Set(model_provider),
         model_id: Set(model_id),
         is_default: Set(false),
-        system_prompt: Set(system_prompt), // <-- use provided prompt
+        system_prompt: Set(system_prompt),
         created_at: Set(now),
         updated_at: Set(now),
+        deleted_at: Set(None),
         ..Default::default()
     };
 
@@ -131,7 +143,6 @@ pub async fn update_profile(
 }
 
 /// Set a profile as the default, clearing the flag on all others.
-#[allow(dead_code)] // Used via Tauri IPC
 #[specta]
 #[tauri::command]
 pub async fn set_default_profile(
@@ -146,8 +157,12 @@ pub async fn set_default_profile(
         .map_err(|e| e.to_string())?;
     let uuid = Uuid::parse_str(&id).map_err(|e| e.to_string())?;
 
-    // Clear is_default on all profiles first.
-    let all = Profiles::find().all(db).await.map_err(|e| e.to_string())?;
+    // Clear is_default on all active profiles first.
+    let all = Profiles::find()
+        .filter(profiles::Column::DeletedAt.is_null())
+        .all(db)
+        .await
+        .map_err(|e| e.to_string())?;
     for row in all {
         if row.is_default {
             let mut active: profiles::ActiveModel = row.into();
@@ -172,7 +187,7 @@ pub async fn set_default_profile(
     Ok(())
 }
 
-/// Delete a profile. Refuses to delete the last remaining profile.
+/// Soft delete a profile. Refuses to delete the last remaining active profile.
 #[specta]
 #[tauri::command]
 pub async fn delete_profile(state: State<'_, Arc<AppState>>, id: String) -> Result<(), String> {
@@ -184,33 +199,75 @@ pub async fn delete_profile(state: State<'_, Arc<AppState>>, id: String) -> Resu
         .map_err(|e| e.to_string())?;
     let uuid = Uuid::parse_str(&id).map_err(|e| e.to_string())?;
 
-    let all = Profiles::find().all(db).await.map_err(|e| e.to_string())?;
-    if all.len() <= 1 {
+    // Count active (non-deleted) profiles
+    let active_count = Profiles::find()
+        .filter(profiles::Column::DeletedAt.is_null())
+        .count(db)
+        .await
+        .map_err(|e| e.to_string())?;
+    if active_count <= 1 {
         return Err("Cannot delete the only remaining profile".to_string());
     }
 
-    let row = all
-        .into_iter()
-        .find(|r| r.id == uuid)
+    let profile = Profiles::find_by_id(uuid)
+        .one(db)
+        .await
+        .map_err(|e| e.to_string())?
         .ok_or_else(|| format!("Profile {id} not found"))?;
 
-    let was_default = row.is_default;
-    let active: profiles::ActiveModel = row.into();
-    active.delete(db).await.map_err(|e| e.to_string())?;
+    let was_default = profile.is_default;
+    let now = chrono::Utc::now().fixed_offset();
 
-    // If we deleted the default, promote the first remaining profile.
-    if was_default
-        && let Some(first) = Profiles::find()
+    let mut active: profiles::ActiveModel = profile.into();
+    active.deleted_at = Set(Some(now));
+    active.updated_at = Set(now);
+    active.update(db).await.map_err(|e| e.to_string())?;
+
+    // If it was default, set another active profile as default
+    if was_default {
+        if let Some(first) = Profiles::find()
+            .filter(profiles::Column::DeletedAt.is_null())
             .order_by_asc(profiles::Column::Name)
             .one(db)
             .await
             .map_err(|e| e.to_string())?
-    {
-        let mut active: profiles::ActiveModel = first.into();
-        active.is_default = Set(true);
-        active.updated_at = Set(chrono::Utc::now().fixed_offset());
-        active.update(db).await.map_err(|e| e.to_string())?;
+        {
+            let mut new_default: profiles::ActiveModel = first.into();
+            new_default.is_default = Set(true);
+            new_default.updated_at = Set(chrono::Utc::now().fixed_offset());
+            new_default.update(db).await.map_err(|e| e.to_string())?;
+        }
     }
+
+    Ok(())
+}
+
+/// Restore a soft-deleted profile.
+#[specta]
+#[tauri::command]
+pub async fn restore_profile(state: State<'_, Arc<AppState>>, id: String) -> Result<(), String> {
+    let db = state
+        .registry
+        .db
+        .connection()
+        .await
+        .map_err(|e| e.to_string())?;
+    let uuid = Uuid::parse_str(&id).map_err(|e| e.to_string())?;
+
+    let profile = Profiles::find_by_id(uuid)
+        .one(db)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("Profile {id} not found"))?;
+
+    if profile.deleted_at.is_none() {
+        return Err("Profile is not deleted".to_string());
+    }
+
+    let mut active: profiles::ActiveModel = profile.into();
+    active.deleted_at = Set(None);
+    active.updated_at = Set(chrono::Utc::now().fixed_offset());
+    active.update(db).await.map_err(|e| e.to_string())?;
 
     Ok(())
 }

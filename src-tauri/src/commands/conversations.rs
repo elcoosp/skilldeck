@@ -17,6 +17,7 @@ use uuid::Uuid;
 use crate::state::AppState;
 use skilldeck_models::conversations::{self, Entity as Conversation};
 use skilldeck_models::messages::{self as msg_model, Entity as Messages};
+use skilldeck_models::profiles::{self, Entity as Profiles}; // <-- added
 
 /// Lightweight summary used by the sidebar list.
 #[derive(Debug, Clone, Serialize, Type)]
@@ -24,6 +25,8 @@ pub struct ConversationSummary {
     pub id: String,
     pub title: Option<String>,
     pub profile_id: String,
+    pub profile_name: Option<String>,      // <-- new
+    pub profile_deleted: bool,             // <-- new
     pub workspace_id: Option<String>,
     pub created_at: String,
     pub updated_at: String,
@@ -66,7 +69,7 @@ pub async fn create_conversation(
     Ok(id.to_string())
 }
 
-/// Return conversations for a profile, most-recently-updated first.
+/// Return conversations for a profile (or all profiles if profile_id is null), most-recently-updated first.
 #[specta]
 #[tauri::command]
 pub async fn list_conversations(
@@ -82,7 +85,9 @@ pub async fn list_conversations(
         .map_err(|e| e.to_string())?;
     let limit = limit.unwrap_or(50);
 
+    // Build query with join to profiles
     let mut query = Conversation::find()
+        .find_also_related(Profiles)
         .filter(conversations::Column::Status.eq("active"))
         .order_by_desc(conversations::Column::Pinned)
         .order_by_desc(conversations::Column::UpdatedAt)
@@ -95,22 +100,24 @@ pub async fn list_conversations(
     let rows = query.all(db).await.map_err(|e| e.to_string())?;
 
     let mut summaries = Vec::with_capacity(rows.len());
-    for row in rows {
+    for (conv, profile_opt) in rows {
         let count = Messages::find()
-            .filter(msg_model::Column::ConversationId.eq(row.id))
+            .filter(msg_model::Column::ConversationId.eq(conv.id))
             .count(db)
             .await
             .unwrap_or(0);
 
         summaries.push(ConversationSummary {
-            id: row.id.to_string(),
-            title: row.title,
-            profile_id: row.profile_id.to_string(),
-            workspace_id: row.workspace_id.map(|id| id.to_string()),
-            created_at: row.created_at.to_string(),
-            updated_at: row.updated_at.to_string(),
+            id: conv.id.to_string(),
+            title: conv.title,
+            profile_id: conv.profile_id.to_string(),
+            profile_name: profile_opt.as_ref().map(|p| p.name.clone()),
+            profile_deleted: profile_opt.map(|p| p.deleted_at.is_some()).unwrap_or(false),
+            workspace_id: conv.workspace_id.map(|id| id.to_string()),
+            created_at: conv.created_at.to_string(),
+            updated_at: conv.updated_at.to_string(),
             message_count: count,
-            pinned: row.pinned,
+            pinned: conv.pinned,
         });
     }
 

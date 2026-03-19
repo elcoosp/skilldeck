@@ -80,6 +80,7 @@ pub fn run() {
             update_profile,
             delete_profile,
             set_default_profile,
+            restore_profile,
             // settings / keys
             list_api_keys,
             set_api_key,

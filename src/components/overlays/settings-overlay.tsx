@@ -457,63 +457,67 @@ function ProfilesTab() {
         <p className="text-sm text-muted-foreground italic">No profiles yet.</p>
       ) : (
         <div className="space-y-2">
-          {profiles.map((p: ProfileData) => (
-            <div
-              key={p.id}
-              className={cn(
-                'flex items-center gap-3 rounded-lg border px-3 py-2.5',
-                p.is_default
-                  ? 'border-primary/40 bg-primary/5'
-                  : 'border-border'
-              )}
-            >
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm font-medium truncate">{p.name}</span>
-                  {p.is_default && (
-                    <Badge
-                      variant="outline"
-                      className="bg-primary/10 text-primary border-primary/20"
-                    >
-                      default
-                    </Badge>
+          {profiles.map((p: ProfileData) => {
+
+            console.log('Profile model_provider:', p.model_provider, typeof p.model_provider);
+            return (
+              <div
+                key={p.id}
+                className={cn(
+                  'flex items-center gap-3 rounded-lg border px-3 py-2.5',
+                  p.is_default
+                    ? 'border-primary/40 bg-primary/5'
+                    : 'border-border'
+                )}
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-medium truncate">{p.name}</span>
+                    {p.is_default && (
+                      <Badge
+                        variant="outline"
+                        className="bg-primary/10 text-primary border-primary/20"
+                      >
+                        default
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {getProviderName(p.model_provider)} · {p.model_id}
+                  </p>
+                  {p.system_prompt && (
+                    <p className="text-xs text-muted-foreground/70 truncate mt-0.5 italic">
+                      {p.system_prompt}
+                    </p>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground truncate">
-                  {getProviderName(p.model_provider)} · {p.model_id}
-                </p>
-                {p.system_prompt && (
-                  <p className="text-xs text-muted-foreground/70 truncate mt-0.5 italic">
-                    {p.system_prompt}
-                  </p>
-                )}
-              </div>
 
-              <div className="flex items-center gap-1 shrink-0">
-                {!p.is_default && (
+                <div className="flex items-center gap-1 shrink-0">
+                  {!p.is_default && (
+                    <Button
+                      size="icon-xs"
+                      variant="ghost"
+                      onClick={() => defaultMut.mutate(p.id)}
+                      disabled={defaultMut.isPending}
+                      title="Set as default"
+                    >
+                      <Star className="size-3.5" />
+                    </Button>
+                  )}
                   <Button
                     size="icon-xs"
                     variant="ghost"
-                    onClick={() => defaultMut.mutate(p.id)}
-                    disabled={defaultMut.isPending}
-                    title="Set as default"
+                    onClick={() => deleteMut.mutate(p.id)}
+                    disabled={deleteMut.isPending}
+                    title="Delete profile"
+                    className="text-muted-foreground hover:text-destructive"
                   >
-                    <Star className="size-3.5" />
+                    <Trash2 className="size-3.5" />
                   </Button>
-                )}
-                <Button
-                  size="icon-xs"
-                  variant="ghost"
-                  onClick={() => deleteMut.mutate(p.id)}
-                  disabled={deleteMut.isPending}
-                  title="Delete profile"
-                  className="text-muted-foreground hover:text-destructive"
-                >
-                  <Trash2 className="size-3.5" />
-                </Button>
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>

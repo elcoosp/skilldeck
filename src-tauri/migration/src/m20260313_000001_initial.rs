@@ -70,6 +70,8 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .default(Expr::current_timestamp()),
                     )
+
+                    .col(timestamp_with_time_zone(Profiles::DeletedAt).null())
                     .to_owned(),
             )
             .await?;
@@ -1320,6 +1322,7 @@ impl MigrationTrait for Migration {
             is_default: Set(true),
             created_at: Set(Utc::now().into()),
             updated_at: Set(Utc::now().into()),
+            deleted_at: Set(None),
         };
         default_profile.insert(db).await?;
 
@@ -1452,6 +1455,7 @@ enum Profiles {
     IsDefault,
     CreatedAt,
     UpdatedAt,
+    DeletedAt
 }
 
 #[derive(DeriveIden)]

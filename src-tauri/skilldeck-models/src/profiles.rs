@@ -18,6 +18,7 @@ pub struct Model {
     pub system_prompt: Option<String>,
     pub created_at: DateTimeWithTimeZone,
     pub updated_at: DateTimeWithTimeZone,
+    pub deleted_at: Option<DateTimeWithTimeZone>, // <-- new
     // Relations (2.0: defined inline on the Model)
     #[sea_orm(has_many)]
     pub conversations: HasMany<super::conversations::Entity>,
