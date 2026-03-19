@@ -17,6 +17,7 @@ import { BlockedSkillAlert } from './blocked-skill-alert'
 import { ConflictResolver } from './conflict-resolver'
 import { InstallDialog } from './install-dialog'
 import { LintWarningPanel } from './lint-warning-panel'
+import { dirname } from '@tauri-apps/api/path'
 
 interface Props {
   skill: UnifiedSkill
@@ -162,6 +163,21 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
 
   const handleKeepLocal = () => {
     setShowConflictResolver(false)
+  }
+
+  const handleOpenFolder = async () => {
+    if (!skill.localData?.path) return
+    try {
+      const folderPath = await dirname(skill.localData.path)
+      if (import.meta.env.DEV) {
+        toast.info(`Would open folder: ${folderPath}`)
+        return
+      }
+      const { openPath } = await import('@tauri-apps/plugin-opener')
+      await openPath(folderPath)
+    } catch (err) {
+      toast.error(`Could not open folder: ${err}`)
+    }
   }
 
   return (
@@ -327,14 +343,7 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
             variant="outline"
             className="w-full"
             disabled={isBusy}
-            onClick={async () => {
-              try {
-                const { openPath } = await import('@tauri-apps/plugin-opener')
-                await openPath(skill.localData!.path!)
-              } catch {
-                // opener unavailable in dev
-              }
-            }}
+            onClick={handleOpenFolder}
           >
             <ExternalLink className="mr-2 h-3.5 w-3.5" />
             Open Folder
