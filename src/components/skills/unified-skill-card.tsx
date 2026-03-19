@@ -6,13 +6,13 @@ import { cn } from '@/lib/utils'
 import { useUIStore } from '@/store/ui'
 import type { UnifiedSkill } from '@/types/skills'
 import { TrustBadge } from './trust-badge'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, ArrowUp } from 'lucide-react' // <-- import ArrowUp
 
 interface Props {
   skill: UnifiedSkill
   onClick: (skill: UnifiedSkill) => void
   onInstall?: (skill: UnifiedSkill) => void
-  onUpdate?: (skill: UnifiedSkill) => void
+  onUpdate?: (skill: UnifiedSkill) => void  // <-- new prop
   isSelected?: boolean
 }
 
@@ -77,20 +77,28 @@ export function UnifiedSkillCard({
         <h3 className="font-semibold text-sm leading-tight truncate flex-1 min-w-0">
           {skill.name}
         </h3>
-        <Badge
-          variant={STATUS_BADGE_VARIANT[skill.status]}
-          className={cn(
-            'shrink-0 text-[10px] px-1.5 py-0',
-            skill.status === 'installed' &&
-            'bg-primary/10 text-primary border-primary/20',
-            skill.status === 'local_only' &&
-            'bg-secondary text-secondary-foreground',
-            skill.status === 'update_available' &&
-            'bg-amber-500/10 text-amber-600 border-amber-500/20'
-          )}
-        >
-          {STATUS_LABEL[skill.status]}
-        </Badge>
+        {skill.status === 'update_available' ? (
+          <Badge
+            variant="destructive"
+            className="shrink-0 text-[10px] px-1.5 py-0 bg-amber-500/10 text-amber-600 border-amber-500/20 flex items-center gap-0.5"
+          >
+            <ArrowUp className="size-2.5" />
+            Update available
+          </Badge>
+        ) : (
+          <Badge
+            variant={STATUS_BADGE_VARIANT[skill.status]}
+            className={cn(
+              'shrink-0 text-[10px] px-1.5 py-0',
+              skill.status === 'installed' &&
+              'bg-primary/10 text-primary border-primary/20',
+              skill.status === 'local_only' &&
+              'bg-secondary text-secondary-foreground'
+            )}
+          >
+            {STATUS_LABEL[skill.status]}
+          </Badge>
+        )}
       </div>
 
       {/* Description */}
@@ -106,7 +114,7 @@ export function UnifiedSkillCard({
           {hasRegistryData ? skill.registryData?.author : '—'}
         </span>
         <div className="flex items-center gap-2 shrink-0 ml-2">
-          {/* Lint warning counts - now using Lucide icon */}
+          {/* Lint warning counts */}
           {errorCount > 0 && (
             <span
               className="text-destructive font-medium inline-flex items-center gap-0.5"
@@ -133,34 +141,36 @@ export function UnifiedSkillCard({
       </div>
 
       {/* Action buttons */}
-      {(skill.status === 'available' || skill.status === 'update_available') &&
-        platformFeaturesEnabled && (
-          <div className="mt-2 flex justify-end gap-2">
-            {skill.status === 'available' && onInstall && (
-              <Button
-                size="xs"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onInstall(skill)
-                }}
-              >
-                Install
-              </Button>
-            )}
-            {skill.status === 'update_available' && onUpdate && (
-              <Button
-                size="xs"
-                variant="outline"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onUpdate(skill)
-                }}
-              >
-                Update
-              </Button>
-            )}
-          </div>
-        )}
+      {skill.status === 'available' && platformFeaturesEnabled && onInstall && (
+        <div className="mt-2 flex justify-end">
+          <Button
+            size="xs"
+            onClick={(e) => {
+              e.stopPropagation()
+              onInstall(skill)
+            }}
+          >
+            Install
+          </Button>
+        </div>
+      )}
+
+      {skill.status === 'update_available' && platformFeaturesEnabled && onUpdate && (
+        <div className="mt-2 flex justify-end">
+          <Button
+            size="xs"
+            variant="outline"
+            className="border-amber-500/30 text-amber-600 hover:bg-amber-500/10"
+            onClick={(e) => {
+              e.stopPropagation()
+              onUpdate(skill)
+            }}
+          >
+            <ArrowUp className="size-3 mr-1" />
+            Update
+          </Button>
+        </div>
+      )}
     </button>
   )
 }

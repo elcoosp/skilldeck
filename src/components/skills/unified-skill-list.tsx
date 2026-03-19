@@ -1,18 +1,4 @@
 // src/components/skills/unified-skill-list.tsx
-// Virtualized marketplace grid — merges local + registry skills via
-// useUnifiedSkills, renders rows with responsive column count.
-//
-// ── Card entrance animation ───────────────────────────────────────────────────
-// Add the following to your global CSS (e.g. globals.css / index.css):
-//
-//   @keyframes skill-card-in {
-//     from { opacity: 0; transform: translateY(8px) scale(0.97); }
-//     to   { opacity: 1; transform: translateY(0)   scale(1);    }
-//   }
-//   .skill-card-enter {
-//     animation: skill-card-in 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
-//   }
-// ─────────────────────────────────────────────────────────────────────────────
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useVirtualizer } from '@tanstack/react-virtual'
@@ -43,7 +29,7 @@ const BREAKPOINTS = {
 }
 
 function useColumnCount(ref: React.RefObject<HTMLElement | null>) {
-  const [columns, setColumns] = useState(3) // default to 3, will adjust on mount
+  const [columns, setColumns] = useState(3)
 
   useEffect(() => {
     if (!ref.current) return
@@ -79,11 +65,9 @@ export function UnifiedSkillList() {
   const isMeasuredRef = useRef(false)
   const measurementsRef = useRef<Map<Element, number>>(new Map())
 
-  // ── Ref for the actual list container (changes width when panel opens) ──
   const containerRef = useRef<HTMLDivElement>(null)
   const columns = useColumnCount(containerRef)
 
-  // Clear row height cache when column count changes (rows are now a different shape)
   const prevColumnsRef = useRef(columns)
   useEffect(() => {
     if (prevColumnsRef.current !== columns) {
@@ -95,18 +79,15 @@ export function UnifiedSkillList() {
   const { unifiedSkills, isLoading, installedCount, registryError } =
     useUnifiedSkills({ search: debouncedSearch || undefined })
 
-  // Compute local skills with issues for summary badge
   const localWithIssues = unifiedSkills.filter(
     (s) => s.status === 'local_only' || s.status === 'installed'
   ).filter(
     (s) => (s.localData?.lint_warnings?.length ?? 0) > 0
   ).length
 
-  // Compute unique categories from registry skills that have a category
   const categories = useMemo(() => {
     const cats = new Set<string>()
     unifiedSkills.forEach((skill) => {
-      // Only include registry skills that have a non-null category
       if (
         skill.registryData?.category &&
         skill.registryData.category.trim() !== ''
@@ -114,11 +95,9 @@ export function UnifiedSkillList() {
         cats.add(skill.registryData.category)
       }
     })
-    // Convert to sorted array, with "all" always first
     return ['all', ...Array.from(cats).sort()]
   }, [unifiedSkills])
 
-  // Filter by category (if not "all")
   const filteredSkills = useMemo(() => {
     if (category === 'all') return unifiedSkills
     return unifiedSkills.filter((s) => s.registryData?.category === category)
@@ -128,12 +107,56 @@ export function UnifiedSkillList() {
   const syncMutation = useMutation({
     mutationFn: async () => {
       const res = await commands.syncRegistrySkills()
-      if (res.status === 'error') throw new Error(res.error)
+      if (res.status === 'error') {
+        if (res.error.includes('Platform not configured')) {
+          throw new Error('PLATFORM_NOT_CONFIGURED')
+        }
+        throw new Error(res.error)
+      }
+      return res.data
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['registry_skills'] })
       qc.invalidateQueries({ queryKey: ['local_skills'] })
     }
+  })
+
+  const installMutation = useMutation({
+    mutationFn: async (skill: UnifiedSkill) => {
+      if (!skill.registryData) throw new Error('No registry data')
+      const res = await commands.installSkill(
+        skill.registryData.name,
+        skill.registryData.content,
+        'personal',
+        null
+      )
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['local_skills'] })
+      toast.success('Skill installed')
+    },
+    onError: (err) => toast.error(`Install failed: ${err}`)
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: async (skill: UnifiedSkill) => {
+      if (!skill.registryData) throw new Error('No registry data')
+      const res = await commands.installSkill(
+        skill.registryData.name,
+        skill.registryData.content,
+        'personal',
+        true // overwrite
+      )
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['local_skills'] })
+      toast.success('Skill updated')
+    },
+    onError: (err) => toast.error(`Update failed: ${err}`)
   })
 
   const platformFeaturesEnabled = useUIStore((s) => s.platformFeaturesEnabled)
@@ -144,17 +167,11 @@ export function UnifiedSkillList() {
 
   const rowCount = Math.ceil(filteredSkills.length / columns)
 
-  // measureElement stabilises row heights so the virtualizer doesn't
-  // re-measure on every scroll tick, which was causing the flash.
   const measureElement = useCallback((el: Element | null) => {
     if (!el) return ROW_HEIGHT_ESTIMATE
-
-    // Return cached measurement if available
     if (measurementsRef.current.has(el)) {
       return measurementsRef.current.get(el)!
     }
-
-    // Measure and cache
     const height = (el as HTMLElement).getBoundingClientRect().height
     measurementsRef.current.set(el, height)
     return height
@@ -168,7 +185,6 @@ export function UnifiedSkillList() {
     overscan: 2
   })
 
-  // Only set isMeasured once to prevent constant rerenders
   useEffect(() => {
     if (
       !isMeasuredRef.current &&
@@ -180,7 +196,6 @@ export function UnifiedSkillList() {
     }
   }, [rowVirtualizer.getTotalSize(), filteredSkills.length])
 
-  // Keep selected skill in sync if data refreshes
   const resolvedSelected = selected
     ? (filteredSkills.find((s) => s.id === selected.id) ?? selected)
     : null
@@ -190,15 +205,17 @@ export function UnifiedSkillList() {
     setSettingsOpen(true)
   }
 
+  const handleInstall = (skill: UnifiedSkill) => {
+    installMutation.mutate(skill)
+  }
+
+  const handleUpdate = (skill: UnifiedSkill) => {
+    updateMutation.mutate(skill)
+  }
+
   return (
     <div className="flex h-full min-h-0">
-      {/* ── Main area (list column) ─────────────────────────────────────── */}
-      {/* ref moved here — observes the width that actually changes */}
-      <div
-        className="flex flex-col flex-1 min-w-0 h-full"
-        ref={containerRef}
-      >
-        {/* Platform status banner - flush with sides, only top padding */}
+      <div className="flex flex-col flex-1 min-w-0 h-full" ref={containerRef}>
         <div className="px-3 pt-3">
           <PlatformStatusBanner
             variant={
@@ -213,7 +230,6 @@ export function UnifiedSkillList() {
           />
         </div>
 
-        {/* Header row - matches MCP tab exactly */}
         <div className="flex items-center justify-between px-3 pt-0 pb-2 shrink-0">
           <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
             Skill Registry
@@ -244,7 +260,6 @@ export function UnifiedSkillList() {
           </div>
         </div>
 
-        {/* Search and category filter row - matching side padding */}
         <div className="px-3 pb-3 flex gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
@@ -261,7 +276,6 @@ export function UnifiedSkillList() {
             />
           </div>
 
-          {/* Only show category filter if there is at least one category besides "all" */}
           {categories.length > 1 && (
             <Select value={category} onValueChange={setCategory}>
               <SelectTrigger className="w-[140px] h-8">
@@ -278,7 +292,6 @@ export function UnifiedSkillList() {
           )}
         </div>
 
-        {/* Grid area */}
         {isLoading ? (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center space-y-2">
@@ -305,7 +318,6 @@ export function UnifiedSkillList() {
             className="flex-1 overflow-auto px-4 py-4 overflow-x-hidden"
             style={{ scrollbarGutter: 'stable' }}
           >
-            {/* Virtual scroll container */}
             <div
               style={{
                 height: `${rowVirtualizer.getTotalSize()}px`,
@@ -362,12 +374,11 @@ export function UnifiedSkillList() {
                               prev?.id === s.id ? null : s
                             )
                           }
-                          onInstall={() => setSelected(skill)}
-                          onUpdate={() => setSelected(skill)}
+                          onInstall={platformFeaturesEnabled ? handleInstall : undefined}
+                          onUpdate={platformFeaturesEnabled ? handleUpdate : undefined}
                         />
                       </motion.div>
                     ))}
-                    {/* Pad incomplete last row */}
                     {Array.from({
                       length: columns - rowItems.length
                     }).map((_, i) => (
@@ -381,7 +392,6 @@ export function UnifiedSkillList() {
         )}
       </div>
 
-      {/* ── Detail panel ──────────────────────────────────────────────────── */}
       {resolvedSelected && (
         <SkillDetailPanel
           skill={resolvedSelected}
@@ -391,8 +401,6 @@ export function UnifiedSkillList() {
     </div>
   )
 }
-
-// ── Empty state ───────────────────────────────────────────────────────────────
 
 function EmptyState({
   search,
@@ -438,7 +446,6 @@ function EmptyState({
     )
   }
 
-  // Default empty state (no skills at all)
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-4">
       <img
