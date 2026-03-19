@@ -7,8 +7,9 @@
 import { open } from '@tauri-apps/plugin-dialog'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ChevronDown, FolderOpen, Plus, Search, Settings } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
+import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 import { ConversationItem } from '@/components/conversation/conversation-item'
 import { Button } from '@/components/ui/button'
 import {
@@ -35,6 +36,52 @@ import { useOpenWorkspace, useWorkspaces } from '@/hooks/use-workspaces'
 import { cn } from '@/lib/utils'
 import { useUIStore } from '@/store/ui'
 
+// ----------------------------------------------------------------------
+// Lottie-powered empty state illustration with fallback and reduced motion
+// ----------------------------------------------------------------------
+interface EmptyStateAnimationProps {
+  alt: string
+  className?: string
+}
+
+function EmptyStateAnimation({ alt, className }: EmptyStateAnimationProps) {
+  const [hasError, setHasError] = useState(false)
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+    setPrefersReducedMotion(mediaQuery.matches)
+
+    const handler = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches)
+    mediaQuery.addEventListener('change', handler)
+    return () => mediaQuery.removeEventListener('change', handler)
+  }, [])
+
+  // If reduced motion is preferred or the Lottie failed to load, show static SVG
+  if (prefersReducedMotion || hasError) {
+    return (
+      <img
+        src="/illustrations/empty-conversations.svg"
+        alt={alt}
+        className={className}
+      />
+    )
+  }
+
+  return (
+    <DotLottieReact
+      src="/illustrations/empty-conversations.lottie"
+      autoplay
+      className={className}
+      onError={() => setHasError(true)}
+      aria-label={alt}
+    />
+  )
+}
+
+// ----------------------------------------------------------------------
+// Main component
+// ----------------------------------------------------------------------
 export function LeftPanel() {
   const searchQuery = useUIStore((s) => s.searchQuery)
   const setSearchQuery = useUIStore((s) => s.setSearchQuery)
@@ -238,9 +285,8 @@ export function LeftPanel() {
                   // Contextual empty state for a specific profile
                   <>
                     <div className="w-48 h-48 mb-4 overflow-hidden rounded-3xl opacity-70">
-                      <img
-                        src="/illustrations/empty-conversations.svg"
-                        alt="No conversations in this profile"
+                      <EmptyStateAnimation
+                        alt={`No conversations in ${selectedProfile.name}`}
                         className="w-full h-full object-cover"
                       />
                     </div>
@@ -255,8 +301,7 @@ export function LeftPanel() {
                   // Default empty state (all profiles, no conversations anywhere)
                   <>
                     <div className="w-48 h-48 mb-4 overflow-hidden rounded-3xl">
-                      <img
-                        src="/illustrations/empty-conversations.svg"
+                      <EmptyStateAnimation
                         alt="No conversations"
                         className="w-full h-full object-cover opacity-90"
                       />

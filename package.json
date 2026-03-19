@@ -50,6 +50,7 @@
     "@icons-pack/react-simple-icons": "^13.12.0",
     "@lingui/core": "^5.9.2",
     "@lingui/react": "^5.9.2",
+    "@lottiefiles/dotlottie-react": "^0.18.7",
     "@shikijs/rehype": "^4.0.2",
     "@tanstack/react-query": "^5.90.21",
     "@tanstack/react-virtual": "^3.13.22",
