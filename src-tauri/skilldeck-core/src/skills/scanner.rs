@@ -1,7 +1,7 @@
 //! Skill directory scanner.
 //!
 //! Walks one or more root directories looking for sub-directories that contain
-//! a `SKILL.md` file, then loads each one via [`FilesystemSkillLoader`].
+//! a `SKILL.md` file, then loads each one via [`FilesystemSkillLoader`] and runs the linter.
 
 use std::path::PathBuf;
 use tokio::fs;
@@ -13,12 +13,15 @@ use crate::{
     traits::{Skill, SkillLoader, SkillSource},
 };
 
+use skilldeck_lint::{LintConfig, lint_skill as do_lint};
+
 /// Scan a single root directory for skills.
 ///
-/// Each immediate sub-directory that contains a `SKILL.md` file is loaded.
+/// Each immediate sub-directory that contains a `SKILL.md` file is loaded,
+/// linted, and the lint results stored in the Skill struct.
 /// Load errors are logged and skipped rather than propagated so that one bad
 /// skill does not prevent the rest from loading.
-pub async fn scan_directory(root: &PathBuf) -> Result<Vec<Skill>, CoreError> {
+pub async fn scan_directory(root: &PathBuf, lint_config: &LintConfig) -> Result<Vec<Skill>, CoreError> {
     let mut skills = Vec::new();
     let loader = FilesystemSkillLoader;
 
@@ -52,7 +55,20 @@ pub async fn scan_directory(root: &PathBuf) -> Result<Vec<Skill>, CoreError> {
             .load(&SkillSource::Filesystem(entry_path.clone()))
             .await
         {
-            Ok(skill) => {
+            Ok(mut skill) => {
+                // Run linter
+                let path_clone = entry_path.clone();
+                let config_clone = lint_config.clone();
+                let warnings = tokio::task::spawn_blocking(move || do_lint(&path_clone, &config_clone))
+                    .await
+                    .unwrap_or_default();
+                let sec = skilldeck_lint::compute_security_score(&warnings);
+                let qual = skilldeck_lint::compute_quality_score(&warnings);
+
+                skill.lint_warnings = Some(warnings);
+                skill.security_score = sec;
+                skill.quality_score = qual;
+
                 debug!("Loaded skill '{}' from {:?}", skill.name, entry_path);
                 skills.push(skill);
             }
@@ -69,11 +85,11 @@ pub async fn scan_directory(root: &PathBuf) -> Result<Vec<Skill>, CoreError> {
 ///
 /// Returns `(source_label, skills)` pairs suitable for feeding into
 /// [`crate::skills::resolver::resolve`].
-pub async fn scan_directories(roots: &[(String, PathBuf)]) -> Vec<(String, Vec<Skill>)> {
+pub async fn scan_directories(roots: &[(String, PathBuf)], lint_config: &LintConfig) -> Vec<(String, Vec<Skill>)> {
     let mut results = Vec::new();
 
     for (label, path) in roots {
-        match scan_directory(path).await {
+        match scan_directory(path, lint_config).await {
             Ok(skills) => {
                 debug!("Scanned '{}' — {} skills", label, skills.len());
                 results.push((label.clone(), skills));
@@ -112,7 +128,8 @@ mod tests {
         write_skill(tmp.path(), "alpha");
         write_skill(tmp.path(), "beta");
 
-        let skills = scan_directory(&tmp.path().to_owned()).await.unwrap();
+        let config = LintConfig::default();
+        let skills = scan_directory(&tmp.path().to_owned(), &config).await.unwrap();
         assert_eq!(skills.len(), 2);
         let mut names: Vec<_> = skills.iter().map(|s| s.name.as_str()).collect();
         names.sort();
@@ -126,14 +143,16 @@ mod tests {
         // A sub-dir with no SKILL.md
         std_fs::create_dir_all(tmp.path().join("not-a-skill")).unwrap();
 
-        let skills = scan_directory(&tmp.path().to_owned()).await.unwrap();
+        let config = LintConfig::default();
+        let skills = scan_directory(&tmp.path().to_owned(), &config).await.unwrap();
         assert_eq!(skills.len(), 1);
         assert_eq!(skills[0].name, "good-skill");
     }
 
     #[tokio::test]
     async fn scan_nonexistent_dir_returns_err() {
-        let result = scan_directory(&PathBuf::from("/does/not/exist")).await;
+        let config = LintConfig::default();
+        let result = scan_directory(&PathBuf::from("/does/not/exist"), &config).await;
         assert!(result.is_err());
     }
 
@@ -148,7 +167,8 @@ mod tests {
             ("personal".to_string(), tmp1.path().to_owned()),
             ("workspace".to_string(), tmp2.path().to_owned()),
         ];
-        let results = scan_directories(&roots).await;
+        let config = LintConfig::default();
+        let results = scan_directories(&roots, &config).await;
         assert_eq!(results.len(), 2);
         let total: usize = results.iter().map(|(_, v)| v.len()).sum();
         assert_eq!(total, 2);
@@ -157,7 +177,8 @@ mod tests {
     #[tokio::test]
     async fn scan_directories_missing_root_yields_empty_vec() {
         let roots = vec![("ghost".to_string(), PathBuf::from("/ghost/path"))];
-        let results = scan_directories(&roots).await;
+        let config = LintConfig::default();
+        let results = scan_directories(&roots, &config).await;
         assert_eq!(results.len(), 1);
         assert!(results[0].1.is_empty());
     }
