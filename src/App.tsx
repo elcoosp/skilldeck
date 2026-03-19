@@ -1,3 +1,4 @@
+// src/App.tsx
 /**
  * App root — wires React Query, applies persisted theme, mounts AppShell.
  * Shows the OnboardingWizard on first run.
@@ -11,6 +12,7 @@ import { OnboardingWizard } from '@/components/overlays/onboarding-wizard'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { useMcpEvents } from '@/hooks/use-mcp-events'
 import { useSubagentEvents } from '@/hooks/use-subagent-events'
+import { useSkillEvents } from '@/hooks/use-skill-events' // <-- new
 import { useSettingsStore } from '@/store/settings'
 import { useUIStore } from '@/store/ui'
 
@@ -42,9 +44,9 @@ function ThemeSync() {
 
 /** Global Tauri event listeners that must run for the lifetime of the app. */
 function GlobalEventListeners() {
-  // Keep mcp-servers query fresh whenever MCP lifecycle events arrive.
   useMcpEvents()
-  useSubagentEvents() // <-- new
+  useSubagentEvents()
+  useSkillEvents() // <-- new
   return null
 }
 
