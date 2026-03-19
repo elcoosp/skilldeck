@@ -34,6 +34,7 @@ export function rehypeLinkifyCodeUrls() {
         // Reset regex state
         URL_REGEX.lastIndex = 0
 
+        // biome-ignore lint/suspicious/noAssignInExpressions: standard regex loop pattern
         while ((match = URL_REGEX.exec(text)) !== null) {
           const url = match[0]
           const start = match.index

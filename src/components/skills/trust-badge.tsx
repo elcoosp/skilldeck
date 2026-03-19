@@ -91,8 +91,7 @@ export function TrustBadge({
 /** Compact score dots used inside SkillCard. */
 export function ScoreDots({ score, max = 5 }: { score: number; max?: number }) {
   return (
-    <div
-      role="group"
+    <fieldset
       className="inline-flex items-center gap-0.5"
       aria-label={`Score ${score} of ${max}`}
     >
@@ -105,6 +104,6 @@ export function ScoreDots({ score, max = 5 }: { score: number; max?: number }) {
           )}
         />
       ))}
-    </div>
+    </fieldset>
   )
 }

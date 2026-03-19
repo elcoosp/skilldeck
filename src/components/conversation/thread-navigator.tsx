@@ -85,9 +85,8 @@ export function ThreadNavigator({
   return (
     <>
       {/* Dots container */}
-      <div
+      <nav
         ref={containerRef}
-        role="navigation"
         aria-label="Thread navigation"
         className="absolute right-2 top-0 bottom-0 flex flex-col justify-center gap-1 z-20"
         onMouseEnter={handleMouseEnter}
@@ -122,7 +121,7 @@ export function ThreadNavigator({
             </button>
           )
         })}
-      </div>
+      </nav>
 
       {/* Floating card portal */}
       {createPortal(

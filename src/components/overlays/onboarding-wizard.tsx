@@ -99,7 +99,7 @@ export function OnboardingWizard() {
       try {
         const id = await createConversation.mutateAsync({})
         setActiveConversation(id)
-      } catch (err) {
+      } catch (_err) {
         toast.error('Failed to create conversation')
       }
     }

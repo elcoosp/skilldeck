@@ -46,7 +46,7 @@ export const useQueueStore = create<QueueUIState>()(
         set((state) => {
           const current = state.selectedIds[conversationId] || []
           const index = current.indexOf(id)
-          let newArray
+          let newArray: string[]
           if (index === -1) {
             newArray = [...current, id]
           } else {

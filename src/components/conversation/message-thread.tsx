@@ -207,7 +207,7 @@ export const MessageThread = React.forwardRef<
             </motion.div>
           )}
           {showList && (
-            <div                                 // ← replaced motion.div with plain div
+            <div // ← replaced motion.div with plain div
               style={{
                 height: virtualizer.getTotalSize(),
                 position: 'relative'

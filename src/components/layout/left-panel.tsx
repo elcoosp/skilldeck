@@ -183,7 +183,7 @@ export function LeftPanel() {
   const isLoading = profilesLoading || conversationsLoading
 
   // Determine if we have any conversations at all (before search)
-  const hasAnyConversations = conversations && conversations.length > 0
+  const _hasAnyConversations = conversations && conversations.length > 0
 
   // Find the currently selected profile name (if any)
   const selectedProfile = filterProfileId

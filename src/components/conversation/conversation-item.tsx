@@ -15,7 +15,7 @@ import {
   Trash2
 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Badge } from '@/components/ui/badge' // <-- added
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -111,7 +111,7 @@ export function ConversationItem({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [isRenaming, cancelRename])
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault()
       if (!isRenaming && !isDeleting) {
@@ -141,10 +141,9 @@ export function ConversationItem({
   })()
 
   return (
-    <div
+    <button
       ref={containerRef}
-      role="button"
-      tabIndex={0}
+      type="button"
       onClick={() => !isRenaming && !isDeleting && onClick()}
       onKeyDown={handleKeyDown}
       className={cn(
@@ -315,6 +314,6 @@ export function ConversationItem({
           </DropdownMenuContent>
         </DropdownMenu>
       )}
-    </div>
+    </button>
   )
 }

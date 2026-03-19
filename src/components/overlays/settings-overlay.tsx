@@ -46,7 +46,7 @@ export function SettingsOverlay() {
 
   // Outer element is a div to avoid nested button HTML (fixed)
   return (
-    <div
+    <button
       className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 cursor-default"
       onClick={() => setSettingsOpen(false)}
       onKeyDown={(e) => {
@@ -54,7 +54,7 @@ export function SettingsOverlay() {
           setSettingsOpen(false)
         }
       }}
-      role="presentation"
+      type="button"
     >
       <div
         onClick={(e) => e.stopPropagation()}
@@ -118,7 +118,7 @@ export function SettingsOverlay() {
           {settingsTab === 'referral' && <ReferralTab />}
         </div>
       </div>
-    </div>
+    </button>
   )
 }
 

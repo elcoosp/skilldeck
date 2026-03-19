@@ -27,7 +27,7 @@ export const ChatCommandPalette: React.FC<ChatCommandPaletteProps> = ({
   position,
   onSelect,
   onClose,
-  _workspaceId // renamed to indicate intentional unused
+  _workspaceId
 }) => {
   const [selectedIndex, setSelectedIndex] = useState(0)
   const listRef = useRef<HTMLDivElement>(null)
@@ -39,6 +39,8 @@ export const ChatCommandPalette: React.FC<ChatCommandPaletteProps> = ({
       s.description.toLowerCase().includes(query.toLowerCase())
   )
 
+  // Reset selected index when query changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset on query change
   useEffect(() => {
     setSelectedIndex(0)
   }, [query])

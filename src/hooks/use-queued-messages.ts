@@ -52,7 +52,7 @@ export function useAddQueuedMessage(conversationId: UUID) {
       if (res.status === 'error') throw new Error(res.error)
       return res.data
     },
-    onSuccess: (id) => {
+    onSuccess: (_id) => {
       qc.invalidateQueries({ queryKey: ['queued-messages', conversationId] })
       setTimeout(() => {
         qc.refetchQueries({ queryKey: ['queued-messages', conversationId] })

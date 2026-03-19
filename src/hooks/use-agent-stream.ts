@@ -13,7 +13,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
 import { toast } from 'sonner'
-import type { AgentEvent, MessageData } from '@/lib/bindings'
+import type { MessageData } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
 import type { AgentEvent as LocalAgentEvent } from '@/lib/events'
 import { onAgentEvent } from '@/lib/events'

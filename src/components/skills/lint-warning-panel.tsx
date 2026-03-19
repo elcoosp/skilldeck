@@ -38,7 +38,7 @@ export function LintWarningPanel({
   onIgnore,
   className
 }: LintWarningPanelProps) {
-  const disableRule = useDisableRule()
+  const _disableRule = useDisableRule()
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
   const visible = warnings.filter((w) => w.severity !== 'off')
