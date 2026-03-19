@@ -170,7 +170,7 @@ async createConversation(profileId: string, title: string | null, workspaceId: s
 }
 },
 /**
- * Return conversations for a profile, most-recently-updated first.
+ * Return conversations for a profile (or all profiles if profile_id is null), most-recently-updated first.
  */
 async listConversations(profileId: string | null, limit: string | null) : Promise<Result<ConversationSummary[], string>> {
     try {
@@ -229,9 +229,9 @@ async resolveToolApproval(toolCallId: string, approved: boolean, editedInput: Js
 /**
  * List all profiles ordered by default-first, then alphabetically.
  */
-async listProfiles() : Promise<Result<ProfileData[], string>> {
+async listProfiles(includeDeleted: boolean | null) : Promise<Result<ProfileData[], string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("list_profiles") };
+    return { status: "ok", data: await TAURI_INVOKE("list_profiles", { includeDeleted }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -260,7 +260,7 @@ async updateProfile(id: string, name: string | null, modelProvider: string | nul
 }
 },
 /**
- * Delete a profile. Refuses to delete the last remaining profile.
+ * Soft delete a profile. Refuses to delete the last remaining active profile.
  */
 async deleteProfile(id: string) : Promise<Result<null, string>> {
     try {
@@ -276,6 +276,17 @@ async deleteProfile(id: string) : Promise<Result<null, string>> {
 async setDefaultProfile(id: string) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("set_default_profile", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Restore a soft-deleted profile.
+ */
+async restoreProfile(id: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("restore_profile", { id }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -904,7 +915,7 @@ export type ContextItem = { type: "skill"; name: string } | { type: "file"; path
 /**
  * Lightweight summary used by the sidebar list.
  */
-export type ConversationSummary = { id: string; title: string | null; profile_id: string; workspace_id: string | null; created_at: string; updated_at: string; message_count: string; pinned: boolean }
+export type ConversationSummary = { id: string; title: string | null; profile_id: string; profile_name: string | null; profile_deleted: boolean; workspace_id: string | null; created_at: string; updated_at: string; message_count: string; pinned: boolean }
 export type CreateBranchRequest = { conversation_id: string; parent_message_id: string; name: string | null }
 export type DiffResult = { diff: string; has_changes: boolean }
 export type ExportFormat = "markdown" | "json"
@@ -973,7 +984,7 @@ export type MessageExport = { role: string; content: string }
 export type OllamaModelInfo = { id: string; name: string }
 export type PendingNudge = { id: string; message: string; cta_label: string | null; cta_action: string | null; created_at: string }
 export type PlatformPreferences = { email: string | null; email_verified: boolean; nudge_frequency: string; nudge_opt_out: boolean; notification_channels: string[]; theme_preference: string; timezone: string | null; analytics_opt_in: boolean }
-export type ProfileData = { id: string; name: string; model_provider: string; model_id: string; is_default: boolean; system_prompt: string | null }
+export type ProfileData = { id: string; name: string; model_provider: string; model_id: string; is_default: boolean; system_prompt: string | null; deleted_at: string | null }
 export type QueuedMessage = { id: string; conversation_id: string; content: string; position: number; created_at: string; updated_at: string }
 export type ReadFileRequest = { path: string; max_bytes: string | null }
 export type ReadFileResponse = { content: string; size: string }

@@ -1,6 +1,7 @@
 // src/components/left-panel.tsx
 /**
- * Left panel — conversation list, search, new chat, workspace switcher.
+ * Left panel — conversation list, search, new chat, workspace switcher,
+ * and profile filter.
  */
 
 import { open } from '@tauri-apps/plugin-dialog'
@@ -19,6 +20,13 @@ import {
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   useConversations,
   useCreateConversation
 } from '@/hooks/use-conversations'
@@ -31,6 +39,7 @@ export function LeftPanel() {
   const searchQuery = useUIStore((s) => s.searchQuery)
   const setSearchQuery = useUIStore((s) => s.setSearchQuery)
   const setSettingsOpen = useUIStore((s) => s.setSettingsOpen)
+  const setSettingsTab = useUIStore((s) => s.setSettingsTab)
   const activeConversationId = useUIStore((s) => s.activeConversationId)
   const setActiveConversation = useUIStore((s) => s.setActiveConversation)
   const activeWorkspaceId = useUIStore((s) => s.activeWorkspaceId)
@@ -39,13 +48,17 @@ export function LeftPanel() {
   // Track which conversation is being deleted for animation
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
-  // Get profiles first
-  const { data: profiles, isLoading: profilesLoading } = useProfiles()
-  const defaultProfile = profiles?.find((p) => p.is_default) ?? profiles?.[0]
+  // Profile filter state
+  const { data: profiles = [] } = useProfiles(false) // active profiles only
+  const [filterProfileId, setFilterProfileId] = useState<string | null>(null)
 
-  // Pass the profile ID to conversations query
+  // Get profiles first for default profile fallback
+  const { data: allProfiles, isLoading: profilesLoading } = useProfiles(true) // needed for default profile (might be deleted)
+  const defaultProfile = allProfiles?.find((p) => p.is_default) ?? allProfiles?.[0]
+
+  // Pass the profile ID to conversations query (null means all profiles)
   const { data: conversations, isLoading: conversationsLoading } =
-    useConversations(defaultProfile?.id)
+    useConversations(filterProfileId)
 
   // Pass the profile ID to useCreateConversation so it can invalidate the correct query key
   const createConversation = useCreateConversation(defaultProfile?.id)
@@ -146,14 +159,46 @@ export function LeftPanel() {
           New Chat
         </Button>
 
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
-          <Input
-            placeholder="Search…"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8 h-7 text-sm"
-          />
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
+            <Input
+              placeholder="Search…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8 h-7 text-sm"
+            />
+          </div>
+
+          {/* Profile filter dropdown */}
+          <Select
+            value={filterProfileId ?? 'all'}
+            onValueChange={(val) => setFilterProfileId(val === 'all' ? null : val)}
+          >
+            <SelectTrigger className="w-[140px] h-7">
+              <SelectValue placeholder="Profile" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All profiles</SelectItem>
+              {profiles.map(p => (
+                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Profile creation shortcut */}
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={() => {
+              setSettingsTab('profiles')
+              setSettingsOpen(true)
+            }}
+            title="Create new profile"
+            className="h-7 w-7"
+          >
+            <Plus className="size-3" />
+          </Button>
         </div>
       </div>
 
@@ -215,6 +260,9 @@ export function LeftPanel() {
                     onDeleteStart={handleDeleteStart}
                     onClick={() => setActiveConversation(c.id)}
                     workspaceName={getWorkspaceName(c.workspace_id)}
+                    profileName={c.profileName}
+                    profileDeleted={c.profileDeleted}
+                    showProfileBadge={filterProfileId === null}
                   />
                 </motion.div>
               ))}

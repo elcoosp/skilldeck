@@ -1,7 +1,7 @@
 // src/components/conversation/conversation-item.tsx
 /**
  * Sidebar conversation list item with inline rename, context menu, pin toggle,
- * and optional workspace badge.
+ * workspace badge, and profile badge.
  */
 
 import { formatDistanceToNow } from 'date-fns'
@@ -15,6 +15,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
+import { Badge } from '@/components/ui/badge' // <-- added
 import {
   useDeleteConversation,
   usePinConversation,
@@ -31,6 +32,9 @@ interface ConversationItemProps {
   onDeleteStart?: (conversationId: string) => void
   onClick: () => void
   workspaceName?: string          // optional workspace name to display as badge
+  profileName?: string | null      // <-- new
+  profileDeleted?: boolean         // <-- new
+  showProfileBadge?: boolean       // <-- new
 }
 
 export function ConversationItem({
@@ -39,7 +43,10 @@ export function ConversationItem({
   isDeleting,
   onDeleteStart,
   onClick,
-  workspaceName
+  workspaceName,
+  profileName,
+  profileDeleted,
+  showProfileBadge
 }: ConversationItemProps) {
   const [isRenaming, setIsRenaming] = useState(false)
   const [draft, setDraft] = useState(conversation.title ?? '')
@@ -230,8 +237,23 @@ export function ConversationItem({
           )}
         </div>
 
-        {/* Metadata – always visible, now with optional workspace badge */}
+        {/* Metadata – always visible, with optional workspace badge and profile badge */}
         <p className="text-[11px] text-muted-foreground/70 truncate mt-0.5 flex items-center gap-1 flex-wrap">
+          {/* Profile badge (only when showProfileBadge is true) */}
+          {showProfileBadge && profileName && (
+            <Badge
+              variant="outline"
+              className={cn(
+                'text-[10px] px-1 py-0',
+                profileDeleted && 'text-muted-foreground border-dashed'
+              )}
+              title={profileDeleted ? 'This profile has been deleted' : undefined}
+            >
+              {profileName}
+              {profileDeleted && <span className="ml-0.5">(deleted)</span>}
+            </Badge>
+          )}
+
           {conversation.pinned && (
             <span className="inline-flex items-center gap-0.5 text-primary">
               <Pin className="size-2.5 fill-primary" /> Pinned

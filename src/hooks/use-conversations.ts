@@ -9,13 +9,12 @@ import type { UUID } from '@/lib/types'
 import { useUIStore } from '@/store/ui'
 import { useProfiles } from './use-profiles'
 
-export function useConversations(profileId?: UUID) {
+export function useConversations(profileId?: UUID | null) { // <-- changed
   return useQuery({
     queryKey: ['conversations', profileId],
     queryFn: async () => {
       const res = await commands.listConversations(
         profileId ?? null,
-        // @ts-expect-error
         50
       )
       if (res.status === 'ok') return res.data
