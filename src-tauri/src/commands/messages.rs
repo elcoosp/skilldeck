@@ -2,7 +2,8 @@
 //! Message Tauri commands.
 
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, EntityTrait, QueryFilter, QueryOrder, Statement,
+    ActiveModelTrait, ActiveValue::Set, ConnectionTrait, EntityTrait, QueryFilter, QueryOrder,
+    Statement,
 };
 use serde::{Deserialize, Serialize};
 use specta::{Type, specta};
@@ -46,6 +47,23 @@ pub struct SearchMessagesRequest {
 pub struct SearchMessagesResult {
     pub message_id: String,
     pub snippet: String,
+}
+
+/// Request for searching all messages across conversations.
+#[derive(Debug, Deserialize, Type)]
+pub struct GlobalSearchRequest {
+    pub query: String,
+    pub limit: Option<u64>,
+}
+
+/// Result of a global search across conversations.
+#[derive(Debug, Serialize, Type)]
+pub struct GlobalSearchResult {
+    pub conversation_id: String,
+    pub conversation_title: Option<String>,
+    pub message_id: String,
+    pub message_snippet: String,
+    pub created_at: String,
 }
 
 #[specta]
@@ -121,7 +139,7 @@ pub async fn search_messages(
     let sql = r#"
         SELECT m.id, snippet(messages_fts, 0, '<mark>', '</mark>', '…', 20) as snippet
         FROM messages_fts
-        JOIN messages m ON m.id = messages_fts.rowid
+        JOIN messages m ON m.id = messages_fts.message_id
         WHERE messages_fts.content MATCH ?1
           AND m.conversation_id = ?2
         ORDER BY rank
@@ -144,6 +162,64 @@ pub async fn search_messages(
         results.push(SearchMessagesResult {
             message_id,
             snippet,
+        });
+    }
+    Ok(results)
+}
+
+/// Search all messages across conversations using FTS5.
+#[specta]
+#[tauri::command]
+pub async fn search_all_messages(
+    state: State<'_, Arc<AppState>>,
+    req: GlobalSearchRequest,
+) -> Result<Vec<GlobalSearchResult>, String> {
+    let db = state
+        .registry
+        .db
+        .connection()
+        .await
+        .map_err(|e| e.to_string())?;
+    let limit = req.limit.unwrap_or(50).min(100);
+
+    // Use FTS5 to search across all messages, joining with conversations to get titles.
+    let sql = r#"
+        SELECT m.id, m.conversation_id, m.created_at,
+               c.title as conversation_title,
+               snippet(messages_fts, 0, '<mark>', '</mark>', '…', 20) as snippet
+        FROM messages_fts
+        JOIN messages m ON m.id = messages_fts.message_id
+        JOIN conversations c ON c.id = m.conversation_id
+        WHERE messages_fts.content MATCH ?1
+        ORDER BY rank
+        LIMIT ?2
+    "#;
+
+    let rows = db
+        .query_all(Statement::from_sql_and_values(
+            sea_orm::DatabaseBackend::Sqlite,
+            sql,
+            [req.query.into(), (limit as i64).into()],
+        ))
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let mut results = Vec::new();
+    for row in rows {
+        let conversation_id: String = row
+            .try_get("", "conversation_id")
+            .map_err(|e| e.to_string())?;
+        let conversation_title: Option<String> = row.try_get("", "conversation_title").ok();
+        let message_id: String = row.try_get("", "id").map_err(|e| e.to_string())?;
+        let snippet: String = row.try_get("", "snippet").map_err(|e| e.to_string())?;
+        let created_at: chrono::DateTime<chrono::FixedOffset> =
+            row.try_get("", "created_at").map_err(|e| e.to_string())?;
+        results.push(GlobalSearchResult {
+            conversation_id,
+            conversation_title,
+            message_id,
+            message_snippet: snippet,
+            created_at: created_at.to_rfc3339(),
         });
     }
     Ok(results)
