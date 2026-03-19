@@ -5,13 +5,13 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Download, ExternalLink, RefreshCw, Trash2, X, AlertTriangle } from 'lucide-react'
-import { openPath, revealItemInDir } from '@tauri-apps/plugin-opener'
+import { revealItemInDir } from '@tauri-apps/plugin-opener'
 import { useState, useRef } from 'react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { useDisableRule } from '@/hooks/use-skills'
+import { useDisableRule } from '@/hooks/use-skills'  // <-- corrected import
 import { commands } from '@/lib/bindings'
 import { useUIStore } from '@/store/ui'
 import type { UnifiedSkill } from '@/types/skills'
@@ -51,6 +51,32 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
     skill.registryData?.lintWarnings ??
     []
   ) as LintWarning[]
+
+  // Determine active source and shadowed source
+  const getSourceInfo = () => {
+    let activeSource = 'unknown'
+    let shadowedSource: string | null = null
+
+    if (skill.status === 'installed' || skill.status === 'update_available') {
+      // Local source (workspace or personal)
+      if (skill.localData) {
+        activeSource = skill.localData.source === 'workspace' ? 'Workspace' : 'Personal'
+      }
+      // If registry data also exists, local shadows registry
+      if (skill.registryData) {
+        shadowedSource = 'Registry'
+      }
+    } else if (skill.status === 'local_only') {
+      activeSource = skill.localData?.source === 'workspace' ? 'Workspace' : 'Personal'
+      // No shadowing because registry doesn't have it
+    } else if (skill.status === 'available') {
+      activeSource = 'Registry'
+      // Check if there is also a local version? Not possible with 'available' status.
+    }
+    return { activeSource, shadowedSource }
+  }
+
+  const { activeSource, shadowedSource } = getSourceInfo()
 
   // Scroll to lint warnings section
   const scrollToLint = () => {
@@ -239,6 +265,18 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
               </Badge>
             )}
           </p>
+          {/* Source info */}
+          {activeSource !== 'unknown' && (
+            <div className="text-xs mt-1 flex items-center gap-1">
+              <span className="text-muted-foreground">Source:</span>
+              <span className="font-medium capitalize">{activeSource}</span>
+              {shadowedSource && (
+                <span className="text-muted-foreground text-[10px]">
+                  (shadows {shadowedSource})
+                </span>
+              )}
+            </div>
+          )}
           {/* Trust badge with click handler */}
           <div className="mt-2">
             <TrustBadge
