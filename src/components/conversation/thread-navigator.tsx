@@ -1,3 +1,4 @@
+import * as HoverCard from '@radix-ui/react-hover-card'
 import { motion } from 'framer-motion'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { MessageData } from '@/lib/bindings'
@@ -16,26 +17,24 @@ export function ThreadNavigator({ messages, onScrollTo, activeIndex }: ThreadNav
 
   if (userMessages.length < 3) return null
 
-  return (
-    <div className="absolute right-2 top-0 bottom-0 flex flex-col justify-center gap-1 z-20 pointer-events-none">
-      {userMessages.map(({ msg, idx }) => {
-        const isActive = idx === activeIndex
+  // Find the nearest user message to the current active index
+  const nearestUserMessage = userMessages.find(({ idx }) => idx === activeIndex)?.msg
 
-        return (
-          <Tooltip key={msg.id}>
-            <TooltipTrigger asChild>
+  return (
+    <HoverCard.Root openDelay={200} closeDelay={100}>
+      <HoverCard.Trigger asChild>
+        <div className="absolute right-2 top-0 bottom-0 flex flex-col justify-center gap-1 z-20 pointer-events-none">
+          {userMessages.map(({ msg, idx }) => {
+            const isActive = idx === activeIndex
+
+            return (
               <button
+                key={msg.id}
                 type="button"
                 className="group w-4 h-4 flex items-center justify-center pointer-events-auto"
                 onClick={() => onScrollTo(idx)}
                 aria-label={`Jump to: ${msg.content.slice(0, 40)}`}
               >
-                {/*
-                  Outer div is fixed size — never changes, no layout thrash.
-                  motion.div only animates transform (scaleX/scaleY) and opacity,
-                  which are GPU-composited and cause zero reflow.
-                  Color transitions via className so Tailwind handles them.
-                */}
                 <div className="w-3 h-[3px] flex items-center justify-start">
                   <motion.div
                     className={cn(
@@ -53,15 +52,22 @@ export function ThreadNavigator({ messages, onScrollTo, activeIndex }: ThreadNav
                   />
                 </div>
               </button>
-            </TooltipTrigger>
-            <TooltipContent side="left">
-              <p className="max-w-[200px] truncate text-xs">
-                {msg.content.slice(0, 80)}
-              </p>
-            </TooltipContent>
-          </Tooltip>
-        )
-      })}
-    </div>
+            )
+          })}
+        </div>
+      </HoverCard.Trigger>
+
+      <HoverCard.Portal>
+        <HoverCard.Content
+          side="left"
+          align="center"
+          className="z-50 w-64 max-h-48 overflow-y-auto p-3 text-sm bg-popover rounded-lg border shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2"
+        >
+          <p className="line-clamp-6 text-muted-foreground whitespace-pre-wrap break-words">
+            {nearestUserMessage?.content || 'No message selected'}
+          </p>
+        </HoverCard.Content>
+      </HoverCard.Portal>
+    </HoverCard.Root>
   )
 }
