@@ -16,6 +16,7 @@ import { toast } from 'sonner'
 
 import { AttachedItemsList } from '@/components/chat/attached-items-list'
 import { ChatCommandPalette } from '@/components/chat/chat-command-palette'
+import { ContextChip } from '@/components/chat/context-chip'
 import { FileMentionPicker } from '@/components/chat/file-mention-picker'
 import { SecurityWarningDialog } from '@/components/chat/security-warning-dialog'
 import { QueueHeader } from '@/components/conversation/queue/queue-header'
@@ -60,17 +61,19 @@ interface FileChip {
   name: string
 }
 
+type UploadStatus = 'pending' | 'success' | 'error'
+
 export function MessageInput({ conversationId, workspaceRoot }: MessageInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [isComposing, setIsComposing] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<FileChip[]>([])
+  const [processingFiles, setProcessingFiles] = useState<Map<string, UploadStatus>>(new Map())
   const [isSending, setIsSending] = useState(false)
 
   // ── Workspace context ───────────────────────────────────────────────────
   const activeWorkspaceId = useUIStore((s) => s.activeWorkspaceId)
   const { data: workspaces } = useWorkspaces()
   const activeWorkspace = workspaces?.find((w) => w.id === activeWorkspaceId)
-  // Use the prop if provided, otherwise fallback to global active workspace
   const effectiveWorkspaceRoot = workspaceRoot ?? activeWorkspace?.path
 
   // ── Profiles (for auto‑create) ──────────────────────────────────────────
@@ -362,7 +365,7 @@ export function MessageInput({ conversationId, workspaceRoot }: MessageInputProp
     }
   }
 
-  // ── Native file picker (Paperclip button) ─────────────────────────────────
+  // ── Native file picker (Paperclip button) with upload simulation ─────────
 
   const pickFiles = useCallback(async () => {
     const selected = await open({
@@ -372,15 +375,49 @@ export function MessageInput({ conversationId, workspaceRoot }: MessageInputProp
     })
     if (!selected) return
     const paths = Array.isArray(selected) ? selected : [selected]
+
+    // Add files with pending status and simulate processing
     const newFiles = paths.map((p) => ({
       path: p,
       name: p.split('/').pop() || p
     }))
+
     setSelectedFiles((prev) => [...prev, ...newFiles])
+
+    // Simulate processing for each file
+    for (const file of newFiles) {
+      setProcessingFiles((prev) => {
+        const next = new Map(prev)
+        next.set(file.path, 'pending')
+        return next
+      })
+
+      // Simulate async processing (e.g., reading file, uploading)
+      setTimeout(() => {
+        setProcessingFiles((prev) => {
+          const next = new Map(prev)
+          next.set(file.path, 'success')
+          return next
+        })
+        // Optionally remove success status after a delay
+        setTimeout(() => {
+          setProcessingFiles((prev) => {
+            const next = new Map(prev)
+            next.delete(file.path)
+            return next
+          })
+        }, 2000)
+      }, 1500)
+    }
   }, [])
 
   const removeFile = useCallback((pathToRemove: string) => {
     setSelectedFiles((prev) => prev.filter((f) => f.path !== pathToRemove))
+    setProcessingFiles((prev) => {
+      const next = new Map(prev)
+      next.delete(pathToRemove)
+      return next
+    })
   }, [])
 
   // ── Manual trigger buttons ────────────────────────────────────────────────
@@ -463,6 +500,7 @@ export function MessageInput({ conversationId, workspaceRoot }: MessageInputProp
     setIsSending(true)
     setContent('')
     setSelectedFiles([])
+    setProcessingFiles(new Map())
     clearDraft(finalConversationId)
     clearItems()
 
@@ -504,25 +542,46 @@ export function MessageInput({ conversationId, workspaceRoot }: MessageInputProp
         </div>
       )}
 
-      {selectedFiles.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {selectedFiles.map((file) => (
-            <div
-              key={file.path}
-              className="inline-flex items-center gap-1 bg-muted/70 text-xs rounded-full px-2 py-0.5"
-            >
-              <span className="max-w-[120px] truncate">{file.name}</span>
-              <button
-                type="button"
-                onClick={() => removeFile(file.path)}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <X className="size-3" />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Selected files with animated chips */}
+      <AnimatePresence>
+        {selectedFiles.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="flex flex-wrap gap-1.5"
+          >
+            {selectedFiles.map((file) => {
+              const status = processingFiles.get(file.path)
+              return (
+                <motion.div
+                  key={file.path}
+                  layout
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ duration: 0.15 }}
+                >
+                  <ContextChip
+                    item={{
+                      type: 'file',
+                      data: {
+                        id: file.path,
+                        name: file.name,
+                        path: file.path,
+                        size: undefined
+                      }
+                    }}
+                    onRemove={() => removeFile(file.path)}
+                    isLoading={status === 'pending'}
+                    isError={status === 'error'}
+                  />
+                </motion.div>
+              )
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div
         className={cn(
@@ -548,7 +607,7 @@ export function MessageInput({ conversationId, workspaceRoot }: MessageInputProp
             disabled={false}
             className={cn(
               'flex-1 min-h-[36px] max-h-[200px] resize-none border-0 shadow-none bg-transparent',
-              'focus-visible:ring-0 text-sm leading-6 py-2 px-1.5 overflow-y-hidden' // ← added px-1.5 for internal padding
+              'focus-visible:ring-0 text-sm leading-6 py-2 px-1.5 overflow-y-hidden'
             )}
             rows={1}
           />
@@ -665,6 +724,7 @@ export function MessageInput({ conversationId, workspaceRoot }: MessageInputProp
             setTriggerState((prev) => (prev ? { ...prev, query: q } : null))
           }
           workspaceRoot={effectiveWorkspaceRoot}
+          uploadingFiles={processingFiles}
         />
       )}
 
