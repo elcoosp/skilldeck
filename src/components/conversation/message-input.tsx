@@ -548,7 +548,7 @@ export function MessageInput({ conversationId, workspaceRoot }: MessageInputProp
             disabled={false}
             className={cn(
               'flex-1 min-h-[36px] max-h-[200px] resize-none border-0 shadow-none bg-transparent',
-              'focus-visible:ring-0 text-sm leading-6 py-2 px-0 overflow-y-hidden'
+              'focus-visible:ring-0 text-sm leading-6 py-2 px-1.5 overflow-y-hidden' // ← added px-1.5 for internal padding
             )}
             rows={1}
           />
