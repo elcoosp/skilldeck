@@ -20,6 +20,8 @@ pub struct WorkspaceData {
     pub name: String,
     pub project_type: String,
     pub is_open: bool,
+    pub context_files: Vec<String>, // <-- new field
+    pub indexed_file_count: u64,    // <-- new field
 }
 
 /// Detect and open a workspace at the given path.
@@ -83,6 +85,16 @@ pub async fn open_workspace(
         (id, true)
     };
 
+    // Gather context files (first 10 for preview)
+    let context_files: Vec<String> = context
+        .context_files
+        .iter()
+        .take(10)
+        .map(|f| f.name.clone())
+        .collect();
+
+    let indexed_file_count = context.context_files.len() as u64;
+
     Ok(WorkspaceData {
         id: id.to_string(),
         path,
@@ -94,6 +106,8 @@ pub async fn open_workspace(
             .to_string(),
         project_type: context.project_type.to_string(),
         is_open: true,
+        context_files,
+        indexed_file_count,
     })
 }
 
@@ -122,6 +136,7 @@ pub async fn close_workspace(state: State<'_, Arc<AppState>>, id: String) -> Res
 
     Ok(())
 }
+
 /// List all workspaces (both open and closed)
 #[specta]
 #[tauri::command]
@@ -140,14 +155,19 @@ pub async fn list_workspaces(
         .await
         .map_err(|e| e.to_string())?;
 
-    Ok(rows
-        .into_iter()
-        .map(|r| WorkspaceData {
+    let mut result = Vec::with_capacity(rows.len());
+    for r in rows {
+        // For listing, we don't have the context files loaded – we could optionally load them again,
+        // but for simplicity we return empty lists and let the UI fetch fresh data when needed.
+        result.push(WorkspaceData {
             id: r.id.to_string(),
-            path: r.path,
+            path: r.path.clone(),
             name: r.name,
             project_type: r.project_type.unwrap_or_else(|| "generic".to_string()),
             is_open: r.is_open,
-        })
-        .collect())
+            context_files: Vec::new(),
+            indexed_file_count: 0,
+        });
+    }
+    Ok(result)
 }

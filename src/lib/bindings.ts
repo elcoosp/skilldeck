@@ -1023,7 +1023,7 @@ export type WorkflowDefinitionResponse = { id: string; name: string; definition:
  * Payload for the `"workflow-event"` Tauri channel.
  */
 export type WorkflowEvent = { type: "started"; id: string } | { type: "step_started"; workflow_id: string; step_id: string } | { type: "step_completed"; workflow_id: string; step_id: string; result: string | null } | { type: "completed"; id: string } | { type: "failed"; id: string; message: string }
-export type WorkspaceData = { id: string; path: string; name: string; project_type: string; is_open: boolean }
+export type WorkspaceData = { id: string; path: string; name: string; project_type: string; is_open: boolean; context_files: string[]; indexed_file_count: string }
 
 /** tauri-specta globals **/
 
