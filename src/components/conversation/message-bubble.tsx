@@ -1,5 +1,3 @@
-import rehypeShiki from '@shikijs/rehype'
-import { openUrl } from '@tauri-apps/plugin-opener'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   AlertCircle,
@@ -13,16 +11,19 @@ import {
   User,
   Wrench
 } from 'lucide-react'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useState, useMemo } from 'react'
 import { MarkdownHooks } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { Shimmer } from 'shimmer-from-structure'
+import { openUrl } from '@tauri-apps/plugin-opener'
 import { toast } from 'sonner'
-import { ContextChip } from '@/components/chat/context-chip'
+import { Shimmer } from 'shimmer-from-structure'
+import rehypeShiki from '@shikijs/rehype'
+
 import type { MessageData } from '@/lib/bindings'
-import { rehypeLinkifyCodeUrls } from '@/lib/rehype-linkify-code'
 import { cn } from '@/lib/utils'
 import { SubagentCard } from './subagent-card'
+import { rehypeLinkifyCodeUrls } from '@/lib/rehype-linkify-code'
+import { ContextChip } from '@/components/chat/context-chip'
 
 interface MessageBubbleProps {
   message: MessageData
@@ -38,8 +39,8 @@ const AssistantMessageTemplate = () => (
       tempor incididunt ut labore et dolore magna aliqua.
     </p>
     <p>
-      Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut
-      aliquip ex ea commodo consequat.
+      Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi
+      ut aliquip ex ea commodo consequat.
     </p>
     <pre>
       <code>const example = &quot;code block&quot;;</code>
@@ -137,17 +138,15 @@ export function MessageBubble({
   const syntheticStreaming = message.id === '__streaming__'
 
   // Determine if we should show the shimmer placeholder
-  const showShimmer =
-    (isAssistant || syntheticStreaming) && isStreaming && !message.content
+  const showShimmer = (isAssistant || syntheticStreaming) && isStreaming && !message.content
 
   // Check if this message came from the queue
   const isQueued = useMemo(() => {
     if (!message.metadata) return false
     try {
-      const meta =
-        typeof message.metadata === 'string'
-          ? JSON.parse(message.metadata)
-          : message.metadata
+      const meta = typeof message.metadata === 'string'
+        ? JSON.parse(message.metadata)
+        : message.metadata
       return meta.from_queue === true
     } catch {
       return false
@@ -166,7 +165,7 @@ export function MessageBubble({
           <SubagentCard
             stepName={data.task || 'Subagent'}
             status="running"
-            onOpen={() => {}}
+            onOpen={() => { }}
           />
         )
       }
@@ -191,7 +190,11 @@ export function MessageBubble({
     return (
       <div className="flex flex-wrap gap-1 mb-2">
         {contextItems.map((item: any, idx: number) => (
-          <ContextChip key={`${item.type}-${idx}`} item={item} readonly />
+          <ContextChip
+            key={`${item.type}-${idx}`}
+            item={item}
+            readonly
+          />
         ))}
       </div>
     )
@@ -200,13 +203,13 @@ export function MessageBubble({
   return (
     <motion.div
       className={cn(
-        'flex gap-3 max-w-full transition-all duration-500 ease-in-out',
+        'flex gap-3 max-w-full',          // ← removed conflicting Tailwind transition
         isUser && 'flex-row-reverse',
         isHighlighted && 'bg-[var(--highlight-bg)] p-3 rounded-lg'
       )}
-      initial={{ opacity: 0, y: 6 }}
+      initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+      transition={{ duration: 0.15, ease: 'easeOut' }}
     >
       {/* Avatar */}
       <div
@@ -251,7 +254,7 @@ export function MessageBubble({
                 : isTool
                   ? 'bg-muted/70 font-mono text-xs w-full rounded-tl-sm'
                   : // For assistant/system: solid gray when shimmer is active, transparent otherwise
-                    showShimmer
+                  showShimmer
                     ? 'bg-muted/50'
                     : 'bg-transparent',
               isQueued && 'border-l-2 border-amber-400 pl-3'
@@ -274,9 +277,7 @@ export function MessageBubble({
                   type="button"
                   onClick={() => setCollapsed((v) => !v)}
                   className="p-0.5 hover:bg-muted-foreground/20 rounded transition-colors"
-                  aria-label={
-                    isCollapsed ? 'Expand message' : 'Collapse message'
-                  }
+                  aria-label={isCollapsed ? 'Expand message' : 'Collapse message'}
                   whileTap={{ scale: 0.9 }}
                 >
                   <motion.div
@@ -307,7 +308,7 @@ export function MessageBubble({
                     {showShimmer ? (
                       <Shimmer
                         loading={true}
-                        shimmerColor="rgba(200,200,200,0.5)" // visible shimmer
+                        shimmerColor="rgba(200,200,200,0.5)"  // visible shimmer
                         backgroundColor="rgba(240,240,240,0.3)"
                         duration={1.5}
                       >
@@ -349,26 +350,13 @@ export function MessageBubble({
                               {children}
                             </a>
                           ),
-                          code: ({
-                            node,
-                            inline,
-                            className,
-                            children,
-                            ...props
-                          }: any) => {
+                          code: ({ node, inline, className, children, ...props }: any) => {
                             const match = /language-(\w+)/.exec(className || '')
                             if (!inline && match) {
-                              return (
-                                <code className={className} {...props}>
-                                  {children}
-                                </code>
-                              )
+                              return <code className={className} {...props}>{children}</code>
                             }
                             if (inline) {
-                              const content = String(children).replace(
-                                /\n$/,
-                                ''
-                              )
+                              const content = String(children).replace(/\n$/, '')
                               return (
                                 <button
                                   onClick={async () => {
@@ -382,11 +370,7 @@ export function MessageBubble({
                                 </button>
                               )
                             }
-                            return (
-                              <code className={className} {...props}>
-                                {children}
-                              </code>
-                            )
+                            return <code className={className} {...props}>{children}</code>
                           },
                           table: ({ children }) => (
                             <div className="overflow-x-auto my-2">

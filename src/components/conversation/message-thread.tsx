@@ -207,8 +207,7 @@ export const MessageThread = React.forwardRef<
             </motion.div>
           )}
           {showList && (
-            <motion.div
-              key="list"
+            <div                                 // ← replaced motion.div with plain div
               style={{
                 height: virtualizer.getTotalSize(),
                 position: 'relative'
@@ -239,7 +238,7 @@ export const MessageThread = React.forwardRef<
                   </div>
                 )
               })}
-            </motion.div>
+            </div>
           )}
         </AnimatePresence>
       </ScrollArea>
