@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 use crate::CoreError;
+use skilldeck_lint::LintWarning;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SkillSource {
@@ -26,6 +27,9 @@ pub struct Skill {
     pub source: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub content_hash: Option<String>,
+    pub lint_warnings: Option<Vec<LintWarning>>,
+    pub security_score: u8,
+    pub quality_score: u8,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -48,11 +52,14 @@ impl Skill {
             name,
             description,
             content_md,
-            is_active: true, // default to active
+            is_active: true,
             manifest: SkillManifest::default(),
             disk_path: None,
             source,
             content_hash: None,
+            lint_warnings: None,
+            security_score: 5,
+            quality_score: 5,
         }
     }
 
@@ -88,6 +95,8 @@ mod tests {
         assert!(skill.disk_path.is_none());
         assert!(skill.content_hash.is_none());
         assert!(skill.is_active);
+        assert_eq!(skill.security_score, 5);
+        assert_eq!(skill.quality_score, 5);
     }
 
     #[test]
