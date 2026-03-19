@@ -3,7 +3,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useDebounce } from 'use-debounce'
-import { Search, X } from 'lucide-react'
+import { ChevronDown, Search, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
@@ -39,6 +39,9 @@ export function CenterPanel() {
 
   const threadRef = useRef<MessageThreadHandle>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // Jump to latest button visibility
+  const [showJumpToLatest, setShowJumpToLatest] = useState(false)
 
   useAgentStream(activeConversationId)
 
@@ -88,6 +91,15 @@ export function CenterPanel() {
     [messages]
   )
 
+  // Check if near bottom to hide jump button
+  const checkScrollPosition = useCallback(() => {
+    const pos = threadRef.current?.getScrollPosition() ?? 0
+    const totalHeight = threadRef.current?.getTotalHeight?.() ?? 0
+    const clientHeight = threadRef.current?.getClientHeight?.() ?? 0
+    const nearBottom = pos + clientHeight >= totalHeight - 100
+    setShowJumpToLatest(!nearBottom && messages.length > 0)
+  }, [messages.length])
+
   // Save scroll position when leaving this conversation
   useEffect(() => {
     return () => {
@@ -107,14 +119,34 @@ export function CenterPanel() {
       // Wait for the virtualizer to be ready
       requestAnimationFrame(() => {
         threadRef.current?.scrollToPosition(saved)
+        checkScrollPosition()
       })
     } else {
       // Default: scroll to bottom for new conversations
       requestAnimationFrame(() => {
         threadRef.current?.scrollToIndex(messages.length - 1, { behavior: 'auto' })
+        checkScrollPosition()
       })
     }
-  }, [activeConversationId, activeBranchId, scrollPositions, messages.length])
+  }, [activeConversationId, activeBranchId, scrollPositions, messages.length, checkScrollPosition])
+
+  // Update jump button on scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      checkScrollPosition()
+    }
+    // We need a way to listen to scroll events from the thread.
+    // Since we don't have direct access to the scroll element, we can use a polling approach
+    // or we can have the thread component expose an onScroll prop. For simplicity, we'll use
+    // a small interval that checks the scroll position. This is not ideal but works.
+    const interval = setInterval(handleScroll, 200)
+    return () => clearInterval(interval)
+  }, [checkScrollPosition])
+
+  // Also check after messages change (new message might affect bottom)
+  useEffect(() => {
+    checkScrollPosition()
+  }, [messages, checkScrollPosition])
 
   // Clear search when conversation changes
   useEffect(() => {
@@ -132,6 +164,18 @@ export function CenterPanel() {
 
   // Determine modifier key for display
   const modifierKey = navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'
+
+  const jumpToLatest = () => {
+    if (messages.length === 0) return
+    threadRef.current?.scrollToIndex(messages.length - 1, { behavior: 'smooth' })
+    // Also highlight the last message briefly
+    const lastMsg = messages[messages.length - 1]
+    if (lastMsg) {
+      setHighlightedMessageId(lastMsg.id)
+      if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current)
+      highlightTimeoutRef.current = setTimeout(() => setHighlightedMessageId(null), 800)
+    }
+  }
 
   if (!activeConversationId) {
     return (
@@ -193,6 +237,18 @@ export function CenterPanel() {
             onScrollTo={scrollToMessage}
             activeIndex={activeUserMessageIndex}
           />
+        )}
+
+        {/* Jump to latest button */}
+        {showJumpToLatest && (
+          <button
+            type="button"
+            onClick={jumpToLatest}
+            className="absolute bottom-4 right-4 z-30 flex items-center justify-center w-10 h-10 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-all duration-200 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            aria-label="Jump to latest message"
+          >
+            <ChevronDown className="size-5" />
+          </button>
         )}
       </div>
 

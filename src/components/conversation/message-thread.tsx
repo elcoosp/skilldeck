@@ -49,6 +49,12 @@ export const MessageThread = React.forwardRef<
       )
     }, [messages, searchQuery])
 
+    // Reset scroll to top whenever the search query changes
+    React.useEffect(() => {
+      if (!scrollRef.current) return
+      scrollRef.current.scrollTop = 0
+    }, [searchQuery])
+
     const isProgrammaticScroll = React.useRef(false)
     const programmaticScrollTimer = React.useRef<ReturnType<
       typeof setTimeout
