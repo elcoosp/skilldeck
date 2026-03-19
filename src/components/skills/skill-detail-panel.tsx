@@ -5,6 +5,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Download, ExternalLink, RefreshCw, Trash2, X } from 'lucide-react'
+import { openPath, revealItemInDir } from '@tauri-apps/plugin-opener'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
@@ -168,13 +169,7 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
   const handleOpenFolder = async () => {
     if (!skill.localData?.path) return
     try {
-      const folderPath = await dirname(skill.localData.path)
-      if (import.meta.env.DEV) {
-        toast.info(`Would open folder: ${folderPath}`)
-        return
-      }
-      const { openPath } = await import('@tauri-apps/plugin-opener')
-      await openPath(folderPath)
+      await revealItemInDir(skill.localData.path)
     } catch (err) {
       toast.error(`Could not open folder: ${err}`)
     }

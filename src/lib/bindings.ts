@@ -161,9 +161,9 @@ async fetchRegistrySkills(category: string | null, search: string | null) : Prom
 /**
  * Create a new conversation for the given profile.
  */
-async createConversation(profileId: string, title: string | null) : Promise<Result<string, string>> {
+async createConversation(profileId: string, title: string | null, workspaceId: string | null) : Promise<Result<string, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("create_conversation", { profileId, title }) };
+    return { status: "ok", data: await TAURI_INVOKE("create_conversation", { profileId, title, workspaceId }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -250,10 +250,11 @@ async createProfile(name: string, modelProvider: string, modelId: string) : Prom
 },
 /**
  * Partial update — only provided fields are mutated.
+ * Now includes optional `system_prompt`.
  */
-async updateProfile(id: string, name: string | null, modelProvider: string | null, modelId: string | null) : Promise<Result<null, string>> {
+async updateProfile(id: string, name: string | null, modelProvider: string | null, modelId: string | null, systemPrompt: string | null) : Promise<Result<null, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("update_profile", { id, name, modelProvider, modelId }) };
+    return { status: "ok", data: await TAURI_INVOKE("update_profile", { id, name, modelProvider, modelId, systemPrompt }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -847,6 +848,17 @@ async unpinConversation(id: string) : Promise<Result<null, string>> {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+/**
+ * Update the workspace assignment of a conversation.
+ */
+async updateConversationWorkspace(id: string, workspaceId: string | null) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("update_conversation_workspace", { id, workspaceId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
@@ -962,7 +974,7 @@ export type MessageExport = { role: string; content: string }
 export type OllamaModelInfo = { id: string; name: string }
 export type PendingNudge = { id: string; message: string; cta_label: string | null; cta_action: string | null; created_at: string }
 export type PlatformPreferences = { email: string | null; email_verified: boolean; nudge_frequency: string; nudge_opt_out: boolean; notification_channels: string[]; theme_preference: string; timezone: string | null; analytics_opt_in: boolean }
-export type ProfileData = { id: string; name: string; model_provider: string; model_id: string; is_default: boolean }
+export type ProfileData = { id: string; name: string; model_provider: string; model_id: string; is_default: boolean; system_prompt: string | null }
 export type QueuedMessage = { id: string; conversation_id: string; content: string; position: number; created_at: string; updated_at: string }
 export type ReadFileRequest = { path: string; max_bytes: string | null }
 export type ReadFileResponse = { content: string; size: string }
