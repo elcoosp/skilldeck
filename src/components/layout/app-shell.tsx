@@ -23,6 +23,7 @@ export function AppShell() {
   const setPanelSizes = useUIStore((s) => s.setPanelSizes)
   const setCommandPaletteOpen = useUIStore((s) => s.setCommandPaletteOpen)
   const setSettingsOpen = useUIStore((s) => s.setSettingsOpen)
+  const setGlobalSearchOpen = useUIStore((s) => s.setGlobalSearchOpen)
   const settingsOpen = useUIStore((s) => s.settingsOpen)
 
   // Ensure the app is registered with the platform (no-op if already done).
@@ -41,6 +42,11 @@ export function AppShell() {
     setSettingsOpen(true)
   })
 
+  useHotkeys('meta+shift+f, ctrl+shift+f', (e) => {
+    e.preventDefault()
+    setGlobalSearchOpen(true)
+  })
+
   // Native fallback – guarantees shortcuts work even if the hook fails
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -52,10 +58,14 @@ export function AppShell() {
         e.preventDefault()
         setSettingsOpen(true)
       }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'F' && e.shiftKey) {
+        e.preventDefault()
+        setGlobalSearchOpen(true)
+      }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [setCommandPaletteOpen, setSettingsOpen])
+  }, [setCommandPaletteOpen, setSettingsOpen, setGlobalSearchOpen])
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-background text-foreground flex flex-col">

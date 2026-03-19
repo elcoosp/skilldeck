@@ -89,6 +89,7 @@ export function LeftPanel() {
   const setSearchQuery = useUIStore((s) => s.setSearchQuery)
   const setSettingsOpen = useUIStore((s) => s.setSettingsOpen)
   const setSettingsTab = useUIStore((s) => s.setSettingsTab)
+  const setGlobalSearchOpen = useUIStore((s) => s.setGlobalSearchOpen)
   const activeConversationId = useUIStore((s) => s.activeConversationId)
   const setActiveConversation = useUIStore((s) => s.setActiveConversation)
   const activeWorkspaceId = useUIStore((s) => s.activeWorkspaceId)
@@ -182,9 +183,6 @@ export function LeftPanel() {
 
   const isLoading = profilesLoading || conversationsLoading
 
-  // Determine if we have any conversations at all (before search)
-  const _hasAnyConversations = conversations && conversations.length > 0
-
   // Find the currently selected profile name (if any)
   const selectedProfile = filterProfileId
     ? profiles.find((p) => p.id === filterProfileId)
@@ -198,14 +196,27 @@ export function LeftPanel() {
           <span className="text-sm font-semibold tracking-tight">
             SkillDeck
           </span>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Settings"
-            onClick={() => setSettingsOpen(true)}
-          >
-            <Settings className="size-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Search all conversations"
+              onClick={() => {
+                const event = new CustomEvent('skilldeck:open-global-search')
+                window.dispatchEvent(event)
+              }}
+            >
+              <Search className="size-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Settings"
+              onClick={() => setSettingsOpen(true)}
+            >
+              <Settings className="size-4" />
+            </Button>
+          </div>
         </div>
 
         <Button

@@ -93,6 +93,10 @@
 
   /* Highlight background for message bubbles (brand blue with low opacity) */
   --highlight-bg: rgba(59, 130, 246, 0.1);
+
+  /* NEW: Highlight color for search matches (solid blue with good contrast) */
+  --highlight-inline: #3b82f6;
+  /* blue-500 */
 }
 
 .dark {
@@ -150,6 +154,10 @@
 
   /* Highlight background for message bubbles (brand blue with slightly higher opacity) */
   --highlight-bg: rgba(59, 130, 246, 0.2);
+
+  /* NEW: Highlight color for search matches – brighter for dark mode */
+  --highlight-inline: #60a5fa;
+  /* blue-400 */
 }
 
 @theme inline {

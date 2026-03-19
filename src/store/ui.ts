@@ -71,6 +71,10 @@ interface UIState {
   conversationSearchQuery: string
   setConversationSearchQuery: (query: string) => void
 
+  // ── Global search modal ───────────────────────────────────────────────
+  globalSearchOpen: boolean
+  setGlobalSearchOpen: (open: boolean) => void
+
   // ── Overlays ──────────────────────────────────────────────────────────
   settingsOpen: boolean
   setSettingsOpen: (open: boolean) => void
@@ -127,7 +131,6 @@ export const useUIStore = create<UIState>()(
       // Platform features – default to true, but can be disabled by onboarding skip
       platformFeaturesEnabled: (() => {
         try {
-          // If explicitly set to false, respect that; otherwise default to true
           const stored = localStorage.getItem('skilldeck-platform-features-enabled')
           return stored !== 'false'
         } catch {
@@ -205,9 +208,13 @@ export const useUIStore = create<UIState>()(
       searchQuery: '',
       setSearchQuery: (query) => set({ searchQuery: query }),
 
-      // Within-conversation search (new)
+      // Within-conversation search
       conversationSearchQuery: '',
       setConversationSearchQuery: (query) => set({ conversationSearchQuery: query }),
+
+      // Global search modal
+      globalSearchOpen: false,
+      setGlobalSearchOpen: (open) => set({ globalSearchOpen: open }),
 
       // Overlays
       settingsOpen: false,
@@ -231,7 +238,6 @@ export const useUIStore = create<UIState>()(
     }),
     {
       name: 'skilldeck-ui',
-      // Only persist layout preferences and unlock stage – never transient UI state.
       partialize: (state) => ({
         panelSizes: state.panelSizes,
         unlockStage: state.unlockStage,

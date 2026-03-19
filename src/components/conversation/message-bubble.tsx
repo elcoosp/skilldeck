@@ -13,22 +13,40 @@ import {
   User,
   Wrench
 } from 'lucide-react'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { MarkdownHooks } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { Shimmer } from 'shimmer-from-structure'
+import { createHighlighter } from 'shiki'
 import { toast } from 'sonner'
 import { ContextChip } from '@/components/chat/context-chip'
+import { BouncingDots } from '@/components/ui/bouncing-dots'
 import type { MessageData } from '@/lib/bindings'
 import { rehypeLinkifyCodeUrls } from '@/lib/rehype-linkify-code'
-import { cn } from '@/lib/utils'
+import { cn, highlightText } from '@/lib/utils' // Import highlightText
 import { SubagentCard } from './subagent-card'
 
 interface MessageBubbleProps {
   message: MessageData
   isStreaming?: boolean
   isHighlighted?: boolean
+  searchQuery?: string
 }
+
+// Singleton highlighter – created once, reused across all instances
+const highlighterPromise = createHighlighter({
+  themes: ['vitesse-light', 'vitesse-dark'],
+  langs: [
+    'javascript',
+    'typescript',
+    'python',
+    'bash',
+    'json',
+    'tsx',
+    'jsx',
+    'css',
+    'html'
+  ]
+})
 
 // Template for the shimmer – matches the structure of a typical assistant message
 const AssistantMessageTemplate = () => (
@@ -51,7 +69,7 @@ const AssistantMessageTemplate = () => (
   </div>
 )
 
-// Code block component (unchanged)
+// Code block component
 const CodePre = ({ children, ...props }: any) => {
   const [collapsed, setCollapsed] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -125,11 +143,29 @@ const CodePre = ({ children, ...props }: any) => {
 export function MessageBubble({
   message,
   isStreaming = false,
-  isHighlighted = false
+  isHighlighted = false,
+  searchQuery = ''
 }: MessageBubbleProps) {
-  // All hooks must be called unconditionally at the top
   const [collapsed, setCollapsed] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [rehypePlugins, setRehypePlugins] = useState<any[]>([])
+
+  // Initialize the Shiki plugin once the highlighter is ready
+  useEffect(() => {
+    highlighterPromise.then((highlighter) => {
+      setRehypePlugins([
+        [
+          rehypeShiki,
+          {
+            highlighter,
+            themes: { light: 'vitesse-light', dark: 'vitesse-dark' },
+            useBackground: false
+          }
+        ],
+        rehypeLinkifyCodeUrls
+      ])
+    })
+  }, [])
 
   const isUser = message.role === 'user'
   const isAssistant = message.role === 'assistant'
@@ -162,6 +198,9 @@ export function MessageBubble({
     (isAssistant || isSystem || isTool) && !isStreaming && !syntheticStreaming
   const isCollapsed = collapsed && canCollapse
 
+  // For non-assistant messages, we can use simple highlighting with dangerouslySetInnerHTML
+  const shouldHighlight = searchQuery && !showShimmer && message.content
+
   const copyMessage = useCallback(async () => {
     await navigator.clipboard.writeText(message.content)
     setCopied(true)
@@ -174,7 +213,6 @@ export function MessageBubble({
     return (
       <div className="flex flex-wrap gap-1 mb-2">
         {contextItems.map((item: any, idx: number) => {
-          // Use a stable key if available, otherwise fallback to index with suppression
           const key = item.path || item.name || `item-${idx}`
           return <ContextChip key={key} item={item} readonly />
         })}
@@ -182,7 +220,7 @@ export function MessageBubble({
     )
   }
 
-  // Subagent card detection – done after hooks, before return
+  // Subagent card detection
   let subagentData: any = null
   if (isAssistant && !isStreaming && message.content) {
     try {
@@ -197,7 +235,7 @@ export function MessageBubble({
       <SubagentCard
         stepName={subagentData.task || 'Subagent'}
         status="running"
-        onOpen={() => {}}
+        onOpen={() => { }}
       />
     )
   }
@@ -205,13 +243,13 @@ export function MessageBubble({
   return (
     <motion.div
       className={cn(
-        'flex gap-3 max-w-full transition-all duration-500 ease-in-out',
+        'flex gap-3 max-w-full',
         isUser && 'flex-row-reverse',
         isHighlighted && 'bg-[var(--highlight-bg)] p-3 rounded-lg'
       )}
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+      transition={{ duration: 0.15, ease: 'easeOut' }}
     >
       {/* Avatar */}
       <div
@@ -247,7 +285,6 @@ export function MessageBubble({
         )}
       >
         <div className={cn(isUser && 'text-right', 'w-full')}>
-          {/* Message bubble with conditional background and transition */}
           <div
             className={cn(
               'inline-block px-3.5 py-2.5 rounded-xl text-sm leading-relaxed transition-colors duration-300',
@@ -255,8 +292,7 @@ export function MessageBubble({
                 ? 'bg-primary text-primary-foreground rounded-tr-sm'
                 : isTool
                   ? 'bg-muted/70 font-mono text-xs w-full rounded-tl-sm'
-                  : // For assistant/system: solid gray when shimmer is active, transparent otherwise
-                    showShimmer
+                  : showShimmer
                     ? 'bg-muted/50'
                     : 'bg-transparent',
               isQueued && 'border-l-2 border-amber-400 pl-3'
@@ -308,32 +344,18 @@ export function MessageBubble({
               >
                 {isAssistant || syntheticStreaming ? (
                   <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-headings:my-1 prose-pre:my-0">
-                    {/* SHIMMER CONDITION */}
                     {showShimmer ? (
-                      <Shimmer
-                        loading={true}
-                        shimmerColor="rgba(200,200,200,0.5)" // visible shimmer
-                        backgroundColor="rgba(240,240,240,0.3)"
-                        duration={1.5}
-                      >
-                        <AssistantMessageTemplate />
-                      </Shimmer>
+                      <div className="flex items-center justify-center py-4">
+                        <BouncingDots />
+                      </div>
                     ) : (
                       <MarkdownHooks
                         remarkPlugins={[remarkGfm]}
-                        rehypePlugins={[
-                          [
-                            rehypeShiki,
-                            {
-                              themes: {
-                                light: 'vitesse-light',
-                                dark: 'vitesse-dark'
-                              },
-                              useBackground: false
-                            }
-                          ],
-                          rehypeLinkifyCodeUrls
-                        ]}
+                        rehypePlugins={
+                          rehypePlugins.length > 0
+                            ? rehypePlugins
+                            : [rehypeLinkifyCodeUrls] // fallback until highlighter is ready
+                        }
                         components={{
                           pre: CodePre,
                           a: ({ href, children }) => (
@@ -416,7 +438,6 @@ export function MessageBubble({
                         {message.content}
                       </MarkdownHooks>
                     )}
-                    {/* Inline spinner when streaming with content */}
                     {(isStreaming || syntheticStreaming) && message.content && (
                       <span className="inline-block ml-0.5 align-middle">
                         <Loader2 className="size-3 animate-spin text-muted-foreground" />
@@ -424,8 +445,15 @@ export function MessageBubble({
                     )}
                   </div>
                 ) : (
-                  <span className="whitespace-pre-wrap break-words">
-                    {message.content}
+                  <span
+                    className="whitespace-pre-wrap break-words"
+                    dangerouslySetInnerHTML={
+                      shouldHighlight
+                        ? { __html: highlightText(message.content, searchQuery) }
+                        : undefined
+                    }
+                  >
+                    {!shouldHighlight && message.content}
                   </span>
                 )}
               </div>

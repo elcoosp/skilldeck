@@ -6,6 +6,7 @@ import { useDebounce } from 'use-debounce'
 import { Search, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { Kbd } from '@/components/ui/kbd'
 import { BranchNav } from '@/components/conversation/branch-nav'
 import { MessageInput } from '@/components/conversation/message-input'
 import {
@@ -33,6 +34,7 @@ export function CenterPanel() {
   const [debouncedSearch] = useDebounce(searchQuery, 300)
 
   const threadRef = useRef<MessageThreadHandle>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   useAgentStream(activeConversationId)
 
@@ -46,6 +48,18 @@ export function CenterPanel() {
     string | null
   >(null)
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Global keyboard shortcut: Cmd+F / Ctrl+F to focus search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+        e.preventDefault()
+        searchInputRef.current?.focus()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   const handleVisibleUserIndexChange = useCallback((index: number) => {
     setActiveUserMessageIndex(index)
@@ -84,6 +98,9 @@ export function CenterPanel() {
     }
   }, [])
 
+  // Determine modifier key for display
+  const modifierKey = navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'
+
   if (!activeConversationId) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-3 text-center px-8">
@@ -109,7 +126,8 @@ export function CenterPanel() {
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
           <Input
-            placeholder="Search in this conversation… (⌘F)"
+            ref={searchInputRef}
+            placeholder={`Search in this conversation… (${modifierKey}F)`}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-8 h-8 text-sm"
@@ -125,6 +143,7 @@ export function CenterPanel() {
             <X className="size-3.5" />
           </Button>
         )}
+        <Kbd key={`${modifierKey}+F`} className="hidden sm:flex" />
       </div>
 
       <div className="relative flex-1 min-h-0">

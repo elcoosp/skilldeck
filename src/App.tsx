@@ -9,6 +9,7 @@ import { useEffect } from 'react'
 import './App.css'
 import { AppShell } from '@/components/layout/app-shell'
 import { OnboardingWizard } from '@/components/overlays/onboarding-wizard'
+import { GlobalSearchModal } from '@/components/search/global-search-modal'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { useMcpEvents } from '@/hooks/use-mcp-events'
 import { useSkillEvents } from '@/hooks/use-skill-events'
@@ -53,12 +54,30 @@ function GlobalEventListeners() {
 
 function AppContent() {
   const onboardingComplete = useUIStore((s) => s.onboardingComplete)
+  const globalSearchOpen = useUIStore((s) => s.globalSearchOpen)
+  const setGlobalSearchOpen = useUIStore((s) => s.setGlobalSearchOpen)
+
+  // Global custom event listener for opening global search
+  useEffect(() => {
+    const handleOpenGlobalSearch = () => {
+      setGlobalSearchOpen(true)
+    }
+    window.addEventListener('skilldeck:open-global-search', handleOpenGlobalSearch)
+    return () =>
+      window.removeEventListener('skilldeck:open-global-search', handleOpenGlobalSearch)
+  }, [setGlobalSearchOpen])
 
   return (
     <>
       <GlobalEventListeners />
       <AppShell />
       {!onboardingComplete && <OnboardingWizard />}
+      {globalSearchOpen && (
+        <GlobalSearchModal
+          open={globalSearchOpen}
+          onClose={() => setGlobalSearchOpen(false)}
+        />
+      )}
     </>
   )
 }
