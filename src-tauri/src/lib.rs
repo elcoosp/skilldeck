@@ -22,11 +22,11 @@ mod sync;
 pub use subagent_server::SubagentServer;
 
 use commands::{
-    analytics::*,
-    branches::*, conversations::*, export::*, files::*, gist::*, mcp::*, messages::*, ollama::*,
-    platform::*, profiles::*, queue::*, settings::*, skills::*, workflows::*, workspaces::*,
+    analytics::*, branches::*, conversations::*, export::*, files::*, gist::*, mcp::*, messages::*,
+    ollama::*, platform::*, profiles::*, queue::*, settings::*, skills::*, workflows::*,
+    workspaces::*,
 };
-use events::{AgentEvent, McpEvent, WorkflowEvent, SkillEvent};
+use events::{AgentEvent, McpEvent, SkillEvent, WorkflowEvent};
 use state::AppState;
 use std::sync::Arc;
 use tauri::{Listener, Manager};
@@ -74,6 +74,7 @@ pub fn run() {
             rename_conversation,
             // messages
             list_messages,
+            search_messages, // <-- new command
             send_message,
             resolve_tool_approval,
             // profiles
@@ -159,7 +160,12 @@ pub fn run() {
             // new command for updating conversation workspace
             update_conversation_workspace,
         ])
-        .events(collect_events![AgentEvent, McpEvent, WorkflowEvent,SkillEvent]);
+        .events(collect_events![
+            AgentEvent,
+            McpEvent,
+            WorkflowEvent,
+            SkillEvent
+        ]);
 
     #[cfg(debug_assertions)]
     {

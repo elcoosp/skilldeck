@@ -1,7 +1,9 @@
 // File: src-tauri/src/commands/messages.rs
 //! Message Tauri commands.
 
-use sea_orm::{ActiveModelTrait, ActiveValue::Set, EntityTrait, QueryFilter, QueryOrder};
+use sea_orm::{
+    ActiveModelTrait, ActiveValue::Set, EntityTrait, QueryFilter, QueryOrder, Statement,
+};
 use serde::{Deserialize, Serialize};
 use specta::{Type, specta};
 use std::pin::Pin;
@@ -27,9 +29,23 @@ pub struct MessageData {
     pub role: String,
     pub content: String,
     pub created_at: String,
-
     pub context_items: Option<Vec<ContextItem>>,
     pub metadata: Option<serde_json::Value>,
+}
+
+/// Request for searching messages within a conversation.
+#[derive(Debug, Deserialize, Type)]
+pub struct SearchMessagesRequest {
+    pub conversation_id: String,
+    pub query: String,
+    pub limit: Option<u64>,
+}
+
+/// Result of a search within a conversation.
+#[derive(Debug, Serialize, Type)]
+pub struct SearchMessagesResult {
+    pub message_id: String,
+    pub snippet: String,
 }
 
 #[specta]
@@ -77,10 +93,60 @@ pub async fn list_messages(
                 content: m.content,
                 created_at: m.created_at.to_string(),
                 context_items,
-                metadata: m.metadata, // <-- include metadata
+                metadata: m.metadata,
             }
         })
         .collect())
+}
+
+/// Search messages within a conversation using FTS5.
+#[specta]
+#[tauri::command]
+pub async fn search_messages(
+    state: State<'_, Arc<AppState>>,
+    req: SearchMessagesRequest,
+) -> Result<Vec<SearchMessagesResult>, String> {
+    let db = state
+        .registry
+        .db
+        .connection()
+        .await
+        .map_err(|e| e.to_string())?;
+    let conv_uuid = Uuid::parse_str(&req.conversation_id).map_err(|e| e.to_string())?;
+    let limit = req.limit.unwrap_or(50).min(100);
+
+    // Use FTS5 to search within this conversation.
+    // Join with messages to ensure we only get messages from that conversation.
+    // FTS5 provides a rank, we order by rank.
+    let sql = r#"
+        SELECT m.id, snippet(messages_fts, 0, '<mark>', '</mark>', '…', 20) as snippet
+        FROM messages_fts
+        JOIN messages m ON m.id = messages_fts.rowid
+        WHERE messages_fts.content MATCH ?1
+          AND m.conversation_id = ?2
+        ORDER BY rank
+        LIMIT ?3
+    "#;
+
+    let rows = db
+        .query_all(Statement::from_sql_and_values(
+            sea_orm::DatabaseBackend::Sqlite,
+            sql,
+            [req.query.into(), conv_uuid.into(), (limit as i64).into()],
+        ))
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let mut results = Vec::new();
+    for row in rows {
+        let message_id: String = row.try_get("", "id").map_err(|e| e.to_string())?;
+        let snippet: String = row.try_get("", "snippet").map_err(|e| e.to_string())?;
+        results.push(SearchMessagesResult {
+            message_id,
+            snippet,
+        });
+    }
+    Ok(results)
 }
 
 // =============================================================================
