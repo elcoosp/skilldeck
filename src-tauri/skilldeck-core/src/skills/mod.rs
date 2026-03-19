@@ -14,6 +14,7 @@ use tracing::debug;
 use crate::traits::Skill;
 use crate::{CoreError, SkillLoader};
 use resolver::ResolvedSkills;
+use skilldeck_lint::{LintConfig, lint_skill as do_lint};
 
 /// Registry holding all loaded and resolved skills.
 pub struct SkillRegistry {
@@ -23,17 +24,19 @@ pub struct SkillRegistry {
     resolved: Arc<RwLock<ResolvedSkills>>,
     /// Map of source directory paths to their watchers (for cleanup).
     pub watchers: DashMap<PathBuf, notify::RecommendedWatcher>,
+    /// Global lint configuration (shared with watcher tasks).
+    pub lint_config: Arc<RwLock<LintConfig>>,
 }
 
 impl Default for SkillRegistry {
     fn default() -> Self {
-        Self::new()
+        Self::new(Arc::new(RwLock::new(LintConfig::default())))
     }
 }
 
 impl SkillRegistry {
-    /// Creates a new empty skill registry.
-    pub fn new() -> Self {
+    /// Creates a new empty skill registry with the given lint config.
+    pub fn new(lint_config: Arc<RwLock<LintConfig>>) -> Self {
         Self {
             raw_skills: DashMap::new(),
             resolved: Arc::new(RwLock::new(ResolvedSkills {
@@ -41,30 +44,43 @@ impl SkillRegistry {
                 shadowed: Vec::new(),
             })),
             watchers: DashMap::new(),
+            lint_config,
         }
     }
 
     /// Registers a source and its raw skills, then re-resolves all skills.
     pub async fn register_source(&self, source: String, skills: Vec<Skill>) {
-        // ← now async
         self.raw_skills.insert(source, skills);
         let _ = self.reload().await;
     }
 
-    /// Loads a skill from a source directory (e.g., after a file watch event).
-    /// This updates the raw skills for that source and triggers re‑resolution.
+    /// Loads a skill from a source directory (e.g., after a file watch event),
+    /// runs the linter, and updates the raw skills for that source, then re‑resolves.
     pub async fn load_skill_from_source(
         &self,
         source: &str,
         skill_dir: PathBuf,
+        lint_config: &LintConfig,
     ) -> Result<(), CoreError> {
         let loader = loader::FilesystemSkillLoader;
-        let skill = loader
-            .load(&crate::traits::SkillSource::Filesystem(skill_dir))
+        let mut skill = loader
+            .load(&crate::traits::SkillSource::Filesystem(skill_dir.clone()))
             .await?;
 
+        // Re‑lint using the provided config
+        let warnings = tokio::task::spawn_blocking({
+            let path = skill_dir.clone();
+            let cfg = lint_config.clone();
+            move || do_lint(&path, &cfg)
+        })
+        .await
+        .map_err(|e| CoreError::Internal { message: e.to_string() })??;
+
+        skill.lint_warnings = Some(warnings.clone());
+        skill.security_score = skilldeck_lint::compute_security_score(&warnings);
+        skill.quality_score = skilldeck_lint::compute_quality_score(&warnings);
+
         if let Some(mut entry) = self.raw_skills.get_mut(source) {
-            // Replace or append? For simplicity, we replace any existing skill with same name.
             let skills = entry.value_mut();
             if let Some(existing) = skills.iter_mut().find(|s| s.name == skill.name) {
                 *existing = skill;
@@ -81,7 +97,6 @@ impl SkillRegistry {
 
     /// Removes a skill from a source (e.g., after a delete event) and re‑resolves.
     pub async fn remove_skill_from_source(&self, source: &str, skill_name: &str) {
-        // ← now async
         if let Some(mut entry) = self.raw_skills.get_mut(source) {
             entry.retain(|s| s.name != skill_name);
             let _ = self.reload().await;
@@ -97,7 +112,7 @@ impl SkillRegistry {
             .collect();
 
         let resolved = resolver::resolve(sources);
-        let mut guard = self.resolved.write().await; // ← was blocking_write()
+        let mut guard = self.resolved.write().await;
         *guard = resolved;
 
         debug!(
