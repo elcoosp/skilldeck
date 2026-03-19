@@ -9,8 +9,12 @@ import {
   Lightbulb,
   ShieldAlert,
   Wrench,
-  X
+  X,
+  Copy,
+  Check
 } from 'lucide-react'
+import { useState } from 'react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useDisableRule } from '@/hooks/use-lint'
@@ -20,17 +24,18 @@ import { cn } from '@/lib/utils'
 interface LintWarningPanelProps {
   warnings: LintWarning[]
   onApplyFix?: (warning: LintWarning) => void
-  onIgnore?: (ruleId: string) => void   // <-- new prop
+  onIgnore?: (ruleId: string) => void
   className?: string
 }
 
 export function LintWarningPanel({
   warnings,
   onApplyFix,
-  onIgnore,                            // <-- destructure new prop
+  onIgnore,
   className
 }: LintWarningPanelProps) {
   const disableRule = useDisableRule()
+  const [copiedId, setCopiedId] = useState<string | null>(null)
 
   const visible = warnings.filter((w) => w.severity !== 'off')
   if (visible.length === 0) {
@@ -47,6 +52,15 @@ export function LintWarningPanel({
     )
   }
 
+  const copyFix = (warning: LintWarning) => {
+    if (warning.suggested_fix) {
+      navigator.clipboard.writeText(warning.suggested_fix)
+      setCopiedId(warning.rule_id)
+      toast.success('Fix copied to clipboard')
+      setTimeout(() => setCopiedId(null), 2000)
+    }
+  }
+
   return (
     <div className={cn('space-y-1.5', className)}>
       {visible.map((w) => (
@@ -54,7 +68,9 @@ export function LintWarningPanel({
           key={w.rule_id}
           warning={w}
           onFix={onApplyFix ? () => onApplyFix(w) : undefined}
-          onIgnore={onIgnore ? () => onIgnore(w.rule_id) : undefined}   // <-- pass down
+          onIgnore={onIgnore ? () => onIgnore(w.rule_id) : undefined}
+          onCopyFix={() => copyFix(w)}
+          copied={copiedId === w.rule_id}
         />
       ))}
     </div>
@@ -66,10 +82,12 @@ export function LintWarningPanel({
 interface WarningRowProps {
   warning: LintWarning
   onFix?: () => void
-  onIgnore?: () => void   // <-- now optional
+  onIgnore?: () => void
+  onCopyFix?: () => void
+  copied?: boolean
 }
 
-function WarningRow({ warning, onFix, onIgnore }: WarningRowProps) {
+function WarningRow({ warning, onFix, onIgnore, onCopyFix, copied }: WarningRowProps) {
   const isSecurity = warning.rule_id.startsWith('sec-')
 
   return (
@@ -87,7 +105,7 @@ function WarningRow({ warning, onFix, onIgnore }: WarningRowProps) {
         warning.severity === 'info' && 'border-border bg-muted/30'
       )}
     >
-      {/* Top row: icon + severity + rule code + ignore icon (right-aligned) */}
+      {/* Top row: icon + severity + rule code + actions */}
       <div className="flex items-start gap-2">
         <SeverityIcon severity={warning.severity} isSecure={isSecurity} />
         <div className="flex flex-wrap items-center gap-1.5 min-w-0 flex-1">
@@ -109,40 +127,47 @@ function WarningRow({ warning, onFix, onIgnore }: WarningRowProps) {
             {warning.rule_id}
           </code>
         </div>
-        {/* Ignore button – only shown if onIgnore is provided */}
-        {onIgnore && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-6 w-6 p-0 shrink-0 text-muted-foreground hover:text-foreground -mr-1"
-                onClick={onIgnore}
-              >
-                <X className="size-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="top">Disable this rule for the workspace</TooltipContent>
-          </Tooltip>
-        )}
+        <div className="flex items-center gap-0.5 shrink-0">
+          {/* Copy fix button – only if suggested_fix exists */}
+          {warning.suggested_fix && onCopyFix && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                  onClick={onCopyFix}
+                >
+                  {copied ? (
+                    <Check className="size-3.5 text-green-500" />
+                  ) : (
+                    <Copy className="size-3.5" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top">Copy fix</TooltipContent>
+            </Tooltip>
+          )}
+          {/* Ignore button */}
+          {onIgnore && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                  onClick={onIgnore}
+                >
+                  <X className="size-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top">Disable this rule</TooltipContent>
+            </Tooltip>
+          )}
+        </div>
       </div>
 
-      {/* Second row: Fix button (if available) - right-aligned */}
-      {warning.suggested_fix && onFix && (
-        <div className="flex justify-end mt-2">
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-6 text-xs px-2"
-            onClick={onFix}
-          >
-            <Wrench className="size-3 mr-1" />
-            Fix
-          </Button>
-        </div>
-      )}
-
-      {/* Message and location */}
+      {/* Message and fix suggestion */}
       <div className="mt-2 space-y-1">
         <p className="text-sm leading-snug break-words">{warning.message}</p>
         {warning.suggested_fix && (
@@ -158,6 +183,21 @@ function WarningRow({ warning, onFix, onIgnore }: WarningRowProps) {
           </p>
         )}
       </div>
+
+      {/* Apply fix button (if provided) – placed below */}
+      {warning.suggested_fix && onFix && (
+        <div className="flex justify-end mt-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-6 text-xs px-2"
+            onClick={onFix}
+          >
+            <Wrench className="size-3 mr-1" />
+            Apply fix
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

@@ -10,12 +10,14 @@ interface TrustBadgeProps {
   securityScore: number
   qualityScore: number
   className?: string
+  onClick?: () => void // <-- new prop to scroll to lint panel
 }
 
 export function TrustBadge({
   securityScore,
   qualityScore,
-  className
+  className,
+  onClick
 }: TrustBadgeProps) {
   let badgeContent: React.ReactNode
   let tooltipText: string
@@ -67,7 +69,13 @@ export function TrustBadge({
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        {badgeContent}
+        <button
+          type="button"
+          onClick={onClick}
+          className={cn('cursor-pointer', className)}
+        >
+          {badgeContent}
+        </button>
       </TooltipTrigger>
       <TooltipContent side="top">
         <p className="text-xs max-w-[200px]">{tooltipText}</p>

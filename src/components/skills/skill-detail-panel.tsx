@@ -4,9 +4,9 @@
 // blocked skill alerts, and platform awareness.
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Download, ExternalLink, RefreshCw, Trash2, X, AlertTriangle } from 'lucide-react' // added AlertTriangle
+import { Download, ExternalLink, RefreshCw, Trash2, X, AlertTriangle } from 'lucide-react'
 import { openPath, revealItemInDir } from '@tauri-apps/plugin-opener'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -19,6 +19,7 @@ import { BlockedSkillAlert } from './blocked-skill-alert'
 import { ConflictResolver } from './conflict-resolver'
 import { InstallDialog } from './install-dialog'
 import { LintWarningPanel } from './lint-warning-panel'
+import { TrustBadge } from './trust-badge'
 
 interface Props {
   skill: UnifiedSkill
@@ -28,6 +29,7 @@ interface Props {
 export function SkillDetailPanel({ skill, onClose }: Props) {
   const qc = useQueryClient()
   const platformFeaturesEnabled = useUIStore((s) => s.platformFeaturesEnabled)
+  const lintSectionRef = useRef<HTMLDivElement>(null)
 
   const [actionError, setActionError] = useState<string | null>(null)
   const [showInstallDialog, setShowInstallDialog] = useState(false)
@@ -49,6 +51,11 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
     skill.registryData?.lintWarnings ??
     []
   ) as LintWarning[]
+
+  // Scroll to lint warnings section
+  const scrollToLint = () => {
+    lintSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   // ── Install ────────────────────────────────────────────────────────────────
   const install = useMutation({
@@ -161,7 +168,6 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
       { ruleId, scope: 'workspace' },
       {
         onSuccess: () => {
-          // Only re-lint if this is a local skill (which we already know)
           if (skill.localData?.path) {
             relint.mutate()
           }
@@ -169,6 +175,7 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
       }
     )
   }
+
   const isBusy =
     install.isPending ||
     uninstall.isPending ||
@@ -207,6 +214,10 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
     }
   }
 
+  // Compute security/quality scores for display
+  const securityScore = skill.localData?.security_score ?? skill.registryData?.securityScore ?? 5
+  const qualityScore = skill.localData?.quality_score ?? skill.registryData?.qualityScore ?? 5
+
   return (
     <div className="w-80 xl:w-96 border-l bg-background flex flex-col h-full shadow-lg z-10 shrink-0">
       {/* Header */}
@@ -228,6 +239,14 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
               </Badge>
             )}
           </p>
+          {/* Trust badge with click handler */}
+          <div className="mt-2">
+            <TrustBadge
+              securityScore={securityScore}
+              qualityScore={qualityScore}
+              onClick={scrollToLint}
+            />
+          </div>
         </div>
         <Button
           variant="ghost"
@@ -272,14 +291,6 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
               label="Category"
               value={skill.registryData.category ?? 'General'}
             />
-            <MetaField
-              label="Security"
-              value={`${skill.registryData.securityScore}/5`}
-            />
-            <MetaField
-              label="Quality"
-              value={`${skill.registryData.qualityScore}/5`}
-            />
           </div>
         )}
 
@@ -323,9 +334,9 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
           </div>
         )}
 
-        {/* Lint warnings */}
+        {/* Lint warnings section with ref */}
         {lintWarnings.length > 0 && (
-          <div>
+          <div ref={lintSectionRef}>
             <div className="flex items-center justify-between mb-1.5">
               <div className="flex items-center gap-1.5">
                 <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
