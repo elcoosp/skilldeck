@@ -36,13 +36,13 @@ export interface CatalogEntry {
   url?: string
   docsUrl: string
   category:
-    | 'filesystem'
-    | 'web'
-    | 'data'
-    | 'dev'
-    | 'productivity'
-    | 'cloud'
-    | 'observability'
+  | 'filesystem'
+  | 'web'
+  | 'data'
+  | 'dev'
+  | 'productivity'
+  | 'cloud'
+  | 'observability'
   tags: string[]
 }
 
@@ -547,8 +547,9 @@ export function McpTab() {
           </button>
         </div>
 
+        {/* Category filter row - now horizontally scrollable */}
         <div className="shrink-0 overflow-hidden px-3 py-2">
-          <div className="flex gap-1 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <div className="flex gap-1 overflow-x-auto whitespace-nowrap pb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             {(['all', ...CATEGORY_ORDER] as const).map((cat) => (
               <button
                 type="button"

@@ -5,6 +5,7 @@ import { useEffect } from 'react'
 import { toast } from 'sonner'
 import type { PlatformPreferences as ApiPlatformPreferences } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
+import { platformUrl } from '@/lib/config'   // <-- import central URL helper
 
 // Extended platform preferences including local-only settings
 export interface PlatformPreferences extends ApiPlatformPreferences {
@@ -44,14 +45,10 @@ export function usePlatformPreferences() {
       const res = await commands.getPlatformPreferences()
       if (res.status === 'error') throw new Error(res.error)
 
-      const defaultPlatformUrl = import.meta.env.DEV
-        ? 'http://localhost:8080'
-        : 'https://platform.skilldeck.dev'
-
       return {
         ...res.data,
         platformEnabled: true,
-        platformUrl: defaultPlatformUrl
+        platformUrl: platformUrl('')  // <-- use central URL
       }
     },
     staleTime: 5 * 60 * 1000 // 5 minutes
@@ -77,9 +74,7 @@ export function usePlatformPreferences() {
         platformEnabled:
           payload.platformEnabled ?? query.data?.platformEnabled ?? true,
         platformUrl:
-          payload.platformUrl ??
-          query.data?.platformUrl ??
-          'https://platform.skilldeck.dev'
+          payload.platformUrl ?? query.data?.platformUrl ?? platformUrl('')
       }
     },
     onSuccess: (data) => {

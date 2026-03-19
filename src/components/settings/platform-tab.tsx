@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { usePlatformPreferences, usePlatformRegistration, isPlatformNotConfigured } from '@/hooks/use-platform'
+import { platformUrl } from '@/lib/config'   // <-- import central URL
 
 export function PlatformTab() {
   const { query, update } = usePlatformPreferences()
@@ -13,7 +14,7 @@ export function PlatformTab() {
 
   const [enabled, setEnabled] = useState(prefs?.platformEnabled ?? true)
   const [url, setUrl] = useState(
-    prefs?.platformUrl ?? 'https://platform.skilldeck.dev'
+    prefs?.platformUrl ?? platformUrl('')   // <-- use central URL
   )
 
   const save = () => {
@@ -96,7 +97,7 @@ export function PlatformTab() {
           id="platform-url"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://platform.skilldeck.dev"
+          placeholder={platformUrl('')}
         />
         <p className="text-xs text-muted-foreground">
           Change this only if you're using a self-hosted instance.

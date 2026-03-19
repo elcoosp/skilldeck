@@ -1,14 +1,4 @@
 // src/components/overlays/onboarding-wizard.tsx
-/**
- * OnboardingWizard — multi-step first-run experience.
- *
- * Steps:
- *  1. Welcome  — win-theme overview
- *  2. API Key  — set at least one provider key
- *  3. Platform — optional email opt-in for team tips & referral rewards
- *  4. Done     — launch CTA
- */
-
 import { ArrowRight, Check, Key, Mail, Rocket, Shield } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -33,7 +23,6 @@ export function OnboardingWizard() {
   const [apiKeyDraft, setApiKeyDraft] = useState('')
   const [saving, setSaving] = useState(false)
 
-  // If onboarding already completed, don't render anything
   if (onboardingComplete) return null
 
   async function saveApiKey() {
@@ -68,7 +57,6 @@ export function OnboardingWizard() {
       setPlatformFeaturesEnabled(true)
       setStep('done')
     } catch {
-      // Non-fatal — platform features are optional
       setPlatformFeaturesEnabled(false)
       setStep('done')
     } finally {
@@ -76,7 +64,6 @@ export function OnboardingWizard() {
     }
   }
 
-  // Create default Ollama profile when user skips API key entry
   const handleApiKeySkip = async () => {
     setSaving(true)
     try {
@@ -96,7 +83,6 @@ export function OnboardingWizard() {
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="w-full max-w-lg rounded-2xl border border-border bg-background shadow-2xl overflow-hidden">
-        {/* Progress bar */}
         <div className="h-1 bg-muted">
           <div
             className="h-full bg-primary transition-all duration-500"
@@ -146,8 +132,6 @@ export function OnboardingWizard() {
     </div>
   )
 }
-
-// ── Step components ───────────────────────────────────────────────────────────
 
 function WelcomeStep({ onNext }: { onNext: () => void }) {
   return (
@@ -295,6 +279,18 @@ function PlatformStep({
           that matter to developers. No spam – unsubscribe anytime.
         </p>
       </div>
+
+      {/* Enhanced explanation of platform features */}
+      <div className="rounded-lg bg-primary/5 border border-primary/20 p-3 text-sm">
+        <p className="font-medium mb-2">What you'll get by enabling platform features:</p>
+        <ul className="list-disc list-inside space-y-1 text-muted-foreground text-xs">
+          <li>Sync skills from the community registry</li>
+          <li>Share your skills as GitHub Gists</li>
+          <li>Get team nudges and referral rewards</li>
+          <li>Your code and API keys <strong>always stay local</strong> – we only sync skill metadata.</li>
+        </ul>
+      </div>
+
       <div className="flex gap-3 p-4 rounded-lg bg-primary/5 border border-primary/20">
         <Mail size={18} className="text-primary mt-0.5 shrink-0" />
         <div className="text-sm">
@@ -306,6 +302,7 @@ function PlatformStep({
           </ul>
         </div>
       </div>
+
       <div className="space-y-2">
         <label htmlFor="email" className="text-sm font-medium">
           Email address
@@ -364,13 +361,43 @@ function DoneStep({ onFinish }: { onFinish: () => void }) {
           marketplace, or build your first multi‑agent workflow.
         </p>
       </div>
-      <button
-        type="button"
-        onClick={onFinish}
-        className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold hover:bg-primary/90"
-      >
-        Open SkillDeck
-      </button>
+
+      {/* Suggested next actions */}
+      <div className="space-y-2">
+        <button
+          type="button"
+          onClick={() => {
+            onFinish()
+            // Navigate to conversation (implementation depends on routing – e.g., set active conversation to new)
+            // For simplicity, we'll just close and rely on user to click New Chat.
+          }}
+          className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold hover:bg-primary/90"
+        >
+          Start a conversation
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            onFinish()
+            // Open settings to profiles tab
+            window.dispatchEvent(new CustomEvent('skilldeck:open-settings', { detail: { tab: 'profiles' } }))
+          }}
+          className="w-full py-2.5 rounded-lg border border-border text-sm font-medium hover:bg-muted transition-colors"
+        >
+          Manage profiles
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            onFinish()
+            // Switch right tab to skills
+            window.dispatchEvent(new CustomEvent('skilldeck:set-right-tab', { detail: { tab: 'skills' } }))
+          }}
+          className="w-full py-2.5 rounded-lg border border-border text-sm font-medium hover:bg-muted transition-colors"
+        >
+          Browse skills
+        </button>
+      </div>
     </div>
   )
 }
