@@ -1,4 +1,4 @@
-import * as HoverCard from '@radix-ui/react-hover-card'
+import { HoverCard } from 'radix-ui'
 import { motion } from 'framer-motion'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { MessageData } from '@/lib/bindings'

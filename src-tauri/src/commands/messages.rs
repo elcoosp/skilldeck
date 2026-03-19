@@ -29,6 +29,7 @@ pub struct MessageData {
     pub created_at: String,
 
     pub context_items: Option<Vec<ContextItem>>,
+    pub metadata: Option<serde_json::Value>,
 }
 
 #[specta]
@@ -76,6 +77,7 @@ pub async fn list_messages(
                 content: m.content,
                 created_at: m.created_at.to_string(),
                 context_items,
+                metadata: m.metadata, // <-- include metadata
             }
         })
         .collect())
@@ -519,15 +521,13 @@ fn run_agent_loop(
 
             for item in items {
                 match item {
-                    ContextItem::File { path, .. } => {
-                        match std::fs::read_to_string(&path) {
-                            Ok(content) => {
-                                combined_context
-                                    .push_str(&format!("--- File: {} ---\n{}\n\n", path, content));
-                            }
-                            Err(_) => tracing::warn!("Could not read file: {}", path),
+                    ContextItem::File { path, .. } => match std::fs::read_to_string(&path) {
+                        Ok(content) => {
+                            combined_context
+                                .push_str(&format!("--- File: {} ---\n{}\n\n", path, content));
                         }
-                    }
+                        Err(_) => tracing::warn!("Could not read file: {}", path),
+                    },
                     ContextItem::Folder { path, scope, .. } => {
                         let deep = matches!(scope, FolderScope::Deep);
                         match crate::skills::folder_assembler::assemble_folder_context(
@@ -561,8 +561,14 @@ fn run_agent_loop(
                             None => tracing::warn!(
                                 "Skill '{}' not found in registry. Available: {:?}",
                                 name,
-                                state.registry.skill_registry.skills().await
-                                    .iter().map(|s| s.name.as_str()).collect::<Vec<_>>()
+                                state
+                                    .registry
+                                    .skill_registry
+                                    .skills()
+                                    .await
+                                    .iter()
+                                    .map(|s| s.name.as_str())
+                                    .collect::<Vec<_>>()
                             ),
                         }
                     }
@@ -570,10 +576,15 @@ fn run_agent_loop(
             }
 
             if combined_context.is_empty() {
-                tracing::warn!("Context items present but combined_context is empty after resolution");
+                tracing::warn!(
+                    "Context items present but combined_context is empty after resolution"
+                );
                 user_message
             } else {
-                tracing::info!("Injecting {} bytes of context into user turn", combined_context.len());
+                tracing::info!(
+                    "Injecting {} bytes of context into user turn",
+                    combined_context.len()
+                );
                 format!(
                     "<context>\n{}</context>\n\n{}",
                     combined_context.trim_end(),

@@ -6,7 +6,7 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
-  Clock,
+  Clock, // <-- import Clock icon
   Copy,
   File,
   Folder,
@@ -15,10 +15,10 @@ import {
   Wrench,
   Zap
 } from 'lucide-react'
-import { useCallback, useState } from 'react'
+import { useCallback, useState, useMemo } from 'react'
 import { MarkdownHooks } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { openUrl } from '@tauri-apps/plugin-opener'   // <-- corrected import
+import { openUrl } from '@tauri-apps/plugin-opener'
 import { toast } from 'sonner'
 import type { MessageData } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
@@ -115,6 +115,19 @@ export function MessageBubble({
   const isTool = message.role === 'tool'
   const isSystem = message.role === 'system'
   const syntheticStreaming = message.id === '__streaming__'
+
+  // Check if this message came from the queue
+  const isQueued = useMemo(() => {
+    if (!message.metadata) return false
+    try {
+      const meta = typeof message.metadata === 'string'
+        ? JSON.parse(message.metadata)
+        : message.metadata
+      return meta.from_queue === true
+    } catch {
+      return false
+    }
+  }, [message.metadata])
 
   // Extract context items from metadata
   const contextItems = message.context_items || []
@@ -232,9 +245,17 @@ export function MessageBubble({
                 : isTool
                   ? 'bg-muted/70 font-mono text-xs w-full rounded-tl-sm'
                   : 'bg-muted/50 rounded-tl-sm',
-              isAssistant && 'block w-full bg-transparent'
+              isAssistant && 'block w-full bg-transparent',
+              isQueued && 'border-l-2 border-amber-400 pl-3' // <-- amber left border for queued messages
             )}
           >
+            {/* Queued label */}
+            {isQueued && (
+              <span className="text-xs text-amber-500 mb-1 flex items-center gap-1">
+                <Clock className="size-3" /> Queued
+              </span>
+            )}
+
             {/* Context chips (if any) */}
             {renderContextChips()}
 
@@ -295,7 +316,6 @@ export function MessageBubble({
                         ]}
                         components={{
                           pre: CodePre,
-                          // Override links to use Tauri opener
                           a: ({ href, children }) => (
                             <a
                               href={href}
@@ -303,7 +323,7 @@ export function MessageBubble({
                                 e.preventDefault()
                                 if (href) {
                                   try {
-                                    await openUrl(href)   // <-- use openUrl
+                                    await openUrl(href)
                                   } catch (err) {
                                     console.error('Failed to open link:', err)
                                   }
@@ -314,15 +334,12 @@ export function MessageBubble({
                               {children}
                             </a>
                           ),
-                          // Override code: differentiate inline vs block
                           code: ({ node, inline, className, children, ...props }) => {
                             const match = /language-(\w+)/.exec(className || '')
                             if (!inline && match) {
-                              // This is a code block with language – already handled by Shiki
                               return <code className={className} {...props}>{children}</code>
                             }
                             if (inline) {
-                              // Inline code: make it clickable to copy
                               const content = String(children).replace(/\n$/, '')
                               return (
                                 <button
@@ -337,7 +354,6 @@ export function MessageBubble({
                                 </button>
                               )
                             }
-                            // Fallback
                             return <code className={className} {...props}>{children}</code>
                           },
                           table: ({ children }) => (
