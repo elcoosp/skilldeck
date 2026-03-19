@@ -3,18 +3,29 @@
  * PreferencesTab — Platform preferences panel inside SettingsOverlay.
  */
 
-import { Bell, Globe, Mail, Palette, Shield } from 'lucide-react'
+import { Bell, Code, Globe, Mail, Palette, Shield } from 'lucide-react'
 import { useState } from 'react'
 import { usePlatformPreferences } from '@/hooks/use-platform'
+import { useProfiles, useUpdateProfile } from '@/hooks/use-profiles'
+import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
 import type { UpdatePreferencesPayload } from '@/lib/platform'
 
 export function PreferencesTab() {
   const { query, update, resendVerification } = usePlatformPreferences()
   const prefs = query.data
 
-  const [emailDraft, setEmailDraft] = useState('')
+  const { data: profiles = [], isLoading: profilesLoading } = useProfiles()
+  const updateProfile = useUpdateProfile()
 
-  if (query.isLoading) {
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null)
+  const [emailDraft, setEmailDraft] = useState('')
+  const [systemPromptDraft, setSystemPromptDraft] = useState('')
+
+  const selectedProfile = profiles.find(p => p.id === selectedProfileId)
+
+  if (query.isLoading || profilesLoading) {
     return (
       <div className="flex items-center justify-center h-40 text-muted-foreground text-sm">
         Loading preferences…
@@ -34,8 +45,60 @@ export function PreferencesTab() {
     update.mutate(partial)
   }
 
+  const handleSaveSystemPrompt = () => {
+    if (!selectedProfile) return
+    updateProfile.mutate({
+      id: selectedProfile.id,
+      system_prompt: systemPromptDraft,
+    })
+  }
+
   return (
     <div className="space-y-6 text-sm">
+      {/* Profile selector */}
+      <Section icon={<Code size={14} />} title="Profile">
+        <Select
+          value={selectedProfileId ?? ''}
+          onValueChange={(id) => {
+            setSelectedProfileId(id)
+            const profile = profiles.find(p => p.id === id)
+            setSystemPromptDraft(profile?.system_prompt ?? '')
+          }}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Select a profile to edit" />
+          </SelectTrigger>
+          <SelectContent>
+            {profiles.map((p) => (
+              <SelectItem key={p.id} value={p.id}>
+                {p.name} {p.is_default ? '(default)' : ''}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </Section>
+
+      {/* System Prompt editor */}
+      {selectedProfile && (
+        <Section icon={<Code size={14} />} title="System Prompt">
+          <Textarea
+            placeholder="You are a helpful assistant…"
+            value={systemPromptDraft}
+            onChange={(e) => setSystemPromptDraft(e.target.value)}
+            rows={6}
+          />
+          <div className="flex justify-end mt-2">
+            <Button
+              size="sm"
+              onClick={handleSaveSystemPrompt}
+              disabled={updateProfile.isPending}
+            >
+              Save Prompt
+            </Button>
+          </div>
+        </Section>
+      )}
+
       {/* Email & Verification */}
       <Section icon={<Mail size={14} />} title="Email">
         <p className="text-muted-foreground mb-3">
@@ -134,7 +197,6 @@ export function PreferencesTab() {
           ] as const
         ).map(({ value, label }) => {
           const rawChannels = prefs?.notification_channels ?? ['in-app']
-          // Ensure type safety
           const channels = rawChannels.filter(
             (c): c is 'in-app' | 'email' => c === 'in-app' || c === 'email'
           )

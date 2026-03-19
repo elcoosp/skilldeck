@@ -17,6 +17,7 @@ pub struct ProfileData {
     pub model_provider: String,
     pub model_id: String,
     pub is_default: bool,
+    // Optionally add system_prompt if needed in list; for now not needed.
 }
 
 /// List all profiles ordered by default-first, then alphabetically.
@@ -83,6 +84,7 @@ pub async fn create_profile(
 }
 
 /// Partial update — only provided fields are mutated.
+/// Now includes optional `system_prompt`.
 #[specta]
 #[tauri::command]
 pub async fn update_profile(
@@ -91,6 +93,7 @@ pub async fn update_profile(
     name: Option<String>,
     model_provider: Option<String>,
     model_id: Option<String>,
+    system_prompt: Option<String>,
 ) -> Result<(), String> {
     let db = state
         .registry
@@ -115,6 +118,9 @@ pub async fn update_profile(
     }
     if let Some(m) = model_id {
         active.model_id = Set(m);
+    }
+    if let Some(sp) = system_prompt {
+        active.system_prompt = Set(Some(sp));
     }
     active.updated_at = Set(chrono::Utc::now().fixed_offset());
     active.update(db).await.map_err(|e| e.to_string())?;
