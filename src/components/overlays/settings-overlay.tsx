@@ -263,6 +263,7 @@ function ProfilesTab() {
   const [newName, setNewName] = useState('')
   const [newProvider, setNewProvider] = useState('ollama')
   const [newModel, setNewModel] = useState('')
+  const [newSystemPrompt, setNewSystemPrompt] = useState('') // <-- new state
 
   const { data: profiles = [], isLoading } = useQuery({
     queryKey: ['profiles'],
@@ -284,10 +285,12 @@ function ProfilesTab() {
 
   const createMut = useMutation({
     mutationFn: async () => {
+      // Call createProfile with optional systemPrompt
       const res = await commands.createProfile(
         newName.trim(),
         newProvider,
-        newModel.trim() || defaultModel()
+        newModel.trim() || defaultModel(),
+        newSystemPrompt.trim() || null // pass system prompt
       )
       if (res.status === 'error') throw new Error(res.error)
       return res.data
@@ -299,6 +302,7 @@ function ProfilesTab() {
       setNewName('')
       setNewModel('')
       setNewProvider('ollama')
+      setNewSystemPrompt('') // reset
     },
     onError: (e: unknown) => toast.error(String(e))
   })
@@ -336,11 +340,12 @@ function ProfilesTab() {
   ]
 
   function defaultModel() {
-    if (newProvider === 'ollama') return ollamaModels[0]?.id ?? 'glm-5:cloud' // changed
+    if (newProvider === 'ollama') return ollamaModels[0]?.id ?? 'glm-5:cloud'
     if (newProvider === 'claude') return 'claude-sonnet-4-5'
     if (newProvider === 'openai') return 'gpt-4o'
     return ''
   }
+
   const getProviderName = (provider: string | { id: string; name: string }) => {
     if (typeof provider === 'string') {
       const found = PROVIDER_OPTIONS.find((p) => p.id === provider)
@@ -355,7 +360,8 @@ function ProfilesTab() {
         <div>
           <h2 className="text-base font-semibold mb-0.5">Profiles</h2>
           <p className="text-sm text-muted-foreground">
-            Each profile pairs a name with a model provider and ID.
+            Each profile pairs a name with a model provider and ID, and can
+            include a system prompt.
           </p>
         </div>
         <Button size="sm" onClick={() => setShowNew((v) => !v)}>
@@ -407,6 +413,16 @@ function ProfilesTab() {
               className="w-full h-7 rounded-md border border-input bg-background px-2.5 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
             />
           )}
+
+          {/* System prompt field */}
+          <textarea
+            placeholder="System prompt (optional)"
+            value={newSystemPrompt}
+            onChange={(e) => setNewSystemPrompt(e.target.value)}
+            rows={3}
+            className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 resize-y"
+          />
+
           <div className="flex gap-2 pt-1">
             <Button
               size="sm"
@@ -418,7 +434,13 @@ function ProfilesTab() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => setShowNew(false)}
+              onClick={() => {
+                setShowNew(false)
+                setNewName('')
+                setNewModel('')
+                setNewProvider('ollama')
+                setNewSystemPrompt('')
+              }}
             >
               Cancel
             </Button>
@@ -460,6 +482,11 @@ function ProfilesTab() {
                 <p className="text-xs text-muted-foreground truncate">
                   {getProviderName(p.model_provider)} · {p.model_id}
                 </p>
+                {p.system_prompt && (
+                  <p className="text-xs text-muted-foreground/70 truncate mt-0.5 italic">
+                    {p.system_prompt}
+                  </p>
+                )}
               </div>
 
               <div className="flex items-center gap-1 shrink-0">
@@ -500,27 +527,27 @@ const APPROVAL_FIELDS: Array<{
   label: string
   description: string
 }> = [
-  {
-    key: 'autoApproveReads',
-    label: 'Auto-approve file reads',
-    description: 'Skip the approval dialog for read-only filesystem tools'
-  },
-  {
-    key: 'autoApproveWrites',
-    label: 'Auto-approve file writes',
-    description: 'Skip approval for file creation and modification'
-  },
-  {
-    key: 'autoApproveShell',
-    label: 'Auto-approve shell commands',
-    description: 'Never require approval for shell execution (⚠ dangerous)'
-  },
-  {
-    key: 'autoApproveHttpRequests',
-    label: 'Auto-approve HTTP requests',
-    description: 'Skip approval for outbound HTTP tool calls'
-  }
-]
+    {
+      key: 'autoApproveReads',
+      label: 'Auto-approve file reads',
+      description: 'Skip the approval dialog for read-only filesystem tools'
+    },
+    {
+      key: 'autoApproveWrites',
+      label: 'Auto-approve file writes',
+      description: 'Skip approval for file creation and modification'
+    },
+    {
+      key: 'autoApproveShell',
+      label: 'Auto-approve shell commands',
+      description: 'Never require approval for shell execution (⚠ dangerous)'
+    },
+    {
+      key: 'autoApproveHttpRequests',
+      label: 'Auto-approve HTTP requests',
+      description: 'Skip approval for outbound HTTP tool calls'
+    }
+  ]
 
 function ApprovalsTab() {
   const toolApprovals = useSettingsStore((s) => s.toolApprovals)

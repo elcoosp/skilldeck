@@ -238,11 +238,11 @@ async listProfiles() : Promise<Result<ProfileData[], string>> {
 }
 },
 /**
- * Create a new profile.
+ * Create a new profile, optionally with a system prompt.
  */
-async createProfile(name: string, modelProvider: string, modelId: string) : Promise<Result<string, string>> {
+async createProfile(name: string, modelProvider: string, modelId: string, systemPrompt: string | null) : Promise<Result<string, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("create_profile", { name, modelProvider, modelId }) };
+    return { status: "ok", data: await TAURI_INVOKE("create_profile", { name, modelProvider, modelId, systemPrompt }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -250,7 +250,6 @@ async createProfile(name: string, modelProvider: string, modelId: string) : Prom
 },
 /**
  * Partial update — only provided fields are mutated.
- * Now includes optional `system_prompt`.
  */
 async updateProfile(id: string, name: string | null, modelProvider: string | null, modelId: string | null, systemPrompt: string | null) : Promise<Result<null, string>> {
     try {
