@@ -1,11 +1,12 @@
 // src/hooks/use-platform.ts
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { listen } from '@tauri-apps/api/event'
+import { open } from '@tauri-apps/plugin-opener'   // <-- import opener
 import { useEffect } from 'react'
 import { toast } from 'sonner'
 import type { PlatformPreferences as ApiPlatformPreferences } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
-import { platformUrl } from '@/lib/config'   // <-- import central URL helper
+import { platformUrl } from '@/lib/config'
 
 // Extended platform preferences including local-only settings
 export interface PlatformPreferences extends ApiPlatformPreferences {
@@ -48,7 +49,7 @@ export function usePlatformPreferences() {
       return {
         ...res.data,
         platformEnabled: true,
-        platformUrl: platformUrl('')  // <-- use central URL
+        platformUrl: platformUrl('')
       }
     },
     staleTime: 5 * 60 * 1000 // 5 minutes
@@ -155,7 +156,7 @@ export function useNudgeListener() {
               cta_label && cta_action
                 ? {
                   label: cta_label,
-                  onClick: () => {
+                  onClick: async () => {
                     if (cta_action.startsWith('open:')) {
                       const target = cta_action.replace('open:', '')
                       window.dispatchEvent(
@@ -164,7 +165,11 @@ export function useNudgeListener() {
                         })
                       )
                     } else if (cta_action.startsWith('http')) {
-                      window.open(cta_action, '_blank')
+                      try {
+                        await open(cta_action)   // <-- use Tauri opener
+                      } catch (error) {
+                        console.error('Failed to open URL:', error)
+                      }
                     }
                   }
                 }

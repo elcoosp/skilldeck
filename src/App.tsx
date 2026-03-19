@@ -12,7 +12,7 @@ import { OnboardingWizard } from '@/components/overlays/onboarding-wizard'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { useMcpEvents } from '@/hooks/use-mcp-events'
 import { useSubagentEvents } from '@/hooks/use-subagent-events'
-import { useSkillEvents } from '@/hooks/use-skill-events' // <-- new
+import { useSkillEvents } from '@/hooks/use-skill-events'
 import { useSettingsStore } from '@/store/settings'
 import { useUIStore } from '@/store/ui'
 
@@ -46,7 +46,7 @@ function ThemeSync() {
 function GlobalEventListeners() {
   useMcpEvents()
   useSubagentEvents()
-  useSkillEvents() // <-- new
+  useSkillEvents()
   return null
 }
 
@@ -63,6 +63,19 @@ function AppContent() {
 }
 
 function App() {
+  const setSettingsOpen = useUIStore((s) => s.setSettingsOpen)
+  const setSettingsTab = useUIStore((s) => s.setSettingsTab)
+
+  // Global custom event listener for opening settings with a specific tab
+  useEffect(() => {
+    const handleOpenSettings = (e: CustomEvent<{ tab: string }>) => {
+      setSettingsOpen(true)
+      setSettingsTab(e.detail.tab)
+    }
+    window.addEventListener('skilldeck:open-settings', handleOpenSettings as EventListener)
+    return () => window.removeEventListener('skilldeck:open-settings', handleOpenSettings as EventListener)
+  }, [setSettingsOpen, setSettingsTab])
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
