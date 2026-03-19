@@ -31,6 +31,10 @@ export interface NudgePayload {
   cta_action: string | null
 }
 
+export function isPlatformNotConfigured(query: ReturnType<typeof usePlatformPreferences>['query']): boolean {
+  return query.isError && String(query.error).includes('Not configured')
+}
+
 export function usePlatformPreferences() {
   const queryClient = useQueryClient()
 
@@ -55,7 +59,6 @@ export function usePlatformPreferences() {
 
   const update = useMutation({
     mutationFn: async (payload: UpdatePreferencesPayload) => {
-      // Send only the fields the API accepts, converting undefined to null
       const apiPayload = {
         email: payload.email ?? null,
         nudge_frequency: payload.nudge_frequency ?? null,
@@ -69,8 +72,6 @@ export function usePlatformPreferences() {
       const res = await commands.updatePlatformPreferences(apiPayload)
       if (res.status === 'error') throw new Error(res.error)
 
-      // Here you would also persist platformEnabled and platformUrl locally
-      // For now, we just return the merged result
       return {
         ...res.data,
         platformEnabled:
@@ -160,10 +161,8 @@ export function useNudgeListener() {
                 ? {
                   label: cta_label,
                   onClick: () => {
-                    // Handle CTA action - could open a URL or trigger an app navigation
                     if (cta_action.startsWith('open:')) {
                       const target = cta_action.replace('open:', '')
-                      // Dispatch a custom event or use router
                       window.dispatchEvent(
                         new CustomEvent('skilldeck:navigate', {
                           detail: { target }

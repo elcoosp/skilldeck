@@ -5,7 +5,7 @@
 
 import { Bell, Code, Globe, Mail, Palette, Shield } from 'lucide-react'
 import { useState } from 'react'
-import { usePlatformPreferences } from '@/hooks/use-platform'
+import { usePlatformPreferences, isPlatformNotConfigured } from '@/hooks/use-platform'
 import { useProfiles, useUpdateProfile } from '@/hooks/use-profiles'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -29,6 +29,20 @@ export function PreferencesTab() {
     return (
       <div className="flex items-center justify-center h-40 text-muted-foreground text-sm">
         Loading preferences…
+      </div>
+    )
+  }
+
+  // Platform not configured – show registration prompt
+  if (isPlatformNotConfigured(query)) {
+    return (
+      <div className="p-4 text-center">
+        <p className="text-sm text-muted-foreground mb-2">
+          Platform not configured.
+        </p>
+        <Button size="sm" onClick={() => window.location.hash = '#platform'}>
+          Go to Platform Settings
+        </Button>
       </div>
     )
   }

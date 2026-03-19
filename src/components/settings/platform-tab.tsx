@@ -4,10 +4,11 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
-import { usePlatformPreferences } from '@/hooks/use-platform'
+import { usePlatformPreferences, usePlatformRegistration, isPlatformNotConfigured } from '@/hooks/use-platform'
 
 export function PlatformTab() {
   const { query, update } = usePlatformPreferences()
+  const register = usePlatformRegistration()
   const prefs = query.data
 
   const [enabled, setEnabled] = useState(prefs?.platformEnabled ?? true)
@@ -33,6 +34,28 @@ export function PlatformTab() {
     return (
       <div className="flex items-center justify-center h-40 text-muted-foreground text-sm">
         Loading platform preferences…
+      </div>
+    )
+  }
+
+  if (isPlatformNotConfigured(query)) {
+    return (
+      <div className="p-6 text-center space-y-3">
+        <p className="text-sm text-muted-foreground">
+          SkillDeck Platform is not yet set up for this device.
+        </p>
+        <Button
+          onClick={() => register.mutate()}
+          disabled={register.isPending}
+          size="sm"
+        >
+          {register.isPending ? 'Registering…' : 'Register with Platform'}
+        </Button>
+        {register.isError && (
+          <p className="text-xs text-destructive">
+            Registration failed: {String(register.error)}
+          </p>
+        )}
       </div>
     )
   }
