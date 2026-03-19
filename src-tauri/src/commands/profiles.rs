@@ -1,5 +1,5 @@
 //! Profile Tauri commands.
-use sea_orm::PaginatorTrait;
+
 use sea_orm::{ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, QueryOrder, QueryFilter};
 use serde::{Deserialize, Serialize};
 use specta::{Type, specta};
@@ -40,7 +40,7 @@ impl From<profiles::Model> for ProfileData {
 #[tauri::command]
 pub async fn list_profiles(
     state: State<'_, Arc<AppState>>,
-    include_deleted: Option<bool>, // <-- new parameter
+    include_deleted: Option<bool>,
 ) -> Result<Vec<ProfileData>, String> {
     let db = state
         .registry
@@ -242,7 +242,7 @@ pub async fn delete_profile(state: State<'_, Arc<AppState>>, id: String) -> Resu
     Ok(())
 }
 
-/// Restore a soft-deleted profile.
+/// Restore a soft-deleted profile. Ensures the profile is not marked as default.
 #[specta]
 #[tauri::command]
 pub async fn restore_profile(state: State<'_, Arc<AppState>>, id: String) -> Result<(), String> {
@@ -266,6 +266,7 @@ pub async fn restore_profile(state: State<'_, Arc<AppState>>, id: String) -> Res
 
     let mut active: profiles::ActiveModel = profile.into();
     active.deleted_at = Set(None);
+    active.is_default = Set(false); // Ensure restored profile is not default
     active.updated_at = Set(chrono::Utc::now().fixed_offset());
     active.update(db).await.map_err(|e| e.to_string())?;
 
