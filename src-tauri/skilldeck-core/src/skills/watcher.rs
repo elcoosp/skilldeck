@@ -9,7 +9,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc::{Sender, channel};
 use tracing::{info, warn};
-
+use crate::traits::SkillEventEmitter;
 use crate::CoreError;
 
 /// Events emitted by the skill watcher.

@@ -69,11 +69,14 @@ impl FilesystemSkillLoader {
             name,
             description,
             content_md: body.to_string(),
-            is_active: true, // default active
+            is_active: true,
             manifest,
             disk_path: Some(path),
             source,
             content_hash: Some(content_hash),
+            lint_warnings: None,
+            security_score: 5,
+            quality_score: 5,
         })
     }
 

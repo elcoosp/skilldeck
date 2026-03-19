@@ -30,6 +30,7 @@ pub mod workflow;
 pub mod workspace;
 
 // Re-export commonly used types.
+use skilldeck_lint::LintConfig;
 pub use db::{SqliteDatabase, open_db};
 pub use error::CoreError;
 pub use events::AgentEvent;
@@ -86,39 +87,45 @@ pub struct Registry {
 }
 
 impl Registry {
-    /// Create a new registry backed by `db`.
+    /// Create a new registry backed by `db` with a default lint configuration.
     pub fn new(db: impl Database + 'static) -> Self {
+        let lint_config = Arc::new(tokio::sync::RwLock::new(LintConfig::default()));
         Self {
             db: Arc::new(db),
             providers: dashmap::DashMap::new(),
             mcp_registry: Arc::new(mcp::McpRegistry::new()),
-            skill_registry: Arc::new(skills::SkillRegistry::new()),
+            skill_registry: Arc::new(skills::SkillRegistry::new(lint_config)),
         }
     }
-    pub fn with_lint_config(
-            db: impl Database + 'static,
-            lint_config: Arc<tokio::sync::RwLock<LintConfig>>,
-        ) -> Self {
-            let mcp_registry = mcp::McpRegistry::new();
-            Self {
-                db: Arc::new(db),
-                providers: dashmap::DashMap::new(),
-                mcp_registry: Arc::new(mcp_registry),
-                skill_registry: Arc::new(skills::SkillRegistry::new(lint_config)),
-            }
-        }
-    /// Create a registry using a pre-built [`McpRegistry`].
+
+    /// Create a registry using a pre-built [`McpRegistry`] and a default lint config.
     ///
     /// Use when you need to register transports before wrapping in `Arc`
     /// (transports require `&mut self` which is unavailable through `Arc`).
     pub fn with_mcp_registry(db: impl Database + 'static, mcp_registry: mcp::McpRegistry) -> Self {
+        let lint_config = Arc::new(tokio::sync::RwLock::new(LintConfig::default()));
         Self {
             db: Arc::new(db),
             providers: dashmap::DashMap::new(),
             mcp_registry: Arc::new(mcp_registry),
-            skill_registry: Arc::new(skills::SkillRegistry::new()),
+            skill_registry: Arc::new(skills::SkillRegistry::new(lint_config)),
         }
     }
+
+    /// Create a registry with a custom lint configuration.
+    pub fn with_lint_config(
+        db: impl Database + 'static,
+        lint_config: Arc<tokio::sync::RwLock<LintConfig>>,
+    ) -> Self {
+        let mcp_registry = mcp::McpRegistry::new();
+        Self {
+            db: Arc::new(db),
+            providers: dashmap::DashMap::new(),
+            mcp_registry: Arc::new(mcp_registry),
+            skill_registry: Arc::new(skills::SkillRegistry::new(lint_config)),
+        }
+    }
+
     /// Register a model provider.
     pub fn register_provider(&self, provider: impl ModelProvider + 'static) {
         let id = provider.id().to_string();
