@@ -39,6 +39,7 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { WorkflowEditor } from '@/components/workflow/workflow-editor'
+import { useAnalytics } from '@/hooks/use-analytics'
 import { useConversations } from '@/hooks/use-conversations'
 import { useProfiles } from '@/hooks/use-profiles'
 import {
@@ -58,12 +59,12 @@ const TABS: {
   label: string
   Icon: React.FC<{ className?: string }>
 }[] = [
-    { id: 'session', label: 'Session', Icon: Cpu },
-    { id: 'skills', label: 'Skills', Icon: Layers },
-    { id: 'mcp', label: 'MCP', Icon: Zap },
-    { id: 'workflow', label: 'Workflow', Icon: GitBranch },
-    { id: 'analytics', label: 'Analytics', Icon: BarChart2 }
-  ]
+  { id: 'session', label: 'Session', Icon: Cpu },
+  { id: 'skills', label: 'Skills', Icon: Layers },
+  { id: 'mcp', label: 'MCP', Icon: Zap },
+  { id: 'workflow', label: 'Workflow', Icon: GitBranch },
+  { id: 'analytics', label: 'Analytics', Icon: BarChart2 }
+]
 
 export function RightPanel() {
   const [activeTab, setActiveTab] = useState<Tab>('session')
@@ -493,68 +494,115 @@ function WorkflowTab() {
 // ── Analytics tab ─────────────────────────────────────────────────────────────
 
 function AnalyticsTab() {
-  const mockWeeklyTokens = [
-    { day: 'Mon', tokens: 12400 },
-    { day: 'Tue', tokens: 8900 },
-    { day: 'Wed', tokens: 23100 },
-    { day: 'Thu', tokens: 5600 },
-    { day: 'Fri', tokens: 18700 },
-    { day: 'Sat', tokens: 3200 },
-    { day: 'Sun', tokens: 9800 }
-  ]
-  const maxTokens = Math.max(...mockWeeklyTokens.map((d) => d.tokens))
+  const { data: analytics, isLoading, error } = useAnalytics()
+
+  if (isLoading) {
+    return (
+      <div className="p-8 flex justify-center">
+        <BouncingDots />
+      </div>
+    )
+  }
+
+  if (error || !analytics) {
+    return (
+      <div className="p-4 text-sm text-destructive">
+        Failed to load analytics: {String(error)}
+      </div>
+    )
+  }
+
+  const maxTokens =
+    analytics.messages_per_day.length > 0
+      ? Math.max(...analytics.messages_per_day.map((d) => d.count))
+      : 1
 
   return (
     <div className="p-4 space-y-5">
-      <div>
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-          Token Usage — This Week
-        </h3>
-        <div className="flex items-end gap-1 h-20">
-          {mockWeeklyTokens.map(({ day, tokens }) => (
-            <div key={day} className="flex-1 flex flex-col items-center gap-1">
+      {/* Overview stats */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-lg border border-border p-3">
+          <p className="text-xs text-muted-foreground">Conversations</p>
+          <p className="text-xl font-semibold">
+            {analytics.total_conversations}
+          </p>
+        </div>
+        <div className="rounded-lg border border-border p-3">
+          <p className="text-xs text-muted-foreground">Messages</p>
+          <p className="text-xl font-semibold">{analytics.total_messages}</p>
+        </div>
+      </div>
+
+      {/* Token usage */}
+      <div className="rounded-lg border border-border p-3 space-y-2">
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          Token Usage
+        </p>
+        <div className="flex justify-between text-sm">
+          <span>Input</span>
+          <span className="font-mono">
+            {analytics.token_usage.input_tokens.toLocaleString()}
+          </span>
+        </div>
+        <div className="flex justify-between text-sm">
+          <span>Output</span>
+          <span className="font-mono">
+            {analytics.token_usage.output_tokens.toLocaleString()}
+          </span>
+        </div>
+        <div className="flex justify-between text-sm font-medium pt-1 border-t">
+          <span>Total</span>
+          <span className="font-mono">
+            {analytics.token_usage.total_tokens.toLocaleString()}
+          </span>
+        </div>
+      </div>
+
+      {/* Messages per day */}
+      {analytics.messages_per_day.length > 0 && (
+        <div>
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+            Messages — Last 30 Days
+          </h3>
+          <div className="flex items-end gap-1 h-20">
+            {analytics.messages_per_day.map(({ date, count }) => (
               <div
-                className="w-full rounded-t bg-primary/60 transition-all"
-                style={{ height: `${(tokens / maxTokens) * 100}%` }}
-              />
-              <span className="text-[9px] text-muted-foreground">{day}</span>
+                key={date}
+                className="flex-1 flex flex-col items-center gap-1"
+              >
+                <div
+                  className="w-full rounded-t bg-primary/60 transition-all"
+                  style={{ height: `${(count / maxTokens) * 100}%` }}
+                />
+                <span className="text-[9px] text-muted-foreground">
+                  {new Date(date).getDate()}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Skills used */}
+      {analytics.skills_used.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            Most Used Skills
+          </h3>
+          {analytics.skills_used.slice(0, 5).map(({ name, count }) => (
+            <div key={name} className="flex justify-between text-sm">
+              <span className="truncate">{name}</span>
+              <span className="font-mono">{count}</span>
             </div>
           ))}
         </div>
-        <p className="text-xs text-muted-foreground mt-2 text-right">
-          Total:{' '}
-          {mockWeeklyTokens.reduce((a, b) => a + b.tokens, 0).toLocaleString()}{' '}
-          tokens
+      )}
+
+      {analytics.messages_per_day.length === 0 && (
+        <p className="text-xs text-muted-foreground text-center py-4">
+          No activity yet. Start a conversation to see analytics.
         </p>
-      </div>
-
-      <div className="space-y-2">
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-          Provider Breakdown
-        </h3>
-        {[
-          { label: 'Claude', pct: 62, color: 'bg-violet-500' },
-          { label: 'Ollama', pct: 28, color: 'bg-blue-500' },
-          { label: 'OpenAI', pct: 10, color: 'bg-green-500' }
-        ].map(({ label, pct, color }) => (
-          <div key={label} className="space-y-1">
-            <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">{label}</span>
-              <span className="font-medium">{pct}%</span>
-            </div>
-            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-              <div
-                className={cn('h-full rounded-full', color)}
-                style={{ width: `${pct}%` }}
-              />
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <p className="text-[10px] text-muted-foreground/60 text-center">
-        Analytics data is approximate. Detailed usage tracking coming in v1.1.
-      </p>
+      )}
     </div>
   )
 }

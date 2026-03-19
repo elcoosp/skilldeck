@@ -74,6 +74,9 @@ importers:
       fuse.js:
         specifier: ^7.1.0
         version: 7.1.0
+      hast-util-is-element:
+        specifier: ^3.0.0
+        version: 3.0.0
       lucide-react:
         specifier: ^0.577.0
         version: 0.577.0(react@19.2.4)

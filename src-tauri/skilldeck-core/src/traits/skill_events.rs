@@ -1,4 +1,3 @@
-use std::sync::Arc;
 
 /// Trait for emitting skill events from the core to the shell.
 pub trait SkillEventEmitter: Send + Sync {

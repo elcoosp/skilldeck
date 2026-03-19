@@ -7,6 +7,7 @@ pub mod export;
 pub mod files;
 pub mod gist;
 pub mod mcp;
+pub mod analytics;
 pub mod messages;
 pub mod ollama;
 pub mod platform;

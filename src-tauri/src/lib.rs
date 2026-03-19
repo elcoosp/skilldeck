@@ -22,6 +22,7 @@ mod sync;
 pub use subagent_server::SubagentServer;
 
 use commands::{
+    analytics::*,
     branches::*, conversations::*, export::*, files::*, gist::*, mcp::*, messages::*, ollama::*,
     platform::*, profiles::*, queue::*, settings::*, skills::*, workflows::*, workspaces::*,
 };
@@ -49,6 +50,7 @@ pub fn run() {
     // Build Tauri Specta builder with all commands and events
     let builder = Builder::<tauri::Wry>::new()
         .commands(collect_commands![
+            get_analytics,
             process_queued_messages,
             set_auto_send_paused,
             create_branch,
