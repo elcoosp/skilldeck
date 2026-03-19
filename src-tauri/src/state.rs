@@ -29,6 +29,9 @@ use crate::subagent_monitor::monitor_subagent;
 use crate::subagent_server::SubagentServer;
 use adk_rust::server::a2a::A2aClient;
 
+// Import the SkillEventEmitter trait
+use skilldeck_core::traits::SkillEventEmitter;
+
 const KEYRING_SERVICE: &str = "skilldeck";
 
 /// Reload persisted MCP servers from the database into the registry.
@@ -59,6 +62,24 @@ pub async fn reload_mcp_servers_from_db(
             tracing::info!("Loaded {} MCP server(s) from DB", registry.list().len());
         }
         Err(e) => tracing::error!("reload_mcp_servers: query failed: {e}"),
+    }
+}
+
+/// Tauri‑specific implementation of the SkillEventEmitter.
+struct TauriSkillEventEmitter {
+    app_handle: tauri::AppHandle,
+}
+
+impl SkillEventEmitter for TauriSkillEventEmitter {
+    fn emit_updated(&self, source_label: String, skill_name: String) {
+        use crate::events::SkillEvent;
+        let _ = self.app_handle.emit(
+            "skill-event",
+            SkillEvent::Updated {
+                source_label,
+                skill_name,
+            },
+        );
     }
 }
 
@@ -112,7 +133,16 @@ impl AppState {
 
         let conn = open_db(&db_url, true).await?;
         let db = SeaOrmDatabase::new(conn);
-        let registry = Arc::new(Registry::new(db));
+
+        // Load lint config
+        let global_config_path =
+            dirs_next::config_dir().map(|d| d.join("skilldeck").join("skilldeck-lint.toml"));
+        let lint_config = Arc::new(RwLock::new(
+            LintConfig::from_files(global_config_path.as_deref(), None).unwrap_or_default()
+        ));
+
+        // Create registry with lint config
+        let registry = Arc::new(Registry::with_lint_config(db, lint_config.clone()));
 
         // Register transports — now takes &self so works through Arc.
         registry
@@ -150,18 +180,6 @@ impl AppState {
         registry.register_provider(OllamaProvider::new(11434));
 
         let approval_gate = Arc::new(ApprovalGate::new());
-
-        // ── Lint config ───────────────────────────────────────────────────────
-        let global_config_path =
-            dirs_next::config_dir().map(|d| d.join("skilldeck").join("skilldeck-lint.toml"));
-
-        let lint_config =
-            LintConfig::from_files(global_config_path.as_deref(), None).unwrap_or_default();
-
-        info!(
-            "Loaded lint config: {} rule overrides",
-            lint_config.rules.len()
-        );
 
         // ── Start MCP supervisor ──────────────────────────────────────────────
         let supervisor_tx = start_supervisor(
@@ -224,7 +242,7 @@ impl AppState {
             db_url,
             platform_client: tokio::sync::RwLock::new(platform_client),
             analytics_opt_in: std::sync::atomic::AtomicBool::new(analytics_opt_in_val),
-            lint_config: Arc::new(RwLock::new(lint_config)),
+            lint_config,
             subagent_servers,
             subagent_semaphore,
             subagent_clients,
@@ -267,12 +285,15 @@ impl AppState {
                 }
             }
 
-            // --- PARALLEL SCANNING (changed) ---
+            // --- PARALLEL SCANNING with lint config ---
             use futures::future::join_all;
+            // Acquire a read lock on lint_config for scanning
+            let lint_config_read = state.lint_config.read().await;
             let scan_futures = skill_dirs.iter().map(|(label, path)| {
                 let path = path.clone();
+                let config = lint_config_read.clone(); // clone the LintConfig (cheap)
                 async move {
-                    let skills = scanner::scan_directory(&path).await.unwrap_or_else(|e| {
+                    let skills = scanner::scan_directory(&path, &config).await.unwrap_or_else(|e| {
                         tracing::warn!("Failed to scan skill directory {:?}: {}", path, e);
                         vec![]
                     });
@@ -280,6 +301,7 @@ impl AppState {
                 }
             });
             let scanned_results = join_all(scan_futures).await;
+            drop(lint_config_read); // release lock before long-running operations
 
             for (label, skills) in scanned_results {
                 info!(
@@ -295,11 +317,17 @@ impl AppState {
             }
             // --- END PARALLEL SCANNING ---
 
+            // Create event emitter for watchers
+            let emitter = Arc::new(TauriSkillEventEmitter {
+                app_handle: app.clone(),
+            });
+
             for (label, path) in &skill_dirs {
                 match start_registry_watcher(
                     path.clone(),
                     label.clone(),
                     Arc::clone(&state.registry.skill_registry),
+                    Some(emitter.clone() as Arc<dyn SkillEventEmitter>),
                 ) {
                     Ok(w) => {
                         state

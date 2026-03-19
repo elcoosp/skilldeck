@@ -85,6 +85,13 @@ export function UnifiedSkillList() {
   const { unifiedSkills, isLoading, installedCount, registryError } =
     useUnifiedSkills({ search: debouncedSearch || undefined })
 
+  // Compute local skills with issues for summary badge
+  const localWithIssues = unifiedSkills.filter(
+    (s) => s.status === 'local_only' || s.status === 'installed'
+  ).filter(
+    (s) => (s.localData?.lint_warnings?.length ?? 0) > 0
+  ).length
+
   // Compute unique categories from registry skills that have a category
   const categories = useMemo(() => {
     const cats = new Set<string>()
@@ -197,20 +204,30 @@ export function UnifiedSkillList() {
           <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
             Skill Registry
           </span>
-          <button
-            type="button"
-            onClick={() => syncMutation.mutate()}
-            disabled={!platformFeaturesEnabled || syncMutation.isPending}
-            title={
-              !platformFeaturesEnabled ? 'Enable platform to sync' : 'Refresh'
-            }
-            className={cn(
-              'p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40',
-              syncMutation.isPending && 'animate-spin'
+          <div className="flex items-center gap-2">
+            {localWithIssues > 0 && (
+              <span
+                className="text-xs text-amber-500 font-medium"
+                title={`${localWithIssues} local skill(s) have lint issues`}
+              >
+                {localWithIssues} ⚠
+              </span>
             )}
-          >
-            <RefreshCw className="h-3 w-3" />
-          </button>
+            <button
+              type="button"
+              onClick={() => syncMutation.mutate()}
+              disabled={!platformFeaturesEnabled || syncMutation.isPending}
+              title={
+                !platformFeaturesEnabled ? 'Enable platform to sync' : 'Refresh'
+              }
+              className={cn(
+                'p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40',
+                syncMutation.isPending && 'animate-spin'
+              )}
+            >
+              <RefreshCw className="h-3 w-3" />
+            </button>
+          </div>
         </div>
 
         {/* Search and category filter row - matching side padding */}
@@ -331,8 +348,8 @@ export function UnifiedSkillList() {
                               prev?.id === s.id ? null : s
                             )
                           }
-                          onInstall={() => setSelected(skill)} // fixed: use skill
-                          onUpdate={() => setSelected(skill)} // fixed: use skill
+                          onInstall={() => setSelected(skill)}
+                          onUpdate={() => setSelected(skill)}
                         />
                       </motion.div>
                     ))}
