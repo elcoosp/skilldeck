@@ -32,15 +32,16 @@ import { commands } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
 import { useSettingsStore } from '@/store/settings'
 import { useUIStore } from '@/store/ui'
-import { useDeleteProfile, useProfiles, useRestoreProfile } from '@/hooks/use-profiles'
+import { useDeleteProfile, useProfiles, useRestoreProfile, useSetDefaultProfile } from '@/hooks/use-profiles'
 
 export function SettingsOverlay() {
   const settingsTab = useUIStore((s) => s.settingsTab)
   const setSettingsTab = useUIStore((s) => s.setSettingsTab)
   const setSettingsOpen = useUIStore((s) => s.setSettingsOpen)
 
+  // Outer element is a div to avoid nested button HTML (fixed)
   return (
-    <button
+    <div
       className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 cursor-default"
       onClick={() => setSettingsOpen(false)}
       onKeyDown={(e) => {
@@ -48,8 +49,7 @@ export function SettingsOverlay() {
           setSettingsOpen(false)
         }
       }}
-      aria-label="Close settings"
-      type="button"
+      role="presentation"
     >
       <div
         onClick={(e) => e.stopPropagation()}
@@ -113,7 +113,7 @@ export function SettingsOverlay() {
           {settingsTab === 'referral' && <ReferralTab />}
         </div>
       </div>
-    </button>
+    </div>
   )
 }
 
@@ -271,11 +271,12 @@ function ProfilesTab() {
   const activeProfiles = allProfiles.filter(p => !p.deleted_at)
   const deletedProfiles = allProfiles.filter(p => p.deleted_at)
 
-  const { data: ollamaModels = [] } = useQuery({
+  // FIX: Store only model IDs (strings) to avoid cache shape collision with useAvailableModels
+  const { data: ollamaModels = [] } = useQuery<string[]>({
     queryKey: ['available-models', 'ollama'],
     queryFn: async () => {
       const res = await commands.listOllamaModels()
-      if (res.status === 'ok') return res.data
+      if (res.status === 'ok') return res.data.map((m) => m.id) // map to strings
       throw new Error(res.error)
     }
   })
@@ -304,21 +305,7 @@ function ProfilesTab() {
   })
 
   const deleteMut = useDeleteProfile()
-
-  // Define setDefaultProfile mutation inline (matching original pattern)
-  const defaultMut = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await commands.setDefaultProfile(id)
-      if (res.status === 'error') throw new Error(res.error)
-      return res.data
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['profiles'] })
-      toast.success('Default profile updated')
-    },
-    onError: (e: unknown) => toast.error(String(e))
-  })
-
+  const defaultMut = useSetDefaultProfile()
   const restoreMut = useRestoreProfile()
 
   const PROVIDER_OPTIONS = [
@@ -328,7 +315,7 @@ function ProfilesTab() {
   ]
 
   function defaultModel() {
-    if (newProvider === 'ollama') return ollamaModels[0]?.id ?? 'glm-5:cloud'
+    if (newProvider === 'ollama') return ollamaModels[0] ?? 'glm-5:cloud'
     if (newProvider === 'claude') return 'claude-sonnet-4-5'
     if (newProvider === 'openai') return 'gpt-4o'
     return ''
@@ -387,9 +374,9 @@ function ProfilesTab() {
               onChange={(e) => setNewModel(e.target.value)}
               className="w-full h-7 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
             >
-              {ollamaModels.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name || m.id}
+              {ollamaModels.map((id) => (
+                <option key={id} value={id}>
+                  {id}
                 </option>
               ))}
             </select>

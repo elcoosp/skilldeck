@@ -1,3 +1,4 @@
+// src/hooks/use-profiles.ts
 /**
  * Profile data hooks.
  */
@@ -6,7 +7,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { commands } from '@/lib/bindings'
 import type { UUID } from '@/lib/types'
 
-export function useProfiles(includeDeleted?: boolean) { // <-- added parameter
+export function useProfiles(includeDeleted?: boolean) {
   return useQuery({
     queryKey: ['profiles', includeDeleted],
     queryFn: async () => {
@@ -14,7 +15,7 @@ export function useProfiles(includeDeleted?: boolean) { // <-- added parameter
       if (res.status === 'ok') return res.data
       throw new Error(res.error)
     },
-    staleTime: 60_000
+    staleTime: 0, // FIX: set to 0 to avoid stale default profile
   })
 }
 
@@ -84,7 +85,25 @@ export function useDeleteProfile() {
   })
 }
 
-export function useRestoreProfile() { // <-- new hook
+export function useSetDefaultProfile() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: UUID) => {
+      const res = await commands.setDefaultProfile(id)
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
+    },
+    onSuccess: () => {
+      // FIX: Force a refetch to ensure the new default is immediately reflected
+      queryClient.invalidateQueries({
+        queryKey: ['profiles'],
+        refetchType: 'all',
+      })
+    },
+  })
+}
+
+export function useRestoreProfile() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (id: UUID) => {
@@ -94,6 +113,6 @@ export function useRestoreProfile() { // <-- new hook
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profiles'] })
-    }
+    },
   })
 }

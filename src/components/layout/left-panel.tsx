@@ -1,4 +1,4 @@
-// src/components/left-panel.tsx
+// src/components/layout/left-panel.tsx
 /**
  * Left panel — conversation list, search, new chat, workspace switcher,
  * and profile filter.
@@ -261,8 +261,9 @@ export function LeftPanel() {
                     onDeleteStart={handleDeleteStart}
                     onClick={() => setActiveConversation(c.id)}
                     workspaceName={getWorkspaceName(c.workspace_id)}
-                    profileName={c.profileName}
-                    profileDeleted={c.profileDeleted}
+                    // FIX: Use snake_case fields from ConversationSummary
+                    profileName={c.profile_name}
+                    profileDeleted={c.profile_deleted}
                     showProfileBadge={filterProfileId === null}
                   />
                 </motion.div>
