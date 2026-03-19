@@ -33,6 +33,10 @@ export function CenterPanel() {
   const setSearchQuery = useUIStore((s) => s.setConversationSearchQuery)
   const [debouncedSearch] = useDebounce(searchQuery, 300)
 
+  // Scroll restoration
+  const scrollPositions = useUIStore((s) => s.scrollPositions)
+  const setScrollPosition = useUIStore((s) => s.setScrollPosition)
+
   const threadRef = useRef<MessageThreadHandle>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
@@ -83,6 +87,34 @@ export function CenterPanel() {
     },
     [messages]
   )
+
+  // Save scroll position when leaving this conversation
+  useEffect(() => {
+    return () => {
+      if (!activeConversationId) return
+      const position = threadRef.current?.getScrollPosition() ?? 0
+      const key = `${activeConversationId}_${activeBranchId ?? 'main'}`
+      setScrollPosition(key, position)
+    }
+  }, [activeConversationId, activeBranchId, setScrollPosition])
+
+  // Restore scroll position when entering this conversation
+  useEffect(() => {
+    if (!activeConversationId) return
+    const key = `${activeConversationId}_${activeBranchId ?? 'main'}`
+    const saved = scrollPositions[key]
+    if (saved) {
+      // Wait for the virtualizer to be ready
+      requestAnimationFrame(() => {
+        threadRef.current?.scrollToPosition(saved)
+      })
+    } else {
+      // Default: scroll to bottom for new conversations
+      requestAnimationFrame(() => {
+        threadRef.current?.scrollToIndex(messages.length - 1, { behavior: 'auto' })
+      })
+    }
+  }, [activeConversationId, activeBranchId, scrollPositions, messages.length])
 
   // Clear search when conversation changes
   useEffect(() => {
@@ -143,7 +175,7 @@ export function CenterPanel() {
             <X className="size-3.5" />
           </Button>
         )}
-        <Kbd key={`${modifierKey}+F`} className="hidden sm:flex" />
+        <Kbd keys={[modifierKey, 'F']} className="hidden sm:flex" />
       </div>
 
       <div className="relative flex-1 min-h-0">

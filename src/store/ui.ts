@@ -75,6 +75,11 @@ interface UIState {
   globalSearchOpen: boolean
   setGlobalSearchOpen: (open: boolean) => void
 
+  // ── Scroll positions per conversation (key: `${conversationId}_${branchId}`) ───
+  scrollPositions: Record<string, number>
+  setScrollPosition: (key: string, position: number) => void
+  clearScrollPosition: (key: string) => void
+
   // ── Overlays ──────────────────────────────────────────────────────────
   settingsOpen: boolean
   setSettingsOpen: (open: boolean) => void
@@ -216,6 +221,18 @@ export const useUIStore = create<UIState>()(
       globalSearchOpen: false,
       setGlobalSearchOpen: (open) => set({ globalSearchOpen: open }),
 
+      // Scroll positions (new)
+      scrollPositions: {},
+      setScrollPosition: (key, position) =>
+        set((state) => ({
+          scrollPositions: { ...state.scrollPositions, [key]: position }
+        })),
+      clearScrollPosition: (key) =>
+        set((state) => {
+          const { [key]: _removed, ...rest } = state.scrollPositions
+          return { scrollPositions: rest }
+        }),
+
       // Overlays
       settingsOpen: false,
       setSettingsOpen: (open) => set({ settingsOpen: open }),
@@ -243,6 +260,7 @@ export const useUIStore = create<UIState>()(
         unlockStage: state.unlockStage,
         leftTab: state.leftTab,
         rightTab: state.rightTab
+        // scrollPositions intentionally not persisted (ephemeral)
       })
     }
   )

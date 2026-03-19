@@ -7,6 +7,7 @@ import { MessageBubble } from './message-bubble'
 
 export interface MessageThreadHandle {
   scrollToMessage: (index: number) => void
+  scrollToIndex: (index: number, options?: { behavior?: 'auto' | 'smooth' }) => void
   getScrollPosition: () => number
   scrollToPosition: (position: number) => void
 }
@@ -15,7 +16,7 @@ interface MessageThreadProps {
   messages: MessageData[]
   streamingMessageId?: string
   isLoading?: boolean
-  searchQuery?: string // new prop
+  searchQuery?: string
   /** Called with the nearest user-message index visible in the viewport. */
   onVisibleUserIndexChange?: (index: number) => void
   /** ID of the message that should be highlighted (for animation) */
@@ -88,6 +89,9 @@ export const MessageThread = React.forwardRef<
           isProgrammaticScroll.current = false
           programmaticScrollTimer.current = null
         }, 600)
+      },
+      scrollToIndex: (index, options) => {
+        virtualizer.scrollToIndex(index, options)
       },
       getScrollPosition: () => scrollRef.current?.scrollTop ?? 0,
       scrollToPosition: (position: number) => {
@@ -239,7 +243,7 @@ export const MessageThread = React.forwardRef<
                         message={message}
                         isStreaming={message.id === streamingMessageId}
                         isHighlighted={message.id === highlightedMessageId}
-                        searchQuery={searchQuery} // pass query down for highlighting
+                        searchQuery={searchQuery}
                       />
                     </div>
                   </div>
