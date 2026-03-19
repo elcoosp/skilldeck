@@ -362,17 +362,19 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
           </Button>
         )}
 
-        <Button
-          variant="ghost"
-          className="w-full text-xs text-muted-foreground"
-          onClick={() => sync.mutate()}
-          disabled={!platformFeaturesEnabled || isBusy}
-        >
-          <RefreshCw
-            className={`mr-1.5 h-3 w-3 ${sync.isPending ? 'animate-spin' : ''}`}
-          />
-          {sync.isPending ? 'Syncing registry…' : 'Sync registry'}
-        </Button>
+        {(skill.registryData || skill.status !== 'local_only') && (
+          <Button
+            variant="ghost"
+            className="w-full text-xs text-muted-foreground"
+            onClick={() => sync.mutate()}
+            disabled={!platformFeaturesEnabled || isBusy}
+          >
+            <RefreshCw
+              className={`mr-1.5 h-3 w-3 ${sync.isPending ? 'animate-spin' : ''}`}
+            />
+            {sync.isPending ? 'Syncing registry…' : 'Sync registry'}
+          </Button>
+        )}
       </div>
 
       {/* Dialogs */}
