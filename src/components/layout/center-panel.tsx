@@ -1,8 +1,7 @@
 /**
  * Center panel — virtualized message thread and input bar.
  */
-
-import { useRef, useState, useCallback } from 'react'
+import { useRef, useState, useCallback, useEffect } from 'react'
 import { BranchNav } from '@/components/conversation/branch-nav'
 import { MessageInput } from '@/components/conversation/message-input'
 import { MessageThread, type MessageThreadHandle } from '@/components/conversation/message-thread'
@@ -31,12 +30,39 @@ export function CenterPanel() {
   // no re-mapping needed here.
   const [activeUserMessageIndex, setActiveUserMessageIndex] = useState<number | undefined>(undefined)
 
+  // --- Highlight animation state ---
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
+  const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout>>()
+
   const handleVisibleUserIndexChange = useCallback((index: number) => {
     setActiveUserMessageIndex(index)
   }, [])
 
   const scrollToMessage = useCallback((index: number) => {
+    // Clear any pending timeout to avoid overlapping highlights
+    if (highlightTimeoutRef.current) {
+      clearTimeout(highlightTimeoutRef.current)
+    }
+
+    const targetMessage = messages[index]
+    if (targetMessage) {
+      setHighlightedMessageId(targetMessage.id)
+      // Clear highlight after animation duration (800ms)
+      highlightTimeoutRef.current = setTimeout(() => {
+        setHighlightedMessageId(null)
+      }, 800)
+    }
+
     threadRef.current?.scrollToMessage(index)
+  }, [messages])
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (highlightTimeoutRef.current) {
+        clearTimeout(highlightTimeoutRef.current)
+      }
+    }
   }, [])
 
   if (!activeConversationId) {
@@ -66,6 +92,7 @@ export function CenterPanel() {
           ref={threadRef}
           messages={messages}
           onVisibleUserIndexChange={handleVisibleUserIndexChange}
+          highlightedMessageId={highlightedMessageId}
         />
 
         {messages.length > 2 && (

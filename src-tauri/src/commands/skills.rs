@@ -20,7 +20,7 @@ use uuid::Uuid;
 
 use crate::state::AppState;
 use crate::sync::skill_sync::sync_registry_skills as do_sync;
-use skilldeck_lint::{LintConfig, LintWarning, lint_skill as do_lint};
+use skilldeck_lint::{LintConfig,  lint_skill as do_lint};
 
 // ── Existing commands (list/toggle) ───────────────────────────────────────────
 

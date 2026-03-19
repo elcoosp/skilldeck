@@ -878,10 +878,12 @@ async updateConversationWorkspace(id: string, workspaceId: string | null) : Prom
 export const events = __makeEvents__<{
 agentEvent: AgentEvent,
 mcpEvent: McpEvent,
+skillEvent: SkillEvent,
 workflowEvent: WorkflowEvent
 }>({
 agentEvent: "agent-event",
 mcpEvent: "mcp-event",
+skillEvent: "skill-event",
 workflowEvent: "workflow-event"
 })
 
@@ -997,7 +999,11 @@ export type SendMessageRequest = { conversation_id: string; content: string; con
  * Severity level of a lint warning.
  */
 export type Severity = "off" | "info" | "warning" | "error"
-export type SkillInfo = { name: string; description: string; is_active: boolean; source: string; path: string | null }
+/**
+ * Payload for the `"skill-event"` Tauri channel.
+ */
+export type SkillEvent = { type: "updated"; source_label: string; skill_name: string }
+export type SkillInfo = { name: string; description: string; is_active: boolean; source: string; path: string | null; lint_warnings: LintWarning[]; security_score: number; quality_score: number }
 export type SkillSourceInfo = { id: string; source_type: string; path: string; label: string | null }
 export type UpdatePrefsPayload = { email: string | null; nudge_frequency: string | null; nudge_opt_out: boolean | null; notification_channels: string[] | null; theme_preference: string | null; timezone: string | null; analytics_opt_in: boolean | null }
 export type WorkflowDefinitionResponse = { id: string; name: string; definition: JsonValue; created_at: string; updated_at: string }

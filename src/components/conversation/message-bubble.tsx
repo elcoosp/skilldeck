@@ -25,6 +25,7 @@ import { SubagentCard } from './subagent-card'
 interface MessageBubbleProps {
   message: MessageData
   isStreaming?: boolean
+  isHighlighted?: boolean   // new prop
 }
 
 // Intercept <pre> from Shiki — never touch <code> or whitespace
@@ -99,7 +100,8 @@ const CodePre = ({ children, ...props }: any) => {
 
 export function MessageBubble({
   message,
-  isStreaming = false
+  isStreaming = false,
+  isHighlighted = false
 }: MessageBubbleProps) {
   const [collapsed, setCollapsed] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -136,7 +138,7 @@ export function MessageBubble({
           <SubagentCard
             stepName={data.task || 'Subagent'}
             status="running"
-            onOpen={() => {}} // TODO: navigate to subagent conversation
+            onOpen={() => { }} // TODO: navigate to subagent conversation
           />
         )
       }
@@ -187,8 +189,15 @@ export function MessageBubble({
     <motion.div
       className={cn('flex gap-3 max-w-full', isUser && 'flex-row-reverse')}
       initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.25, ease: 'easeOut' }}
+      animate={{
+        opacity: 1,
+        // Highlight background when isHighlighted is true
+        backgroundColor: isHighlighted ? 'var(--highlight-bg)' : 'transparent'
+      }}
+      transition={{
+        opacity: { duration: 0.25, ease: 'easeOut' },
+        backgroundColor: { duration: 0.4, ease: 'easeOut' }
+      }}
     >
       {/* Avatar */}
       <div

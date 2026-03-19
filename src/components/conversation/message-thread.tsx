@@ -15,10 +15,12 @@ interface MessageThreadProps {
   isLoading?: boolean
   /** Called with the nearest user-message index visible in the viewport. */
   onVisibleUserIndexChange?: (index: number) => void
+  /** ID of the message that should be highlighted (for animation) */
+  highlightedMessageId?: string | null
 }
 
 export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThreadProps>(
-  ({ messages, streamingMessageId, isLoading, onVisibleUserIndexChange }, ref) => {
+  ({ messages, streamingMessageId, isLoading, onVisibleUserIndexChange, highlightedMessageId }, ref) => {
     const scrollRef = React.useRef<HTMLDivElement>(null)
 
     // When a programmatic scroll is in flight we suppress the scroll listener
@@ -213,6 +215,7 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
                       <MessageBubble
                         message={message}
                         isStreaming={message.id === streamingMessageId}
+                        isHighlighted={message.id === highlightedMessageId}
                       />
                     </div>
                   </div>

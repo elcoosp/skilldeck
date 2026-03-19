@@ -90,6 +90,8 @@
   /* amber-100 */
   --warning-foreground: #92400e;
   /* amber-800 */
+
+  --highlight-bg: rgba(255, 235, 160, 0.5);
 }
 
 .dark {
@@ -144,6 +146,8 @@
   /* amber-950 */
   --warning-foreground: #fbbf24;
   /* amber-400 */
+
+  --highlight-bg: rgba(255, 220, 100, 0.5);
 }
 
 @theme inline {

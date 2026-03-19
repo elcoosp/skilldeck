@@ -1,6 +1,7 @@
 // src-tauri/src/state.rs
 //! Application state management.
 
+use tauri::Emitter;
 use dashmap::DashMap;
 use sea_orm::EntityTrait;
 use std::sync::Arc;
