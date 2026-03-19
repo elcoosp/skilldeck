@@ -1,23 +1,17 @@
 // src/components/settings/referral-tab.tsx
-/**
- * ReferralTab — Share SkillDeck and track your referral rewards.
- *
- * Win theme: "Team Knowledge That Compounds"
- * Every developer you bring onboard multiplies your team's AI knowledge.
- */
-
 import { Copy, ExternalLink, Gift, Users } from 'lucide-react'
 import { toast } from 'sonner'
+import { open } from '@tauri-apps/plugin-opener'
 import { usePlatformPreferences, useReferral } from '@/hooks/use-platform'
-
-const REFERRAL_BASE_URL = 'https://skilldeck.dev/r'
 
 export function ReferralTab() {
   const { stats, create } = useReferral()
   const { query: prefsQuery } = usePlatformPreferences()
 
   const code = stats.data?.code
-  const referralUrl = code ? `${REFERRAL_BASE_URL}/${code.code}` : null
+  // Use platform URL from preferences if available, fallback to config constant
+  const platformBaseUrl = prefsQuery.data?.platformUrl
+  const referralUrl = code && platformBaseUrl ? `${platformBaseUrl}/r/${code.code}` : null
 
   function copyCode() {
     if (!referralUrl) return
@@ -25,7 +19,7 @@ export function ReferralTab() {
     toast.success('Referral link copied!')
   }
 
-  function shareVia(channel: 'twitter' | 'linkedin' | 'email') {
+  async function shareVia(channel: 'twitter' | 'linkedin' | 'email') {
     if (!referralUrl) return
     const text = encodeURIComponent(
       `I use SkillDeck for local-first AI orchestration — your code never leaves your machine. Check it out: ${referralUrl}`
@@ -35,7 +29,11 @@ export function ReferralTab() {
       linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(referralUrl)}`,
       email: `mailto:?subject=${encodeURIComponent('Check out SkillDeck')}&body=${text}`
     }
-    window.open(urls[channel], '_blank')
+    try {
+      await open(urls[channel])
+    } catch (e) {
+      toast.error(`Failed to open link: ${e}`)
+    }
   }
 
   if (stats.isLoading) {
@@ -64,7 +62,7 @@ export function ReferralTab() {
       </div>
 
       {/* Code display / create */}
-      {code ? (
+      {code && platformBaseUrl ? (
         <div className="space-y-3">
           <p className="font-medium">Your referral link</p>
           <div className="flex items-center gap-2">
@@ -105,7 +103,6 @@ export function ReferralTab() {
                 type="button"
                 className="px-4 py-2 rounded-md bg-primary text-primary-foreground font-medium hover:bg-primary/90"
                 onClick={() => {
-                  // Dispatch event to open settings on platform tab
                   window.dispatchEvent(
                     new CustomEvent('skilldeck:open-settings', {
                       detail: { tab: 'platform' }
