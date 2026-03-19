@@ -19,7 +19,8 @@ const msg = (
   role,
   content,
   created_at: '2024-01-01T00:00:00Z',
-  context_items: null // add required field
+  context_items: null,
+  metadata: null, // <-- added
 })
 
 const wrapper = ({ children }: { children: React.ReactNode }) =>
@@ -47,7 +48,12 @@ beforeEach(() => {
     searchQuery: '',
     settingsOpen: false,
     commandPaletteOpen: false,
-    unlockStage: 0
+    unlockStage: 0,
+    onboardingComplete: false,
+    platformFeaturesEnabled: true,
+    leftTab: 'conversations',
+    rightTab: 'session', // <-- updated default
+    settingsTab: 'apikeys'
   })
 })
 

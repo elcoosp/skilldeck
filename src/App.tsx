@@ -15,6 +15,7 @@ import { useSubagentEvents } from '@/hooks/use-subagent-events'
 import { useSkillEvents } from '@/hooks/use-skill-events'
 import { useSettingsStore } from '@/store/settings'
 import { useUIStore } from '@/store/ui'
+import type { SettingsTab } from '@/store/ui'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -69,7 +70,7 @@ function App() {
 
   // Global custom event listener for opening settings with a specific tab
   useEffect(() => {
-    const handleOpenSettings = (e: CustomEvent<{ tab: string }>) => {
+    const handleOpenSettings = (e: CustomEvent<{ tab: SettingsTab }>) => {
       setSettingsOpen(true)
       setSettingsTab(e.detail.tab)
     }
@@ -79,12 +80,7 @@ function App() {
 
   // Global custom event listener for switching the right panel tab
   useEffect(() => {
-    const handleSetRightTab = (e: CustomEvent<{ tab: 'info' | 'workflow' | 'usage' | 'skills' }>) => {
-      // Convert 'skills' to the actual tab value expected by the store (maybe 'skills' is already correct)
-      // The right panel tabs are: 'info', 'workflow', 'usage' – but we also have 'skills' as a separate tab.
-      // In our RightPanel, the tabs are: 'session', 'skills', 'mcp', 'workflow', 'analytics'.
-      // We need to map 'skills' to 'skills' (direct) and maybe 'profiles' is not a right tab.
-      // For simplicity, we'll just pass the tab directly; the RightPanel expects one of its tab IDs.
+    const handleSetRightTab = (e: CustomEvent<{ tab: 'session' | 'skills' | 'mcp' | 'workflow' | 'analytics' }>) => {
       setRightTab(e.detail.tab)
     }
     window.addEventListener('skilldeck:set-right-tab', handleSetRightTab as EventListener)

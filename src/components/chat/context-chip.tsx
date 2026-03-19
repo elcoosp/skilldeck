@@ -7,7 +7,7 @@ import { TrustBadge } from '@/components/skills/trust-badge'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import type { AttachedItem } from '@/types/chat-context'
-import type { ContextItem } from '@/lib/bindings' // <-- import ContextItem type
+import type { ContextItem } from '@/lib/bindings'
 
 type ChipItem = AttachedItem | ContextItem
 
@@ -30,12 +30,17 @@ export const ContextChip: React.FC<ContextChipProps> = ({
 
   // Determine if this is an AttachedItem (has .data) or raw ContextItem
   const isAttached = 'data' in item
-  const type = isAttached ? item.type : (item as ContextItem).type
-  const data = isAttached ? item.data : item
+  const type = isAttached ? (item as AttachedItem).type : (item as ContextItem).type
+  const data = isAttached ? (item as AttachedItem).data : item
 
-  // Extract common fields
-  const name = data.name || (data.path ? data.path.split('/').pop() : '')
-  const id = isAttached ? data.id : data.path || data.name
+  // Helper to safely get a string value from data
+  const getString = (field: string): string | undefined => {
+    const val = (data as any)[field]
+    return typeof val === 'string' ? val : undefined
+  }
+
+  const name = getString('name') || (getString('path') ? getString('path')!.split('/').pop() : '') || 'unknown'
+  const id = getString('id') || getString('path') || getString('name') || ''
 
   // Lint warnings are only present on AttachedSkill items
   const lintWarnings = isAttached && type === 'skill' ? ((data as any).lintWarnings ?? []) : []

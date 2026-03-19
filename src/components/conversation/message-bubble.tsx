@@ -321,7 +321,8 @@ export function MessageBubble({
                               {children}
                             </a>
                           ),
-                          code: ({ node, inline, className, children, ...props }) => {
+                          // Use 'any' for props to avoid inline type error
+                          code: ({ node, inline, className, children, ...props }: any) => {
                             const match = /language-(\w+)/.exec(className || '')
                             if (!inline && match) {
                               return <code className={className} {...props}>{children}</code>

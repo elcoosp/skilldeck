@@ -9,9 +9,6 @@
  *
  * All other state (active conversation, drafts, streaming, etc.) is ephemeral
  * and resets on app restart.
- *
- * Note: queued messages are now persisted in the database and managed via
- * React Query hooks – removed from this store.
  */
 
 import { create } from 'zustand'
@@ -22,7 +19,7 @@ interface PanelSizes {
   right: number
 }
 
-type SettingsTab =
+export type SettingsTab =
   | 'apikeys'
   | 'profiles'
   | 'approvals'
@@ -30,6 +27,12 @@ type SettingsTab =
   | 'preferences'
   | 'referral'
   | 'platform'
+
+// Right panel tabs from right-panel.tsx
+export type RightTab = 'session' | 'skills' | 'mcp' | 'workflow' | 'analytics'
+
+// Left panel tabs (currently only conversations, but could expand)
+export type LeftTab = 'conversations'
 
 interface UIState {
   // ── Active workspace ──────────────────────────────────────────────────
@@ -78,11 +81,11 @@ interface UIState {
   setSettingsTab: (tab: SettingsTab) => void
 
   // ── Sidebar tabs (persisted) ──────────────────────────────────────────
-  leftTab: 'conversations' | 'skills' | 'community'
-  setLeftTab: (tab: 'conversations' | 'skills' | 'community') => void
+  leftTab: LeftTab
+  setLeftTab: (tab: LeftTab) => void
 
-  rightTab: 'info' | 'workflow' | 'usage'
-  setRightTab: (tab: 'info' | 'workflow' | 'usage') => void
+  rightTab: RightTab
+  setRightTab: (tab: RightTab) => void
 
   // ── Progressive unlock stage (persisted) ──────────────────────────────
   unlockStage: number
@@ -127,7 +130,6 @@ export const useUIStore = create<UIState>()(
       // Platform features – default to true, but can be disabled by onboarding skip
       platformFeaturesEnabled: (() => {
         try {
-          // If explicitly set to false, respect that; otherwise default to true
           const stored = localStorage.getItem(
             'skilldeck-platform-features-enabled'
           )
@@ -217,7 +219,7 @@ export const useUIStore = create<UIState>()(
       // Sidebar tabs
       leftTab: 'conversations',
       setLeftTab: (tab) => set({ leftTab: tab }),
-      rightTab: 'info',
+      rightTab: 'session', // default to session tab
       setRightTab: (tab) => set({ rightTab: tab }),
 
       // Unlock stage

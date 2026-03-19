@@ -4,6 +4,7 @@
 // blocked skill alerts, and platform awareness.
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import type { LintWarning } from '@/lib/bindings'
 import { Download, ExternalLink, RefreshCw, Trash2, X, AlertTriangle } from 'lucide-react'
 import { revealItemInDir } from '@tauri-apps/plugin-opener'
 import { useState, useRef } from 'react'

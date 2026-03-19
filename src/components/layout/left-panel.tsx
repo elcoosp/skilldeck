@@ -341,7 +341,7 @@ export function LeftPanel() {
                     isDeleting={c.id === deletingId}
                     onDeleteStart={handleDeleteStart}
                     onClick={() => setActiveConversation(c.id)}
-                    workspaceName={getWorkspaceName(c.workspace_id)}
+                    workspaceName={getWorkspaceName(c.workspace_id) ?? undefined}
                     profileName={c.profile_name}
                     profileDeleted={c.profile_deleted}
                     showProfileBadge={filterProfileId === null}

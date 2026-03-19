@@ -5,7 +5,10 @@
 
 import { visit } from 'unist-util-visit'
 import { isElement } from 'hast-util-is-element'
-import type { Root, Element, Text } from 'hast'
+// Use 'any' for HAST types to avoid missing type definitions
+type Root = any
+type Element = any
+type Text = any
 
 const URL_REGEX = /https?:\/\/[^\s<>"{}|\\^`[\]]+/g
 

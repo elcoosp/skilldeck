@@ -47,9 +47,9 @@ export function ThreadNavigator({ messages, onScrollTo, activeIndex }: ThreadNav
     }
   }, [isHovering])
 
-  // Timers for smooth hover
-  const enterTimer = useRef<NodeJS.Timeout>()
-  const leaveTimer = useRef<NodeJS.Timeout>()
+  // Timers for smooth hover - properly typed with null initial value
+  const enterTimer = useRef<NodeJS.Timeout | null>(null)
+  const leaveTimer = useRef<NodeJS.Timeout | null>(null)
 
   const handleMouseEnter = () => {
     if (leaveTimer.current) clearTimeout(leaveTimer.current)

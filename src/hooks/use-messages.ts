@@ -89,7 +89,8 @@ export function useMessagesWithStream(
     role: 'assistant',
     content: streamingText,
     created_at: new Date().toISOString(),
-    context_items: null // add required field
+    context_items: null,
+    metadata: null
   }
 
   return [...messages, streamBubble]

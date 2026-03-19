@@ -32,7 +32,7 @@ export function CenterPanel() {
 
   // --- Highlight animation state ---
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
-  const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout>>()
+  const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const handleVisibleUserIndexChange = useCallback((index: number) => {
     setActiveUserMessageIndex(index)

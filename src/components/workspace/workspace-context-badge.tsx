@@ -1,5 +1,5 @@
 // src/components/workspace/workspace-context-badge.tsx
-import * as HoverCard from 'radix-ui'
+import { HoverCard } from 'radix-ui'
 import { Badge } from '@/components/ui/badge'
 import type { WorkspaceData } from '@/lib/bindings'
 
@@ -10,7 +10,10 @@ interface WorkspaceContextBadgeProps {
 export function WorkspaceContextBadge({ workspace }: WorkspaceContextBadgeProps) {
   if (!workspace.is_open) return null
 
-  const fileCount = workspace.indexed_file_count
+  // Convert string counts to numbers (bindings returns strings for u64)
+  const fileCount = Number(workspace.indexed_file_count)
+  const contextFilesCount = workspace.context_files.length
+
   const projectType = workspace.project_type || 'generic'
 
   return (
@@ -32,9 +35,9 @@ export function WorkspaceContextBadge({ workspace }: WorkspaceContextBadgeProps)
               {workspace.context_files.map(file => (
                 <li key={file} className="truncate">{file}</li>
               ))}
-              {workspace.indexed_file_count > workspace.context_files.length && (
+              {fileCount > contextFilesCount && (
                 <li className="text-muted-foreground">
-                  … and {workspace.indexed_file_count - workspace.context_files.length} more
+                  … and {fileCount - contextFilesCount} more
                 </li>
               )}
             </ul>

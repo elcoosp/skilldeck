@@ -62,12 +62,13 @@ interface FileChip {
 }
 
 type UploadStatus = 'pending' | 'success' | 'error'
+type UploadStatusMap = Map<string, { status: UploadStatus }>
 
 export function MessageInput({ conversationId, workspaceRoot }: MessageInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [isComposing, setIsComposing] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<FileChip[]>([])
-  const [processingFiles, setProcessingFiles] = useState<Map<string, UploadStatus>>(new Map())
+  const [processingFiles, setProcessingFiles] = useState<UploadStatusMap>(new Map())
   const [isSending, setIsSending] = useState(false)
 
   // ── Workspace context ───────────────────────────────────────────────────
@@ -388,7 +389,7 @@ export function MessageInput({ conversationId, workspaceRoot }: MessageInputProp
     for (const file of newFiles) {
       setProcessingFiles((prev) => {
         const next = new Map(prev)
-        next.set(file.path, 'pending')
+        next.set(file.path, { status: 'pending' })
         return next
       })
 
@@ -396,7 +397,7 @@ export function MessageInput({ conversationId, workspaceRoot }: MessageInputProp
       setTimeout(() => {
         setProcessingFiles((prev) => {
           const next = new Map(prev)
-          next.set(file.path, 'success')
+          next.set(file.path, { status: 'success' })
           return next
         })
         // Optionally remove success status after a delay
@@ -552,7 +553,8 @@ export function MessageInput({ conversationId, workspaceRoot }: MessageInputProp
             className="flex flex-wrap gap-1.5"
           >
             {selectedFiles.map((file) => {
-              const status = processingFiles.get(file.path)
+              const statusObj = processingFiles.get(file.path)
+              const status = statusObj?.status
               return (
                 <motion.div
                   key={file.path}

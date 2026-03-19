@@ -21,6 +21,7 @@ import type { UnifiedSkill } from '@/types/skills'
 import { PlatformStatusBanner } from './platform-status-banner'
 import { SkillDetailPanel } from './skill-detail-panel'
 import { UnifiedSkillCard } from './unified-skill-card'
+import { toast } from 'sonner'
 
 // Responsive column count based on container width
 const BREAKPOINTS = {

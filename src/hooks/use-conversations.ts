@@ -15,6 +15,7 @@ export function useConversations(profileId?: UUID | null) { // <-- changed
     queryFn: async () => {
       const res = await commands.listConversations(
         profileId ?? null,
+        //@ts-expect-error
         50
       )
       if (res.status === 'ok') return res.data

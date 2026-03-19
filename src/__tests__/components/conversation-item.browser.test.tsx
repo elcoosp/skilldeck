@@ -17,7 +17,9 @@ const makeConversation = (
   created_at: '2024-01-01T00:00:00Z',
   updated_at: '2024-06-01T12:00:00Z',
   message_count: '5',
-  pinned: false, // ensure pinned is always present
+  pinned: false,
+  profile_name: null, // <-- required field
+  profile_deleted: false, // <-- required field
   ...overrides
 })
 

@@ -11,7 +11,8 @@ const makeMessage = (overrides: Partial<MessageData> = {}): MessageData => ({
   role: 'user',
   content: 'Hello, world!',
   created_at: '2024-01-01T00:00:00Z',
-  context_items: null, // add required field
+  context_items: null,
+  metadata: null, // <-- added
   ...overrides
 })
 
