@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 import { useUIStore } from '@/store/ui'
 import type { UnifiedSkill } from '@/types/skills'
 import { TrustBadge } from './trust-badge'
-import { AlertTriangle } from 'lucide-react'  // added import
+import { AlertTriangle } from 'lucide-react'
 
 interface Props {
   skill: UnifiedSkill
@@ -67,7 +67,7 @@ export function UnifiedSkillCard({
         'flex flex-col h-full min-h-[140px] focus-visible:outline-none',
         'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
         isSelected
-          ? 'border-primary ring-2 ring-primary/20'
+          ? 'ring-2 ring-primary ring-offset-1 ring-offset-background border-border'
           : 'border-border bg-card'
       )}
       onClick={() => onClick(skill)}
