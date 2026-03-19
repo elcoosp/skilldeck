@@ -17,7 +17,7 @@ use uuid::Uuid;
 use crate::state::AppState;
 use skilldeck_models::conversations::{self, Entity as Conversation};
 use skilldeck_models::messages::{self as msg_model, Entity as Messages};
-use skilldeck_models::profiles::{self, Entity as Profiles}; // <-- added
+use skilldeck_models::profiles::{Entity as Profiles}; // <-- added
 
 /// Lightweight summary used by the sidebar list.
 #[derive(Debug, Clone, Serialize, Type)]

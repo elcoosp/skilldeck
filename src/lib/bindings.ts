@@ -282,7 +282,7 @@ async setDefaultProfile(id: string) : Promise<Result<null, string>> {
 }
 },
 /**
- * Restore a soft-deleted profile.
+ * Restore a soft-deleted profile. Ensures the profile is not marked as default.
  */
 async restoreProfile(id: string) : Promise<Result<null, string>> {
     try {
