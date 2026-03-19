@@ -13,7 +13,7 @@ use uuid::Uuid;
 use crate::state::AppState;
 use skilldeck_models::context_item::ContextItem;
 use skilldeck_models::conversation_branches::{self, Entity as Branches};
-use skilldeck_models::messages::{self, Entity as Messages}; // <-- added
+use skilldeck_models::messages::{self, Entity as Messages};
 
 #[derive(Debug, Serialize, Type)]
 pub struct BranchInfo {
@@ -143,6 +143,7 @@ pub async fn get_branch_messages(
                 content: m.content,
                 created_at: m.created_at.to_string(),
                 context_items,
+                metadata: m.metadata, // <-- added metadata field
             }
         })
         .collect())

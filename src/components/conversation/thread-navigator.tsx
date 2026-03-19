@@ -1,8 +1,8 @@
-import { HoverCard } from 'radix-ui'
+import * as HoverCard from '@radix-ui/react-hover-card'
 import { motion } from 'framer-motion'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import type { MessageData } from '@/lib/bindings'
+import { useState } from 'react'
 import { cn } from '@/lib/utils'
+import type { MessageData } from '@/lib/bindings'
 
 interface ThreadNavigatorProps {
   messages: MessageData[]
@@ -11,14 +11,15 @@ interface ThreadNavigatorProps {
 }
 
 export function ThreadNavigator({ messages, onScrollTo, activeIndex }: ThreadNavigatorProps) {
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
+
   const userMessages = messages
     .map((msg, idx) => ({ msg, idx }))
     .filter(({ msg }) => msg.role === 'user')
 
   if (userMessages.length < 3) return null
 
-  // Find the nearest user message to the current active index
-  const nearestUserMessage = userMessages.find(({ idx }) => idx === activeIndex)?.msg
+  const hoveredMessage = userMessages.find(({ idx }) => idx === hoveredIndex)?.msg
 
   return (
     <HoverCard.Root openDelay={200} closeDelay={100}>
@@ -33,7 +34,9 @@ export function ThreadNavigator({ messages, onScrollTo, activeIndex }: ThreadNav
                 type="button"
                 className="group w-4 h-4 flex items-center justify-center pointer-events-auto"
                 onClick={() => onScrollTo(idx)}
-                aria-label={`Jump to: ${msg.content.slice(0, 40)}`}
+                onMouseEnter={() => setHoveredIndex(idx)}
+                onMouseLeave={() => setHoveredIndex(null)}
+                aria-label={`Jump to message`}
               >
                 <div className="w-3 h-[3px] flex items-center justify-start">
                   <motion.div
@@ -41,7 +44,7 @@ export function ThreadNavigator({ messages, onScrollTo, activeIndex }: ThreadNav
                       'h-[2px] w-3 rounded-full origin-left transition-colors duration-150',
                       isActive
                         ? 'bg-primary'
-                        : 'bg-muted-foreground/30 group-hover:bg-muted-foreground/60'
+                        : 'bg-muted-foreground/30 group-hover:bg-primary/60'
                     )}
                     animate={{
                       scaleX: isActive ? 1 : 0.6,
@@ -61,11 +64,15 @@ export function ThreadNavigator({ messages, onScrollTo, activeIndex }: ThreadNav
         <HoverCard.Content
           side="left"
           align="center"
-          className="z-50 w-64 max-h-48 overflow-y-auto p-3 text-sm bg-popover rounded-lg border shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2"
+          className="z-50 w-64 max-h-48 overflow-y-auto p-3 text-xs bg-popover rounded-lg border shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2"
         >
-          <p className="line-clamp-6 text-muted-foreground whitespace-pre-wrap break-words">
-            {nearestUserMessage?.content || 'No message selected'}
-          </p>
+          {hoveredMessage ? (
+            <p className="whitespace-pre-wrap break-words leading-relaxed text-muted-foreground hover:text-primary transition-colors">
+              {hoveredMessage.content}
+            </p>
+          ) : (
+            <p className="text-muted-foreground">Hover over a dot to preview</p>
+          )}
         </HoverCard.Content>
       </HoverCard.Portal>
     </HoverCard.Root>
