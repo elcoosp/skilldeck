@@ -1316,6 +1316,7 @@ impl MigrationTrait for Migration {
             model_provider: Set("claude".to_owned()),
             model_id: Set("claude-sonnet-4-5".to_owned()),
             model_params: Set(None),
+            system_prompt: Set(None),
             is_default: Set(true),
             created_at: Set(Utc::now().into()),
             updated_at: Set(Utc::now().into()),
