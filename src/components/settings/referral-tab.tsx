@@ -1,17 +1,17 @@
 // src/components/settings/referral-tab.tsx
 import { Copy, ExternalLink, Gift, Users } from 'lucide-react'
 import { toast } from 'sonner'
-import { open } from '@tauri-apps/plugin-opener'
+import { openUrl } from '@tauri-apps/plugin-opener'   // <-- corrected import
 import { usePlatformPreferences, useReferral } from '@/hooks/use-platform'
+import { PLATFORM_BASE_URL } from '@/lib/config'
 
 export function ReferralTab() {
   const { stats, create } = useReferral()
   const { query: prefsQuery } = usePlatformPreferences()
 
   const code = stats.data?.code
-  // Use platform URL from preferences if available, fallback to config constant
-  const platformBaseUrl = prefsQuery.data?.platformUrl
-  const referralUrl = code && platformBaseUrl ? `${platformBaseUrl}/r/${code.code}` : null
+  // Build referral URL using platform base URL (e.g., https://platform.skilldeck.dev/r/<code>)
+  const referralUrl = code ? `${PLATFORM_BASE_URL}/r/${code.code}` : null
 
   function copyCode() {
     if (!referralUrl) return
@@ -30,7 +30,7 @@ export function ReferralTab() {
       email: `mailto:?subject=${encodeURIComponent('Check out SkillDeck')}&body=${text}`
     }
     try {
-      await open(urls[channel])
+      await openUrl(urls[channel])
     } catch (e) {
       toast.error(`Failed to open link: ${e}`)
     }
@@ -62,7 +62,7 @@ export function ReferralTab() {
       </div>
 
       {/* Code display / create */}
-      {code && platformBaseUrl ? (
+      {code ? (
         <div className="space-y-3">
           <p className="font-medium">Your referral link</p>
           <div className="flex items-center gap-2">
