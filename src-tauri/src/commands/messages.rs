@@ -196,7 +196,7 @@ pub async fn search_all_messages(
     "#;
 
     let rows = db
-        .query_all(Statement::from_sql_and_values(
+        .query_all(&Statement::from_sql_and_values(
             sea_orm::DatabaseBackend::Sqlite,
             sql,
             [req.query.into(), (limit as i64).into()],
