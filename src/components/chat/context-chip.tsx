@@ -7,30 +7,52 @@ import { TrustBadge } from '@/components/skills/trust-badge'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import type { AttachedItem } from '@/types/chat-context'
+import type { ContextItem } from '@/lib/bindings' // <-- import ContextItem type
+
+type ChipItem = AttachedItem | ContextItem
 
 interface ContextChipProps {
-  item: AttachedItem
-  onRemove: (id: string) => void
+  item: ChipItem
+  onRemove?: (id: string) => void
+  isLoading?: boolean
+  isError?: boolean
+  readonly?: boolean
 }
 
-export const ContextChip: React.FC<ContextChipProps> = ({ item, onRemove }) => {
+export const ContextChip: React.FC<ContextChipProps> = ({
+  item,
+  onRemove,
+  isLoading,
+  isError,
+  readonly = false
+}) => {
   const [showWarnings, setShowWarnings] = useState(false)
-  const isSkill = item.type === 'skill'
-  const isFolder = item.type === 'folder'
 
-  const lintWarnings = isSkill ? ((item.data as any).lintWarnings ?? []) : []
+  // Determine if this is an AttachedItem (has .data) or raw ContextItem
+  const isAttached = 'data' in item
+  const type = isAttached ? item.type : (item as ContextItem).type
+  const data = isAttached ? item.data : item
+
+  // Extract common fields
+  const name = data.name || (data.path ? data.path.split('/').pop() : '')
+  const id = isAttached ? data.id : data.path || data.name
+
+  // Lint warnings are only present on AttachedSkill items
+  const lintWarnings = isAttached && type === 'skill' ? ((data as any).lintWarnings ?? []) : []
   const hasWarnings = lintWarnings.length > 0
-  const hasError =
-    hasWarnings && lintWarnings.some((w: any) => w.severity === 'error')
+  const hasError = hasWarnings && lintWarnings.some((w: any) => w.severity === 'error')
 
   const variant = hasError ? 'destructive' : 'secondary'
-  const icon = isSkill ? (
+  const icon = type === 'skill' ? (
     <Zap className="w-3 h-3" />
-  ) : isFolder ? (
+  ) : type === 'folder' ? (
     <Folder className="w-3 h-3" />
   ) : (
     <File className="w-3 h-3" />
   )
+
+  // Only show TrustBadge for AttachedSkill items that have scores
+  const showTrustBadge = isAttached && type === 'skill' && (data as any).securityScore !== undefined
 
   return (
     <Badge
@@ -39,25 +61,29 @@ export const ContextChip: React.FC<ContextChipProps> = ({ item, onRemove }) => {
       className={cn(
         'flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium group relative transition-all cursor-default',
         hasWarnings &&
-          !hasError &&
-          'bg-yellow-100 border-yellow-500 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+        !hasError &&
+        'bg-yellow-100 border-yellow-500 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
       )}
     >
-      {icon}
-      <span className="max-w-[80px] truncate">{item.data.name}</span>
+      {isLoading ? (
+        <span className="inline-block w-3 h-3 border-2 border-t-transparent border-current rounded-full animate-spin" />
+      ) : (
+        icon
+      )}
+      <span className="max-w-[80px] truncate">{name}</span>
 
-      {isSkill && (
+      {showTrustBadge && (
         <div className="scale-75 origin-left">
           <TrustBadge
-            securityScore={(item.data as any).securityScore}
-            qualityScore={(item.data as any).qualityScore}
+            securityScore={(data as any).securityScore}
+            qualityScore={(data as any).qualityScore}
           />
         </div>
       )}
 
-      {isFolder && (
+      {type === 'folder' && (data as any).scope && (
         <span className="text-[10px] opacity-75">
-          ({(item.data as any).scope === 'deep' ? 'All' : 'Top'})
+          ({(data as any).scope === 'deep' ? 'All' : 'Top'})
         </span>
       )}
 
@@ -74,14 +100,16 @@ export const ContextChip: React.FC<ContextChipProps> = ({ item, onRemove }) => {
         </button>
       )}
 
-      <button
-        type="button"
-        onClick={() => onRemove(item.data.id)}
-        className="ml-1 text-muted-foreground hover:text-foreground transition-colors"
-        aria-label={`Remove ${item.data.name}`}
-      >
-        <X className="w-3 h-3" />
-      </button>
+      {!readonly && onRemove && (
+        <button
+          type="button"
+          onClick={() => onRemove(id)}
+          className="ml-1 text-muted-foreground hover:text-foreground transition-colors"
+          aria-label={`Remove ${name}`}
+        >
+          <X className="w-3 h-3" />
+        </button>
+      )}
 
       {/* Lint warnings tooltip */}
       {showWarnings && hasWarnings && (

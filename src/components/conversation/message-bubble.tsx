@@ -6,7 +6,7 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
-  Clock, // <-- import Clock icon
+  Clock,
   Copy,
   File,
   Folder,
@@ -24,6 +24,7 @@ import type { MessageData } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
 import { SubagentCard } from './subagent-card'
 import { rehypeLinkifyCodeUrls } from '@/lib/rehype-linkify-code'
+import { ContextChip } from '@/components/chat/context-chip'
 
 interface MessageBubbleProps {
   message: MessageData
@@ -161,29 +162,17 @@ export function MessageBubble({
     toast.success('Message copied')
   }, [message.content])
 
-  // Render context chips if present
+  // Render context chips using the reusable ContextChip component
   const renderContextChips = () => {
     if (contextItems.length === 0) return null
     return (
       <div className="flex flex-wrap gap-1 mb-2">
         {contextItems.map((item: any, idx: number) => (
-          <div
-            key={idx}
-            className="inline-flex items-center gap-1 bg-muted/50 text-xs rounded-full px-2 py-0.5"
-          >
-            {item.type === 'file' && <File className="size-3" />}
-            {item.type === 'folder' && <Folder className="size-3" />}
-            {item.type === 'skill' && <Zap className="size-3" />}
-            <span className="max-w-[120px] truncate">
-              {item.name || (item.path ? item.path.split('/').pop() : '')}
-            </span>
-            {item.type === 'folder' && (
-              <span className="text-[10px] opacity-75">
-                ({item.scope === 'deep' ? 'All' : 'Top'}, {item.file_count}{' '}
-                files)
-              </span>
-            )}
-          </div>
+          <ContextChip
+            key={`${item.type}-${idx}`}
+            item={item}
+            readonly // disable removal for history chips
+          />
         ))}
       </div>
     )
@@ -191,16 +180,14 @@ export function MessageBubble({
 
   return (
     <motion.div
-      className={cn('flex gap-3 max-w-full', isUser && 'flex-row-reverse')}
+      className={cn(
+        'flex gap-3 max-w-full transition-all duration-500 ease-in-out',
+        isUser && 'flex-row-reverse',
+        isHighlighted && 'bg-[var(--highlight-bg)] p-3 rounded-lg' // added padding and border radius on highlight
+      )}
       initial={{ opacity: 0 }}
-      animate={{
-        opacity: 1,
-        backgroundColor: isHighlighted ? 'var(--highlight-bg)' : 'transparent'
-      }}
-      transition={{
-        opacity: { duration: 0.25, ease: 'easeOut' },
-        backgroundColor: { duration: 0.4, ease: 'easeOut' }
-      }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.25 }}
     >
       {/* Avatar */}
       <div
@@ -246,7 +233,7 @@ export function MessageBubble({
                   ? 'bg-muted/70 font-mono text-xs w-full rounded-tl-sm'
                   : 'bg-muted/50 rounded-tl-sm',
               isAssistant && 'block w-full bg-transparent',
-              isQueued && 'border-l-2 border-amber-400 pl-3' // <-- amber left border for queued messages
+              isQueued && 'border-l-2 border-amber-400 pl-3'
             )}
           >
             {/* Queued label */}
@@ -256,7 +243,7 @@ export function MessageBubble({
               </span>
             )}
 
-            {/* Context chips (if any) */}
+            {/* Context chips (if any) – now using ContextChip */}
             {renderContextChips()}
 
             {/* Collapse header — only shown once streaming is done */}

@@ -91,7 +91,8 @@
   --warning-foreground: #92400e;
   /* amber-800 */
 
-  --highlight-bg: rgba(255, 235, 160, 0.5);
+  /* Highlight background for message bubbles (brand blue with low opacity) */
+  --highlight-bg: rgba(59, 130, 246, 0.1);
 }
 
 .dark {
@@ -147,7 +148,8 @@
   --warning-foreground: #fbbf24;
   /* amber-400 */
 
-  --highlight-bg: rgba(255, 220, 100, 0.5);
+  /* Highlight background for message bubbles (brand blue with slightly higher opacity) */
+  --highlight-bg: rgba(59, 130, 246, 0.2);
 }
 
 @theme inline {
