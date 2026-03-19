@@ -65,6 +65,7 @@ function AppContent() {
 function App() {
   const setSettingsOpen = useUIStore((s) => s.setSettingsOpen)
   const setSettingsTab = useUIStore((s) => s.setSettingsTab)
+  const setRightTab = useUIStore((s) => s.setRightTab)
 
   // Global custom event listener for opening settings with a specific tab
   useEffect(() => {
@@ -75,6 +76,20 @@ function App() {
     window.addEventListener('skilldeck:open-settings', handleOpenSettings as EventListener)
     return () => window.removeEventListener('skilldeck:open-settings', handleOpenSettings as EventListener)
   }, [setSettingsOpen, setSettingsTab])
+
+  // Global custom event listener for switching the right panel tab
+  useEffect(() => {
+    const handleSetRightTab = (e: CustomEvent<{ tab: 'info' | 'workflow' | 'usage' | 'skills' }>) => {
+      // Convert 'skills' to the actual tab value expected by the store (maybe 'skills' is already correct)
+      // The right panel tabs are: 'info', 'workflow', 'usage' – but we also have 'skills' as a separate tab.
+      // In our RightPanel, the tabs are: 'session', 'skills', 'mcp', 'workflow', 'analytics'.
+      // We need to map 'skills' to 'skills' (direct) and maybe 'profiles' is not a right tab.
+      // For simplicity, we'll just pass the tab directly; the RightPanel expects one of its tab IDs.
+      setRightTab(e.detail.tab)
+    }
+    window.addEventListener('skilldeck:set-right-tab', handleSetRightTab as EventListener)
+    return () => window.removeEventListener('skilldeck:set-right-tab', handleSetRightTab as EventListener)
+  }, [setRightTab])
 
   return (
     <QueryClientProvider client={queryClient}>
