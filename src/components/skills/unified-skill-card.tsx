@@ -1,7 +1,7 @@
 // src/components/skills/unified-skill-card.tsx
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import type { LintWarning } from '@/lib/bindings' // import LintWarning
+import type { LintWarning } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
 import { useUIStore } from '@/store/ui'
 import type { UnifiedSkill } from '@/types/skills'
@@ -41,12 +41,17 @@ export function UnifiedSkillCard({
 }: Props) {
   const platformFeaturesEnabled = useUIStore((s) => s.platformFeaturesEnabled)
   const hasRegistryData = !!skill.registryData
-  const securityScore = skill.registryData?.securityScore
-  const qualityScore = skill.registryData?.qualityScore
 
-  // Cast lintWarnings to LintWarning[] safely
-  const lintWarnings = (skill.registryData?.lintWarnings ||
-    []) as unknown as LintWarning[]
+  // Use local data if available, fallback to registry data
+  const securityScore = skill.localData?.security_score ?? skill.registryData?.securityScore ?? 5
+  const qualityScore = skill.localData?.quality_score ?? skill.registryData?.qualityScore ?? 5
+
+  // Combine lint warnings from both sources
+  const lintWarnings = (
+    skill.localData?.lint_warnings ??
+    skill.registryData?.lintWarnings ??
+    []
+  ) as LintWarning[]
   const errorCount = lintWarnings.filter((w) => w.severity === 'error').length
   const warningCount = lintWarnings.filter(
     (w) => w.severity === 'warning'
@@ -76,11 +81,11 @@ export function UnifiedSkillCard({
           className={cn(
             'shrink-0 text-[10px] px-1.5 py-0',
             skill.status === 'installed' &&
-              'bg-primary/10 text-primary border-primary/20',
+            'bg-primary/10 text-primary border-primary/20',
             skill.status === 'local_only' &&
-              'bg-secondary text-secondary-foreground',
+            'bg-secondary text-secondary-foreground',
             skill.status === 'update_available' &&
-              'bg-amber-500/10 text-amber-600 border-amber-500/20'
+            'bg-amber-500/10 text-amber-600 border-amber-500/20'
           )}
         >
           {STATUS_LABEL[skill.status]}
@@ -118,13 +123,11 @@ export function UnifiedSkillCard({
             </span>
           )}
           {/* Trust badge */}
-          {securityScore !== undefined && qualityScore !== undefined && (
-            <TrustBadge
-              securityScore={securityScore}
-              qualityScore={qualityScore}
-              className="scale-75 origin-right"
-            />
-          )}
+          <TrustBadge
+            securityScore={securityScore}
+            qualityScore={qualityScore}
+            className="scale-75 origin-right"
+          />
         </div>
       </div>
 
