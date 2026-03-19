@@ -64,14 +64,12 @@ export function useAgentStream(conversationId: string | null) {
       autoNameAttempted.current.add(conversationId)
 
       try {
-        // Get conversations from cache
-        const conversations = queryClient.getQueryData<
-          Array<{ id: string; title: string | null }>
-        >(['conversations'])
-
-        const currentConvo = conversations?.find(
-          (c) => c.id === conversationId
-        )
+        // Get conversations from cache – use getQueriesData to match all profile keys
+        const conversationQueries = queryClient.getQueriesData<Array<{ id: string; title: string | null }>>({
+          queryKey: ['conversations'],
+        })
+        const conversations = conversationQueries.flatMap(([, data]) => data ?? [])
+        const currentConvo = conversations.find((c) => c.id === conversationId)
 
         // Only auto-name if no title exists
         if (!currentConvo || currentConvo.title) {
