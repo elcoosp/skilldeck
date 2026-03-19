@@ -6,6 +6,7 @@ pub mod model_provider;
 pub mod skill_loader;
 pub mod subagent_spawner;
 pub mod sync_backend;
+pub mod skill_events;   // <-- new
 
 pub use database::{Database, SeaOrmDatabase};
 pub use mcp_transport::{
@@ -22,3 +23,4 @@ pub use sync_backend::{
     Changeset, ConflictResolution, NoOpSyncBackend, PushResult, SyncBackend, SyncConflict,
     SyncOperation, SyncRecord,
 };
+pub use skill_events::{SkillEventEmitter, NoopSkillEventEmitter};

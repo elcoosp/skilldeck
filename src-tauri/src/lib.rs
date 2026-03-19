@@ -25,7 +25,7 @@ use commands::{
     branches::*, conversations::*, export::*, files::*, gist::*, mcp::*, messages::*, ollama::*,
     platform::*, profiles::*, queue::*, settings::*, skills::*, workflows::*, workspaces::*,
 };
-use events::{AgentEvent, McpEvent, WorkflowEvent};
+use events::{AgentEvent, McpEvent, WorkflowEvent, SkillEvent};
 use state::AppState;
 use std::sync::Arc;
 use tauri::{Listener, Manager};
@@ -157,7 +157,7 @@ pub fn run() {
             // new command for updating conversation workspace
             update_conversation_workspace,
         ])
-        .events(collect_events![AgentEvent, McpEvent, WorkflowEvent]);
+        .events(collect_events![AgentEvent, McpEvent, WorkflowEvent,SkillEvent]);
 
     #[cfg(debug_assertions)]
     {

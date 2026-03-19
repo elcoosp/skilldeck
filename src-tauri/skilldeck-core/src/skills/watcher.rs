@@ -149,46 +149,42 @@ pub fn start_registry_watcher(
     dir: PathBuf,
     source_label: String,
     registry: Arc<super::SkillRegistry>,
+    emitter: Option<Arc<dyn SkillEventEmitter>>,
 ) -> Result<notify::RecommendedWatcher, CoreError> {
     let (tx, mut rx) = channel::<SkillWatchEvent>(128);
-
     let watcher = start_watcher(dir, tx)?;
 
     tokio::spawn(async move {
         while let Some(event) = rx.recv().await {
             match event {
                 SkillWatchEvent::Created(skill_dir) | SkillWatchEvent::Modified(skill_dir) => {
-                    if let Err(e) = registry
-                        .load_skill_from_source(&source_label, skill_dir.clone())
+                    let lint_config = registry.lint_config.read().await;
+                    if registry
+                        .load_skill_from_source(&source_label, skill_dir.clone(), &lint_config)
                         .await
+                        .is_ok()
                     {
-                        warn!(
-                            "Hot-reload failed for {:?} (source '{}'): {}",
-                            skill_dir, source_label, e
-                        );
-                    } else {
-                        info!(
-                            "Hot-reloaded skill from {:?} (source '{}')",
-                            skill_dir, source_label
-                        );
+                        if let Some(ref emitter) = emitter {
+                            let skill_name = skill_dir
+                                .file_name()
+                                .unwrap()
+                                .to_string_lossy()
+                                .to_string();
+                            emitter.emit_updated(source_label.clone(), skill_name);
+                        }
                     }
                 }
                 SkillWatchEvent::Deleted(skill_dir) => {
-                    // Derive the skill name from the directory name — mirrors
-                    // how the loader stores it.
                     let skill_name = skill_dir
                         .file_name()
-                        .map(|n| n.to_string_lossy().to_string())
-                        .unwrap_or_default();
-
-                    if !skill_name.is_empty() {
-                        registry
-                            .remove_skill_from_source(&source_label, &skill_name)
-                            .await;
-                        info!(
-                            "Removed skill '{}' from source '{}' after delete",
-                            skill_name, source_label
-                        );
+                        .unwrap()
+                        .to_string_lossy()
+                        .to_string();
+                    registry
+                        .remove_skill_from_source(&source_label, &skill_name)
+                        .await;
+                    if let Some(ref emitter) = emitter {
+                        emitter.emit_updated(source_label.clone(), skill_name);
                     }
                 }
             }
