@@ -32,7 +32,7 @@ import { commands } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
 import { useSettingsStore } from '@/store/settings'
 import { useUIStore } from '@/store/ui'
-import { useProfiles } from '@/hooks/use-profiles'
+import { useDeleteProfile, useProfiles, useRestoreProfile } from '@/hooks/use-profiles'
 
 export function SettingsOverlay() {
   const settingsTab = useUIStore((s) => s.settingsTab)
@@ -304,8 +304,22 @@ function ProfilesTab() {
   })
 
   const deleteMut = useDeleteProfile()
-  const defaultMut = useSetDefaultProfileMutation() // assume exists
-  const restoreMut = useRestoreProfile() // <-- new
+
+  // Define setDefaultProfile mutation inline (matching original pattern)
+  const defaultMut = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await commands.setDefaultProfile(id)
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['profiles'] })
+      toast.success('Default profile updated')
+    },
+    onError: (e: unknown) => toast.error(String(e))
+  })
+
+  const restoreMut = useRestoreProfile()
 
   const PROVIDER_OPTIONS = [
     { id: 'ollama', label: 'Ollama (local)' },
