@@ -6,41 +6,140 @@ import type { MessageData } from '@/lib/bindings'
 import { MessageBubble } from './message-bubble'
 
 export interface MessageThreadHandle {
-  scrollToMessage: (index: number) => void;
+  scrollToMessage: (index: number) => void
 }
 
 interface MessageThreadProps {
   messages: MessageData[]
   streamingMessageId?: string
   isLoading?: boolean
+  /** Called with the nearest user-message index visible in the viewport. */
+  onVisibleUserIndexChange?: (index: number) => void
 }
 
 export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThreadProps>(
-  ({ messages, streamingMessageId, isLoading }, ref) => {
+  ({ messages, streamingMessageId, isLoading, onVisibleUserIndexChange }, ref) => {
     const scrollRef = React.useRef<HTMLDivElement>(null)
+
+    // When a programmatic scroll is in flight we suppress the scroll listener
+    // so intermediate positions during the smooth animation don't overwrite
+    // the intended target index.
+    const isProgrammaticScroll = React.useRef(false)
+    const programmaticScrollTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 
     const virtualizer = useVirtualizer({
       count: messages.length,
       getScrollElement: () => scrollRef.current,
       estimateSize: () => 80,
       overscan: 5,
-      measureElement: (el) => el.getBoundingClientRect().height
+      measureElement: (el) => el.getBoundingClientRect().height,
     })
 
     const virtualItems = virtualizer.getVirtualItems()
 
+    // Auto-scroll to bottom on new messages
     React.useEffect(() => {
       if (messages.length === 0) return
       virtualizer.scrollToIndex(messages.length - 1, {
-        behavior: streamingMessageId ? 'smooth' : 'auto'
+        behavior: streamingMessageId ? 'smooth' : 'auto',
       })
     }, [messages.length, streamingMessageId, virtualizer])
 
     React.useImperativeHandle(ref, () => ({
       scrollToMessage: (index: number) => {
-        virtualizer.scrollToIndex(index, { behavior: 'smooth' })
-      }
+        // Mark programmatic scroll as in-flight before triggering it.
+        // Clear any previous timer so back-to-back clicks each get a full window.
+        if (programmaticScrollTimer.current) {
+          clearTimeout(programmaticScrollTimer.current)
+        }
+        isProgrammaticScroll.current = true
+
+        // Immediately push the target index to the parent so the navigator
+        // highlight jumps to the right pill without waiting for scroll to settle.
+        callbackRef.current?.(index)
+
+        virtualizer.scrollToIndex(index, { behavior: 'smooth', align: 'center' })
+
+        // Re-enable the listener after the smooth scroll has had time to finish.
+        // 600 ms comfortably covers a typical smooth-scroll duration.
+        programmaticScrollTimer.current = setTimeout(() => {
+          isProgrammaticScroll.current = false
+          programmaticScrollTimer.current = null
+        }, 600)
+      },
     }))
+
+    // Keep a stable ref to the callback so the scroll effect doesn't need to
+    // re-subscribe on every render.
+    const callbackRef = React.useRef(onVisibleUserIndexChange)
+    React.useLayoutEffect(() => {
+      callbackRef.current = onVisibleUserIndexChange
+    })
+
+    React.useEffect(() => {
+      const el = scrollRef.current
+      if (!el || !onVisibleUserIndexChange) return
+
+      const report = () => {
+        // Skip intermediate frames produced by programmatic smooth scrolls.
+        if (isProgrammaticScroll.current) return
+
+        const items = virtualizer.getVirtualItems()
+        if (items.length === 0) return
+
+        const scrollTop = el.scrollTop
+        const clientHeight = el.clientHeight
+        const scrollHeight = el.scrollHeight
+        // Max reachable scrollTop — accounts for subpixel/fractional rounding
+        // that makes scrollTop + clientHeight fall slightly short of scrollHeight.
+        const maxScroll = scrollHeight - clientHeight
+
+        // Pre-compute user indices once for boundary cases
+        const userIndices = messages
+          .map((m, i) => (m.role === 'user' ? i : -1))
+          .filter((i) => i !== -1)
+        if (userIndices.length === 0) return
+        const firstUserIdx = userIndices[0]
+        const lastUserIdx = userIndices[userIndices.length - 1]
+
+        if (scrollTop <= 0) {
+          callbackRef.current?.(firstUserIdx)
+          return
+        }
+        if (maxScroll <= 0 || scrollTop >= maxScroll - 1) {
+          callbackRef.current?.(lastUserIdx)
+          return
+        }
+
+        const viewportMid = scrollTop + clientHeight / 2
+        let closestIndex = items[0].index
+        let closestDist = Infinity
+
+        for (const item of items) {
+          const dist = Math.abs(item.start + item.size / 2 - viewportMid)
+          if (dist < closestDist) {
+            closestDist = dist
+            closestIndex = item.index
+          }
+        }
+
+        const nearestUser = userIndices.reduce((best, ui) =>
+          Math.abs(ui - closestIndex) < Math.abs(best - closestIndex) ? ui : best
+        )
+        callbackRef.current?.(nearestUser)
+      }
+
+      el.addEventListener('scroll', report, { passive: true })
+      report()
+
+      return () => {
+        el.removeEventListener('scroll', report)
+        if (programmaticScrollTimer.current) {
+          clearTimeout(programmaticScrollTimer.current)
+        }
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [virtualizer, !!onVisibleUserIndexChange, messages.length])
 
     const showLoading = isLoading
     const showEmpty = !isLoading && messages.length === 0
@@ -107,7 +206,7 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
                       top: 0,
                       left: 0,
                       width: '100%',
-                      transform: `translateY(${virtualItem.start}px)`
+                      transform: `translateY(${virtualItem.start}px)`,
                     }}
                   >
                     <div className="px-4 py-1.5">

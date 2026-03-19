@@ -2,10 +2,10 @@
  * Center panel — virtualized message thread and input bar.
  */
 
-import { useRef } from 'react'
+import { useRef, useState, useCallback } from 'react'
 import { BranchNav } from '@/components/conversation/branch-nav'
 import { MessageInput } from '@/components/conversation/message-input'
-import { MessageThread, MessageThreadHandle } from '@/components/conversation/message-thread'
+import { MessageThread, type MessageThreadHandle } from '@/components/conversation/message-thread'
 import { ThreadNavigator } from '@/components/conversation/thread-navigator'
 import { useAgentStream } from '@/hooks/use-agent-stream'
 import { useMessagesWithStream } from '@/hooks/use-messages'
@@ -20,16 +20,24 @@ export function CenterPanel() {
   const { data: workspaces = [] } = useWorkspaces()
   const activeWorkspace = workspaces.find((w) => w.id === workspaceId)
   const workspaceRoot = activeWorkspace?.path
+
   const threadRef = useRef<MessageThreadHandle>(null)
 
-  // Subscribe to streaming events for the active conversation.
   useAgentStream(activeConversationId)
 
   const messages = useMessagesWithStream(activeConversationId, activeBranchId)
 
-  const scrollToMessage = (index: number) => {
+  // MessageThread reports the nearest user-message index directly —
+  // no re-mapping needed here.
+  const [activeUserMessageIndex, setActiveUserMessageIndex] = useState<number | undefined>(undefined)
+
+  const handleVisibleUserIndexChange = useCallback((index: number) => {
+    setActiveUserMessageIndex(index)
+  }, [])
+
+  const scrollToMessage = useCallback((index: number) => {
     threadRef.current?.scrollToMessage(index)
-  }
+  }, [])
 
   if (!activeConversationId) {
     return (
@@ -47,22 +55,28 @@ export function CenterPanel() {
 
   return (
     <div className="relative flex flex-col h-full">
-      {/* Branch navigation bar — only shown when a branch is active and branches exist */}
       {activeConversationId && (
         <BranchNav conversationId={activeConversationId} />
       )}
 
-      {/* Virtualized message thread */}
-      <div className="flex-1 min-h-0">
-        <MessageThread ref={threadRef} messages={messages} />
+      {/* relative here so ThreadNavigator positions against the thread area
+          only — it won't overlap the input bar or branch nav */}
+      <div className="relative flex-1 min-h-0">
+        <MessageThread
+          ref={threadRef}
+          messages={messages}
+          onVisibleUserIndexChange={handleVisibleUserIndexChange}
+        />
+
+        {messages.length > 2 && (
+          <ThreadNavigator
+            messages={messages}
+            onScrollTo={scrollToMessage}
+            activeIndex={activeUserMessageIndex}
+          />
+        )}
       </div>
 
-      {/* Thread navigator */}
-      {messages.length > 2 && (
-        <ThreadNavigator messages={messages} onScrollTo={scrollToMessage} />
-      )}
-
-      {/* Input bar */}
       <div className="shrink-0 border-t border-border">
         <MessageInput conversationId={activeConversationId} workspaceRoot={workspaceRoot} />
       </div>
