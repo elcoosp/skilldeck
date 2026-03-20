@@ -3,30 +3,46 @@ import { motion } from 'framer-motion'
 import * as React from 'react'
 import type { MessageData } from '@/lib/bindings'
 import { MessageBubble } from './message-bubble'
-import ThreadNavigator from './thread-navigator'
+
+// ─── Scroll token ─────────────────────────────────────────────────────────────
+// We save the message ID of the topmost visible item, not a pixel offset or a
+// virtualizer index.
+//
+// Why ID instead of index + offsetFromTop:
+//   • The virtualizer's `item.start` is TRANSIENT — it reflects estimated sizes
+//     at the moment of capture. When a navigator click is in-flight, items are
+//     still measuring and totalSize is collapsing. A large `offsetFromTop` (e.g.
+//     14282px from inside a 600px estimated / 14283px actual assistant block)
+//     subtracts from a `scrollTop` of 0 after restore, clamping to 0 = top.
+//   • Message IDs are stable across mounts. We look up the ID in the new
+//     filteredMessages array to get the current filtered index, then call
+//     `scrollToIndex(index, { align: 'start' })` — no pixel math at all.
+//   • `scrollToIndex` with `align:'start'` is exactly what TanStack is designed
+//     for: it handles estimated vs actual sizes internally.
+export interface ScrollToken {
+  /** The stable message ID of the topmost fully-or-partially visible item. */
+  messageId: string
+  /**
+   * The exact scrollTop at capture time (px). All items in the viewport have
+   * been measured by the virtualizer at this point, so this is the true pixel
+   * offset — not an estimate. We use it directly as `initialOffset` on the next
+   * mount so the virtualizer seeds its internal state at the right position.
+   */
+  scrollTop: number
+}
 
 export interface MessageThreadHandle {
+  /** Scroll to a message by its index in the *full* (unfiltered) messages array. */
   scrollToMessage: (index: number) => void
-  scrollToIndex: (index: number, options?: { behavior?: 'auto' | 'smooth' }) => void
-  getScrollToken: () => ScrollToken
-  getScrollPosition: () => number
-  scrollToPosition: (position: number) => void
+  scrollToIndex: (index: number, options?: { behavior?: 'auto' | 'smooth'; align?: 'start' | 'center' | 'end' }) => void
+  /** Capture the current scroll position as a stable ID-based token. */
+  getScrollToken: () => ScrollToken | null
   getTotalHeight: () => number
   getClientHeight: () => number
+  getScrollPosition: () => number
+  /** Subscribe to scroll events on the inner scroll element. Returns unsubscribe fn. */
+  onScroll: (cb: () => void) => () => void
 }
-
-export interface ScrollToken {
-  // ID of the first visible message when the token was saved.
-  // Stable across mounts regardless of virtualizer estimated heights.
-  anchorId: string
-  // How many pixels the scroll position was past the top of that message.
-  // Used for sub-message precision.
-  offsetFromAnchor: number
-  // Total message count at save time — if it has grown we fall back to bottom.
-  messageCount: number
-}
-
-type ScrollIntent = 'idle' | 'restoring' | 'navigating' | 'streaming'
 
 interface MessageThreadProps {
   messages: MessageData[]
@@ -34,10 +50,11 @@ interface MessageThreadProps {
   isLoading?: boolean
   searchQuery?: string
   highlightedMessageId?: string | null
-  initialScrollToken?: ScrollToken
+  /** ID-based token from getScrollToken() — used to restore position on mount. */
+  initialScrollToken?: ScrollToken | null
   autoScroll?: boolean
-  onNavigatorScrollTo?: (index: number) => void
-  onManualScroll?: () => void
+  /** Reports the index (in the full messages array) of the user message nearest the viewport centre. */
+  onVisibleUserIndexChange?: (index: number) => void
 }
 
 export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThreadProps>(
@@ -50,307 +67,328 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
       highlightedMessageId,
       initialScrollToken,
       autoScroll = true,
-      onNavigatorScrollTo,
-      onManualScroll,
+      onVisibleUserIndexChange,
     },
     ref
   ) => {
     const scrollRef = React.useRef<HTMLDivElement>(null)
+    const renderCount = React.useRef(0)
+    renderCount.current++
 
+    console.log(`[MessageThread] render #${renderCount.current} | messages=${messages.length} query="${searchQuery}" streaming=${streamingMessageId ?? 'none'} token=${initialScrollToken?.messageId ?? 'none'}`)
+
+    // ─── Filtered messages ───────────────────────────────────────────────────
     const filteredMessages = React.useMemo(() => {
-      if (!searchQuery.trim()) return messages
+      if (!searchQuery.trim()) {
+        console.log(`[MessageThread][filter] no query — returning all ${messages.length} messages`)
+        return messages
+      }
       const q = searchQuery.toLowerCase()
-      return messages.filter((m) => m.content.toLowerCase().includes(q))
+      const result = messages.filter((m) => m.content.toLowerCase().includes(q))
+      console.log(`[MessageThread][filter] query="${searchQuery}" matched ${result.length}/${messages.length}`)
+      return result
     }, [messages, searchQuery])
 
     const filteredMessagesRef = React.useRef(filteredMessages)
     filteredMessagesRef.current = filteredMessages
 
-    // ─── Scroll intent ────────────────────────────────────────────────────────
-    const scrollIntent = React.useRef<ScrollIntent>('idle')
-    const intentTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+    // ─── Restoration state (declared before virtualizer) ─────────────────────
+    // restorationAppliedRef: one-shot guard so we only call scrollToIndex once.
+    // initialScrollTokenRef: stable ref so the onChange closure reads the token
+    // without becoming stale across re-renders.
+    const restorationAppliedRef = React.useRef(false)
+    const restorationSeededRef = React.useRef(false)
+    const initialScrollTokenRef = React.useRef(initialScrollToken)
+    // computedInitialOffset: non-zero means a restore token is present.
+    // Used as the guard for InitScroll / StreamScroll — no pixel math involved.
+    const computedInitialOffset = React.useMemo(() => {
+      if (!initialScrollToken || typeof initialScrollToken.messageId !== 'string') return 0
+      console.log(`[Restoration] token present — messageId=${initialScrollToken.messageId}`)
+      return 1 // truthy sentinel; actual scroll done via scrollToIndex below
+    }, []) // eslint-disable-line react-hooks/exhaustive-deps — mount-only
 
-    const setIntent = React.useCallback((intent: ScrollIntent, durationMs = 150) => {
-      if (intentTimerRef.current) clearTimeout(intentTimerRef.current)
-      scrollIntent.current = intent
-      if (intent !== 'idle') {
-        intentTimerRef.current = setTimeout(() => {
-          scrollIntent.current = 'idle'
-          intentTimerRef.current = null
-        }, durationMs)
-      }
-    }, [])
-
-    // ─── Pending correction ───────────────────────────────────────────────────
-    // Tracks a scroll target that needs correcting once the target item has been
-    // truly measured (not just estimated) by the virtualizer.
-    //
-    // The key insight: getVirtualItems() returns items with their ESTIMATED size
-    // until measureElement() runs on the DOM node. We must not read target.start
-    // until the cache entry for that index shows a size different from the
-    // estimate — only then is the position accurate for dynamic-height rows.
-    const pendingCorrectionRef = React.useRef<{
-      index: number
-      mode: 'navigate' | 'restore'
-      // 'restore' only: pixel offset from the top of the anchor item to apply
-      // once the convergence loop has placed that item correctly on screen.
-      offsetFromAnchor?: number
-      // Convergence detection: position recorded after the most recent
-      // scrollToIndex call we issued. undefined = no scroll issued yet.
-      lastScrollTopAfterScroll?: number
-      // Whether we have issued at least one scrollToIndex in this correction pass.
-      hasScrolled: boolean
-    } | null>(null)
-
-    // ─── Virtualizer ──────────────────────────────────────────────────────────
+    // ─── Virtualizer ─────────────────────────────────────────────────────────
     const virtualizer = useVirtualizer({
       count: filteredMessages.length,
       getScrollElement: () => scrollRef.current,
-      estimateSize: () => 500,
-      overscan: 5,
-      measureElement: (el) => el.getBoundingClientRect().height,
-      onChange: (instance) => {
-        const pending = pendingCorrectionRef.current
-        if (!pending) return
-        if (instance.isScrolling) return
+      estimateSize: (index) => {
+        const msg = filteredMessages[index]
+        const estimate = msg?.role === 'assistant' ? 600 : 80
+        console.log(`[Virtualizer][estimateSize] index=${index} role=${msg?.role ?? 'unknown'} estimate=${estimate}px`)
+        return estimate
+      },
+      overscan: 8,
+      measureElement: (el) => {
+        const h = el.getBoundingClientRect().height
+        console.log(`[Virtualizer][measureElement] data-index=${el.dataset.index} height=${h}px`)
+        return h
+      },
+      onChange: (instance, sync) => {
+        const items = instance.getVirtualItems()
+        const range = items.length > 0 ? `[${items[0].index}…${items[items.length - 1].index}]` : 'empty'
+        console.log(`[Virtualizer][onChange] sync=${sync} offset=${instance.scrollOffset} totalSize=${instance.getTotalSize()} range=${range} isScrolling=${instance.isScrolling} dir=${instance.scrollDirection ?? 'none'}`)
 
-        const el = scrollRef.current
-        if (!el) {
-          pendingCorrectionRef.current = null
-          return
-        }
+        // ── Scroll restoration ────────────────────────────────────────────────
+        // Strategy:
+        //   Phase 1: target not yet rendered → use scrollToOffset with a rough
+        //            estimate to bring the target into the rendered range.
+        //   Phase 2: target is in range (measured) → call scrollToIndex for the
+        //            precise position. scrollToIndex uses real measured sizes, so
+        //            it lands correctly even for 14000px+ assistant messages.
+        if (!restorationAppliedRef.current && items.length > 0) {
+          const token = initialScrollTokenRef.current
+          if (token && typeof token.messageId === 'string') {
+            const idx = filteredMessagesRef.current.findIndex((m) => m.id === token.messageId)
+            if (idx !== -1) {
+              const firstIdx = items[0].index
+              const lastIdx = items[items.length - 1].index
+              const targetInRange = idx >= firstIdx && idx <= lastIdx
 
-        const currentScrollTop = el.scrollTop
-        const intent = pending.mode === 'restore' ? 'restoring' : 'navigating'
-
-        // onChange fires both when scroll position changes AND when items are
-        // measured. We must not treat a measurement-only event as convergence —
-        // the position may be stable only because we haven't scrolled yet, not
-        // because the target is correctly positioned.
-        //
-        // Convergence requires:
-        //   (a) we have issued at least one scrollToIndex toward the target, AND
-        //   (b) the position did not change after that scroll (within 4px).
-        //
-        // If (a) is not met, always issue a scroll first.
-        // If (a) is met but (b) is not, record the new position and scroll again.
-        // If both are met, the target is correctly positioned — apply any offset.
-        if (!pending.hasScrolled) {
-          // First call: issue the initial scroll toward the target.
-          pending.hasScrolled = true
-          pending.lastScrollTopAfterScroll = currentScrollTop
-          setIntent(intent, 300)
-          instance.scrollToIndex(pending.index, { behavior: 'auto', align: 'start' })
-          return
-        }
-
-        const settled =
-          pending.lastScrollTopAfterScroll !== undefined &&
-          Math.abs(currentScrollTop - pending.lastScrollTopAfterScroll) <= 4
-
-        if (!settled) {
-          // Position moved after our last scroll — measurements updated the layout.
-          // Record and scroll again.
-          pending.lastScrollTopAfterScroll = currentScrollTop
-          setIntent(intent, 300)
-          instance.scrollToIndex(pending.index, { behavior: 'auto', align: 'start' })
-          return
-        }
-
-        // Converged. For restore mode, add the sub-item offset on top.
-        if (pending.mode === 'restore' && pending.offsetFromAnchor != null && pending.offsetFromAnchor > 0) {
-          const desired = Math.min(
-            currentScrollTop + pending.offsetFromAnchor,
-            el.scrollHeight - el.clientHeight
-          )
-          if (Math.abs(currentScrollTop - desired) > 4) {
-            pendingCorrectionRef.current = null
-            setIntent('restoring', 200)
-            el.scrollTop = desired
-            return
+              if (targetInRange && !instance.isScrolling) {
+                // Phase 2: target is rendered and measured — lock in the position.
+                restorationAppliedRef.current = true
+                console.log(`[Restoration] ✅ target=${idx} measured in range=[${firstIdx}…${lastIdx}] — scrollToIndex`)
+                requestAnimationFrame(() => {
+                  instance.scrollToIndex(idx, { align: 'start', behavior: 'auto' })
+                })
+              } else if (!targetInRange && !restorationSeededRef.current) {
+                // Phase 1: target not yet rendered — scroll close enough to bring it in.
+                restorationSeededRef.current = true
+                // Estimate the pixel offset: sum estimated sizes of items before target.
+                let estimatedOffset = 0
+                for (let i = 0; i < idx; i++) {
+                  const msg = filteredMessagesRef.current[i]
+                  estimatedOffset += msg?.role === 'assistant' ? 600 : 80
+                }
+                console.log(`[Restoration] phase-1 seed scrollToOffset=${estimatedOffset} to bring target=${idx} into range`)
+                instance.scrollToOffset(estimatedOffset, { behavior: 'auto' })
+              }
+            } else {
+              console.warn(`[Restoration] messageId=${token.messageId} not found — skipping`)
+              restorationAppliedRef.current = true
+            }
           }
         }
-
-        pendingCorrectionRef.current = null
       },
     })
 
     const virtualizerRef = React.useRef(virtualizer)
     virtualizerRef.current = virtualizer
 
-    // ─── Restoration ─────────────────────────────────────────────────────────
-    const restorationDoneRef = React.useRef(false)
+    // ─── 1. Scroll Restoration ────────────────────────────────────────────────
+    // Handled inside onChange above.
 
-    React.useLayoutEffect(() => {
-      if (restorationDoneRef.current) return
-      if (filteredMessages.length === 0) return
+    // ─── 2. New Conversation — scroll to bottom ───────────────────────────────
+    const sentToBottomRef = React.useRef(false)
 
-      restorationDoneRef.current = true
-      setIntent('restoring', 300)
+    React.useEffect(() => {
+      const hasRestoreToken = !!computedInitialOffset
+      console.log(`[InitScroll] length=${filteredMessages.length} hasRestoreToken=${hasRestoreToken} sentToBottom=${sentToBottomRef.current}`)
 
-      const token = initialScrollToken
-      const countMatches = token != null && token.messageCount === filteredMessages.length
-
-      if (!token || !countMatches) {
-        // No saved position or conversation has grown since last visit — go to bottom.
-        virtualizer.scrollToIndex(filteredMessages.length - 1, { align: 'end', behavior: 'auto' })
+      if (hasRestoreToken) {
+        sentToBottomRef.current = true
+        console.log('[InitScroll] restore token present — skipping')
+        return
+      }
+      if (sentToBottomRef.current) {
+        console.log('[InitScroll] already sent — skipping')
+        return
+      }
+      if (filteredMessages.length === 0) {
+        console.log('[InitScroll] no messages yet — deferring')
         return
       }
 
-      // Resolve anchor message ID → index. Message IDs are stable regardless of
-      // virtualizer height estimates, so this lookup is always accurate.
-      const anchorIndex = filteredMessages.findIndex((m) => m.id === token.anchorId)
-      if (anchorIndex === -1) {
-        // Anchor message no longer exists (e.g. deleted) — fall back to bottom.
-        virtualizer.scrollToIndex(filteredMessages.length - 1, { align: 'end', behavior: 'auto' })
-        return
-      }
+      sentToBottomRef.current = true
+      const idx = filteredMessages.length - 1
+      console.log(`[InitScroll] 📉 new conversation — scrollToIndex(${idx}, end, auto)`)
+      virtualizerRef.current.scrollToIndex(idx, { align: 'end', behavior: 'auto' })
+    }, [filteredMessages.length, computedInitialOffset])
 
-      // Register the correction pass. The convergence loop in onChange will call
-      // scrollToIndex(anchorIndex) until the position stabilises, then apply
-      // offsetFromAnchor to land at the exact sub-item pixel.
-      pendingCorrectionRef.current = {
-        index: anchorIndex,
-        mode: 'restore',
-        offsetFromAnchor: token.offsetFromAnchor,
-        hasScrolled: false,
-      }
-
-      virtualizer.scrollToIndex(anchorIndex, { align: 'start', behavior: 'auto' })
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [filteredMessages.length])
-
-    // ─── Search resets ────────────────────────────────────────────────────────
+    // ─── 3. Search — reset scroll ─────────────────────────────────────────────
     React.useLayoutEffect(() => {
-      if (scrollRef.current) scrollRef.current.scrollTop = 0
+      if (searchQuery.trim()) {
+        console.log(`[SearchReset] query="${searchQuery}" — scrollToOffset(0)`)
+        virtualizerRef.current.scrollToOffset(0, { behavior: 'auto' })
+      }
     }, [searchQuery])
 
     React.useEffect(() => {
-      virtualizer.measure()
-    }, [searchQuery, virtualizer])
+      if (searchQuery.trim()) {
+        console.log(`[SearchReset] query="${searchQuery}" — measure()`)
+        virtualizerRef.current.measure()
+      }
+    }, [searchQuery])
 
-    // ─── Streaming auto-scroll ────────────────────────────────────────────────
+    // ─── 4. Streaming Auto-scroll ─────────────────────────────────────────────
     const prevCountRef = React.useRef(filteredMessages.length)
-    const userScrolledUpRef = React.useRef(false)
-    const lastStreamingIdRef = React.useRef<string | undefined>(undefined)
-    const lastStreamingContentRef = React.useRef<string>('')
 
     React.useEffect(() => {
-      if (streamingMessageId && streamingMessageId !== lastStreamingIdRef.current) {
-        userScrolledUpRef.current = false
-        lastStreamingIdRef.current = streamingMessageId
+      const prev = prevCountRef.current
+      const curr = filteredMessages.length
+      prevCountRef.current = curr
+
+      const hasRestoreToken = !!computedInitialOffset
+
+      if (hasRestoreToken || !autoScroll || !streamingMessageId || curr <= prev || searchQuery) {
+        console.log(`[StreamScroll] skipping — hasRestore=${hasRestoreToken} autoScroll=${autoScroll} streaming=${streamingMessageId ?? 'none'} prev=${prev} curr=${curr} search="${searchQuery}"`)
+        return
       }
-      if (!streamingMessageId) {
-        lastStreamingIdRef.current = undefined
-      }
-    }, [streamingMessageId])
 
-    React.useEffect(() => {
-      if (!autoScroll || !streamingMessageId || searchQuery) return
-      if (userScrolledUpRef.current) return
+      const idx = curr - 1
+      console.log(`[StreamScroll] 🔴 new message — scrollToIndex(${idx}, end, smooth)`)
+      virtualizerRef.current.scrollToIndex(idx, { behavior: 'smooth', align: 'end' })
+    }, [filteredMessages.length, streamingMessageId, searchQuery, autoScroll, computedInitialOffset])
 
-      const streamingMsg = filteredMessages.find((m) => m.id === streamingMessageId)
-      const currentContent = streamingMsg?.content ?? ''
+    // ─── 5. Visible User Index Tracking ──────────────────────────────────────
+    // Uses topmost-visible-item logic (same as getScrollToken) then walks back
+    // to the nearest preceding user message. Pure index-based, no pixel heuristics.
 
-      const countChanged = filteredMessages.length !== prevCountRef.current
-      const contentChanged = currentContent !== lastStreamingContentRef.current
+    const callbackRef = React.useRef(onVisibleUserIndexChange)
+    React.useLayoutEffect(() => {
+      callbackRef.current = onVisibleUserIndexChange
+    })
 
-      prevCountRef.current = filteredMessages.length
-      lastStreamingContentRef.current = currentContent
-
-      if (countChanged || contentChanged) {
-        setIntent('streaming', 150)
-        virtualizer.scrollToIndex(filteredMessages.length - 1, { align: 'end', behavior: 'smooth' })
-      }
-    }, [filteredMessages, streamingMessageId, searchQuery, autoScroll, virtualizer, setIntent])
-
-    // ─── Scroll listener ──────────────────────────────────────────────────────
     React.useEffect(() => {
       const el = scrollRef.current
-      if (!el) return
+      if (!el || !onVisibleUserIndexChange) {
+        console.log('[VisibleIndex] skipping — no element or no callback')
+        return
+      }
 
-      const onScroll = () => {
-        if (scrollIntent.current !== 'idle') return
-        onManualScroll?.()
-        if (streamingMessageId) {
-          const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
-          userScrolledUpRef.current = distanceFromBottom > 80
+      const filteredToFull = new Map<number, number>()
+      filteredMessages.forEach((msg, fi) => {
+        const fullIndex = messages.findIndex((m) => m.id === msg.id)
+        if (fullIndex !== -1) filteredToFull.set(fi, fullIndex)
+      })
+
+      const userFilteredIndices = filteredMessages
+        .map((m, i) => (m.role === 'user' ? i : -1))
+        .filter((i) => i !== -1)
+
+      console.log(`[VisibleIndex] setup — userFilteredIndices=${userFilteredIndices.length} filteredToFull=${filteredToFull.size}`)
+
+      if (userFilteredIndices.length === 0) {
+        console.log('[VisibleIndex] no user messages — skipping')
+        return
+      }
+
+      let lastReportedFullIndex = -1
+
+      const report = () => {
+        const vItems = virtualizerRef.current.getVirtualItems()
+        if (vItems.length === 0) return
+
+        const scrollTop = el.scrollTop
+
+        // Topmost rendered item whose start is at or above scrollTop.
+        let topItem = vItems[0]
+        for (const item of vItems) {
+          if (item.start <= scrollTop) topItem = item
+          else break
+        }
+
+        // Last user message at or before the topmost item index.
+        let bestUserFilteredIndex = userFilteredIndices[0]
+        for (const ui of userFilteredIndices) {
+          if (ui <= topItem.index) bestUserFilteredIndex = ui
+          else break
+        }
+
+        const fullIndex = filteredToFull.get(bestUserFilteredIndex) ?? -1
+        console.log(`[VisibleIndex][report] scrollTop=${scrollTop} topItem=${topItem.index} bestUserFiltered=${bestUserFilteredIndex} fullIndex=${fullIndex} lastReported=${lastReportedFullIndex}`)
+
+        if (fullIndex !== -1 && fullIndex !== lastReportedFullIndex) {
+          lastReportedFullIndex = fullIndex
+          console.log(`[VisibleIndex][report] 📡 reporting fullIndex=${fullIndex}`)
+          callbackRef.current?.(fullIndex)
         }
       }
 
-      el.addEventListener('scroll', onScroll, { passive: true })
-      return () => el.removeEventListener('scroll', onScroll)
-    }, [streamingMessageId, onManualScroll])
+      el.addEventListener('scroll', report, { passive: true })
+      const t = setTimeout(report, 50)
+      console.log('[VisibleIndex] scroll listener attached')
 
-    // ─── Navigator scroll ─────────────────────────────────────────────────────
-    const handleNavigatorScrollTo = React.useCallback(
-      (idx: number) => {
-        onNavigatorScrollTo?.(idx)
-        pendingCorrectionRef.current = null
-        setIntent('navigating', 300)
-        pendingCorrectionRef.current = { index: idx, mode: 'navigate', hasScrolled: false }
-        virtualizer.scrollToIndex(idx, { align: 'start', behavior: 'auto' })
-      },
-      [onNavigatorScrollTo, virtualizer, setIntent]
-    )
+      return () => {
+        console.log('[VisibleIndex] 🧹 cleanup')
+        clearTimeout(t)
+        el.removeEventListener('scroll', report)
+      }
+    }, [filteredMessages, messages, onVisibleUserIndexChange])
 
-    // ─── Imperative handle ────────────────────────────────────────────────────
+    // ─── Imperative handle ───────────────────────────────────────────────────
     React.useImperativeHandle(
       ref,
       () => ({
-        scrollToMessage: (index: number) => {
-          pendingCorrectionRef.current = null
-          setIntent('navigating', 600)
-          pendingCorrectionRef.current = { index, mode: 'navigate', hasScrolled: false }
-          virtualizer.scrollToIndex(index, { behavior: 'smooth', align: 'start' })
-        },
-        scrollToIndex: (index, options) => {
-          pendingCorrectionRef.current = null
-          setIntent('navigating', 300)
-          pendingCorrectionRef.current = { index, mode: 'navigate', hasScrolled: false }
-          virtualizer.scrollToIndex(index, options)
-        },
-        getScrollToken: (): ScrollToken => {
-          const el = scrollRef.current
-          const msgs = filteredMessagesRef.current
-          const count = msgs.length
-          if (!el || count === 0) {
-            return { anchorId: '', offsetFromAnchor: 0, messageCount: count }
+        scrollToMessage: (fullIndex: number) => {
+          const targetId = messages[fullIndex]?.id
+          if (!targetId) {
+            console.warn(`[Imperative][scrollToMessage] no message at fullIndex=${fullIndex}`)
+            return
           }
+          const filteredIndex = filteredMessagesRef.current.findIndex((m) => m.id === targetId)
+          if (filteredIndex === -1) {
+            console.warn(`[Imperative][scrollToMessage] id=${targetId} not in filtered set (search active?)`)
+            return
+          }
+          console.log(`[Imperative][scrollToMessage] fullIndex=${fullIndex} id=${targetId} → filteredIndex=${filteredIndex}`)
+          virtualizerRef.current.scrollToIndex(filteredIndex, { behavior: 'auto', align: 'start' })
+        },
+
+        scrollToIndex: (index, options) => {
+          console.log(`[Imperative][scrollToIndex] index=${index} options=${JSON.stringify(options ?? {})}`)
+          virtualizerRef.current.scrollToIndex(index, options)
+        },
+
+        getScrollToken: (): ScrollToken | null => {
+          const el = scrollRef.current
+          if (!el) return null
+          const vItems = virtualizerRef.current.getVirtualItems()
+          if (vItems.length === 0) return null
 
           const scrollTop = el.scrollTop
-          const items = virtualizerRef.current.getVirtualItems()
 
-          // Find the first virtual item whose bottom edge is below the current
-          // scrollTop — that is the topmost visible message.
-          const topItem = items.find((item) => item.start + item.size > scrollTop) ?? items[0]
-          if (!topItem) {
-            return { anchorId: '', offsetFromAnchor: 0, messageCount: count }
+          // Find the topmost rendered item whose start is at or above scrollTop.
+          let topItem = vItems[0]
+          for (const item of vItems) {
+            if (item.start <= scrollTop) topItem = item
+            else break
           }
 
-          const anchorMessage = msgs[topItem.index]
-          return {
-            anchorId: anchorMessage?.id ?? '',
-            // How many px past the top of this item the viewport currently sits.
-            offsetFromAnchor: Math.max(0, scrollTop - topItem.start),
-            messageCount: count,
+          const message = filteredMessagesRef.current[topItem.index]
+          if (!message) {
+            console.warn(`[Imperative][getScrollToken] no message at filteredIndex=${topItem.index}`)
+            return null
           }
+
+          const token: ScrollToken = { messageId: message.id, scrollTop }
+          console.log(`[Imperative][getScrollToken] scrollTop=${scrollTop} topItem.index=${topItem.index} topItem.start=${topItem.start} messageId=${message.id} content="${message.content.slice(0, 30)}"`)
+          return token
         },
-        getScrollPosition: () => scrollRef.current?.scrollTop ?? 0,
-        scrollToPosition: (pos: number) => {
-          const el = scrollRef.current
-          if (!el) return
-          setIntent('navigating', 150)
-          el.scrollTop = pos
-        },
-        getTotalHeight: () => virtualizer.getTotalSize(),
+
+        getTotalHeight: () => virtualizerRef.current.getTotalSize(),
+
         getClientHeight: () => scrollRef.current?.clientHeight ?? 0,
+
+        getScrollPosition: () => scrollRef.current?.scrollTop ?? 0,
+
+        onScroll: (cb: () => void) => {
+          const el = scrollRef.current
+          if (!el) return () => { }
+          el.addEventListener('scroll', cb, { passive: true })
+          return () => el.removeEventListener('scroll', cb)
+        },
       }),
-      [virtualizer, setIntent]
+      [messages]
     )
 
-    // ─── Render ───────────────────────────────────────────────────────────────
+    // ─── Render ──────────────────────────────────────────────────────────────
     const virtualItems = virtualizer.getVirtualItems()
+    const range = virtualItems.length > 0
+      ? `[${virtualItems[0].index}…${virtualItems[virtualItems.length - 1].index}]`
+      : 'empty'
+
+    console.log(`[MessageThread][render] #${renderCount.current} filtered=${filteredMessages.length} items=${virtualItems.length} totalSize=${virtualizer.getTotalSize()} range=${range} offset=${virtualizer.scrollOffset}`)
 
     return (
       <div className="relative h-full">
@@ -376,18 +414,12 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
               animate={{ opacity: 1 }}
               transition={{ duration: 0.2 }}
             >
-              <img
-                src="/illustrations/empty-messages.svg"
-                alt="Empty conversation"
-                className="w-48 h-48 mb-4 opacity-90"
-              />
+              <img src="/illustrations/empty-messages.svg" alt="Empty conversation" className="w-48 h-48 mb-4 opacity-90" />
               <h3 className="text-lg font-semibold text-foreground mb-1">
                 {searchQuery ? 'No matching messages' : 'This conversation is empty'}
               </h3>
               <p className="text-sm text-muted-foreground max-w-xs">
-                {searchQuery
-                  ? 'Try a different search term.'
-                  : 'Type a message below to begin your chat with the agent.'}
+                {searchQuery ? 'Try a different search term.' : 'Type a message below to begin your chat with the agent.'}
               </p>
             </motion.div>
           )}
@@ -401,7 +433,6 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
                     key={message.id}
                     ref={virtualizer.measureElement}
                     data-index={virtualItem.index}
-                    data-message-index={virtualItem.index}
                     style={{
                       position: 'absolute',
                       top: 0,
@@ -424,15 +455,6 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
             </div>
           )}
         </div>
-
-        {filteredMessages.length > 2 && (
-          <ThreadNavigator
-            messages={filteredMessages}
-            scrollRef={scrollRef}
-            virtualizerRef={virtualizerRef}
-            onScrollTo={handleNavigatorScrollTo}
-          />
-        )}
       </div>
     )
   }

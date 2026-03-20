@@ -14,6 +14,7 @@ import {
   type MessageThreadHandle,
   type ScrollToken,
 } from '@/components/conversation/message-thread'
+import ThreadNavigator from '@/components/conversation/thread-navigator'
 import { useAgentStream } from '@/hooks/use-agent-stream'
 import { useActiveConversationWorkspaceId } from '@/hooks/use-conversations'
 import { useMessagesWithStream } from '@/hooks/use-messages'
@@ -21,6 +22,11 @@ import { useWorkspaces } from '@/hooks/use-workspaces'
 import { useUIStore } from '@/store/ui'
 import { cn } from '@/lib/utils'
 
+// ─── Scroll token cache ───────────────────────────────────────────────────────
+// Keyed by `${conversationId}_${branchId ?? 'main'}`.
+// Stores ID-based tokens: just the message ID of the topmost visible item.
+// On restore we look up the message ID in filteredMessages and call scrollToIndex.
+// This is immune to transient virtualizer state (mid-scroll measurements, etc.).
 const scrollTokenCache = new Map<string, ScrollToken>()
 
 export function CenterPanel() {
@@ -39,6 +45,7 @@ export function CenterPanel() {
   const threadRef = useRef<MessageThreadHandle>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [showJumpToLatest, setShowJumpToLatest] = useState(false)
+  const [activeUserMessageIndex, setActiveUserMessageIndex] = useState<number | undefined>(undefined)
 
   useAgentStream(activeConversationId)
   const messages = useMessagesWithStream(activeConversationId, activeBranchId)
@@ -46,62 +53,66 @@ export function CenterPanel() {
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // ─── Stable conversation key ─────────────────────────────────────────────
   const activeKeyRef = useRef<string | undefined>(undefined)
   const activeKey = activeConversationId
     ? `${activeConversationId}_${activeBranchId ?? 'main'}`
     : undefined
 
-  // ─── Token save (render-body, synchronous) ────────────────────────────────
-  //
-  // We must save during the render that processes the key change — not in an
-  // effect cleanup — because React nullifies threadRef.current before parent
-  // effect cleanups run (the child unmounts first). By the time any useEffect
-  // cleanup would read threadRef.current it's already null.
-  //
-  // At this point in the render threadRef.current still points to the old
-  // (still-committed) MessageThread, so getScrollToken() returns valid data.
+  // ─── SYNCHRONOUS token save on key change ────────────────────────────────
+  // Runs during render (before the old MessageThread unmounts) so we capture
+  // the token while the virtualizer's virtual items are still valid.
   if (activeKeyRef.current !== activeKey) {
+    console.log(`[CenterPanel][keyChange] from="${activeKeyRef.current ?? 'none'}" to="${activeKey ?? 'none'}"`)
+
     if (activeKeyRef.current && threadRef.current) {
       const token = threadRef.current.getScrollToken()
-      // Always overwrite — we want the most recent scroll position. The only
-      // exception is zero-message conversations which have nothing to restore.
-      if (token.messageCount > 0 && token.anchorId !== '') {
+      if (token) {
+        console.log(`[CenterPanel][keyChange] 💾 saving token key="${activeKeyRef.current}" messageId=${token.messageId} scrollTop=${token.scrollTop}`)
         scrollTokenCache.set(activeKeyRef.current, token)
+      } else {
+        console.log(`[CenterPanel][keyChange] no token to save (thread empty or not mounted)`)
       }
     }
+
     activeKeyRef.current = activeKey
   }
 
-  // Read token for the conversation we're switching *to*. This is evaluated on
-  // the same render as the save above, so the cache is already populated.
-  const initialScrollToken = activeKey ? scrollTokenCache.get(activeKey) : undefined
+  const initialScrollToken = (() => {
+    if (!activeKey) return undefined
+    const cached = scrollTokenCache.get(activeKey)
+    // Guard against stale tokens from a previous format (e.g. { index, offsetFromTop })
+    // that may be in the cache from a hot-reload or old session.
+    if (!cached || typeof cached.messageId !== 'string' || typeof cached.scrollTop !== 'number') return undefined
+    return cached
+  })()
 
-  // ─── Manual scroll: clear saved position ─────────────────────────────────
-  // Called by MessageThread when a genuine user scroll is detected (intent === 'idle').
-  // Clearing here means the next conversation switch will fall back to bottom.
-  const handleManualScroll = useCallback(() => {
-    if (activeKey) {
-      scrollTokenCache.delete(activeKey)
-    }
-  }, [activeKey])
+  console.log(`[CenterPanel][render] activeKey="${activeKey ?? 'none'}" token=${initialScrollToken?.messageId ?? 'none'} messageCount=${messages.length} showJumpToLatest=${showJumpToLatest} activeUserMessageIndex=${activeUserMessageIndex ?? 'none'}`)
 
-  // ─── Navigator scroll callback ────────────────────────────────────────────
-  // MessageThread handles the actual scroll. We only need to update the cache
-  // and trigger the highlight. We do NOT save a new token here — the render-body
-  // save will capture wherever the user actually ends up when they next switch away.
+  // ─── Visible user index ───────────────────────────────────────────────────
+  const handleVisibleUserIndexChange = useCallback((index: number) => {
+    console.log(`[CenterPanel][visibleUserIndex] reported fullIndex=${index}`)
+    setActiveUserMessageIndex(index)
+  }, [])
+
+  // ─── ThreadNavigator scroll request ──────────────────────────────────────
   const handleNavigatorScrollTo = useCallback(
     (index: number) => {
-      if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current)
+      console.log(`[CenterPanel][navigatorScrollTo] fullIndex=${index} messages.length=${messages.length}`)
       const targetMessage = messages[index]
-      if (targetMessage) {
-        setHighlightedMessageId(targetMessage.id)
-        highlightTimeoutRef.current = setTimeout(() => setHighlightedMessageId(null), 800)
+      if (!targetMessage) {
+        console.warn(`[CenterPanel][navigatorScrollTo] no message at fullIndex=${index}`)
+        return
       }
+      if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current)
+      setHighlightedMessageId(targetMessage.id)
+      highlightTimeoutRef.current = setTimeout(() => setHighlightedMessageId(null), 800)
+      threadRef.current?.scrollToMessage(index)
     },
     [messages]
   )
 
-  // ─── Keyboard shortcut ────────────────────────────────────────────────────
+  // ─── Keyboard shortcut — ⌘F / Ctrl+F ─────────────────────────────────────
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
@@ -114,51 +125,68 @@ export function CenterPanel() {
   }, [])
 
   // ─── Jump-to-latest button visibility ────────────────────────────────────
-  const checkScrollPosition = useCallback(() => {
-    if (!threadRef.current) return
-    const pos = threadRef.current.getScrollPosition()
-    const totalHeight = threadRef.current.getTotalHeight()
-    const clientHeight = threadRef.current.getClientHeight()
-    if (totalHeight <= clientHeight) {
+  // Event-driven via onScroll subscription — no polling interval.
+
+  const messagesLengthRef = useRef(messages.length)
+  messagesLengthRef.current = messages.length
+
+  const computeShowJump = useCallback(() => {
+    const t = threadRef.current
+    if (!t) return
+    const pos = t.getScrollPosition()
+    const total = t.getTotalHeight()
+    const client = t.getClientHeight()
+    if (total <= client) {
       setShowJumpToLatest(false)
       return
     }
-    setShowJumpToLatest(pos + clientHeight < totalHeight - 100 && messages.length > 0)
-  }, [messages.length])
+    const nearBottom = pos + client >= total - 100
+    const next = !nearBottom && messagesLengthRef.current > 0
+    setShowJumpToLatest((prev) => {
+      if (prev !== next) {
+        console.log(`[CenterPanel][jumpLatest] pos=${pos} total=${total} client=${client} nearBottom=${nearBottom} shouldShow=${next}`)
+      }
+      return next
+    })
+  }, [])
 
   useEffect(() => {
-    const interval = setInterval(checkScrollPosition, 200)
-    return () => clearInterval(interval)
-  }, [checkScrollPosition])
+    const t = threadRef.current
+    if (!t) return
+    console.log('[CenterPanel][jumpLatest] subscribing to scroll events')
+    const unsub = t.onScroll(computeShowJump)
+    computeShowJump()
+    return () => {
+      console.log('[CenterPanel][jumpLatest] 🧹 unsubscribing')
+      unsub()
+    }
+  }, [activeKey, computeShowJump])
 
   useEffect(() => {
-    checkScrollPosition()
-  }, [messages, checkScrollPosition])
+    computeShowJump()
+  }, [messages.length, computeShowJump])
 
   // ─── Clear search on conversation switch ─────────────────────────────────
   useEffect(() => {
+    console.log(`[CenterPanel][searchReset] conversationId="${activeConversationId ?? 'none'}" — clearing search`)
     setSearchQuery('')
   }, [activeConversationId, setSearchQuery])
 
-  // ─── Highlight timeout cleanup ────────────────────────────────────────────
-  useEffect(() => {
-    return () => {
-      if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current)
-    }
-  }, [])
-
-  const modifierKey = navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'
-
+  // ─── Jump to latest ───────────────────────────────────────────────────────
   const jumpToLatest = () => {
     if (messages.length === 0) return
-    threadRef.current?.scrollToIndex(messages.length - 1, { behavior: 'smooth' })
-    const lastMsg = messages[messages.length - 1]
+    const lastIndex = messages.length - 1
+    console.log(`[CenterPanel][jumpToLatest] scrollToIndex(${lastIndex}, end, smooth)`)
+    threadRef.current?.scrollToIndex(lastIndex, { behavior: 'smooth', align: 'end' })
+    const lastMsg = messages[lastIndex]
     if (lastMsg) {
       setHighlightedMessageId(lastMsg.id)
       if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current)
       highlightTimeoutRef.current = setTimeout(() => setHighlightedMessageId(null), 800)
     }
   }
+
+  const modifierKey = navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'
 
   if (!activeConversationId) {
     return (
@@ -200,14 +228,14 @@ export function CenterPanel() {
             <X className="size-3.5" />
           </Button>
         )}
-        <label
-          className="flex items-center gap-1.5 text-xs text-muted-foreground select-none cursor-pointer shrink-0"
-          title="Auto-scroll to the bottom while a response streams in"
-        >
+        <label className="flex items-center gap-1.5 text-xs text-muted-foreground select-none cursor-pointer shrink-0">
           <input
             type="checkbox"
             checked={autoScroll}
-            onChange={(e) => setAutoScroll(e.target.checked)}
+            onChange={(e) => {
+              console.log(`[CenterPanel][autoScroll] toggled to ${e.target.checked}`)
+              setAutoScroll(e.target.checked)
+            }}
             className="size-3 accent-primary cursor-pointer"
           />
           Auto-scroll
@@ -223,9 +251,16 @@ export function CenterPanel() {
           highlightedMessageId={highlightedMessageId}
           initialScrollToken={initialScrollToken}
           autoScroll={autoScroll}
-          onNavigatorScrollTo={handleNavigatorScrollTo}
-          onManualScroll={handleManualScroll}
+          onVisibleUserIndexChange={handleVisibleUserIndexChange}
         />
+
+        {messages.length > 2 && (
+          <ThreadNavigator
+            messages={messages}
+            activeIndex={activeUserMessageIndex}
+            onScrollTo={handleNavigatorScrollTo}
+          />
+        )}
 
         <button
           type="button"

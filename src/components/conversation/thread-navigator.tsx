@@ -1,34 +1,18 @@
-import { memo, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useMemo, useState, useEffect, useRef } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { createPortal } from 'react-dom'
 import type { MessageData } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
 
-interface VirtualItem {
-  index: number
-  start: number
-  size: number
-}
-
-interface VirtualizerRef {
-  getVirtualItems: () => VirtualItem[]
-  // We might also need measurementsCache if available; but for now we only use getVirtualItems.
-  // However the original code used a custom `measurementsCache` that doesn't exist in the public API.
-  // We'll assume the virtualizer's internal cache is not needed; we'll rely on DOM transforms.
-  // The active index detection can work with DOM transforms as it did before.
-}
-
 interface ThreadNavigatorProps {
   messages: MessageData[]
-  scrollRef: React.RefObject<HTMLDivElement>
-  virtualizerRef: React.RefObject<VirtualizerRef>
+  activeIndex?: number
   onScrollTo: (index: number) => void
 }
 
 const ThreadNavigator = memo(function ThreadNavigator({
   messages,
-  scrollRef,
-  virtualizerRef,
+  activeIndex = -1,
   onScrollTo,
 }: ThreadNavigatorProps) {
   const userMessages = useMemo(
@@ -39,74 +23,11 @@ const ThreadNavigator = memo(function ThreadNavigator({
     [messages]
   )
 
-  const userIndices = useMemo(() => userMessages.map(({ idx }) => idx), [userMessages])
-
-  const userIndicesRef = useRef(userIndices)
-  userIndicesRef.current = userIndices
-
-  const [activeIndex, setActiveIndex] = useState(-1)
-
   useEffect(() => {
-    const el = scrollRef.current
-    if (!el) return
+    console.log(`[Navigator] 📍 activeIndex=${activeIndex} — ${userMessages.find(u => u.idx === activeIndex)?.msg.content.slice(0, 40) ?? 'none'}`)
+  }, [activeIndex, userMessages])
 
-    const onScroll = () => {
-      const indices = userIndicesRef.current
-      if (indices.length === 0) {
-        setActiveIndex((prev) => (prev === -1 ? prev : -1))
-        return
-      }
-
-      const { scrollTop, scrollHeight, clientHeight } = el
-      const maxScroll = scrollHeight - clientHeight
-
-      if (scrollTop <= 0) {
-        setActiveIndex((prev) => (prev === indices[0] ? prev : indices[0]))
-        return
-      }
-      if (maxScroll <= 0 || scrollTop >= maxScroll - 1) {
-        setActiveIndex((prev) =>
-          prev === indices[indices.length - 1] ? prev : indices[indices.length - 1]
-        )
-        return
-      }
-
-      // Use the virtualizer's measurements if available, otherwise fall back to DOM transforms
-      const virt = virtualizerRef.current
-      const cache = (virt as any)?.measurementsCache as Array<{ start: number }> | undefined
-
-      let result = indices[0]
-      for (const ui of indices) {
-        let top: number | null = null
-
-        // Try DOM transform first
-        const domItem = scrollRef.current?.querySelector(
-          `[data-message-index="${ui}"]`
-        ) as HTMLElement | null
-        if (domItem) {
-          const match = domItem.style.transform.match(/translateY\(([-\d.]+)px\)/)
-          if (match) top = parseFloat(match[1])
-        }
-
-        // Fall back to virtualizer cache if DOM failed
-        if (top === null && cache && cache[ui]) {
-          top = cache[ui].start
-        }
-
-        if (top === null) continue
-        if (top <= scrollTop + 1) result = ui
-        else break
-      }
-
-      setActiveIndex((prev) => (prev === result ? prev : result))
-    }
-
-    el.addEventListener('scroll', onScroll, { passive: true })
-    onScroll()
-
-    return () => el.removeEventListener('scroll', onScroll)
-  }, [scrollRef, virtualizerRef])
-
+  // ... (Hover & UI Logic)
   const [isHovering, setIsHovering] = useState(false)
   const [cardPosition, setCardPosition] = useState<{ top: number; left: number } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -157,7 +78,8 @@ const ThreadNavigator = memo(function ThreadNavigator({
   }
 
   const handleClick = (idx: number) => {
-    // Just call the parent's scroll handler – no direct virtualizer access
+    const msg = userMessages.find(u => u.idx === idx)
+    console.log(`[Navigator] 🖱️ clicked fullIndex=${idx} content="${msg?.msg.content.slice(0, 40) ?? 'unknown'}"`)
     onScrollTo(idx)
   }
 
@@ -175,7 +97,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
       >
         {userMessages.map(({ msg, idx }) => {
           const isActive = idx === activeIndex
-          const dotNumber = userIndices.indexOf(idx)
+          const dotNumber = userMessages.findIndex(u => u.idx === idx)
           return (
             <button
               key={msg.id}
