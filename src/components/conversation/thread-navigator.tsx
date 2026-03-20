@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { MessageData } from '@/lib/bindings'
@@ -23,42 +23,12 @@ interface ThreadNavigatorProps {
   onScrollTo: (index: number) => void
 }
 
-/**
- * Derives the index (in the full messages array) of the user message whose
- * position is closest to the top of the viewport.
- */
-function deriveActiveIndex(
-  scrollEl: HTMLDivElement,
-  virtualizer: VirtualizerRef,
-  userIndices: number[]
-): number {
-  if (userIndices.length === 0) return -1
-  const { scrollTop, scrollHeight, clientHeight } = scrollEl
-  const maxScroll = scrollHeight - clientHeight
-
-  if (scrollTop <= 0) return userIndices[0]
-  if (maxScroll <= 0 || scrollTop >= maxScroll - 1) return userIndices[userIndices.length - 1]
-
-  const items = virtualizer.getVirtualItems()
-  if (items.length === 0) return userIndices[0]
-
-  // Find the topmost item whose bottom edge is below the current scrollTop.
-  const topItem = items.find(item => item.start + item.size > scrollTop) ?? items[0]
-  const topIndex = topItem.index
-
-  // Closest user index to the top of the viewport.
-  return userIndices.reduce((best, ui) =>
-    Math.abs(ui - topIndex) < Math.abs(best - topIndex) ? ui : best
-  )
-}
-
 export function ThreadNavigator({
   messages,
   scrollRef,
   virtualizerRef,
   onScrollTo,
 }: ThreadNavigatorProps) {
-  // User message indices – stable across streaming.
   const userMessages = useMemo(
     () => messages
       .map((msg, idx) => ({ msg, idx }))
@@ -71,34 +41,59 @@ export function ThreadNavigator({
     [userMessages]
   )
 
-  // ── Active index from scroll events ──────────────────────────────────
-  const activeIndex = useSyncExternalStore(
-    (callback) => {
-      const el = scrollRef.current
-      if (!el) return () => { }
-      el.addEventListener('scroll', callback, { passive: true })
-      return () => el.removeEventListener('scroll', callback)
-    },
-    () => {
-      const el = scrollRef.current
-      const virt = virtualizerRef.current
-      if (!el || !virt || userIndices.length === 0) return -1
-      return deriveActiveIndex(el, virt, userIndices)
-    },
-    () => -1
-  )
+  const userIndicesRef = useRef(userIndices)
+  userIndicesRef.current = userIndices
 
-  // ── Optimistic active index override on click ────────────────────────
-  const [pinnedIndex, setPinnedIndex] = useState<number | null>(null)
-  const pinnedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [activeIndex, setActiveIndex] = useState(-1)
 
   useEffect(() => {
-    return () => {
-      if (pinnedTimerRef.current) clearTimeout(pinnedTimerRef.current)
-    }
-  }, [])
+    const el = scrollRef.current
+    if (!el) return
 
-  // ── Hover state for popup card ───────────────────────────────────────
+    const onScroll = () => {
+      const indices = userIndicesRef.current
+      if (indices.length === 0) {
+        setActiveIndex(-1)
+        return
+      }
+
+      const { scrollTop, scrollHeight, clientHeight } = el
+      const maxScroll = scrollHeight - clientHeight
+
+      if (scrollTop <= 0) {
+        setActiveIndex(indices[0])
+        return
+      }
+
+      if (maxScroll <= 0 || scrollTop >= maxScroll - 1) {
+        setActiveIndex(indices[indices.length - 1])
+        return
+      }
+
+      let result = indices[0]
+      for (const ui of indices) {
+        const item = scrollRef.current?.querySelector(`[data-message-index="${ui}"]`) as HTMLElement | null
+        if (!item) continue
+        const transform = item.style.transform
+        const match = transform.match(/translateY\(([-\d.]+)px\)/)
+        if (!match) continue
+        const top = parseFloat(match[1])
+
+        if (top <= scrollTop) {
+          result = ui
+        } else {
+          break
+        }
+      }
+      setActiveIndex(result)
+    }
+
+    el.addEventListener('scroll', onScroll, { passive: true })
+    onScroll()
+
+    return () => el.removeEventListener('scroll', onScroll)
+  }, [scrollRef])
+
   const [isHovering, setIsHovering] = useState(false)
   const [cardPosition, setCardPosition] = useState<{ top: number; left: number } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -146,16 +141,29 @@ export function ThreadNavigator({
   }
 
   const handleClick = (idx: number) => {
-    // Pin the active index immediately to prevent flicker during smooth scroll.
-    if (pinnedTimerRef.current) clearTimeout(pinnedTimerRef.current)
-    setPinnedIndex(idx)
-    pinnedTimerRef.current = setTimeout(() => setPinnedIndex(null), 500)
+    const dotNumber = userIndices.indexOf(idx)
+    console.log('[ThreadNavigator] click', {
+      idx,
+      dotNumber,
+      currentActiveIndex: activeIndex,
+    })
 
-    virtualizerRef.current?.scrollToIndex(idx, { behavior: 'smooth', align: 'start' })
+    const virt = virtualizerRef.current
+    if (!virt) return
+
+    virt.scrollToIndex(idx, { behavior: 'auto', align: 'start' })
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        virtualizerRef.current?.scrollToIndex(idx, { behavior: 'auto', align: 'start' })
+        requestAnimationFrame(() => {
+          virtualizerRef.current?.scrollToIndex(idx, { behavior: 'auto', align: 'start' })
+        })
+      })
+    })
+
     onScrollTo(idx)
   }
-
-  const effectiveActiveIndex = pinnedIndex ?? activeIndex
 
   return (
     <>
@@ -170,14 +178,15 @@ export function ThreadNavigator({
         onMouseLeave={handleMouseLeave}
       >
         {userMessages.map(({ msg, idx }) => {
-          const isActive = idx === effectiveActiveIndex
+          const isActive = idx === activeIndex
+          const dotNumber = userIndices.indexOf(idx)
           return (
             <button
               key={msg.id}
               type="button"
               className="group w-4 h-4 flex items-center justify-center pointer-events-auto"
               onClick={() => handleClick(idx)}
-              aria-label="Jump to message"
+              aria-label={`Jump to message ${dotNumber + 1}`}
             >
               <div className="w-3 h-[3px] flex items-center justify-start">
                 <motion.div
@@ -213,17 +222,20 @@ export function ThreadNavigator({
                 top: cardPosition.top,
                 left: cardPosition.left,
                 transform: 'translateY(-50%)',
-                maxHeight: 'min(380px, 70vh)',
+                height: 'min(380px, 70vh)', // fixed height, not maxHeight
               }}
               onMouseEnter={() => {
                 if (leaveTimer.current) clearTimeout(leaveTimer.current)
               }}
               onMouseLeave={handleMouseLeave}
             >
-              <ScrollArea className="h-full max-h-[inherit] pr-2">
+              <ScrollArea
+                className="h-full"
+                style={{ height: 'calc(min(380px, 70vh) - 16px)' }} // subtract padding (p-2 = 8px top + 8px bottom)
+              >
                 <div className="space-y-1">
                   {userMessages.map(({ msg, idx }) => {
-                    const isActive = idx === effectiveActiveIndex
+                    const isActive = idx === activeIndex
                     return (
                       <button
                         key={msg.id}

@@ -9,27 +9,15 @@ export interface MessageThreadHandle {
   scrollToMessage: (index: number) => void
   scrollToIndex: (index: number, options?: { behavior?: 'auto' | 'smooth' }) => void
   getScrollToken: () => ScrollToken
-  /** Raw pixel scrollTop — only for the "jump to latest" distance check. */
   getScrollPosition: () => number
   scrollToPosition: (position: number) => void
   getTotalHeight: () => number
   getClientHeight: () => number
 }
 
-/**
- * Scroll save/restore token. Stores the topmost visible item index plus how
- * far (in pixels) the viewport has scrolled past the top of that item.
- * This is stable across re-renders because it's in item-space, not pixel-space.
- */
 export interface ScrollToken {
-  /** Index of the topmost fully-or-partially visible item. */
   index: number
-  /**
-   * Pixels the viewport has scrolled past the start of `index`.
-   * Applied after the virtualizer measures that item.
-   */
   offsetWithinItem: number
-  /** Total number of messages at save time — used as a sanity check. */
   messageCount: number
 }
 
@@ -39,14 +27,8 @@ interface MessageThreadProps {
   isLoading?: boolean
   searchQuery?: string
   highlightedMessageId?: string | null
-  /** Stable token from a previous mount of this conversation. */
   initialScrollToken?: ScrollToken
-  /** Whether to auto-scroll to the bottom while a response is streaming. Default true. */
   autoScroll?: boolean
-  /**
-   * Called when a dot is clicked in the ThreadNavigator so the parent can
-   * flash the highlight ring. Receives the full-array message index.
-   */
   onNavigatorScrollTo?: (index: number) => void
 }
 
@@ -66,7 +48,6 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
   ) => {
     const scrollRef = React.useRef<HTMLDivElement>(null)
 
-    // ── Filtered message list ──────────────────────────────────────────────
     const filteredMessages = React.useMemo(() => {
       if (!searchQuery.trim()) return messages
       const q = searchQuery.toLowerCase()
@@ -76,7 +57,6 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
     const filteredMessagesRef = React.useRef(filteredMessages)
     filteredMessagesRef.current = filteredMessages
 
-    // ── Virtualizer ────────────────────────────────────────────────────────
     const virtualizer = useVirtualizer({
       count: filteredMessages.length,
       getScrollElement: () => scrollRef.current,
@@ -88,33 +68,14 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
     const virtualizerRef = React.useRef(virtualizer)
     virtualizerRef.current = virtualizer
 
-    // ── Scroll restoration ─────────────────────────────────────────────────
-    //
-    // Why pixel offsets break with a virtualizer:
-    //   On mount the virtualizer only renders a small window of items using
-    //   *estimated* sizes. The total scrollHeight is therefore `count × 120px`
-    //   (estimated), which is usually far smaller than the real measured height.
-    //   Any pixel offset saved against the real layout cannot be applied until
-    //   every item above the target has been measured — a process that only
-    //   happens as items scroll into the viewport. Polling via rAF to keep
-    //   setting scrollTop just fights this in an unwinnable race.
-    //
-    // The correct contract is item-space: "the topmost visible item was index N,
-    //   and the viewport was M pixels past its leading edge." scrollToIndex()
-    //   places that item at the top regardless of whether heights have been
-    //   measured, and we apply the sub-item pixel offset in the rAF after
-    //   the virtualizer has rendered that item.
-
     const restorationDoneRef = React.useRef(false)
 
     React.useLayoutEffect(() => {
-      // Guard: only run once, and only when we have items to work with.
       if (restorationDoneRef.current) return
       if (filteredMessages.length === 0) return
       restorationDoneRef.current = true
 
       if (!initialScrollToken || initialScrollToken.messageCount === 0) {
-        // New conversation or no saved position — jump straight to the bottom.
         virtualizerRef.current.scrollToIndex(filteredMessages.length - 1, {
           align: 'end',
           behavior: 'auto',
@@ -122,17 +83,13 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
         return
       }
 
-      // Clamp to valid range in case messages were deleted since the token was saved.
       const safeIndex = Math.min(initialScrollToken.index, filteredMessages.length - 1)
 
-      // Step 1 — synchronously tell the virtualizer which item window to render.
       virtualizerRef.current.scrollToIndex(safeIndex, {
         align: 'start',
         behavior: 'auto',
       })
 
-      // Step 2 — after two rAF ticks the item has been placed in the DOM and
-      // measured; now we can apply the fine-grained sub-item pixel offset.
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           const el = scrollRef.current
@@ -144,32 +101,21 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
           el.scrollTop = Math.min(desired, el.scrollHeight - el.clientHeight)
         })
       })
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [filteredMessages.length > 0])
-    // ^ The dependency is intentionally the boolean "do we have items yet?"
-    //   so the effect re-fires once if messages arrive asynchronously after mount.
 
-    // ── Search ─────────────────────────────────────────────────────────────
     React.useLayoutEffect(() => {
       if (scrollRef.current) scrollRef.current.scrollTop = 0
     }, [searchQuery])
 
     React.useEffect(() => {
       virtualizerRef.current.measure()
-    }, [searchQuery]) // eslint-disable-line react-hooks/exhaustive-deps
-
-    // ── Auto-scroll during streaming ───────────────────────────────────────
-    //
-    // Fires on every filteredMessages identity change — which includes both
-    // new messages being appended AND content updates to the streaming message.
-    // Pauses if the user deliberately scrolled up during the stream.
+    }, [searchQuery])
 
     const prevCountRef = React.useRef(filteredMessages.length)
     const userScrolledUpRef = React.useRef(false)
     const lastStreamingIdRef = React.useRef<string | undefined>(undefined)
     const lastStreamingContentRef = React.useRef<string>('')
 
-    // Reset the pause flag whenever a new stream starts.
     React.useEffect(() => {
       if (streamingMessageId && streamingMessageId !== lastStreamingIdRef.current) {
         userScrolledUpRef.current = false
@@ -180,22 +126,18 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
       }
     }, [streamingMessageId])
 
-    // Detect manual upward scroll while streaming.
     React.useEffect(() => {
       const el = scrollRef.current
       if (!el) return
       const onScroll = () => {
         if (!streamingMessageId) return
         const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
-        // > 80px from bottom = user intentionally scrolled up; re-enable when
-        // they scroll back down.
         userScrolledUpRef.current = distanceFromBottom > 80
       }
       el.addEventListener('scroll', onScroll, { passive: true })
       return () => el.removeEventListener('scroll', onScroll)
     }, [streamingMessageId])
 
-    // The actual scroll — triggered by content changes, not just count changes.
     React.useEffect(() => {
       if (!autoScroll || !streamingMessageId || searchQuery) return
       if (userScrolledUpRef.current) return
@@ -217,7 +159,6 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
       }
     }, [filteredMessages, streamingMessageId, searchQuery, autoScroll])
 
-    // ── Imperative handle ──────────────────────────────────────────────────
     const isProgrammaticScroll = React.useRef(false)
     const programmaticScrollTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -253,9 +194,8 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
       },
       getTotalHeight: () => virtualizerRef.current.getTotalSize(),
       getClientHeight: () => scrollRef.current?.clientHeight ?? 0,
-    }), []) // eslint-disable-line react-hooks/exhaustive-deps
+    }), [])
 
-    // ── Render ─────────────────────────────────────────────────────────────
     const virtualItems = virtualizer.getVirtualItems()
 
     return (
@@ -303,6 +243,7 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
                     key={message.id}
                     ref={virtualizer.measureElement}
                     data-index={virtualItem.index}
+                    data-message-index={virtualItem.index}
                     style={{
                       position: 'absolute',
                       top: 0,
@@ -328,7 +269,7 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
 
         {filteredMessages.length > 2 && (
           <ThreadNavigator
-            messages={messages}
+            messages={filteredMessages}
             scrollRef={scrollRef}
             virtualizerRef={virtualizerRef}
             onScrollTo={(idx) => onNavigatorScrollTo?.(idx)}
