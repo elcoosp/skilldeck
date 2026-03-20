@@ -1,3 +1,4 @@
+import rehypeShiki from '@shikijs/rehype'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   AlertCircle,

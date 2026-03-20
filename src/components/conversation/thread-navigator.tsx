@@ -18,21 +18,8 @@ interface VirtualizerRef {
 
 interface ThreadNavigatorProps {
   messages: MessageData[]
-  /**
-   * Direct ref to the scroll container — the navigator subscribes to its
-   * scroll events itself, eliminating the onVisibleUserIndexChange callback
-   * chain and the parent re-renders it caused.
-   */
   scrollRef: React.RefObject<HTMLDivElement>
-  /**
-   * Direct ref to the virtualizer — the navigator calls scrollToIndex itself
-   * on click, no intermediary needed.
-   */
   virtualizerRef: React.RefObject<VirtualizerRef>
-  /**
-   * Called when a dot is clicked, so the parent can flash the highlight ring.
-   * Receives the full-array message index.
-   */
   onScrollTo: (index: number) => void
 }
 
@@ -55,10 +42,11 @@ function deriveActiveIndex(
   const items = virtualizer.getVirtualItems()
   if (items.length === 0) return userIndices[0]
 
-  // Topmost item: first item whose bottom edge is below the current scrollTop.
+  // Find the topmost item whose bottom edge is below the current scrollTop.
   const topItem = items.find(item => item.start + item.size > scrollTop) ?? items[0]
   const topIndex = topItem.index
 
+  // Closest user index to the top of the viewport.
   return userIndices.reduce((best, ui) =>
     Math.abs(ui - topIndex) < Math.abs(best - topIndex) ? ui : best
   )
@@ -70,8 +58,7 @@ export function ThreadNavigator({
   virtualizerRef,
   onScrollTo,
 }: ThreadNavigatorProps) {
-  // Stable list of user-message indices — only changes when messages change,
-  // not on every streaming token (since assistant messages stream, not user ones).
+  // User message indices – stable across streaming.
   const userMessages = useMemo(
     () => messages
       .map((msg, idx) => ({ msg, idx }))
@@ -84,30 +71,34 @@ export function ThreadNavigator({
     [userMessages]
   )
 
-  // ── Active index via useSyncExternalStore ──────────────────────────────
-  // We subscribe directly to the scroll element so only this component
-  // re-renders when the active dot needs to change — no parent setState,
-  // no CenterPanel re-render.
+  // ── Active index from scroll events ──────────────────────────────────
   const activeIndex = useSyncExternalStore(
-    // subscribe
     (callback) => {
       const el = scrollRef.current
       if (!el) return () => { }
       el.addEventListener('scroll', callback, { passive: true })
       return () => el.removeEventListener('scroll', callback)
     },
-    // getSnapshot — called synchronously by React to read the current value
     () => {
       const el = scrollRef.current
       const virt = virtualizerRef.current
       if (!el || !virt || userIndices.length === 0) return -1
       return deriveActiveIndex(el, virt, userIndices)
     },
-    // getServerSnapshot
     () => -1
   )
 
-  // ── Hover state for the popup card ────────────────────────────────────
+  // ── Optimistic active index override on click ────────────────────────
+  const [pinnedIndex, setPinnedIndex] = useState<number | null>(null)
+  const pinnedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (pinnedTimerRef.current) clearTimeout(pinnedTimerRef.current)
+    }
+  }, [])
+
+  // ── Hover state for popup card ───────────────────────────────────────
   const [isHovering, setIsHovering] = useState(false)
   const [cardPosition, setCardPosition] = useState<{ top: number; left: number } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -155,11 +146,16 @@ export function ThreadNavigator({
   }
 
   const handleClick = (idx: number) => {
-    // Scroll the virtualizer directly — no round-trip through parent state.
+    // Pin the active index immediately to prevent flicker during smooth scroll.
+    if (pinnedTimerRef.current) clearTimeout(pinnedTimerRef.current)
+    setPinnedIndex(idx)
+    pinnedTimerRef.current = setTimeout(() => setPinnedIndex(null), 500)
+
     virtualizerRef.current?.scrollToIndex(idx, { behavior: 'smooth', align: 'start' })
-    // Notify parent only to trigger the highlight ring flash.
     onScrollTo(idx)
   }
+
+  const effectiveActiveIndex = pinnedIndex ?? activeIndex
 
   return (
     <>
@@ -174,7 +170,7 @@ export function ThreadNavigator({
         onMouseLeave={handleMouseLeave}
       >
         {userMessages.map(({ msg, idx }) => {
-          const isActive = idx === activeIndex
+          const isActive = idx === effectiveActiveIndex
           return (
             <button
               key={msg.id}
@@ -227,7 +223,7 @@ export function ThreadNavigator({
               <ScrollArea className="h-full max-h-[inherit] pr-2">
                 <div className="space-y-1">
                   {userMessages.map(({ msg, idx }) => {
-                    const isActive = idx === activeIndex
+                    const isActive = idx === effectiveActiveIndex
                     return (
                       <button
                         key={msg.id}
