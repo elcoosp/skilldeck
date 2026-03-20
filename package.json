@@ -102,6 +102,7 @@
     "@lingui/macro": "^5.9.2",
     "@lingui/swc-plugin": "^5.11.0",
     "@lingui/vite-plugin": "^5.9.2",
+    "@tailwindcss/typography": "^0.5.19",
     "@tailwindcss/vite": "^4.2.1",
     "@tauri-apps/cli": "^2.10.1",
     "@testing-library/react": "^16.3.2",

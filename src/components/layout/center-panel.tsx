@@ -56,6 +56,11 @@ export function CenterPanel() {
   >(null)
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Track whether we've restored scroll for the current conversation key.
+  // This prevents re-running restoration every time messages.length changes
+  // (e.g. when a new message arrives mid-conversation).
+  const restoredKeyRef = useRef<string | null>(null)
+
   // Global keyboard shortcut: Cmd+F / Ctrl+F to focus search
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -91,14 +96,13 @@ export function CenterPanel() {
     [messages]
   )
 
-  // Check if near bottom to hide jump button (improved logic)
+  // Check if near bottom to hide jump button
   const checkScrollPosition = useCallback(() => {
     if (!threadRef.current) return
     const pos = threadRef.current.getScrollPosition()
     const totalHeight = threadRef.current.getTotalHeight()
     const clientHeight = threadRef.current.getClientHeight()
 
-    // If content fits in view, no need for jump button
     if (totalHeight <= clientHeight) {
       setShowJumpToLatest(false)
       return
@@ -108,47 +112,66 @@ export function CenterPanel() {
     setShowJumpToLatest(!nearBottom && messages.length > 0)
   }, [messages.length])
 
-  // Save scroll position when leaving this conversation
+  // Save scroll position when leaving this conversation.
+  // We read the position eagerly into a ref so the cleanup closure
+  // always has the latest value even after the component re-renders.
+  const scrollPositionRef = useRef(0)
   useEffect(() => {
-    return () => {
-      if (!activeConversationId) return
-      const position = threadRef.current?.getScrollPosition() ?? 0
-      const key = `${activeConversationId}_${activeBranchId ?? 'main'}`
-      setScrollPosition(key, position)
-    }
-  }, [activeConversationId, activeBranchId, setScrollPosition])
+    const interval = setInterval(() => {
+      scrollPositionRef.current = threadRef.current?.getScrollPosition() ?? 0
+    }, 250)
+    return () => clearInterval(interval)
+  }, [])
 
-  // Restore scroll position when entering this conversation
   useEffect(() => {
     if (!activeConversationId) return
     const key = `${activeConversationId}_${activeBranchId ?? 'main'}`
-    const saved = scrollPositions[key]
-    if (saved) {
-      // Wait for the virtualizer to be ready
-      requestAnimationFrame(() => {
-        threadRef.current?.scrollToPosition(saved)
-        checkScrollPosition()
-      })
-    } else {
-      // Default: scroll to bottom for new conversations
-      requestAnimationFrame(() => {
-        threadRef.current?.scrollToIndex(messages.length - 1, { behavior: 'auto' })
-        checkScrollPosition()
-      })
+    return () => {
+      // Save whatever position we last sampled
+      setScrollPosition(key, scrollPositionRef.current)
     }
-  }, [activeConversationId, activeBranchId, scrollPositions, messages.length, checkScrollPosition])
+  }, [activeConversationId, activeBranchId, setScrollPosition])
+
+  // Reset the restoration guard immediately when the conversation key changes,
+  // so the restoration effect is allowed to run for the new conversation.
+  // This must be a separate effect so it fires before the restoration effect.
+  useEffect(() => {
+    restoredKeyRef.current = null
+  }, [activeConversationId, activeBranchId])
+
+  // Restore scroll position once per conversation switch.
+  // We guard with restoredKeyRef so this never re-fires when messages
+  // arrive during a conversation — only on an actual conversation change.
+  useEffect(() => {
+    if (!activeConversationId || messages.length === 0) return
+
+    const key = `${activeConversationId}_${activeBranchId ?? 'main'}`
+    if (restoredKeyRef.current === key) return // already restored for this key
+    restoredKeyRef.current = key
+
+    const saved = scrollPositions[key]
+
+    // Double rAF: first frame lets React commit the virtualizer DOM,
+    // second frame lets the virtualizer measure rows and compute total height.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (saved) {
+          threadRef.current?.scrollToPosition(saved)
+        } else {
+          threadRef.current?.scrollToIndex(messages.length - 1, { behavior: 'auto' })
+        }
+        checkScrollPosition()
+      })
+    })
+  }, [activeConversationId, activeBranchId, messages.length, scrollPositions, checkScrollPosition])
 
   // Update jump button on scroll
   useEffect(() => {
-    const handleScroll = () => {
-      checkScrollPosition()
-    }
-    // Use a small interval to poll scroll position
-    const interval = setInterval(handleScroll, 200)
+    const interval = setInterval(checkScrollPosition, 200)
     return () => clearInterval(interval)
   }, [checkScrollPosition])
 
-  // Also check after messages change (new message might affect bottom)
+  // Also check after messages change
   useEffect(() => {
     checkScrollPosition()
   }, [messages, checkScrollPosition])
@@ -167,13 +190,11 @@ export function CenterPanel() {
     }
   }, [])
 
-  // Determine modifier key for display
   const modifierKey = navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'
 
   const jumpToLatest = () => {
     if (messages.length === 0) return
     threadRef.current?.scrollToIndex(messages.length - 1, { behavior: 'smooth' })
-    // Also highlight the last message briefly
     const lastMsg = messages[messages.length - 1]
     if (lastMsg) {
       setHighlightedMessageId(lastMsg.id)
@@ -211,7 +232,7 @@ export function CenterPanel() {
             placeholder="Search in this conversation…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8 pr-16 h-8 text-sm" // Add right padding for Kbd
+            className="pl-8 pr-16 h-8 text-sm"
           />
           <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center pointer-events-none">
             <KbdGroup>
@@ -249,7 +270,6 @@ export function CenterPanel() {
           />
         )}
 
-        {/* Jump to latest button */}
         {showJumpToLatest && (
           <button
             type="button"
