@@ -21,5 +21,8 @@ export function highlightText(text: string, query: string): string {
   if (!query || !text) return text
   const escaped = escapeRegExp(query)
   const regex = new RegExp(`(${escaped})`, 'gi')
-  return text.replace(regex, '<mark class="bg-[var(--highlight-inline)] text-white">$1</mark>')
+  return text.replace(
+    regex,
+    '<mark style="background-color:var(--highlight-inline);color:white;border-radius:2px;padding:0 2px;">$1</mark>'
+  )
 }

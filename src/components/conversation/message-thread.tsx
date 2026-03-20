@@ -62,9 +62,16 @@ export const MessageThread = React.forwardRef<
       count: filteredMessages.length,
       getScrollElement: () => scrollRef.current,
       estimateSize: () => 80,
-      overscan: 3, // reduced from 8 for better performance
+      overscan: 3,
       measureElement: (el) => el.getBoundingClientRect().height
     })
+
+    // When the search query changes the filtered list is a completely different
+    // set of items. Force the virtualizer to drop all cached measurements so
+    // rows don't overlap each other.
+    React.useEffect(() => {
+      virtualizer.measure()
+    }, [searchQuery, virtualizer])
 
     const virtualItems = virtualizer.getVirtualItems()
 
@@ -219,7 +226,11 @@ export const MessageThread = React.forwardRef<
           </motion.div>
         )}
         {showList && (
+          // key forces the virtualizer's measured cache to fully reset when
+          // the search query changes, preventing stale row heights from
+          // causing items to overlap each other.
           <div
+            key={searchQuery}
             style={{
               height: virtualizer.getTotalSize(),
               position: 'relative'

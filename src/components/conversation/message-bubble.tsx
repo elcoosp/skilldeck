@@ -13,7 +13,7 @@ import {
   User,
   Wrench
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MarkdownHooks } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { createHighlighter } from 'shiki'
@@ -147,6 +147,7 @@ export function MessageBubble({
   const [collapsed, setCollapsed] = useState(false)
   const [copied, setCopied] = useState(false)
   const [rehypePlugins, setRehypePlugins] = useState<any[]>([])
+  const proseRef = useRef<HTMLDivElement>(null)
 
   // Initialize the Shiki plugin once the highlighter is ready
   useEffect(() => {
@@ -164,6 +165,93 @@ export function MessageBubble({
       ])
     })
   }, [])
+
+  // After each render, walk the prose container's text nodes and wrap
+  // query matches in <mark> tags. We manipulate the DOM directly because
+  // the content goes through MarkdownHooks and we can't inject marks there.
+  useEffect(() => {
+    const container = proseRef.current
+    if (!container) return
+
+    const clearMarks = () => {
+      // Guard: container may have been detached by the virtualizer between renders
+      if (!document.contains(container)) return
+      container.querySelectorAll('mark[data-search]').forEach((mark) => {
+        const parent = mark.parentNode
+        if (!parent || !document.contains(parent)) return
+        try {
+          parent.replaceChild(document.createTextNode(mark.textContent ?? ''), mark)
+          parent.normalize()
+        } catch {
+          // Node was already removed — ignore
+        }
+      })
+    }
+
+    if (!searchQuery?.trim() || !message.content) {
+      clearMarks()
+      return
+    }
+
+    clearMarks()
+
+    // Container may have been detached while clearMarks was running
+    if (!document.contains(container)) return
+
+    const escaped = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const regex = new RegExp(escaped, 'gi')
+
+    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
+      acceptNode: (node) => {
+        let p = node.parentElement
+        while (p && p !== container) {
+          if (p.tagName === 'CODE' || p.tagName === 'PRE') return NodeFilter.FILTER_REJECT
+          p = p.parentElement
+        }
+        return regex.test(node.textContent ?? '')
+          ? NodeFilter.FILTER_ACCEPT
+          : NodeFilter.FILTER_REJECT
+      }
+    })
+
+    const textNodes: Text[] = []
+    let node: Node | null
+    while ((node = walker.nextNode())) textNodes.push(node as Text)
+
+    for (const textNode of textNodes) {
+      if (!textNode.parentNode || !document.contains(textNode)) continue
+      const text = textNode.textContent ?? ''
+      regex.lastIndex = 0
+      const frag = document.createDocumentFragment()
+      let last = 0
+      let match: RegExpExecArray | null
+      while ((match = regex.exec(text)) !== null) {
+        if (match.index > last) {
+          frag.appendChild(document.createTextNode(text.slice(last, match.index)))
+        }
+        const mark = document.createElement('mark')
+        mark.setAttribute('data-search', '')
+        mark.style.backgroundColor = 'var(--highlight-inline)'
+        mark.style.color = 'inherit'
+        mark.style.borderRadius = '2px'
+        mark.style.padding = '0 2px'
+        mark.textContent = match[0]
+        frag.appendChild(mark)
+        last = regex.lastIndex
+      }
+      if (last < text.length) {
+        frag.appendChild(document.createTextNode(text.slice(last)))
+      }
+      try {
+        textNode.parentNode?.replaceChild(frag, textNode)
+      } catch {
+        // Node was removed between collection and replacement — ignore
+      }
+    }
+
+    // Cleanup: remove marks when the component unmounts or deps change
+    return clearMarks
+  }, [searchQuery, message.content, rehypePlugins])
 
   const isUser = message.role === 'user'
   const isAssistant = message.role === 'assistant'
@@ -342,7 +430,7 @@ export function MessageBubble({
                 style={{ opacity: isCollapsed ? 0 : 1 }}
               >
                 {isAssistant || syntheticStreaming ? (
-                  <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-headings:my-1 prose-pre:my-0">
+                  <div ref={proseRef} className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-headings:my-1 prose-pre:my-0">
                     {showShimmer ? (
                       <div className="flex items-center justify-center py-4">
                         <BouncingDots />
@@ -396,17 +484,24 @@ export function MessageBubble({
                                 ''
                               )
                               return (
-                                <button
-                                  type="button"
+                                <span
+                                  role="button"
+                                  tabIndex={0}
                                   onClick={async () => {
                                     await navigator.clipboard.writeText(content)
                                     toast.success('Code copied to clipboard')
+                                  }}
+                                  onKeyDown={async (e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                      await navigator.clipboard.writeText(content)
+                                      toast.success('Code copied to clipboard')
+                                    }
                                   }}
                                   className="inline-code cursor-pointer rounded bg-muted px-1 py-0.5 font-mono text-sm hover:bg-primary/20 transition-colors"
                                   title="Click to copy"
                                 >
                                   {children}
-                                </button>
+                                </span>
                               )
                             }
                             return (
@@ -443,16 +538,14 @@ export function MessageBubble({
                       </span>
                     )}
                   </div>
-                ) : (
+                ) : shouldHighlight ? (
                   <span
                     className="whitespace-pre-wrap break-words"
-                    dangerouslySetInnerHTML={
-                      shouldHighlight
-                        ? { __html: highlightText(message.content, searchQuery) }
-                        : undefined
-                    }
-                  >
-                    {!shouldHighlight && message.content}
+                    dangerouslySetInnerHTML={{ __html: highlightText(message.content, searchQuery) }}
+                  />
+                ) : (
+                  <span className="whitespace-pre-wrap break-words">
+                    {message.content}
                   </span>
                 )}
               </div>
