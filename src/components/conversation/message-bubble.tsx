@@ -22,12 +22,13 @@ import type { MessageData } from '@/lib/bindings'
 import { rehypeLinkifyCodeUrls } from '@/lib/rehype-linkify-code'
 import { cn, highlightText } from '@/lib/utils'
 import { SubagentCard } from './subagent-card'
+import { openUrl } from '@tauri-apps/plugin-opener'
 
 interface MessageBubbleProps {
   message: MessageData
   isStreaming?: boolean
   isHighlighted?: boolean
-  searchQuery?: string // used for highlighting search matches
+  searchQuery?: string
 }
 
 // Singleton highlighter – created once, reused across all instances
@@ -45,27 +46,6 @@ const highlighterPromise = createHighlighter({
     'html'
   ]
 })
-
-// Template for the shimmer – matches the structure of a typical assistant message
-const AssistantMessageTemplate = () => (
-  <div className="prose prose-sm dark:prose-invert max-w-none">
-    <p>
-      Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod
-      tempor incididunt ut labore et dolore magna aliqua.
-    </p>
-    <p>
-      Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut
-      aliquip ex ea commodo consequat.
-    </p>
-    <pre>
-      <code>const example = &quot;code block&quot;;</code>
-    </pre>
-    <p>
-      Duis aute irure dolor in reprehenderit in voluptate velit esse cillum
-      dolore eu fugiat nulla pariatur.
-    </p>
-  </div>
-)
 
 // Code block component
 const CodePre = ({ children, ...props }: any) => {
@@ -167,14 +147,12 @@ export function MessageBubble({
   }, [])
 
   // After each render, walk the prose container's text nodes and wrap
-  // query matches in <mark> tags. We manipulate the DOM directly because
-  // the content goes through MarkdownHooks and we can't inject marks there.
+  // query matches in <mark> tags.
   useEffect(() => {
     const container = proseRef.current
     if (!container) return
 
     const clearMarks = () => {
-      // Guard: container may have been detached by the virtualizer between renders
       if (!document.contains(container)) return
       container.querySelectorAll('mark[data-search]').forEach((mark) => {
         const parent = mark.parentNode
@@ -195,7 +173,6 @@ export function MessageBubble({
 
     clearMarks()
 
-    // Container may have been detached while clearMarks was running
     if (!document.contains(container)) return
 
     const escaped = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -249,7 +226,6 @@ export function MessageBubble({
       }
     }
 
-    // Cleanup: remove marks when the component unmounts or deps change
     return clearMarks
   }, [searchQuery, message.content, rehypePlugins])
 
@@ -259,11 +235,9 @@ export function MessageBubble({
   const isSystem = message.role === 'system'
   const syntheticStreaming = message.id === '__streaming__'
 
-  // Determine if we should show the shimmer placeholder
   const showShimmer =
     (isAssistant || syntheticStreaming) && isStreaming && !message.content
 
-  // Check if this message came from the queue
   const isQueued = useMemo(() => {
     if (!message.metadata) return false
     try {
@@ -277,14 +251,12 @@ export function MessageBubble({
     }
   }, [message.metadata])
 
-  // Extract context items from metadata
   const contextItems = message.context_items || []
 
   const canCollapse =
     (isAssistant || isSystem || isTool) && !isStreaming && !syntheticStreaming
   const isCollapsed = collapsed && canCollapse
 
-  // For non-assistant messages, we can use simple highlighting with dangerouslySetInnerHTML
   const shouldHighlight = searchQuery && !showShimmer && message.content
 
   const copyMessage = useCallback(async () => {
@@ -385,15 +357,19 @@ export function MessageBubble({
               isQueued && 'border-l-2 border-amber-400 pl-3'
             )}
           >
-            {/* Animated ring overlay */}
+            {/* Animated ring overlay – respects bubble's border radius, only opacity fade */}
             <motion.div
-              className="absolute inset-0 rounded-xl ring-2 ring-primary/50 ring-offset-1 pointer-events-none"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{
-                opacity: isHighlighted ? 1 : 0,
-                scale: isHighlighted ? 1 : 0.9
-              }}
-              transition={{ duration: 0.2, ease: 'easeOut' }}
+              className={cn(
+                'absolute inset-0 ring-2 ring-primary/50 ring-offset-1 pointer-events-none',
+                isUser
+                  ? 'rounded-xl rounded-tr-sm'
+                  : isTool
+                    ? 'rounded-xl rounded-tl-sm'
+                    : 'rounded-xl'
+              )}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: isHighlighted ? 1 : 0 }}
+              transition={{ duration: 0.5, ease: 'easeOut' }}
             />
 
             {isQueued && (
@@ -452,7 +428,7 @@ export function MessageBubble({
                         rehypePlugins={
                           rehypePlugins.length > 0
                             ? rehypePlugins
-                            : [rehypeLinkifyCodeUrls] // fallback until highlighter is ready
+                            : [rehypeLinkifyCodeUrls]
                         }
                         components={{
                           pre: CodePre,
