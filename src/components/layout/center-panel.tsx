@@ -21,9 +21,6 @@ import { useWorkspaces } from '@/hooks/use-workspaces'
 import { useUIStore } from '@/store/ui'
 import { cn } from '@/lib/utils'
 
-// Keyed by `${conversationId}_${branchId}`.
-// Stores item-space tokens rather than raw pixel offsets so the saved position
-// survives virtualizer remounts where estimated row heights differ from measured.
 const scrollTokenCache = new Map<string, ScrollToken>()
 
 export function CenterPanel() {
@@ -49,25 +46,62 @@ export function CenterPanel() {
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // ── Scroll save/restore ────────────────────────────────────────────────
   const activeKeyRef = useRef<string | undefined>(undefined)
   const activeKey = activeConversationId
     ? `${activeConversationId}_${activeBranchId ?? 'main'}`
     : undefined
 
+  // ─── Token save (render-body, synchronous) ────────────────────────────────
+  //
+  // We must save during the render that processes the key change — not in an
+  // effect cleanup — because React nullifies threadRef.current before parent
+  // effect cleanups run (the child unmounts first). By the time any useEffect
+  // cleanup would read threadRef.current it's already null.
+  //
+  // At this point in the render threadRef.current still points to the old
+  // (still-committed) MessageThread, so getScrollToken() returns valid data.
   if (activeKeyRef.current !== activeKey) {
     if (activeKeyRef.current && threadRef.current) {
       const token = threadRef.current.getScrollToken()
-      if (token.messageCount > 0) {
+      // Always overwrite — we want the most recent scroll position. The only
+      // exception is zero-message conversations which have nothing to restore.
+      if (token.messageCount > 0 && token.anchorId !== '') {
         scrollTokenCache.set(activeKeyRef.current, token)
       }
     }
     activeKeyRef.current = activeKey
   }
 
+  // Read token for the conversation we're switching *to*. This is evaluated on
+  // the same render as the save above, so the cache is already populated.
   const initialScrollToken = activeKey ? scrollTokenCache.get(activeKey) : undefined
 
-  // ── Keyboard shortcut ──────────────────────────────────────────────────
+  // ─── Manual scroll: clear saved position ─────────────────────────────────
+  // Called by MessageThread when a genuine user scroll is detected (intent === 'idle').
+  // Clearing here means the next conversation switch will fall back to bottom.
+  const handleManualScroll = useCallback(() => {
+    if (activeKey) {
+      scrollTokenCache.delete(activeKey)
+    }
+  }, [activeKey])
+
+  // ─── Navigator scroll callback ────────────────────────────────────────────
+  // MessageThread handles the actual scroll. We only need to update the cache
+  // and trigger the highlight. We do NOT save a new token here — the render-body
+  // save will capture wherever the user actually ends up when they next switch away.
+  const handleNavigatorScrollTo = useCallback(
+    (index: number) => {
+      if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current)
+      const targetMessage = messages[index]
+      if (targetMessage) {
+        setHighlightedMessageId(targetMessage.id)
+        highlightTimeoutRef.current = setTimeout(() => setHighlightedMessageId(null), 800)
+      }
+    },
+    [messages]
+  )
+
+  // ─── Keyboard shortcut ────────────────────────────────────────────────────
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
@@ -79,26 +113,16 @@ export function CenterPanel() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-  // ── Navigator highlight callback ───────────────────────────────────────
-  // ThreadNavigator now lives inside MessageThread and handles its own scroll
-  // tracking. The only thing CenterPanel needs to do is flash the highlight
-  // ring when a dot is clicked.
-  const handleNavigatorScrollTo = useCallback((index: number) => {
-    if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current)
-    const targetMessage = messages[index]
-    if (targetMessage) {
-      setHighlightedMessageId(targetMessage.id)
-      highlightTimeoutRef.current = setTimeout(() => setHighlightedMessageId(null), 800)
-    }
-  }, [messages])
-
-  // ── Jump-to-latest button visibility ──────────────────────────────────
+  // ─── Jump-to-latest button visibility ────────────────────────────────────
   const checkScrollPosition = useCallback(() => {
     if (!threadRef.current) return
     const pos = threadRef.current.getScrollPosition()
     const totalHeight = threadRef.current.getTotalHeight()
     const clientHeight = threadRef.current.getClientHeight()
-    if (totalHeight <= clientHeight) { setShowJumpToLatest(false); return }
+    if (totalHeight <= clientHeight) {
+      setShowJumpToLatest(false)
+      return
+    }
     setShowJumpToLatest(pos + clientHeight < totalHeight - 100 && messages.length > 0)
   }, [messages.length])
 
@@ -107,13 +131,20 @@ export function CenterPanel() {
     return () => clearInterval(interval)
   }, [checkScrollPosition])
 
-  useEffect(() => { checkScrollPosition() }, [messages, checkScrollPosition])
+  useEffect(() => {
+    checkScrollPosition()
+  }, [messages, checkScrollPosition])
 
-  // ── Cleanup ────────────────────────────────────────────────────────────
-  useEffect(() => { setSearchQuery('') }, [activeConversationId, setSearchQuery])
+  // ─── Clear search on conversation switch ─────────────────────────────────
+  useEffect(() => {
+    setSearchQuery('')
+  }, [activeConversationId, setSearchQuery])
 
-  useEffect(() => () => {
-    if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current)
+  // ─── Highlight timeout cleanup ────────────────────────────────────────────
+  useEffect(() => {
+    return () => {
+      if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current)
+    }
   }, [])
 
   const modifierKey = navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'
@@ -193,17 +224,17 @@ export function CenterPanel() {
           initialScrollToken={initialScrollToken}
           autoScroll={autoScroll}
           onNavigatorScrollTo={handleNavigatorScrollTo}
+          onManualScroll={handleManualScroll}
         />
 
-        {/* Jump to latest button */}
         <button
           type="button"
           onClick={jumpToLatest}
           className={cn(
-            "absolute bottom-4 right-4 z-30 flex items-center justify-center w-8 h-8 rounded-full bg-background border border-border shadow-md transition-all duration-200 hover:bg-accent/10 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+            'absolute bottom-4 right-4 z-30 flex items-center justify-center w-8 h-8 rounded-full bg-background border border-border shadow-md transition-all duration-200 hover:bg-accent/10 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
             showJumpToLatest
-              ? "opacity-100 visible pointer-events-auto"
-              : "opacity-0 invisible pointer-events-none"
+              ? 'opacity-100 visible pointer-events-auto'
+              : 'opacity-0 invisible pointer-events-none'
           )}
           aria-label="Jump to latest message"
           title="Jump to latest"

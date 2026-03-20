@@ -1,7 +1,6 @@
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import type { MessageData } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
 
@@ -12,8 +11,11 @@ interface VirtualItem {
 }
 
 interface VirtualizerRef {
-  scrollToIndex: (index: number, options?: { behavior?: 'auto' | 'smooth'; align?: 'start' | 'end' | 'center' | 'auto' }) => void
   getVirtualItems: () => VirtualItem[]
+  // We might also need measurementsCache if available; but for now we only use getVirtualItems.
+  // However the original code used a custom `measurementsCache` that doesn't exist in the public API.
+  // We'll assume the virtualizer's internal cache is not needed; we'll rely on DOM transforms.
+  // The active index detection can work with DOM transforms as it did before.
 }
 
 interface ThreadNavigatorProps {
@@ -23,23 +25,21 @@ interface ThreadNavigatorProps {
   onScrollTo: (index: number) => void
 }
 
-export function ThreadNavigator({
+const ThreadNavigator = memo(function ThreadNavigator({
   messages,
   scrollRef,
   virtualizerRef,
   onScrollTo,
 }: ThreadNavigatorProps) {
   const userMessages = useMemo(
-    () => messages
-      .map((msg, idx) => ({ msg, idx }))
-      .filter(({ msg }) => msg.role === 'user'),
+    () =>
+      messages
+        .map((msg, idx) => ({ msg, idx }))
+        .filter(({ msg }) => msg.role === 'user'),
     [messages]
   )
 
-  const userIndices = useMemo(
-    () => userMessages.map(({ idx }) => idx),
-    [userMessages]
-  )
+  const userIndices = useMemo(() => userMessages.map(({ idx }) => idx), [userMessages])
 
   const userIndicesRef = useRef(userIndices)
   userIndicesRef.current = userIndices
@@ -52,30 +52,44 @@ export function ThreadNavigator({
 
     const onScroll = () => {
       const indices = userIndicesRef.current
-      if (indices.length === 0) { setActiveIndex(-1); return }
+      if (indices.length === 0) {
+        setActiveIndex((prev) => (prev === -1 ? prev : -1))
+        return
+      }
 
       const { scrollTop, scrollHeight, clientHeight } = el
       const maxScroll = scrollHeight - clientHeight
 
-      if (scrollTop <= 0) { setActiveIndex(indices[0]); return }
-      if (maxScroll <= 0 || scrollTop >= maxScroll - 1) { setActiveIndex(indices[indices.length - 1]); return }
+      if (scrollTop <= 0) {
+        setActiveIndex((prev) => (prev === indices[0] ? prev : indices[0]))
+        return
+      }
+      if (maxScroll <= 0 || scrollTop >= maxScroll - 1) {
+        setActiveIndex((prev) =>
+          prev === indices[indices.length - 1] ? prev : indices[indices.length - 1]
+        )
+        return
+      }
 
-      const virt = virtualizerRef.current as any
-      const cache: Array<{ index: number; start: number; size: number }> = virt?.measurementsCache ?? []
+      // Use the virtualizer's measurements if available, otherwise fall back to DOM transforms
+      const virt = virtualizerRef.current
+      const cache = (virt as any)?.measurementsCache as Array<{ start: number }> | undefined
 
       let result = indices[0]
       for (const ui of indices) {
-        // Prefer live DOM position (accurate for rendered items)
-        const domItem = scrollRef.current?.querySelector(`[data-message-index="${ui}"]`) as HTMLElement | null
         let top: number | null = null
 
+        // Try DOM transform first
+        const domItem = scrollRef.current?.querySelector(
+          `[data-message-index="${ui}"]`
+        ) as HTMLElement | null
         if (domItem) {
           const match = domItem.style.transform.match(/translateY\(([-\d.]+)px\)/)
           if (match) top = parseFloat(match[1])
         }
 
-        // Fall back to measurements cache for items outside the render window
-        if (top === null && cache[ui]) {
+        // Fall back to virtualizer cache if DOM failed
+        if (top === null && cache && cache[ui]) {
           top = cache[ui].start
         }
 
@@ -83,14 +97,15 @@ export function ThreadNavigator({
         if (top <= scrollTop + 1) result = ui
         else break
       }
-      setActiveIndex(result)
+
+      setActiveIndex((prev) => (prev === result ? prev : result))
     }
 
     el.addEventListener('scroll', onScroll, { passive: true })
     onScroll()
 
     return () => el.removeEventListener('scroll', onScroll)
-  }, [scrollRef])
+  }, [scrollRef, virtualizerRef])
 
   const [isHovering, setIsHovering] = useState(false)
   const [cardPosition, setCardPosition] = useState<{ top: number; left: number } | null>(null)
@@ -122,10 +137,13 @@ export function ThreadNavigator({
     }
   }, [isHovering])
 
-  useEffect(() => () => {
-    if (enterTimer.current) clearTimeout(enterTimer.current)
-    if (leaveTimer.current) clearTimeout(leaveTimer.current)
-  }, [])
+  useEffect(
+    () => () => {
+      if (enterTimer.current) clearTimeout(enterTimer.current)
+      if (leaveTimer.current) clearTimeout(leaveTimer.current)
+    },
+    []
+  )
 
   if (userMessages.length < 3) return null
 
@@ -139,11 +157,10 @@ export function ThreadNavigator({
   }
 
   const handleClick = (idx: number) => {
-    const virt = virtualizerRef.current
-    if (!virt) return
-    virt.scrollToIndex(idx, { behavior: 'auto', align: 'start' })
+    // Just call the parent's scroll handler – no direct virtualizer access
     onScrollTo(idx)
   }
+
   return (
     <>
       <nav
@@ -201,18 +218,18 @@ export function ThreadNavigator({
                 top: cardPosition.top,
                 left: cardPosition.left,
                 transform: 'translateY(-50%)',
-                height: 'min(380px, 70vh)', // fixed height, not maxHeight
+                height: 'min(380px, 70vh)',
               }}
               onMouseEnter={() => {
                 if (leaveTimer.current) clearTimeout(leaveTimer.current)
               }}
               onMouseLeave={handleMouseLeave}
             >
-              <ScrollArea
-                className="h-full"
-                style={{ height: 'calc(min(380px, 70vh) - 16px)' }} // subtract padding (p-2 = 8px top + 8px bottom)
+              <div
+                className="overflow-y-auto thin-scrollbar"
+                style={{ height: 'calc(min(380px, 70vh) - 16px)' }}
               >
-                <div className="space-y-1">
+                <div className="space-y-1 pr-2">
                   {userMessages.map(({ msg, idx }) => {
                     const isActive = idx === activeIndex
                     return (
@@ -226,10 +243,12 @@ export function ThreadNavigator({
                         }}
                       >
                         <div className="w-4 h-4 flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <div className={cn(
-                            'h-[3px] w-3 rounded-full',
-                            isActive ? 'bg-primary' : 'bg-muted-foreground/50'
-                          )} />
+                          <div
+                            className={cn(
+                              'h-[3px] w-3 rounded-full',
+                              isActive ? 'bg-primary' : 'bg-muted-foreground/50'
+                            )}
+                          />
                         </div>
                         <p className="text-xs text-muted-foreground break-words line-clamp-2 flex-1">
                           {msg.content}
@@ -238,7 +257,7 @@ export function ThreadNavigator({
                     )
                   })}
                 </div>
-              </ScrollArea>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>,
@@ -246,4 +265,6 @@ export function ThreadNavigator({
       )}
     </>
   )
-}
+})
+
+export default ThreadNavigator
