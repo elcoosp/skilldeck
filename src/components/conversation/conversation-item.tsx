@@ -111,7 +111,7 @@ export function ConversationItem({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [isRenaming, cancelRename])
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault()
       if (!isRenaming && !isDeleting) {
@@ -141,9 +141,10 @@ export function ConversationItem({
   })()
 
   return (
-    <button
+    <div
       ref={containerRef}
-      type="button"
+      role="button"
+      tabIndex={0}
       onClick={() => !isRenaming && !isDeleting && onClick()}
       onKeyDown={handleKeyDown}
       className={cn(
@@ -314,6 +315,6 @@ export function ConversationItem({
           </DropdownMenuContent>
         </DropdownMenu>
       )}
-    </button>
+    </div>
   )
 }
