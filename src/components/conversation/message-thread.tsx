@@ -20,12 +20,10 @@ interface MessageThreadProps {
   searchQuery?: string
   onVisibleUserIndexChange?: (index: number) => void
   highlightedMessageId?: string | null
+  initialScrollOffset?: number
 }
 
-export const MessageThread = React.forwardRef<
-  MessageThreadHandle,
-  MessageThreadProps
->(
+export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThreadProps>(
   (
     {
       messages,
@@ -33,7 +31,8 @@ export const MessageThread = React.forwardRef<
       isLoading,
       searchQuery = '',
       onVisibleUserIndexChange,
-      highlightedMessageId
+      highlightedMessageId,
+      initialScrollOffset,
     },
     ref
   ) => {
@@ -41,158 +40,162 @@ export const MessageThread = React.forwardRef<
 
     const filteredMessages = React.useMemo(() => {
       if (!searchQuery.trim()) return messages
-      const lowerQuery = searchQuery.toLowerCase()
-      return messages.filter(m =>
-        m.content.toLowerCase().includes(lowerQuery)
-      )
+      const q = searchQuery.toLowerCase()
+      return messages.filter(m => m.content.toLowerCase().includes(q))
     }, [messages, searchQuery])
 
-    // Reset scroll to top synchronously before paint whenever search query changes
-    React.useLayoutEffect(() => {
-      if (!scrollRef.current) return
-      scrollRef.current.scrollTop = 0
-    }, [searchQuery])
+    const filteredMessagesRef = React.useRef(filteredMessages)
+    filteredMessagesRef.current = filteredMessages
 
-    const isProgrammaticScroll = React.useRef(false)
-    const programmaticScrollTimer = React.useRef<ReturnType<
-      typeof setTimeout
-    > | null>(null)
-
+    // ── Virtualizer ────────────────────────────────────────────────────────
     const virtualizer = useVirtualizer({
       count: filteredMessages.length,
       getScrollElement: () => scrollRef.current,
-      estimateSize: () => 80,
-      overscan: 3,
-      measureElement: (el) => el.getBoundingClientRect().height
+      estimateSize: () => 120,
+      overscan: 5,
+      measureElement: el => el.getBoundingClientRect().height,
     })
 
-    // When the search query changes the filtered list is a completely different
-    // set of items. Force the virtualizer to drop all cached measurements so
-    // rows don't overlap each other.
-    React.useEffect(() => {
-      virtualizer.measure()
-    }, [searchQuery, virtualizer])
+    const virtualizerRef = React.useRef(virtualizer)
+    virtualizerRef.current = virtualizer
 
-    const virtualItems = virtualizer.getVirtualItems()
+    // ── Restore scroll offset on mount ─────────────────────────────────────
+    // We can't just set scrollTop once — the virtualizer starts with estimated heights
+    // so the DOM scrollHeight is too small to accommodate the saved offset.
+    // Instead we keep re-applying every time getTotalSize() grows (rows get measured)
+    // until the DOM can actually hold the target offset.
+    const targetOffsetRef = React.useRef<number | undefined>(
+      initialScrollOffset !== undefined && initialScrollOffset > 0 ? initialScrollOffset : undefined
+    )
 
     React.useEffect(() => {
-      if (filteredMessages.length === 0 || searchQuery) return
-      virtualizer.scrollToIndex(filteredMessages.length - 1, {
-        behavior: streamingMessageId ? 'smooth' : 'auto'
-      })
-    }, [filteredMessages.length, streamingMessageId, virtualizer, searchQuery])
+      if (targetOffsetRef.current === undefined) return
+      const target = targetOffsetRef.current
+
+      const tryRestore = () => {
+        const el = scrollRef.current
+        if (!el) return
+        const maxScrollable = el.scrollHeight - el.clientHeight
+        if (maxScrollable >= target) {
+          el.scrollTop = target
+          // If we successfully set it, stop trying
+          if (el.scrollTop >= target - 5) {
+            targetOffsetRef.current = undefined
+          }
+        }
+      }
+
+      // Try immediately
+      tryRestore()
+      // Poll via rAF until target is reached or 3s timeout
+      let rafId: number
+      let start = Date.now()
+      const poll = () => {
+        if (targetOffsetRef.current === undefined) return // done
+        if (Date.now() - start > 3000) return // give up
+        tryRestore()
+        rafId = requestAnimationFrame(poll)
+      }
+      rafId = requestAnimationFrame(poll)
+
+      return () => cancelAnimationFrame(rafId)
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+
+    // New conversation (no saved offset): scroll to bottom once messages load
+    const sentToBottomRef = React.useRef(false)
+    React.useEffect(() => {
+      if (sentToBottomRef.current) return
+      if (initialScrollOffset !== undefined) { sentToBottomRef.current = true; return }
+      if (filteredMessages.length === 0) return
+      sentToBottomRef.current = true
+      virtualizerRef.current.scrollToIndex(filteredMessages.length - 1, { align: 'end', behavior: 'auto' })
+    }, [filteredMessages.length, initialScrollOffset])
+
+    // ── Search ─────────────────────────────────────────────────────────────
+    React.useLayoutEffect(() => {
+      if (scrollRef.current) scrollRef.current.scrollTop = 0
+    }, [searchQuery])
+
+    React.useEffect(() => {
+      virtualizerRef.current.measure()
+    }, [searchQuery]) // eslint-disable-line react-hooks/exhaustive-deps
+
+    // ── Auto-scroll during streaming ───────────────────────────────────────
+    const prevCountRef = React.useRef(filteredMessages.length)
+    React.useEffect(() => {
+      const prev = prevCountRef.current
+      prevCountRef.current = filteredMessages.length
+      if (streamingMessageId && filteredMessages.length > prev && !searchQuery) {
+        virtualizerRef.current.scrollToIndex(filteredMessages.length - 1, { behavior: 'smooth' })
+      }
+    }, [filteredMessages.length, streamingMessageId, searchQuery])
+
+    // ── Imperative handle ──────────────────────────────────────────────────
+    const isProgrammaticScroll = React.useRef(false)
+    const programmaticScrollTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 
     React.useImperativeHandle(ref, () => ({
       scrollToMessage: (index: number) => {
-        if (programmaticScrollTimer.current) {
-          clearTimeout(programmaticScrollTimer.current)
-        }
+        if (programmaticScrollTimer.current) clearTimeout(programmaticScrollTimer.current)
         isProgrammaticScroll.current = true
         callbackRef.current?.(index)
-
-        virtualizer.scrollToIndex(index, {
-          behavior: 'smooth',
-          align: 'center'
-        })
-
+        virtualizerRef.current.scrollToIndex(index, { behavior: 'smooth', align: 'start' })
         programmaticScrollTimer.current = setTimeout(() => {
           isProgrammaticScroll.current = false
           programmaticScrollTimer.current = null
         }, 600)
       },
-      scrollToIndex: (index, options) => {
-        virtualizer.scrollToIndex(index, options)
-      },
+      scrollToIndex: (index, options) => virtualizerRef.current.scrollToIndex(index, options),
       getScrollPosition: () => scrollRef.current?.scrollTop ?? 0,
-      scrollToPosition: (position: number) => {
-        if (scrollRef.current) {
-          scrollRef.current.scrollTop = position
-        }
-      },
-      getTotalHeight: () => virtualizer.getTotalSize(),
+      scrollToPosition: (pos: number) => { if (scrollRef.current) scrollRef.current.scrollTop = pos },
+      getTotalHeight: () => virtualizerRef.current.getTotalSize(),
       getClientHeight: () => scrollRef.current?.clientHeight ?? 0,
-    }))
+    }), [])
 
+    // ── Visible user-message tracking ──────────────────────────────────────
     const callbackRef = React.useRef(onVisibleUserIndexChange)
-    React.useLayoutEffect(() => {
-      callbackRef.current = onVisibleUserIndexChange
-    })
+    React.useLayoutEffect(() => { callbackRef.current = onVisibleUserIndexChange })
 
     React.useEffect(() => {
       const el = scrollRef.current
       if (!el || !onVisibleUserIndexChange) return
 
+      const userIndices = filteredMessages
+        .map((m, i) => (m.role === 'user' ? i : -1))
+        .filter(i => i !== -1)
+      if (userIndices.length === 0) return
+
       const report = () => {
         if (isProgrammaticScroll.current) return
-
-        const items = virtualizer.getVirtualItems()
+        const items = virtualizerRef.current.getVirtualItems()
         if (items.length === 0) return
-
-        const scrollTop = el.scrollTop
-        const clientHeight = el.clientHeight
-        const scrollHeight = el.scrollHeight
+        const { scrollTop, scrollHeight, clientHeight } = el
         const maxScroll = scrollHeight - clientHeight
-
-        const userIndices = filteredMessages
-          .map((m, i) => (m.role === 'user' ? i : -1))
-          .filter((i) => i !== -1)
-        if (userIndices.length === 0) return
-        const firstUserIdx = userIndices[0]
-        const lastUserIdx = userIndices[userIndices.length - 1]
-
-        if (scrollTop <= 0) {
-          callbackRef.current?.(firstUserIdx)
-          return
-        }
-        if (maxScroll <= 0 || scrollTop >= maxScroll - 1) {
-          callbackRef.current?.(lastUserIdx)
-          return
-        }
-
-        const viewportMid = scrollTop + clientHeight / 2
-        let closestIndex = items[0].index
-        let closestDist = Infinity
-
-        for (const item of items) {
-          const dist = Math.abs(item.start + item.size / 2 - viewportMid)
-          if (dist < closestDist) {
-            closestDist = dist
-            closestIndex = item.index
-          }
-        }
-
-        const nearestUser = userIndices.reduce((best, ui) =>
-          Math.abs(ui - closestIndex) < Math.abs(best - closestIndex)
-            ? ui
-            : best
+        if (scrollTop <= 0) { callbackRef.current?.(userIndices[0]); return }
+        if (maxScroll <= 0 || scrollTop >= maxScroll - 1) { callbackRef.current?.(userIndices[userIndices.length - 1]); return }
+        const topItem = items.find(item => item.start + item.size > scrollTop)
+        const topIndex = topItem?.index ?? items[0].index
+        const nearest = userIndices.reduce((best, ui) =>
+          Math.abs(ui - topIndex) < Math.abs(best - topIndex) ? ui : best
         )
-        callbackRef.current?.(nearestUser)
+        callbackRef.current?.(nearest)
       }
 
       el.addEventListener('scroll', report, { passive: true })
-      report()
+      const t = setTimeout(report, 50)
+      return () => { clearTimeout(t); el.removeEventListener('scroll', report) }
+    }, [filteredMessages, onVisibleUserIndexChange])
 
-      return () => {
-        el.removeEventListener('scroll', report)
-        if (programmaticScrollTimer.current) {
-          clearTimeout(programmaticScrollTimer.current)
-        }
-      }
-    }, [virtualizer, filteredMessages, onVisibleUserIndexChange])
-
-    const showLoading = isLoading
-    const showEmpty = !isLoading && filteredMessages.length === 0
-    const showList = !isLoading && filteredMessages.length > 0
+    // ── Render ─────────────────────────────────────────────────────────────
+    const virtualItems = virtualizer.getVirtualItems()
 
     return (
       <div ref={scrollRef} className="h-full overflow-y-auto">
-        {showLoading && (
+        {isLoading && (
           <motion.div
-            key="loading"
             className="flex items-center justify-center h-full text-sm text-muted-foreground"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.2 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}
           >
             <div className="flex flex-col items-center gap-2">
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -200,43 +203,25 @@ export const MessageThread = React.forwardRef<
             </div>
           </motion.div>
         )}
-        {showEmpty && (
+
+        {!isLoading && filteredMessages.length === 0 && (
           <motion.div
-            key="empty"
             className="flex flex-col items-center justify-center h-full text-center px-8"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.2 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}
           >
-            <img
-              src="/illustrations/empty-messages.svg"
-              alt="Empty conversation"
-              className="w-48 h-48 mb-4 opacity-90"
-            />
+            <img src="/illustrations/empty-messages.svg" alt="Empty conversation" className="w-48 h-48 mb-4 opacity-90" />
             <h3 className="text-lg font-semibold text-foreground mb-1">
-              {searchQuery
-                ? 'No matching messages'
-                : 'This conversation is empty'}
+              {searchQuery ? 'No matching messages' : 'This conversation is empty'}
             </h3>
             <p className="text-sm text-muted-foreground max-w-xs">
-              {searchQuery
-                ? 'Try a different search term.'
-                : 'Type a message below to begin your chat with the agent.'}
+              {searchQuery ? 'Try a different search term.' : 'Type a message below to begin your chat with the agent.'}
             </p>
           </motion.div>
         )}
-        {showList && (
-          // key forces the virtualizer's measured cache to fully reset when
-          // the search query changes, preventing stale row heights from
-          // causing items to overlap each other.
-          <div
-            key={searchQuery}
-            style={{
-              height: virtualizer.getTotalSize(),
-              position: 'relative'
-            }}
-          >
-            {virtualItems.map((virtualItem) => {
+
+        {!isLoading && filteredMessages.length > 0 && (
+          <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
+            {virtualItems.map(virtualItem => {
               const message = filteredMessages[virtualItem.index]
               return (
                 <div
@@ -248,7 +233,7 @@ export const MessageThread = React.forwardRef<
                     top: 0,
                     left: 0,
                     width: '100%',
-                    transform: `translateY(${virtualItem.start}px)`
+                    transform: `translateY(${virtualItem.start}px)`,
                   }}
                 >
                   <div className="px-4 py-1.5">

@@ -1,5 +1,13 @@
 /**
  * Center panel — virtualized message thread and input bar.
+ *
+ * Scroll restoration: CenterPanel saves the raw scrollTop pixel offset
+ * in a module-level Map during render (when the conversation key changes).
+ * This happens synchronously before React remounts the child, so threadRef
+ * still points to the old instance and getScrollPosition() returns the real value.
+ * The saved offset is passed as initialScrollOffset to the new MessageThread,
+ * which sets scrollRef.current.scrollTop directly in a useLayoutEffect —
+ * before first paint, no effects race, no StrictMode issues.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useDebounce } from 'use-debounce'
@@ -20,6 +28,9 @@ import { useMessagesWithStream } from '@/hooks/use-messages'
 import { useWorkspaces } from '@/hooks/use-workspaces'
 import { useUIStore } from '@/store/ui'
 
+// Module-level — survives conversation switches, cleared only on page reload.
+const scrollOffsetCache = new Map<string, number>()
+
 export function CenterPanel() {
   const activeConversationId = useUIStore((s) => s.activeConversationId)
   const activeBranchId = useUIStore((s) => s.activeBranchId)
@@ -28,40 +39,42 @@ export function CenterPanel() {
   const activeWorkspace = workspaces.find((w) => w.id === workspaceId)
   const workspaceRoot = activeWorkspace?.path
 
-  // Within-conversation search state
   const searchQuery = useUIStore((s) => s.conversationSearchQuery)
   const setSearchQuery = useUIStore((s) => s.setConversationSearchQuery)
   const [debouncedSearch] = useDebounce(searchQuery, 300)
 
-  // Scroll restoration
-  const scrollPositions = useUIStore((s) => s.scrollPositions)
-  const setScrollPosition = useUIStore((s) => s.setScrollPosition)
-
   const threadRef = useRef<MessageThreadHandle>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
-
-  // Jump to latest button visibility
   const [showJumpToLatest, setShowJumpToLatest] = useState(false)
 
   useAgentStream(activeConversationId)
-
   const messages = useMessagesWithStream(activeConversationId, activeBranchId)
 
-  const [activeUserMessageIndex, setActiveUserMessageIndex] = useState<
-    number | undefined
-  >(undefined)
-
-  const [highlightedMessageId, setHighlightedMessageId] = useState<
-    string | null
-  >(null)
+  const [activeUserMessageIndex, setActiveUserMessageIndex] = useState<number | undefined>(undefined)
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Track whether we've restored scroll for the current conversation key.
-  // This prevents re-running restoration every time messages.length changes
-  // (e.g. when a new message arrives mid-conversation).
-  const restoredKeyRef = useRef<string | null>(null)
+  // ── Scroll save/restore ────────────────────────────────────────────────
+  const activeKeyRef = useRef<string | undefined>(undefined)
+  const activeKey = activeConversationId
+    ? `${activeConversationId}_${activeBranchId ?? 'main'}`
+    : undefined
 
-  // Global keyboard shortcut: Cmd+F / Ctrl+F to focus search
+  // This runs during render — synchronously — before React processes the key change
+  // that will remount MessageThread. threadRef still points to the OLD instance here.
+  if (activeKeyRef.current !== activeKey) {
+    if (activeKeyRef.current && threadRef.current) {
+      const pos = threadRef.current.getScrollPosition()
+      if (pos > 0 || !scrollOffsetCache.has(activeKeyRef.current)) {
+        scrollOffsetCache.set(activeKeyRef.current, pos)
+      }
+    }
+    activeKeyRef.current = activeKey
+  }
+
+  const initialScrollOffset = activeKey ? scrollOffsetCache.get(activeKey) : undefined
+
+  // ── Rest of panel ──────────────────────────────────────────────────────
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
@@ -77,117 +90,36 @@ export function CenterPanel() {
     setActiveUserMessageIndex(index)
   }, [])
 
-  const scrollToMessage = useCallback(
-    (index: number) => {
-      if (highlightTimeoutRef.current) {
-        clearTimeout(highlightTimeoutRef.current)
-      }
+  const scrollToMessage = useCallback((index: number) => {
+    if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current)
+    const targetMessage = messages[index]
+    if (targetMessage) {
+      setHighlightedMessageId(targetMessage.id)
+      highlightTimeoutRef.current = setTimeout(() => setHighlightedMessageId(null), 800)
+    }
+    threadRef.current?.scrollToMessage(index)
+  }, [messages])
 
-      const targetMessage = messages[index]
-      if (targetMessage) {
-        setHighlightedMessageId(targetMessage.id)
-        highlightTimeoutRef.current = setTimeout(() => {
-          setHighlightedMessageId(null)
-        }, 800)
-      }
-
-      threadRef.current?.scrollToMessage(index)
-    },
-    [messages]
-  )
-
-  // Check if near bottom to hide jump button
   const checkScrollPosition = useCallback(() => {
     if (!threadRef.current) return
     const pos = threadRef.current.getScrollPosition()
     const totalHeight = threadRef.current.getTotalHeight()
     const clientHeight = threadRef.current.getClientHeight()
-
-    if (totalHeight <= clientHeight) {
-      setShowJumpToLatest(false)
-      return
-    }
-
-    const nearBottom = pos + clientHeight >= totalHeight - 100
-    setShowJumpToLatest(!nearBottom && messages.length > 0)
+    if (totalHeight <= clientHeight) { setShowJumpToLatest(false); return }
+    setShowJumpToLatest(pos + clientHeight < totalHeight - 100 && messages.length > 0)
   }, [messages.length])
 
-  // Save scroll position when leaving this conversation.
-  // We read the position eagerly into a ref so the cleanup closure
-  // always has the latest value even after the component re-renders.
-  const scrollPositionRef = useRef(0)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      scrollPositionRef.current = threadRef.current?.getScrollPosition() ?? 0
-    }, 250)
-    return () => clearInterval(interval)
-  }, [])
-
-  useEffect(() => {
-    if (!activeConversationId) return
-    const key = `${activeConversationId}_${activeBranchId ?? 'main'}`
-    return () => {
-      // Save whatever position we last sampled
-      setScrollPosition(key, scrollPositionRef.current)
-    }
-  }, [activeConversationId, activeBranchId, setScrollPosition])
-
-  // Reset the restoration guard immediately when the conversation key changes,
-  // so the restoration effect is allowed to run for the new conversation.
-  // This must be a separate effect so it fires before the restoration effect.
-  useEffect(() => {
-    restoredKeyRef.current = null
-  }, [activeConversationId, activeBranchId])
-
-  // Restore scroll position once per conversation switch.
-  // We guard with restoredKeyRef so this never re-fires when messages
-  // arrive during a conversation — only on an actual conversation change.
-  useEffect(() => {
-    if (!activeConversationId || messages.length === 0) return
-
-    const key = `${activeConversationId}_${activeBranchId ?? 'main'}`
-    if (restoredKeyRef.current === key) return // already restored for this key
-    restoredKeyRef.current = key
-
-    const saved = scrollPositions[key]
-
-    // Double rAF: first frame lets React commit the virtualizer DOM,
-    // second frame lets the virtualizer measure rows and compute total height.
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        if (saved) {
-          threadRef.current?.scrollToPosition(saved)
-        } else {
-          threadRef.current?.scrollToIndex(messages.length - 1, { behavior: 'auto' })
-        }
-        checkScrollPosition()
-      })
-    })
-  }, [activeConversationId, activeBranchId, messages.length, scrollPositions, checkScrollPosition])
-
-  // Update jump button on scroll
   useEffect(() => {
     const interval = setInterval(checkScrollPosition, 200)
     return () => clearInterval(interval)
   }, [checkScrollPosition])
 
-  // Also check after messages change
-  useEffect(() => {
-    checkScrollPosition()
-  }, [messages, checkScrollPosition])
+  useEffect(() => { checkScrollPosition() }, [messages, checkScrollPosition])
 
-  // Clear search when conversation changes
-  useEffect(() => {
-    setSearchQuery('')
-  }, [activeConversationId, setSearchQuery])
+  useEffect(() => { setSearchQuery('') }, [activeConversationId, setSearchQuery])
 
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (highlightTimeoutRef.current) {
-        clearTimeout(highlightTimeoutRef.current)
-      }
-    }
+  useEffect(() => () => {
+    if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current)
   }, [])
 
   const modifierKey = navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'
@@ -219,11 +151,8 @@ export function CenterPanel() {
 
   return (
     <div className="relative flex flex-col h-full">
-      {activeConversationId && (
-        <BranchNav conversationId={activeConversationId} />
-      )}
+      {activeConversationId && <BranchNav conversationId={activeConversationId} />}
 
-      {/* Search bar */}
       <div className="px-4 py-2 border-b border-border flex items-center gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
@@ -242,12 +171,7 @@ export function CenterPanel() {
           </div>
         </div>
         {searchQuery && (
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => setSearchQuery('')}
-            aria-label="Clear search"
-          >
+          <Button variant="ghost" size="icon-sm" onClick={() => setSearchQuery('')} aria-label="Clear search">
             <X className="size-3.5" />
           </Button>
         )}
@@ -255,11 +179,13 @@ export function CenterPanel() {
 
       <div className="relative flex-1 min-h-0">
         <MessageThread
+          key={activeKey}
           ref={threadRef}
           messages={messages}
           searchQuery={debouncedSearch}
           onVisibleUserIndexChange={handleVisibleUserIndexChange}
           highlightedMessageId={highlightedMessageId}
+          initialScrollOffset={initialScrollOffset}
         />
 
         {messages.length > 2 && (
@@ -284,10 +210,7 @@ export function CenterPanel() {
       </div>
 
       <div className="shrink-0 border-t border-border">
-        <MessageInput
-          conversationId={activeConversationId}
-          workspaceRoot={workspaceRoot}
-        />
+        <MessageInput conversationId={activeConversationId} workspaceRoot={workspaceRoot} />
       </div>
     </div>
   )

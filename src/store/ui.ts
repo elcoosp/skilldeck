@@ -9,6 +9,8 @@
  *
  * All other state (active conversation, drafts, streaming, etc.) is ephemeral
  * and resets on app restart.
+ *
+ * Scroll positions are NOT stored here — see scrollPositionCache in center-panel.tsx.
  */
 
 import { create } from 'zustand'
@@ -75,11 +77,6 @@ interface UIState {
   globalSearchOpen: boolean
   setGlobalSearchOpen: (open: boolean) => void
 
-  // ── Scroll positions per conversation (key: `${conversationId}_${branchId}`) ───
-  scrollPositions: Record<string, number>
-  setScrollPosition: (key: string, position: number) => void
-  clearScrollPosition: (key: string) => void
-
   // ── Overlays ──────────────────────────────────────────────────────────
   settingsOpen: boolean
   setSettingsOpen: (open: boolean) => void
@@ -103,12 +100,10 @@ interface UIState {
   setUnlockStage: (stage: number) => void
 
   // ── Onboarding completion (manually persisted to localStorage) ────────
-  /** Whether the user has completed the first‑run onboarding wizard */
   onboardingComplete: boolean
   setOnboardingComplete: (complete: boolean) => void
 
   // ── Platform features flag (manually persisted to localStorage) ────────
-  /** Whether platform features (community skills, nudges, referrals) are enabled */
   platformFeaturesEnabled: boolean
   setPlatformFeaturesEnabled: (enabled: boolean) => void
 }
@@ -116,7 +111,7 @@ interface UIState {
 export const useUIStore = create<UIState>()(
   persist(
     (set) => ({
-      // Onboarding – read from localStorage so the wizard only shows once
+      // Onboarding
       onboardingComplete: (() => {
         try {
           return localStorage.getItem('skilldeck-onboarding-complete') === 'true'
@@ -127,13 +122,11 @@ export const useUIStore = create<UIState>()(
       setOnboardingComplete: (complete) => {
         try {
           localStorage.setItem('skilldeck-onboarding-complete', String(complete))
-        } catch {
-          // ignore
-        }
+        } catch { }
         set({ onboardingComplete: complete })
       },
 
-      // Platform features – default to true, but can be disabled by onboarding skip
+      // Platform features
       platformFeaturesEnabled: (() => {
         try {
           const stored = localStorage.getItem('skilldeck-platform-features-enabled')
@@ -145,9 +138,7 @@ export const useUIStore = create<UIState>()(
       setPlatformFeaturesEnabled: (enabled) => {
         try {
           localStorage.setItem('skilldeck-platform-features-enabled', String(enabled))
-        } catch {
-          // ignore
-        }
+        } catch { }
         set({ platformFeaturesEnabled: enabled })
       },
 
@@ -171,12 +162,10 @@ export const useUIStore = create<UIState>()(
       // Drafts
       drafts: {},
       setDraft: (conversationId, content) =>
-        set((state) => ({
-          drafts: { ...state.drafts, [conversationId]: content }
-        })),
+        set((state) => ({ drafts: { ...state.drafts, [conversationId]: content } })),
       clearDraft: (conversationId) =>
         set((state) => {
-          const { [conversationId]: _removed, ...rest } = state.drafts
+          const { [conversationId]: _, ...rest } = state.drafts
           return { drafts: rest }
         }),
 
@@ -191,25 +180,21 @@ export const useUIStore = create<UIState>()(
         })),
       clearStreamingText: (conversationId) =>
         set((state) => {
-          const { [conversationId]: _removed, ...rest } = state.streamingText
+          const { [conversationId]: _, ...rest } = state.streamingText
           return { streamingText: rest }
         }),
 
       // Agent running
       agentRunning: {},
       setAgentRunning: (conversationId, running) =>
-        set((state) => ({
-          agentRunning: { ...state.agentRunning, [conversationId]: running }
-        })),
+        set((state) => ({ agentRunning: { ...state.agentRunning, [conversationId]: running } })),
 
       // Streaming error
       streamingError: {},
       setStreamingError: (conversationId, error) =>
-        set((state) => ({
-          streamingError: { ...state.streamingError, [conversationId]: error }
-        })),
+        set((state) => ({ streamingError: { ...state.streamingError, [conversationId]: error } })),
 
-      // Search (sidebar)
+      // Sidebar search
       searchQuery: '',
       setSearchQuery: (query) => set({ searchQuery: query }),
 
@@ -220,18 +205,6 @@ export const useUIStore = create<UIState>()(
       // Global search modal
       globalSearchOpen: false,
       setGlobalSearchOpen: (open) => set({ globalSearchOpen: open }),
-
-      // Scroll positions (new)
-      scrollPositions: {},
-      setScrollPosition: (key, position) =>
-        set((state) => ({
-          scrollPositions: { ...state.scrollPositions, [key]: position }
-        })),
-      clearScrollPosition: (key) =>
-        set((state) => {
-          const { [key]: _removed, ...rest } = state.scrollPositions
-          return { scrollPositions: rest }
-        }),
 
       // Overlays
       settingsOpen: false,
@@ -260,7 +233,6 @@ export const useUIStore = create<UIState>()(
         unlockStage: state.unlockStage,
         leftTab: state.leftTab,
         rightTab: state.rightTab
-        // scrollPositions intentionally not persisted (ephemeral)
       })
     }
   )

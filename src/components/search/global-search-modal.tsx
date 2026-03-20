@@ -181,6 +181,7 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
               >
                 {results.map((result, index) => (
                   <button
+                    type="button"
                     key={result.message_id}
                     className={cn(
                       'w-full text-left p-3 hover:bg-muted/50 transition-colors',
