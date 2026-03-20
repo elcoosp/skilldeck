@@ -10,7 +10,7 @@
 
 import { open } from '@tauri-apps/plugin-dialog'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { AtSign, Hash, Paperclip, Send, Timer } from 'lucide-react' // removed X
+import { AtSign, Hash, Paperclip, Send, Timer } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
@@ -54,6 +54,7 @@ import type { UnifiedSkill } from '@/types/skills'
 interface MessageInputProps {
   conversationId: UUID
   workspaceRoot?: string
+  onRequestScrollToBottom?: () => void   // <-- new prop
 }
 
 interface FileChip {
@@ -66,7 +67,8 @@ type UploadStatusMap = Map<string, { status: UploadStatus }>
 
 export function MessageInput({
   conversationId,
-  workspaceRoot
+  workspaceRoot,
+  onRequestScrollToBottom
 }: MessageInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [isComposing, setIsComposing] = useState(false)
@@ -510,6 +512,8 @@ export function MessageInput({
         content: finalContent,
         contextItems: metadataItems.length > 0 ? metadataItems : undefined
       })
+      // Request scroll to bottom after message is sent
+      onRequestScrollToBottom?.()
     } catch (err) {
       toast.error(`Failed to send message: ${err}`)
       setContent(finalContent)
@@ -528,7 +532,8 @@ export function MessageInput({
     clearDraft,
     clearItems,
     items,
-    sendMutation
+    sendMutation,
+    onRequestScrollToBottom
   ])
 
   return (
@@ -576,7 +581,7 @@ export function MessageInput({
                     }}
                     onRemove={() => removeFile(file.path)}
                     isLoading={status === 'pending'}
-                    // isError removed because ContextChip does not accept it
+                  // isError removed because ContextChip does not accept it
                   />
                 </motion.div>
               )
@@ -628,38 +633,13 @@ export function MessageInput({
             }
             aria-label={isRunning ? 'Queue message' : 'Send'}
           >
-            <AnimatePresence mode="wait">
-              {isSending ? (
-                <motion.div
-                  key="sending"
-                  initial={shouldReduceMotion ? {} : { rotate: 0 }}
-                  animate={shouldReduceMotion ? {} : { rotate: 360 }}
-                  transition={
-                    shouldReduceMotion
-                      ? { duration: 0 }
-                      : { duration: 0.5, repeat: Infinity, ease: 'linear' }
-                  }
-                >
-                  <Send className="size-3.5" />
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="idle"
-                  initial={shouldReduceMotion ? {} : { scale: 0.8 }}
-                  animate={shouldReduceMotion ? {} : { scale: 1 }}
-                  exit={shouldReduceMotion ? {} : { scale: 0.8 }}
-                  transition={
-                    shouldReduceMotion ? { duration: 0 } : { duration: 0.2 }
-                  }
-                >
-                  {isRunning ? (
-                    <Timer className="size-3.5" />
-                  ) : (
-                    <Send className="size-3.5" />
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {isSending ? (
+              <Send className="size-3.5" />
+            ) : isRunning ? (
+              <Timer className="size-3.5" />
+            ) : (
+              <Send className="size-3.5" />
+            )}
           </Button>
         </div>
       </div>

@@ -1,5 +1,3 @@
-import rehypeShiki from '@shikijs/rehype'
-import { openUrl } from '@tauri-apps/plugin-opener'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   AlertCircle,
@@ -28,6 +26,7 @@ import { SubagentCard } from './subagent-card'
 interface MessageBubbleProps {
   message: MessageData
   isStreaming?: boolean
+  isHighlighted?: boolean
   searchQuery?: string // used for highlighting search matches
 }
 
@@ -142,6 +141,7 @@ const CodePre = ({ children, ...props }: any) => {
 export function MessageBubble({
   message,
   isStreaming = false,
+  isHighlighted = false,
   searchQuery = ''
 }: MessageBubbleProps) {
   const [collapsed, setCollapsed] = useState(false)
@@ -370,11 +370,11 @@ export function MessageBubble({
         )}
       >
         <div className={cn(isUser && 'text-right', 'w-full')}>
-          {/* This is the actual bubble – always has padding, and gets data-message-id for highlights */}
+          {/* This is the actual bubble – relative for the animated ring */}
           <div
             data-message-id={message.id}
             className={cn(
-              'inline-block px-3.5 py-2.5 rounded-xl text-sm leading-relaxed transition-colors duration-300',
+              'relative inline-block px-3.5 py-2.5 rounded-xl text-sm leading-relaxed transition-colors duration-300',
               isUser
                 ? 'bg-primary text-primary-foreground rounded-tr-sm'
                 : isTool
@@ -385,8 +385,19 @@ export function MessageBubble({
               isQueued && 'border-l-2 border-amber-400 pl-3'
             )}
           >
+            {/* Animated ring overlay */}
+            <motion.div
+              className="absolute inset-0 rounded-xl ring-2 ring-primary/50 ring-offset-1 pointer-events-none"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{
+                opacity: isHighlighted ? 1 : 0,
+                scale: isHighlighted ? 1 : 0.9
+              }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+            />
+
             {isQueued && (
-              <span className="text-xs text-amber-500 mb-1 flex items-center gap-1">
+              <span className="text-xs bg-primary-foreground/10 text-primary-foreground rounded-full px-2 py-0.5 mb-1 flex items-center gap-1 self-start">
                 <Clock className="size-3" /> Queued
               </span>
             )}

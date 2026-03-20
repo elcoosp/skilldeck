@@ -1,17 +1,9 @@
 /**
  * Center panel — virtualized message thread and input bar.
- *
- * Scroll restoration: CenterPanel saves the raw scrollTop pixel offset
- * in a module-level Map during render (when the conversation key changes).
- * This happens synchronously before React remounts the child, so threadRef
- * still points to the old instance and getScrollPosition() returns the real value.
- * The saved offset is passed as initialScrollOffset to the new MessageThread,
- * which sets scrollRef.current.scrollTop directly in a useLayoutEffect —
- * before first paint, no effects race, no StrictMode issues.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useDebounce } from 'use-debounce'
-import { ChevronDown, Search, X } from 'lucide-react'
+import { ArrowDown, Search, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
@@ -19,17 +11,20 @@ import { BranchNav } from '@/components/conversation/branch-nav'
 import { MessageInput } from '@/components/conversation/message-input'
 import {
   MessageThread,
-  type MessageThreadHandle
+  type MessageThreadHandle,
+  type ScrollToken,
 } from '@/components/conversation/message-thread'
-import { ThreadNavigator } from '@/components/conversation/thread-navigator'
 import { useAgentStream } from '@/hooks/use-agent-stream'
 import { useActiveConversationWorkspaceId } from '@/hooks/use-conversations'
 import { useMessagesWithStream } from '@/hooks/use-messages'
 import { useWorkspaces } from '@/hooks/use-workspaces'
 import { useUIStore } from '@/store/ui'
+import { cn } from '@/lib/utils'
 
-// Module-level — survives conversation switches, cleared only on page reload.
-const scrollOffsetCache = new Map<string, number>()
+// Keyed by `${conversationId}_${branchId}`.
+// Stores item-space tokens rather than raw pixel offsets so the saved position
+// survives virtualizer remounts where estimated row heights differ from measured.
+const scrollTokenCache = new Map<string, ScrollToken>()
 
 export function CenterPanel() {
   const activeConversationId = useUIStore((s) => s.activeConversationId)
@@ -42,6 +37,7 @@ export function CenterPanel() {
   const searchQuery = useUIStore((s) => s.conversationSearchQuery)
   const setSearchQuery = useUIStore((s) => s.setConversationSearchQuery)
   const [debouncedSearch] = useDebounce(searchQuery, 300)
+  const [autoScroll, setAutoScroll] = useState(true)
 
   const threadRef = useRef<MessageThreadHandle>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -50,7 +46,6 @@ export function CenterPanel() {
   useAgentStream(activeConversationId)
   const messages = useMessagesWithStream(activeConversationId, activeBranchId)
 
-  const [activeUserMessageIndex, setActiveUserMessageIndex] = useState<number | undefined>(undefined)
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -60,21 +55,19 @@ export function CenterPanel() {
     ? `${activeConversationId}_${activeBranchId ?? 'main'}`
     : undefined
 
-  // This runs during render — synchronously — before React processes the key change
-  // that will remount MessageThread. threadRef still points to the OLD instance here.
   if (activeKeyRef.current !== activeKey) {
     if (activeKeyRef.current && threadRef.current) {
-      const pos = threadRef.current.getScrollPosition()
-      if (pos > 0 || !scrollOffsetCache.has(activeKeyRef.current)) {
-        scrollOffsetCache.set(activeKeyRef.current, pos)
+      const token = threadRef.current.getScrollToken()
+      if (token.messageCount > 0) {
+        scrollTokenCache.set(activeKeyRef.current, token)
       }
     }
     activeKeyRef.current = activeKey
   }
 
-  const initialScrollOffset = activeKey ? scrollOffsetCache.get(activeKey) : undefined
+  const initialScrollToken = activeKey ? scrollTokenCache.get(activeKey) : undefined
 
-  // ── Rest of panel ──────────────────────────────────────────────────────
+  // ── Keyboard shortcut ──────────────────────────────────────────────────
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
@@ -86,20 +79,20 @@ export function CenterPanel() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-  const handleVisibleUserIndexChange = useCallback((index: number) => {
-    setActiveUserMessageIndex(index)
-  }, [])
-
-  const scrollToMessage = useCallback((index: number) => {
+  // ── Navigator highlight callback ───────────────────────────────────────
+  // ThreadNavigator now lives inside MessageThread and handles its own scroll
+  // tracking. The only thing CenterPanel needs to do is flash the highlight
+  // ring when a dot is clicked.
+  const handleNavigatorScrollTo = useCallback((index: number) => {
     if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current)
     const targetMessage = messages[index]
     if (targetMessage) {
       setHighlightedMessageId(targetMessage.id)
       highlightTimeoutRef.current = setTimeout(() => setHighlightedMessageId(null), 800)
     }
-    threadRef.current?.scrollToMessage(index)
   }, [messages])
 
+  // ── Jump-to-latest button visibility ──────────────────────────────────
   const checkScrollPosition = useCallback(() => {
     if (!threadRef.current) return
     const pos = threadRef.current.getScrollPosition()
@@ -116,6 +109,7 @@ export function CenterPanel() {
 
   useEffect(() => { checkScrollPosition() }, [messages, checkScrollPosition])
 
+  // ── Cleanup ────────────────────────────────────────────────────────────
   useEffect(() => { setSearchQuery('') }, [activeConversationId, setSearchQuery])
 
   useEffect(() => () => {
@@ -175,6 +169,18 @@ export function CenterPanel() {
             <X className="size-3.5" />
           </Button>
         )}
+        <label
+          className="flex items-center gap-1.5 text-xs text-muted-foreground select-none cursor-pointer shrink-0"
+          title="Auto-scroll to the bottom while a response streams in"
+        >
+          <input
+            type="checkbox"
+            checked={autoScroll}
+            onChange={(e) => setAutoScroll(e.target.checked)}
+            className="size-3 accent-primary cursor-pointer"
+          />
+          Auto-scroll
+        </label>
       </div>
 
       <div className="relative flex-1 min-h-0">
@@ -183,30 +189,27 @@ export function CenterPanel() {
           ref={threadRef}
           messages={messages}
           searchQuery={debouncedSearch}
-          onVisibleUserIndexChange={handleVisibleUserIndexChange}
           highlightedMessageId={highlightedMessageId}
-          initialScrollOffset={initialScrollOffset}
+          initialScrollToken={initialScrollToken}
+          autoScroll={autoScroll}
+          onNavigatorScrollTo={handleNavigatorScrollTo}
         />
 
-        {messages.length > 2 && (
-          <ThreadNavigator
-            messages={messages}
-            onScrollTo={scrollToMessage}
-            activeIndex={activeUserMessageIndex}
-          />
-        )}
-
-        {showJumpToLatest && (
-          <button
-            type="button"
-            onClick={jumpToLatest}
-            className="absolute bottom-4 right-4 z-30 flex items-center justify-center w-10 h-10 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-all duration-200 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-            aria-label="Jump to latest message"
-            title="Jump to latest"
-          >
-            <ChevronDown className="size-5" />
-          </button>
-        )}
+        {/* Jump to latest button */}
+        <button
+          type="button"
+          onClick={jumpToLatest}
+          className={cn(
+            "absolute bottom-4 right-4 z-30 flex items-center justify-center w-8 h-8 rounded-full bg-background border border-border shadow-md transition-all duration-200 hover:bg-accent/10 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+            showJumpToLatest
+              ? "opacity-100 visible pointer-events-auto"
+              : "opacity-0 invisible pointer-events-none"
+          )}
+          aria-label="Jump to latest message"
+          title="Jump to latest"
+        >
+          <ArrowDown className="size-4" />
+        </button>
       </div>
 
       <div className="shrink-0 border-t border-border">
