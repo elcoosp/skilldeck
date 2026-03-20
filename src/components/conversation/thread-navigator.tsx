@@ -52,38 +52,36 @@ export function ThreadNavigator({
 
     const onScroll = () => {
       const indices = userIndicesRef.current
-      if (indices.length === 0) {
-        setActiveIndex(-1)
-        return
-      }
+      if (indices.length === 0) { setActiveIndex(-1); return }
 
       const { scrollTop, scrollHeight, clientHeight } = el
       const maxScroll = scrollHeight - clientHeight
 
-      if (scrollTop <= 0) {
-        setActiveIndex(indices[0])
-        return
-      }
+      if (scrollTop <= 0) { setActiveIndex(indices[0]); return }
+      if (maxScroll <= 0 || scrollTop >= maxScroll - 1) { setActiveIndex(indices[indices.length - 1]); return }
 
-      if (maxScroll <= 0 || scrollTop >= maxScroll - 1) {
-        setActiveIndex(indices[indices.length - 1])
-        return
-      }
+      const virt = virtualizerRef.current as any
+      const cache: Array<{ index: number; start: number; size: number }> = virt?.measurementsCache ?? []
 
       let result = indices[0]
       for (const ui of indices) {
-        const item = scrollRef.current?.querySelector(`[data-message-index="${ui}"]`) as HTMLElement | null
-        if (!item) continue
-        const transform = item.style.transform
-        const match = transform.match(/translateY\(([-\d.]+)px\)/)
-        if (!match) continue
-        const top = parseFloat(match[1])
+        // Prefer live DOM position (accurate for rendered items)
+        const domItem = scrollRef.current?.querySelector(`[data-message-index="${ui}"]`) as HTMLElement | null
+        let top: number | null = null
 
-        if (top <= scrollTop) {
-          result = ui
-        } else {
-          break
+        if (domItem) {
+          const match = domItem.style.transform.match(/translateY\(([-\d.]+)px\)/)
+          if (match) top = parseFloat(match[1])
         }
+
+        // Fall back to measurements cache for items outside the render window
+        if (top === null && cache[ui]) {
+          top = cache[ui].start
+        }
+
+        if (top === null) continue
+        if (top <= scrollTop + 1) result = ui
+        else break
       }
       setActiveIndex(result)
     }
@@ -141,30 +139,11 @@ export function ThreadNavigator({
   }
 
   const handleClick = (idx: number) => {
-    const dotNumber = userIndices.indexOf(idx)
-    console.log('[ThreadNavigator] click', {
-      idx,
-      dotNumber,
-      currentActiveIndex: activeIndex,
-    })
-
     const virt = virtualizerRef.current
     if (!virt) return
-
     virt.scrollToIndex(idx, { behavior: 'auto', align: 'start' })
-
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        virtualizerRef.current?.scrollToIndex(idx, { behavior: 'auto', align: 'start' })
-        requestAnimationFrame(() => {
-          virtualizerRef.current?.scrollToIndex(idx, { behavior: 'auto', align: 'start' })
-        })
-      })
-    })
-
     onScrollTo(idx)
   }
-
   return (
     <>
       <nav
