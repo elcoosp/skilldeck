@@ -36,8 +36,6 @@ function distFromBottom(el: HTMLElement): number {
 }
 
 // ─── Module-level measured size cache ────────────────────────────────────────
-// Keyed by message id (stable UUIDs). Survives conversation switches so that
-// scroll restoration seed offsets are accurate on revisit.
 const globalMeasuredSizes = new Map<string, number>()
 
 export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThreadProps>(
@@ -66,17 +64,13 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
     const filteredMessagesRef = React.useRef(filteredMessages)
     filteredMessagesRef.current = filteredMessages
 
-    // ─── Measured size cache (module-level, survives remounts) ──────────────
+    // ─── Measured size cache (module-level) ──────────────────────────────────
     const measuredSizesRef = React.useRef(globalMeasuredSizes)
 
     // ─── Programmatic scroll tracking ────────────────────────────────────────
-    // When WE scroll (not the user), we set this to true so the scroll listener
-    // doesn't treat our scrolls as "user scrolled away".
     const isProgrammaticScrollRef = React.useRef(false)
 
     // ─── User-away-from-bottom state ─────────────────────────────────────────
-    // True when the user has manually scrolled up during streaming.
-    // Cleared when they return near bottom or a new stream starts.
     const userScrolledAwayRef = React.useRef(false)
 
     // ─── Refs for stable access inside callbacks ─────────────────────────────
@@ -95,68 +89,71 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
       [] // eslint-disable-line react-hooks/exhaustive-deps — mount-only
     )
 
+    // ─── Target for programmatic scroll to a specific message ────────────────
+    // We store the filtered index we're trying to land on. On every onChange
+    // tick we re-issue scrollToIndex so the virtualizer can converge as real
+    // measurements arrive and correct its size estimates. Once the item's
+    // virtual `start` equals scrollOffset (within tolerance) AND total size
+    // has been stable for two consecutive ticks, we're done.
+    const targetFilteredIndexRef = React.useRef<number | null>(null)
+    const isProgrammaticScrollingRef = React.useRef(false)
+    // Tracks getTotalSize() from the previous onChange tick so we can detect
+    // when measurements have stopped landing and the layout has stabilised.
+    const lastTotalSizeRef = React.useRef<number | null>(null)
+    // Counts consecutive ticks where getTotalSize() hasn't changed, so we can
+    // require N stable ticks before declaring convergence.
+    const stableTotalTicksRef = React.useRef(0)
+
     // ─── scrollToFn: intercept ALL virtualizer scrolls ────────────────────────
-    // This is the single place where programmatic scrolls happen.
-    // We set isProgrammaticScrollRef so the scroll listener ignores them.
     const scrollToFn: React.ComponentProps<typeof useVirtualizer>['scrollToFn'] =
       React.useCallback((offset, { behavior }, instance) => {
         isProgrammaticScrollRef.current = true
         elementScroll(offset, { behavior }, instance)
-        // Reset after scroll event fires (next frame is enough)
         requestAnimationFrame(() => {
           isProgrammaticScrollRef.current = false
         })
       }, [])
 
     // ─── Dynamic estimate based on measured average ──────────────────────────
-    // As messages get measured, we track the average assistant height.
-    // This converges quickly and reduces first-measurement jumps.
     const avgAssistantHeightRef = React.useRef(400)
 
     const updateAvgAssistantHeight = React.useCallback((newHeight: number) => {
-      // Exponential moving average — weight recent measurements more
       avgAssistantHeightRef.current = Math.round(
         avgAssistantHeightRef.current * 0.7 + newHeight * 0.3
       )
     }, [])
+
+    // Helper to determine if auto-scroll is allowed
+    const shouldAutoScroll = () => {
+      return autoScrollRef.current && !isProgrammaticScrollingRef.current
+    }
+
     const virtualizer = useVirtualizer({
       count: filteredMessages.length,
       getScrollElement: () => scrollRef.current,
       estimateSize: (index) => {
-        // Use ref so we always read the latest filteredMessages — the closure
-        // over `filteredMessages` stales between renders causing index mismatches.
         const msg = filteredMessagesRef.current[index]
         if (!msg) return 80
         const known = measuredSizesRef.current.get(msg.id)
         if (known) return known
         return msg.role === 'assistant' ? avgAssistantHeightRef.current : 80
       },
-      overscan: 5,
-      // Defer ResizeObserver measurements to the next animation frame.
-      // This ensures we measure after Shiki syntax highlighting and markdown
-      // rendering have completed their reflows, not at the skeleton 80px height.
+      overscan: 5, // Keep reasonable overscan; no cheating
       useAnimationFrameWithResizeObserver: true,
       measureElement: (el) => {
         const h = el.getBoundingClientRect().height
         const msgId = (el as HTMLElement).dataset.msgId
         if (msgId) {
-          const prev = measuredSizesRef.current.get(msgId)
           const role = (el as HTMLElement).dataset.role ?? 'user'
+          const prev = measuredSizesRef.current.get(msgId)
           const estimate = prev ?? (role === 'assistant' ? avgAssistantHeightRef.current : 80)
           const delta = h - estimate
           if (Math.abs(delta) > 50) {
             console.log(`[Measure] msgId=${msgId.slice(0, 8)} role=${role} estimated=${estimate} actual=${h} delta=${delta}`)
           }
-          // Suppress only if: assistant, measured exactly 80px (skeleton height),
-          // AND previously measured at >200px (real content). This is the specific
-          // pattern of pre-render skeleton overwriting a known good large measurement.
-          // Using 200px threshold avoids suppressing genuinely short responses.
-          const isSkeleton = role === 'assistant' && h === 80 && !!prev && prev > 200
-          if (!isSkeleton) {
-            measuredSizesRef.current.set(msgId, h)
-            if (role === 'assistant' && !prev && h > 80) {
-              updateAvgAssistantHeight(h)
-            }
+          measuredSizesRef.current.set(msgId, h)
+          if (role === 'assistant' && h > 80) {
+            updateAvgAssistantHeight(h)
           }
         }
         return h
@@ -184,9 +181,6 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
             const inRange = idx >= items[0].index && idx <= items[items.length - 1].index
             if (inRange && !instance.isScrolling) {
               restorationAppliedRef.current = true
-              // Phase 2: item is measured. Use scrollToIndex(align:'start') to land
-              // at the item's top edge (robust against totalSize changes), then add
-              // the intra-item delta: how far into the item the user was scrolled.
               const targetItem = items.find(it => it.index === idx)
               const intraItemOffset = targetItem
                 ? Math.max(0, token.scrollTop - targetItem.start)
@@ -194,7 +188,6 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
               console.log(`[Restoration] target=${idx} in range start=${targetItem?.start ?? '?'} savedScrollTop=${token.scrollTop} intraItem=${intraItemOffset}`)
               requestAnimationFrame(() => {
                 instance.scrollToIndex(idx, { align: 'start', behavior: 'auto' })
-                // Apply intra-item offset after scrollToIndex settles
                 requestAnimationFrame(() => {
                   const el = instance.scrollElement as HTMLElement | null
                   if (el && intraItemOffset > 0) {
@@ -206,8 +199,6 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
               })
             } else if (!inRange && !restorationSeededRef.current) {
               restorationSeededRef.current = true
-              // Phase 1: target not in view — seed using cached sizes to bring it into range.
-              // Use cached real sizes where available, fall back to avg estimate.
               let offset = 0
               for (let i = 0; i < idx; i++) {
                 const m = filteredMessagesRef.current[i]
@@ -223,15 +214,77 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
           return
         }
 
-        // ── Phase 2: Non-streaming near-bottom auto-scroll ───────────────────
-        // Only fire when: autoScroll enabled, not streaming, not user-scrolling,
-        // and truly at the bottom (dist=0, not a loose threshold that misfires).
-        if (!autoScrollRef.current) return
+        // ── Phase 2: Converging programmatic scroll ───────────────────────────
+        // scrollToIndex computes offsets from *estimated* sizes. As items render
+        // and get measured, getTotalSize() shifts — sometimes by 100k+ px —
+        // dragging the target's real position with it. We re-issue scrollToIndex
+        // every tick so the virtualizer re-converges with fresh measurements.
+        //
+        // False-convergence traps:
+        //   A. Size-collapse clamp: total shrinks mid-scroll, browser clamps
+        //      scrollTop to the new max. The target's `start` can coincide with
+        //      the clamped offset even though layout is still settling.
+        //   B. Premature stability: total appears stable for one tick while
+        //      still in a collapsed/wrong state before re-expansion starts.
+        //
+        // The only reliable signal that we are truly done:
+        //   1. positionOk  — targetVItem.start ≈ scrollOffset
+        //   2. The total has been stable for N consecutive ticks (not just 1)
+        //   3. There is a minimum amount of content *after* the target,
+        //      consistent with it genuinely being mid-list. If total is so small
+        //      that the target is near the end, measurements are still settling.
+        if (isProgrammaticScrollingRef.current && targetFilteredIndexRef.current !== null) {
+          const targetIdx = targetFilteredIndexRef.current
+          const targetVItem = items.find(it => it.index === targetIdx)
+          const currentTotal = instance.getTotalSize()
+
+          // Always re-drive. scrollToIndex is idempotent when aligned.
+          instance.scrollToIndex(targetIdx, { align: 'start', behavior: 'auto' })
+
+          if (targetVItem) {
+            const scrollOffset = instance.scrollOffset ?? (el?.scrollTop ?? 0)
+            const viewportHeight = el?.clientHeight ?? 0
+            const positionOk = Math.abs(targetVItem.start - scrollOffset) <= 2
+
+            // Stable-ticks counter: require the total to be unchanged for
+            // STABLE_TICKS_REQUIRED consecutive ticks before we believe it.
+            const STABLE_TICKS_REQUIRED = 2
+            const prevTotal = lastTotalSizeRef.current
+            const totalUnchanged = prevTotal !== null && Math.abs(currentTotal - prevTotal) < 10
+            if (totalUnchanged) {
+              stableTotalTicksRef.current += 1
+            } else {
+              stableTotalTicksRef.current = 0
+            }
+            const totalStable = stableTotalTicksRef.current >= STABLE_TICKS_REQUIRED
+
+            // Content-after guard: the items after the target should add up to
+            // more than one viewport worth of content. If total is tiny relative
+            // to the target's start, we're still in a collapsed state.
+            const itemsAfterTarget = filteredMessagesRef.current.length - 1 - targetIdx
+            const minExpectedAfter = Math.max(viewportHeight, itemsAfterTarget * 80)
+            const enoughContentAfter = (currentTotal - targetVItem.start - viewportHeight) > minExpectedAfter * 0.5
+
+            if (positionOk && totalStable && enoughContentAfter) {
+              console.log(`[ProgrammaticScroll] ✅ converged index=${targetIdx} start=${targetVItem.start} offset=${Math.round(scrollOffset)} total=${Math.round(currentTotal)}`)
+              isProgrammaticScrollingRef.current = false
+              targetFilteredIndexRef.current = null
+              stableTotalTicksRef.current = 0
+            } else {
+              console.log(`[ProgrammaticScroll] ↻ index=${targetIdx} posOk=${positionOk} totalStable=${totalStable}(${stableTotalTicksRef.current}/${STABLE_TICKS_REQUIRED}) enoughAfter=${enoughContentAfter} total=${Math.round(currentTotal)} drift=${Math.round(targetVItem.start - scrollOffset)}`)
+            }
+          }
+
+          lastTotalSizeRef.current = currentTotal
+        } else {
+          lastTotalSizeRef.current = instance.getTotalSize()
+          stableTotalTicksRef.current = 0
+        }
+
+        // ── Phase 3: Auto-scroll (only when allowed) ─────────────────────────
+        if (!shouldAutoScroll()) return
         if (streamingRef.current) return
-        if (!el) return
         if (userScrolledAwayRef.current) return
-        // Use dist=0 — only snap when literally at the bottom, not within 150px.
-        // The 150px threshold was causing this to fight user backward scrolling.
         if (dist === 0) {
           const lastIdx = filteredMessagesRef.current.length - 1
           if (lastIdx >= 0) {
@@ -245,10 +298,6 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
     const virtualizerRef = React.useRef(virtualizer)
     virtualizerRef.current = virtualizer
 
-    // Assign on the instance (not an option) — always false to prevent
-    // scroll position jumping when items above viewport measure differently.
-    virtualizer.shouldAdjustScrollPositionOnItemSizeChange = () => false
-
     // ─── User scroll detection ────────────────────────────────────────────────
     React.useEffect(() => {
       const el = scrollRef.current
@@ -257,23 +306,16 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
         if (isProgrammaticScrollRef.current) return
         const dist = distFromBottom(el)
         console.log(`[UserScroll] scrollTop=${Math.round(el.scrollTop)} dist=${Math.round(dist)} programmatic=${isProgrammaticScrollRef.current}`)
-        if (dist > 100) {
-          userScrolledAwayRef.current = true
-        } else {
-          userScrolledAwayRef.current = false
-        }
+        userScrolledAwayRef.current = dist > 100
       }
       el.addEventListener('scroll', onScroll, { passive: true })
       return () => el.removeEventListener('scroll', onScroll)
     }, [])
 
     // ─── Warm measurement cache on mount ─────────────────────────────────────
-    // Trigger a measure pass after mount so visible items are in the cache
-    // before the user scrolls backward. Without this, the first backward scroll
-    // always hits cold estimates causing a jump.
     React.useLayoutEffect(() => {
       virtualizerRef.current.measure()
-    }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    }, [])
 
     // ─── Initial scroll (new conversation, no restore token) ─────────────────
     const sentToBottomRef = React.useRef(false)
@@ -294,17 +336,10 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
     }, [searchQuery])
 
     // ─── Streaming auto-scroll via ResizeObserver on last item ───────────────
-    // Strategy: observe the last rendered message item with a ResizeObserver.
-    // When its height changes (tokens arriving), scroll to bottom — but only
-    // if the user hasn't scrolled away. This avoids observing the whole
-    // container subtree (which causes oscillation with the virtualizer).
-    //
-    // We track the last item DOM node via a ref updated in render.
     const lastItemNodeRef = React.useRef<Element | null>(null)
     const streamingRoRef = React.useRef<ResizeObserver | null>(null)
 
     React.useEffect(() => {
-      // Tear down previous observer whenever streamingMessageId changes
       if (streamingRoRef.current) {
         streamingRoRef.current.disconnect()
         streamingRoRef.current = null
@@ -315,15 +350,13 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
         return
       }
 
-      // Reset user-scrolled-away when a new stream starts
       userScrolledAwayRef.current = false
 
       const el = scrollRef.current
       if (!el) return
 
-      // Scroll to bottom immediately when streaming starts
       const scrollToBottom = () => {
-        if (!autoScrollRef.current) return
+        if (!shouldAutoScroll()) return
         if (userScrolledAwayRef.current) return
         isProgrammaticScrollRef.current = true
         el.scrollTop = el.scrollHeight
@@ -332,11 +365,9 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
 
       scrollToBottom()
 
-      // Create a ResizeObserver that fires when content grows
       const ro = new ResizeObserver(scrollToBottom)
       streamingRoRef.current = ro
 
-      // Observe the last item node if it's already rendered
       if (lastItemNodeRef.current) ro.observe(lastItemNodeRef.current)
 
       return () => {
@@ -398,7 +429,13 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
         if (!targetId) return
         const fi = filteredMessagesRef.current.findIndex((m) => m.id === targetId)
         if (fi === -1) return
-        virtualizerRef.current.scrollToIndex(fi, { behavior: 'auto', align: 'start' })
+
+        // Set up programmatic scroll tracking
+        targetFilteredIndexRef.current = fi
+        isProgrammaticScrollingRef.current = true
+
+        // Scroll to the target using the virtualizer
+        virtualizerRef.current.scrollToIndex(fi, { align: 'start', behavior: 'auto' })
       },
 
       scrollToBottom: () => {
@@ -406,9 +443,7 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
         if (!el) return
         const lastIdx = filteredMessagesRef.current.length - 1
         if (lastIdx < 0) return
-        // Step 1: use virtualizer to bring items into view
         virtualizerRef.current.scrollToIndex(lastIdx, { align: 'end', behavior: 'auto' })
-        // Step 2: after layout, pin to true DOM bottom (handles estimate drift)
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
             if (scrollRef.current) {

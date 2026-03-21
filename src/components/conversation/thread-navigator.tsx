@@ -1,3 +1,4 @@
+// thread-navigator.tsx (unchanged)
 import { memo, useMemo, useState, useEffect, useRef } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { createPortal } from 'react-dom'
