@@ -145,26 +145,35 @@ export const MessageBubble = memo(function MessageBubble({
         {children}
       </a>
     ),
-    code: ({ node, inline, className, children, ...props }: any) => {
+    code: ({ node, className, children, ...props }: any) => {
       const match = /language-(\w+)/.exec(className || '')
-      if (!inline && match) return <code className={className} {...props}>{children}</code>
-      if (inline) {
-        const content = String(children).replace(/$/, '')
-        return (
-          // biome-ignore lint/a11y/useSemanticElements: ok
-          <span
-            role="button"
-            tabIndex={0}
-            onClick={async () => { await navigator.clipboard.writeText(content); toast.success('Code copied to clipboard') }}
-            onKeyDown={async (e) => { if (e.key === 'Enter' || e.key === ' ') { await navigator.clipboard.writeText(content); toast.success('Code copied to clipboard') } }}
-            className="inline-code cursor-pointer rounded bg-muted px-1 py-0.5 font-mono text-sm hover:bg-primary/20 transition-colors"
-            title="Click to copy"
-          >
-            {children}
-          </span>
-        )
+      const content = String(children)
+      const isBlock = match || content.includes('\n')
+
+      if (isBlock) {
+        return <code className={className} {...props}>{children}</code>
       }
-      return <code className={className} {...props}>{children}</code>
+
+      return (
+        <span
+          role="button"
+          tabIndex={0}
+          onClick={async () => {
+            await navigator.clipboard.writeText(content.replace(/\n$/, ''))
+            toast.success('Code copied to clipboard')
+          }}
+          onKeyDown={async (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              await navigator.clipboard.writeText(content.replace(/\n$/, ''))
+              toast.success('Code copied to clipboard')
+            }
+          }}
+          className="inline-code cursor-pointer rounded bg-muted px-1 py-0.5 font-mono text-sm hover:bg-primary/20 transition-colors"
+          title="Click to copy"
+        >
+          {children}
+        </span>
+      )
     },
     table: ({ children }: any) => (
       <div className="overflow-x-auto my-2">
