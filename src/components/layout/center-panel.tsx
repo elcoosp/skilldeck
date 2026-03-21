@@ -23,10 +23,7 @@ import { useUIStore } from '@/store/ui'
 import { cn } from '@/lib/utils'
 
 // ─── Scroll token cache ───────────────────────────────────────────────────────
-// Keyed by `${conversationId}_${branchId ?? 'main'}`.
-// Stores ID-based tokens: just the message ID of the topmost visible item.
-// On restore we look up the message ID in filteredMessages and call scrollToIndex.
-// This is immune to transient virtualizer state (mid-scroll measurements, etc.).
+// Persists scroll positions across conversation switches within the session.
 const scrollTokenCache = new Map<string, ScrollToken>()
 
 export function CenterPanel() {
@@ -44,147 +41,132 @@ export function CenterPanel() {
 
   const threadRef = useRef<MessageThreadHandle>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
-  const [showJumpToLatest, setShowJumpToLatest] = useState(false)
   const [activeUserMessageIndex, setActiveUserMessageIndex] = useState<number | undefined>(undefined)
-
-  useAgentStream(activeConversationId)
-  const messages = useMessagesWithStream(activeConversationId, activeBranchId)
-
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // ─── Stable conversation key ─────────────────────────────────────────────
-  const activeKeyRef = useRef<string | undefined>(undefined)
+  // ─── Streaming state ──────────────────────────────────────────────────────
+  const { isRunning } = useAgentStream(activeConversationId)
+  const messages = useMessagesWithStream(activeConversationId, activeBranchId)
+
+  const streamingMessageId = (() => {
+    if (!isRunning) return undefined
+    const last = messages[messages.length - 1]
+    return last?.role === 'assistant' ? last.id : undefined
+  })()
+
+  // ─── Conversation key ─────────────────────────────────────────────────────
   const activeKey = activeConversationId
     ? `${activeConversationId}_${activeBranchId ?? 'main'}`
     : undefined
 
-  // ─── SYNCHRONOUS token save on key change ────────────────────────────────
-  // Runs during render (before the old MessageThread unmounts) so we capture
-  // the token while the virtualizer's virtual items are still valid.
+  // ─── Save scroll token on conversation switch (synchronous during render) ─
+  const activeKeyRef = useRef<string | undefined>(undefined)
   if (activeKeyRef.current !== activeKey) {
-    console.log(`[CenterPanel][keyChange] from="${activeKeyRef.current ?? 'none'}" to="${activeKey ?? 'none'}"`)
-
     if (activeKeyRef.current && threadRef.current) {
       const token = threadRef.current.getScrollToken()
-      if (token) {
-        console.log(`[CenterPanel][keyChange] 💾 saving token key="${activeKeyRef.current}" messageId=${token.messageId} scrollTop=${token.scrollTop}`)
-        scrollTokenCache.set(activeKeyRef.current, token)
-      } else {
-        console.log(`[CenterPanel][keyChange] no token to save (thread empty or not mounted)`)
-      }
+      if (token) scrollTokenCache.set(activeKeyRef.current, token)
     }
-
     activeKeyRef.current = activeKey
   }
 
   const initialScrollToken = (() => {
     if (!activeKey) return undefined
     const cached = scrollTokenCache.get(activeKey)
-    // Guard against stale tokens from a previous format (e.g. { index, offsetFromTop })
-    // that may be in the cache from a hot-reload or old session.
-    if (!cached || typeof cached.messageId !== 'string' || typeof cached.scrollTop !== 'number') return undefined
+    if (!cached || typeof cached.messageId !== 'string') return undefined
     return cached
   })()
 
-  console.log(`[CenterPanel][render] activeKey="${activeKey ?? 'none'}" token=${initialScrollToken?.messageId ?? 'none'} messageCount=${messages.length} showJumpToLatest=${showJumpToLatest} activeUserMessageIndex=${activeUserMessageIndex ?? 'none'}`)
+  // ─── Jump-to-latest + unseen badge ───────────────────────────────────────
+  // We use real message count (excluding __streaming__ placeholder) for the badge.
+  const realMessageCount = messages.filter(m => m.id !== '__streaming__').length
+  const messagesLengthRef = useRef(realMessageCount)
+  messagesLengthRef.current = realMessageCount
 
-  // ─── Visible user index ───────────────────────────────────────────────────
-  const handleVisibleUserIndexChange = useCallback((index: number) => {
-    console.log(`[CenterPanel][visibleUserIndex] reported fullIndex=${index}`)
-    setActiveUserMessageIndex(index)
-  }, [])
+  const [showJumpToLatest, setShowJumpToLatest] = useState(false)
+  const [unseenCount, setUnseenCount] = useState(0)
+  const lastSeenCountRef = useRef(realMessageCount)
 
-  // ─── ThreadNavigator scroll request ──────────────────────────────────────
-  const handleNavigatorScrollTo = useCallback(
-    (index: number) => {
-      console.log(`[CenterPanel][navigatorScrollTo] fullIndex=${index} messages.length=${messages.length}`)
-      const targetMessage = messages[index]
-      if (!targetMessage) {
-        console.warn(`[CenterPanel][navigatorScrollTo] no message at fullIndex=${index}`)
-        return
-      }
-      if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current)
-      setHighlightedMessageId(targetMessage.id)
-      highlightTimeoutRef.current = setTimeout(() => setHighlightedMessageId(null), 800)
-      threadRef.current?.scrollToMessage(index)
-    },
-    [messages]
-  )
-
-  // ─── Keyboard shortcut — ⌘F / Ctrl+F ─────────────────────────────────────
+  // When streaming starts, reset baseline — user has "seen" everything so far
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
-        e.preventDefault()
-        searchInputRef.current?.focus()
-      }
+    if (isRunning) {
+      lastSeenCountRef.current = messagesLengthRef.current
+      setUnseenCount(0)
     }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
-
-  // ─── Jump-to-latest button visibility ────────────────────────────────────
-  // Event-driven via onScroll subscription — no polling interval.
-
-  const messagesLengthRef = useRef(messages.length)
-  messagesLengthRef.current = messages.length
+  }, [isRunning]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const computeShowJump = useCallback(() => {
-    const t = threadRef.current
-    if (!t) return
-    const pos = t.getScrollPosition()
-    const total = t.getTotalHeight()
-    const client = t.getClientHeight()
-    if (total <= client) {
-      setShowJumpToLatest(false)
-      return
+    const el = threadRef.current?.getScrollElement()
+    if (!el) return
+    const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 100
+    setShowJumpToLatest(!nearBottom && messagesLengthRef.current > 0)
+    if (nearBottom) {
+      lastSeenCountRef.current = messagesLengthRef.current
+      setUnseenCount(0)
+    } else {
+      setUnseenCount(Math.max(0, messagesLengthRef.current - lastSeenCountRef.current))
     }
-    const nearBottom = pos + client >= total - 100
-    const next = !nearBottom && messagesLengthRef.current > 0
-    setShowJumpToLatest((prev) => {
-      if (prev !== next) {
-        console.log(`[CenterPanel][jumpLatest] pos=${pos} total=${total} client=${client} nearBottom=${nearBottom} shouldShow=${next}`)
-      }
-      return next
-    })
   }, [])
 
+  // Subscribe to scroll events — retry after short delay to ensure element mounted
   useEffect(() => {
-    const t = threadRef.current
-    if (!t) return
-    console.log('[CenterPanel][jumpLatest] subscribing to scroll events')
-    const unsub = t.onScroll(computeShowJump)
-    computeShowJump()
-    return () => {
-      console.log('[CenterPanel][jumpLatest] 🧹 unsubscribing')
-      unsub()
-    }
+    let unsub = () => { }
+    const t = setTimeout(() => {
+      const thread = threadRef.current
+      if (!thread) return
+      unsub = thread.onScroll(computeShowJump)
+      computeShowJump()
+    }, 50)
+    return () => { clearTimeout(t); unsub() }
   }, [activeKey, computeShowJump])
 
-  useEffect(() => {
-    computeShowJump()
-  }, [messages.length, computeShowJump])
-
-  // ─── Clear search on conversation switch ─────────────────────────────────
-  useEffect(() => {
-    console.log(`[CenterPanel][searchReset] conversationId="${activeConversationId ?? 'none'}" — clearing search`)
-    setSearchQuery('')
-  }, [activeConversationId, setSearchQuery])
+  // Recompute when message count changes
+  useEffect(() => { computeShowJump() }, [realMessageCount, computeShowJump])
 
   // ─── Jump to latest ───────────────────────────────────────────────────────
-  const jumpToLatest = () => {
+  const jumpToLatest = useCallback(() => {
     if (messages.length === 0) return
-    const lastIndex = messages.length - 1
-    console.log(`[CenterPanel][jumpToLatest] scrollToIndex(${lastIndex}, end, smooth)`)
-    threadRef.current?.scrollToIndex(lastIndex, { behavior: 'smooth', align: 'end' })
-    const lastMsg = messages[lastIndex]
+    threadRef.current?.scrollToBottom()
+    lastSeenCountRef.current = messagesLengthRef.current
+    setUnseenCount(0)
+    const lastMsg = messages[messages.length - 1]
     if (lastMsg) {
       setHighlightedMessageId(lastMsg.id)
       if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current)
       highlightTimeoutRef.current = setTimeout(() => setHighlightedMessageId(null), 800)
     }
-  }
+  }, [messages])
+
+  // ─── Thread navigator ─────────────────────────────────────────────────────
+  const handleVisibleUserIndexChange = useCallback((index: number) => {
+    setActiveUserMessageIndex(index)
+  }, [])
+
+  const handleNavigatorScrollTo = useCallback((index: number) => {
+    const targetMessage = messages[index]
+    if (!targetMessage) return
+    if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current)
+    setHighlightedMessageId(targetMessage.id)
+    highlightTimeoutRef.current = setTimeout(() => setHighlightedMessageId(null), 800)
+    threadRef.current?.scrollToMessage(index)
+  }, [messages])
+
+  // ─── Keyboard shortcut ⌘F / Ctrl+F ───────────────────────────────────────
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+        e.preventDefault()
+        searchInputRef.current?.focus()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
+
+  // ─── Clear search on conversation switch ─────────────────────────────────
+  useEffect(() => {
+    setSearchQuery('')
+  }, [activeConversationId, setSearchQuery])
 
   const modifierKey = navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'
 
@@ -206,6 +188,7 @@ export function CenterPanel() {
     <div className="relative flex flex-col h-full">
       {activeConversationId && <BranchNav conversationId={activeConversationId} />}
 
+      {/* Search bar */}
       <div className="px-4 py-2 border-b border-border flex items-center gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
@@ -217,10 +200,7 @@ export function CenterPanel() {
             className="pl-8 pr-16 h-8 text-sm"
           />
           <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center pointer-events-none">
-            <KbdGroup>
-              <Kbd>{modifierKey}</Kbd>
-              <Kbd>F</Kbd>
-            </KbdGroup>
+            <KbdGroup><Kbd>{modifierKey}</Kbd><Kbd>F</Kbd></KbdGroup>
           </div>
         </div>
         {searchQuery && (
@@ -232,21 +212,20 @@ export function CenterPanel() {
           <input
             type="checkbox"
             checked={autoScroll}
-            onChange={(e) => {
-              console.log(`[CenterPanel][autoScroll] toggled to ${e.target.checked}`)
-              setAutoScroll(e.target.checked)
-            }}
+            onChange={(e) => setAutoScroll(e.target.checked)}
             className="size-3 accent-primary cursor-pointer"
           />
           Auto-scroll
         </label>
       </div>
 
+      {/* Message thread */}
       <div className="relative flex-1 min-h-0">
         <MessageThread
           key={activeKey}
           ref={threadRef}
           messages={messages}
+          streamingMessageId={streamingMessageId}
           searchQuery={debouncedSearch}
           highlightedMessageId={highlightedMessageId}
           initialScrollToken={initialScrollToken}
@@ -262,11 +241,12 @@ export function CenterPanel() {
           />
         )}
 
+        {/* Jump to latest button */}
         <button
           type="button"
           onClick={jumpToLatest}
           className={cn(
-            'absolute bottom-4 right-4 z-30 flex items-center justify-center w-8 h-8 rounded-full bg-background border border-border shadow-md transition-all duration-200 hover:bg-accent/10 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
+            'absolute bottom-4 right-4 z-30 flex items-center justify-center w-8 h-8 rounded-full bg-card border border-border shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
             showJumpToLatest
               ? 'opacity-100 visible pointer-events-auto'
               : 'opacity-0 invisible pointer-events-none'
@@ -275,9 +255,15 @@ export function CenterPanel() {
           title="Jump to latest"
         >
           <ArrowDown className="size-4" />
+          {unseenCount > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] rounded-full bg-primary text-primary-foreground text-[10px] font-semibold flex items-center justify-center px-1 leading-none">
+              {unseenCount > 99 ? '99+' : unseenCount}
+            </span>
+          )}
         </button>
       </div>
 
+      {/* Input */}
       <div className="shrink-0 border-t border-border">
         <MessageInput conversationId={activeConversationId} workspaceRoot={workspaceRoot} />
       </div>

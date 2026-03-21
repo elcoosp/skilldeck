@@ -38,7 +38,7 @@ interface MessageBubbleProps {
 // get it synchronously — eliminating the unstyled→highlighted re-render that
 // causes layout shifts and breaks scroll restoration.
 const highlighterPromise = createHighlighter({
-  themes: ['vitesse-light', 'vitesse-dark'],
+  themes: ['github-light', 'vitesse-dark'],
   langs: ['javascript', 'typescript', 'python', 'bash', 'json', 'tsx', 'jsx', 'css', 'html'],
 })
 
@@ -96,13 +96,23 @@ function CodePre({ children, ...props }: any) {
           {copied ? <Check className="size-3.5 text-green-500" /> : <Copy className="size-3.5" />}
         </button>
       </div>
-      <div className="grid transition-all duration-200" style={{ gridTemplateRows: collapsed ? '0fr' : '1fr' }}>
+      {/* No CSS transition here — transitions cause the virtualizer to measure
+          intermediate heights, corrupting the size cache and causing scroll jank. */}
+      <div className="grid" style={{ gridTemplateRows: collapsed ? '0fr' : '1fr' }}>
         <div className="overflow-hidden rounded-b-lg">
           <div
-            className="overflow-auto max-h-96 thin-scrollbar transition-opacity duration-200 bg-card [&>pre]:!m-0 [&>pre]:!rounded-none [&>pre]:!border-none [&>pre]:p-3 [&>pre]:text-xs [&>pre]:leading-relaxed [&>pre]:!bg-transparent"
+            className="overflow-auto max-h-96 thin-scrollbar bg-card [&>pre]:!m-0 [&>pre]:!rounded-none [&>pre]:!border-none [&>pre]:p-3 [&>pre]:text-xs [&>pre]:leading-relaxed [&>pre]:!bg-transparent"
             style={{ opacity: collapsed ? 0 : 1 }}
           >
-            <pre {...props}>{children}</pre>
+            <pre
+              {...props}
+              style={{
+                ...props.style,
+                color: 'var(--foreground)',
+              }}
+            >
+              {children}
+            </pre>
           </div>
         </div>
       </div>
@@ -185,11 +195,19 @@ export const MessageBubble = memo(function MessageBubble({
   }), [rehypePlugins]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Only subscribe to async init if we didn't get plugins synchronously.
+  // We check resolvedRehypePlugins again here because it may have resolved
+  // between the useState initializer and this effect running.
   useEffect(() => {
+    // If already resolved (either from useState init or a prior mount), skip.
     if (rehypePlugins.length > 0) return
+    // Check if it resolved between render and effect
+    if (resolvedRehypePlugins) {
+      setRehypePlugins(resolvedRehypePlugins)
+      return
+    }
     highlighterPromise.then((highlighter) => {
       setRehypePlugins([
-        [rehypeShiki, { highlighter, themes: { light: 'vitesse-light', dark: 'vitesse-dark' }, useBackground: false }],
+        [rehypeShiki, { highlighter, themes: { light: 'github-light', dark: 'vitesse-dark' }, useBackground: false }],
         rehypeLinkifyCodeUrls,
       ])
     })
@@ -379,8 +397,9 @@ export const MessageBubble = memo(function MessageBubble({
               </div>
             )}
 
-            <div className="grid transition-all duration-200" style={{ gridTemplateRows: isCollapsed ? '0fr' : '1fr' }}>
-              <div className="overflow-hidden transition-opacity duration-200" style={{ opacity: isCollapsed ? 0 : 1 }}>
+            {/* No transition — virtualizer must measure stable final heights only */}
+            <div className="grid" style={{ gridTemplateRows: isCollapsed ? '0fr' : '1fr' }}>
+              <div className="overflow-hidden" style={{ opacity: isCollapsed ? 0 : 1 }}>
                 {isAssistant || syntheticStreaming ? (
                   <div ref={proseRef} className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-headings:my-1 prose-pre:my-0">
                     {showShimmer ? (
