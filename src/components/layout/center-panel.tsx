@@ -61,11 +61,15 @@ export function CenterPanel() {
     : undefined
 
   // ─── Save scroll token on conversation switch (synchronous during render) ─
+  // Skips saving if a programmatic scroll is mid-flight — the scrollTop is
+  // unreliable during the convergence loop and would restore to the wrong place.
   const activeKeyRef = useRef<string | undefined>(undefined)
   if (activeKeyRef.current !== activeKey) {
     if (activeKeyRef.current && threadRef.current) {
-      const token = threadRef.current.getScrollToken()
-      if (token) scrollTokenCache.set(activeKeyRef.current, token)
+      if (!threadRef.current.isScrollingToMessage?.()) {
+        const token = threadRef.current.getScrollToken()
+        if (token) scrollTokenCache.set(activeKeyRef.current, token)
+      }
     }
     activeKeyRef.current = activeKey
   }
@@ -78,7 +82,6 @@ export function CenterPanel() {
   })()
 
   // ─── Jump-to-latest + unseen badge ───────────────────────────────────────
-  // We use real message count (excluding __streaming__ placeholder) for the badge.
   const realMessageCount = messages.filter(m => m.id !== '__streaming__').length
   const messagesLengthRef = useRef(realMessageCount)
   messagesLengthRef.current = realMessageCount
@@ -87,14 +90,12 @@ export function CenterPanel() {
   const [unseenCount, setUnseenCount] = useState(0)
   const lastSeenCountRef = useRef(realMessageCount)
 
-  // ─── Reset badge baseline on conversation switch ─────────────────────────
   useEffect(() => {
     lastSeenCountRef.current = messagesLengthRef.current
     setUnseenCount(0)
     setShowJumpToLatest(false)
   }, [activeKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // When streaming starts, reset baseline — user has "seen" everything so far
   useEffect(() => {
     if (isRunning) {
       lastSeenCountRef.current = messagesLengthRef.current
@@ -115,7 +116,6 @@ export function CenterPanel() {
     }
   }, [])
 
-  // Subscribe to scroll events — retry after short delay to ensure element mounted
   useEffect(() => {
     let unsub = () => { }
     const t = setTimeout(() => {
@@ -127,7 +127,6 @@ export function CenterPanel() {
     return () => { clearTimeout(t); unsub() }
   }, [activeKey, computeShowJump])
 
-  // Recompute when message count changes
   useEffect(() => { computeShowJump() }, [realMessageCount, computeShowJump])
 
   // ─── Jump to latest ───────────────────────────────────────────────────────
@@ -143,6 +142,14 @@ export function CenterPanel() {
       highlightTimeoutRef.current = setTimeout(() => setHighlightedMessageId(null), 800)
     }
   }, [messages])
+
+  // ─── Scroll settled — save token after programmatic navigation ────────────
+  const handleScrollSettled = useCallback((token: ScrollToken) => {
+    if (activeKeyRef.current) {
+      scrollTokenCache.set(activeKeyRef.current, token)
+      console.log(`[CenterPanel] token saved after convergence scrollTop=${token.scrollTop}`)
+    }
+  }, [])
 
   // ─── Thread navigator ─────────────────────────────────────────────────────
   const handleVisibleUserIndexChange = useCallback((index: number) => {
@@ -226,11 +233,11 @@ export function CenterPanel() {
         </label>
       </div>
 
-      {/* Message thread */}
+      {/* Message thread — no key= prop, conversationKey drives internal reset */}
       <div className="relative flex-1 min-h-0">
         <MessageThread
-          key={activeKey}
           ref={threadRef}
+          conversationKey={activeKey ?? ''}
           messages={messages}
           streamingMessageId={streamingMessageId}
           searchQuery={debouncedSearch}
@@ -238,6 +245,7 @@ export function CenterPanel() {
           initialScrollToken={initialScrollToken}
           autoScroll={autoScroll}
           onVisibleUserIndexChange={handleVisibleUserIndexChange}
+          onScrollSettled={handleScrollSettled}
         />
 
         {messages.length > 2 && (

@@ -17,10 +17,12 @@ export interface MessageThreadHandle {
   getScrollToken: () => ScrollToken | null
   getScrollPosition: () => number
   onScroll: (cb: () => void) => () => void
+  isScrollingToMessage: () => boolean
 }
 
 interface MessageThreadProps {
   messages: MessageData[]
+  conversationKey: string
   streamingMessageId?: string
   isLoading?: boolean
   searchQuery?: string
@@ -28,20 +30,21 @@ interface MessageThreadProps {
   initialScrollToken?: ScrollToken | null
   autoScroll?: boolean
   onVisibleUserIndexChange?: (index: number) => void
+  onScrollSettled?: (token: ScrollToken) => void
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 function distFromBottom(el: HTMLElement): number {
   return el.scrollHeight - el.scrollTop - el.clientHeight
 }
 
-// ─── Module-level measured size cache ────────────────────────────────────────
+// Survives conversation switches within the session
 const globalMeasuredSizes = new Map<string, number>()
 
 export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThreadProps>(
   (
     {
       messages,
+      conversationKey,
       streamingMessageId,
       isLoading,
       searchQuery = '',
@@ -49,12 +52,12 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
       initialScrollToken,
       autoScroll = true,
       onVisibleUserIndexChange,
+      onScrollSettled,
     },
     ref
   ) => {
     const scrollRef = React.useRef<HTMLDivElement>(null)
 
-    // ─── Filtered messages ───────────────────────────────────────────────────
     const filteredMessages = React.useMemo(() => {
       if (!searchQuery.trim()) return messages
       const q = searchQuery.toLowerCase()
@@ -64,60 +67,49 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
     const filteredMessagesRef = React.useRef(filteredMessages)
     filteredMessagesRef.current = filteredMessages
 
-    // ─── Measured size cache (module-level) ──────────────────────────────────
     const measuredSizesRef = React.useRef(globalMeasuredSizes)
-
-    // ─── Programmatic scroll tracking ────────────────────────────────────────
     const isProgrammaticScrollRef = React.useRef(false)
-
-    // ─── User-away-from-bottom state ─────────────────────────────────────────
     const userScrolledAwayRef = React.useRef(false)
-
-    // ─── Refs for stable access inside callbacks ─────────────────────────────
     const autoScrollRef = React.useRef(autoScroll)
     autoScrollRef.current = autoScroll
     const streamingRef = React.useRef(streamingMessageId)
     streamingRef.current = streamingMessageId
+    const onScrollSettledRef = React.useRef(onScrollSettled)
+    onScrollSettledRef.current = onScrollSettled
 
-    // ─── Scroll restoration state ─────────────────────────────────────────────
-    const restorationAppliedRef = React.useRef(false)
-    const restorationSeededRef = React.useRef(false)
+    // ─── Conversation switch ───────────────────────────────────────────────────
+    const prevConversationKeyRef = React.useRef(conversationKey)
     const initialScrollTokenRef = React.useRef(initialScrollToken)
+    const isSwitchingRef = React.useRef(false)   // true from render until layout effect runs
 
-    const hasRestoreToken = React.useMemo(
-      () => !!(initialScrollToken?.messageId),
-      [] // eslint-disable-line react-hooks/exhaustive-deps — mount-only
-    )
+    if (prevConversationKeyRef.current !== conversationKey) {
+      prevConversationKeyRef.current = conversationKey
+      initialScrollTokenRef.current = initialScrollToken
+      isSwitchingRef.current = true
+    }
 
-    // ─── Target for programmatic scroll to a specific message ────────────────
-    const targetFilteredIndexRef = React.useRef<number | null>(null)
-    const isProgrammaticScrollingRef = React.useRef(false)
-    const lastTotalSizeRef = React.useRef<number | null>(null)
-    const stablePosTicksRef = React.useRef(0)
+    // ─── Navigator scroll state ───────────────────────────────────────────────
+    // scrollToMessage kicks off a rAF loop that polls until the target item
+    // has a stable, non-collapsed position, then sets scrollTop directly.
+    const navigatorActiveRef = React.useRef(false)
 
-    // ─── scrollToFn: intercept ALL virtualizer scrolls ────────────────────────
+    // ─── Auto-scroll gate ─────────────────────────────────────────────────────
+    // Blocks auto-scroll to bottom during switch/restoration/navigator scroll.
+    // Simple boolean: true = auto-scroll allowed.
+    const autoScrollReadyRef = React.useRef(false)
+
+    // ─── scrollToFn ───────────────────────────────────────────────────────────
     const scrollToFn: React.ComponentProps<typeof useVirtualizer>['scrollToFn'] =
       React.useCallback((offset, { behavior }, instance) => {
         isProgrammaticScrollRef.current = true
         elementScroll(offset, { behavior }, instance)
-        requestAnimationFrame(() => {
-          isProgrammaticScrollRef.current = false
-        })
+        requestAnimationFrame(() => { isProgrammaticScrollRef.current = false })
       }, [])
 
-    // ─── Dynamic estimate based on measured average ──────────────────────────
     const avgAssistantHeightRef = React.useRef(400)
-
     const updateAvgAssistantHeight = React.useCallback((newHeight: number) => {
-      avgAssistantHeightRef.current = Math.round(
-        avgAssistantHeightRef.current * 0.7 + newHeight * 0.3
-      )
+      avgAssistantHeightRef.current = Math.round(avgAssistantHeightRef.current * 0.7 + newHeight * 0.3)
     }, [])
-
-    // Helper to determine if auto-scroll is allowed
-    const shouldAutoScroll = () => {
-      return autoScrollRef.current && !isProgrammaticScrollingRef.current
-    }
 
     const virtualizer = useVirtualizer({
       count: filteredMessages.length,
@@ -129,7 +121,7 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
         if (known) return known
         return msg.role === 'assistant' ? avgAssistantHeightRef.current : 80
       },
-      overscan: 5, // Keep reasonable overscan; no cheating
+      overscan: 5,
       useAnimationFrameWithResizeObserver: true,
       measureElement: (el) => {
         const h = el.getBoundingClientRect().height
@@ -143,9 +135,7 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
             console.log(`[Measure] msgId=${msgId.slice(0, 8)} role=${role} estimated=${estimate} actual=${h} delta=${delta}`)
           }
           measuredSizesRef.current.set(msgId, h)
-          if (role === 'assistant' && h > 80) {
-            updateAvgAssistantHeight(h)
-          }
+          if (role === 'assistant' && h > 80) updateAvgAssistantHeight(h)
         }
         return h
       },
@@ -160,99 +150,14 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
         const range = `${items[0].index}..${items[items.length - 1].index}`
         console.log(`[onChange] dir=${dir} offset=${instance.scrollOffset} total=${Math.round(instance.getTotalSize())} dist=${Math.round(dist)} range=${range} scrolling=${instance.isScrolling}`)
 
-        // ── Phase 1: Scroll restoration ──────────────────────────────────────
-        if (!restorationAppliedRef.current) {
-          const token = initialScrollTokenRef.current
-          if (token?.messageId) {
-            const idx = filteredMessagesRef.current.findIndex((m) => m.id === token.messageId)
-            if (idx === -1) {
-              restorationAppliedRef.current = true
-              return
-            }
-            const inRange = idx >= items[0].index && idx <= items[items.length - 1].index
-            if (inRange && !instance.isScrolling) {
-              restorationAppliedRef.current = true
-              const targetItem = items.find(it => it.index === idx)
-              const intraItemOffset = targetItem
-                ? Math.max(0, token.scrollTop - targetItem.start)
-                : 0
-              console.log(`[Restoration] target=${idx} in range start=${targetItem?.start ?? '?'} savedScrollTop=${token.scrollTop} intraItem=${intraItemOffset}`)
-              requestAnimationFrame(() => {
-                instance.scrollToIndex(idx, { align: 'start', behavior: 'auto' })
-                requestAnimationFrame(() => {
-                  const el = instance.scrollElement as HTMLElement | null
-                  if (el && intraItemOffset > 0) {
-                    isProgrammaticScrollRef.current = true
-                    el.scrollTop += intraItemOffset
-                    requestAnimationFrame(() => { isProgrammaticScrollRef.current = false })
-                  }
-                })
-              })
-            } else if (!inRange && !restorationSeededRef.current) {
-              restorationSeededRef.current = true
-              let offset = 0
-              for (let i = 0; i < idx; i++) {
-                const m = filteredMessagesRef.current[i]
-                offset += measuredSizesRef.current.get(m?.id ?? '') ??
-                  (m?.role === 'assistant' ? avgAssistantHeightRef.current : 80)
-              }
-              console.log(`[Restoration] seed offset=${offset} for target idx=${idx}`)
-              instance.scrollToOffset(offset, { behavior: 'auto' })
-            }
-          } else {
-            restorationAppliedRef.current = true
-          }
-          return
-        }
-
-        // ── Phase 2: Converging programmatic scroll ───────────────────────────
-        // Re-issue scrollToIndex every onChange tick. As items render and get
-        // measured, getTotalSize() shifts and the target drifts. Each tick we
-        // drive toward the latest computed position. We converge when:
-        //   1. targetVItem.start ≈ scrollOffset for N consecutive ticks
-        //      (guards against single-tick coincidence during size collapse)
-        //   2. Enough content exists after the target (guards against the
-        //      collapsed-clamp case where total is tiny and start coincidentally
-        //      matches a clamped scrollOffset)
-        if (isProgrammaticScrollingRef.current && targetFilteredIndexRef.current !== null) {
-          const targetIdx = targetFilteredIndexRef.current
-          const currentTotal = instance.getTotalSize()
-
-          instance.scrollToIndex(targetIdx, { align: 'start', behavior: 'auto' })
-
-          const targetVItem = items.find(it => it.index === targetIdx)
-          if (targetVItem) {
-            const scrollOffset = instance.scrollOffset ?? (el?.scrollTop ?? 0)
-            const viewportHeight = el?.clientHeight ?? 0
-            const drift = targetVItem.start - scrollOffset
-            const positionOk = Math.abs(drift) <= 2
-
-            if (positionOk) { stablePosTicksRef.current += 1 }
-            else { stablePosTicksRef.current = 0 }
-
-            const itemsAfter = filteredMessagesRef.current.length - 1 - targetIdx
-            const enoughAfter = (currentTotal - targetVItem.start - viewportHeight) > Math.max(viewportHeight, itemsAfter * 80) * 0.5
-
-            console.log(`[ProgrammaticScroll] index=${targetIdx} posOk=${positionOk}(${stablePosTicksRef.current}/2) enoughAfter=${enoughAfter} drift=${Math.round(drift)} total=${Math.round(currentTotal)}`)
-
-            if (stablePosTicksRef.current >= 2 && enoughAfter) {
-              console.log(`[ProgrammaticScroll] ✅ converged index=${targetIdx}`)
-              isProgrammaticScrollingRef.current = false
-              targetFilteredIndexRef.current = null
-              stablePosTicksRef.current = 0
-            }
-          }
-
-          lastTotalSizeRef.current = currentTotal
-        } else {
-          lastTotalSizeRef.current = instance.getTotalSize()
-          stablePosTicksRef.current = 0
-        }
-
-        // ── Phase 3: Auto-scroll (only when allowed) ─────────────────────────
-        if (!shouldAutoScroll()) return
+        // ── Auto-scroll to bottom for new messages ─────────────────────────────
+        // All guards are collapsed into one flag (autoScrollReadyRef) that is
+        // set only after mount/switch setup is complete.
+        if (!autoScrollRef.current) return
         if (streamingRef.current) return
         if (userScrolledAwayRef.current) return
+        if (!autoScrollReadyRef.current) return
+        if (navigatorActiveRef.current) return
         if (dist === 0) {
           const lastIdx = filteredMessagesRef.current.length - 1
           if (lastIdx >= 0) {
@@ -266,34 +171,113 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
     const virtualizerRef = React.useRef(virtualizer)
     virtualizerRef.current = virtualizer
 
+    // ─── Scroll application helper ────────────────────────────────────────────
+    // Polls until scrollHeight is large enough, then sets scrollTop once.
+    // Used for both restoration and initial scroll-to-bottom.
+    const applyScrollTop = React.useCallback((
+      el: HTMLElement,
+      savedScrollTop: number,
+      onLanded: (actual: number) => void,
+      maxAttempts = 60
+    ) => {
+      let attempts = 0
+      const tryApply = () => {
+        const maxScroll = el.scrollHeight - el.clientHeight
+        if (maxScroll >= savedScrollTop || attempts >= maxAttempts) {
+          const final = Math.min(savedScrollTop, Math.max(0, maxScroll))
+          console.log(`[Restore] applying scrollTop=${final} attempts=${attempts} maxScroll=${maxScroll}`)
+          isProgrammaticScrollRef.current = true
+          el.scrollTop = final
+          requestAnimationFrame(() => {
+            isProgrammaticScrollRef.current = false
+            // Confirm it actually landed (browser may clamp again if layout shifts)
+            requestAnimationFrame(() => {
+              onLanded(el.scrollTop)
+            })
+          })
+        } else {
+          attempts++
+          requestAnimationFrame(tryApply)
+        }
+      }
+      requestAnimationFrame(tryApply)
+    }, [])
+
+    // ─── Conversation switch handler ──────────────────────────────────────────
+    React.useLayoutEffect(() => {
+      if (!isSwitchingRef.current) return
+      isSwitchingRef.current = false
+
+      const el = scrollRef.current
+      if (!el) return
+
+      // Reset all state
+      navigatorActiveRef.current = false
+      autoScrollReadyRef.current = false
+      userScrolledAwayRef.current = false
+
+      const token = initialScrollTokenRef.current
+      if (token?.scrollTop) {
+        applyScrollTop(el, token.scrollTop, (actual) => {
+          console.log(`[Restore] ✅ landed scrollTop=${actual}`)
+          autoScrollReadyRef.current = false // stay blocked — user is mid-list
+          if (onScrollSettledRef.current && token.messageId) {
+            onScrollSettledRef.current({ messageId: token.messageId, scrollTop: actual })
+          }
+        })
+      } else {
+        // New conversation with no token — scroll to bottom
+        const lastIdx = filteredMessagesRef.current.length - 1
+        if (lastIdx >= 0) {
+          virtualizerRef.current.scrollToIndex(lastIdx, { align: 'end', behavior: 'auto' })
+        }
+        autoScrollReadyRef.current = true
+      }
+    }) // runs every render, guarded by isSwitchingRef
+
+    // ─── Mount handler ────────────────────────────────────────────────────────
+    const didMountRef = React.useRef(false)
+    React.useLayoutEffect(() => {
+      if (didMountRef.current) return
+      didMountRef.current = true
+
+      const el = scrollRef.current
+      if (!el) return
+
+      const token = initialScrollTokenRef.current
+      if (token?.scrollTop) {
+        applyScrollTop(el, token.scrollTop, (actual) => {
+          console.log(`[Restore] ✅ mount landed scrollTop=${actual}`)
+          if (onScrollSettledRef.current && token.messageId) {
+            onScrollSettledRef.current({ messageId: token.messageId, scrollTop: actual })
+          }
+        })
+      } else {
+        const lastIdx = filteredMessagesRef.current.length - 1
+        if (lastIdx >= 0) {
+          virtualizerRef.current.scrollToIndex(lastIdx, { align: 'end', behavior: 'auto' })
+        }
+        autoScrollReadyRef.current = true
+      }
+    }, [applyScrollTop])
+
     // ─── User scroll detection ────────────────────────────────────────────────
     React.useEffect(() => {
       const el = scrollRef.current
       if (!el) return
       const onScroll = () => {
         if (isProgrammaticScrollRef.current) return
+        if (navigatorActiveRef.current) {
+          // User scrolled during navigator — cancel it
+          navigatorActiveRef.current = false
+          console.log(`[UserScroll] cancelled navigator scroll`)
+        }
         const dist = distFromBottom(el)
-        console.log(`[UserScroll] scrollTop=${Math.round(el.scrollTop)} dist=${Math.round(dist)} programmatic=${isProgrammaticScrollRef.current}`)
         userScrolledAwayRef.current = dist > 100
       }
       el.addEventListener('scroll', onScroll, { passive: true })
       return () => el.removeEventListener('scroll', onScroll)
     }, [])
-
-    // ─── Warm measurement cache on mount ─────────────────────────────────────
-    React.useLayoutEffect(() => {
-      virtualizerRef.current.measure()
-    }, [])
-
-    // ─── Initial scroll (new conversation, no restore token) ─────────────────
-    const sentToBottomRef = React.useRef(false)
-    React.useEffect(() => {
-      if (hasRestoreToken) { sentToBottomRef.current = true; return }
-      if (sentToBottomRef.current) return
-      if (filteredMessages.length === 0) return
-      sentToBottomRef.current = true
-      virtualizerRef.current.scrollToIndex(filteredMessages.length - 1, { align: 'end', behavior: 'auto' })
-    }, [filteredMessages.length, hasRestoreToken])
 
     // ─── Search reset ─────────────────────────────────────────────────────────
     React.useLayoutEffect(() => {
@@ -303,45 +287,27 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
       if (searchQuery.trim()) virtualizerRef.current.measure()
     }, [searchQuery])
 
-    // ─── Streaming auto-scroll via ResizeObserver on last item ───────────────
+    // ─── Streaming auto-scroll ────────────────────────────────────────────────
     const lastItemNodeRef = React.useRef<Element | null>(null)
     const streamingRoRef = React.useRef<ResizeObserver | null>(null)
 
     React.useEffect(() => {
-      if (streamingRoRef.current) {
-        streamingRoRef.current.disconnect()
-        streamingRoRef.current = null
-      }
-
-      if (!streamingMessageId) {
-        userScrolledAwayRef.current = false
-        return
-      }
-
+      if (streamingRoRef.current) { streamingRoRef.current.disconnect(); streamingRoRef.current = null }
+      if (!streamingMessageId) { userScrolledAwayRef.current = false; return }
       userScrolledAwayRef.current = false
-
       const el = scrollRef.current
       if (!el) return
-
       const scrollToBottom = () => {
-        if (!shouldAutoScroll()) return
-        if (userScrolledAwayRef.current) return
+        if (!autoScrollRef.current || userScrolledAwayRef.current) return
         isProgrammaticScrollRef.current = true
         el.scrollTop = el.scrollHeight
         requestAnimationFrame(() => { isProgrammaticScrollRef.current = false })
       }
-
       scrollToBottom()
-
       const ro = new ResizeObserver(scrollToBottom)
       streamingRoRef.current = ro
-
       if (lastItemNodeRef.current) ro.observe(lastItemNodeRef.current)
-
-      return () => {
-        ro.disconnect()
-        streamingRoRef.current = null
-      }
+      return () => { ro.disconnect(); streamingRoRef.current = null }
     }, [streamingMessageId])
 
     // ─── Visible user index tracking ─────────────────────────────────────────
@@ -365,6 +331,7 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
 
       let lastReported = -1
       const report = () => {
+        if (navigatorActiveRef.current) return
         const vItems = virtualizerRef.current.getVirtualItems()
         if (vItems.length === 0) return
         const scrollTop = el.scrollTop
@@ -393,17 +360,63 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
     // ─── Imperative handle ───────────────────────────────────────────────────
     React.useImperativeHandle(ref, () => ({
       scrollToMessage: (fullIndex: number) => {
+        const el = scrollRef.current
+        if (!el) return
         const targetId = messages[fullIndex]?.id
         if (!targetId) return
         const fi = filteredMessagesRef.current.findIndex((m) => m.id === targetId)
         if (fi === -1) return
 
-        // Set up programmatic scroll tracking
-        targetFilteredIndexRef.current = fi
-        isProgrammaticScrollingRef.current = true
+        navigatorActiveRef.current = true
 
-        // Scroll to the target using the virtualizer
+        // Use scrollToIndex to get the virtualizer to render the target item,
+        // then poll until the item's position is stable and apply scrollTop directly.
         virtualizerRef.current.scrollToIndex(fi, { align: 'start', behavior: 'auto' })
+
+        let lastStart = -1
+        let stableTicks = 0
+        const poll = () => {
+          if (!navigatorActiveRef.current) return // user cancelled
+          const vItems = virtualizerRef.current.getVirtualItems()
+          const targetItem = vItems.find(it => it.index === fi)
+          if (!targetItem) {
+            // Item not yet in render window — keep requesting
+            virtualizerRef.current.scrollToIndex(fi, { align: 'start', behavior: 'auto' })
+            requestAnimationFrame(poll)
+            return
+          }
+          const start = targetItem.start
+          if (Math.abs(start - lastStart) <= 2) {
+            stableTicks++
+          } else {
+            stableTicks = 0
+          }
+          lastStart = start
+
+          if (stableTicks >= 3) {
+            // Position is stable — apply it
+            console.log(`[Navigator] stable at start=${start} after ${stableTicks} ticks`)
+            navigatorActiveRef.current = false
+            isProgrammaticScrollRef.current = true
+            el.scrollTop = start
+            requestAnimationFrame(() => {
+              isProgrammaticScrollRef.current = false
+              // Save token
+              if (onScrollSettledRef.current) {
+                const msg = filteredMessagesRef.current[fi]
+                if (msg) {
+                  onScrollSettledRef.current({ messageId: msg.id, scrollTop: start })
+                  console.log(`[Navigator] ✅ converged msgId=${msg.id.slice(0, 8)} scrollTop=${start}`)
+                }
+              }
+            })
+          } else {
+            // Keep scrollToIndex to fight drift, keep polling
+            virtualizerRef.current.scrollToIndex(fi, { align: 'start', behavior: 'auto' })
+            requestAnimationFrame(poll)
+          }
+        }
+        requestAnimationFrame(poll)
       },
 
       scrollToBottom: () => {
@@ -426,6 +439,7 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
       getScrollElement: () => scrollRef.current,
 
       getScrollToken: (): ScrollToken | null => {
+        if (navigatorActiveRef.current) return null
         const el = scrollRef.current
         if (!el) return null
         const vItems = virtualizerRef.current.getVirtualItems()
@@ -441,6 +455,7 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
         return { messageId: msg.id, scrollTop }
       },
 
+      isScrollingToMessage: () => navigatorActiveRef.current,
       getScrollPosition: () => scrollRef.current?.scrollTop ?? 0,
 
       onScroll: (cb: () => void) => {

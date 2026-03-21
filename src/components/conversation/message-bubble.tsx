@@ -32,19 +32,18 @@ interface MessageBubbleProps {
   searchQuery?: string
 }
 
-// ─── Shiki singleton ──────────────────────────────────────────────────────────
-const highlighterPromise = createHighlighter({
+// ─── Shiki singleton ─────────────────────────────────────────────────────────
+// Top-level await: module won't finish loading until Shiki is ready.
+// rehypePlugins is a stable module-level constant — no state, no re-renders.
+const highlighter = await createHighlighter({
   themes: ['github-light', 'vitesse-dark'],
   langs: ['javascript', 'typescript', 'python', 'bash', 'json', 'tsx', 'jsx', 'css', 'html'],
 })
 
-let resolvedRehypePlugins: any[] | null = null
-highlighterPromise.then((highlighter) => {
-  resolvedRehypePlugins = [
-    [rehypeShiki, { highlighter, themes: { light: 'vitesse-light', dark: 'vitesse-dark' }, useBackground: false }],
-    rehypeLinkifyCodeUrls,
-  ]
-})
+const rehypePlugins = [
+  [rehypeShiki, { highlighter, themes: { light: 'vitesse-light', dark: 'vitesse-dark' }, useBackground: false }],
+  rehypeLinkifyCodeUrls,
+]
 
 // ─── CodePre ─────────────────────────────────────────────────────────────────
 function CodePre({ children, ...props }: any) {
@@ -123,7 +122,6 @@ export const MessageBubble = memo(function MessageBubble({
 }: MessageBubbleProps) {
   const [collapsed, setCollapsed] = useState(false)
   const [copied, setCopied] = useState(false)
-  const [rehypePlugins, setRehypePlugins] = useState<any[]>(() => resolvedRehypePlugins ?? [])
   const proseRef = useRef<HTMLDivElement>(null)
 
   const markdownComponents = useMemo(() => ({
@@ -179,21 +177,7 @@ export const MessageBubble = memo(function MessageBubble({
     ),
     th: ({ children }: any) => <th className="border border-border bg-muted/50 px-2 py-1 text-left font-medium">{children}</th>,
     td: ({ children }: any) => <td className="border border-border px-2 py-1">{children}</td>,
-  }), [rehypePlugins])
-
-  useEffect(() => {
-    if (rehypePlugins.length > 0) return
-    if (resolvedRehypePlugins) {
-      setRehypePlugins(resolvedRehypePlugins)
-      return
-    }
-    highlighterPromise.then((highlighter) => {
-      setRehypePlugins([
-        [rehypeShiki, { highlighter, themes: { light: 'github-light', dark: 'vitesse-dark' }, useBackground: false }],
-        rehypeLinkifyCodeUrls,
-      ])
-    })
-  }, [])
+  }), [])
 
   useEffect(() => {
     const container = proseRef.current
@@ -328,7 +312,7 @@ export const MessageBubble = memo(function MessageBubble({
               isUser ? 'bg-primary text-primary-foreground rounded-tr-sm inline-block'
                 : isTool ? 'bg-muted/70 font-mono text-xs w-full rounded-tl-sm inline-block'
                   : showShimmer ? 'bg-muted/50 inline-block'
-                    : isAssistant ? 'bg-transparent w-full inline-block' // ← added w-full
+                    : isAssistant ? 'bg-transparent w-full inline-block'
                       : 'bg-muted/50 inline-block',
               isQueued && 'border-l-2 border-amber-400 pl-3'
             )}
@@ -392,7 +376,7 @@ export const MessageBubble = memo(function MessageBubble({
                   ) : (
                     <MarkdownHooks
                       remarkPlugins={remarkPlugins}
-                      rehypePlugins={rehypePlugins.length > 0 ? rehypePlugins : [rehypeLinkifyCodeUrls]}
+                      rehypePlugins={rehypePlugins}
                       components={markdownComponents}
                     >
                       {message.content}
