@@ -90,19 +90,10 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
     )
 
     // ─── Target for programmatic scroll to a specific message ────────────────
-    // We store the filtered index we're trying to land on. On every onChange
-    // tick we re-issue scrollToIndex so the virtualizer can converge as real
-    // measurements arrive and correct its size estimates. Once the item's
-    // virtual `start` equals scrollOffset (within tolerance) AND total size
-    // has been stable for two consecutive ticks, we're done.
     const targetFilteredIndexRef = React.useRef<number | null>(null)
     const isProgrammaticScrollingRef = React.useRef(false)
-    // Tracks getTotalSize() from the previous onChange tick so we can detect
-    // when measurements have stopped landing and the layout has stabilised.
     const lastTotalSizeRef = React.useRef<number | null>(null)
-    // Counts consecutive ticks where getTotalSize() hasn't changed, so we can
-    // require N stable ticks before declaring convergence.
-    const stableTotalTicksRef = React.useRef(0)
+    const stablePosTicksRef = React.useRef(0)
 
     // ─── scrollToFn: intercept ALL virtualizer scrolls ────────────────────────
     const scrollToFn: React.ComponentProps<typeof useVirtualizer>['scrollToFn'] =
@@ -215,71 +206,47 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
         }
 
         // ── Phase 2: Converging programmatic scroll ───────────────────────────
-        // scrollToIndex computes offsets from *estimated* sizes. As items render
-        // and get measured, getTotalSize() shifts — sometimes by 100k+ px —
-        // dragging the target's real position with it. We re-issue scrollToIndex
-        // every tick so the virtualizer re-converges with fresh measurements.
-        //
-        // Convergence strategy: track how many consecutive ticks the target's
-        // `start` has matched `scrollOffset` within tolerance. Total-size
-        // stability is a red herring — the total keeps changing as off-screen
-        // items re-expand after the collapsed-clamp phase, but those changes
-        // don't affect the target's position once it's genuinely aligned.
-        // Requiring N consecutive position-stable ticks is robust against:
-        //   A. Single-tick coincidental alignment during size-collapse clamp
-        //   B. Spurious matches while the virtualizer re-expands around us
-        //
-        // Extra guard: during collapse the total can be so small that
-        // targetVItem.start is near the scrollable max, making alignment
-        // a coincidence. We require enough content after the target.
+        // Re-issue scrollToIndex every onChange tick. As items render and get
+        // measured, getTotalSize() shifts and the target drifts. Each tick we
+        // drive toward the latest computed position. We converge when:
+        //   1. targetVItem.start ≈ scrollOffset for N consecutive ticks
+        //      (guards against single-tick coincidence during size collapse)
+        //   2. Enough content exists after the target (guards against the
+        //      collapsed-clamp case where total is tiny and start coincidentally
+        //      matches a clamped scrollOffset)
         if (isProgrammaticScrollingRef.current && targetFilteredIndexRef.current !== null) {
           const targetIdx = targetFilteredIndexRef.current
-          const targetVItem = items.find(it => it.index === targetIdx)
           const currentTotal = instance.getTotalSize()
 
-          // Always re-drive. scrollToIndex is idempotent when aligned.
           instance.scrollToIndex(targetIdx, { align: 'start', behavior: 'auto' })
 
+          const targetVItem = items.find(it => it.index === targetIdx)
           if (targetVItem) {
             const scrollOffset = instance.scrollOffset ?? (el?.scrollTop ?? 0)
             const viewportHeight = el?.clientHeight ?? 0
             const drift = targetVItem.start - scrollOffset
             const positionOk = Math.abs(drift) <= 2
 
-            // Count consecutive ticks where position is correct
-            const STABLE_POS_TICKS_REQUIRED = 2
-            if (positionOk) {
-              stableTotalTicksRef.current += 1
-            } else {
-              stableTotalTicksRef.current = 0
-            }
-            const positionStable = stableTotalTicksRef.current >= STABLE_POS_TICKS_REQUIRED
+            if (positionOk) { stablePosTicksRef.current += 1 }
+            else { stablePosTicksRef.current = 0 }
 
-            // Content-after guard: during size-collapse the total can be tiny,
-            // making the target coincidentally near scrollTop. Require that
-            // items after the target account for a realistic minimum of content.
-            const itemsAfterTarget = filteredMessagesRef.current.length - 1 - targetIdx
-            const minExpectedAfter = Math.max(viewportHeight, itemsAfterTarget * 80)
-            const enoughContentAfter = (currentTotal - targetVItem.start - viewportHeight) > minExpectedAfter * 0.5
+            const itemsAfter = filteredMessagesRef.current.length - 1 - targetIdx
+            const enoughAfter = (currentTotal - targetVItem.start - viewportHeight) > Math.max(viewportHeight, itemsAfter * 80) * 0.5
 
-            if (positionStable && enoughContentAfter) {
-              console.log(`[ProgrammaticScroll] ✅ converged index=${targetIdx} start=${targetVItem.start} offset=${Math.round(scrollOffset)} total=${Math.round(currentTotal)}`)
+            console.log(`[ProgrammaticScroll] index=${targetIdx} posOk=${positionOk}(${stablePosTicksRef.current}/2) enoughAfter=${enoughAfter} drift=${Math.round(drift)} total=${Math.round(currentTotal)}`)
+
+            if (stablePosTicksRef.current >= 2 && enoughAfter) {
+              console.log(`[ProgrammaticScroll] ✅ converged index=${targetIdx}`)
               isProgrammaticScrollingRef.current = false
               targetFilteredIndexRef.current = null
-              stableTotalTicksRef.current = 0
-              // Report using the known target index directly — do NOT use
-              // getVirtualItems() here because virtual item starts are stale
-              // until the next render flush. We know exactly where we landed.
-              reportActiveIndexForTarget(targetIdx)
-            } else {
-              console.log(`[ProgrammaticScroll] ↻ index=${targetIdx} posOk=${positionOk}(${stableTotalTicksRef.current}/${STABLE_POS_TICKS_REQUIRED}) enoughAfter=${enoughContentAfter} total=${Math.round(currentTotal)} drift=${Math.round(drift)}`)
+              stablePosTicksRef.current = 0
             }
           }
 
           lastTotalSizeRef.current = currentTotal
         } else {
           lastTotalSizeRef.current = instance.getTotalSize()
-          stableTotalTicksRef.current = 0
+          stablePosTicksRef.current = 0
         }
 
         // ── Phase 3: Auto-scroll (only when allowed) ─────────────────────────
@@ -381,89 +348,47 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
     const callbackRef = React.useRef(onVisibleUserIndexChange)
     React.useLayoutEffect(() => { callbackRef.current = onVisibleUserIndexChange })
 
-    // Stable lookup maps rebuilt when messages change
-    const filteredToFullRef = React.useRef(new Map<number, number>())
-    const userFilteredIndicesRef = React.useRef<number[]>([])
-    React.useMemo(() => {
-      const ftf = new Map<number, number>()
-      filteredMessages.forEach((msg, fi) => {
-        const fullIdx = messages.findIndex((m) => m.id === msg.id)
-        if (fullIdx !== -1) ftf.set(fi, fullIdx)
-      })
-      filteredToFullRef.current = ftf
-      userFilteredIndicesRef.current = filteredMessages
-        .map((m, i) => m.role === 'user' ? i : -1)
-        .filter(i => i !== -1)
-    }, [filteredMessages, messages])
-
-    const lastReportedRef = React.useRef(-1)
-
-    const emitActiveIndex = React.useCallback((fullIdx: number, reason: string, extra: string) => {
-      console.log(`[ActiveIndex] reason=${reason} fullIdx=${fullIdx} lastReported=${lastReportedRef.current} ${extra}`)
-      if (fullIdx !== -1 && fullIdx !== lastReportedRef.current) {
-        lastReportedRef.current = fullIdx
-        callbackRef.current?.(fullIdx)
-      }
-    }, [])
-
-    // Used after programmatic scroll converges — target filteredIdx is known,
-    // so we resolve it directly without reading stale getVirtualItems() starts.
-    const reportActiveIndexForTarget = React.useCallback((targetFilteredIdx: number) => {
-      const userIndices = userFilteredIndicesRef.current
-      if (userIndices.length === 0) return
-      // Find the last user-message filtered index at or before the target
-      let best = userIndices[0]
-      for (const ui of userIndices) {
-        if (ui <= targetFilteredIdx) best = ui
-        else break
-      }
-      const fullIdx = filteredToFullRef.current.get(best) ?? -1
-      emitActiveIndex(fullIdx, 'programmatic-converged', `targetFi=${targetFilteredIdx} bestUser=${best}`)
-    }, [emitActiveIndex])
-
-    // Used during manual scroll — reads virtual item positions from the DOM.
-    const reportActiveIndex = React.useCallback((reason: string) => {
-      const el = scrollRef.current
-      if (!el) return
-      const userIndices = userFilteredIndicesRef.current
-      if (userIndices.length === 0) return
-
-      const scrollTop = el.scrollTop
-      const vItems = virtualizerRef.current.getVirtualItems()
-      if (vItems.length === 0) return
-
-      // Find the rendered item whose start is at or before scrollTop
-      let topFilteredIdx = vItems[0].index
-      for (const item of vItems) {
-        if (item.start <= scrollTop) topFilteredIdx = item.index
-        else break
-      }
-
-      // Last user-message index at or before the top visible item
-      let best = userIndices[0]
-      for (const ui of userIndices) {
-        if (ui <= topFilteredIdx) best = ui
-        else break
-      }
-
-      const fullIdx = filteredToFullRef.current.get(best) ?? -1
-      emitActiveIndex(fullIdx, reason, `scrollTop=${Math.round(scrollTop)} topItem=${topFilteredIdx} bestUser=${best}`)
-    }, [emitActiveIndex])
-
     React.useEffect(() => {
       const el = scrollRef.current
       if (!el || !onVisibleUserIndexChange) return
-      const onScroll = () => {
-        // Skip scroll events mid-programmatic-navigation: the convergence loop
-        // calls reportActiveIndexForTarget once converged, using the known target
-        // index directly — avoids n-1 lag from stale virtual item starts.
-        if (isProgrammaticScrollingRef.current) return
-        reportActiveIndex('scroll')
+
+      const filteredToFull = new Map<number, number>()
+      filteredMessages.forEach((msg, fi) => {
+        const fullIdx = messages.findIndex((m) => m.id === msg.id)
+        if (fullIdx !== -1) filteredToFull.set(fi, fullIdx)
+      })
+      const userFilteredIndices = filteredMessages
+        .map((m, i) => m.role === 'user' ? i : -1)
+        .filter(i => i !== -1)
+
+      if (userFilteredIndices.length === 0) return
+
+      let lastReported = -1
+      const report = () => {
+        const vItems = virtualizerRef.current.getVirtualItems()
+        if (vItems.length === 0) return
+        const scrollTop = el.scrollTop
+        let topItem = vItems[0]
+        for (const item of vItems) {
+          if (item.start <= scrollTop) topItem = item
+          else break
+        }
+        let best = userFilteredIndices[0]
+        for (const ui of userFilteredIndices) {
+          if (ui <= topItem.index) best = ui
+          else break
+        }
+        const fullIdx = filteredToFull.get(best) ?? -1
+        if (fullIdx !== -1 && fullIdx !== lastReported) {
+          lastReported = fullIdx
+          callbackRef.current?.(fullIdx)
+        }
       }
-      el.addEventListener('scroll', onScroll, { passive: true })
-      const t = setTimeout(() => reportActiveIndex('mount'), 50)
-      return () => { clearTimeout(t); el.removeEventListener('scroll', onScroll) }
-    }, [filteredMessages, messages, onVisibleUserIndexChange, reportActiveIndex])
+
+      el.addEventListener('scroll', report, { passive: true })
+      const t = setTimeout(report, 50)
+      return () => { clearTimeout(t); el.removeEventListener('scroll', report) }
+    }, [filteredMessages, messages, onVisibleUserIndexChange])
 
     // ─── Imperative handle ───────────────────────────────────────────────────
     React.useImperativeHandle(ref, () => ({
