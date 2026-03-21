@@ -29,6 +29,9 @@ const ThreadNavigator = memo(function ThreadNavigator({
   }, [activeIndex, userMessages])
 
   // ... (Hover & UI Logic)
+  const [optimisticActiveIndex, setOptimisticActiveIndex] = useState<number | null>(null)
+  const effectiveActiveIndex = optimisticActiveIndex ?? activeIndex
+
   const [isHovering, setIsHovering] = useState(false)
   const [cardPosition, setCardPosition] = useState<{ top: number; left: number } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -81,8 +84,16 @@ const ThreadNavigator = memo(function ThreadNavigator({
   const handleClick = (idx: number) => {
     const msg = userMessages.find(u => u.idx === idx)
     console.log(`[Navigator] 🖱️ clicked fullIndex=${idx} content="${msg?.msg.content.slice(0, 40) ?? 'unknown'}"`)
+    setOptimisticActiveIndex(idx)
     onScrollTo(idx)
   }
+
+  // Once the real activeIndex catches up, clear the optimistic override
+  useEffect(() => {
+    if (optimisticActiveIndex !== null && activeIndex === optimisticActiveIndex) {
+      setOptimisticActiveIndex(null)
+    }
+  }, [activeIndex, optimisticActiveIndex])
 
   return (
     <>
@@ -97,7 +108,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
         onMouseLeave={handleMouseLeave}
       >
         {userMessages.map(({ msg, idx }) => {
-          const isActive = idx === activeIndex
+          const isActive = idx === effectiveActiveIndex
           const dotNumber = userMessages.findIndex(u => u.idx === idx)
           return (
             <button
@@ -154,7 +165,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
               >
                 <div className="space-y-1 pr-2">
                   {userMessages.map(({ msg, idx }) => {
-                    const isActive = idx === activeIndex
+                    const isActive = idx === effectiveActiveIndex
                     return (
                       <button
                         key={msg.id}
