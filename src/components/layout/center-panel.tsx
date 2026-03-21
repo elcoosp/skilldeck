@@ -87,6 +87,13 @@ export function CenterPanel() {
   const [unseenCount, setUnseenCount] = useState(0)
   const lastSeenCountRef = useRef(realMessageCount)
 
+  // ─── Reset badge baseline on conversation switch ─────────────────────────
+  useEffect(() => {
+    lastSeenCountRef.current = messagesLengthRef.current
+    setUnseenCount(0)
+    setShowJumpToLatest(false)
+  }, [activeKey]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // When streaming starts, reset baseline — user has "seen" everything so far
   useEffect(() => {
     if (isRunning) {

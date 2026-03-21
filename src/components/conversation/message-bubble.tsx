@@ -33,10 +33,6 @@ interface MessageBubbleProps {
 }
 
 // ─── Shiki singleton ──────────────────────────────────────────────────────────
-// The highlighter is created once at module level. We also cache the resolved
-// rehype plugin array so that components mounting after the first resolution
-// get it synchronously — eliminating the unstyled→highlighted re-render that
-// causes layout shifts and breaks scroll restoration.
 const highlighterPromise = createHighlighter({
   themes: ['github-light', 'vitesse-dark'],
   langs: ['javascript', 'typescript', 'python', 'bash', 'json', 'tsx', 'jsx', 'css', 'html'],
@@ -51,8 +47,6 @@ highlighterPromise.then((highlighter) => {
 })
 
 // ─── CodePre ─────────────────────────────────────────────────────────────────
-// Memoized so syntax-highlighted code blocks don't re-render unless their
-// content changes (avoids layout thrash during virtualizer measurement).
 function CodePre({ children, ...props }: any) {
   const [collapsed, setCollapsed] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -96,24 +90,22 @@ function CodePre({ children, ...props }: any) {
           {copied ? <Check className="size-3.5 text-green-500" /> : <Copy className="size-3.5" />}
         </button>
       </div>
-      {/* No CSS transition here — transitions cause the virtualizer to measure
-          intermediate heights, corrupting the size cache and causing scroll jank. */}
-      <div className="grid" style={{ gridTemplateRows: collapsed ? '0fr' : '1fr' }}>
-        <div className="overflow-hidden rounded-b-lg">
-          <div
-            className="overflow-auto max-h-96 thin-scrollbar bg-card [&>pre]:!m-0 [&>pre]:!rounded-none [&>pre]:!border-none [&>pre]:p-3 [&>pre]:text-xs [&>pre]:leading-relaxed [&>pre]:!bg-transparent"
-            style={{ opacity: collapsed ? 0 : 1 }}
+      <div
+        className="overflow-hidden rounded-b-lg"
+        style={{
+          maxHeight: collapsed ? 0 : 384,
+          transition: 'max-height 0.18s ease',
+        }}
+      >
+        <div
+          className="overflow-auto max-h-96 thin-scrollbar bg-card [&>pre]:!m-0 [&>pre]:!rounded-none [&>pre]:!border-none [&>pre]:p-3 [&>pre]:text-xs [&>pre]:leading-relaxed [&>pre]:!bg-transparent"
+        >
+          <pre
+            {...props}
+            style={{ ...props.style, color: 'var(--foreground)' }}
           >
-            <pre
-              {...props}
-              style={{
-                ...props.style,
-                color: 'var(--foreground)',
-              }}
-            >
-              {children}
-            </pre>
-          </div>
+            {children}
+          </pre>
         </div>
       </div>
     </div>
@@ -131,14 +123,9 @@ export const MessageBubble = memo(function MessageBubble({
 }: MessageBubbleProps) {
   const [collapsed, setCollapsed] = useState(false)
   const [copied, setCopied] = useState(false)
-  // Initialize from module-level cache (synchronous) so messages mounting after
-  // the first Shiki resolution skip the unstyled→highlighted re-render entirely.
   const [rehypePlugins, setRehypePlugins] = useState<any[]>(() => resolvedRehypePlugins ?? [])
   const proseRef = useRef<HTMLDivElement>(null)
 
-  // Stable markdown component map — only recreates when rehypePlugins changes.
-  // Defined here (not module level) so react-markdown gets a stable object reference
-  // and doesn't re-parse the AST on unrelated parent re-renders.
   const markdownComponents = useMemo(() => ({
     pre: CodePre,
     a: ({ href, children }: any) => (
@@ -192,15 +179,10 @@ export const MessageBubble = memo(function MessageBubble({
     ),
     th: ({ children }: any) => <th className="border border-border bg-muted/50 px-2 py-1 text-left font-medium">{children}</th>,
     td: ({ children }: any) => <td className="border border-border px-2 py-1">{children}</td>,
-  }), [rehypePlugins]) // eslint-disable-line react-hooks/exhaustive-deps
+  }), [rehypePlugins])
 
-  // Only subscribe to async init if we didn't get plugins synchronously.
-  // We check resolvedRehypePlugins again here because it may have resolved
-  // between the useState initializer and this effect running.
   useEffect(() => {
-    // If already resolved (either from useState init or a prior mount), skip.
     if (rehypePlugins.length > 0) return
-    // Check if it resolved between render and effect
     if (resolvedRehypePlugins) {
       setRehypePlugins(resolvedRehypePlugins)
       return
@@ -211,9 +193,8 @@ export const MessageBubble = memo(function MessageBubble({
         rehypeLinkifyCodeUrls,
       ])
     })
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
-  // Search highlight: walk text nodes and wrap matches in <mark>.
   useEffect(() => {
     const container = proseRef.current
     if (!container) return
@@ -305,7 +286,6 @@ export const MessageBubble = memo(function MessageBubble({
     toast.success('Message copied')
   }, [message.content])
 
-  // Subagent card
   let subagentData: any = null
   if (isAssistant && !isStreaming && message.content) {
     try { subagentData = JSON.parse(message.content) } catch { /* ignore */ }
@@ -324,11 +304,11 @@ export const MessageBubble = memo(function MessageBubble({
       {/* Avatar */}
       <div
         className={cn(
-          'flex-shrink-0 size-7 rounded-full flex items-center justify-center mt-0.5',
-          isUser ? 'bg-primary text-primary-foreground'
-            : isSystem ? 'bg-destructive/20 text-destructive'
-              : isTool ? 'bg-muted text-muted-foreground'
-                : 'bg-muted text-foreground'
+          'flex-shrink-0 size-7 rounded-full flex items-center justify-center',
+          isUser ? 'bg-primary text-primary-foreground mt-0.5'
+            : isSystem ? 'bg-destructive/20 text-destructive mt-0.5'
+              : isTool ? 'bg-muted text-muted-foreground mt-0.5'
+                : 'bg-muted text-foreground mt-1.5'
         )}
         aria-hidden
       >
@@ -344,12 +324,12 @@ export const MessageBubble = memo(function MessageBubble({
           <div
             data-message-id={message.id}
             className={cn(
-              'relative inline-block px-3.5 py-2.5 rounded-xl text-sm leading-relaxed transition-colors duration-300',
-              isUser ? 'bg-primary text-primary-foreground rounded-tr-sm'
-                : isTool ? 'bg-muted/70 font-mono text-xs w-full rounded-tl-sm'
-                  : showShimmer ? 'bg-muted/50'
-                    : isAssistant ? 'bg-transparent'
-                      : 'bg-muted/50',
+              'relative px-3.5 py-2.5 rounded-xl text-sm leading-relaxed transition-colors duration-300',
+              isUser ? 'bg-primary text-primary-foreground rounded-tr-sm inline-block'
+                : isTool ? 'bg-muted/70 font-mono text-xs w-full rounded-tl-sm inline-block'
+                  : showShimmer ? 'bg-muted/50 inline-block'
+                    : isAssistant ? 'bg-transparent w-full inline-block' // ← added w-full
+                      : 'bg-muted/50 inline-block',
               isQueued && 'border-l-2 border-amber-400 pl-3'
             )}
           >
@@ -397,37 +377,41 @@ export const MessageBubble = memo(function MessageBubble({
               </div>
             )}
 
-            {/* No transition — virtualizer must measure stable final heights only */}
-            <div className="grid" style={{ gridTemplateRows: isCollapsed ? '0fr' : '1fr' }}>
-              <div className="overflow-hidden" style={{ opacity: isCollapsed ? 0 : 1 }}>
-                {isAssistant || syntheticStreaming ? (
-                  <div ref={proseRef} className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-headings:my-1 prose-pre:my-0">
-                    {showShimmer ? (
-                      <div className="flex items-center justify-center py-4"><BouncingDots /></div>
-                    ) : (
-                      <MarkdownHooks
-                        remarkPlugins={remarkPlugins}
-                        rehypePlugins={rehypePlugins.length > 0 ? rehypePlugins : [rehypeLinkifyCodeUrls]}
-                        components={markdownComponents}
-                      >
-                        {message.content}
-                      </MarkdownHooks>
-                    )}
-                    {(isStreaming || syntheticStreaming) && message.content && (
-                      <span className="inline-block ml-0.5 align-middle">
-                        <Loader2 className="size-3 animate-spin text-muted-foreground" />
-                      </span>
-                    )}
-                  </div>
-                ) : shouldHighlight ? (
-                  <span
-                    className="whitespace-pre-wrap break-words"
-                    dangerouslySetInnerHTML={{ __html: highlightText(message.content, searchQuery) }}
-                  />
-                ) : (
-                  <span className="whitespace-pre-wrap break-words">{message.content}</span>
-                )}
-              </div>
+            <div
+              className="overflow-hidden"
+              style={{
+                maxHeight: isCollapsed ? 0 : 99999,
+                transition: 'max-height 0.18s ease',
+                opacity: isCollapsed ? 0 : 1,
+              }}
+            >
+              {isAssistant || syntheticStreaming ? (
+                <div ref={proseRef} className="prose prose-sm dark:prose-invert max-w-none break-words prose-p:my-1 prose-headings:my-1 prose-pre:my-0">
+                  {showShimmer ? (
+                    <div className="flex items-center justify-center py-4"><BouncingDots /></div>
+                  ) : (
+                    <MarkdownHooks
+                      remarkPlugins={remarkPlugins}
+                      rehypePlugins={rehypePlugins.length > 0 ? rehypePlugins : [rehypeLinkifyCodeUrls]}
+                      components={markdownComponents}
+                    >
+                      {message.content}
+                    </MarkdownHooks>
+                  )}
+                  {(isStreaming || syntheticStreaming) && message.content && (
+                    <span className="inline-block ml-0.5 align-middle">
+                      <Loader2 className="size-3 animate-spin text-muted-foreground" />
+                    </span>
+                  )}
+                </div>
+              ) : shouldHighlight ? (
+                <span
+                  className="whitespace-pre-wrap break-words"
+                  dangerouslySetInnerHTML={{ __html: highlightText(message.content, searchQuery) }}
+                />
+              ) : (
+                <span className="whitespace-pre-wrap break-words">{message.content}</span>
+              )}
             </div>
           </div>
         </div>

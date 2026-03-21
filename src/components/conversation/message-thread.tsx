@@ -35,6 +35,11 @@ function distFromBottom(el: HTMLElement): number {
   return el.scrollHeight - el.scrollTop - el.clientHeight
 }
 
+// ─── Module-level measured size cache ────────────────────────────────────────
+// Keyed by message id (stable UUIDs). Survives conversation switches so that
+// scroll restoration seed offsets are accurate on revisit.
+const globalMeasuredSizes = new Map<string, number>()
+
 export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThreadProps>(
   (
     {
@@ -61,8 +66,8 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
     const filteredMessagesRef = React.useRef(filteredMessages)
     filteredMessagesRef.current = filteredMessages
 
-    // ─── Measured size cache (survives re-renders) ───────────────────────────
-    const measuredSizesRef = React.useRef<Map<string, number>>(new Map())
+    // ─── Measured size cache (module-level, survives remounts) ──────────────
+    const measuredSizesRef = React.useRef(globalMeasuredSizes)
 
     // ─── Programmatic scroll tracking ────────────────────────────────────────
     // When WE scroll (not the user), we set this to true so the scroll listener
@@ -142,9 +147,16 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
           if (Math.abs(delta) > 50) {
             console.log(`[Measure] msgId=${msgId.slice(0, 8)} role=${role} estimated=${estimate} actual=${h} delta=${delta}`)
           }
-          measuredSizesRef.current.set(msgId, h)
-          if (role === 'assistant' && !prev) {
-            updateAvgAssistantHeight(h)
+          // Suppress only if: assistant, measured exactly 80px (skeleton height),
+          // AND previously measured at >200px (real content). This is the specific
+          // pattern of pre-render skeleton overwriting a known good large measurement.
+          // Using 200px threshold avoids suppressing genuinely short responses.
+          const isSkeleton = role === 'assistant' && h === 80 && !!prev && prev > 200
+          if (!isSkeleton) {
+            measuredSizesRef.current.set(msgId, h)
+            if (role === 'assistant' && !prev && h > 80) {
+              updateAvgAssistantHeight(h)
+            }
           }
         }
         return h
@@ -172,12 +184,30 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
             const inRange = idx >= items[0].index && idx <= items[items.length - 1].index
             if (inRange && !instance.isScrolling) {
               restorationAppliedRef.current = true
-              console.log(`[Restoration] target=${idx} in range — scrollToIndex`)
-              requestAnimationFrame(() =>
+              // Phase 2: item is measured. Use scrollToIndex(align:'start') to land
+              // at the item's top edge (robust against totalSize changes), then add
+              // the intra-item delta: how far into the item the user was scrolled.
+              const targetItem = items.find(it => it.index === idx)
+              const intraItemOffset = targetItem
+                ? Math.max(0, token.scrollTop - targetItem.start)
+                : 0
+              console.log(`[Restoration] target=${idx} in range start=${targetItem?.start ?? '?'} savedScrollTop=${token.scrollTop} intraItem=${intraItemOffset}`)
+              requestAnimationFrame(() => {
                 instance.scrollToIndex(idx, { align: 'start', behavior: 'auto' })
-              )
+                // Apply intra-item offset after scrollToIndex settles
+                requestAnimationFrame(() => {
+                  const el = instance.scrollElement as HTMLElement | null
+                  if (el && intraItemOffset > 0) {
+                    isProgrammaticScrollRef.current = true
+                    el.scrollTop += intraItemOffset
+                    requestAnimationFrame(() => { isProgrammaticScrollRef.current = false })
+                  }
+                })
+              })
             } else if (!inRange && !restorationSeededRef.current) {
               restorationSeededRef.current = true
+              // Phase 1: target not in view — seed using cached sizes to bring it into range.
+              // Use cached real sizes where available, fall back to avg estimate.
               let offset = 0
               for (let i = 0; i < idx; i++) {
                 const m = filteredMessagesRef.current[i]
