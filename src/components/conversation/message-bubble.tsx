@@ -121,7 +121,7 @@ function CodePre({ children, ...props }: any) {
         floating.style.opacity = '0'
         floating.style.pointerEvents = 'none'
         // Restore radius while fading out
-        floating.style.borderRadius = 'var(--radius)'  // or '0.5rem' to match rounded-lg
+        floating.style.borderRadius = 'var(--radius)'
         floating.style.boxShadow = '0 0 0 0 transparent'
         header.style.visibility = 'visible'
         isFloatingRef.current = false
@@ -170,13 +170,11 @@ function CodePre({ children, ...props }: any) {
           ref={floatingRef}
           className="fixed z-50 flex items-center justify-between px-3 py-1.5 border border-border bg-muted text-xs font-mono"
           style={{
-            // Start in non-floating resting state
             opacity: 0,
             pointerEvents: 'none',
             borderRadius: 'var(--radius)',
             boxShadow: '0 0 0 0 transparent',
-            // All animatable properties in one transition
-            transition: 'opacity 150ms ease, border-radius 150ms ease, box-shadow 150ms ease',
+            transition: 'opacity 300ms ease, border-radius 300ms ease, box-shadow 300ms ease',
           }}
         >
           {headerContent}
