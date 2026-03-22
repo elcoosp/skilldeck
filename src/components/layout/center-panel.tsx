@@ -25,6 +25,7 @@ import { extractHeadings } from '@/lib/markdown-toc'
 import { useAssistantMessageStore } from '@/store/assistant-messages'
 
 // ─── Scroll token cache ───────────────────────────────────────────────────────
+// Persists scroll positions across conversation switches within the session.
 const scrollTokenCache = new Map<string, ScrollToken>()
 
 // ─── Heading extraction: runs outside React, result is cached by message id ──
@@ -37,13 +38,21 @@ export function CenterPanel() {
   // ─── Granular UIStore selectors (primitives only — no object selectors) ───
   const activeConversationId = useUIStore((s) => s.activeConversationId)
   const activeBranchId = useUIStore((s) => s.activeBranchId)
+
   const scrollToMessageId = useUIStore((s) => s.scrollToMessageId)
   const setScrollToMessageId = useUIStore((s) => s.setScrollToMessageId)
+
+  const workspaceId = useActiveConversationWorkspaceId()
+  const { data: workspaces = [] } = useWorkspaces()
+  const activeWorkspace = workspaces.find((w) => w.id === workspaceId)
+  const workspaceRoot = activeWorkspace?.path
+
   const searchQuery = useUIStore((s) => s.conversationSearchQuery)
   const setSearchQuery = useUIStore((s) => s.setConversationSearchQuery)
-
   const [debouncedSearch] = useDebounce(searchQuery, 300)
   const [autoScroll, setAutoScroll] = useState(true)
+
+  // NEW: search toggles
   const [searchCaseSensitive, setSearchCaseSensitive] = useState(false)
   const [searchRegex, setSearchRegex] = useState(false)
 
@@ -54,35 +63,17 @@ export function CenterPanel() {
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const workspaceId = useActiveConversationWorkspaceId()
-  const { data: workspaces = [] } = useWorkspaces()
-
-  // Derive workspaceRoot without storing intermediate objects in state
-  const workspaceRoot = useMemo(
-    () => workspaces.find((w) => w.id === workspaceId)?.path,
-    [workspaces, workspaceId]
-  )
-
   // ─── Streaming state ──────────────────────────────────────────────────────
   const { isRunning } = useAgentStream(activeConversationId)
   const messages = useMessagesWithStream(activeConversationId, activeBranchId)
 
-  // Computed as a stable primitive — only changes when isRunning or last-message id changes
-  const streamingMessageId = useMemo(() => {
+  const streamingMessageId = (() => {
     if (!isRunning) return undefined
     const last = messages[messages.length - 1]
     return last?.role === 'assistant' ? last.id : undefined
-  }, [isRunning, messages])
+  })()
 
-  // ─── Heading extraction — completely decoupled from render ────────────────
-  // Problem: the previous implementation called setHeadings/clearHeadings in a
-  // useEffect that depended on `messages`, which fired on every new message and
-  // called the assistant-messages store N times, causing N Zustand notifications,
-  // each of which re-rendered every subscriber (all MessageBubbles).
-  //
-  // Fix: only call setHeadings/clearHeadings for messages whose content has
-  // actually changed (tracked by content length), and batch all updates so the
-  // store is only mutated once per effect run.
+  // ─── Headings extraction for assistant messages ───────────────────────────
   const setHeadings = useAssistantMessageStore((s) => s.setHeadings)
   const clearHeadings = useAssistantMessageStore((s) => s.clearHeadings)
 
@@ -105,13 +96,9 @@ export function CenterPanel() {
     }
   }, [messages, setHeadings, clearHeadings])
 
-  // Clean up heading cache entries for messages no longer in any conversation
-  // (runs infrequently — only when activeConversationId changes)
+  // Clean up on conversation switch
   useEffect(() => {
-    return () => {
-      // On unmount or conversation switch, evict streaming placeholder
-      headingCache.delete('__streaming__')
-    }
+    return () => { headingCache.delete('__streaming__') }
   }, [activeConversationId])
 
   // ─── Conversation key ─────────────────────────────────────────────────────
@@ -119,7 +106,7 @@ export function CenterPanel() {
     ? `${activeConversationId}_${activeBranchId ?? 'main'}`
     : undefined
 
-  // ─── Save scroll token synchronously during render on conversation switch ─
+  // ─── Save scroll token on conversation switch (synchronous during render) ─
   const activeKeyRef = useRef<string | undefined>(undefined)
   if (activeKeyRef.current !== activeKey) {
     if (activeKeyRef.current && threadRef.current) {
@@ -131,20 +118,15 @@ export function CenterPanel() {
     activeKeyRef.current = activeKey
   }
 
-  const initialScrollToken = useMemo(() => {
+  const initialScrollToken = (() => {
     if (!activeKey) return undefined
     const cached = scrollTokenCache.get(activeKey)
     if (!cached || typeof cached.messageId !== 'string') return undefined
     return cached
-    // Re-derive only when the key changes (i.e. conversation switches)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeKey])
+  })()
 
   // ─── Jump-to-latest + unseen badge ───────────────────────────────────────
-  const realMessageCount = useMemo(
-    () => messages.filter((m) => m.id !== '__streaming__').length,
-    [messages]
-  )
+  const realMessageCount = messages.filter(m => m.id !== '__streaming__').length
   const messagesLengthRef = useRef(realMessageCount)
   messagesLengthRef.current = realMessageCount
 
@@ -156,25 +138,25 @@ export function CenterPanel() {
     lastSeenCountRef.current = messagesLengthRef.current
     setUnseenCount(0)
     setShowJumpToLatest(false)
-  }, [activeKey])
+  }, [activeKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (isRunning) {
       lastSeenCountRef.current = messagesLengthRef.current
       setUnseenCount(0)
     }
-  }, [isRunning])
+  }, [isRunning]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ─── Scroll-to-message on external request ────────────────────────────────
   useEffect(() => {
     if (!scrollToMessageId || !messages.length) return
-    const fullIndex = messages.findIndex((m) => m.id === scrollToMessageId)
-    if (fullIndex === -1) return
-    threadRef.current?.scrollToMessage(fullIndex)
-    setHighlightedMessageId(scrollToMessageId)
-    if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current)
-    highlightTimeoutRef.current = setTimeout(() => setHighlightedMessageId(null), 800)
-    setScrollToMessageId(null)
+    const targetMessage = messages.find(m => m.id === scrollToMessageId)
+    if (targetMessage) {
+      const fullIndex = messages.findIndex(m => m.id === scrollToMessageId)
+      threadRef.current?.scrollToMessage(fullIndex)
+      setHighlightedMessageId(scrollToMessageId)
+      setTimeout(() => setHighlightedMessageId(null), 800)
+      setScrollToMessageId(null)
+    }
   }, [scrollToMessageId, messages, setScrollToMessageId])
 
   const computeShowJump = useCallback(() => {
@@ -204,27 +186,24 @@ export function CenterPanel() {
   useEffect(() => { computeShowJump() }, [realMessageCount, computeShowJump])
 
   // ─── Jump to latest ───────────────────────────────────────────────────────
-  const lastMessagesRef = useRef(messages)
-  lastMessagesRef.current = messages
-
   const jumpToLatest = useCallback(() => {
-    const msgs = lastMessagesRef.current
-    if (msgs.length === 0) return
+    if (messages.length === 0) return
     threadRef.current?.scrollToBottom()
     lastSeenCountRef.current = messagesLengthRef.current
     setUnseenCount(0)
-    const lastMsg = msgs[msgs.length - 1]
+    const lastMsg = messages[messages.length - 1]
     if (lastMsg) {
       setHighlightedMessageId(lastMsg.id)
       if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current)
       highlightTimeoutRef.current = setTimeout(() => setHighlightedMessageId(null), 800)
     }
-    // No dep on `messages` — uses ref so callback is always stable
-  }, [])
+  }, [messages])
 
-  // ─── Scroll settled ───────────────────────────────────────────────────────
+  // ─── Scroll settled — save token after programmatic navigation ────────────
   const handleScrollSettled = useCallback((token: ScrollToken) => {
-    if (activeKeyRef.current) scrollTokenCache.set(activeKeyRef.current, token)
+    if (activeKeyRef.current) {
+      scrollTokenCache.set(activeKeyRef.current, token)
+    }
   }, [])
 
   // ─── Thread navigator ─────────────────────────────────────────────────────
@@ -233,26 +212,21 @@ export function CenterPanel() {
   }, [])
 
   const handleNavigatorScrollTo = useCallback((index: number) => {
-    const msg = lastMessagesRef.current[index]
-    if (!msg) return
+    const targetMessage = messages[index]
+    if (!targetMessage) return
     if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current)
-    setHighlightedMessageId(msg.id)
+    setHighlightedMessageId(targetMessage.id)
     highlightTimeoutRef.current = setTimeout(() => setHighlightedMessageId(null), 800)
     threadRef.current?.scrollToMessage(index)
-    // No dep on `messages` — uses ref
-  }, [])
+  }, [messages])
 
   // ─── Active heading tracking ──────────────────────────────────────────────
-  // Stable refs to avoid re-subscribing the scroll listener on every render
-  const activeUserMessageIndexRef = useRef(activeUserMessageIndex)
-  activeUserMessageIndexRef.current = activeUserMessageIndex
-
   useEffect(() => {
     const unsub = threadRef.current?.onScroll(() => {
       const scrollContainer = threadRef.current?.getScrollElement()
-      if (!scrollContainer || activeUserMessageIndexRef.current == null) return
+      if (!scrollContainer || activeUserMessageIndex == null) return
 
-      const assistantMsgId = lastMessagesRef.current[activeUserMessageIndexRef.current + 1]?.id
+      const assistantMsgId = messages[activeUserMessageIndex + 1]?.id
       if (!assistantMsgId) return
 
       const bubble = scrollContainer.querySelector(`[data-msg-id="${assistantMsgId}"]`)
@@ -264,22 +238,28 @@ export function CenterPanel() {
       const containerTop = scrollContainer.getBoundingClientRect().top
       let activeIdx = 0
       for (let i = 0; i < headingEls.length; i++) {
-        if (headingEls[i].getBoundingClientRect().top - containerTop <= 32) activeIdx = i
+        const headingTop = headingEls[i].getBoundingClientRect().top
+        if (headingTop - containerTop <= 32) {
+          activeIdx = i
+        }
       }
-      setActiveHeadingIndex((prev) => (prev === activeIdx ? prev : activeIdx))
+      setActiveHeadingIndex(prev => (prev === activeIdx ? prev : activeIdx))
     })
     return () => unsub?.()
-    // Only re-subscribe when the conversation key changes (new thread handle)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeKey])
+  }, [activeUserMessageIndex, messages])
 
-  useEffect(() => { setActiveHeadingIndex(null) }, [activeUserMessageIndex])
+  useEffect(() => {
+    setActiveHeadingIndex(null)
+  }, [activeUserMessageIndex])
 
   // ─── Heading click handler ────────────────────────────────────────────────
+  // messageIndex = index of the ASSISTANT message in messages[]
+  // tocIndex     = positional DOM index of the heading within that bubble
   const handleHeadingClick = useCallback((messageIndex: number, tocIndex: number) => {
-    const msgs = lastMessagesRef.current
-    const targetMsgId = msgs[messageIndex]?.id
+    const targetMsgId = messages[messageIndex]?.id
     const scrollContainer = threadRef.current?.getScrollElement()
+    const userMsgIndex = messageIndex - 1
+    const userMsg = messages[userMsgIndex]
 
     const scrollToHeading = () => {
       requestAnimationFrame(() => {
@@ -289,18 +269,27 @@ export function CenterPanel() {
         const headingEls = bubble.querySelectorAll('h1,h2,h3,h4,h5,h6')
         const target = headingEls[tocIndex]
         if (!target) return
-        const elTop = target.getBoundingClientRect().top
+
+        // Guard against collapsed content
+        const targetRect = (target as HTMLElement).getBoundingClientRect()
+        if (targetRect.top === 0 && targetRect.bottom === 0) return
+
+        const elTop = targetRect.top
         const containerTop = container.getBoundingClientRect().top
         container.scrollTop += elTop - containerTop - 16
-        const userMsgIndex = messageIndex - 1
-        if (msgs[userMsgIndex]) handleVisibleUserIndexChange(userMsgIndex)
+
+        if (userMsg) handleVisibleUserIndexChange(userMsgIndex)
       })
     }
 
-    const alreadyRendered = !!scrollContainer?.querySelector(`[data-msg-id="${targetMsgId}"]`)
-    if (alreadyRendered) scrollToHeading()
-    else threadRef.current?.scrollToMessage(messageIndex, scrollToHeading)
-  }, [handleVisibleUserIndexChange])
+    const bubbleAlreadyRendered = !!scrollContainer?.querySelector(`[data-msg-id="${targetMsgId}"]`)
+
+    if (bubbleAlreadyRendered) {
+      scrollToHeading()
+    } else {
+      threadRef.current?.scrollToMessage(messageIndex, scrollToHeading)
+    }
+  }, [messages, handleVisibleUserIndexChange])
 
   // ─── Keyboard shortcut ⌘F / Ctrl+F ───────────────────────────────────────
   useEffect(() => {
@@ -315,7 +304,9 @@ export function CenterPanel() {
   }, [])
 
   // ─── Clear search on conversation switch ─────────────────────────────────
-  useEffect(() => { setSearchQuery('') }, [activeConversationId, setSearchQuery])
+  useEffect(() => {
+    setSearchQuery('')
+  }, [activeConversationId, setSearchQuery])
 
   const modifierKey = navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'
 
@@ -337,7 +328,7 @@ export function CenterPanel() {
     <div className="relative flex flex-col h-full">
       {activeConversationId && <BranchNav conversationId={activeConversationId} />}
 
-      {/* Search bar */}
+      {/* Search bar with toggles */}
       <div className="px-4 py-2 border-b border-border flex items-center gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
@@ -348,15 +339,16 @@ export function CenterPanel() {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-8 pr-24 h-8 text-sm"
           />
+          {/* Toggle buttons inside the input */}
           <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
             <button
               type="button"
-              onClick={() => setSearchCaseSensitive((v) => !v)}
+              onClick={() => setSearchCaseSensitive(!searchCaseSensitive)}
               className={cn(
-                'p-0.5 rounded text-xs font-mono transition-colors',
+                "p-0.5 rounded text-xs font-mono transition-colors",
                 searchCaseSensitive
-                  ? 'text-primary bg-primary/10'
-                  : 'text-muted-foreground hover:text-foreground'
+                  ? "text-primary bg-primary/10"
+                  : "text-muted-foreground hover:text-foreground"
               )}
               title="Case sensitive (Aa)"
             >
@@ -364,12 +356,12 @@ export function CenterPanel() {
             </button>
             <button
               type="button"
-              onClick={() => setSearchRegex((v) => !v)}
+              onClick={() => setSearchRegex(!searchRegex)}
               className={cn(
-                'p-0.5 rounded text-xs font-mono transition-colors',
+                "p-0.5 rounded text-xs font-mono transition-colors",
                 searchRegex
-                  ? 'text-primary bg-primary/10'
-                  : 'text-muted-foreground hover:text-foreground'
+                  ? "text-primary bg-primary/10"
+                  : "text-muted-foreground hover:text-foreground"
               )}
               title="Regular expression (.*)"
             >
@@ -396,7 +388,7 @@ export function CenterPanel() {
         </label>
       </div>
 
-      {/* Message thread */}
+      {/* Message thread — no key= prop, conversationKey drives internal reset */}
       <div className="relative flex-1 min-h-0">
         <MessageThread
           ref={threadRef}
@@ -423,7 +415,7 @@ export function CenterPanel() {
           />
         )}
 
-        {/* Jump to latest */}
+        {/* Jump to latest button */}
         <button
           type="button"
           onClick={jumpToLatest}

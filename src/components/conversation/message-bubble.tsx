@@ -138,7 +138,7 @@ import {
   User,
   Wrench,
 } from 'lucide-react'
-import React, { memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import React, { memo, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { MarkdownHooks } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeSlug from 'rehype-slug'
@@ -283,18 +283,36 @@ function CodePre({ children, ...props }: any) {
     const scrollable = scrollableRef.current
     if (!root || !container || !header || !floating || !scrollable) return
 
+    const hide = () => {
+      floating.style.opacity = '0'
+      floating.style.pointerEvents = 'none'
+      header.style.visibility = 'visible'
+      isFloatingRef.current = false
+    }
+
     const sync = () => {
-      if (collapsed || scrollable.scrollHeight <= scrollable.clientHeight) {
-        floating.style.opacity = '0'
-        floating.style.pointerEvents = 'none'
-        header.style.visibility = 'visible'
-        isFloatingRef.current = false
+      // Code block must actually overflow its internal scroll container
+      // for the sticky header to make any sense at all.
+      const codeOverflows = scrollable.scrollHeight > scrollable.clientHeight
+      if (collapsed || !codeOverflows) {
+        hide()
         return
       }
 
       const rootRect = root.getBoundingClientRect()
       const containerRect = container.getBoundingClientRect()
+
+      // Guard: skip if the scroll container itself has no layout yet
+      // (happens during initial mount, streaming, or while the parent
+      // message bubble is being measured by the virtualizer).
+      if (rootRect.width === 0 || rootRect.height === 0) {
+        hide()
+        return
+      }
+
+      // The code block header has scrolled off the top of the thread viewport
       const topGone = containerRect.top < rootRect.top
+      // At least 32px of the code block's body is still visible (not just clipped)
       const bottomVisible = containerRect.bottom > rootRect.top + 32
 
       if (topGone && bottomVisible) {
@@ -308,24 +326,30 @@ function CodePre({ children, ...props }: any) {
         header.style.visibility = 'hidden'
         isFloatingRef.current = true
       } else {
-        floating.style.opacity = '0'
-        floating.style.pointerEvents = 'none'
-        floating.style.borderRadius = 'var(--radius)'
-        floating.style.boxShadow = '0 0 0 0 transparent'
-        header.style.visibility = 'visible'
-        isFloatingRef.current = false
+        hide()
       }
     }
 
+    // Debounce ResizeObserver through rAF so we never read getBoundingClientRect
+    // mid-layout (e.g. during streaming when new lines are being added).
+    // This eliminates the flicker caused by stale layout values.
+    let rafId = 0
+    const syncRaf = () => {
+      cancelAnimationFrame(rafId)
+      rafId = requestAnimationFrame(sync)
+    }
+
     root.addEventListener('scroll', sync, { passive: true })
-    const ro = new ResizeObserver(sync)
+    const ro = new ResizeObserver(syncRaf)
     ro.observe(container)
     ro.observe(scrollable)
-    sync()
+    // Run once after mount — use rAF so layout is stable
+    rafId = requestAnimationFrame(sync)
 
     return () => {
       root.removeEventListener('scroll', sync)
       ro.disconnect()
+      cancelAnimationFrame(rafId)
     }
   }, [scrollContainer, collapsed])
 
@@ -366,7 +390,10 @@ function CodePre({ children, ...props }: any) {
             pointerEvents: 'none',
             borderRadius: 'var(--radius)',
             boxShadow: '0 0 0 0 transparent',
-            transition: 'opacity 300ms ease, border-radius 300ms ease, box-shadow 300ms ease',
+            // No opacity transition — spurious sync() calls during streaming/layout
+            // would cause visible flicker. opacity is set instantly.
+            // border-radius and shadow still animate for the sticky→normal transition.
+            transition: 'border-radius 200ms ease, box-shadow 200ms ease',
           }}
         >
           {headerContent}
@@ -494,9 +521,9 @@ const AssistantMessageActions = memo(function AssistantMessageActions({
         </DropdownMenuItem>
         <DropdownMenuItem onClick={onBookmark} className="cursor-pointer">
           {isBookmarked ? (
-            <BookmarkCheck className="mr-2 h-4 w-4 text-amber-500" />
+            <BookmarkCheck className="mr-2 h-4 w-4 text-amber-400 fill-amber-400" />
           ) : (
-            <Bookmark className="mr-2 h-4 w-4" />
+            <Bookmark className="mr-2 h-4 w-4 text-amber-400/70" />
           )}
           <span>{isBookmarked ? 'Remove bookmark' : 'Bookmark'}</span>
         </DropdownMenuItem>
@@ -567,7 +594,7 @@ const HeadingBookmarkButton = memo(function HeadingBookmarkButton({
       <Bookmark
         className={cn(
           'size-3 transition-colors',
-          isBookmarked ? 'text-primary fill-primary' : 'text-muted-foreground'
+          isBookmarked ? 'text-amber-400 fill-amber-400' : 'text-muted-foreground'
         )}
       />
     </button>
@@ -772,416 +799,506 @@ const MemoizedMarkdown = React.memo(function MemoizedMarkdown({
   prev.components === next.components
 )
 
+// ─── CollapsibleContent ───────────────────────────────────────────────────────
+// Replaces maxHeight:99999 transition with a measured height animation.
+// maxHeight:99999 forces the browser to animate across ~99000px of layout space
+// even for small content — measuring the real scrollHeight first means the
+// animation only covers the actual content height (e.g. 400px not 99999px).
+// Uses imperative DOM refs so the animation doesn't trigger React re-renders.
+function CollapsibleContent({
+  isCollapsed,
+  messageId,
+  children,
+}: {
+  isCollapsed: boolean
+  messageId: string
+  children: React.ReactNode
+}) {
+  const outerRef = useRef<HTMLDivElement>(null)
+  const isFirstRender = useRef(true)
+
+  useLayoutEffect(() => {
+    const el = outerRef.current
+    if (!el) return
+
+    // Skip the first render — inline styles in the JSX already set the correct
+    // initial values. Only animate on subsequent isCollapsed changes.
+    if (isFirstRender.current) {
+      isFirstRender.current = false
+      return
+    }
+
+    if (isCollapsed) {
+      // Collapse: measure current height → animate to 0
+      const t0 = performance.now()
+      const currentHeight = el.scrollHeight
+      el.style.maxHeight = `${currentHeight}px`
+      el.style.overflow = 'hidden'
+      // Force reflow so the browser registers the start value
+      el.getBoundingClientRect()
+      el.style.transition = 'max-height 0.18s ease, opacity 0.18s ease'
+      el.style.maxHeight = '0px'
+      el.style.opacity = '0'
+      if (DEBUG) {
+        mark('collapse:animate:start')
+        console.log(`[MB:Collapse] [${messageId.slice(0, 8)}] collapsing from ${currentHeight}px`)
+        dbgMeasureToFrame('collapse animate → paint')
+      }
+    } else {
+      // Expand: animate from 0 → measured scrollHeight, then remove maxHeight
+      const targetHeight = el.scrollHeight
+      el.style.transition = 'max-height 0.18s ease, opacity 0.18s ease'
+      el.style.maxHeight = `${targetHeight}px`
+      el.style.opacity = '1'
+      if (DEBUG) {
+        mark('collapse:animate:start')
+        console.log(`[MB:Collapse] [${messageId.slice(0, 8)}] expanding to ${targetHeight}px`)
+        dbgMeasureToFrame('expand animate → paint')
+      }
+      // After animation, remove maxHeight so content can grow freely (e.g. images loading)
+      const onEnd = () => {
+        if (outerRef.current && !isCollapsed) {
+          outerRef.current.style.maxHeight = 'none'
+          outerRef.current.style.overflow = 'visible'
+          outerRef.current.style.transition = ''
+        }
+        el.removeEventListener('transitionend', onEnd)
+      }
+      el.addEventListener('transitionend', onEnd)
+    }
+  }, [isCollapsed, messageId])
+
+  return (
+    <div
+      ref={outerRef}
+      style={{
+        // Set correct initial values inline so content is never clipped on first paint.
+        // useLayoutEffect will take over for subsequent isCollapsed changes.
+        overflow: isCollapsed ? 'hidden' : 'visible',
+        maxHeight: isCollapsed ? '0px' : 'none',
+        opacity: isCollapsed ? 0 : 1,
+      }}
+    >
+      {children}
+    </div>
+  )
+}
+
 // ─── MessageBubble ────────────────────────────────────────────────────────────
-export const MessageBubble = memo(
-  function MessageBubble({
-    message,
-    isStreaming = false,
-    isHighlighted = false,
-    searchQuery = '',
-    searchCaseSensitive = false,
-    searchRegex = false,
-  }: MessageBubbleProps) {
-    const [collapsed, setCollapsed] = useState(false)
-    const [copied, setCopied] = useState(false)
-    const proseRef = useRef<HTMLDivElement>(null)
-    const [highlighter, setHighlighter] = useState<Highlighter | null>(null)
+function MessageBubbleInner({
+  message,
+  isStreaming = false,
+  isHighlighted = false,
+  searchQuery = '',
+  searchCaseSensitive = false,
+  searchRegex = false,
+}: MessageBubbleProps) {
+  const [collapsed, setCollapsed] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const proseRef = useRef<HTMLDivElement>(null)
+  const [highlighter, setHighlighter] = useState<Highlighter | null>(null)
 
-    // Mark the start of this bubble's render for perf timeline
-    const renderMarkStart = `bubble-render:${message.id}:start`
-    mark(renderMarkStart)
-    trackRender('Bubble', message.id)
+  // Mark the start of this bubble's render for perf timeline
+  const renderMarkStart = `bubble-render:${message.id}:start`
+  mark(renderMarkStart)
+  trackRender('Bubble', message.id)
 
-    const activeConversationId = useUIStore((s) => {
-      trackSelectorCall(`Bubble[${message.id.slice(0, 8)}] UIStore`)
-      return s.activeConversationId
-    })
-    const scrollContainer = useContext(ScrollContainerContext)
+  const activeConversationId = useUIStore((s) => {
+    trackSelectorCall(`Bubble[${message.id.slice(0, 8)}] UIStore`)
+    return s.activeConversationId
+  })
+  const scrollContainer = useContext(ScrollContainerContext)
 
-    const isBookmarked = useBookmarksStore(
-      useCallback(
-        (s) => {
-          if (!activeConversationId) return false
-          const convBookmarks = s.bookmarks[activeConversationId]
-          if (!convBookmarks || !Array.isArray(convBookmarks)) return false
-          const result = convBookmarks.some((b) => b.message_id === message.id)
-          trackSelectorCall(`Bubble[${message.id.slice(0, 8)}] isBookmarked`)
-          return result
-        },
-        [activeConversationId, message.id]
-      )
+  const isBookmarked = useBookmarksStore(
+    useCallback(
+      (s) => {
+        if (!activeConversationId) return false
+        const convBookmarks = s.bookmarks[activeConversationId]
+        if (!convBookmarks || !Array.isArray(convBookmarks)) return false
+        const result = convBookmarks.some((b) => b.message_id === message.id)
+        trackSelectorCall(`Bubble[${message.id.slice(0, 8)}] isBookmarked`)
+        return result
+      },
+      [activeConversationId, message.id]
     )
+  )
 
-    // ─── Why-render tracking ──────────────────────────────────────────────────
-    const prevBubbleValuesRef = useRef<Record<string, unknown> | null>(null)
-    dbgWhyRender('Bubble', message.id, {
-      messageId: message.id,
-      role: message.role,
-      contentLength: message.content?.length ?? 0,
-      metadata: message.metadata,
-      isStreaming,
-      isHighlighted,
-      searchQuery,
-      searchCaseSensitive,
-      searchRegex,
-      activeConversationId,
-      isBookmarked,
-      scrollContainerRef: scrollContainer,
-    }, prevBubbleValuesRef)
+  // ─── Why-render tracking ──────────────────────────────────────────────────
+  const prevBubbleValuesRef = useRef<Record<string, unknown> | null>(null)
+  dbgWhyRender('Bubble', message.id, {
+    messageId: message.id,
+    role: message.role,
+    contentLength: message.content?.length ?? 0,
+    metadata: message.metadata,
+    isStreaming,
+    isHighlighted,
+    searchQuery,
+    searchCaseSensitive,
+    searchRegex,
+    activeConversationId,
+    isBookmarked,
+    scrollContainerRef: scrollContainer,
+  }, prevBubbleValuesRef)
 
-    // Load Shiki asynchronously
-    useEffect(() => {
-      getHighlighter().then(setHighlighter)
-    }, [])
+  // Load Shiki asynchronously
+  useEffect(() => {
+    getHighlighter().then(setHighlighter)
+  }, [])
 
-    // ─── Heading counter via ref — reset when messageId changes, NOT on content ──
-    const headingIndexRef = useRef(0)
-    const lastMessageIdRef = useRef('')
-    if (lastMessageIdRef.current !== message.id) {
-      lastMessageIdRef.current = message.id
+  // ─── Heading counter via ref — reset when messageId changes, NOT on content ──
+  const headingIndexRef = useRef(0)
+  const lastMessageIdRef = useRef('')
+  if (lastMessageIdRef.current !== message.id) {
+    lastMessageIdRef.current = message.id
+    headingIndexRef.current = 0
+  }
+  // Also reset on content during streaming (new content may reorder headings)
+  const lastContentLenRef = useRef(0)
+  if (isStreaming) {
+    // Only reset if content shrank (rare edge case, e.g. edit) or is a fresh stream
+    if (message.content.length < lastContentLenRef.current) {
       headingIndexRef.current = 0
     }
-    // Also reset on content during streaming (new content may reorder headings)
-    const lastContentLenRef = useRef(0)
-    if (isStreaming) {
-      // Only reset if content shrank (rare edge case, e.g. edit) or is a fresh stream
-      if (message.content.length < lastContentLenRef.current) {
-        headingIndexRef.current = 0
-      }
-      lastContentLenRef.current = message.content.length
-    }
+    lastContentLenRef.current = message.content.length
+  }
 
-    const rehypePlugins = getRehypePlugins(highlighter)
-    const markdownComponents = useMarkdownComponents(
-      message.id,
-      activeConversationId,
-      scrollContainer,
-      headingIndexRef
-    )
+  const rehypePlugins = getRehypePlugins(highlighter)
+  const markdownComponents = useMarkdownComponents(
+    message.id,
+    activeConversationId,
+    scrollContainer,
+    headingIndexRef
+  )
 
-    // ─── Search highlighting effect ──────────────────────────────────────────
-    useEffect(() => {
-      const container = proseRef.current
-      if (!container) return
+  // ─── Search highlighting effect ──────────────────────────────────────────
+  useEffect(() => {
+    const container = proseRef.current
+    if (!container) return
 
-      const clearMarks = () => {
-        if (!document.contains(container)) return
-        container.querySelectorAll('mark[data-search]').forEach((mark) => {
-          const parent = mark.parentNode
-          if (!parent || !document.contains(parent)) return
-          try {
-            parent.replaceChild(document.createTextNode(mark.textContent ?? ''), mark)
-            parent.normalize()
-          } catch { /* node removed */ }
-        })
-      }
-
-      if (!searchQuery?.trim() || !message.content) { clearMarks(); return }
-      clearMarks()
+    const clearMarks = () => {
       if (!document.contains(container)) return
-
-      let pattern = searchQuery
-      if (!searchRegex) pattern = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-      const flags = searchCaseSensitive ? 'g' : 'gi'
-      let regex: RegExp
-      try { regex = new RegExp(pattern, flags) } catch { return }
-
-      const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
-        acceptNode: (node) => {
-          let p = node.parentElement
-          while (p && p !== container) {
-            if (p.tagName === 'CODE' || p.tagName === 'PRE') return NodeFilter.FILTER_REJECT
-            p = p.parentElement
-          }
-          return regex.test(node.textContent ?? '') ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT
-        },
+      container.querySelectorAll('mark[data-search]').forEach((mark) => {
+        const parent = mark.parentNode
+        if (!parent || !document.contains(parent)) return
+        try {
+          parent.replaceChild(document.createTextNode(mark.textContent ?? ''), mark)
+          parent.normalize()
+        } catch { /* node removed */ }
       })
+    }
 
-      const textNodes: Text[] = []
-      let node: Node | null
-      while ((node = walker.nextNode())) textNodes.push(node as Text)
+    if (!searchQuery?.trim() || !message.content) { clearMarks(); return }
+    clearMarks()
+    if (!document.contains(container)) return
 
-      for (const textNode of textNodes) {
-        if (!textNode.parentNode || !document.contains(textNode)) continue
-        const text = textNode.textContent ?? ''
-        regex.lastIndex = 0
-        const frag = document.createDocumentFragment()
-        let last = 0
-        let match: RegExpExecArray | null
-        while ((match = regex.exec(text)) !== null) {
-          if (match.index > last) frag.appendChild(document.createTextNode(text.slice(last, match.index)))
-          const mark = document.createElement('mark')
-          mark.setAttribute('data-search', '')
-          mark.style.backgroundColor = 'var(--highlight-inline)'
-          mark.style.color = 'inherit'
-          mark.style.borderRadius = '2px'
-          mark.style.padding = '0 2px'
-          mark.textContent = match[0]
-          frag.appendChild(mark)
-          last = regex.lastIndex
+    let pattern = searchQuery
+    if (!searchRegex) pattern = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const flags = searchCaseSensitive ? 'g' : 'gi'
+    let regex: RegExp
+    try { regex = new RegExp(pattern, flags) } catch { return }
+
+    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
+      acceptNode: (node) => {
+        let p = node.parentElement
+        while (p && p !== container) {
+          if (p.tagName === 'CODE' || p.tagName === 'PRE') return NodeFilter.FILTER_REJECT
+          p = p.parentElement
         }
-        if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)))
-        try { textNode.parentNode?.replaceChild(frag, textNode) } catch { /* ignore */ }
+        return regex.test(node.textContent ?? '') ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT
+      },
+    })
+
+    const textNodes: Text[] = []
+    let node: Node | null
+    while ((node = walker.nextNode())) textNodes.push(node as Text)
+
+    for (const textNode of textNodes) {
+      if (!textNode.parentNode || !document.contains(textNode)) continue
+      const text = textNode.textContent ?? ''
+      regex.lastIndex = 0
+      const frag = document.createDocumentFragment()
+      let last = 0
+      let match: RegExpExecArray | null
+      while ((match = regex.exec(text)) !== null) {
+        if (match.index > last) frag.appendChild(document.createTextNode(text.slice(last, match.index)))
+        const mark = document.createElement('mark')
+        mark.setAttribute('data-search', '')
+        mark.style.backgroundColor = 'var(--highlight-inline)'
+        mark.style.color = 'inherit'
+        mark.style.borderRadius = '2px'
+        mark.style.padding = '0 2px'
+        mark.textContent = match[0]
+        frag.appendChild(mark)
+        last = regex.lastIndex
       }
-
-      return clearMarks
-    }, [searchQuery, searchCaseSensitive, searchRegex, message.content])
-
-    const isUser = message.role === 'user'
-    const isAssistant = message.role === 'assistant'
-    const isTool = message.role === 'tool'
-    const isSystem = message.role === 'system'
-    const syntheticStreaming = message.id === '__streaming__'
-    const showShimmer = (isAssistant || syntheticStreaming) && isStreaming && !message.content
-
-    const isQueued = useMemo(() => {
-      if (!message.metadata) return false
-      try {
-        const meta = typeof message.metadata === 'string' ? JSON.parse(message.metadata) : message.metadata
-        return meta.from_queue === true
-      } catch { return false }
-    }, [message.metadata])
-
-    const contextItems = message.context_items || []
-    const canCollapse = (isAssistant || isSystem || isTool) && !isStreaming && !syntheticStreaming
-    const isCollapsed = collapsed && canCollapse
-    const shouldHighlight = searchQuery && !showShimmer && message.content
-
-    const copyMessage = useCallback(async () => {
-      await navigator.clipboard.writeText(message.content)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-      toast.success('Message copied')
-    }, [message.content])
-
-    const downloadMessage = useCallback(async () => {
-      const path = await save({
-        defaultPath: `message_${message.id}.txt`,
-        filters: [{ name: 'Text', extensions: ['txt', 'md'] }],
-      })
-      if (!path) return
-      try {
-        await writeTextFile(path, message.content)
-        toast.success('Message saved')
-      } catch (err) {
-        toast.error(`Failed to save: ${err}`)
-      }
-    }, [message.id, message.content])
-
-    // Track whether callbacks are stable — new identity = AssistantMessageActions will re-render
-    const prevCopyRef = useRef<Function | null>(null)
-    const prevDownloadRef = useRef<Function | null>(null)
-    if (DEBUG) {
-      if (prevCopyRef.current && prevCopyRef.current !== copyMessage) {
-        console.warn(`[MB:Bubble] [${message.id.slice(0, 8)}] copyMessage identity changed — AssistantMessageActions will re-render. Dep: message.content length=${message.content.length}`)
-      }
-      if (prevDownloadRef.current && prevDownloadRef.current !== downloadMessage) {
-        console.warn(`[MB:Bubble] [${message.id.slice(0, 8)}] downloadMessage identity changed — AssistantMessageActions will re-render. Deps: id=${message.id} contentLen=${message.content.length}`)
-      }
-      prevCopyRef.current = copyMessage
-      prevDownloadRef.current = downloadMessage
+      if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)))
+      try { textNode.parentNode?.replaceChild(frag, textNode) } catch { /* ignore */ }
     }
 
-    const toggleCollapsed = useCallback(() => setCollapsed((v) => !v), [])
+    return clearMarks
+  }, [searchQuery, searchCaseSensitive, searchRegex, message.content])
 
-    let subagentData: any = null
-    if (isAssistant && !isStreaming && message.content) {
-      try { subagentData = JSON.parse(message.content) } catch { /* ignore */ }
-    }
-    if (subagentData?.subagentId) {
-      return <SubagentCard stepName={subagentData.task || 'Subagent'} status="running" onOpen={() => { }} />
-    }
+  const isUser = message.role === 'user'
+  const isAssistant = message.role === 'assistant'
+  const isTool = message.role === 'tool'
+  const isSystem = message.role === 'system'
+  const syntheticStreaming = message.id === '__streaming__'
+  const showShimmer = (isAssistant || syntheticStreaming) && isStreaming && !message.content
 
-    if (DEBUG) {
-      // Close the render mark — everything between renderMarkStart and here is
-      // synchronous React work for this one bubble (hooks, useMemo, etc.)
-      const renderMarkEnd = `bubble-render:${message.id}:end`
-      mark(renderMarkEnd)
-      measure(
-        `⚛️ Bubble[${message.id.slice(0, 8)}] render (sync JS)`,
-        `bubble-render:${message.id}:start`,
-        renderMarkEnd
-      )
-    }
+  const isQueued = useMemo(() => {
+    if (!message.metadata) return false
+    try {
+      const meta = typeof message.metadata === 'string' ? JSON.parse(message.metadata) : message.metadata
+      return meta.from_queue === true
+    } catch { return false }
+  }, [message.metadata])
 
-    return (
-      <motion.div
-        id={`msg-${message.id}`}
-        className={cn('flex gap-3 max-w-full', isUser && 'flex-row-reverse')}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.15, ease: 'easeOut' }}
+  const contextItems = message.context_items || []
+  const canCollapse = (isAssistant || isSystem || isTool) && !isStreaming && !syntheticStreaming
+  const isCollapsed = collapsed && canCollapse
+  const shouldHighlight = searchQuery && !showShimmer && message.content
+
+  const copyMessage = useCallback(async () => {
+    await navigator.clipboard.writeText(message.content)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+    toast.success('Message copied')
+  }, [message.content])
+
+  const downloadMessage = useCallback(async () => {
+    const path = await save({
+      defaultPath: `message_${message.id}.txt`,
+      filters: [{ name: 'Text', extensions: ['txt', 'md'] }],
+    })
+    if (!path) return
+    try {
+      await writeTextFile(path, message.content)
+      toast.success('Message saved')
+    } catch (err) {
+      toast.error(`Failed to save: ${err}`)
+    }
+  }, [message.id, message.content])
+
+  // Track whether callbacks are stable — new identity = AssistantMessageActions will re-render
+  const prevCopyRef = useRef<Function | null>(null)
+  const prevDownloadRef = useRef<Function | null>(null)
+  if (DEBUG) {
+    if (prevCopyRef.current && prevCopyRef.current !== copyMessage) {
+      console.warn(`[MB:Bubble] [${message.id.slice(0, 8)}] copyMessage identity changed — AssistantMessageActions will re-render. Dep: message.content length=${message.content.length}`)
+    }
+    if (prevDownloadRef.current && prevDownloadRef.current !== downloadMessage) {
+      console.warn(`[MB:Bubble] [${message.id.slice(0, 8)}] downloadMessage identity changed — AssistantMessageActions will re-render. Deps: id=${message.id} contentLen=${message.content.length}`)
+    }
+    prevCopyRef.current = copyMessage
+    prevDownloadRef.current = downloadMessage
+  }
+
+  const toggleCollapsed = useCallback(() => setCollapsed((v) => !v), [])
+
+  let subagentData: any = null
+  if (isAssistant && !isStreaming && message.content) {
+    try { subagentData = JSON.parse(message.content) } catch { /* ignore */ }
+  }
+  if (subagentData?.subagentId) {
+    return <SubagentCard stepName={subagentData.task || 'Subagent'} status="running" onOpen={() => { }} />
+  }
+
+  if (DEBUG) {
+    // Close the render mark — everything between renderMarkStart and here is
+    // synchronous React work for this one bubble (hooks, useMemo, etc.)
+    const renderMarkEnd = `bubble-render:${message.id}:end`
+    mark(renderMarkEnd)
+    measure(
+      `⚛️ Bubble[${message.id.slice(0, 8)}] render (sync JS)`,
+      `bubble-render:${message.id}:start`,
+      renderMarkEnd
+    )
+  }
+
+  return (
+    <motion.div
+      id={`msg-${message.id}`}
+      className={cn('flex gap-3 max-w-full', isUser && 'flex-row-reverse')}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.15, ease: 'easeOut' }}
+    >
+      {/* Avatar */}
+      <div
+        className={cn(
+          'flex-shrink-0 size-7 rounded-full flex items-center justify-center',
+          isUser
+            ? 'bg-primary text-primary-foreground mt-0.5'
+            : isSystem
+              ? 'bg-destructive/20 text-destructive mt-0.5'
+              : isTool
+                ? 'bg-muted text-muted-foreground mt-0.5'
+                : 'bg-muted text-foreground mt-1.5'
+        )}
+        aria-hidden
       >
-        {/* Avatar */}
-        <div
-          className={cn(
-            'flex-shrink-0 size-7 rounded-full flex items-center justify-center',
-            isUser
-              ? 'bg-primary text-primary-foreground mt-0.5'
-              : isSystem
-                ? 'bg-destructive/20 text-destructive mt-0.5'
+        {isUser ? <User className="size-3.5" />
+          : isSystem ? <AlertCircle className="size-3.5" />
+            : isTool ? <Wrench className="size-3.5" />
+              : <Bot className="size-3.5" />}
+      </div>
+
+      {/* Message container */}
+      <div
+        className={cn(
+          'flex flex-col min-w-0',
+          isUser ? 'items-end' : 'items-start',
+          isAssistant ? 'w-full max-w-full' : 'max-w-[78%]'
+        )}
+      >
+        <div className={cn(isUser && 'text-right', 'w-full')}>
+          <div
+            data-message-id={message.id}
+            className={cn(
+              'relative px-3.5 py-2.5 rounded-xl text-sm leading-relaxed transition-colors duration-300',
+              isUser
+                ? 'bg-primary text-primary-foreground rounded-tr-sm inline-block'
                 : isTool
-                  ? 'bg-muted text-muted-foreground mt-0.5'
-                  : 'bg-muted text-foreground mt-1.5'
-          )}
-          aria-hidden
-        >
-          {isUser ? <User className="size-3.5" />
-            : isSystem ? <AlertCircle className="size-3.5" />
-              : isTool ? <Wrench className="size-3.5" />
-                : <Bot className="size-3.5" />}
-        </div>
-
-        {/* Message container */}
-        <div
-          className={cn(
-            'flex flex-col min-w-0',
-            isUser ? 'items-end' : 'items-start',
-            isAssistant ? 'w-full max-w-full' : 'max-w-[78%]'
-          )}
-        >
-          <div className={cn(isUser && 'text-right', 'w-full')}>
-            <div
-              data-message-id={message.id}
+                  ? 'bg-muted/70 font-mono text-xs w-full rounded-tl-sm inline-block'
+                  : showShimmer
+                    ? 'bg-transparent inline-block'
+                    : isAssistant
+                      ? 'bg-transparent w-full inline-block'
+                      : 'bg-muted/50 inline-block',
+              isQueued && 'border-l-2 border-amber-400 pl-3'
+            )}
+          >
+            {/* Highlight ring */}
+            <motion.div
               className={cn(
-                'relative px-3.5 py-2.5 rounded-xl text-sm leading-relaxed transition-colors duration-300',
-                isUser
-                  ? 'bg-primary text-primary-foreground rounded-tr-sm inline-block'
-                  : isTool
-                    ? 'bg-muted/70 font-mono text-xs w-full rounded-tl-sm inline-block'
-                    : showShimmer
-                      ? 'bg-transparent inline-block'
-                      : isAssistant
-                        ? 'bg-transparent w-full inline-block'
-                        : 'bg-muted/50 inline-block',
-                isQueued && 'border-l-2 border-amber-400 pl-3'
+                'absolute inset-0 ring-2 ring-primary/50 pointer-events-none rounded-inherit',
+                isUser ? 'rounded-xl rounded-tr-sm' : isTool ? 'rounded-xl rounded-tl-sm' : 'rounded-xl'
               )}
-            >
-              {/* Highlight ring */}
-              <motion.div
-                className={cn(
-                  'absolute inset-0 ring-2 ring-primary/50 pointer-events-none rounded-inherit',
-                  isUser ? 'rounded-xl rounded-tr-sm' : isTool ? 'rounded-xl rounded-tl-sm' : 'rounded-xl'
-                )}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: isHighlighted ? 1 : 0 }}
-                transition={{ duration: 0.5, ease: 'easeOut' }}
-                style={{ willChange: 'opacity' }}
-              />
+              initial={{ opacity: 0 }}
+              animate={{ opacity: isHighlighted ? 1 : 0 }}
+              transition={{ duration: 0.5, ease: 'easeOut' }}
+              style={{ willChange: 'opacity' }}
+            />
 
-              {isQueued && (
-                <span className="text-xs bg-primary-foreground/10 text-primary-foreground rounded-full px-2 py-0.5 mb-1 flex items-center gap-1 self-start">
-                  <Clock className="size-3" /> Queued
+            {isQueued && (
+              <span className="text-xs bg-primary-foreground/10 text-primary-foreground rounded-full px-2 py-0.5 mb-1 flex items-center gap-1 self-start">
+                <Clock className="size-3" /> Queued
+              </span>
+            )}
+
+            {contextItems.length > 0 && (
+              <div className="flex flex-wrap gap-1 mb-2">
+                {contextItems.map((item: any, idx: number) => (
+                  <ContextChip key={item.path || item.name || `item-${idx}`} item={item} readonly />
+                ))}
+              </div>
+            )}
+
+            {canCollapse && (
+              <div className="flex items-center gap-1 mb-1 text-muted-foreground">
+                <span className="text-xs font-medium">
+                  {isAssistant ? 'Assistant' : isSystem ? 'System' : 'Tool'}
                 </span>
-              )}
+                <motion.button
+                  type="button"
+                  onClick={() => {
+                    if (DEBUG) {
+                      mark('collapse:click')
+                      dbgMeasureToFrame('collapse toggle → paint')
+                      console.log(`[MB:Collapse] [${message.id.slice(0, 8)}] toggle clicked, currently collapsed=${isCollapsed}`)
+                    }
+                    toggleCollapsed()
+                  }}
+                  className="p-0.5 hover:bg-muted-foreground/20 rounded transition-colors"
+                  aria-label={isCollapsed ? 'Expand message' : 'Collapse message'}
+                  whileTap={{ scale: 0.9 }}
+                >
+                  <motion.div animate={{ rotate: isCollapsed ? 0 : 90 }} transition={{ duration: 0.2 }}>
+                    {isCollapsed ? <ChevronRight className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+                  </motion.div>
+                </motion.button>
 
-              {contextItems.length > 0 && (
-                <div className="flex flex-wrap gap-1 mb-2">
-                  {contextItems.map((item: any, idx: number) => (
-                    <ContextChip key={item.path || item.name || `item-${idx}`} item={item} readonly />
-                  ))}
-                </div>
-              )}
-
-              {canCollapse && (
-                <div className="flex items-center gap-1 mb-1 text-muted-foreground">
-                  <span className="text-xs font-medium">
-                    {isAssistant ? 'Assistant' : isSystem ? 'System' : 'Tool'}
-                  </span>
-                  <motion.button
-                    type="button"
-                    onClick={toggleCollapsed}
-                    className="p-0.5 hover:bg-muted-foreground/20 rounded transition-colors"
-                    aria-label={isCollapsed ? 'Expand message' : 'Collapse message'}
-                    whileTap={{ scale: 0.9 }}
-                  >
-                    <motion.div animate={{ rotate: isCollapsed ? 0 : 90 }} transition={{ duration: 0.2 }}>
-                      {isCollapsed ? <ChevronRight className="size-3.5" /> : <ChevronDown className="size-3.5" />}
-                    </motion.div>
-                  </motion.button>
-
-                  {isAssistant && !isStreaming && !syntheticStreaming && (
-                    <AssistantMessageActions
-                      message={message}
-                      conversationId={activeConversationId}
-                      onCopy={copyMessage}
-                      onDownload={downloadMessage}
-                    />
-                  )}
-                </div>
-              )}
-
-              <div
-                className="overflow-hidden"
-                style={{
-                  maxHeight: isCollapsed ? 0 : 99999,
-                  transition: 'max-height 0.18s ease',
-                  opacity: isCollapsed ? 0 : 1,
-                }}
-              >
-                {isAssistant || syntheticStreaming ? (
-                  <div
-                    ref={proseRef}
-                    className="prose prose-sm dark:prose-invert max-w-none break-words prose-p:my-1 prose-headings:my-1 prose-pre:my-0"
-                  >
-                    {showShimmer ? (
-                      <div className="flex items-center py-2">
-                        <StreamingLoading />
-                      </div>
-                    ) : (
-                      <StreamingContext.Provider value={isStreaming || syntheticStreaming}>
-                        {/* MemoizedMarkdown skips re-parsing when content/plugins unchanged.
-                            This is the critical guard against Radix flushSync causing
-                            remark/rehype to re-run for every visible assistant message. */}
-                        <MemoizedMarkdown
-                          remarkPlugins={remarkPlugins}
-                          rehypePlugins={rehypePlugins}
-                          components={markdownComponents}
-                        >
-                          {message.content}
-                        </MemoizedMarkdown>
-                      </StreamingContext.Provider>
-                    )}
-                  </div>
-                ) : shouldHighlight ? (
-                  <span
-                    className="whitespace-pre-wrap break-words"
-                    dangerouslySetInnerHTML={{
-                      __html: highlightText(message.content, searchQuery, {
-                        caseSensitive: searchCaseSensitive,
-                        isRegex: searchRegex,
-                      }),
-                    }}
+                {isAssistant && !isStreaming && !syntheticStreaming && (
+                  <AssistantMessageActions
+                    message={message}
+                    conversationId={activeConversationId}
+                    onCopy={copyMessage}
+                    onDownload={downloadMessage}
                   />
-                ) : (
-                  <span className="whitespace-pre-wrap break-words">{message.content}</span>
                 )}
               </div>
-            </div>
-          </div>
-
-          <AnimatePresence>
-            {!isStreaming && !syntheticStreaming && message.content && !isCollapsed && (
-              <motion.button
-                key="copy-button"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-                onClick={copyMessage}
-                className="mt-1 p-1 text-muted-foreground hover:text-foreground transition-colors bg-transparent border-0 shadow-none"
-                aria-label="Copy message"
-              >
-                {copied ? <Check className="size-3.5 text-green-500" /> : <Copy className="size-3.5" />}
-              </motion.button>
             )}
-          </AnimatePresence>
+
+            {/* NOTE: maxHeight:99999 causes CSS to animate the full 0→99999px range
+                  even for small content, forcing the browser to compute layout across
+                  ~99000px of virtual space on every animation frame = jank.
+                  Replaced with a measured approach: on expand we read the real
+                  scrollHeight and animate to that. On collapse we animate to 0. */}
+            <CollapsibleContent isCollapsed={isCollapsed} messageId={message.id}>
+              {isAssistant || syntheticStreaming ? (
+                <div
+                  ref={proseRef}
+                  className="prose prose-sm dark:prose-invert max-w-none break-words prose-p:my-1 prose-headings:my-1 prose-pre:my-0"
+                >
+                  {showShimmer ? (
+                    <div className="flex items-center py-2">
+                      <StreamingLoading />
+                    </div>
+                  ) : (
+                    <StreamingContext.Provider value={isStreaming || syntheticStreaming}>
+                      {/* MemoizedMarkdown skips re-parsing when content/plugins unchanged.
+                            This is the critical guard against Radix flushSync causing
+                            remark/rehype to re-run for every visible assistant message. */}
+                      <MemoizedMarkdown
+                        remarkPlugins={remarkPlugins}
+                        rehypePlugins={rehypePlugins}
+                        components={markdownComponents}
+                      >
+                        {message.content}
+                      </MemoizedMarkdown>
+                    </StreamingContext.Provider>
+                  )}
+                </div>
+              ) : shouldHighlight ? (
+                <span
+                  className="whitespace-pre-wrap break-words"
+                  dangerouslySetInnerHTML={{
+                    __html: highlightText(message.content, searchQuery, {
+                      caseSensitive: searchCaseSensitive,
+                      isRegex: searchRegex,
+                    }),
+                  }}
+                />
+              ) : (
+                <span className="whitespace-pre-wrap break-words">{message.content}</span>
+              )}
+            </CollapsibleContent>
+          </div>
         </div>
-      </motion.div>
-    )
-  },
-  // Custom comparison: skip re-render during streaming if only content changed length
-  // (react-markdown handles its own diffing internally)
+
+        <AnimatePresence>
+          {!isStreaming && !syntheticStreaming && message.content && !isCollapsed && (
+            <motion.button
+              key="copy-button"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              onClick={copyMessage}
+              className="mt-1 p-1 text-muted-foreground hover:text-foreground transition-colors bg-transparent border-0 shadow-none"
+              aria-label="Copy message"
+            >
+              {copied ? <Check className="size-3.5 text-green-500" /> : <Copy className="size-3.5" />}
+            </motion.button>
+          )}
+        </AnimatePresence>
+      </div>
+    </motion.div>
+  )
+}
+
+export const MessageBubble = memo(
+  MessageBubbleInner,
   (prev, next) => {
     if (prev.isStreaming !== next.isStreaming) return false
     if (prev.isHighlighted !== next.isHighlighted) return false
@@ -1192,9 +1309,7 @@ export const MessageBubble = memo(
     if (prev.message.role !== next.message.role) return false
     if (prev.message.metadata !== next.message.metadata) return false
     if (prev.message.context_items !== next.message.context_items) return false
-    // During streaming: always re-render to show new content
     if (next.isStreaming) return prev.message.content === next.message.content
-    // Not streaming: only re-render if content changed
     return prev.message.content === next.message.content
   }
 )
