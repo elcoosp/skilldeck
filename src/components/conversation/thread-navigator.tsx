@@ -531,12 +531,19 @@ const ThreadNavigator = memo(function ThreadNavigator({
                       transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                     />
                   </div>
-                  {hasBookmarks && (
-                    <span
-                      className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-amber-400 ring-1 ring-background"
-                      aria-hidden
-                    />
-                  )}
+                  <AnimatePresence mode="wait">
+                    {hasBookmarks && (
+                      <motion.span
+                        key={msg.id}
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.8 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-amber-400 ring-1 ring-background"
+                        aria-hidden
+                      />
+                    )}
+                  </AnimatePresence>
                 </button>
               )
             })}

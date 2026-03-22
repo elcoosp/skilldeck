@@ -511,15 +511,24 @@ const AssistantMessageActions = memo(function AssistantMessageActions({
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-32">
-        <DropdownMenuItem onClick={onCopy} className="cursor-pointer">
+        <DropdownMenuItem
+          onClick={onCopy}
+          className="cursor-pointer hover:bg-primary/10 hover:text-foreground focus:bg-primary/10 focus:text-foreground"
+        >
           <Copy className="mr-2 h-4 w-4" />
           <span>Copy</span>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={onDownload} className="cursor-pointer">
+        <DropdownMenuItem
+          onClick={onDownload}
+          className="cursor-pointer hover:bg-primary/10 hover:text-foreground focus:bg-primary/10 focus:text-foreground"
+        >
           <Download className="mr-2 h-4 w-4" />
           <span>Download</span>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={onBookmark} className="cursor-pointer">
+        <DropdownMenuItem
+          onClick={onBookmark}
+          className="cursor-pointer hover:bg-primary/10 hover:text-foreground focus:bg-primary/10 focus:text-foreground"
+        >
           {isBookmarked ? (
             <BookmarkCheck className="mr-2 h-4 w-4 text-amber-400 fill-amber-400" />
           ) : (
@@ -582,7 +591,7 @@ const HeadingBookmarkButton = memo(function HeadingBookmarkButton({
   }, [conversationId, messageId, headingAnchor, headingLabel])
 
   return (
-    <button
+    <motion.button
       type="button"
       onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggle() }}
       className={cn(
@@ -590,14 +599,16 @@ const HeadingBookmarkButton = memo(function HeadingBookmarkButton({
         isBookmarked ? 'opacity-100' : 'opacity-0 group-hover/heading:opacity-100'
       )}
       aria-label={isBookmarked ? 'Remove heading bookmark' : 'Bookmark this heading'}
+      whileTap={{ scale: 0.9 }}
+      transition={{ duration: 0.1 }}
     >
       <Bookmark
         className={cn(
-          'size-3 transition-colors',
+          'size-3 transition-colors duration-150',
           isBookmarked ? 'text-amber-400 fill-amber-400' : 'text-muted-foreground'
         )}
       />
-    </button>
+    </motion.button>
   )
 })
 
