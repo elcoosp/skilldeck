@@ -19,13 +19,11 @@ export function useQueuedMessages(conversationId: UUID | null) {
     queryKey: ['queued-messages', conversationId],
     queryFn: async () => {
       if (!conversationId) return []
-      console.log('[useQueuedMessages] fetching for', conversationId)
       const res = await commands.listQueuedMessages(conversationId)
       if (res.status === 'error') {
         console.error('[useQueuedMessages] error:', res.error)
         throw new Error(res.error)
       }
-      console.log('[useQueuedMessages] received:', res.data)
       return res.data as QueuedMessage[]
     },
     enabled: !!conversationId,

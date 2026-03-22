@@ -128,7 +128,6 @@ export const MessageBubble = memo(function MessageBubble({
   if (lastContentRef.current !== message.content) {
     lastContentRef.current = message.content
     headingIndexRef.current = 0
-    console.log(`[MessageBubble] Reset heading index for message ${message.id.slice(0, 8)}`)
   }
 
   // ─── Markdown components with position‑based IDs ─────────────────────────
@@ -142,7 +141,6 @@ export const MessageBubble = memo(function MessageBubble({
       ).trim()
 
       const id = `h-${message.id}-${headingIndexRef.current++}`
-      console.log(`[MessageBubble] makeHeading: h${level} text="${text.slice(0, 40)}", id="${id}"`)
       return React.createElement(`h${level}`, { id, ...props }, children)
     }
 

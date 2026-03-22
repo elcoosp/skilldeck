@@ -70,9 +70,7 @@ export function CenterPanel() {
     console.log(`[CenterPanel] Processing ${messages.length} messages for headings`)
     for (const msg of messages) {
       if (msg.role === 'assistant' && msg.content && msg.id !== '__streaming__') {
-        console.log(`[CenterPanel] Extracting headings for message ${msg.id.slice(0, 8)}`)
         const headings = extractHeadings(msg.content, msg.id)
-        console.log(`[CenterPanel] Extracted headings:`, headings.map(h => ({ idx: h.tocIndex, text: h.text.slice(0, 30) })))
         if (headings.length > 0) setHeadings(msg.id, headings)
         else clearHeadings(msg.id)
       }
@@ -181,7 +179,6 @@ export function CenterPanel() {
   const handleScrollSettled = useCallback((token: ScrollToken) => {
     if (activeKeyRef.current) {
       scrollTokenCache.set(activeKeyRef.current, token)
-      console.log(`[CenterPanel] token saved after convergence scrollTop=${token.scrollTop}`)
     }
   }, [])
 

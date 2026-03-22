@@ -17,7 +17,6 @@ export interface TocItem {
  */
 export function extractHeadings(markdown: string, messageId: string): TocItem[] {
   if (!markdown) return []
-  console.log(`[extractHeadings] msgId=${messageId.slice(0, 8)} input length=${markdown.length}`)
   const tree = unified().use(remarkParse).parse(markdown)
   const headings: TocItem[] = []
 
@@ -30,9 +29,7 @@ export function extractHeadings(markdown: string, messageId: string): TocItem[] 
 
     const tocIndex = headings.length
     const id = `h-${messageId}-${tocIndex}` // fallback, not used for navigation
-    console.log(`[extractHeadings] idx=${tocIndex} id="${id}" level=${node.depth} text="${text.slice(0, 50)}"`)
     headings.push({ id, tocIndex, level: node.depth, text })
   })
-  console.log(`[extractHeadings] total headings = ${headings.length}`)
   return headings
 }
