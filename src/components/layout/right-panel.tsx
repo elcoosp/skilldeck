@@ -23,7 +23,8 @@ import {
   Layers,
   Plus,
   Trash2,
-  Zap
+  Zap,
+  Play
 } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -44,7 +45,8 @@ import { useConversations } from '@/hooks/use-conversations'
 import { useProfiles } from '@/hooks/use-profiles'
 import {
   useDeleteWorkflowDefinition,
-  useWorkflowDefinitions
+  useWorkflowDefinitions,
+  useRunWorkflowDefinition
 } from '@/hooks/use-workflow-definitions'
 import { useWorkflowEvents } from '@/hooks/use-workflow-events'
 import { commands } from '@/lib/bindings'
@@ -59,12 +61,12 @@ const TABS: {
   label: string
   Icon: React.FC<{ className?: string }>
 }[] = [
-  { id: 'session', label: 'Session', Icon: Cpu },
-  { id: 'skills', label: 'Skills', Icon: Layers },
-  { id: 'mcp', label: 'MCP', Icon: Zap },
-  { id: 'workflow', label: 'Workflow', Icon: GitBranch },
-  { id: 'analytics', label: 'Analytics', Icon: BarChart2 }
-]
+    { id: 'session', label: 'Session', Icon: Cpu },
+    { id: 'skills', label: 'Skills', Icon: Layers },
+    { id: 'mcp', label: 'MCP', Icon: Zap },
+    { id: 'workflow', label: 'Workflow', Icon: GitBranch },
+    { id: 'analytics', label: 'Analytics', Icon: BarChart2 }
+  ]
 
 export function RightPanel() {
   const [activeTab, setActiveTab] = useState<Tab>('session')
@@ -316,6 +318,7 @@ function WorkflowTab() {
   const { progress } = useWorkflowEvents()
   const { data: savedWorkflows = [], isLoading } = useWorkflowDefinitions()
   const deleteWorkflow = useDeleteWorkflowDefinition()
+  const runMutation = useRunWorkflowDefinition()
   const [editorOpen, setEditorOpen] = useState(false)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
 
@@ -472,6 +475,15 @@ function WorkflowTab() {
                     Updated {new Date(wf.updated_at).toLocaleDateString()}
                   </p>
                 </div>
+                <Button
+                  size="icon-xs"
+                  variant="ghost"
+                  onClick={() => runMutation.mutate(wf.id)}
+                  disabled={runMutation.isPending}
+                  title="Run workflow"
+                >
+                  <Play className="size-3" />
+                </Button>
                 <Button
                   variant="ghost"
                   size="icon-xs"
