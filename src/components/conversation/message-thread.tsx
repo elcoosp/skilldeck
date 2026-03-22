@@ -31,6 +31,8 @@ interface MessageThreadProps {
   streamingMessageId?: string
   isLoading?: boolean
   searchQuery?: string
+  searchCaseSensitive?: boolean
+  searchRegex?: boolean
   highlightedMessageId?: string | null
   initialScrollToken?: ScrollToken | null
   autoScroll?: boolean
@@ -59,6 +61,8 @@ export const MessageThread = React.forwardRef<
       streamingMessageId,
       isLoading,
       searchQuery = '',
+      searchCaseSensitive = false,
+      searchRegex = false,
       highlightedMessageId,
       initialScrollToken,
       autoScroll = true,
@@ -589,9 +593,9 @@ export const MessageThread = React.forwardRef<
                           message={message}
                           isStreaming={message.id === streamingMessageId}
                           isHighlighted={message.id === highlightedMessageId}
-                          searchQuery={
-                            searchQuery.trim() ? searchQuery : undefined
-                          }
+                          searchQuery={searchQuery.trim() ? searchQuery : undefined}
+                          searchCaseSensitive={searchCaseSensitive}
+                          searchRegex={searchRegex}
                         />
                       </div>
                     </div>
