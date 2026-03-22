@@ -21,6 +21,8 @@ import { useMessagesWithStream } from '@/hooks/use-messages'
 import { useWorkspaces } from '@/hooks/use-workspaces'
 import { useUIStore } from '@/store/ui'
 import { cn } from '@/lib/utils'
+import { extractHeadings } from '@/lib/markdown-toc'
+import { useAssistantMessageStore } from '@/store/assistant-messages'
 
 // ─── Scroll token cache ───────────────────────────────────────────────────────
 // Persists scroll positions across conversation switches within the session.
@@ -58,6 +60,20 @@ export function CenterPanel() {
     const last = messages[messages.length - 1]
     return last?.role === 'assistant' ? last.id : undefined
   })()
+
+  // ─── Headings extraction for assistant messages ───────────────────────────
+  const setHeadings = useAssistantMessageStore((s) => s.setHeadings)
+  const clearHeadings = useAssistantMessageStore((s) => s.clearHeadings)
+
+  useEffect(() => {
+    for (const msg of messages) {
+      if (msg.role === 'assistant' && msg.content && msg.id !== '__streaming__') {
+        const headings = extractHeadings(msg.content)
+        if (headings.length > 0) setHeadings(msg.id, headings)
+        else clearHeadings(msg.id)
+      }
+    }
+  }, [messages, setHeadings, clearHeadings])
 
   // ─── Conversation key ─────────────────────────────────────────────────────
   const activeKey = activeConversationId
@@ -179,6 +195,22 @@ export function CenterPanel() {
     threadRef.current?.scrollToMessage(index)
   }, [messages])
 
+  // ─── Heading click handler (two‑phase scroll) ────────────────────────────
+  const handleHeadingClick = useCallback((messageIndex: number, headingId: string) => {
+    // First, scroll to the assistant message containing the heading
+    threadRef.current?.scrollToMessage(messageIndex)
+    // After the virtualizer settles (roughly 300ms), scroll the heading into view
+    setTimeout(() => {
+      const headingElement = document.getElementById(headingId)
+      const scrollContainer = threadRef.current?.getScrollElement()
+      if (headingElement && scrollContainer) {
+        const elTop = headingElement.getBoundingClientRect().top
+        const containerTop = scrollContainer.getBoundingClientRect().top
+        scrollContainer.scrollTop += elTop - containerTop - 16 // 16px padding
+      }
+    }, 300)
+  }, [])
+
   // ─── Keyboard shortcut ⌘F / Ctrl+F ───────────────────────────────────────
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -267,6 +299,7 @@ export function CenterPanel() {
             messages={messages}
             activeIndex={activeUserMessageIndex}
             onScrollTo={handleNavigatorScrollTo}
+            onHeadingClick={handleHeadingClick}
           />
         )}
 

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from 'vitest-browser-react' // updated import
-import { ThreadNavigator } from '@/components/conversation/thread-navigator'
+import { render } from 'vitest-browser-react' // updated import
+import ThreadNavigator from '@/components/conversation/thread-navigator'
 import type { MessageData } from '@/lib/bindings'
 import { useAssistantMessageStore } from '@/store/assistant-messages'
 

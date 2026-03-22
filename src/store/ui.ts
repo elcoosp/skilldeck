@@ -22,7 +22,7 @@ interface PanelSizes {
   right: number
 }
 
-type SettingsTab =
+export type SettingsTab =
   | 'apikeys'
   | 'profiles'
   | 'approvals'

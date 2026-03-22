@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { createPortal } from 'react-dom'
 import type { MessageData } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
+import { useAssistantMessageStore } from '@/store/assistant-messages'
 
 const VISIBLE_ITEMS = 10
 const DOT_HEIGHT = 20          // 16px button + 4px gap (gap-1)
@@ -11,12 +12,14 @@ interface ThreadNavigatorProps {
   messages: MessageData[]
   activeIndex?: number
   onScrollTo: (index: number) => void
+  onHeadingClick: (messageIndex: number, headingId: string) => void
 }
 
 const ThreadNavigator = memo(function ThreadNavigator({
   messages,
   activeIndex = -1,
   onScrollTo,
+  onHeadingClick,
 }: ThreadNavigatorProps) {
   const userMessages = useMemo(
     () =>
@@ -25,6 +28,13 @@ const ThreadNavigator = memo(function ThreadNavigator({
         .filter(({ msg }) => msg.role === 'user'),
     [messages]
   )
+
+  const headingsMap = useAssistantMessageStore((s) => s.headingsMap)
+
+  // Find the assistant message that follows the active user message
+  const nextMsgIdx = activeIndex !== -1 ? activeIndex + 1 : -1
+  const activeMsgId = nextMsgIdx !== -1 ? messages[nextMsgIdx]?.id : undefined
+  const activeHeadings = activeMsgId ? (headingsMap[activeMsgId] ?? []) : []
 
   const hasMessages = userMessages.length > 0
 
@@ -73,7 +83,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
   const visibleCount = hasMessages ? Math.min(userMessages.length, VISIBLE_ITEMS) : 0
   const containerHeight = visibleCount * DOT_HEIGHT
 
-  // Hover card logic (unchanged)
+  // Hover card logic
   const [isHovering, setIsHovering] = useState(false)
   const [cardPosition, setCardPosition] = useState<{ top: number; left: number } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -242,6 +252,33 @@ const ThreadNavigator = memo(function ThreadNavigator({
                         </button>
                       )
                     })}
+
+                    {/* Table of Contents for the active assistant message */}
+                    {activeHeadings.length > 0 && (
+                      <div className="mt-2 pt-2 border-t border-border">
+                        <p className="text-xs font-medium text-muted-foreground mb-1 px-1.5">
+                          On this page
+                        </p>
+                        <div className="space-y-0.5">
+                          {activeHeadings.map((h) => (
+                            <button
+                              key={h.id}
+                              type="button"
+                              className="flex w-full text-left hover:bg-muted/50 px-1.5 py-1 rounded transition-colors"
+                              style={{ paddingLeft: `${(h.level - 1) * 12 + 6}px` }}
+                              onClick={() => {
+                                onHeadingClick(nextMsgIdx, h.id)
+                                setIsHovering(false)
+                              }}
+                            >
+                              <span className="text-xs text-muted-foreground truncate">
+                                {h.text}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </motion.div>

@@ -6,9 +6,11 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  AlertTriangle,
   Bell,
   Eye,
   EyeOff,
+  Folder,
   Globe,
   Key,
   Layers,
@@ -18,6 +20,7 @@ import {
   Star,
   Sun,
   Trash2,
+  Trophy,
   X
 } from 'lucide-react'
 import { useState } from 'react'

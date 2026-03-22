@@ -1,45 +1,43 @@
-// src/lib/markdown-toc.ts
-import { unified } from 'unified'
-import remarkParse from 'remark-parse'
+// lib/markdown-toc.ts
+import { fromMarkdown } from 'mdast-util-from-markdown'
 import { visit } from 'unist-util-visit'
-import type { Heading } from 'mdast'
 
-export interface TocItem {
+export interface Heading {
   id: string
-  level: number
   text: string
+  level: number
 }
 
 /**
- * Extracts headings from a markdown string.
- * @param markdown - The markdown content to parse.
- * @returns An array of TocItem, each with an id (for anchoring), level, and text.
+ * Extract headings from markdown content and generate IDs that match the ones
+ * stamped in MessageBubble's heading components.
+ *
+ * The ID generation mimics the logic used in the React renderer:
+ *   id = `heading-${counter++}-${slugified(text)}`
  */
-export function extractHeadings(markdown: string): TocItem[] {
-  if (!markdown) return []
+export function extractHeadings(markdown: string): Heading[] {
+  const tree = fromMarkdown(markdown)
+  const headings: Heading[] = []
+  let counter = 0
 
-  const tree = unified().use(remarkParse).parse(markdown)
-  const headings: TocItem[] = []
-
-  visit(tree, 'heading', (node: Heading) => {
-    // Flatten the node's children to get plain text
+  visit(tree, 'heading', (node: any) => {
+    // Extract plain text from heading children
     const text = node.children
-      .map(child => (child.type === 'text' ? child.value : ''))
+      .map((child: any) => (child.type === 'text' ? child.value : ''))
       .join('')
       .trim()
-
     if (!text) return
 
-    // Generate a stable id from the text (slugify) – simple version
-    const id = `heading-${headings.length}-${text
+    const slug = text
       .toLowerCase()
       .replace(/\s+/g, '-')
-      .replace(/[^\w-]/g, '')}`
+      .replace(/[^\w-]/g, '')
+    const id = `heading-${counter++}-${slug}`
 
     headings.push({
       id,
+      text,
       level: node.depth,
-      text
     })
   })
 

@@ -1,4 +1,4 @@
-import { useVirtualizer, elementScroll } from '@tanstack/react-virtual'
+import { useVirtualizer, elementScroll, Virtualizer } from '@tanstack/react-virtual'
 import { motion } from 'framer-motion'
 import * as React from 'react'
 import type { MessageData } from '@/lib/bindings'
@@ -99,12 +99,15 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
     const autoScrollReadyRef = React.useRef(false)
 
     // ─── scrollToFn ───────────────────────────────────────────────────────────
-    const scrollToFn: React.ComponentProps<typeof useVirtualizer>['scrollToFn'] =
-      React.useCallback((offset, { behavior }, instance) => {
-        isProgrammaticScrollRef.current = true
-        elementScroll(offset, { behavior }, instance)
-        requestAnimationFrame(() => { isProgrammaticScrollRef.current = false })
-      }, [])
+    const scrollToFn: (
+      offset: number,
+      options: { behavior?: ScrollBehavior },
+      instance: Virtualizer<Element, Element>
+    ) => void = React.useCallback((offset, { behavior }, instance) => {
+      isProgrammaticScrollRef.current = true
+      elementScroll(offset, { behavior }, instance)
+      requestAnimationFrame(() => { isProgrammaticScrollRef.current = false })
+    }, [])
 
     const avgAssistantHeightRef = React.useRef(5000)
     const updateAvgAssistantHeight = React.useCallback((newHeight: number) => {

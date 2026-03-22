@@ -2,10 +2,10 @@
 
 use sea_orm::{ActiveModelTrait, ActiveValue::Set, EntityTrait, QueryOrder};
 use serde::{Deserialize, Serialize};
-use skilldeck_core::workflow::WorkflowExecutor;
+use skilldeck_core::workflow::{WorkflowDefinition, WorkflowExecutor};
 use specta::{Type, specta};
 use std::sync::Arc;
-use tauri::State;
+use tauri::{Emitter, State};
 use uuid::Uuid;
 
 use crate::state::AppState;
