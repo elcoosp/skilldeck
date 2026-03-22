@@ -30,7 +30,8 @@ interface LintWarningPanelProps {
   onApplyFix?: (warning: LintWarning) => void
   onIgnore?: (ruleId: string) => void
   className?: string
-  hideFilePath?: boolean // NEW: hide full file path, show only line number
+  /** Optional root path to strip from displayed file location */
+  skillRoot?: string
 }
 
 export function LintWarningPanel({
@@ -38,7 +39,7 @@ export function LintWarningPanel({
   onApplyFix,
   onIgnore,
   className,
-  hideFilePath = false
+  skillRoot
 }: LintWarningPanelProps) {
   const _disableRule = useDisableRule()
   const [copiedId, setCopiedId] = useState<string | null>(null)
@@ -77,7 +78,7 @@ export function LintWarningPanel({
           onIgnore={onIgnore ? () => onIgnore(w.rule_id) : undefined}
           onCopyFix={() => copyFix(w)}
           copied={copiedId === w.rule_id}
-          hideFilePath={hideFilePath}
+          skillRoot={skillRoot}
         />
       ))}
     </div>
@@ -92,7 +93,7 @@ interface WarningRowProps {
   onIgnore?: () => void
   onCopyFix?: () => void
   copied?: boolean
-  hideFilePath?: boolean // NEW
+  skillRoot?: string
 }
 
 function WarningRow({
@@ -101,9 +102,19 @@ function WarningRow({
   onIgnore,
   onCopyFix,
   copied,
-  hideFilePath = false
+  skillRoot
 }: WarningRowProps) {
   const isSecurity = warning.rule_id.startsWith('sec-')
+
+  // Strip the skill root prefix if provided
+  let displayPath = warning.location?.file ?? ''
+  if (skillRoot && displayPath.startsWith(skillRoot)) {
+    displayPath = displayPath.slice(skillRoot.length).replace(/^\//, '')
+  } else if (!skillRoot) {
+    // Fallback: show only last two segments
+    const parts = displayPath.split('/')
+    if (parts.length > 2) displayPath = parts.slice(-2).join('/')
+  }
 
   return (
     <div
@@ -191,16 +202,10 @@ function WarningRow({
             <span>{warning.suggested_fix}</span>
           </p>
         )}
-        {/* File location - conditionally render */}
-        {!hideFilePath && warning.location?.file && (
+        {displayPath && (
           <p className="text-[10px] text-muted-foreground font-mono truncate">
-            {warning.location.file}
-            {warning.location.line != null && `:${warning.location.line}`}
-          </p>
-        )}
-        {hideFilePath && warning.location?.line != null && (
-          <p className="text-[10px] text-muted-foreground font-mono">
-            Line {warning.location.line}
+            {displayPath}
+            {warning.location?.line != null && `:${warning.location.line}`}
           </p>
         )}
       </div>

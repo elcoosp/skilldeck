@@ -34,13 +34,17 @@ interface SettingsState {
 
   // Default model (used when no profile exists or as fallback)
   defaultModelId: string
-  defaultProvider: string // new
+  defaultProvider: string
   setDefaultModelId: (id: string) => void
   setDefaultProvider: (provider: string) => void
 
   // Language
   language: string
   setLanguage: (lang: string) => void
+
+  // Code block max height (px)
+  codeBlockMaxHeight: number
+  setCodeBlockMaxHeight: (px: number) => void
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -74,25 +78,27 @@ export const useSettingsStore = create<SettingsState>()(
         set({ notificationsEnabled: enabled }),
 
       // Default model
-      defaultModelId: 'glm-5:cloud', // changed from claude-sonnet-4-5
-      defaultProvider: 'ollama', // new
+      defaultModelId: 'glm-5:cloud',
+      defaultProvider: 'ollama',
       setDefaultModelId: (id) => set({ defaultModelId: id }),
       setDefaultProvider: (provider) => set({ defaultProvider: provider }),
 
       // Language
       language: 'en',
-      setLanguage: (lang) => set({ language: lang })
+      setLanguage: (lang) => set({ language: lang }),
+
+      // Code block max height
+      codeBlockMaxHeight: 384,
+      setCodeBlockMaxHeight: (px) => set({ codeBlockMaxHeight: px })
     }),
     {
       name: 'skilldeck-settings',
-      version: 1,
+      version: 2,
       migrate: (persistedState: any, version: number) => {
-        if (version < 1) {
-          // Reset default provider to Ollama if the stored provider is not Ollama
-          // (stale pre‑migration state that may have had claude/openai)
+        if (version < 2) {
+          // Add new field with default 384
           const migrated = { ...persistedState }
-          migrated.defaultProvider = 'ollama'
-          migrated.defaultModelId = 'glm-5:cloud'
+          migrated.codeBlockMaxHeight = 384
           return migrated
         }
         return persistedState

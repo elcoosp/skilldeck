@@ -1,3 +1,4 @@
+// src-tauri/src/commands/skills.rs
 //! Skill-related Tauri commands.
 //!
 //! Extends the existing list/toggle commands with:
@@ -80,14 +81,17 @@ pub async fn lint_skill(
     path: PathBuf,
     workspace_config_path: Option<PathBuf>,
 ) -> Result<Vec<LintWarning>, String> {
-    let base_config = state.lint_config.read().await.clone();
-    let config = if let Some(ws_path) = workspace_config_path {
-        LintConfig::from_files(None, Some(&ws_path)).unwrap_or(base_config)
+    // Read the global config from the shared state.
+    let global_config = state.lint_config.read().await.clone();
+
+    // If a workspace config path is provided, merge it on top.
+    let final_config = if let Some(ws_path) = workspace_config_path {
+        LintConfig::from_files(None, Some(&ws_path)).unwrap_or(global_config)
     } else {
-        base_config
+        global_config
     };
 
-    let result = tokio::task::spawn_blocking(move || do_lint(&path, &config))
+    let result = tokio::task::spawn_blocking(move || do_lint(&path, &final_config))
         .await
         .map_err(|e| e.to_string())?;
 

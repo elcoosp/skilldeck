@@ -1,3 +1,4 @@
+// src/lib/config.ts
 /**
  * Application-wide configuration constants.
  * Centralizes environment-specific values.
@@ -12,3 +13,5 @@ export const PLATFORM_BASE_URL = import.meta.env.DEV
  * @param path - API path (e.g., '/api/preferences')
  */
 export const platformUrl = (path: string) => `${PLATFORM_BASE_URL}${path}`
+
+export const DOCS_LINT_URL = 'https://docs.skilldeck.dev/linting'

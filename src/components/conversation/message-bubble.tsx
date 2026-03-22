@@ -1,9 +1,11 @@
-// src/components/conversation/message-bubble.tsx (corrected)
+// src/components/conversation/message-bubble.tsx
 import rehypeShiki from '@shikijs/rehype'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   AlertCircle,
   Bot,
+  Bookmark,
+  BookmarkCheck,
   Check,
   ChevronDown,
   ChevronRight,
@@ -14,8 +16,6 @@ import {
   MoreHorizontal,
   User,
   Wrench,
-  Bookmark,
-  BookmarkCheck
 } from 'lucide-react'
 import React, { memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { MarkdownHooks } from 'react-markdown'
@@ -67,7 +67,6 @@ const getHighlighter = () => {
 
 // ─── Markdown components (stable, not re-created on each render) ─────────────
 const remarkPlugins = [remarkGfm]
-const rehypePlugins = [rehypeLinkifyCodeUrls, rehypeSlug] // rehypeShiki added dynamically
 
 // ─── CodePre with floating header (unchanged) ────────────────────────────────
 function CodePre({ children, ...props }: any) {
@@ -265,6 +264,55 @@ const AssistantMessageActions = memo(function AssistantMessageActions({
 
 AssistantMessageActions.displayName = 'AssistantMessageActions'
 
+// ─── Heading bookmark button (used inside headings) ──────────────────────────
+const HeadingBookmarkButton = memo(function HeadingBookmarkButton({
+  messageId,
+  headingAnchor,
+  conversationId,
+}: {
+  messageId: string
+  headingAnchor: string
+  conversationId: string | null
+}) {
+  const bookmarksMap = useBookmarksStore((s) => s.bookmarks)
+  const isBookmarked = useMemo(() => {
+    if (!conversationId) return false
+    const convBookmarks = bookmarksMap[conversationId] ?? []
+    return convBookmarks.some(b => b.message_id === messageId && b.heading_anchor === headingAnchor)
+  }, [conversationId, bookmarksMap, messageId, headingAnchor])
+
+  // Debug log – remove after confirming it works
+  useEffect(() => {
+    console.log(`[HeadingBookmarkButton] ${headingAnchor} bookmarked = ${isBookmarked}`)
+  }, [isBookmarked, headingAnchor])
+
+  const toggle = useCallback(() => {
+    if (!conversationId) return
+    console.log(`[HeadingBookmarkButton] toggling bookmark for ${headingAnchor}`)
+    useBookmarksStore.getState().toggleBookmark(conversationId, messageId, headingAnchor, undefined)
+  }, [conversationId, messageId, headingAnchor])
+
+  return (
+    <button
+      type="button"
+      onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggle() }}
+      className={cn(
+        'opacity-0 group-hover/heading:opacity-100 transition-opacity ml-1.5',
+        'p-0.5 rounded hover:bg-muted-foreground/10',
+        'align-middle inline-flex items-center'
+      )}
+      aria-label={isBookmarked ? 'Remove heading bookmark' : 'Bookmark this heading'}
+    >
+      <Bookmark
+        className={cn(
+          'size-3 transition-colors',
+          isBookmarked ? 'text-primary fill-primary' : 'text-muted-foreground'
+        )}
+      />
+    </button>
+  )
+})
+
 // ─── MessageBubble ────────────────────────────────────────────────────────────
 export const MessageBubble = memo(function MessageBubble({
   message,
@@ -283,8 +331,7 @@ export const MessageBubble = memo(function MessageBubble({
   const bookmarksMap = useBookmarksStore((s) => s.bookmarks)
   const bookmarks = useMemo(() => {
     if (!activeConversationId) return []
-    const convBookmarks = bookmarksMap[activeConversationId]
-    if (!convBookmarks) return []
+    const convBookmarks = bookmarksMap[activeConversationId] ?? []
     if (!Array.isArray(convBookmarks)) return []
     return convBookmarks.filter(b => b.message_id === message.id)
   }, [activeConversationId, bookmarksMap, message.id])
@@ -303,27 +350,122 @@ export const MessageBubble = memo(function MessageBubble({
     headingIndexRef.current = 0
   }
 
-  // ─── Markdown components with lazy Shiki ─────────────────────────────────
-  const markdownComponents = useMemo(() => {
-    const makeHeading = (level: number) => ({ children, node, ...props }: any) => {
-      const text = (
-        typeof children === 'string' ? children
-          : Array.isArray(children)
-            ? children.map((c: any) => (typeof c === 'string' ? c : '')).join('')
-            : ''
-      ).trim()
+  // Get the scroll container from context for intra‑link scrolling
+  const scrollContainer = useContext(ScrollContainerContext)
 
-      const id = `h-${message.id}-${headingIndexRef.current++}`
-      return React.createElement(`h${level}`, { id, ...props }, children)
-    }
+  // Log when the scroll container becomes available
+  useEffect(() => {
+    console.log(`[MessageBubble ${message.id}] scrollContainer.current =`, scrollContainer?.current)
+  }, [scrollContainer])
 
-    // Only add rehypeShiki if highlighter is ready
-    const finalRehypePlugins = [...rehypePlugins]
+  // ─── Rehype plugins that depend on highlighter ─────────────────────────────
+  const rehypePlugins = useMemo(() => {
+    const plugins = [rehypeLinkifyCodeUrls, rehypeSlug]
     if (highlighter) {
-      finalRehypePlugins.unshift([
+      plugins.unshift([
         rehypeShiki,
         { highlighter, themes: { light: 'vitesse-light', dark: 'vitesse-dark' }, useBackground: false },
       ])
+    }
+    return plugins
+  }, [highlighter])
+
+  // ─── Markdown link component with extensive logging ────────────────────────
+  const MarkdownLink = useCallback(({ href, children, ...props }: any) => {
+    console.log(`[MarkdownLink] href: ${href}`)
+    if (href?.startsWith('#')) {
+      const targetId = href.slice(1)
+      console.log(`[MarkdownLink] intra-link, targetId: ${targetId}`)
+      const handleClick = (e: React.MouseEvent) => {
+        e.preventDefault()
+        console.log(`[MarkdownLink] clicked intra-link to #${targetId}`)
+
+        // Wait a tiny bit to ensure DOM is ready
+        setTimeout(() => {
+          const target = document.getElementById(targetId)
+          console.log(`[MarkdownLink] target element found?`, target)
+          if (!target) {
+            console.warn(`[MarkdownLink] target #${targetId} not found`)
+            return
+          }
+
+          const container = scrollContainer?.current
+          console.log(`[MarkdownLink] scrollContainer.current:`, container)
+
+          if (container) {
+            const containerRect = container.getBoundingClientRect()
+            const targetRect = target.getBoundingClientRect()
+            const offset = targetRect.top - containerRect.top + container.scrollTop
+            console.log(`[MarkdownLink] container scrollTop before: ${container.scrollTop}`)
+            console.log(`[MarkdownLink] computed offset: ${offset - 16}`)
+            container.scrollTo({ top: offset - 16, behavior: 'smooth' })
+            console.log(`[MarkdownLink] scrolled to ${offset - 16}`)
+          } else {
+            console.log(`[MarkdownLink] falling back to target.scrollIntoView`)
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          }
+        }, 10)
+      }
+      return (
+        <a
+          href={href}
+          onClick={handleClick}
+          className="cursor-pointer underline"
+          {...props}
+        >
+          {children}
+        </a>
+      )
+    }
+    // External links
+    console.log(`[MarkdownLink] external link: ${href}`)
+    return (
+      <a
+        href={href}
+        onClick={async (e) => {
+          e.preventDefault()
+          console.log(`[MarkdownLink] external link clicked: ${href}`)
+          if (href) {
+            try {
+              await openUrl(href)
+            } catch (err) {
+              console.error('Failed to open link:', err)
+            }
+          }
+        }}
+        className="cursor-pointer underline"
+        {...props}
+      >
+        {children}
+      </a>
+    )
+  }, [scrollContainer])
+
+  // ─── Markdown components with heading bookmark button ───────────────────────
+  const markdownComponents = useMemo(() => {
+    const makeHeading = (level: number) => ({ children, node, ...props }: any) => {
+      const idx = headingIndexRef.current++
+      const bookmarkAnchor = `heading-${message.id}-${idx}`
+      // Use the ID from rehype-slug (already in props) for intra‑links,
+      // otherwise fall back to the bookmark anchor (but rehype-slug should provide one)
+      const headingId = props.id || bookmarkAnchor
+      console.log(`[makeHeading] level ${level}, id: ${headingId}, bookmarkAnchor: ${bookmarkAnchor}`)
+
+      return React.createElement(
+        `h${level}`,
+        {
+          ...props,
+          id: headingId,
+          className: cn(props.className, 'group/heading flex items-center'),
+        },
+        children,
+        React.createElement(HeadingBookmarkButton, {
+          key: `hbm-${idx}`,
+          messageId: message.id,
+          headingAnchor: bookmarkAnchor,
+          conversationId: activeConversationId,
+        })
+      )
     }
 
     return {
@@ -334,47 +476,7 @@ export const MessageBubble = memo(function MessageBubble({
       h5: makeHeading(5),
       h6: makeHeading(6),
       pre: CodePre,
-      a: ({ href, children, node, ...props }: any) => {
-        if (href?.startsWith('#')) {
-          return (
-            <a
-              href={href}
-              onClick={(e) => {
-                e.preventDefault()
-                const targetId = href.slice(1)
-                const container = document.getElementById(`msg-${message.id}`)
-                const target = container?.querySelector(`#${targetId}`)
-                if (target) {
-                  target.scrollIntoView({ behavior: 'smooth' })
-                }
-              }}
-              className="cursor-pointer underline"
-              {...props}
-            >
-              {children}
-            </a>
-          )
-        }
-        return (
-          <a
-            href={href}
-            onClick={async (e) => {
-              e.preventDefault()
-              if (href) {
-                try {
-                  await openUrl(href)
-                } catch (err) {
-                  console.error('Failed to open link:', err)
-                }
-              }
-            }}
-            className="cursor-pointer underline"
-            {...props}
-          >
-            {children}
-          </a>
-        )
-      },
+      a: MarkdownLink,
       code: ({ node, className, children, ...props }: any) => {
         const match = /language-(\w+)/.exec(className || '')
         const content = String(children)
@@ -424,7 +526,7 @@ export const MessageBubble = memo(function MessageBubble({
         </td>
       ),
     }
-  }, [message.id, message.content, highlighter])
+  }, [message.id, message.content, activeConversationId, MarkdownLink])
 
   // ─── Search highlighting effect ───────────────────────────────────────────
   useEffect(() => {
@@ -543,6 +645,7 @@ export const MessageBubble = memo(function MessageBubble({
 
   const toggleBookmark = useCallback(() => {
     if (!activeConversationId) return
+    console.log(`[MessageBubble] toggling message bookmark for message ${message.id}`)
     useBookmarksStore.getState().toggleBookmark(activeConversationId, message.id, undefined, undefined)
   }, [activeConversationId, message.id])
 
@@ -597,7 +700,7 @@ export const MessageBubble = memo(function MessageBubble({
             {/* Highlight ring */}
             <motion.div
               className={cn(
-                'absolute inset-0 ring-2 ring-primary/50 pointer-events-none rounded-inherit', // removed ring-offset-1
+                'absolute inset-0 ring-2 ring-primary/50 pointer-events-none rounded-inherit',
                 isUser ? 'rounded-xl rounded-tr-sm' : isTool ? 'rounded-xl rounded-tl-sm' : 'rounded-xl'
               )}
               initial={{ opacity: 0 }}
@@ -665,7 +768,7 @@ export const MessageBubble = memo(function MessageBubble({
                   ) : (
                     <MarkdownHooks
                       remarkPlugins={remarkPlugins}
-                      rehypePlugins={markdownComponents ? undefined : []} // actually we use our components, not plugins
+                      rehypePlugins={rehypePlugins}
                       components={markdownComponents}
                     >
                       {message.content}

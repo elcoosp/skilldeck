@@ -3,7 +3,7 @@
  * PreferencesTab — Platform preferences panel inside SettingsOverlay.
  */
 
-import { Bell, Code, Globe, Mail, Palette, Shield } from 'lucide-react'
+import { Bell, Code, Globe, Mail, Maximize2, Palette, Shield } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -42,6 +42,10 @@ export function PreferencesTab() {
   const settingsLanguage = useSettingsStore((s) => s.language)
   const setLanguage = useSettingsStore((s) => s.setLanguage)
   const defaultProvider = useSettingsStore((s) => s.defaultProvider)
+
+  // Code block max height
+  const codeBlockMaxHeight = useSettingsStore((s) => s.codeBlockMaxHeight)
+  const setCodeBlockMaxHeight = useSettingsStore((s) => s.setCodeBlockMaxHeight)
 
   if (query.isLoading || profilesLoading) {
     return (
@@ -278,6 +282,28 @@ export function PreferencesTab() {
           <option value="light">Light</option>
           <option value="dark">Dark</option>
         </select>
+      </Section>
+
+      {/* Code Block Max Height */}
+      <Section icon={<Maximize2 size={14} />} title="Code Block Max Height">
+        <p className="text-muted-foreground mb-3">
+          Maximum height of code blocks in messages. Scroll inside long code blocks.
+        </p>
+        <Select
+          value={String(codeBlockMaxHeight)}
+          onValueChange={(val) => setCodeBlockMaxHeight(Number(val))}
+        >
+          <SelectTrigger className="w-32">
+            <SelectValue placeholder="Select height" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="200">200px</SelectItem>
+            <SelectItem value="300">300px</SelectItem>
+            <SelectItem value="384">384px (default)</SelectItem>
+            <SelectItem value="600">600px</SelectItem>
+            <SelectItem value="99999">Unlimited</SelectItem>
+          </SelectContent>
+        </Select>
       </Section>
 
       {/* Language */}

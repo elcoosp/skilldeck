@@ -2,8 +2,10 @@
 
 import { Settings2, ToggleLeft, ToggleRight } from 'lucide-react'
 import { useState } from 'react'
+import { openUrl } from '@tauri-apps/plugin-opener'
 import { useDisableRule, useLintRules } from '@/hooks/use-lint'
 import { cn } from '@/lib/utils'
+import { DOCS_LINT_URL } from '@/lib/config'
 
 const RULE_DESCRIPTIONS: Record<string, string> = {
   'fm-name-format': 'Skill name must be lowercase kebab-case',
@@ -99,6 +101,16 @@ export function LintConfig() {
             ~/.config/skilldeck/skilldeck-lint.toml
           </code>
         </p>
+      </div>
+
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => openUrl(DOCS_LINT_URL)}
+          className="text-xs text-primary underline hover:no-underline"
+        >
+          Learn more about linting
+        </button>
       </div>
 
       {Object.entries(RULE_CATEGORIES).map(([category, ruleIds]) => (
