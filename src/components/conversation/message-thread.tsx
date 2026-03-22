@@ -106,7 +106,7 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
         requestAnimationFrame(() => { isProgrammaticScrollRef.current = false })
       }, [])
 
-    const avgAssistantHeightRef = React.useRef(400)
+    const avgAssistantHeightRef = React.useRef(5000)
     const updateAvgAssistantHeight = React.useCallback((newHeight: number) => {
       avgAssistantHeightRef.current = Math.round(avgAssistantHeightRef.current * 0.7 + newHeight * 0.3)
     }, [])
