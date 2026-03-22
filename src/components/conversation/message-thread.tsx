@@ -101,8 +101,8 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
     // ─── scrollToFn ───────────────────────────────────────────────────────────
     const scrollToFn: (
       offset: number,
-      options: { behavior?: ScrollBehavior },
-      instance: Virtualizer<Element, Element>
+      options: { behavior?: ScrollBehavior; adjustments?: number },
+      instance: Virtualizer<HTMLDivElement, Element>
     ) => void = React.useCallback((offset, { behavior }, instance) => {
       isProgrammaticScrollRef.current = true
       elementScroll(offset, { behavior }, instance)
@@ -114,7 +114,7 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
       avgAssistantHeightRef.current = Math.round(avgAssistantHeightRef.current * 0.7 + newHeight * 0.3)
     }, [])
 
-    const virtualizer = useVirtualizer({
+    const virtualizer = useVirtualizer<HTMLDivElement, Element>({
       count: filteredMessages.length,
       getScrollElement: () => scrollRef.current,
       estimateSize: (index) => {

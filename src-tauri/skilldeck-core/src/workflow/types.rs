@@ -83,7 +83,7 @@ pub enum StepStatus {
 
 // ── Events emitted during execution ──────────────────────────────────────────
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum WorkflowEvent {
     Started {
         id: Uuid,

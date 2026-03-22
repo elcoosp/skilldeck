@@ -1,13 +1,12 @@
-// src/components/settings/achievements-tab.tsx
 import { useAchievements } from '@/hooks/use-achievements'
-import { ACHIEVEMENTS } from '@/lib/achievements'
+import { ACHIEVEMENTS, type AchievementId } from '@/lib/achievements'
 import { CheckCircle2 } from 'lucide-react'
 
 export function AchievementsTab() {
   const { isUnlocked } = useAchievements()
 
   const allAchievements = Object.entries(ACHIEVEMENTS).map(([key, value]) => ({
-    key, // the original key (e.g., 'firstMessage')
+    key: key as AchievementId,
     ...value
   }))
 
