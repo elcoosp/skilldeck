@@ -1,4 +1,3 @@
-// src/components/conversation/message-bubble.tsx
 import rehypeShiki from '@shikijs/rehype'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
@@ -12,7 +11,6 @@ import {
   Clock,
   Copy,
   Download,
-  Loader2,
   MoreHorizontal,
   User,
   Wrench,
@@ -25,7 +23,6 @@ import type { Highlighter } from 'shiki'
 import { createHighlighter } from 'shiki'
 import { toast } from 'sonner'
 import { ContextChip } from '@/components/chat/context-chip'
-import { BouncingDots } from '@/components/ui/bouncing-dots'
 import type { MessageData } from '@/lib/bindings'
 import { rehypeLinkifyCodeUrls } from '@/lib/rehype-linkify-code'
 import { cn, highlightText } from '@/lib/utils'
@@ -37,7 +34,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { ScrollContainerContext } from './message-thread'
+import { ScrollContainerContext, AutoScrollContext } from './message-thread'
 import { createPortal } from 'react-dom'
 import { useBookmarksStore } from '@/store/bookmarks'
 import { useUIStore } from '@/store/ui'
@@ -68,7 +65,20 @@ const getHighlighter = () => {
 // ─── Markdown components (stable, not re-created on each render) ─────────────
 const remarkPlugins = [remarkGfm]
 
-// ─── CodePre with floating header ────────────────────────────────────────────
+// ─── Streaming context for code block auto‑scroll ──────────────────────────
+const StreamingContext = React.createContext<boolean>(false)
+
+// ─── Custom loading animation (pulsing dots, no background) ───────────────────
+const StreamingLoading = memo(() => (
+  <div className="flex items-center gap-1.5 text-muted-foreground">
+    <span className="size-1.5 rounded-full bg-current animate-pulse" />
+    <span className="size-1.5 rounded-full bg-current animate-pulse [animation-delay:0.2s]" />
+    <span className="size-1.5 rounded-full bg-current animate-pulse [animation-delay:0.4s]" />
+  </div>
+))
+StreamingLoading.displayName = 'StreamingLoading'
+
+// ─── CodePre with floating header + auto‑scroll during streaming ──────────
 function CodePre({ children, ...props }: any) {
   const [collapsed, setCollapsed] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -80,6 +90,11 @@ function CodePre({ children, ...props }: any) {
   const isFloatingRef = useRef(false)
 
   const scrollContainer = useContext(ScrollContainerContext)
+  const autoScrollEnabled = useContext(AutoScrollContext)
+  const isStreaming = useContext(StreamingContext)
+
+  const isUserScrolledUp = useRef(false)
+  const isProgrammaticScroll = useRef(false)
 
   const extractText = (node: any): string => {
     if (typeof node === 'string') return node
@@ -97,6 +112,40 @@ function CodePre({ children, ...props }: any) {
     toast.success('Code copied to clipboard')
   }
 
+  // ─── Scroll event detection ──────────────────────────────────────────────
+  useEffect(() => {
+    const scrollable = scrollableRef.current
+    if (!scrollable) return
+
+    const handleScroll = () => {
+      if (isProgrammaticScroll.current) return
+      const { scrollTop, scrollHeight, clientHeight } = scrollable
+      const isAtBottom = Math.abs(scrollHeight - clientHeight - scrollTop) < 10
+      isUserScrolledUp.current = !isAtBottom
+    }
+
+    scrollable.addEventListener('scroll', handleScroll)
+    return () => scrollable.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  // ─── Auto‑scroll when content updates during streaming ───────────────────
+  useEffect(() => {
+    if (!isStreaming) return
+    if (!autoScrollEnabled) return
+    if (collapsed) return
+    if (isUserScrolledUp.current) return
+
+    const scrollable = scrollableRef.current
+    if (scrollable) {
+      isProgrammaticScroll.current = true
+      scrollable.scrollTop = scrollable.scrollHeight
+      requestAnimationFrame(() => {
+        isProgrammaticScroll.current = false
+      })
+    }
+  }, [children, isStreaming, autoScrollEnabled, collapsed])
+
+  // ─── Existing floating header logic ──────────────────────────────────────
   useEffect(() => {
     const root = scrollContainer?.current
     const container = containerRef.current
@@ -114,7 +163,6 @@ function CodePre({ children, ...props }: any) {
         return
       }
 
-      // Don't show floating header if the code block doesn't need scrolling
       const needsScroll = scrollable.scrollHeight > scrollable.clientHeight
       if (!needsScroll) {
         floating.style.opacity = '0'
@@ -307,19 +355,11 @@ const HeadingBookmarkButton = memo(function HeadingBookmarkButton({
   const isBookmarked = useMemo(() => {
     if (!conversationId) return false
     const convBookmarks = bookmarksMap[conversationId] ?? []
-    const bookmarked = convBookmarks.some(b => b.message_id === messageId && b.heading_anchor === headingAnchor)
-    console.log(`[HeadingBookmarkButton] recalc: conv ${conversationId}, anchor ${headingAnchor}, bookmarked = ${bookmarked}`)
-    return bookmarked
+    return convBookmarks.some(b => b.message_id === messageId && b.heading_anchor === headingAnchor)
   }, [conversationId, bookmarksMap, messageId, headingAnchor])
-
-  // Debug log – remove after confirming it works
-  useEffect(() => {
-    console.log(`[HeadingBookmarkButton] ${headingAnchor} bookmarked = ${isBookmarked}`)
-  }, [isBookmarked, headingAnchor])
 
   const toggle = useCallback(() => {
     if (!conversationId) return
-    console.log(`[HeadingBookmarkButton] toggling bookmark for ${headingAnchor} with label "${headingLabel}"`)
     useBookmarksStore.getState().toggleBookmark(conversationId, messageId, headingAnchor, headingLabel)
   }, [conversationId, messageId, headingAnchor, headingLabel])
 
@@ -328,9 +368,8 @@ const HeadingBookmarkButton = memo(function HeadingBookmarkButton({
       type="button"
       onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggle() }}
       className={cn(
-        'opacity-0 group-hover/heading:opacity-100 transition-opacity ml-1.5',
-        'p-0.5 rounded hover:bg-muted-foreground/10',
-        'align-middle inline-flex items-center'
+        'ml-1.5 p-0.5 rounded hover:bg-muted-foreground/10 align-middle inline-flex items-center transition-opacity',
+        isBookmarked ? 'opacity-100' : 'opacity-0 group-hover/heading:opacity-100'
       )}
       aria-label={isBookmarked ? 'Remove heading bookmark' : 'Bookmark this heading'}
     >
@@ -384,11 +423,6 @@ export const MessageBubble = memo(function MessageBubble({
   // Get the scroll container from context for intra‑link scrolling
   const scrollContainer = useContext(ScrollContainerContext)
 
-  // Log when the scroll container becomes available
-  useEffect(() => {
-    console.log(`[MessageBubble ${message.id}] scrollContainer.current =`, scrollContainer?.current)
-  }, [scrollContainer])
-
   // ─── Rehype plugins that depend on highlighter ─────────────────────────────
   const rehypePlugins = useMemo(() => {
     const plugins = [rehypeLinkifyCodeUrls, rehypeSlug]
@@ -401,38 +435,22 @@ export const MessageBubble = memo(function MessageBubble({
     return plugins
   }, [highlighter])
 
-  // ─── Markdown link component with extensive logging ────────────────────────
+  // ─── Markdown link component ────────────────────────────────────────────────
   const MarkdownLink = useCallback(({ href, children, ...props }: any) => {
-    console.log(`[MarkdownLink] href: ${href}`)
     if (href?.startsWith('#')) {
       const targetId = href.slice(1)
-      console.log(`[MarkdownLink] intra-link, targetId: ${targetId}`)
       const handleClick = (e: React.MouseEvent) => {
         e.preventDefault()
-        console.log(`[MarkdownLink] clicked intra-link to #${targetId}`)
-
-        // Wait a tiny bit to ensure DOM is ready
         setTimeout(() => {
           const target = document.getElementById(targetId)
-          console.log(`[MarkdownLink] target element found?`, target)
-          if (!target) {
-            console.warn(`[MarkdownLink] target #${targetId} not found`)
-            return
-          }
-
+          if (!target) return
           const container = scrollContainer?.current
-          console.log(`[MarkdownLink] scrollContainer.current:`, container)
-
           if (container) {
             const containerRect = container.getBoundingClientRect()
             const targetRect = target.getBoundingClientRect()
             const offset = targetRect.top - containerRect.top + container.scrollTop
-            console.log(`[MarkdownLink] container scrollTop before: ${container.scrollTop}`)
-            console.log(`[MarkdownLink] computed offset: ${offset - 16}`)
             container.scrollTo({ top: offset - 16, behavior: 'smooth' })
-            console.log(`[MarkdownLink] scrolled to ${offset - 16}`)
           } else {
-            console.log(`[MarkdownLink] falling back to target.scrollIntoView`)
             target.scrollIntoView({ behavior: 'smooth', block: 'start' })
           }
         }, 10)
@@ -448,14 +466,11 @@ export const MessageBubble = memo(function MessageBubble({
         </a>
       )
     }
-    // External links
-    console.log(`[MarkdownLink] external link: ${href}`)
     return (
       <a
         href={href}
         onClick={async (e) => {
           e.preventDefault()
-          console.log(`[MarkdownLink] external link clicked: ${href}`)
           if (href) {
             try {
               await openUrl(href)
@@ -476,23 +491,20 @@ export const MessageBubble = memo(function MessageBubble({
   const markdownComponents = useMemo(() => {
     const makeHeading = (level: number) => ({ children, node, ...props }: any) => {
       const idx = headingIndexRef.current++
-      const bookmarkAnchor = `heading-${message.id}-${idx}`
-      const headingId = props.id || bookmarkAnchor
+      const headingAnchor = props.id || `heading-${message.id}-${idx}`
       const headingLabel = extractTextFromChildren(children).trim() || `Heading ${idx + 1}`
-      console.log(`[makeHeading] level ${level}, id: ${headingId}, bookmarkAnchor: ${bookmarkAnchor}, label: "${headingLabel}"`)
 
       return React.createElement(
         `h${level}`,
         {
           ...props,
-          id: headingId,
           className: cn(props.className, 'group/heading flex items-center'),
         },
         children,
         React.createElement(HeadingBookmarkButton, {
           key: `hbm-${idx}`,
           messageId: message.id,
-          headingAnchor: bookmarkAnchor,
+          headingAnchor,
           headingLabel,
           conversationId: activeConversationId,
         })
@@ -676,7 +688,6 @@ export const MessageBubble = memo(function MessageBubble({
 
   const toggleMessageBookmark = useCallback(() => {
     if (!activeConversationId) return
-    console.log(`[MessageBubble] toggling message bookmark for message ${message.id}`)
     useBookmarksStore.getState().toggleBookmark(activeConversationId, message.id, undefined, 'Message')
   }, [activeConversationId, message.id])
 
@@ -722,7 +733,7 @@ export const MessageBubble = memo(function MessageBubble({
               'relative px-3.5 py-2.5 rounded-xl text-sm leading-relaxed transition-colors duration-300',
               isUser ? 'bg-primary text-primary-foreground rounded-tr-sm inline-block'
                 : isTool ? 'bg-muted/70 font-mono text-xs w-full rounded-tl-sm inline-block'
-                  : showShimmer ? 'bg-muted/50 inline-block'
+                  : showShimmer ? 'bg-transparent inline-block'  // removed gray background
                     : isAssistant ? 'bg-transparent w-full inline-block'
                       : 'bg-muted/50 inline-block',
               isQueued && 'border-l-2 border-amber-400 pl-3'
@@ -795,20 +806,19 @@ export const MessageBubble = memo(function MessageBubble({
               {isAssistant || syntheticStreaming ? (
                 <div ref={proseRef} className="prose prose-sm dark:prose-invert max-w-none break-words prose-p:my-1 prose-headings:my-1 prose-pre:my-0">
                   {showShimmer ? (
-                    <div className="flex items-center justify-center py-4"><BouncingDots /></div>
+                    <div className="flex items-center py-2">
+                      <StreamingLoading />
+                    </div>
                   ) : (
-                    <MarkdownHooks
-                      remarkPlugins={remarkPlugins}
-                      rehypePlugins={rehypePlugins}
-                      components={markdownComponents}
-                    >
-                      {message.content}
-                    </MarkdownHooks>
-                  )}
-                  {(isStreaming || syntheticStreaming) && message.content && (
-                    <span className="inline-block ml-0.5 align-middle">
-                      <Loader2 className="size-3 animate-spin text-muted-foreground" />
-                    </span>
+                    <StreamingContext.Provider value={isStreaming || syntheticStreaming}>
+                      <MarkdownHooks
+                        remarkPlugins={remarkPlugins}
+                        rehypePlugins={rehypePlugins}
+                        components={markdownComponents}
+                      >
+                        {message.content}
+                      </MarkdownHooks>
+                    </StreamingContext.Provider>
                   )}
                 </div>
               ) : shouldHighlight ? (

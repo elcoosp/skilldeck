@@ -19,12 +19,17 @@ export const useBookmarksStore = create<BookmarksState>((set, get) => ({
   loadBookmarks: async (conversationId) => {
     set((state) => ({ isLoading: { ...state.isLoading, [conversationId]: true } }))
     try {
-      const data = await commands.listBookmarks(conversationId)
-      const bookmarksArray = Array.isArray(data) ? data : []
-      set((state) => ({
-        bookmarks: { ...state.bookmarks, [conversationId]: bookmarksArray },
-      }))
-      console.log(`[loadBookmarks] loaded ${bookmarksArray.length} bookmarks for conv ${conversationId}`)
+      const result = await commands.listBookmarks(conversationId)
+      if (result.status === 'ok') {
+        const bookmarksArray = Array.isArray(result.data) ? result.data : []
+        set((state) => ({
+          bookmarks: { ...state.bookmarks, [conversationId]: bookmarksArray },
+        }))
+        console.log(`[loadBookmarks] loaded ${bookmarksArray.length} bookmarks for conv ${conversationId}`)
+      } else {
+        console.error('Failed to load bookmarks', result.error)
+        toast.error('Could not load bookmarks')
+      }
     } catch (e) {
       console.error('Failed to load bookmarks', e)
       toast.error('Could not load bookmarks')
@@ -79,12 +84,22 @@ export const useBookmarksStore = create<BookmarksState>((set, get) => ({
       const result = await commands.toggleBookmark(conversationId, messageId, headingAnchor ?? null, safeLabel)
       console.log(`[toggleBookmark] server result:`, result)
 
-      if (result) {
+      if (result.status === 'ok' && result.data) {
         // Bookmark was added – store the server-returned data
-        get().addBookmark(conversationId, result)
-        return result
-      } else {
+        get().addBookmark(conversationId, result.data)
+        return result.data
+      } else if (result.status === 'ok' && !result.data) {
+        // Bookmark was removed – optimistic removal already done
         console.log(`[toggleBookmark] server indicates removal, done`)
+        return null
+      } else {
+        // Error response
+        console.error(`[toggleBookmark] server error:`, result.error)
+        // Revert optimistic removal if the call failed
+        if (existing) {
+          get().addBookmark(conversationId, existing)
+        }
+        toast.error('Failed to update bookmark')
         return null
       }
     } catch (error) {
