@@ -68,7 +68,7 @@ const getHighlighter = () => {
 // ─── Markdown components (stable, not re-created on each render) ─────────────
 const remarkPlugins = [remarkGfm]
 
-// ─── CodePre with floating header (unchanged) ────────────────────────────────
+// ─── CodePre with floating header ────────────────────────────────────────────
 function CodePre({ children, ...props }: any) {
   const [collapsed, setCollapsed] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -76,6 +76,7 @@ function CodePre({ children, ...props }: any) {
   const containerRef = useRef<HTMLDivElement>(null)
   const headerRef = useRef<HTMLDivElement>(null)
   const floatingRef = useRef<HTMLDivElement>(null)
+  const scrollableRef = useRef<HTMLDivElement>(null)
   const isFloatingRef = useRef(false)
 
   const scrollContainer = useContext(ScrollContainerContext)
@@ -101,10 +102,21 @@ function CodePre({ children, ...props }: any) {
     const container = containerRef.current
     const header = headerRef.current
     const floating = floatingRef.current
-    if (!root || !container || !header || !floating) return
+    const scrollable = scrollableRef.current
+    if (!root || !container || !header || !floating || !scrollable) return
 
     const sync = () => {
       if (collapsed) {
+        floating.style.opacity = '0'
+        floating.style.pointerEvents = 'none'
+        header.style.visibility = 'visible'
+        isFloatingRef.current = false
+        return
+      }
+
+      // Don't show floating header if the code block doesn't need scrolling
+      const needsScroll = scrollable.scrollHeight > scrollable.clientHeight
+      if (!needsScroll) {
         floating.style.opacity = '0'
         floating.style.pointerEvents = 'none'
         header.style.visibility = 'visible'
@@ -141,6 +153,7 @@ function CodePre({ children, ...props }: any) {
     root.addEventListener('scroll', sync, { passive: true })
     const ro = new ResizeObserver(sync)
     ro.observe(container)
+    ro.observe(scrollable)
     sync()
 
     return () => {
@@ -204,7 +217,10 @@ function CodePre({ children, ...props }: any) {
           className="overflow-hidden rounded-b-lg"
           style={{ maxHeight: collapsed ? 0 : 384, transition: 'max-height 0.18s ease' }}
         >
-          <div className="overflow-auto max-h-96 thin-scrollbar bg-card [&>pre]:!m-0 [&>pre]:!rounded-none [&>pre]:!border-none [&>pre]:p-3 [&>pre]:text-xs [&>pre]:leading-relaxed [&>pre]:!bg-transparent">
+          <div
+            ref={scrollableRef}
+            className="overflow-auto max-h-96 thin-scrollbar bg-card [&>pre]:!m-0 [&>pre]:!rounded-none [&>pre]:!border-none [&>pre]:p-3 [&>pre]:text-xs [&>pre]:leading-relaxed [&>pre]:!bg-transparent"
+          >
             <pre {...props} style={{ ...props.style, color: 'var(--foreground)' }}>
               {children}
             </pre>
@@ -264,21 +280,36 @@ const AssistantMessageActions = memo(function AssistantMessageActions({
 
 AssistantMessageActions.displayName = 'AssistantMessageActions'
 
+// Helper to extract plain text from React children (for heading label)
+function extractTextFromChildren(children: React.ReactNode): string {
+  if (typeof children === 'string') return children
+  if (Array.isArray(children)) return children.map(extractTextFromChildren).join('')
+  if (React.isValidElement(children)) {
+    // @ts-ignore – children may be nested
+    return extractTextFromChildren(children.props.children)
+  }
+  return ''
+}
+
 // ─── Heading bookmark button (used inside headings) ──────────────────────────
 const HeadingBookmarkButton = memo(function HeadingBookmarkButton({
   messageId,
   headingAnchor,
+  headingLabel,
   conversationId,
 }: {
   messageId: string
   headingAnchor: string
+  headingLabel: string
   conversationId: string | null
 }) {
   const bookmarksMap = useBookmarksStore((s) => s.bookmarks)
   const isBookmarked = useMemo(() => {
     if (!conversationId) return false
     const convBookmarks = bookmarksMap[conversationId] ?? []
-    return convBookmarks.some(b => b.message_id === messageId && b.heading_anchor === headingAnchor)
+    const bookmarked = convBookmarks.some(b => b.message_id === messageId && b.heading_anchor === headingAnchor)
+    console.log(`[HeadingBookmarkButton] recalc: conv ${conversationId}, anchor ${headingAnchor}, bookmarked = ${bookmarked}`)
+    return bookmarked
   }, [conversationId, bookmarksMap, messageId, headingAnchor])
 
   // Debug log – remove after confirming it works
@@ -288,9 +319,9 @@ const HeadingBookmarkButton = memo(function HeadingBookmarkButton({
 
   const toggle = useCallback(() => {
     if (!conversationId) return
-    console.log(`[HeadingBookmarkButton] toggling bookmark for ${headingAnchor}`)
-    useBookmarksStore.getState().toggleBookmark(conversationId, messageId, headingAnchor, undefined)
-  }, [conversationId, messageId, headingAnchor])
+    console.log(`[HeadingBookmarkButton] toggling bookmark for ${headingAnchor} with label "${headingLabel}"`)
+    useBookmarksStore.getState().toggleBookmark(conversationId, messageId, headingAnchor, headingLabel)
+  }, [conversationId, messageId, headingAnchor, headingLabel])
 
   return (
     <button
@@ -446,10 +477,9 @@ export const MessageBubble = memo(function MessageBubble({
     const makeHeading = (level: number) => ({ children, node, ...props }: any) => {
       const idx = headingIndexRef.current++
       const bookmarkAnchor = `heading-${message.id}-${idx}`
-      // Use the ID from rehype-slug (already in props) for intra‑links,
-      // otherwise fall back to the bookmark anchor (but rehype-slug should provide one)
       const headingId = props.id || bookmarkAnchor
-      console.log(`[makeHeading] level ${level}, id: ${headingId}, bookmarkAnchor: ${bookmarkAnchor}`)
+      const headingLabel = extractTextFromChildren(children).trim() || `Heading ${idx + 1}`
+      console.log(`[makeHeading] level ${level}, id: ${headingId}, bookmarkAnchor: ${bookmarkAnchor}, label: "${headingLabel}"`)
 
       return React.createElement(
         `h${level}`,
@@ -463,6 +493,7 @@ export const MessageBubble = memo(function MessageBubble({
           key: `hbm-${idx}`,
           messageId: message.id,
           headingAnchor: bookmarkAnchor,
+          headingLabel,
           conversationId: activeConversationId,
         })
       )
@@ -643,10 +674,10 @@ export const MessageBubble = memo(function MessageBubble({
     }
   }, [message.id, message.content])
 
-  const toggleBookmark = useCallback(() => {
+  const toggleMessageBookmark = useCallback(() => {
     if (!activeConversationId) return
     console.log(`[MessageBubble] toggling message bookmark for message ${message.id}`)
-    useBookmarksStore.getState().toggleBookmark(activeConversationId, message.id, undefined, undefined)
+    useBookmarksStore.getState().toggleBookmark(activeConversationId, message.id, undefined, 'Message')
   }, [activeConversationId, message.id])
 
   let subagentData: any = null
@@ -747,7 +778,7 @@ export const MessageBubble = memo(function MessageBubble({
                     isBookmarked={isBookmarked}
                     onCopy={copyMessage}
                     onDownload={downloadMessage}
-                    onBookmark={toggleBookmark}
+                    onBookmark={toggleMessageBookmark}
                   />
                 )}
               </div>
