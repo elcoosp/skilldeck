@@ -48,11 +48,9 @@ export function CenterPanel() {
   const threadRef = useRef<MessageThreadHandle>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [activeUserMessageIndex, setActiveUserMessageIndex] = useState<number | undefined>(undefined)
+  const [activeHeadingIndex, setActiveHeadingIndex] = useState<number | null>(null)
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  // ─── Active heading index within the current assistant message ─────────────
-  const [activeHeadingIndex, setActiveHeadingIndex] = useState<number | null>(null)
 
   // ─── Streaming state ──────────────────────────────────────────────────────
   const { isRunning } = useAgentStream(activeConversationId)
@@ -69,58 +67,17 @@ export function CenterPanel() {
   const clearHeadings = useAssistantMessageStore((s) => s.clearHeadings)
 
   useEffect(() => {
+    console.log(`[CenterPanel] Processing ${messages.length} messages for headings`)
     for (const msg of messages) {
       if (msg.role === 'assistant' && msg.content && msg.id !== '__streaming__') {
+        console.log(`[CenterPanel] Extracting headings for message ${msg.id.slice(0, 8)}`)
         const headings = extractHeadings(msg.content, msg.id)
+        console.log(`[CenterPanel] Extracted headings:`, headings.map(h => ({ idx: h.tocIndex, text: h.text.slice(0, 30) })))
         if (headings.length > 0) setHeadings(msg.id, headings)
         else clearHeadings(msg.id)
       }
     }
   }, [messages, setHeadings, clearHeadings])
-
-  // ─── Scroll listener to track active heading ──────────────────────────────
-  useEffect(() => {
-    if (activeUserMessageIndex == null) return
-
-    const unsub = threadRef.current?.onScroll(() => {
-      const scrollContainer = threadRef.current?.getScrollElement()
-      if (!scrollContainer) return
-
-      const assistantMsgId = messages[activeUserMessageIndex + 1]?.id
-      if (!assistantMsgId) return
-
-      const bubble = scrollContainer.querySelector(`[data-msg-id="${assistantMsgId}"]`)
-      if (!bubble) return
-
-      const headingEls = Array.from(bubble.querySelectorAll('h1,h2,h3,h4,h5,h6'))
-      if (!headingEls.length) {
-        setActiveHeadingIndex(null)
-        return
-      }
-
-      const containerTop = scrollContainer.getBoundingClientRect().top
-      // Find the heading whose top is <= containerTop + 32 (the one that's at the top)
-      let activeIdx = 0
-      for (let i = 0; i < headingEls.length; i++) {
-        const headingTop = headingEls[i].getBoundingClientRect().top
-        if (headingTop - containerTop <= 32) {
-          activeIdx = i
-        } else {
-          break
-        }
-      }
-      setActiveHeadingIndex(prev => prev === activeIdx ? prev : activeIdx)
-    })
-
-    return () => {
-      if (unsub) unsub()
-    }
-  }, [activeUserMessageIndex, messages])
-
-  // Reset active heading when the active message changes
-  useEffect(() => {
-    setActiveHeadingIndex(null)
-  }, [activeUserMessageIndex])
 
   // ─── Conversation key ─────────────────────────────────────────────────────
   const activeKey = activeConversationId
@@ -128,6 +85,8 @@ export function CenterPanel() {
     : undefined
 
   // ─── Save scroll token on conversation switch (synchronous during render) ─
+  // Skips saving if a programmatic scroll is mid-flight — the scrollTop is
+  // unreliable during the convergence loop and would restore to the wrong place.
   const activeKeyRef = useRef<string | undefined>(undefined)
   if (activeKeyRef.current !== activeKey) {
     if (activeKeyRef.current && threadRef.current) {
@@ -159,15 +118,14 @@ export function CenterPanel() {
     lastSeenCountRef.current = messagesLengthRef.current
     setUnseenCount(0)
     setShowJumpToLatest(false)
-  }, [activeKey])
+  }, [activeKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (isRunning) {
       lastSeenCountRef.current = messagesLengthRef.current
       setUnseenCount(0)
     }
-  }, [isRunning])
-
+  }, [isRunning]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!scrollToMessageId || !messages.length) return
     const targetMessage = messages.find(m => m.id === scrollToMessageId)
@@ -179,7 +137,6 @@ export function CenterPanel() {
       setScrollToMessageId(null)
     }
   }, [scrollToMessageId, messages, setScrollToMessageId])
-
   const computeShowJump = useCallback(() => {
     const el = threadRef.current?.getScrollElement()
     if (!el) return
@@ -242,13 +199,44 @@ export function CenterPanel() {
     threadRef.current?.scrollToMessage(index)
   }, [messages])
 
-  // ─── Heading click handler (position‑based, with bubble check) ────────────
+  // ─── Active heading tracking ──────────────────────────────────────────────
+  useEffect(() => {
+    const unsub = threadRef.current?.onScroll(() => {
+      const scrollContainer = threadRef.current?.getScrollElement()
+      if (!scrollContainer || activeUserMessageIndex == null) return
+
+      const assistantMsgId = messages[activeUserMessageIndex + 1]?.id
+      if (!assistantMsgId) return
+
+      const bubble = scrollContainer.querySelector(`[data-msg-id="${assistantMsgId}"]`)
+      if (!bubble) return
+
+      const headingEls = Array.from(bubble.querySelectorAll('h1,h2,h3,h4,h5,h6'))
+      if (!headingEls.length) return
+
+      const containerTop = scrollContainer.getBoundingClientRect().top
+      let activeIdx = 0
+      for (let i = 0; i < headingEls.length; i++) {
+        const headingTop = headingEls[i].getBoundingClientRect().top
+        if (headingTop - containerTop <= 32) {
+          activeIdx = i
+        }
+      }
+      setActiveHeadingIndex(prev => (prev === activeIdx ? prev : activeIdx))
+    })
+    return () => unsub?.()
+  }, [activeUserMessageIndex, messages])
+
+  useEffect(() => {
+    setActiveHeadingIndex(null)
+  }, [activeUserMessageIndex])
+
+  // ─── Heading click handler (position‑based, no ID matching) ───────────────
   const handleHeadingClick = useCallback((messageIndex: number, tocIndex: number) => {
     const targetMsgId = messages[messageIndex]?.id
-    if (!targetMsgId) return
-
     const scrollContainer = threadRef.current?.getScrollElement()
-    const bubbleAlreadyRendered = !!scrollContainer?.querySelector(`[data-msg-id="${targetMsgId}"]`)
+    const userMsgIndex = messageIndex - 1
+    const userMsg = messages[userMsgIndex]
 
     const scrollToHeading = () => {
       requestAnimationFrame(() => {
@@ -261,15 +249,20 @@ export function CenterPanel() {
         const elTop = target.getBoundingClientRect().top
         const containerTop = container.getBoundingClientRect().top
         container.scrollTop += elTop - containerTop - 16
+
+        // Report the correct active user message index after scroll settles
+        if (userMsg) handleVisibleUserIndexChange(userMsgIndex)
       })
     }
+
+    const bubbleAlreadyRendered = !!scrollContainer?.querySelector(`[data-msg-id="${targetMsgId}"]`)
 
     if (bubbleAlreadyRendered) {
       scrollToHeading()
     } else {
       threadRef.current?.scrollToMessage(messageIndex, scrollToHeading)
     }
-  }, [messages])
+  }, [messages, handleVisibleUserIndexChange])
 
   // ─── Keyboard shortcut ⌘F / Ctrl+F ───────────────────────────────────────
   useEffect(() => {
@@ -339,7 +332,7 @@ export function CenterPanel() {
         </label>
       </div>
 
-      {/* Message thread */}
+      {/* Message thread — no key= prop, conversationKey drives internal reset */}
       <div className="relative flex-1 min-h-0">
         <MessageThread
           ref={threadRef}
@@ -358,7 +351,7 @@ export function CenterPanel() {
           <ThreadNavigator
             messages={messages}
             activeIndex={activeUserMessageIndex}
-            activeHeadingIndex={activeHeadingIndex}   // ← new prop
+            activeHeadingIndex={activeHeadingIndex}
             onScrollTo={handleNavigatorScrollTo}
             onHeadingClick={handleHeadingClick}
           />

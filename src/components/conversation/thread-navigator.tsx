@@ -12,7 +12,7 @@ const DOT_HEIGHT = 20          // 16px button + 4px gap (gap-1)
 interface ThreadNavigatorProps {
   messages: MessageData[]
   activeIndex?: number
-  activeHeadingIndex?: number | null   // ← new prop
+  activeHeadingIndex?: number | null
   onScrollTo: (index: number) => void
   onHeadingClick: (messageIndex: number, tocIndex: number) => void
 }
@@ -290,8 +290,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
                                   {headings.map((h) => {
                                     const isH1 = h.level === 1
                                     const isH2 = h.level === 2
-                                    const isActiveHeading = isActive && activeHeadingIndex === h.tocIndex
-
+                                    const isActiveHeading = isActive && h.tocIndex === activeHeadingIndex
                                     return (
                                       <button
                                         key={h.tocIndex}
