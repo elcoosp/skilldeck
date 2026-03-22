@@ -138,7 +138,7 @@ import {
   User,
   Wrench,
 } from 'lucide-react'
-import React, { memo, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import React, { memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { MarkdownHooks } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeSlug from 'rehype-slug'
@@ -521,9 +521,9 @@ const AssistantMessageActions = memo(function AssistantMessageActions({
         </DropdownMenuItem>
         <DropdownMenuItem onClick={onBookmark} className="cursor-pointer">
           {isBookmarked ? (
-            <BookmarkCheck className="mr-2 h-4 w-4 text-amber-400 fill-amber-400" />
+            <BookmarkCheck className="mr-2 h-4 w-4 text-amber-500" />
           ) : (
-            <Bookmark className="mr-2 h-4 w-4 text-amber-400/70" />
+            <Bookmark className="mr-2 h-4 w-4" />
           )}
           <span>{isBookmarked ? 'Remove bookmark' : 'Bookmark'}</span>
         </DropdownMenuItem>
@@ -594,7 +594,7 @@ const HeadingBookmarkButton = memo(function HeadingBookmarkButton({
       <Bookmark
         className={cn(
           'size-3 transition-colors',
-          isBookmarked ? 'text-amber-400 fill-amber-400' : 'text-muted-foreground'
+          isBookmarked ? 'text-primary fill-primary' : 'text-muted-foreground'
         )}
       />
     </button>
@@ -800,89 +800,89 @@ const MemoizedMarkdown = React.memo(function MemoizedMarkdown({
 )
 
 // ─── CollapsibleContent ───────────────────────────────────────────────────────
-// Replaces maxHeight:99999 transition with a measured height animation.
-// maxHeight:99999 forces the browser to animate across ~99000px of layout space
-// even for small content — measuring the real scrollHeight first means the
-// animation only covers the actual content height (e.g. 400px not 99999px).
-// Uses imperative DOM refs so the animation doesn't trigger React re-renders.
-function CollapsibleContent({
-  isCollapsed,
-  messageId,
-  children,
-}: {
-  isCollapsed: boolean
-  messageId: string
-  children: React.ReactNode
-}) {
+// KEY DESIGN: isCollapsed is NOT a prop. Instead the parent calls
+// collapsibleRef.collapse() / .expand() imperatively. This means the children
+// (MemoizedMarkdown, HeadingBookmarkButtons, etc.) are NEVER re-rendered when
+// the message is collapsed/expanded — only the outer div's style changes.
+//
+// Previously passing isCollapsed as a prop caused the parent bubble to re-render
+// → CollapsibleContent re-rendered → new children JSX instances → React
+// reconciled 60+ heading components → 911ms jank on every collapse click.
+export interface CollapsibleHandle {
+  collapse: () => void
+  expand: () => void
+  isCollapsed: () => boolean
+}
+
+const CollapsibleContent = React.forwardRef<
+  CollapsibleHandle,
+  { initialCollapsed?: boolean; messageId: string; children: React.ReactNode }
+>(function CollapsibleContent({ initialCollapsed = false, messageId, children }, ref) {
   const outerRef = useRef<HTMLDivElement>(null)
-  const isFirstRender = useRef(true)
+  const collapsedRef = useRef(initialCollapsed)
 
-  useLayoutEffect(() => {
-    const el = outerRef.current
-    if (!el) return
-
-    // Skip the first render — inline styles in the JSX already set the correct
-    // initial values. Only animate on subsequent isCollapsed changes.
-    if (isFirstRender.current) {
-      isFirstRender.current = false
-      return
-    }
-
-    if (isCollapsed) {
-      // Collapse: measure current height → animate to 0
-      const t0 = performance.now()
+  React.useImperativeHandle(ref, () => ({
+    collapse() {
+      const el = outerRef.current
+      if (!el || collapsedRef.current) return
+      collapsedRef.current = true
       const currentHeight = el.scrollHeight
       el.style.maxHeight = `${currentHeight}px`
       el.style.overflow = 'hidden'
-      // Force reflow so the browser registers the start value
-      el.getBoundingClientRect()
+      el.getBoundingClientRect() // force reflow
       el.style.transition = 'max-height 0.18s ease, opacity 0.18s ease'
       el.style.maxHeight = '0px'
       el.style.opacity = '0'
-      if (DEBUG) {
-        mark('collapse:animate:start')
-        console.log(`[MB:Collapse] [${messageId.slice(0, 8)}] collapsing from ${currentHeight}px`)
-        dbgMeasureToFrame('collapse animate → paint')
-      }
-    } else {
-      // Expand: animate from 0 → measured scrollHeight, then remove maxHeight
-      const targetHeight = el.scrollHeight
-      el.style.transition = 'max-height 0.18s ease, opacity 0.18s ease'
-      el.style.maxHeight = `${targetHeight}px`
-      el.style.opacity = '1'
-      if (DEBUG) {
-        mark('collapse:animate:start')
-        console.log(`[MB:Collapse] [${messageId.slice(0, 8)}] expanding to ${targetHeight}px`)
-        dbgMeasureToFrame('expand animate → paint')
-      }
-      // After animation, remove maxHeight so content can grow freely (e.g. images loading)
-      const onEnd = () => {
-        if (outerRef.current && !isCollapsed) {
-          outerRef.current.style.maxHeight = 'none'
-          outerRef.current.style.overflow = 'visible'
-          outerRef.current.style.transition = ''
+      if (DEBUG) console.log(`[MB:Collapse] [${messageId.slice(0, 8)}] collapsing from ${currentHeight}px`)
+    },
+    expand() {
+      const el = outerRef.current
+      if (!el || !collapsedRef.current) return
+      collapsedRef.current = false
+
+      const doExpand = () => {
+        if (!outerRef.current) return
+        const targetHeight = outerRef.current.scrollHeight
+        if (targetHeight === 0) {
+          // Content hasn't laid out yet (virtualizer just mounted this row).
+          // Retry after a frame — by then the browser will have measured it.
+          if (DEBUG) console.log(`[MB:Collapse] [${messageId.slice(0, 8)}] scrollHeight=0, retrying...`)
+          requestAnimationFrame(doExpand)
+          return
         }
-        el.removeEventListener('transitionend', onEnd)
+        if (DEBUG) console.log(`[MB:Collapse] [${messageId.slice(0, 8)}] expanding to ${targetHeight}px`)
+        const el2 = outerRef.current
+        el2.style.transition = 'max-height 0.18s ease, opacity 0.18s ease'
+        el2.style.maxHeight = `${targetHeight}px`
+        el2.style.opacity = '1'
+        const onEnd = () => {
+          if (outerRef.current && !collapsedRef.current) {
+            outerRef.current.style.maxHeight = 'none'
+            outerRef.current.style.overflow = 'visible'
+            outerRef.current.style.transition = ''
+          }
+          el2.removeEventListener('transitionend', onEnd)
+        }
+        el2.addEventListener('transitionend', onEnd)
       }
-      el.addEventListener('transitionend', onEnd)
-    }
-  }, [isCollapsed, messageId])
+      doExpand()
+    },
+    isCollapsed: () => collapsedRef.current,
+  }), [messageId])
 
   return (
     <div
       ref={outerRef}
       style={{
-        // Set correct initial values inline so content is never clipped on first paint.
-        // useLayoutEffect will take over for subsequent isCollapsed changes.
-        overflow: isCollapsed ? 'hidden' : 'visible',
-        maxHeight: isCollapsed ? '0px' : 'none',
-        opacity: isCollapsed ? 0 : 1,
+        overflow: initialCollapsed ? 'hidden' : 'visible',
+        maxHeight: initialCollapsed ? '0px' : 'none',
+        opacity: initialCollapsed ? 0 : 1,
       }}
     >
       {children}
     </div>
   )
-}
+})
 
 // ─── MessageBubble ────────────────────────────────────────────────────────────
 function MessageBubbleInner({
@@ -893,7 +893,6 @@ function MessageBubbleInner({
   searchCaseSensitive = false,
   searchRegex = false,
 }: MessageBubbleProps) {
-  const [collapsed, setCollapsed] = useState(false)
   const [copied, setCopied] = useState(false)
   const proseRef = useRef<HTMLDivElement>(null)
   const [highlighter, setHighlighter] = useState<Highlighter | null>(null)
@@ -1054,8 +1053,6 @@ function MessageBubbleInner({
   }, [message.metadata])
 
   const contextItems = message.context_items || []
-  const canCollapse = (isAssistant || isSystem || isTool) && !isStreaming && !syntheticStreaming
-  const isCollapsed = collapsed && canCollapse
   const shouldHighlight = searchQuery && !showShimmer && message.content
 
   const copyMessage = useCallback(async () => {
@@ -1093,7 +1090,36 @@ function MessageBubbleInner({
     prevDownloadRef.current = downloadMessage
   }
 
-  const toggleCollapsed = useCallback(() => setCollapsed((v) => !v), [])
+  // ─── Collapse — fully imperative, zero re-renders on toggle ─────────────
+  // Previously: setCollapsed(true) → bubble re-renders → CollapsibleContent
+  // re-renders → children (MemoizedMarkdown + 9 HeadingBtns) re-render → 62
+  // component renders → 911ms jank.
+  // Now: toggle calls collapsibleRef.collapse/expand() → only DOM style changes,
+  // React never knows about it.
+  const collapsibleRef = useRef<CollapsibleHandle>(null)
+  const collapsedStateRef = useRef(false) // mirrors collapsibleRef for UI reads
+  const [, forceUpdate] = useState(0) // only called to repaint chevron/label
+  const isCollapsed = collapsedStateRef.current
+  const canCollapse = (isAssistant || isSystem || isTool) && !isStreaming && !syntheticStreaming
+
+  const toggleCollapsed = useCallback(() => {
+    const handle = collapsibleRef.current
+    if (!handle) return
+    if (handle.isCollapsed()) {
+      handle.expand()
+      collapsedStateRef.current = false
+    } else {
+      handle.collapse()
+      collapsedStateRef.current = true
+    }
+    // Only re-render the bubble to update chevron direction and aria-label
+    forceUpdate(n => n + 1)
+    if (DEBUG) {
+      const newState = collapsedStateRef.current
+      console.log(`[MB:Collapse] [${message.id.slice(0, 8)}] toggle → collapsed=${newState}`)
+      dbgMeasureToFrame(`${newState ? 'collapse' : 'expand'} animate → paint`)
+    }
+  }, [message.id])
 
   let subagentData: any = null
   if (isAssistant && !isStreaming && message.content) {
@@ -1201,14 +1227,7 @@ function MessageBubbleInner({
                 </span>
                 <motion.button
                   type="button"
-                  onClick={() => {
-                    if (DEBUG) {
-                      mark('collapse:click')
-                      dbgMeasureToFrame('collapse toggle → paint')
-                      console.log(`[MB:Collapse] [${message.id.slice(0, 8)}] toggle clicked, currently collapsed=${isCollapsed}`)
-                    }
-                    toggleCollapsed()
-                  }}
+                  onClick={toggleCollapsed}
                   className="p-0.5 hover:bg-muted-foreground/20 rounded transition-colors"
                   aria-label={isCollapsed ? 'Expand message' : 'Collapse message'}
                   whileTap={{ scale: 0.9 }}
@@ -1234,7 +1253,7 @@ function MessageBubbleInner({
                   ~99000px of virtual space on every animation frame = jank.
                   Replaced with a measured approach: on expand we read the real
                   scrollHeight and animate to that. On collapse we animate to 0. */}
-            <CollapsibleContent isCollapsed={isCollapsed} messageId={message.id}>
+            <CollapsibleContent ref={collapsibleRef} initialCollapsed={false} messageId={message.id}>
               {isAssistant || syntheticStreaming ? (
                 <div
                   ref={proseRef}
@@ -1277,7 +1296,7 @@ function MessageBubbleInner({
         </div>
 
         <AnimatePresence>
-          {!isStreaming && !syntheticStreaming && message.content && !isCollapsed && (
+          {!isStreaming && !syntheticStreaming && message.content && !collapsedStateRef.current && (
             <motion.button
               key="copy-button"
               initial={{ opacity: 0 }}
