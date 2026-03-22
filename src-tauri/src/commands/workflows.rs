@@ -2,6 +2,7 @@
 
 use sea_orm::{ActiveModelTrait, ActiveValue::Set, EntityTrait, QueryOrder};
 use serde::{Deserialize, Serialize};
+use skilldeck_core::workflow::WorkflowExecutor;
 use specta::{Type, specta};
 use std::sync::Arc;
 use tauri::State;
@@ -143,4 +144,60 @@ pub async fn delete_workflow_definition(
         .map_err(|e| e.to_string())?;
 
     Ok(())
+}
+#[specta]
+#[tauri::command]
+pub async fn run_workflow_definition(
+    state: State<'_, std::sync::Arc<AppState>>,
+    id: String,
+) -> Result<String, String> {
+    let db = state
+        .registry
+        .db
+        .connection()
+        .await
+        .map_err(|e| e.to_string())?;
+    let uuid = Uuid::parse_str(&id).map_err(|e| e.to_string())?;
+    let def = skilldeck_models::workflow_definitions::Entity::find_by_id(uuid)
+        .one(db)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("Workflow definition {} not found", id))?;
+
+    let definition: WorkflowDefinition =
+        serde_json::from_value(def.definition_json).map_err(|e| e.to_string())?;
+
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<skilldeck_core::workflow::WorkflowEvent>(128);
+
+    let provider_id = "ollama".to_string();
+    let provider = state
+        .registry
+        .get_provider(&provider_id)
+        .ok_or_else(|| format!("Provider {} not available", provider_id))?;
+    let model_id = skilldeck_core::providers::OllamaProvider::fetch_installed_models()
+        .await
+        .into_iter()
+        .next()
+        .map(|m| m.id)
+        .unwrap_or_else(|| "llama3.2:latest".to_string());
+
+    let executor = WorkflowExecutor::with_provider(
+        tx,
+        provider,
+        model_id,
+        state.config.agent.max_eval_opt_iterations,
+    );
+
+    let execution_id = Uuid::new_v4();
+    let execution_id_str = execution_id.to_string();
+    let app_handle = state.app_handle.clone();
+
+    tokio::spawn(async move {
+        let _ = executor.execute(definition).await;
+        while let Some(event) = rx.recv().await {
+            let _ = app_handle.emit("workflow-event", event);
+        }
+    });
+
+    Ok(execution_id_str)
 }

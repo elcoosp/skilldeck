@@ -21,7 +21,19 @@ export function useWorkflowDefinitions() {
     }
   })
 }
-
+export function useRunWorkflowDefinition() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await (commands as any).runWorkflowDefinition(id)
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data as string
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workflow-definitions'] })
+    },
+  })
+}
 export function useSaveWorkflowDefinition() {
   const queryClient = useQueryClient()
   return useMutation({

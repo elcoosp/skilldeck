@@ -1,10 +1,10 @@
 // src-tauri/src/state.rs
 //! Application state management.
 
-use tauri::Emitter;
 use dashmap::DashMap;
 use sea_orm::EntityTrait;
 use std::sync::Arc;
+use tauri::Emitter;
 use tauri::Manager;
 use tauri_plugin_keyring::KeyringExt;
 use tokio::sync::{RwLock, Semaphore};
@@ -98,6 +98,7 @@ pub struct AppState {
     /// Canonical SQLite path – e.g. "/Users/alice/Library/…/skilldeck.db".
     /// Kept as a plain `String` so background tasks can open a fresh connection.
     pub db_url: String,
+    pub config: crate::config::AppConfig,
     /// HTTP client for the optional SkillDeck Platform.
     pub platform_client: tokio::sync::RwLock<crate::platform_client::PlatformClient>,
     /// Whether the user has opted in to anonymous analytics (mirrored from DB).
@@ -139,7 +140,7 @@ impl AppState {
         let global_config_path =
             dirs_next::config_dir().map(|d| d.join("skilldeck").join("skilldeck-lint.toml"));
         let lint_config = Arc::new(RwLock::new(
-            LintConfig::from_files(global_config_path.as_deref(), None).unwrap_or_default()
+            LintConfig::from_files(global_config_path.as_deref(), None).unwrap_or_default(),
         ));
 
         // Create registry with lint config
@@ -241,6 +242,7 @@ impl AppState {
             supervisor_tx,
             agent_cancel_tokens,
             db_url,
+            config: app_config,
             platform_client: tokio::sync::RwLock::new(platform_client),
             analytics_opt_in: std::sync::atomic::AtomicBool::new(analytics_opt_in_val),
             lint_config,
@@ -294,10 +296,12 @@ impl AppState {
                 let path = path.clone();
                 let config = lint_config_read.clone(); // clone the LintConfig (cheap)
                 async move {
-                    let skills = scanner::scan_directory(&path, &config).await.unwrap_or_else(|e| {
-                        tracing::warn!("Failed to scan skill directory {:?}: {}", path, e);
-                        vec![]
-                    });
+                    let skills = scanner::scan_directory(&path, &config)
+                        .await
+                        .unwrap_or_else(|e| {
+                            tracing::warn!("Failed to scan skill directory {:?}: {}", path, e);
+                            vec![]
+                        });
                     (label.clone(), skills)
                 }
             });
@@ -382,7 +386,7 @@ impl AppState {
             .into_iter()
             .next()
             .map(|m| m.id)
-            .unwrap_or_else(|| "glm-5:cloud".to_string());  // changed from llama3.2:latest
+            .unwrap_or_else(|| "glm-5:cloud".to_string()); // changed from llama3.2:latest
 
         let now = chrono::Utc::now().fixed_offset();
         let id = uuid::Uuid::new_v4();
