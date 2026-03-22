@@ -16,7 +16,7 @@ export interface ScrollToken {
 }
 
 export interface MessageThreadHandle {
-  scrollToMessage: (fullIndex: number, onComplete?: () => void) => void // ← added optional callback
+  scrollToMessage: (fullIndex: number, onComplete?: () => void) => void
   scrollToBottom: () => void
   getScrollElement: () => HTMLElement | null
   getScrollToken: () => ScrollToken | null
@@ -44,6 +44,9 @@ function distFromBottom(el: HTMLElement): number {
 
 // Survives conversation switches within the session
 const globalMeasuredSizes = new Map<string, number>()
+
+// ─── Context for accessing the scroll container from within absolutely positioned children ───
+export const ScrollContainerContext = React.createContext<React.RefObject<HTMLDivElement | null> | null>(null)
 
 export const MessageThread = React.forwardRef<
   MessageThreadHandle,
@@ -483,7 +486,7 @@ export const MessageThread = React.forwardRef<
 
         onScroll: (cb: () => void) => {
           const el = scrollRef.current
-          if (!el) return () => {}
+          if (!el) return () => { }
           el.addEventListener('scroll', cb, { passive: true })
           return () => el.removeEventListener('scroll', cb)
         }
@@ -496,107 +499,109 @@ export const MessageThread = React.forwardRef<
     const lastFilteredIdx = filteredMessages.length - 1
 
     return (
-      <div className="relative h-full">
-        <div ref={scrollRef} className="h-full overflow-y-auto thin-scrollbar">
-          {isLoading && (
-            <motion.div
-              className="flex items-center justify-center h-full text-sm text-muted-foreground"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.2 }}
-            >
-              <div className="flex flex-col items-center gap-2">
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                <span>Loading your conversation...</span>
-              </div>
-            </motion.div>
-          )}
+      <ScrollContainerContext.Provider value={scrollRef}>
+        <div className="relative h-full">
+          <div ref={scrollRef} className="h-full overflow-y-auto thin-scrollbar">
+            {isLoading && (
+              <motion.div
+                className="flex items-center justify-center h-full text-sm text-muted-foreground"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.2 }}
+              >
+                <div className="flex flex-col items-center gap-2">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                  <span>Loading your conversation...</span>
+                </div>
+              </motion.div>
+            )}
 
-          {!isLoading && filteredMessages.length === 0 && (
-            <motion.div
-              className="flex flex-col items-center justify-center h-full text-center px-8"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.2 }}
-            >
-              <img
-                src="/illustrations/empty-messages.svg"
-                alt="Empty conversation"
-                className="w-48 h-48 mb-4 opacity-90"
-              />
-              <h3 className="text-lg font-semibold text-foreground mb-1">
-                {searchQuery
-                  ? 'No matching messages'
-                  : 'This conversation is empty'}
-              </h3>
-              <p className="text-sm text-muted-foreground max-w-xs">
-                {searchQuery
-                  ? 'Try a different search term.'
-                  : 'Type a message below to begin your chat with the agent.'}
-              </p>
-            </motion.div>
-          )}
+            {!isLoading && filteredMessages.length === 0 && (
+              <motion.div
+                className="flex flex-col items-center justify-center h-full text-center px-8"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.2 }}
+              >
+                <img
+                  src="/illustrations/empty-messages.svg"
+                  alt="Empty conversation"
+                  className="w-48 h-48 mb-4 opacity-90"
+                />
+                <h3 className="text-lg font-semibold text-foreground mb-1">
+                  {searchQuery
+                    ? 'No matching messages'
+                    : 'This conversation is empty'}
+                </h3>
+                <p className="text-sm text-muted-foreground max-w-xs">
+                  {searchQuery
+                    ? 'Try a different search term.'
+                    : 'Type a message below to begin your chat with the agent.'}
+                </p>
+              </motion.div>
+            )}
 
-          {!isLoading && filteredMessages.length > 0 && (
-            <div
-              style={{
-                height: virtualizer.getTotalSize(),
-                position: 'relative'
-              }}
-            >
-              {virtualItems.map((virtualItem) => {
-                const message = filteredMessages[virtualItem.index]
-                const isLast = virtualItem.index === lastFilteredIdx
-                return (
-                  <div
-                    key={message.id}
-                    ref={(node) => {
-                      virtualizer.measureElement(node)
-                      if (isLast) {
-                        if (node !== lastItemNodeRef.current) {
-                          if (
-                            lastItemNodeRef.current &&
-                            streamingRoRef.current
-                          ) {
-                            streamingRoRef.current.unobserve(
-                              lastItemNodeRef.current
-                            )
-                          }
-                          lastItemNodeRef.current = node
-                          if (node && streamingRoRef.current) {
-                            streamingRoRef.current.observe(node)
+            {!isLoading && filteredMessages.length > 0 && (
+              <div
+                style={{
+                  height: virtualizer.getTotalSize(),
+                  position: 'relative'
+                }}
+              >
+                {virtualItems.map((virtualItem) => {
+                  const message = filteredMessages[virtualItem.index]
+                  const isLast = virtualItem.index === lastFilteredIdx
+                  return (
+                    <div
+                      key={message.id}
+                      ref={(node) => {
+                        virtualizer.measureElement(node)
+                        if (isLast) {
+                          if (node !== lastItemNodeRef.current) {
+                            if (
+                              lastItemNodeRef.current &&
+                              streamingRoRef.current
+                            ) {
+                              streamingRoRef.current.unobserve(
+                                lastItemNodeRef.current
+                              )
+                            }
+                            lastItemNodeRef.current = node
+                            if (node && streamingRoRef.current) {
+                              streamingRoRef.current.observe(node)
+                            }
                           }
                         }
-                      }
-                    }}
-                    data-index={virtualItem.index}
-                    data-msg-id={message.id}
-                    data-role={message.role}
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '100%',
-                      transform: `translateY(${virtualItem.start}px)`
-                    }}
-                  >
-                    <div className="px-4 py-1.5">
-                      <MessageBubble
-                        message={message}
-                        isStreaming={message.id === streamingMessageId}
-                        isHighlighted={message.id === highlightedMessageId}
-                        searchQuery={
-                          searchQuery.trim() ? searchQuery : undefined
-                        }
-                      />
+                      }}
+                      data-index={virtualItem.index}
+                      data-msg-id={message.id}
+                      data-role={message.role}
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        transform: `translateY(${virtualItem.start}px)`
+                      }}
+                    >
+                      <div className="px-4 py-1.5">
+                        <MessageBubble
+                          message={message}
+                          isStreaming={message.id === streamingMessageId}
+                          isHighlighted={message.id === highlightedMessageId}
+                          searchQuery={
+                            searchQuery.trim() ? searchQuery : undefined
+                          }
+                        />
+                      </div>
                     </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
+                  )
+                })}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      </ScrollContainerContext.Provider>
     )
   }
 )

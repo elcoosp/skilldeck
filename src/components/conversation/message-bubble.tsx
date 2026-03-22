@@ -15,7 +15,7 @@ import {
   User,
   Wrench
 } from 'lucide-react'
-import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { MarkdownHooks } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeSlug from 'rehype-slug'
@@ -34,6 +34,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { ScrollContainerContext } from './message-thread'
+import { createPortal } from 'react-dom'
 
 interface MessageBubbleProps {
   message: MessageData
@@ -51,13 +53,20 @@ const highlighter = await createHighlighter({
 const rehypePlugins = [
   [rehypeShiki, { highlighter, themes: { light: 'vitesse-light', dark: 'vitesse-dark' }, useBackground: false }],
   rehypeLinkifyCodeUrls,
-  rehypeSlug, // <-- added for heading IDs
+  rehypeSlug,
 ]
 
-// ─── CodePre (sticky header + collapsible) ───────────────────────────────────
+// ─── CodePre with floating header that stays in view during scroll ───────────────────────────
 function CodePre({ children, ...props }: any) {
   const [collapsed, setCollapsed] = useState(false)
   const [copied, setCopied] = useState(false)
+
+  const containerRef = useRef<HTMLDivElement>(null)
+  const headerRef = useRef<HTMLDivElement>(null)
+  const floatingRef = useRef<HTMLDivElement>(null)
+  const isFloatingRef = useRef(false)
+
+  const scrollContainer = useContext(ScrollContainerContext)
 
   const extractText = (node: any): string => {
     if (typeof node === 'string') return node
@@ -75,50 +84,128 @@ function CodePre({ children, ...props }: any) {
     toast.success('Code copied to clipboard')
   }
 
-  return (
-    <div className="my-3 rounded-lg border border-border flex flex-col text-xs font-mono overflow-hidden">
-      {/* Sticky header container – scrolls with the content, stays at top */}
-      <div className="sticky top-0 z-10 bg-muted border-b border-border">
-        <div className="flex items-center justify-between px-3 py-1.5">
-          <button
-            type="button"
-            onClick={() => setCollapsed((v) => !v)}
-            className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
-            aria-label={collapsed ? 'Expand' : 'Collapse'}
-          >
-            <motion.div animate={{ rotate: collapsed ? 0 : 90 }} transition={{ duration: 0.15 }}>
-              <ChevronRight className="size-3.5" />
-            </motion.div>
-            <span>{language}</span>
-          </button>
-          <button
-            type="button"
-            onClick={copy}
-            className="p-1 text-muted-foreground hover:text-foreground transition-colors rounded"
-            aria-label="Copy code"
-          >
-            {copied ? <Check className="size-3.5 text-green-500" /> : <Copy className="size-3.5" />}
-          </button>
-        </div>
-      </div>
+  useEffect(() => {
+    const root = scrollContainer?.current
+    const container = containerRef.current
+    const header = headerRef.current
+    const floating = floatingRef.current
+    if (!root || !container || !header || !floating) return
 
-      {/* Scrollable content area */}
-      <div
-        className="overflow-y-auto transition-all duration-200"
-        style={{
-          maxHeight: collapsed ? 0 : 400,
-        }}
+    const sync = () => {
+      if (collapsed) {
+        floating.style.opacity = '0'
+        floating.style.pointerEvents = 'none'
+        header.style.visibility = 'visible'
+        isFloatingRef.current = false
+        return
+      }
+
+      const rootRect = root.getBoundingClientRect()
+      const containerRect = container.getBoundingClientRect()
+
+      const topGone = containerRect.top < rootRect.top
+      const bottomVisible = containerRect.bottom > rootRect.top + 32
+
+      if (topGone && bottomVisible) {
+        floating.style.top = `${rootRect.top}px`
+        floating.style.left = `${containerRect.left}px`
+        floating.style.width = `${containerRect.width}px`
+        // Animate in: opacity, shadow, border-radius all via inline style so transition fires
+        floating.style.opacity = '1'
+        floating.style.pointerEvents = 'auto'
+        floating.style.borderRadius = '0'
+        floating.style.boxShadow = '0 4px 12px 0 rgb(0 0 0 / 0.15)'
+        header.style.visibility = 'hidden'
+        isFloatingRef.current = true
+      } else {
+        floating.style.opacity = '0'
+        floating.style.pointerEvents = 'none'
+        // Restore radius while fading out
+        floating.style.borderRadius = 'var(--radius)'  // or '0.5rem' to match rounded-lg
+        floating.style.boxShadow = '0 0 0 0 transparent'
+        header.style.visibility = 'visible'
+        isFloatingRef.current = false
+      }
+    }
+
+    root.addEventListener('scroll', sync, { passive: true })
+    const ro = new ResizeObserver(sync)
+    ro.observe(container)
+    sync()
+
+    return () => {
+      root.removeEventListener('scroll', sync)
+      ro.disconnect()
+    }
+  }, [scrollContainer, collapsed])
+
+  const headerContent = (
+    <>
+      <button
+        type="button"
+        onClick={() => setCollapsed((v) => !v)}
+        className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
+        aria-label={collapsed ? 'Expand' : 'Collapse'}
       >
-        <div className="p-3 bg-card [&>pre]:!m-0 [&>pre]:!rounded-none [&>pre]:!border-none [&>pre]:p-0 [&>pre]:text-xs [&>pre]:leading-relaxed [&>pre]:!bg-transparent">
-          <pre {...props} style={{ ...props.style, color: 'var(--foreground)' }}>
-            {children}
-          </pre>
+        <motion.div animate={{ rotate: collapsed ? 0 : 90 }} transition={{ duration: 0.15 }}>
+          <ChevronRight className="size-3.5" />
+        </motion.div>
+        <span>{language}</span>
+      </button>
+      <button
+        type="button"
+        onClick={copy}
+        className="p-1 text-muted-foreground hover:text-foreground transition-colors rounded"
+        aria-label="Copy code"
+      >
+        {copied ? <Check className="size-3.5 text-green-500" /> : <Copy className="size-3.5" />}
+      </button>
+    </>
+  )
+
+  return (
+    <>
+      {createPortal(
+        <div
+          ref={floatingRef}
+          className="fixed z-50 flex items-center justify-between px-3 py-1.5 border border-border bg-muted text-xs font-mono"
+          style={{
+            // Start in non-floating resting state
+            opacity: 0,
+            pointerEvents: 'none',
+            borderRadius: 'var(--radius)',
+            boxShadow: '0 0 0 0 transparent',
+            // All animatable properties in one transition
+            transition: 'opacity 150ms ease, border-radius 150ms ease, box-shadow 150ms ease',
+          }}
+        >
+          {headerContent}
+        </div>,
+        document.body
+      )}
+
+      <div ref={containerRef} className="my-3 rounded-lg border border-border flex flex-col text-xs font-mono">
+        <div
+          ref={headerRef}
+          className="flex items-center justify-between px-3 py-1.5 border-b border-border bg-muted rounded-t-lg"
+        >
+          {headerContent}
+        </div>
+
+        <div
+          className="overflow-hidden rounded-b-lg"
+          style={{ maxHeight: collapsed ? 0 : 384, transition: 'max-height 0.18s ease' }}
+        >
+          <div className="overflow-auto max-h-96 thin-scrollbar bg-card [&>pre]:!m-0 [&>pre]:!rounded-none [&>pre]:!border-none [&>pre]:p-3 [&>pre]:text-xs [&>pre]:leading-relaxed [&>pre]:!bg-transparent">
+            <pre {...props} style={{ ...props.style, color: 'var(--foreground)' }}>
+              {children}
+            </pre>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   )
 }
-
 const remarkPlugins = [remarkGfm]
 
 // ─── MessageBubble ────────────────────────────────────────────────────────────
@@ -140,7 +227,7 @@ export const MessageBubble = memo(function MessageBubble({
     headingIndexRef.current = 0
   }
 
-  // ─── Markdown components with position‑based IDs (optional, but kept for store) ─
+  // ─── Markdown components with position‑based IDs ─────────────────────────
   const markdownComponents = useMemo(() => {
     const makeHeading = (level: number) => ({ children, node, ...props }: any) => {
       const text = (
@@ -163,7 +250,6 @@ export const MessageBubble = memo(function MessageBubble({
       h6: makeHeading(6),
       pre: CodePre,
       a: ({ href, children, node, ...props }: any) => {
-        // Handle intra-document hash links
         if (href?.startsWith('#')) {
           return (
             <a
@@ -171,7 +257,6 @@ export const MessageBubble = memo(function MessageBubble({
               onClick={(e) => {
                 e.preventDefault()
                 const targetId = href.slice(1)
-                // Scope to this message's container to avoid collisions
                 const container = document.getElementById(`msg-${message.id}`)
                 const target = container?.querySelector(`#${targetId}`)
                 if (target) {
@@ -238,7 +323,7 @@ export const MessageBubble = memo(function MessageBubble({
       },
       table: ({ children, node, ...props }: any) => (
         <div className="overflow-x-auto my-2" {...props}>
-          <table className="border-collapse border border-border text-xs">{children} </table>
+          <table className="border-collapse border border-border text-xs">{children}</table>
         </div>
       ),
       th: ({ children, node, ...props }: any) => (
@@ -370,7 +455,7 @@ export const MessageBubble = memo(function MessageBubble({
 
   return (
     <motion.div
-      id={`msg-${message.id}`} // <-- added for scoped scroll targeting
+      id={`msg-${message.id}`}
       className={cn('flex gap-3 max-w-full', isUser && 'flex-row-reverse')}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
