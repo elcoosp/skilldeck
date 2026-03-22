@@ -29,6 +29,10 @@ const scrollTokenCache = new Map<string, ScrollToken>()
 export function CenterPanel() {
   const activeConversationId = useUIStore((s) => s.activeConversationId)
   const activeBranchId = useUIStore((s) => s.activeBranchId)
+
+  const scrollToMessageId = useUIStore((s) => s.scrollToMessageId)
+  const setScrollToMessageId = useUIStore((s) => s.setScrollToMessageId)
+
   const workspaceId = useActiveConversationWorkspaceId()
   const { data: workspaces = [] } = useWorkspaces()
   const activeWorkspace = workspaces.find((w) => w.id === workspaceId)
@@ -102,7 +106,17 @@ export function CenterPanel() {
       setUnseenCount(0)
     }
   }, [isRunning]) // eslint-disable-line react-hooks/exhaustive-deps
-
+  useEffect(() => {
+    if (!scrollToMessageId || !messages.length) return
+    const targetMessage = messages.find(m => m.id === scrollToMessageId)
+    if (targetMessage) {
+      const fullIndex = messages.findIndex(m => m.id === scrollToMessageId)
+      threadRef.current?.scrollToMessage(fullIndex)
+      setHighlightedMessageId(scrollToMessageId)
+      setTimeout(() => setHighlightedMessageId(null), 800)
+      setScrollToMessageId(null)
+    }
+  }, [scrollToMessageId, messages, setScrollToMessageId])
   const computeShowJump = useCallback(() => {
     const el = threadRef.current?.getScrollElement()
     if (!el) return

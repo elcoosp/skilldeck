@@ -35,6 +35,8 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
 
   const setActiveConversation = useUIStore((s) => s.setActiveConversation)
 
+  const setScrollToMessageId = useUIStore((s) => s.setScrollToMessageId)
+
   const { data: results = [], isLoading } = useQuery({
     queryKey: ['global-search', debouncedQuery],
     queryFn: async () => {
@@ -104,7 +106,7 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
 
   const handleSelectResult = (result: GlobalSearchResult) => {
     setActiveConversation(result.conversation_id)
-    // TODO: scroll to specific message – we'll implement in a future task
+    setScrollToMessageId(result.message_id)
     onClose()
   }
 
