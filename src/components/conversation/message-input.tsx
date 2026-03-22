@@ -10,7 +10,7 @@
 
 import { open } from '@tauri-apps/plugin-dialog'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { AtSign, Hash, Paperclip, Send, Timer } from 'lucide-react'
+import { AtSign, Hash, Paperclip, Send, Square, Timer } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
@@ -94,6 +94,7 @@ export function MessageInput({
   const clearDraft = useUIStore((s) => s.clearDraft)
   const isRunning = useUIStore((s) => s.agentRunning[conversationId] ?? false)
   const setActiveConversation = useUIStore((s) => s.setActiveConversation)
+  const setAgentRunning = useUIStore((s) => s.setAgentRunning)
 
   const [content, setContent] = useState(draft)
 
@@ -449,6 +450,16 @@ export function MessageInput({
     textareaRef.current?.focus()
   }, [content, calculatePickerPosition])
 
+  // ── Stop agent ───────────────────────────────────────────────────────────
+  const handleStop = useCallback(async () => {
+    try {
+      await commands.cancelAgent(conversationId)
+      setAgentRunning(conversationId, false)
+    } catch (err) {
+      toast.error(`Failed to stop agent: ${err}`)
+    }
+  }, [conversationId, setAgentRunning])
+
   // ── Submit / Queue ────────────────────────────────────────────────────────
 
   const submit = useCallback(async () => {
@@ -581,7 +592,6 @@ export function MessageInput({
                     }}
                     onRemove={() => removeFile(file.path)}
                     isLoading={status === 'pending'}
-                  // isError removed because ContextChip does not accept it
                   />
                 </motion.div>
               )
@@ -619,28 +629,74 @@ export function MessageInput({
             rows={1}
           />
 
-          <Button
-            size="icon-sm"
-            className="shrink-0 mb-0.5"
-            onClick={
-              isRunning ? () => addQueuedMessage.mutate({ content }) : submit
-            }
-            disabled={
-              (!content.trim() && selectedFiles.length === 0) ||
-              sendMutation.isPending ||
-              isSending ||
-              (isRunning && addQueuedMessage.isPending)
-            }
-            aria-label={isRunning ? 'Queue message' : 'Send'}
-          >
-            {isSending ? (
-              <Send className="size-3.5" />
-            ) : isRunning ? (
-              <Timer className="size-3.5" />
-            ) : (
-              <Send className="size-3.5" />
-            )}
-          </Button>
+          {/* Button group with animations */}
+          <div className="flex items-center gap-2 shrink-0">
+            <AnimatePresence mode="wait">
+              {!isRunning ? (
+                <motion.div
+                  key="send"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Button
+                    size="icon-sm"
+                    className="mb-0.5"
+                    onClick={submit}
+                    disabled={
+                      (!content.trim() && selectedFiles.length === 0) ||
+                      sendMutation.isPending ||
+                      isSending
+                    }
+                    aria-label="Send"
+                  >
+                    <Send className="size-3.5" />
+                  </Button>
+                </motion.div>
+              ) : (
+                <>
+                  <motion.div
+                    key="stop"
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <Button
+                      size="icon-sm"
+                      variant="destructive"
+                      className="mb-0.5"
+                      onClick={handleStop}
+                      aria-label="Stop agent"
+                    >
+                      <Square className="size-3.5" />
+                    </Button>
+                  </motion.div>
+                  <motion.div
+                    key="queue"
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ duration: 0.2, delay: 0.05 }}
+                  >
+                    <Button
+                      size="icon-sm"
+                      className="mb-0.5"
+                      onClick={() => addQueuedMessage.mutate({ content })}
+                      disabled={
+                        (!content.trim() && selectedFiles.length === 0) ||
+                        addQueuedMessage.isPending
+                      }
+                      aria-label="Queue message"
+                    >
+                      <Timer className="size-3.5" />
+                    </Button>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
 
@@ -658,8 +714,6 @@ export function MessageInput({
         <Tooltip>
           <TooltipTrigger asChild>
             <span className="inline-block">
-              {' '}
-              {/* tabIndex removed */}
               <Button
                 variant="ghost"
                 size="sm"

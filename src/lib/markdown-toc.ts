@@ -2,7 +2,6 @@
 import { unified } from 'unified'
 import remarkParse from 'remark-parse'
 import { visit } from 'unist-util-visit'
-import type { Heading } from 'mdast'
 
 export interface TocItem {
   id: string          // optional, may be unused
@@ -20,7 +19,7 @@ export function extractHeadings(markdown: string, messageId: string): TocItem[] 
   const tree = unified().use(remarkParse).parse(markdown)
   const headings: TocItem[] = []
 
-  visit(tree, 'heading', (node: Heading) => {
+  visit(tree, 'heading', (node) => {
     const text = node.children
       .map(child => (child.type === 'text' ? child.value : ''))
       .join('')

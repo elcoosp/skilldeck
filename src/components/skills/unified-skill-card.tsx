@@ -1,5 +1,4 @@
 // src/components/skills/unified-skill-card.tsx
-
 import { AlertTriangle, ArrowUp } from 'lucide-react' // <-- import ArrowUp
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -60,10 +59,18 @@ export function UnifiedSkillCard({
   ).length
 
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onClick(skill)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onClick(skill)
+        }
+      }}
       className={cn(
-        'group w-full text-left p-4 border rounded-lg cursor-pointer',
+        'group relative w-full text-left p-4 border rounded-lg cursor-pointer',
         'transition-all duration-150 hover:border-primary/50 hover:shadow-sm',
         'flex flex-col h-full min-h-[140px] focus-visible:outline-none',
         'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
@@ -71,7 +78,6 @@ export function UnifiedSkillCard({
           ? 'ring-2 ring-primary ring-offset-1 ring-offset-background border-border'
           : 'border-border bg-card'
       )}
-      onClick={() => onClick(skill)}
     >
       {/* Header row */}
       <div className="flex items-start justify-between gap-2 mb-2">
@@ -92,9 +98,9 @@ export function UnifiedSkillCard({
             className={cn(
               'shrink-0 text-[10px] px-1.5 py-0',
               skill.status === 'installed' &&
-                'bg-primary/10 text-primary border-primary/20',
+              'bg-primary/10 text-primary border-primary/20',
               skill.status === 'local_only' &&
-                'bg-secondary text-secondary-foreground'
+              'bg-secondary text-secondary-foreground'
             )}
           >
             {STATUS_LABEL[skill.status]}
@@ -142,8 +148,8 @@ export function UnifiedSkillCard({
       </div>
 
       {/* Action buttons */}
-      {skill.status === 'available' && platformFeaturesEnabled && onInstall && (
-        <div className="mt-2 flex justify-end">
+      <div className="absolute bottom-3 right-3 flex gap-1">
+        {skill.status === 'available' && platformFeaturesEnabled && onInstall && (
           <Button
             size="xs"
             onClick={(e) => {
@@ -153,13 +159,11 @@ export function UnifiedSkillCard({
           >
             Install
           </Button>
-        </div>
-      )}
+        )}
 
-      {skill.status === 'update_available' &&
-        platformFeaturesEnabled &&
-        onUpdate && (
-          <div className="mt-2 flex justify-end">
+        {skill.status === 'update_available' &&
+          platformFeaturesEnabled &&
+          onUpdate && (
             <Button
               size="xs"
               variant="outline"
@@ -172,8 +176,8 @@ export function UnifiedSkillCard({
               <ArrowUp className="size-3 mr-1" />
               Update
             </Button>
-          </div>
-        )}
-    </button>
+          )}
+      </div>
+    </div>
   )
 }

@@ -1,3 +1,4 @@
+// src/store/settings.ts
 /**
  * Application settings — persisted Zustand store.
  */
@@ -82,6 +83,20 @@ export const useSettingsStore = create<SettingsState>()(
       language: 'en',
       setLanguage: (lang) => set({ language: lang })
     }),
-    { name: 'skilldeck-settings' }
+    {
+      name: 'skilldeck-settings',
+      version: 1,
+      migrate: (persistedState: any, version: number) => {
+        if (version < 1) {
+          // Reset default provider to Ollama if the stored provider is not Ollama
+          // (stale pre‑migration state that may have had claude/openai)
+          const migrated = { ...persistedState }
+          migrated.defaultProvider = 'ollama'
+          migrated.defaultModelId = 'glm-5:cloud'
+          return migrated
+        }
+        return persistedState
+      }
+    }
   )
 )

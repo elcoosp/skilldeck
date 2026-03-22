@@ -1,3 +1,4 @@
+// src/components/conversation/message-bubble.tsx
 import rehypeShiki from '@shikijs/rehype'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
@@ -17,6 +18,7 @@ import {
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MarkdownHooks } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import rehypeSlug from 'rehype-slug'
 import { createHighlighter } from 'shiki'
 import { toast } from 'sonner'
 import { ContextChip } from '@/components/chat/context-chip'
@@ -49,9 +51,10 @@ const highlighter = await createHighlighter({
 const rehypePlugins = [
   [rehypeShiki, { highlighter, themes: { light: 'vitesse-light', dark: 'vitesse-dark' }, useBackground: false }],
   rehypeLinkifyCodeUrls,
+  rehypeSlug, // <-- added for heading IDs
 ]
 
-// ─── CodePre ─────────────────────────────────────────────────────────────────
+// ─── CodePre (sticky header + collapsible) ───────────────────────────────────
 function CodePre({ children, ...props }: any) {
   const [collapsed, setCollapsed] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -73,42 +76,41 @@ function CodePre({ children, ...props }: any) {
   }
 
   return (
-    <div className="my-3 rounded-lg border border-border flex flex-col text-xs font-mono">
-      <div className="flex items-center justify-between px-3 py-1.5 border-b border-border bg-muted rounded-t-lg">
-        <button
-          type="button"
-          onClick={() => setCollapsed((v) => !v)}
-          className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
-          aria-label={collapsed ? 'Expand' : 'Collapse'}
-        >
-          <motion.div animate={{ rotate: collapsed ? 0 : 90 }} transition={{ duration: 0.15 }}>
-            <ChevronRight className="size-3.5" />
-          </motion.div>
-          <span>{language}</span>
-        </button>
-        <button
-          type="button"
-          onClick={copy}
-          className="p-1 text-muted-foreground hover:text-foreground transition-colors rounded"
-          aria-label="Copy code"
-        >
-          {copied ? <Check className="size-3.5 text-green-500" /> : <Copy className="size-3.5" />}
-        </button>
+    <div className="my-3 rounded-lg border border-border flex flex-col text-xs font-mono overflow-hidden">
+      {/* Sticky header container – scrolls with the content, stays at top */}
+      <div className="sticky top-0 z-10 bg-muted border-b border-border">
+        <div className="flex items-center justify-between px-3 py-1.5">
+          <button
+            type="button"
+            onClick={() => setCollapsed((v) => !v)}
+            className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
+            aria-label={collapsed ? 'Expand' : 'Collapse'}
+          >
+            <motion.div animate={{ rotate: collapsed ? 0 : 90 }} transition={{ duration: 0.15 }}>
+              <ChevronRight className="size-3.5" />
+            </motion.div>
+            <span>{language}</span>
+          </button>
+          <button
+            type="button"
+            onClick={copy}
+            className="p-1 text-muted-foreground hover:text-foreground transition-colors rounded"
+            aria-label="Copy code"
+          >
+            {copied ? <Check className="size-3.5 text-green-500" /> : <Copy className="size-3.5" />}
+          </button>
+        </div>
       </div>
+
+      {/* Scrollable content area */}
       <div
-        className="overflow-hidden rounded-b-lg"
+        className="overflow-y-auto transition-all duration-200"
         style={{
-          maxHeight: collapsed ? 0 : 384,
-          transition: 'max-height 0.18s ease',
+          maxHeight: collapsed ? 0 : 400,
         }}
       >
-        <div
-          className="overflow-auto max-h-96 thin-scrollbar bg-card [&>pre]:!m-0 [&>pre]:!rounded-none [&>pre]:!border-none [&>pre]:p-3 [&>pre]:text-xs [&>pre]:leading-relaxed [&>pre]:!bg-transparent"
-        >
-          <pre
-            {...props}
-            style={{ ...props.style, color: 'var(--foreground)' }}
-          >
+        <div className="p-3 bg-card [&>pre]:!m-0 [&>pre]:!rounded-none [&>pre]:!border-none [&>pre]:p-0 [&>pre]:text-xs [&>pre]:leading-relaxed [&>pre]:!bg-transparent">
+          <pre {...props} style={{ ...props.style, color: 'var(--foreground)' }}>
             {children}
           </pre>
         </div>
@@ -138,7 +140,7 @@ export const MessageBubble = memo(function MessageBubble({
     headingIndexRef.current = 0
   }
 
-  // ─── Markdown components with position‑based IDs ─────────────────────────
+  // ─── Markdown components with position‑based IDs (optional, but kept for store) ─
   const markdownComponents = useMemo(() => {
     const makeHeading = (level: number) => ({ children, node, ...props }: any) => {
       const text = (
@@ -160,21 +162,49 @@ export const MessageBubble = memo(function MessageBubble({
       h5: makeHeading(5),
       h6: makeHeading(6),
       pre: CodePre,
-      a: ({ href, children, node, ...props }: any) => (
-        <a
-          href={href}
-          onClick={async (e) => {
-            e.preventDefault()
-            if (href) {
-              try { await openUrl(href) } catch (err) { console.error('Failed to open link:', err) }
-            }
-          }}
-          className="cursor-pointer underline"
-          {...props}
-        >
-          {children}
-        </a>
-      ),
+      a: ({ href, children, node, ...props }: any) => {
+        // Handle intra-document hash links
+        if (href?.startsWith('#')) {
+          return (
+            <a
+              href={href}
+              onClick={(e) => {
+                e.preventDefault()
+                const targetId = href.slice(1)
+                // Scope to this message's container to avoid collisions
+                const container = document.getElementById(`msg-${message.id}`)
+                const target = container?.querySelector(`#${targetId}`)
+                if (target) {
+                  target.scrollIntoView({ behavior: 'smooth' })
+                }
+              }}
+              className="cursor-pointer underline"
+              {...props}
+            >
+              {children}
+            </a>
+          )
+        }
+        return (
+          <a
+            href={href}
+            onClick={async (e) => {
+              e.preventDefault()
+              if (href) {
+                try {
+                  await openUrl(href)
+                } catch (err) {
+                  console.error('Failed to open link:', err)
+                }
+              }
+            }}
+            className="cursor-pointer underline"
+            {...props}
+          >
+            {children}
+          </a>
+        )
+      },
       code: ({ node, className, children, ...props }: any) => {
         const match = /language-(\w+)/.exec(className || '')
         const content = String(children)
@@ -208,7 +238,7 @@ export const MessageBubble = memo(function MessageBubble({
       },
       table: ({ children, node, ...props }: any) => (
         <div className="overflow-x-auto my-2" {...props}>
-          <table className="border-collapse border border-border text-xs">{children}</table>
+          <table className="border-collapse border border-border text-xs">{children} </table>
         </div>
       ),
       th: ({ children, node, ...props }: any) => (
@@ -287,7 +317,7 @@ export const MessageBubble = memo(function MessageBubble({
     }
 
     return clearMarks
-  }, [searchQuery, message.content, rehypePlugins])
+  }, [searchQuery, message.content])
 
   const isUser = message.role === 'user'
   const isAssistant = message.role === 'assistant'
@@ -340,6 +370,7 @@ export const MessageBubble = memo(function MessageBubble({
 
   return (
     <motion.div
+      id={`msg-${message.id}`} // <-- added for scoped scroll targeting
       className={cn('flex gap-3 max-w-full', isUser && 'flex-row-reverse')}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}

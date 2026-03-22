@@ -1,3 +1,4 @@
+// src/__tests__/store/settings-store.test.ts
 import { beforeEach, describe, expect, it } from 'vitest'
 import { useSettingsStore } from '@/store/settings'
 
@@ -14,7 +15,8 @@ beforeEach(() => {
     },
     telemetryEnabled: false,
     notificationsEnabled: true,
-    defaultModelId: 'claude-sonnet-4-5',
+    defaultModelId: 'glm-5:cloud',
+    defaultProvider: 'ollama',
     language: 'en'
   })
 })

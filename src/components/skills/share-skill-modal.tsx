@@ -1,13 +1,7 @@
 // src/components/skills/share-skill-modal.tsx
-/**
- * ShareSkillModal — share a skill as a public GitHub Gist.
- *
- * Win theme: "Team Knowledge That Compounds"
- * Every skill shared becomes a reusable asset for your team.
- */
-
 import { ExternalLink, Github, Share2, X } from 'lucide-react'
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { toast } from 'sonner'
 import {
   type GistInfo,
@@ -72,14 +66,14 @@ export function ShareSkillModal({ skillName, contentMd, onClose }: Props) {
       setResult(gist)
       setStep('done')
       sendActivityEvent('skill_shared', { skill_name: skillName }).catch(
-        () => {}
+        () => { }
       )
     } finally {
       setSaving(false)
     }
   }
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="w-full max-w-md rounded-xl border border-border bg-background shadow-2xl">
         <div className="flex items-center justify-between p-4 border-b border-border">
@@ -231,6 +225,7 @@ export function ShareSkillModal({ skillName, contentMd, onClose }: Props) {
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

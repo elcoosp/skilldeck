@@ -41,6 +41,7 @@ export function PreferencesTab() {
   // Language preference
   const settingsLanguage = useSettingsStore((s) => s.language)
   const setLanguage = useSettingsStore((s) => s.setLanguage)
+  const defaultProvider = useSettingsStore((s) => s.defaultProvider)
 
   if (query.isLoading || profilesLoading) {
     return (
@@ -128,6 +129,14 @@ export function PreferencesTab() {
             </Button>
           </div>
         </Section>
+      )}
+
+      {/* Local mode hint */}
+      {defaultProvider === 'ollama' && (
+        <div className="rounded-md bg-primary/5 p-3 text-xs text-muted-foreground border border-primary/20">
+          <span className="font-medium">🦙 Local mode</span> – Using Ollama on your machine.
+          No API key required. Change provider in Profiles.
+        </div>
       )}
 
       {/* Email & Verification */}

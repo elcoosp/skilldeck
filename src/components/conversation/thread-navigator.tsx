@@ -354,14 +354,14 @@ const ThreadNavigator = memo(function ThreadNavigator({
                               <div className="w-4 h-4 flex items-center justify-center flex-shrink-0 mt-0.5">
                                 <div
                                   className={cn(
-                                    'h-[2px] w-3 rounded-full transition-colors',
+                                    'h-[2px] w-3 rounded-full transition-colors duration-150',
                                     isActive
                                       ? 'bg-primary'
                                       : 'bg-muted-foreground/30 group-hover:bg-primary/60'
                                   )}
                                 />
                               </div>
-                              <p className="text-xs text-muted-foreground truncate flex-1 group-hover:text-foreground">
+                              <p className="text-xs text-muted-foreground truncate flex-1 transition-colors duration-150 group-hover:text-foreground">
                                 {msg.content}
                               </p>
                             </button>
@@ -370,7 +370,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
                             {hasHeadings && (
                               <button
                                 type="button"
-                                className="flex-shrink-0 p-1 ml-1 mr-0.5 mt-0.5 rounded hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground"
+                                className="flex-shrink-0 p-1 ml-1 mr-0.5 self-center rounded hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground"
                                 onClick={() => handleToggleToc(idx, !isExpanded)}
                                 aria-label={isExpanded ? 'Collapse headings' : 'Expand headings'}
                               >

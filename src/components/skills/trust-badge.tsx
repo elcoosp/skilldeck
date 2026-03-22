@@ -1,7 +1,4 @@
 // src/components/skills/trust-badge.tsx
-// UX: visually communicates skill safety at a glance.
-// Security warnings use red (distinct from style/quality warnings in amber/grey).
-
 import { AlertTriangle, CheckCircle2, ShieldAlert } from 'lucide-react'
 import {
   Tooltip,
@@ -14,7 +11,7 @@ interface TrustBadgeProps {
   securityScore: number
   qualityScore: number
   className?: string
-  onClick?: () => void // <-- new prop to scroll to lint panel
+  onClick?: () => void
 }
 
 export function TrustBadge({
@@ -73,13 +70,20 @@ export function TrustBadge({
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <button
-          type="button"
+        <span
+          role="button"
+          tabIndex={0}
           onClick={onClick}
-          className={cn('cursor-pointer', className)}
+          onKeyDown={(e) => {
+            if (onClick && (e.key === 'Enter' || e.key === ' ')) {
+              e.preventDefault()
+              onClick()
+            }
+          }}
+          className={cn('cursor-pointer inline-flex items-center gap-1', className)}
         >
           {badgeContent}
-        </button>
+        </span>
       </TooltipTrigger>
       <TooltipContent side="top">
         <p className="text-xs max-w-[200px]">{tooltipText}</p>
@@ -97,7 +101,6 @@ export function ScoreDots({ score, max = 5 }: { score: number; max?: number }) {
     >
       {Array.from({ length: max }).map((_, i) => (
         <span
-          // biome-ignore lint/suspicious/noArrayIndexKey: static list, index is stable
           key={i}
           className={cn(
             'inline-block size-1.5 rounded-full',
