@@ -7,8 +7,8 @@ interface PlatformStatusBannerProps {
   variant: 'disabled' | 'error' | null
   onEnable?: () => void
   onRetry?: () => void
-  onRegister?: () => void // new
-  errorMessage?: string // new
+  onRegister?: () => void
+  errorMessage?: string
 }
 
 export function PlatformStatusBanner({

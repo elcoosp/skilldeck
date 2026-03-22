@@ -217,15 +217,11 @@ export function UnifiedSkillList() {
       <div className="flex flex-col flex-1 min-w-0 h-full" ref={containerRef}>
         <div className="px-3 pt-3">
           <PlatformStatusBanner
-            variant={
-              !platformFeaturesEnabled
-                ? 'disabled'
-                : registryError
-                  ? 'error'
-                  : null
-            }
+            variant={!platformFeaturesEnabled ? 'disabled' : registryError ? 'error' : null}
             onEnable={handleEnablePlatform}
             onRetry={() => syncMutation.mutate()}
+            onRegister={() => { setSettingsTab('platform'); setSettingsOpen(true); }}
+            errorMessage={registryError?.message}
           />
         </div>
 

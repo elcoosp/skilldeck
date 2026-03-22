@@ -57,9 +57,18 @@ export function PlatformTab() {
           {register.isPending ? 'Registering…' : 'Register with Platform'}
         </Button>
         {register.isError && (
-          <p className="text-xs text-destructive">
-            Registration failed: {String(register.error)}
-          </p>
+          <div className="text-destructive text-xs mt-2">
+            {register.error?.message.includes('Network') ? 'Network error – check your connection' :
+              register.error?.message.includes('401') ? 'Invalid API key – check your platform token' :
+                `Registration failed: ${register.error.message}`}
+            <button
+              type="button"
+              onClick={() => register.mutate()}
+              className="ml-2 underline"
+            >
+              Retry
+            </button>
+          </div>
         )}
       </div>
     )
