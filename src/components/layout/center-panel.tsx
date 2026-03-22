@@ -45,6 +45,10 @@ export function CenterPanel() {
   const [debouncedSearch] = useDebounce(searchQuery, 300)
   const [autoScroll, setAutoScroll] = useState(true)
 
+  // NEW: search toggles
+  const [searchCaseSensitive, setSearchCaseSensitive] = useState(false)
+  const [searchRegex, setSearchRegex] = useState(false)
+
   const threadRef = useRef<MessageThreadHandle>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [activeUserMessageIndex, setActiveUserMessageIndex] = useState<number | undefined>(undefined)
@@ -298,7 +302,7 @@ export function CenterPanel() {
     <div className="relative flex flex-col h-full">
       {activeConversationId && <BranchNav conversationId={activeConversationId} />}
 
-      {/* Search bar */}
+      {/* Search bar with toggles */}
       <div className="px-4 py-2 border-b border-border flex items-center gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
@@ -307,10 +311,39 @@ export function CenterPanel() {
             placeholder="Search in this conversation…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8 pr-16 h-8 text-sm"
+            className="pl-8 pr-24 h-8 text-sm" // widened right padding for toggles
           />
-          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center pointer-events-none">
-            <KbdGroup><Kbd>{modifierKey}</Kbd><Kbd>F</Kbd></KbdGroup>
+          {/* Toggle buttons inside the input */}
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setSearchCaseSensitive(!searchCaseSensitive)}
+              className={cn(
+                "p-0.5 rounded text-xs font-mono transition-colors",
+                searchCaseSensitive
+                  ? "text-primary bg-primary/10"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              title="Case sensitive (Aa)"
+            >
+              Aa
+            </button>
+            <button
+              type="button"
+              onClick={() => setSearchRegex(!searchRegex)}
+              className={cn(
+                "p-0.5 rounded text-xs font-mono transition-colors",
+                searchRegex
+                  ? "text-primary bg-primary/10"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              title="Regular expression (.*)"
+            >
+              .*
+            </button>
+            <KbdGroup className="hidden sm:flex ml-1">
+              <Kbd>{modifierKey}</Kbd><Kbd>F</Kbd>
+            </KbdGroup>
           </div>
         </div>
         {searchQuery && (
@@ -337,6 +370,8 @@ export function CenterPanel() {
           messages={messages}
           streamingMessageId={streamingMessageId}
           searchQuery={debouncedSearch}
+          searchCaseSensitive={searchCaseSensitive}
+          searchRegex={searchRegex}
           highlightedMessageId={highlightedMessageId}
           initialScrollToken={initialScrollToken}
           autoScroll={autoScroll}
