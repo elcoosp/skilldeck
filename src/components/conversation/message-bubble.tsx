@@ -895,6 +895,7 @@ function MessageBubbleInner({
 }: MessageBubbleProps) {
   const [copied, setCopied] = useState(false)
   const proseRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null) // attached to the outer bubble div, covers all message types
   const [highlighter, setHighlighter] = useState<Highlighter | null>(null)
 
   // Mark the start of this bubble's render for perf timeline
@@ -969,9 +970,17 @@ function MessageBubbleInner({
     headingIndexRef
   )
 
+  const isUser = message.role === 'user'
+  const isAssistant = message.role === 'assistant'
+  const isTool = message.role === 'tool'
+  const isSystem = message.role === 'system'
+  const syntheticStreaming = message.id === '__streaming__'
+
   // ─── Search highlighting effect ──────────────────────────────────────────
   useEffect(() => {
-    const container = proseRef.current
+    // Use the outer bubble div so all message types (user, assistant, tool,
+    // system) are covered. proseRef only exists for assistant messages.
+    const container = contentRef.current
     if (!container) return
 
     const clearMarks = () => {
@@ -1022,10 +1031,13 @@ function MessageBubbleInner({
         if (match.index > last) frag.appendChild(document.createTextNode(text.slice(last, match.index)))
         const mark = document.createElement('mark')
         mark.setAttribute('data-search', '')
-        mark.style.backgroundColor = 'var(--highlight-inline)'
+        // User messages have a primary-color background so use a distinct
+        // highlight colour; assistant/tool/system use the default.
+        mark.style.backgroundColor = isUser
+          ? 'var(--highlight-inline-user, rgba(255,255,255,0.35))'
+          : 'var(--highlight-inline, rgba(250,204,21,0.4))'
         mark.style.color = 'inherit'
         mark.style.borderRadius = '2px'
-        mark.style.padding = '0 2px'
         mark.textContent = match[0]
         frag.appendChild(mark)
         last = regex.lastIndex
@@ -1035,13 +1047,7 @@ function MessageBubbleInner({
     }
 
     return clearMarks
-  }, [searchQuery, searchCaseSensitive, searchRegex, message.content])
-
-  const isUser = message.role === 'user'
-  const isAssistant = message.role === 'assistant'
-  const isTool = message.role === 'tool'
-  const isSystem = message.role === 'system'
-  const syntheticStreaming = message.id === '__streaming__'
+  }, [searchQuery, searchCaseSensitive, searchRegex, message.content, isUser])
   const showShimmer = (isAssistant || syntheticStreaming) && isStreaming && !message.content
 
   const isQueued = useMemo(() => {
@@ -1179,6 +1185,7 @@ function MessageBubbleInner({
       >
         <div className={cn(isUser && 'text-right', 'w-full')}>
           <div
+            ref={contentRef}
             data-message-id={message.id}
             className={cn(
               'relative px-3.5 py-2.5 rounded-xl text-sm leading-relaxed transition-colors duration-300',

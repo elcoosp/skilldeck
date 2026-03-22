@@ -97,7 +97,7 @@
 
   /* NEW: Highlight color for search matches (solid blue with good contrast) */
   --highlight-inline: rgba(245, 158, 11, 0.2);
-  /* blue-500 */
+  --highlight-inline-user: rgba(255, 140, 0, 0.6);
 }
 
 .dark {
@@ -158,7 +158,8 @@
 
   /* NEW: Highlight color for search matches – brighter for dark mode */
   --highlight-inline: rgba(251, 191, 36, 0.25);
-  /* blue-400 */
+
+  --highlight-inline-user: rgba(255, 200, 0, 0.6);
 }
 
 @theme inline {
