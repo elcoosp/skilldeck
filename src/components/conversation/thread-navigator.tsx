@@ -1,4 +1,3 @@
-// thread-navigator.tsx
 import { memo, useMemo, useState, useEffect, useRef } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { createPortal } from 'react-dom'
@@ -13,13 +12,15 @@ const DOT_HEIGHT = 20          // 16px button + 4px gap (gap-1)
 interface ThreadNavigatorProps {
   messages: MessageData[]
   activeIndex?: number
+  activeHeadingIndex?: number | null   // ← new prop
   onScrollTo: (index: number) => void
-  onHeadingClick: (messageIndex: number, tocIndex: number) => void   // ← now receives tocIndex
+  onHeadingClick: (messageIndex: number, tocIndex: number) => void
 }
 
 const ThreadNavigator = memo(function ThreadNavigator({
   messages,
   activeIndex = -1,
+  activeHeadingIndex = null,
   onScrollTo,
   onHeadingClick,
 }: ThreadNavigatorProps) {
@@ -289,6 +290,8 @@ const ThreadNavigator = memo(function ThreadNavigator({
                                   {headings.map((h) => {
                                     const isH1 = h.level === 1
                                     const isH2 = h.level === 2
+                                    const isActiveHeading = isActive && activeHeadingIndex === h.tocIndex
+
                                     return (
                                       <button
                                         key={h.tocIndex}
@@ -302,7 +305,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
                                         )}
                                         style={{ paddingLeft: `${(h.level - 1) * 8 + 6}px` }}
                                         onClick={() => {
-                                          onHeadingClick(assistantMsgIdx, h.tocIndex) // ← pass tocIndex
+                                          onHeadingClick(assistantMsgIdx, h.tocIndex)
                                           setIsHovering(false)
                                         }}
                                       >
@@ -310,7 +313,9 @@ const ThreadNavigator = memo(function ThreadNavigator({
                                         <span
                                           className={cn(
                                             'inline-block flex-shrink-0 self-center rounded-full mr-1.5 transition-colors',
-                                            'bg-muted-foreground/20 group-hover:bg-primary/40',
+                                            isActiveHeading
+                                              ? 'bg-primary'
+                                              : 'bg-muted-foreground/20 group-hover:bg-primary/40',
                                             isH1 && 'w-1 h-1',
                                             isH2 && 'w-0.5 h-0.5',
                                             !isH1 && !isH2 && 'w-0.5 h-0.5 opacity-60',
@@ -322,6 +327,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
                                             isH1 && 'text-xs font-medium text-muted-foreground',
                                             isH2 && 'text-xs text-muted-foreground/80',
                                             !isH1 && !isH2 && 'text-[11px] text-muted-foreground/60',
+                                            isActiveHeading && 'text-primary font-medium',
                                           )}
                                         >
                                           {h.text}
