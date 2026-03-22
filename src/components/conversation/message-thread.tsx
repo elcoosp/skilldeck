@@ -536,7 +536,7 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
                       transform: `translateY(${virtualItem.start}px)`,
                     }}
                   >
-                    <div className="px-4 py-1.5">
+                    <div className="pl-6 py-1.5">
                       <MessageBubble
                         message={message}
                         isStreaming={message.id === streamingMessageId}
