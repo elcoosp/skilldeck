@@ -495,7 +495,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
-        <div className="relative overflow-hidden" style={{ height: `${containerHeight}px` }}>
+        <div className="relative overflow-hidden pr-1" style={{ height: `${containerHeight}px` }}>
           <motion.div
             className="flex flex-col gap-1"
             animate={{ y: translateY }}
