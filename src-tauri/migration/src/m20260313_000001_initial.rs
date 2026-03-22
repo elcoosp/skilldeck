@@ -70,7 +70,6 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .default(Expr::current_timestamp()),
                     )
-
                     .col(timestamp_with_time_zone(Profiles::DeletedAt).null())
                     .to_owned(),
             )
@@ -1330,8 +1329,7 @@ impl MigrationTrait for Migration {
         let source_dirs = [
             ("workspace", ".skilldeck/skills", 1_i32),
             ("personal", "~/.skilldeck/skills", 2),
-            ("superpowers", "~/.skilldeck/superpowers", 3),
-            ("marketplace", "~/.skilldeck/marketplace", 4),
+            ("marketplace", "~/.skilldeck/marketplace", 3),
         ];
 
         for (idx, (source_type, path, priority)) in source_dirs.iter().enumerate() {
@@ -1455,7 +1453,7 @@ enum Profiles {
     IsDefault,
     CreatedAt,
     UpdatedAt,
-    DeletedAt
+    DeletedAt,
 }
 
 #[derive(DeriveIden)]

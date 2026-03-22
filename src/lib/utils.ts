@@ -15,12 +15,31 @@ export function escapeRegExp(string: string): string {
 /**
  * Highlights occurrences of `query` in `text` by wrapping them with `<mark>` tags.
  * The mark element will be styled with `background-color: var(--highlight-inline)`.
- * If `query` is empty, returns the original text.
+ *
+ * @param text The original text.
+ * @param query The search query.
+ * @param options.caseSensitive – if true, case-sensitive matching; default false.
+ * @param options.isRegex – if true, treat query as a regex; default false.
+ * @returns HTML string with <mark> tags.
  */
-export function highlightText(text: string, query: string): string {
+export function highlightText(
+  text: string,
+  query: string,
+  options?: { caseSensitive?: boolean; isRegex?: boolean }
+): string {
   if (!query || !text) return text
-  const escaped = escapeRegExp(query)
-  const regex = new RegExp(`(${escaped})`, 'gi')
+  let pattern = query
+  if (!options?.isRegex) {
+    pattern = escapeRegExp(query)
+  }
+  const flags = options?.caseSensitive ? 'g' : 'gi'
+  let regex: RegExp
+  try {
+    regex = new RegExp(`(${pattern})`, flags)
+  } catch {
+    // invalid regex – return plain text
+    return text
+  }
   return text.replace(
     regex,
     '<mark style="background-color:var(--highlight-inline);color:white;border-radius:2px;padding:0 2px;">$1</mark>'
