@@ -131,7 +131,7 @@ export const MessageThread = React.forwardRef<
         if (known) return known
         return msg.role === 'assistant' ? avgAssistantHeightRef.current : 80
       },
-      overscan: 5,
+      overscan: 10,
       useAnimationFrameWithResizeObserver: true,
       measureElement: (el) => {
         const h = el.getBoundingClientRect().height
