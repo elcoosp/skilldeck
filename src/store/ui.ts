@@ -1,3 +1,4 @@
+// src/store/ui.ts
 /**
  * UI state — Zustand store with selective persistence.
  *
@@ -29,6 +30,9 @@ type SettingsTab =
   | 'preferences'
   | 'referral'
   | 'platform'
+  | 'lint'
+  | 'sources'
+  | 'achievements'
 
 interface UIState {
   // ── Active workspace ──────────────────────────────────────────────────
@@ -76,6 +80,10 @@ interface UIState {
   // ── Global search modal ───────────────────────────────────────────────
   globalSearchOpen: boolean
   setGlobalSearchOpen: (open: boolean) => void
+
+  // ── Scroll target for global search ───────────────────────────────────
+  scrollToMessageId: string | null
+  setScrollToMessageId: (id: string | null) => void
 
   // ── Overlays ──────────────────────────────────────────────────────────
   settingsOpen: boolean
@@ -205,6 +213,10 @@ export const useUIStore = create<UIState>()(
       // Global search modal
       globalSearchOpen: false,
       setGlobalSearchOpen: (open) => set({ globalSearchOpen: open }),
+
+      // Scroll target
+      scrollToMessageId: null,
+      setScrollToMessageId: (id) => set({ scrollToMessageId: id }),
 
       // Overlays
       settingsOpen: false,

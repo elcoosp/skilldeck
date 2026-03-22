@@ -25,6 +25,9 @@ import { toast } from 'sonner'
 import { PlatformTab } from '@/components/settings/platform-tab'
 import { PreferencesTab } from '@/components/settings/preferences-tab'
 import { ReferralTab } from '@/components/settings/referral-tab'
+import { LintConfig } from '@/components/settings/lint-config'
+import { SkillSources } from '@/components/settings/skill-sources'
+import { AchievementsTab } from '@/components/settings/achievements-tab'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -38,6 +41,7 @@ import { commands } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
 import { useSettingsStore } from '@/store/settings'
 import { useUIStore } from '@/store/ui'
+
 
 export function SettingsOverlay() {
   const settingsTab = useUIStore((s) => s.settingsTab)
@@ -76,7 +80,10 @@ export function SettingsOverlay() {
               { id: 'appearance', label: 'Appearance', Icon: Sun },
               { id: 'preferences', label: 'Preferences', Icon: Bell },
               { id: 'platform', label: 'Platform', Icon: Globe },
-              { id: 'referral', label: 'Refer & Earn', Icon: Share2 }
+              { id: 'referral', label: 'Refer & Earn', Icon: Share2 },
+              { id: 'lint', label: 'Lint Rules', Icon: AlertTriangle },
+              { id: 'sources', label: 'Skill Sources', Icon: Folder },
+              { id: 'achievements', label: 'Achievements', Icon: Trophy }
             ] as const
           ).map(({ id, label, Icon }) => (
             <button
@@ -116,6 +123,9 @@ export function SettingsOverlay() {
           {settingsTab === 'preferences' && <PreferencesTab />}
           {settingsTab === 'platform' && <PlatformTab />}
           {settingsTab === 'referral' && <ReferralTab />}
+          {settingsTab === 'lint' && <LintConfig />}
+          {settingsTab === 'sources' && <SkillSources />}
+          {settingsTab === 'achievements' && <AchievementsTab />}
         </div>
       </div>
     </button>
@@ -538,27 +548,27 @@ const APPROVAL_FIELDS: Array<{
   label: string
   description: string
 }> = [
-  {
-    key: 'autoApproveReads',
-    label: 'Auto-approve file reads',
-    description: 'Skip the approval dialog for read-only filesystem tools'
-  },
-  {
-    key: 'autoApproveWrites',
-    label: 'Auto-approve file writes',
-    description: 'Skip approval for file creation and modification'
-  },
-  {
-    key: 'autoApproveShell',
-    label: 'Auto-approve shell commands',
-    description: 'Never require approval for shell execution (⚠ dangerous)'
-  },
-  {
-    key: 'autoApproveHttpRequests',
-    label: 'Auto-approve HTTP requests',
-    description: 'Skip approval for outbound HTTP tool calls'
-  }
-]
+    {
+      key: 'autoApproveReads',
+      label: 'Auto-approve file reads',
+      description: 'Skip the approval dialog for read-only filesystem tools'
+    },
+    {
+      key: 'autoApproveWrites',
+      label: 'Auto-approve file writes',
+      description: 'Skip approval for file creation and modification'
+    },
+    {
+      key: 'autoApproveShell',
+      label: 'Auto-approve shell commands',
+      description: 'Never require approval for shell execution (⚠ dangerous)'
+    },
+    {
+      key: 'autoApproveHttpRequests',
+      label: 'Auto-approve HTTP requests',
+      description: 'Skip approval for outbound HTTP tool calls'
+    }
+  ]
 
 function ApprovalsTab() {
   const toolApprovals = useSettingsStore((s) => s.toolApprovals)
