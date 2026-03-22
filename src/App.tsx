@@ -5,11 +5,12 @@
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import './App.css'
 import { AppShell } from '@/components/layout/app-shell'
 import { OnboardingWizard } from '@/components/overlays/onboarding-wizard'
 import { GlobalSearchModal } from '@/components/search/global-search-modal'
+import { SplashScreen } from '@/components/overlays/splash-screen'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { useMcpEvents } from '@/hooks/use-mcp-events'
 import { useSkillEvents } from '@/hooks/use-skill-events'
@@ -96,6 +97,23 @@ function App() {
   const setSettingsTab = useUIStore((s) => s.setSettingsTab)
   const setRightTab = useUIStore((s) => s.setRightTab)
 
+  // Splash screen state
+  const [showSplash, setShowSplash] = useState(true)
+  const [fadeOut, setFadeOut] = useState(false)
+
+  // Start fade-out after 2.5 seconds
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setFadeOut(true)
+    }, 2500)
+    return () => clearTimeout(timer)
+  }, [])
+
+  // Remove splash screen after fade-out completes
+  const handleTransitionEnd = () => {
+    if (fadeOut) setShowSplash(false)
+  }
+
   // Global custom event listener for opening settings with a specific tab
   useEffect(() => {
     const handleOpenSettings = (e: CustomEvent<{ tab: SettingsTab }>) => {
@@ -139,6 +157,15 @@ function App() {
         <ThemeSync />
         <LanguageSync />
         <AppContent />
+        {showSplash && (
+          <div
+            className={`fixed inset-0 z-50 transition-opacity duration-500 ${fadeOut ? 'opacity-0' : 'opacity-100'
+              }`}
+            onTransitionEnd={handleTransitionEnd}
+          >
+            <SplashScreen />
+          </div>
+        )}
       </TooltipProvider>
     </QueryClientProvider>
   )

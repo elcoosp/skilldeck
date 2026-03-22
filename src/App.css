@@ -250,3 +250,132 @@
     background-color: transparent;
   }
 }
+
+/* Splash Screen Animations */
+@keyframes slidePrimary {
+  0% {
+    transform: translate(-200px, -200px) rotate(0deg);
+    opacity: 0.2;
+  }
+
+  40% {
+    transform: translate(70px, 110px) rotate(-8deg);
+    opacity: 1;
+  }
+
+  60% {
+    transform: translate(85px, 125px) rotate(-4deg);
+  }
+
+  100% {
+    transform: translate(80px, 120px) rotate(-5deg);
+  }
+}
+
+.animate-slide-primary {
+  animation: slidePrimary 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes slideSecondary {
+  0% {
+    transform: translate(300px, 300px) rotate(0deg);
+    opacity: 0.2;
+  }
+
+  40% {
+    transform: translate(130px, 150px) rotate(5deg);
+    opacity: 1;
+  }
+
+  60% {
+    transform: translate(115px, 135px) rotate(2deg);
+  }
+
+  100% {
+    transform: translate(120px, 140px) rotate(3deg);
+  }
+}
+
+.animate-slide-secondary {
+  animation: slideSecondary 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes slideThird {
+  0% {
+    transform: translate(300px, -200px) rotate(0deg);
+    opacity: 0.2;
+  }
+
+  40% {
+    transform: translate(170px, 90px) rotate(-4deg);
+    opacity: 0.7;
+  }
+
+  60% {
+    transform: translate(155px, 105px) rotate(-1deg);
+  }
+
+  100% {
+    transform: translate(160px, 100px) rotate(-2deg);
+  }
+}
+
+.animate-slide-third {
+  animation: slideThird 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes sparkleFlash {
+  0% {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+.animate-sparkle-flash {
+  animation: sparkleFlash 0.5s ease-out 1.3s forwards;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.6s ease-out 1.2s forwards;
+}
+
+@keyframes fillProgress {
+  from {
+    width: 0%;
+  }
+
+  to {
+    width: 100%;
+  }
+}
+
+.animate-fill-progress {
+  animation: fillProgress 2s linear forwards;
+}
+
+/* Custom delay utility – not provided by Tailwind by default */
+.delay-1200 {
+  animation-delay: 1.2s;
+}

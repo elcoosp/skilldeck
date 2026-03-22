@@ -12,23 +12,14 @@
   "app": {
     "windows": [
       {
-        "label": "splashscreen",
-        "title": "SkillDeck",
-        "width": 400,
-        "height": 400,
-        "resizable": false,
-        "decorations": false,
-        "alwaysOnTop": true,
-        "center": true,
-        "visible": true,
-        "url": "/splashscreen.html"
-      },
-      {
         "title": "SkillDeck",
         "width": 1200,
         "height": 800,
-        "visible": false,
-        "center": true
+        "visible": true,
+        "center": true,
+        "resizable": true,
+        "fullscreen": false,
+        "decorations": true
       }
     ],
     "security": {
