@@ -1,4 +1,4 @@
-import { memo, useMemo, useState, useEffect, useRef } from 'react'
+import { memo, useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { createPortal } from 'react-dom'
 import { ChevronRight } from 'lucide-react'
@@ -45,6 +45,9 @@ const ThreadNavigator = memo(function ThreadNavigator({
   // Per-item TOC expand state
   const [expandedTocIdx, setExpandedTocIdx] = useState<number | null>(null)
 
+  // Track which message TOCs the user manually collapsed
+  const userCollapsedMessages = useRef<Set<number>>(new Set())
+
   // Only move the window when the active index is outside the visible range
   useEffect(() => {
     if (!hasMessages) return
@@ -90,7 +93,83 @@ const ThreadNavigator = memo(function ThreadNavigator({
   const containerRef = useRef<HTMLDivElement>(null)
   const enterTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
 
+  // Refs to track previous active states for scroll triggering
+  const prevActiveIndexRef = useRef(effectiveActiveIndex)
+  const prevActiveHeadingIndexRef = useRef(activeHeadingIndex)
+
+  // Helper: find message index that contains a given heading tocIndex
+  const findMessageIndexForHeading = useCallback(
+    (tocIndex: number): number | null => {
+      for (let i = 0; i < userMessages.length; i++) {
+        const { idx: messageIdx } = userMessages[i]
+        const assistantMsgIdx = messageIdx + 1
+        const assistantMsgId = messages[assistantMsgIdx]?.id
+        if (assistantMsgId && headingsMap[assistantMsgId]) {
+          const hasHeading = headingsMap[assistantMsgId].some(h => h.tocIndex === tocIndex)
+          if (hasHeading) return i
+        }
+      }
+      return null
+    },
+    [userMessages, messages, headingsMap]
+  )
+
+  // Function to scroll to an element (message or heading) and center it – instant scroll
+  const scrollToElement = useCallback((element: HTMLElement) => {
+    const container = scrollContainerRef.current
+    if (!container) return
+    const containerRect = container.getBoundingClientRect()
+    const elementRect = element.getBoundingClientRect()
+    const scrollTop = container.scrollTop
+    const targetScrollTop =
+      scrollTop +
+      elementRect.top -
+      containerRect.top -
+      containerRect.height / 2 +
+      elementRect.height / 2
+    container.scrollTo({ top: targetScrollTop, behavior: 'auto' }) // instant
+  }, [])
+
+  // Scroll to active heading or message when card opens or active target changes
+  useEffect(() => {
+    if (!isHovering || !cardPosition || !scrollContainerRef.current) return
+
+    const activeChanged =
+      prevActiveIndexRef.current !== effectiveActiveIndex ||
+      prevActiveHeadingIndexRef.current !== activeHeadingIndex
+
+    if (!activeChanged) return
+
+    // Update refs
+    prevActiveIndexRef.current = effectiveActiveIndex
+    prevActiveHeadingIndexRef.current = activeHeadingIndex
+
+    // First, try to scroll to active heading if it exists and is visible
+    if (activeHeadingIndex !== null) {
+      const headingElement = scrollContainerRef.current.querySelector(
+        `[data-heading-idx="${activeHeadingIndex}"]`
+      ) as HTMLElement | null
+
+      if (headingElement) {
+        scrollToElement(headingElement)
+        return
+      }
+    }
+
+    // Fallback: scroll to active message
+    if (effectiveActiveIndex !== -1) {
+      const messageElement = scrollContainerRef.current.querySelector(
+        `[data-message-idx="${effectiveActiveIndex}"]`
+      ) as HTMLElement | null
+      if (messageElement) {
+        scrollToElement(messageElement)
+      }
+    }
+  }, [isHovering, cardPosition, effectiveActiveIndex, activeHeadingIndex, scrollToElement])
+
+  // Update card position when hovering
   useEffect(() => {
     if (!isHovering || !containerRef.current || !hasMessages) {
       setCardPosition(null)
@@ -115,6 +194,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
     }
   }, [isHovering, hasMessages])
 
+  // Cleanup timers
   useEffect(
     () => () => {
       if (enterTimer.current) clearTimeout(enterTimer.current)
@@ -142,6 +222,28 @@ const ThreadNavigator = memo(function ThreadNavigator({
       setOptimisticActiveIndex(null)
     }
   }, [activeIndex, optimisticActiveIndex])
+
+  // When user toggles a chevron, mark that message as manually collapsed/expanded
+  const handleToggleToc = (messageIdx: number, isExpanded: boolean) => {
+    if (!isExpanded) {
+      userCollapsedMessages.current.add(messageIdx)
+    } else {
+      userCollapsedMessages.current.delete(messageIdx)
+    }
+    setExpandedTocIdx(isExpanded ? messageIdx : null)
+  }
+
+  // When a heading is clicked, expand its TOC (override manual collapse) and close the card
+  const handleHeadingClick = (assistantMsgIdx: number, tocIndex: number) => {
+    const messageIdx = assistantMsgIdx - 1
+    if (expandedTocIdx !== messageIdx) {
+      // Remove from manual collapse set because the user now wants it expanded
+      userCollapsedMessages.current.delete(messageIdx)
+      setExpandedTocIdx(messageIdx)
+    }
+    onHeadingClick(assistantMsgIdx, tocIndex)
+    setIsHovering(false)
+  }
 
   return (
     <>
@@ -221,6 +323,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
                 onMouseLeave={handleMouseLeave}
               >
                 <div
+                  ref={scrollContainerRef}
                   className="overflow-y-auto thin-scrollbar"
                   style={{ height: 'calc(min(380px, 70vh) - 16px)' }}
                 >
@@ -234,12 +337,15 @@ const ThreadNavigator = memo(function ThreadNavigator({
                       const isExpanded = expandedTocIdx === idx
 
                       return (
-                        <div key={msg.id}>
+                        <div
+                          key={msg.id}
+                          data-message-idx={idx}
+                        >
                           <div className="flex items-start gap-1 w-full">
                             {/* Main message button */}
                             <button
                               type="button"
-                              className="flex items-start gap-2 flex-1 text-left hover:bg-muted/50 p-1.5 rounded transition-colors min-w-0"
+                              className="group flex items-start gap-2 flex-1 text-left p-1.5 rounded transition-colors min-w-0"
                               onClick={() => {
                                 handleClick(idx)
                                 setIsHovering(false)
@@ -248,12 +354,14 @@ const ThreadNavigator = memo(function ThreadNavigator({
                               <div className="w-4 h-4 flex items-center justify-center flex-shrink-0 mt-0.5">
                                 <div
                                   className={cn(
-                                    'h-[3px] w-3 rounded-full',
-                                    isActive ? 'bg-primary' : 'bg-muted-foreground/50'
+                                    'h-[2px] w-3 rounded-full transition-colors',
+                                    isActive
+                                      ? 'bg-primary'
+                                      : 'bg-muted-foreground/30 group-hover:bg-primary/60'
                                   )}
                                 />
                               </div>
-                              <p className="text-xs text-muted-foreground break-words line-clamp-2 flex-1">
+                              <p className="text-xs text-muted-foreground truncate flex-1 group-hover:text-foreground">
                                 {msg.content}
                               </p>
                             </button>
@@ -262,8 +370,8 @@ const ThreadNavigator = memo(function ThreadNavigator({
                             {hasHeadings && (
                               <button
                                 type="button"
-                                className="flex-shrink-0 p-1 mt-0.5 rounded hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground"
-                                onClick={() => setExpandedTocIdx(isExpanded ? null : idx)}
+                                className="flex-shrink-0 p-1 ml-1 mr-0.5 mt-0.5 rounded hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground"
+                                onClick={() => handleToggleToc(idx, !isExpanded)}
                                 aria-label={isExpanded ? 'Collapse headings' : 'Expand headings'}
                               >
                                 <motion.div
@@ -295,6 +403,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
                                       <button
                                         key={h.tocIndex}
                                         type="button"
+                                        data-heading-idx={h.tocIndex}
                                         className={cn(
                                           'flex w-full text-left rounded transition-colors group',
                                           'hover:bg-muted/60',
@@ -303,10 +412,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
                                           !isH1 && !isH2 && 'py-0.5 px-1.5',
                                         )}
                                         style={{ paddingLeft: `${(h.level - 1) * 8 + 6}px` }}
-                                        onClick={() => {
-                                          onHeadingClick(assistantMsgIdx, h.tocIndex)
-                                          setIsHovering(false)
-                                        }}
+                                        onClick={() => handleHeadingClick(assistantMsgIdx, h.tocIndex)}
                                       >
                                         {/* Level indicator bar */}
                                         <span

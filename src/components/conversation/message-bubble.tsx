@@ -8,7 +8,9 @@ import {
   ChevronRight,
   Clock,
   Copy,
+  Download,
   Loader2,
+  MoreHorizontal,
   User,
   Wrench
 } from 'lucide-react'
@@ -24,6 +26,12 @@ import { rehypeLinkifyCodeUrls } from '@/lib/rehype-linkify-code'
 import { cn, highlightText } from '@/lib/utils'
 import { SubagentCard } from './subagent-card'
 import { openUrl } from '@tauri-apps/plugin-opener'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 interface MessageBubbleProps {
   message: MessageData
@@ -210,7 +218,6 @@ export const MessageBubble = memo(function MessageBubble({
       ),
       td: ({ children, node, ...props }: any) => (
         <td className="border border-border px-2 py-1" {...props}>
-
           {children}
         </td>
       ),
@@ -238,7 +245,7 @@ export const MessageBubble = memo(function MessageBubble({
     clearMarks()
     if (!document.contains(container)) return
 
-    const escaped = searchQuery.replace(/[.*+?^${ }()|[\]\\]/g, '\\$&')
+    const escaped = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     const regex = new RegExp(escaped, 'gi')
 
     const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
@@ -308,6 +315,20 @@ export const MessageBubble = memo(function MessageBubble({
     setTimeout(() => setCopied(false), 2000)
     toast.success('Message copied')
   }, [message.content])
+
+  const downloadMessage = useCallback(() => {
+    const content = message.content
+    const blob = new Blob([content], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `message_${message.id}.txt`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    toast.success('Message downloaded')
+  }, [message.id, message.content])
 
   let subagentData: any = null
   if (isAssistant && !isStreaming && message.content) {
@@ -397,6 +418,37 @@ export const MessageBubble = memo(function MessageBubble({
                     {isCollapsed ? <ChevronRight className="size-3.5" /> : <ChevronDown className="size-3.5" />}
                   </motion.div>
                 </motion.button>
+
+                {/* Dropdown menu for assistant messages */}
+                {isAssistant && !isStreaming && !syntheticStreaming && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        className="p-0.5 hover:bg-muted-foreground/20 rounded transition-colors"
+                        aria-label="Message options"
+                      >
+                        <MoreHorizontal className="size-3.5" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-32">
+                      <DropdownMenuItem
+                        onClick={copyMessage}
+                        className="hover:bg-primary/10 hover:text-primary focus:bg-primary/10 focus:text-primary cursor-pointer"
+                      >
+                        <Copy className="mr-2 h-4 w-4" />
+                        <span>Copy</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={downloadMessage}
+                        className="hover:bg-primary/10 hover:text-primary focus:bg-primary/10 focus:text-primary cursor-pointer"
+                      >
+                        <Download className="mr-2 h-4 w-4" />
+                        <span>Download</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
               </div>
             )}
 
