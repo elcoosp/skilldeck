@@ -1,4 +1,4 @@
-use sea_orm::{ActiveModelTrait, ActiveValue::Set, EntityTrait, QueryFilter, QueryOrder};
+use sea_orm::{ActiveModelTrait, ActiveValue::Set, EntityTrait, QueryFilter};
 use serde::{Deserialize, Serialize};
 use specta::{Type, specta};
 use std::sync::Arc;
@@ -7,6 +7,7 @@ use uuid::Uuid;
 
 use crate::state::AppState;
 use skilldeck_models::bookmarks::{self, Entity as Bookmarks};
+use skilldeck_models::messages::{self, Entity as Messages};
 
 #[derive(Debug, Clone, Serialize, Type)]
 pub struct BookmarkData {
@@ -42,15 +43,16 @@ pub async fn add_bookmark(
     let model = bookmarks::ActiveModel {
         id: Set(id),
         message_id: Set(Uuid::parse_str(&req.message_id).map_err(|e| e.to_string())?),
-        heading_anchor: Set(req.heading_anchor),
-        label: Set(req.label),
+        heading_anchor: Set(req.heading_anchor.clone()), // clone to avoid move
+        label: Set(req.label.clone()),                   // clone to avoid move
+        note: Set(None), // Adjust if your model requires a different default
         created_at: Set(now),
     };
     model.insert(db).await.map_err(|e| e.to_string())?;
     Ok(BookmarkData {
         id: id.to_string(),
         message_id: req.message_id,
-        heading_anchor: req.heading_anchor,
+        heading_anchor: req.heading_anchor, // now usable because we cloned earlier
         label: req.label,
         created_at: now.to_rfc3339(),
     })
@@ -87,39 +89,25 @@ pub async fn list_bookmarks(
         .map_err(|e| e.to_string())?;
     let conv_uuid = Uuid::parse_str(&conversation_id).map_err(|e| e.to_string())?;
 
-    // We need to join messages to filter by conversation_id
-    let sql = r#"
-        SELECT b.id, b.message_id, b.heading_anchor, b.label, b.created_at
-        FROM bookmarks b
-        INNER JOIN messages m ON m.id = b.message_id
-        WHERE m.conversation_id = $1
-        ORDER BY b.created_at ASC
-    "#;
-    let rows = db
-        .query_all(sea_orm::Statement::from_sql_and_values(
-            sea_orm::DbBackend::Sqlite,
-            sql,
-            [conv_uuid.into()],
-        ))
+    let bookmarks = Bookmarks::find()
+        .inner_join(Messages) // Requires relation defined in entity
+        .filter(messages::COLUMN.conversation_id.eq(conv_uuid))
+        .all(db)
         .await
         .map_err(|e| e.to_string())?;
-    let mut bookmarks = Vec::new();
-    for row in rows {
-        let id: String = row.try_get("", "id").map_err(|e| e.to_string())?;
-        let message_id: String = row.try_get("", "message_id").map_err(|e| e.to_string())?;
-        let heading_anchor: Option<String> = row.try_get("", "heading_anchor").ok();
-        let label: Option<String> = row.try_get("", "label").ok();
-        let created_at: chrono::DateTime<chrono::FixedOffset> =
-            row.try_get("", "created_at").map_err(|e| e.to_string())?;
-        bookmarks.push(BookmarkData {
-            id,
-            message_id,
-            heading_anchor,
-            label,
-            created_at: created_at.to_rfc3339(),
-        });
-    }
-    Ok(bookmarks)
+
+    bookmarks
+        .into_iter()
+        .map(|b| {
+            Ok(BookmarkData {
+                id: b.id.to_string(),
+                message_id: b.message_id.to_string(),
+                heading_anchor: b.heading_anchor,
+                label: b.label,
+                created_at: b.created_at.to_rfc3339(),
+            })
+        })
+        .collect()
 }
 
 #[specta]
@@ -131,7 +119,6 @@ pub async fn toggle_bookmark(
     heading_anchor: Option<String>,
     label: Option<String>,
 ) -> Result<Option<BookmarkData>, String> {
-    // Check if exists
     let db = state
         .registry
         .db
@@ -139,22 +126,21 @@ pub async fn toggle_bookmark(
         .await
         .map_err(|e| e.to_string())?;
     let msg_uuid = Uuid::parse_str(&message_id).map_err(|e| e.to_string())?;
+
     let existing = Bookmarks::find()
-        .filter(bookmarks::Column::MessageId.eq(msg_uuid))
-        .filter(bookmarks::Column::HeadingAnchor.eq(heading_anchor.clone()))
+        .filter(bookmarks::COLUMN.message_id.eq(msg_uuid))
+        .filter(bookmarks::COLUMN.heading_anchor.eq(heading_anchor.clone()))
         .one(db)
         .await
         .map_err(|e| e.to_string())?;
 
     if let Some(b) = existing {
-        // Delete
         Bookmarks::delete_by_id(b.id)
             .exec(db)
             .await
             .map_err(|e| e.to_string())?;
         Ok(None)
     } else {
-        // Create
         let req = CreateBookmarkRequest {
             conversation_id,
             message_id,

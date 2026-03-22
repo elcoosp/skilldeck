@@ -17,7 +17,7 @@ use uuid::Uuid;
 use crate::state::AppState;
 use skilldeck_models::conversations::{self, Entity as Conversation};
 use skilldeck_models::messages::{self as msg_model, Entity as Messages};
-use skilldeck_models::profiles::{Entity as Profiles}; // <-- added
+use skilldeck_models::profiles::Entity as Profiles; // <-- added
 
 /// Lightweight summary used by the sidebar list.
 #[derive(Debug, Clone, Serialize, Type)]
@@ -25,8 +25,8 @@ pub struct ConversationSummary {
     pub id: String,
     pub title: Option<String>,
     pub profile_id: String,
-    pub profile_name: Option<String>,      // <-- new
-    pub profile_deleted: bool,             // <-- new
+    pub profile_name: Option<String>, // <-- new
+    pub profile_deleted: bool,        // <-- new
     pub workspace_id: Option<String>,
     pub created_at: String,
     pub updated_at: String,

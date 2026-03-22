@@ -1,4 +1,3 @@
-
 /// Trait for emitting skill events from the core to the shell.
 pub trait SkillEventEmitter: Send + Sync {
     fn emit_updated(&self, source_label: String, skill_name: String);

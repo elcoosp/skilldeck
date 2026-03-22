@@ -30,10 +30,10 @@ pub mod workflow;
 pub mod workspace;
 
 // Re-export commonly used types.
-use skilldeck_lint::LintConfig;
 pub use db::{SqliteDatabase, open_db};
 pub use error::CoreError;
 pub use events::AgentEvent;
+use skilldeck_lint::LintConfig;
 pub use traits::{
     // model provider
     ChatMessage,

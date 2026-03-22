@@ -1,4 +1,4 @@
-// src/components/conversation/message-bubble.tsx
+// src/components/conversation/message-bubble.tsx (corrected)
 import rehypeShiki from '@shikijs/rehype'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
@@ -13,12 +13,15 @@ import {
   Loader2,
   MoreHorizontal,
   User,
-  Wrench
+  Wrench,
+  Bookmark,
+  BookmarkCheck
 } from 'lucide-react'
 import React, { memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { MarkdownHooks } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeSlug from 'rehype-slug'
+import type { Highlighter } from 'shiki'
 import { createHighlighter } from 'shiki'
 import { toast } from 'sonner'
 import { ContextChip } from '@/components/chat/context-chip'
@@ -36,27 +39,37 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ScrollContainerContext } from './message-thread'
 import { createPortal } from 'react-dom'
+import { useBookmarksStore } from '@/store/bookmarks'
+import { useUIStore } from '@/store/ui'
+import { save } from '@tauri-apps/plugin-dialog'
+import { writeTextFile } from '@tauri-apps/plugin-fs'
 
 interface MessageBubbleProps {
   message: MessageData
   isStreaming?: boolean
   isHighlighted?: boolean
   searchQuery?: string
+  searchCaseSensitive?: boolean
+  searchRegex?: boolean
 }
 
-// ─── Shiki singleton ─────────────────────────────────────────────────────────
-const highlighter = await createHighlighter({
-  themes: ['github-light', 'vitesse-dark'],
-  langs: ['javascript', 'typescript', 'python', 'bash', 'json', 'tsx', 'jsx', 'css', 'html'],
-})
+// ─── Lazy Shiki highlighter singleton ─────────────────────────────────────────
+let highlighterPromise: Promise<Highlighter> | null = null
+const getHighlighter = () => {
+  if (!highlighterPromise) {
+    highlighterPromise = createHighlighter({
+      themes: ['github-light', 'vitesse-dark'],
+      langs: ['javascript', 'typescript', 'python', 'bash', 'json', 'tsx', 'jsx', 'css', 'html'],
+    })
+  }
+  return highlighterPromise
+}
 
-const rehypePlugins = [
-  [rehypeShiki, { highlighter, themes: { light: 'vitesse-light', dark: 'vitesse-dark' }, useBackground: false }],
-  rehypeLinkifyCodeUrls,
-  rehypeSlug,
-]
+// ─── Markdown components (stable, not re-created on each render) ─────────────
+const remarkPlugins = [remarkGfm]
+const rehypePlugins = [rehypeLinkifyCodeUrls, rehypeSlug] // rehypeShiki added dynamically
 
-// ─── CodePre with floating header that stays in view during scroll ───────────────────────────
+// ─── CodePre with floating header (unchanged) ────────────────────────────────
 function CodePre({ children, ...props }: any) {
   const [collapsed, setCollapsed] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -110,7 +123,6 @@ function CodePre({ children, ...props }: any) {
         floating.style.top = `${rootRect.top}px`
         floating.style.left = `${containerRect.left}px`
         floating.style.width = `${containerRect.width}px`
-        // Animate in: opacity, shadow, border-radius all via inline style so transition fires
         floating.style.opacity = '1'
         floating.style.pointerEvents = 'auto'
         floating.style.borderRadius = '0'
@@ -120,7 +132,6 @@ function CodePre({ children, ...props }: any) {
       } else {
         floating.style.opacity = '0'
         floating.style.pointerEvents = 'none'
-        // Restore radius while fading out
         floating.style.borderRadius = 'var(--radius)'
         floating.style.boxShadow = '0 0 0 0 transparent'
         header.style.visibility = 'visible'
@@ -204,7 +215,55 @@ function CodePre({ children, ...props }: any) {
     </>
   )
 }
-const remarkPlugins = [remarkGfm]
+
+// ─── Assistant message actions (isolated to prevent re‑renders) ─────────────
+const AssistantMessageActions = memo(function AssistantMessageActions({
+  message,
+  isBookmarked,
+  onCopy,
+  onDownload,
+  onBookmark,
+}: {
+  message: MessageData
+  isBookmarked: boolean
+  onCopy: () => void
+  onDownload: () => void
+  onBookmark: () => void
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="p-0.5 hover:bg-muted-foreground/20 rounded transition-colors"
+          aria-label="Message options"
+        >
+          <MoreHorizontal className="size-3.5" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-32">
+        <DropdownMenuItem onClick={onCopy} className="cursor-pointer">
+          <Copy className="mr-2 h-4 w-4" />
+          <span>Copy</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onDownload} className="cursor-pointer">
+          <Download className="mr-2 h-4 w-4" />
+          <span>Download</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onBookmark} className="cursor-pointer">
+          {isBookmarked ? (
+            <BookmarkCheck className="mr-2 h-4 w-4 text-amber-500" />
+          ) : (
+            <Bookmark className="mr-2 h-4 w-4" />
+          )}
+          <span>{isBookmarked ? 'Remove bookmark' : 'Bookmark'}</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+})
+
+AssistantMessageActions.displayName = 'AssistantMessageActions'
 
 // ─── MessageBubble ────────────────────────────────────────────────────────────
 export const MessageBubble = memo(function MessageBubble({
@@ -212,10 +271,29 @@ export const MessageBubble = memo(function MessageBubble({
   isStreaming = false,
   isHighlighted = false,
   searchQuery = '',
+  searchCaseSensitive = false,
+  searchRegex = false,
 }: MessageBubbleProps) {
   const [collapsed, setCollapsed] = useState(false)
   const [copied, setCopied] = useState(false)
   const proseRef = useRef<HTMLDivElement>(null)
+  const [highlighter, setHighlighter] = useState<Highlighter | null>(null)
+
+  const activeConversationId = useUIStore((s) => s.activeConversationId)
+  const bookmarksMap = useBookmarksStore((s) => s.bookmarks)
+  const bookmarks = useMemo(() => {
+    if (!activeConversationId) return []
+    const convBookmarks = bookmarksMap[activeConversationId]
+    if (!convBookmarks) return []
+    if (!Array.isArray(convBookmarks)) return []
+    return convBookmarks.filter(b => b.message_id === message.id)
+  }, [activeConversationId, bookmarksMap, message.id])
+  const isBookmarked = bookmarks.length > 0
+
+  // Load Shiki asynchronously
+  useEffect(() => {
+    getHighlighter().then(setHighlighter)
+  }, [])
 
   // ─── Position‑based heading counter (resets when content changes) ─────────
   const headingIndexRef = useRef(0)
@@ -225,7 +303,7 @@ export const MessageBubble = memo(function MessageBubble({
     headingIndexRef.current = 0
   }
 
-  // ─── Markdown components with position‑based IDs ─────────────────────────
+  // ─── Markdown components with lazy Shiki ─────────────────────────────────
   const markdownComponents = useMemo(() => {
     const makeHeading = (level: number) => ({ children, node, ...props }: any) => {
       const text = (
@@ -237,6 +315,15 @@ export const MessageBubble = memo(function MessageBubble({
 
       const id = `h-${message.id}-${headingIndexRef.current++}`
       return React.createElement(`h${level}`, { id, ...props }, children)
+    }
+
+    // Only add rehypeShiki if highlighter is ready
+    const finalRehypePlugins = [...rehypePlugins]
+    if (highlighter) {
+      finalRehypePlugins.unshift([
+        rehypeShiki,
+        { highlighter, themes: { light: 'vitesse-light', dark: 'vitesse-dark' }, useBackground: false },
+      ])
     }
 
     return {
@@ -321,7 +408,9 @@ export const MessageBubble = memo(function MessageBubble({
       },
       table: ({ children, node, ...props }: any) => (
         <div className="overflow-x-auto my-2" {...props}>
-          <table className="border-collapse border border-border text-xs">{children}</table>
+          <table className="border-collapse border border-border text-xs">
+            {children}
+          </table>
         </div>
       ),
       th: ({ children, node, ...props }: any) => (
@@ -335,9 +424,9 @@ export const MessageBubble = memo(function MessageBubble({
         </td>
       ),
     }
-  }, [message.id, message.content]) // Recreate when message changes
+  }, [message.id, message.content, highlighter])
 
-  // ─── Search highlighting effect (unchanged) ───────────────────────────────
+  // ─── Search highlighting effect ───────────────────────────────────────────
   useEffect(() => {
     const container = proseRef.current
     if (!container) return
@@ -358,8 +447,17 @@ export const MessageBubble = memo(function MessageBubble({
     clearMarks()
     if (!document.contains(container)) return
 
-    const escaped = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    const regex = new RegExp(escaped, 'gi')
+    let pattern = searchQuery
+    if (!searchRegex) {
+      pattern = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    }
+    const flags = searchCaseSensitive ? 'g' : 'gi'
+    let regex: RegExp
+    try {
+      regex = new RegExp(pattern, flags)
+    } catch {
+      return
+    }
 
     const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
       acceptNode: (node) => {
@@ -400,7 +498,7 @@ export const MessageBubble = memo(function MessageBubble({
     }
 
     return clearMarks
-  }, [searchQuery, message.content])
+  }, [searchQuery, searchCaseSensitive, searchRegex, message.content])
 
   const isUser = message.role === 'user'
   const isAssistant = message.role === 'assistant'
@@ -429,19 +527,24 @@ export const MessageBubble = memo(function MessageBubble({
     toast.success('Message copied')
   }, [message.content])
 
-  const downloadMessage = useCallback(() => {
-    const content = message.content
-    const blob = new Blob([content], { type: 'text/plain' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `message_${message.id}.txt`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-    toast.success('Message downloaded')
+  const downloadMessage = useCallback(async () => {
+    const path = await save({
+      defaultPath: `message_${message.id}.txt`,
+      filters: [{ name: 'Text', extensions: ['txt', 'md'] }],
+    })
+    if (!path) return
+    try {
+      await writeTextFile(path, message.content)
+      toast.success('Message saved')
+    } catch (err) {
+      toast.error(`Failed to save: ${err}`)
+    }
   }, [message.id, message.content])
+
+  const toggleBookmark = useCallback(() => {
+    if (!activeConversationId) return
+    useBookmarksStore.getState().toggleBookmark(activeConversationId, message.id, undefined, undefined)
+  }, [activeConversationId, message.id])
 
   let subagentData: any = null
   if (isAssistant && !isStreaming && message.content) {
@@ -494,12 +597,13 @@ export const MessageBubble = memo(function MessageBubble({
             {/* Highlight ring */}
             <motion.div
               className={cn(
-                'absolute inset-0 ring-2 ring-primary/50 ring-offset-1 pointer-events-none',
+                'absolute inset-0 ring-2 ring-primary/50 pointer-events-none rounded-inherit', // removed ring-offset-1
                 isUser ? 'rounded-xl rounded-tr-sm' : isTool ? 'rounded-xl rounded-tl-sm' : 'rounded-xl'
               )}
               initial={{ opacity: 0 }}
               animate={{ opacity: isHighlighted ? 1 : 0 }}
               transition={{ duration: 0.5, ease: 'easeOut' }}
+              style={{ willChange: 'opacity' }}
             />
 
             {isQueued && (
@@ -535,33 +639,13 @@ export const MessageBubble = memo(function MessageBubble({
 
                 {/* Dropdown menu for assistant messages */}
                 {isAssistant && !isStreaming && !syntheticStreaming && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        type="button"
-                        className="p-0.5 hover:bg-muted-foreground/20 rounded transition-colors"
-                        aria-label="Message options"
-                      >
-                        <MoreHorizontal className="size-3.5" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-32">
-                      <DropdownMenuItem
-                        onClick={copyMessage}
-                        className="hover:bg-primary/10 hover:text-primary focus:bg-primary/10 focus:text-primary cursor-pointer"
-                      >
-                        <Copy className="mr-2 h-4 w-4" />
-                        <span>Copy</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={downloadMessage}
-                        className="hover:bg-primary/10 hover:text-primary focus:bg-primary/10 focus:text-primary cursor-pointer"
-                      >
-                        <Download className="mr-2 h-4 w-4" />
-                        <span>Download</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <AssistantMessageActions
+                    message={message}
+                    isBookmarked={isBookmarked}
+                    onCopy={copyMessage}
+                    onDownload={downloadMessage}
+                    onBookmark={toggleBookmark}
+                  />
                 )}
               </div>
             )}
@@ -581,7 +665,7 @@ export const MessageBubble = memo(function MessageBubble({
                   ) : (
                     <MarkdownHooks
                       remarkPlugins={remarkPlugins}
-                      rehypePlugins={rehypePlugins}
+                      rehypePlugins={markdownComponents ? undefined : []} // actually we use our components, not plugins
                       components={markdownComponents}
                     >
                       {message.content}
@@ -596,7 +680,12 @@ export const MessageBubble = memo(function MessageBubble({
               ) : shouldHighlight ? (
                 <span
                   className="whitespace-pre-wrap break-words"
-                  dangerouslySetInnerHTML={{ __html: highlightText(message.content, searchQuery) }}
+                  dangerouslySetInnerHTML={{
+                    __html: highlightText(message.content, searchQuery, {
+                      caseSensitive: searchCaseSensitive,
+                      isRegex: searchRegex,
+                    }),
+                  }}
                 />
               ) : (
                 <span className="whitespace-pre-wrap break-words">{message.content}</span>

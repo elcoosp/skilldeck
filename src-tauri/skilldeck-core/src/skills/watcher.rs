@@ -3,14 +3,14 @@
 //! Detects SKILL.md create / modify / delete events with a 200 ms debounce
 //! window so that editor save-storms don't flood the reload pipeline.
 
+use crate::CoreError;
+use crate::traits::SkillEventEmitter;
 use notify::{Event, EventKind, RecursiveMode, Watcher};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc::{Sender, channel};
 use tracing::{info, warn};
-use crate::traits::SkillEventEmitter;
-use crate::CoreError;
 
 /// Events emitted by the skill watcher.
 #[derive(Debug, Clone)]
@@ -165,21 +165,14 @@ pub fn start_registry_watcher(
                         .is_ok()
                     {
                         if let Some(ref emitter) = emitter {
-                            let skill_name = skill_dir
-                                .file_name()
-                                .unwrap()
-                                .to_string_lossy()
-                                .to_string();
+                            let skill_name =
+                                skill_dir.file_name().unwrap().to_string_lossy().to_string();
                             emitter.emit_updated(source_label.clone(), skill_name);
                         }
                     }
                 }
                 SkillWatchEvent::Deleted(skill_dir) => {
-                    let skill_name = skill_dir
-                        .file_name()
-                        .unwrap()
-                        .to_string_lossy()
-                        .to_string();
+                    let skill_name = skill_dir.file_name().unwrap().to_string_lossy().to_string();
                     registry
                         .remove_skill_from_source(&source_label, &skill_name)
                         .await;

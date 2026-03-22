@@ -1,6 +1,9 @@
 //! Profile Tauri commands.
 
-use sea_orm::{PaginatorTrait, ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, QueryOrder, QueryFilter};
+use sea_orm::{
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter,
+    QueryOrder,
+};
 use serde::{Deserialize, Serialize};
 use specta::{Type, specta};
 use std::sync::Arc;

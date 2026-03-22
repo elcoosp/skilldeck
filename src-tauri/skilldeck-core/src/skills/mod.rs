@@ -74,7 +74,9 @@ impl SkillRegistry {
             move || do_lint(&path, &cfg)
         })
         .await
-        .map_err(|e| CoreError::Internal { message: e.to_string() })?;
+        .map_err(|e| CoreError::Internal {
+            message: e.to_string(),
+        })?;
 
         skill.lint_warnings = Some(warnings.clone());
         skill.security_score = skilldeck_lint::compute_security_score(&warnings);

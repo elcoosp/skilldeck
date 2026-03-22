@@ -19,8 +19,10 @@ export const useBookmarksStore = create<BookmarksState>((set, get) => ({
     set((state) => ({ isLoading: { ...state.isLoading, [conversationId]: true } }))
     try {
       const data = await commands.listBookmarks(conversationId)
+      // Ensure data is an array (API should return an array, but guard against unexpected)
+      const bookmarksArray = Array.isArray(data) ? data : []
       set((state) => ({
-        bookmarks: { ...state.bookmarks, [conversationId]: data },
+        bookmarks: { ...state.bookmarks, [conversationId]: bookmarksArray },
       }))
     } catch (e) {
       console.error('Failed to load bookmarks', e)
@@ -29,20 +31,23 @@ export const useBookmarksStore = create<BookmarksState>((set, get) => ({
     }
   },
   addBookmark: (conversationId, data) => {
-    set((state) => ({
-      bookmarks: {
-        ...state.bookmarks,
-        [conversationId]: [...(state.bookmarks[conversationId] || []), data],
-      },
-    }))
+    set((state) => {
+      const current = state.bookmarks[conversationId]
+      const newArray = Array.isArray(current) ? [...current, data] : [data]
+      return {
+        bookmarks: { ...state.bookmarks, [conversationId]: newArray },
+      }
+    })
   },
   removeBookmark: (conversationId, bookmarkId) => {
-    set((state) => ({
-      bookmarks: {
-        ...state.bookmarks,
-        [conversationId]: (state.bookmarks[conversationId] || []).filter((b) => b.id !== bookmarkId),
-      },
-    }))
+    set((state) => {
+      const current = state.bookmarks[conversationId]
+      if (!Array.isArray(current)) return state
+      const filtered = current.filter((b) => b.id !== bookmarkId)
+      return {
+        bookmarks: { ...state.bookmarks, [conversationId]: filtered },
+      }
+    })
   },
   toggleBookmark: async (conversationId, messageId, headingAnchor, label) => {
     const result = await commands.toggleBookmark(conversationId, messageId, headingAnchor ?? null, label ?? null)
@@ -57,6 +62,8 @@ export const useBookmarksStore = create<BookmarksState>((set, get) => ({
     }
   },
   getBookmarksForMessage: (conversationId, messageId) => {
-    return (get().bookmarks[conversationId] || []).filter(b => b.message_id === messageId)
+    const convBookmarks = get().bookmarks[conversationId]
+    if (!Array.isArray(convBookmarks)) return []
+    return convBookmarks.filter(b => b.message_id === messageId)
   },
 }))

@@ -21,7 +21,10 @@ use skilldeck_lint::{LintConfig, lint_skill as do_lint};
 /// linted, and the lint results stored in the Skill struct.
 /// Load errors are logged and skipped rather than propagated so that one bad
 /// skill does not prevent the rest from loading.
-pub async fn scan_directory(root: &PathBuf, lint_config: &LintConfig) -> Result<Vec<Skill>, CoreError> {
+pub async fn scan_directory(
+    root: &PathBuf,
+    lint_config: &LintConfig,
+) -> Result<Vec<Skill>, CoreError> {
     let mut skills = Vec::new();
     let loader = FilesystemSkillLoader;
 
@@ -59,9 +62,10 @@ pub async fn scan_directory(root: &PathBuf, lint_config: &LintConfig) -> Result<
                 // Run linter
                 let path_clone = entry_path.clone();
                 let config_clone = lint_config.clone();
-                let warnings = tokio::task::spawn_blocking(move || do_lint(&path_clone, &config_clone))
-                    .await
-                    .unwrap_or_default();
+                let warnings =
+                    tokio::task::spawn_blocking(move || do_lint(&path_clone, &config_clone))
+                        .await
+                        .unwrap_or_default();
                 let sec = skilldeck_lint::compute_security_score(&warnings);
                 let qual = skilldeck_lint::compute_quality_score(&warnings);
 
@@ -85,7 +89,10 @@ pub async fn scan_directory(root: &PathBuf, lint_config: &LintConfig) -> Result<
 ///
 /// Returns `(source_label, skills)` pairs suitable for feeding into
 /// [`crate::skills::resolver::resolve`].
-pub async fn scan_directories(roots: &[(String, PathBuf)], lint_config: &LintConfig) -> Vec<(String, Vec<Skill>)> {
+pub async fn scan_directories(
+    roots: &[(String, PathBuf)],
+    lint_config: &LintConfig,
+) -> Vec<(String, Vec<Skill>)> {
     let mut results = Vec::new();
 
     for (label, path) in roots {
@@ -129,7 +136,9 @@ mod tests {
         write_skill(tmp.path(), "beta");
 
         let config = LintConfig::default();
-        let skills = scan_directory(&tmp.path().to_owned(), &config).await.unwrap();
+        let skills = scan_directory(&tmp.path().to_owned(), &config)
+            .await
+            .unwrap();
         assert_eq!(skills.len(), 2);
         let mut names: Vec<_> = skills.iter().map(|s| s.name.as_str()).collect();
         names.sort();
@@ -144,7 +153,9 @@ mod tests {
         std_fs::create_dir_all(tmp.path().join("not-a-skill")).unwrap();
 
         let config = LintConfig::default();
-        let skills = scan_directory(&tmp.path().to_owned(), &config).await.unwrap();
+        let skills = scan_directory(&tmp.path().to_owned(), &config)
+            .await
+            .unwrap();
         assert_eq!(skills.len(), 1);
         assert_eq!(skills[0].name, "good-skill");
     }

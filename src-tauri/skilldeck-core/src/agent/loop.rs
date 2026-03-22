@@ -361,6 +361,12 @@ impl AgentLoop {
         let mut last_emit = Instant::now();
 
         while let Some(chunk) = stream.next().await {
+            if self.cancel_token.is_cancelled() {
+                // discard accumulated content and break
+                return Err(CoreError::Cancelled {
+                    operation: "stream".into(),
+                });
+            }
             match chunk? {
                 CompletionChunk::Token { content: token } => {
                     content.push_str(&token);

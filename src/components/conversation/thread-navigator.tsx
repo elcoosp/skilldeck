@@ -1,10 +1,14 @@
+// src/components/conversation/thread-navigator.tsx
 import { memo, useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { createPortal } from 'react-dom'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, Bookmark, BookmarkCheck } from 'lucide-react'
 import type { MessageData } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
 import { useAssistantMessageStore } from '@/store/assistant-messages'
+import { useBookmarksStore } from '@/store/bookmarks'
+import { useUIStore } from '@/store/ui'
+import { toast } from 'sonner'
 
 const VISIBLE_ITEMS = 10
 const DOT_HEIGHT = 20          // 16px button + 4px gap (gap-1)
@@ -15,6 +19,7 @@ interface ThreadNavigatorProps {
   activeHeadingIndex?: number | null
   onScrollTo: (index: number) => void
   onHeadingClick: (messageIndex: number, tocIndex: number) => void
+  searchActive?: boolean // added to disable navigation when search is active
 }
 
 const ThreadNavigator = memo(function ThreadNavigator({
@@ -23,7 +28,19 @@ const ThreadNavigator = memo(function ThreadNavigator({
   activeHeadingIndex = null,
   onScrollTo,
   onHeadingClick,
+  searchActive = false,
 }: ThreadNavigatorProps) {
+  const activeConversationId = useUIStore((s) => s.activeConversationId)
+  const { loadBookmarks, getBookmarksForMessage, bookmarks } = useBookmarksStore()
+  const [filterBookmarks, setFilterBookmarks] = useState(false)
+
+  // Load bookmarks when conversation changes
+  useEffect(() => {
+    if (activeConversationId) {
+      loadBookmarks(activeConversationId)
+    }
+  }, [activeConversationId, loadBookmarks])
+
   const userMessages = useMemo(
     () =>
       messages
@@ -32,14 +49,25 @@ const ThreadNavigator = memo(function ThreadNavigator({
     [messages]
   )
 
+  // Filter user messages based on bookmark filter
+  const filteredUserMessages = useMemo(() => {
+    if (!filterBookmarks || !activeConversationId) return userMessages
+    return userMessages.filter(({ idx }) => {
+      // Check if any bookmark exists for this message
+      const msgId = messages[idx].id
+      const bookmarksForMsg = getBookmarksForMessage(activeConversationId, msgId)
+      return bookmarksForMsg.length > 0
+    })
+  }, [userMessages, filterBookmarks, activeConversationId, getBookmarksForMessage, messages])
+
   const headingsMap = useAssistantMessageStore((s) => s.headingsMap)
 
-  const hasMessages = userMessages.length > 0
+  const hasMessages = filteredUserMessages.length > 0
 
   const [optimisticActiveIndex, setOptimisticActiveIndex] = useState<number | null>(null)
   const effectiveActiveIndex = optimisticActiveIndex ?? activeIndex
 
-  // Sliding window: index of the first visible dot
+  // Sliding window: index of the first visible dot (based on filtered messages)
   const [windowStart, setWindowStart] = useState(0)
 
   // Per-item TOC expand state
@@ -48,16 +76,16 @@ const ThreadNavigator = memo(function ThreadNavigator({
   // Track which message TOCs the user manually collapsed
   const userCollapsedMessages = useRef<Set<number>>(new Set())
 
-  // Only move the window when the active index is outside the visible range
+  // Only move the window when the active index is outside the visible range (using filtered list)
   useEffect(() => {
     if (!hasMessages) return
-    const total = userMessages.length
+    const total = filteredUserMessages.length
     if (total <= VISIBLE_ITEMS) {
       setWindowStart(0)
       return
     }
 
-    const currentIdx = userMessages.findIndex(u => u.idx === effectiveActiveIndex)
+    const currentIdx = filteredUserMessages.findIndex(u => u.idx === effectiveActiveIndex)
     if (currentIdx === -1) return
 
     const isOutside = currentIdx < windowStart || currentIdx >= windowStart + VISIBLE_ITEMS
@@ -67,24 +95,24 @@ const ThreadNavigator = memo(function ThreadNavigator({
       const newStart = Math.max(0, Math.min(total - VISIBLE_ITEMS, currentIdx - half))
       setWindowStart(newStart)
     }
-  }, [effectiveActiveIndex, userMessages, windowStart, hasMessages])
+  }, [effectiveActiveIndex, filteredUserMessages, windowStart, hasMessages])
 
   // Keep windowStart within bounds when total changes
   useEffect(() => {
     if (!hasMessages) return
-    const total = userMessages.length
+    const total = filteredUserMessages.length
     if (total <= VISIBLE_ITEMS) {
       setWindowStart(0)
     } else {
       setWindowStart(prev => Math.min(prev, total - VISIBLE_ITEMS))
     }
-  }, [userMessages.length, hasMessages])
+  }, [filteredUserMessages.length, hasMessages])
 
   // Translation amount for the full list
   const translateY = -windowStart * DOT_HEIGHT
 
   // Viewport height shows exactly VISIBLE_ITEMS dots (or fewer if total is less)
-  const visibleCount = hasMessages ? Math.min(userMessages.length, VISIBLE_ITEMS) : 0
+  const visibleCount = hasMessages ? Math.min(filteredUserMessages.length, VISIBLE_ITEMS) : 0
   const containerHeight = visibleCount * DOT_HEIGHT
 
   // Hover card logic
@@ -102,8 +130,8 @@ const ThreadNavigator = memo(function ThreadNavigator({
   // Helper: find message index that contains a given heading tocIndex
   const findMessageIndexForHeading = useCallback(
     (tocIndex: number): number | null => {
-      for (let i = 0; i < userMessages.length; i++) {
-        const { idx: messageIdx } = userMessages[i]
+      for (let i = 0; i < filteredUserMessages.length; i++) {
+        const { idx: messageIdx } = filteredUserMessages[i]
         const assistantMsgIdx = messageIdx + 1
         const assistantMsgId = messages[assistantMsgIdx]?.id
         if (assistantMsgId && headingsMap[assistantMsgId]) {
@@ -113,7 +141,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
       }
       return null
     },
-    [userMessages, messages, headingsMap]
+    [filteredUserMessages, messages, headingsMap]
   )
 
   // Function to scroll to an element (message or heading) and center it – instant scroll
@@ -213,6 +241,10 @@ const ThreadNavigator = memo(function ThreadNavigator({
   }
 
   const handleClick = (idx: number) => {
+    if (searchActive) {
+      toast.info('Clear the search to use thread navigation')
+      return
+    }
     setOptimisticActiveIndex(idx)
     onScrollTo(idx)
   }
@@ -235,6 +267,10 @@ const ThreadNavigator = memo(function ThreadNavigator({
 
   // When a heading is clicked, expand its TOC (override manual collapse) and close the card
   const handleHeadingClick = (assistantMsgIdx: number, tocIndex: number) => {
+    if (searchActive) {
+      toast.info('Clear the search to use thread navigation')
+      return
+    }
     const messageIdx = assistantMsgIdx - 1
     if (expandedTocIdx !== messageIdx) {
       // Remove from manual collapse set because the user now wants it expanded
@@ -244,6 +280,12 @@ const ThreadNavigator = memo(function ThreadNavigator({
     onHeadingClick(assistantMsgIdx, tocIndex)
     setIsHovering(false)
   }
+
+  const toggleBookmarkFilter = () => {
+    setFilterBookmarks(!filterBookmarks)
+  }
+
+  const hasBookmarks = activeConversationId && (bookmarks[activeConversationId]?.length ?? 0) > 0
 
   return (
     <>
@@ -267,9 +309,9 @@ const ThreadNavigator = memo(function ThreadNavigator({
             animate={{ y: translateY }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
           >
-            {userMessages.map(({ msg, idx }) => {
+            {filteredUserMessages.map(({ msg, idx }) => {
               const isActive = idx === effectiveActiveIndex
-              const overallIndex = userMessages.findIndex(u => u.idx === idx)
+              const overallIndex = filteredUserMessages.findIndex(u => u.idx === idx)
               return (
                 <button
                   key={msg.id}
@@ -322,19 +364,43 @@ const ThreadNavigator = memo(function ThreadNavigator({
                 }}
                 onMouseLeave={handleMouseLeave}
               >
+                {/* Filter toggle header */}
+                {hasBookmarks && (
+                  <div className="flex items-center justify-between mb-2 pb-1 border-b border-border">
+                    <span className="text-xs text-muted-foreground">Filter</span>
+                    <button
+                      type="button"
+                      onClick={toggleBookmarkFilter}
+                      className={cn(
+                        'p-1 rounded transition-colors',
+                        filterBookmarks
+                          ? 'text-amber-500 bg-amber-500/10'
+                          : 'text-muted-foreground hover:text-foreground'
+                      )}
+                      title={filterBookmarks ? 'Show all messages' : 'Show only bookmarked'}
+                    >
+                      {filterBookmarks ? (
+                        <BookmarkCheck className="size-3.5" />
+                      ) : (
+                        <Bookmark className="size-3.5" />
+                      )}
+                    </button>
+                  </div>
+                )}
                 <div
                   ref={scrollContainerRef}
                   className="overflow-y-auto thin-scrollbar"
                   style={{ height: 'calc(min(380px, 70vh) - 16px)' }}
                 >
                   <div className="space-y-1 pr-2">
-                    {userMessages.map(({ msg, idx }) => {
+                    {filteredUserMessages.map(({ msg, idx }) => {
                       const isActive = idx === effectiveActiveIndex
                       const assistantMsgIdx = idx + 1
                       const assistantMsgId = messages[assistantMsgIdx]?.id
                       const headings = assistantMsgId ? (headingsMap[assistantMsgId] ?? []) : []
                       const hasHeadings = headings.length > 0
                       const isExpanded = expandedTocIdx === idx
+                      const isBookmarkedMsg = activeConversationId && getBookmarksForMessage(activeConversationId, msg.id).length > 0
 
                       return (
                         <div
@@ -347,6 +413,10 @@ const ThreadNavigator = memo(function ThreadNavigator({
                               type="button"
                               className="group flex items-start gap-2 flex-1 text-left p-1.5 rounded transition-colors min-w-0"
                               onClick={() => {
+                                if (searchActive) {
+                                  toast.info('Clear the search to use thread navigation')
+                                  return
+                                }
                                 handleClick(idx)
                                 setIsHovering(false)
                               }}
@@ -364,6 +434,9 @@ const ThreadNavigator = memo(function ThreadNavigator({
                               <p className="text-xs text-muted-foreground truncate flex-1 transition-colors duration-150 group-hover:text-foreground">
                                 {msg.content}
                               </p>
+                              {isBookmarkedMsg && (
+                                <BookmarkCheck className="size-3 text-amber-500 shrink-0 ml-1" />
+                              )}
                             </button>
 
                             {/* Chevron toggle — only shown if the assistant reply has headings */}

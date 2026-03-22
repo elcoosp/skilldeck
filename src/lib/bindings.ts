@@ -5,6 +5,38 @@
 
 
 export const commands = {
+async addBookmark(req: CreateBookmarkRequest) : Promise<Result<BookmarkData, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("add_bookmark", { req }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async removeBookmark(id: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("remove_bookmark", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async listBookmarks(conversationId: string) : Promise<Result<BookmarkData[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_bookmarks", { conversationId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async toggleBookmark(conversationId: string, messageId: string, headingAnchor: string | null, label: string | null) : Promise<Result<BookmarkData | null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("toggle_bookmark", { conversationId, messageId, headingAnchor, label }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async getAnalytics() : Promise<Result<AnalyticsData, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_analytics") };
@@ -931,6 +963,7 @@ export type AnalyticsData = { total_conversations: string; total_messages: strin
 export type ApiKeyStatus = { provider: string; has_key: boolean }
 export type AssembleFolderRequest = { path: string; deep: boolean; max_bytes: string | null }
 export type AssembleFolderResponse = { assembled_content: string; file_count: string }
+export type BookmarkData = { id: string; message_id: string; heading_anchor: string | null; label: string | null; created_at: string }
 export type BranchInfo = { id: string; name: string | null; parent_message_id: string; created_at: string; message_count: string }
 export type ConfigScope = "global" | "workspace"
 export type ContextItem = { type: "skill"; name: string } | { type: "file"; path: string; name: string; size: string | null } | { type: "folder"; path: string; name: string; scope: FolderScope; file_count: string }
@@ -938,6 +971,7 @@ export type ContextItem = { type: "skill"; name: string } | { type: "file"; path
  * Lightweight summary used by the sidebar list.
  */
 export type ConversationSummary = { id: string; title: string | null; profile_id: string; profile_name: string | null; profile_deleted: boolean; workspace_id: string | null; created_at: string; updated_at: string; message_count: string; pinned: boolean }
+export type CreateBookmarkRequest = { conversation_id: string; message_id: string; heading_anchor: string | null; label: string | null }
 export type CreateBranchRequest = { conversation_id: string; parent_message_id: string; name: string | null }
 export type DailyCount = { date: string; count: string }
 export type DiffResult = { diff: string; has_changes: boolean }

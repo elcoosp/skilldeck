@@ -28,6 +28,7 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { openUrl } from '@tauri-apps/plugin-opener'  // <-- added
 import { UnifiedSkillList } from '@/components/skills/unified-skill-list'
 import { BouncingDots } from '@/components/ui/bouncing-dots'
 import { Button } from '@/components/ui/button'

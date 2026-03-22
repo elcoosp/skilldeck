@@ -10,6 +10,8 @@ pub struct Model {
     pub id: Uuid,
     pub message_id: Uuid,
     pub note: Option<String>,
+    pub heading_anchor: Option<String>,
+    pub label: Option<String>,
     pub created_at: DateTimeWithTimeZone,
 
     #[sea_orm(belongs_to, from = "message_id", to = "id")]

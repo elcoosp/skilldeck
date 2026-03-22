@@ -27,7 +27,6 @@ pub struct AgentConfig {
     pub max_eval_opt_iterations: u32,
 }
 
-
 impl Default for PlatformConfig {
     fn default() -> Self {
         Self {

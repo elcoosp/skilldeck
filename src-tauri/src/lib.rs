@@ -21,9 +21,9 @@ mod sync;
 pub use subagent_server::SubagentServer;
 
 use commands::{
-    analytics::*, branches::*, conversations::*, export::*, files::*, gist::*, mcp::*, messages::*,
-    ollama::*, platform::*, profiles::*, queue::*, settings::*, skills::*, workflows::*,
-    workspaces::*,
+    analytics::*, bookmarks::*, branches::*, conversations::*, export::*, files::*, gist::*,
+    mcp::*, messages::*, ollama::*, platform::*, profiles::*, queue::*, settings::*, skills::*,
+    workflows::*, workspaces::*,
 };
 use events::{AgentEvent, McpEvent, SkillEvent, WorkflowEvent};
 use state::AppState;
@@ -49,6 +49,10 @@ pub fn run() {
     // Build Tauri Specta builder with all commands and events
     let builder = Builder::<tauri::Wry>::new()
         .commands(collect_commands![
+            add_bookmark,
+            remove_bookmark,
+            list_bookmarks,
+            toggle_bookmark,
             get_analytics,
             process_queued_messages,
             set_auto_send_paused,
@@ -179,6 +183,7 @@ pub fn run() {
     let invoke_handler = builder.invoke_handler();
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_keyring::init())

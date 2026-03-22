@@ -1170,6 +1170,8 @@ impl MigrationTrait for Migration {
                     .if_not_exists()
                     .col(uuid(Bookmarks::Id).primary_key())
                     .col(uuid(Bookmarks::MessageId).not_null())
+                    .col(string(Bookmarks::HeadingAnchor))
+                    .col(string(Bookmarks::Label))
                     .col(string(Bookmarks::Note).null())
                     .col(
                         timestamp_with_time_zone(Bookmarks::CreatedAt)
@@ -1862,6 +1864,8 @@ enum Bookmarks {
     Id,
     MessageId,
     Note,
+    HeadingAnchor,
+    Label,
     CreatedAt,
 }
 
