@@ -1,6 +1,8 @@
+// thread-navigator.tsx
 import { memo, useMemo, useState, useEffect, useRef } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { createPortal } from 'react-dom'
+import { ChevronRight } from 'lucide-react'
 import type { MessageData } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
 import { useAssistantMessageStore } from '@/store/assistant-messages'
@@ -12,7 +14,7 @@ interface ThreadNavigatorProps {
   messages: MessageData[]
   activeIndex?: number
   onScrollTo: (index: number) => void
-  onHeadingClick: (messageIndex: number, headingId: string) => void
+  onHeadingClick: (messageIndex: number, tocIndex: number) => void   // ← now receives tocIndex
 }
 
 const ThreadNavigator = memo(function ThreadNavigator({
@@ -31,11 +33,6 @@ const ThreadNavigator = memo(function ThreadNavigator({
 
   const headingsMap = useAssistantMessageStore((s) => s.headingsMap)
 
-  // Find the assistant message that follows the active user message
-  const nextMsgIdx = activeIndex !== -1 ? activeIndex + 1 : -1
-  const activeMsgId = nextMsgIdx !== -1 ? messages[nextMsgIdx]?.id : undefined
-  const activeHeadings = activeMsgId ? (headingsMap[activeMsgId] ?? []) : []
-
   const hasMessages = userMessages.length > 0
 
   const [optimisticActiveIndex, setOptimisticActiveIndex] = useState<number | null>(null)
@@ -43,6 +40,9 @@ const ThreadNavigator = memo(function ThreadNavigator({
 
   // Sliding window: index of the first visible dot
   const [windowStart, setWindowStart] = useState(0)
+
+  // Per-item TOC expand state
+  const [expandedTocIdx, setExpandedTocIdx] = useState<number | null>(null)
 
   // Only move the window when the active index is outside the visible range
   useEffect(() => {
@@ -132,8 +132,6 @@ const ThreadNavigator = memo(function ThreadNavigator({
   }
 
   const handleClick = (idx: number) => {
-    const msg = userMessages.find(u => u.idx === idx)
-    console.log(`[Navigator] 🖱️ clicked fullIndex=${idx}`)
     setOptimisticActiveIndex(idx)
     onScrollTo(idx)
   }
@@ -228,57 +226,116 @@ const ThreadNavigator = memo(function ThreadNavigator({
                   <div className="space-y-1 pr-2">
                     {userMessages.map(({ msg, idx }) => {
                       const isActive = idx === effectiveActiveIndex
-                      return (
-                        <button
-                          key={msg.id}
-                          type="button"
-                          className="flex items-start gap-2 w-full text-left hover:bg-muted/50 p-1.5 rounded transition-colors"
-                          onClick={() => {
-                            handleClick(idx)
-                            setIsHovering(false)
-                          }}
-                        >
-                          <div className="w-4 h-4 flex items-center justify-center flex-shrink-0 mt-0.5">
-                            <div
-                              className={cn(
-                                'h-[3px] w-3 rounded-full',
-                                isActive ? 'bg-primary' : 'bg-muted-foreground/50'
-                              )}
-                            />
-                          </div>
-                          <p className="text-xs text-muted-foreground break-words line-clamp-2 flex-1">
-                            {msg.content}
-                          </p>
-                        </button>
-                      )
-                    })}
+                      const assistantMsgIdx = idx + 1
+                      const assistantMsgId = messages[assistantMsgIdx]?.id
+                      const headings = assistantMsgId ? (headingsMap[assistantMsgId] ?? []) : []
+                      const hasHeadings = headings.length > 0
+                      const isExpanded = expandedTocIdx === idx
 
-                    {/* Table of Contents for the active assistant message */}
-                    {activeHeadings.length > 0 && (
-                      <div className="mt-2 pt-2 border-t border-border">
-                        <p className="text-xs font-medium text-muted-foreground mb-1 px-1.5">
-                          On this page
-                        </p>
-                        <div className="space-y-0.5">
-                          {activeHeadings.map((h) => (
+                      return (
+                        <div key={msg.id}>
+                          <div className="flex items-start gap-1 w-full">
+                            {/* Main message button */}
                             <button
-                              key={h.id}
                               type="button"
-                              className="flex w-full text-left hover:bg-muted/50 px-1.5 py-1 rounded transition-colors"
-                              style={{ paddingLeft: `${(h.level - 1) * 12 + 6}px` }}
+                              className="flex items-start gap-2 flex-1 text-left hover:bg-muted/50 p-1.5 rounded transition-colors min-w-0"
                               onClick={() => {
-                                onHeadingClick(nextMsgIdx, h.id)
+                                handleClick(idx)
                                 setIsHovering(false)
                               }}
                             >
-                              <span className="text-xs text-muted-foreground truncate">
-                                {h.text}
-                              </span>
+                              <div className="w-4 h-4 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                <div
+                                  className={cn(
+                                    'h-[3px] w-3 rounded-full',
+                                    isActive ? 'bg-primary' : 'bg-muted-foreground/50'
+                                  )}
+                                />
+                              </div>
+                              <p className="text-xs text-muted-foreground break-words line-clamp-2 flex-1">
+                                {msg.content}
+                              </p>
                             </button>
-                          ))}
+
+                            {/* Chevron toggle — only shown if the assistant reply has headings */}
+                            {hasHeadings && (
+                              <button
+                                type="button"
+                                className="flex-shrink-0 p-1 mt-0.5 rounded hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground"
+                                onClick={() => setExpandedTocIdx(isExpanded ? null : idx)}
+                                aria-label={isExpanded ? 'Collapse headings' : 'Expand headings'}
+                              >
+                                <motion.div
+                                  animate={{ rotate: isExpanded ? 90 : 0 }}
+                                  transition={{ duration: 0.15 }}
+                                >
+                                  <ChevronRight className="size-3" />
+                                </motion.div>
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Collapsible TOC for this message's assistant reply */}
+                          <AnimatePresence initial={false}>
+                            {isExpanded && hasHeadings && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.15 }}
+                                className="overflow-hidden"
+                              >
+                                <div className="ml-3 mt-0.5 mb-1.5 border-l-2 border-primary/20 pl-2 space-y-px">
+                                  {headings.map((h) => {
+                                    const isH1 = h.level === 1
+                                    const isH2 = h.level === 2
+                                    return (
+                                      <button
+                                        key={h.tocIndex}
+                                        type="button"
+                                        className={cn(
+                                          'flex w-full text-left rounded transition-colors group',
+                                          'hover:bg-muted/60',
+                                          isH1 && 'py-1 px-1.5',
+                                          isH2 && 'py-0.5 px-1.5',
+                                          !isH1 && !isH2 && 'py-0.5 px-1.5',
+                                        )}
+                                        style={{ paddingLeft: `${(h.level - 1) * 8 + 6}px` }}
+                                        onClick={() => {
+                                          onHeadingClick(assistantMsgIdx, h.tocIndex) // ← pass tocIndex
+                                          setIsHovering(false)
+                                        }}
+                                      >
+                                        {/* Level indicator bar */}
+                                        <span
+                                          className={cn(
+                                            'inline-block flex-shrink-0 self-center rounded-full mr-1.5 transition-colors',
+                                            'bg-muted-foreground/20 group-hover:bg-primary/40',
+                                            isH1 && 'w-1 h-1',
+                                            isH2 && 'w-0.5 h-0.5',
+                                            !isH1 && !isH2 && 'w-0.5 h-0.5 opacity-60',
+                                          )}
+                                        />
+                                        <span
+                                          className={cn(
+                                            'truncate transition-colors group-hover:text-foreground',
+                                            isH1 && 'text-xs font-medium text-muted-foreground',
+                                            isH2 && 'text-xs text-muted-foreground/80',
+                                            !isH1 && !isH2 && 'text-[11px] text-muted-foreground/60',
+                                          )}
+                                        >
+                                          {h.text}
+                                        </span>
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
-                      </div>
-                    )}
+                      )
+                    })}
                   </div>
                 </div>
               </motion.div>

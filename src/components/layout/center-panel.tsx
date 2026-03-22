@@ -66,9 +66,12 @@ export function CenterPanel() {
   const clearHeadings = useAssistantMessageStore((s) => s.clearHeadings)
 
   useEffect(() => {
+    console.log(`[CenterPanel] Processing ${messages.length} messages for headings`)
     for (const msg of messages) {
       if (msg.role === 'assistant' && msg.content && msg.id !== '__streaming__') {
-        const headings = extractHeadings(msg.content)
+        console.log(`[CenterPanel] Extracting headings for message ${msg.id.slice(0, 8)}`)
+        const headings = extractHeadings(msg.content, msg.id)
+        console.log(`[CenterPanel] Extracted headings:`, headings.map(h => ({ idx: h.tocIndex, text: h.text.slice(0, 30) })))
         if (headings.length > 0) setHeadings(msg.id, headings)
         else clearHeadings(msg.id)
       }
@@ -195,21 +198,34 @@ export function CenterPanel() {
     threadRef.current?.scrollToMessage(index)
   }, [messages])
 
-  // ─── Heading click handler (two‑phase scroll) ────────────────────────────
-  const handleHeadingClick = useCallback((messageIndex: number, headingId: string) => {
-    // First, scroll to the assistant message containing the heading
-    threadRef.current?.scrollToMessage(messageIndex)
-    // After the virtualizer settles (roughly 300ms), scroll the heading into view
-    setTimeout(() => {
-      const headingElement = document.getElementById(headingId)
-      const scrollContainer = threadRef.current?.getScrollElement()
-      if (headingElement && scrollContainer) {
-        const elTop = headingElement.getBoundingClientRect().top
-        const containerTop = scrollContainer.getBoundingClientRect().top
-        scrollContainer.scrollTop += elTop - containerTop - 16 // 16px padding
-      }
-    }, 300)
-  }, [])
+  // ─── Heading click handler (position‑based, no ID matching) ───────────────
+  const handleHeadingClick = useCallback((messageIndex: number, tocIndex: number) => {
+    const targetMsgId = messages[messageIndex]?.id
+    const scrollContainer = threadRef.current?.getScrollElement()
+
+    const scrollToHeading = () => {
+      requestAnimationFrame(() => {
+        const container = threadRef.current?.getScrollElement()
+        const bubble = container?.querySelector(`[data-msg-id="${targetMsgId}"]`)
+        if (!bubble || !container) return
+        const headingEls = bubble.querySelectorAll('h1,h2,h3,h4,h5,h6')
+        const target = headingEls[tocIndex]
+        if (!target) return
+        const elTop = target.getBoundingClientRect().top
+        const containerTop = container.getBoundingClientRect().top
+        container.scrollTop += elTop - containerTop - 16
+      })
+    }
+
+    // If bubble is already in the DOM, skip virtualizer scroll entirely
+    const bubbleAlreadyRendered = !!scrollContainer?.querySelector(`[data-msg-id="${targetMsgId}"]`)
+
+    if (bubbleAlreadyRendered) {
+      scrollToHeading()
+    } else {
+      threadRef.current?.scrollToMessage(messageIndex, scrollToHeading)
+    }
+  }, [messages])
 
   // ─── Keyboard shortcut ⌘F / Ctrl+F ───────────────────────────────────────
   useEffect(() => {

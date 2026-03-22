@@ -1,4 +1,9 @@
-import { useVirtualizer, elementScroll, Virtualizer } from '@tanstack/react-virtual'
+// message-thread.tsx
+import {
+  useVirtualizer,
+  elementScroll,
+  Virtualizer
+} from '@tanstack/react-virtual'
 import { motion } from 'framer-motion'
 import * as React from 'react'
 import type { MessageData } from '@/lib/bindings'
@@ -11,7 +16,7 @@ export interface ScrollToken {
 }
 
 export interface MessageThreadHandle {
-  scrollToMessage: (fullIndex: number) => void
+  scrollToMessage: (fullIndex: number, onComplete?: () => void) => void // ← added optional callback
   scrollToBottom: () => void
   getScrollElement: () => HTMLElement | null
   getScrollToken: () => ScrollToken | null
@@ -40,7 +45,10 @@ function distFromBottom(el: HTMLElement): number {
 // Survives conversation switches within the session
 const globalMeasuredSizes = new Map<string, number>()
 
-export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThreadProps>(
+export const MessageThread = React.forwardRef<
+  MessageThreadHandle,
+  MessageThreadProps
+>(
   (
     {
       messages,
@@ -52,7 +60,7 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
       initialScrollToken,
       autoScroll = true,
       onVisibleUserIndexChange,
-      onScrollSettled,
+      onScrollSettled
     },
     ref
   ) => {
@@ -80,7 +88,7 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
     // ─── Conversation switch ───────────────────────────────────────────────────
     const prevConversationKeyRef = React.useRef(conversationKey)
     const initialScrollTokenRef = React.useRef(initialScrollToken)
-    const isSwitchingRef = React.useRef(false)   // true from render until layout effect runs
+    const isSwitchingRef = React.useRef(false)
 
     if (prevConversationKeyRef.current !== conversationKey) {
       prevConversationKeyRef.current = conversationKey
@@ -88,33 +96,29 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
       isSwitchingRef.current = true
     }
 
-    // ─── Navigator scroll state ───────────────────────────────────────────────
-    // scrollToMessage kicks off a rAF loop that polls until the target item
-    // has a stable, non-collapsed position, then sets scrollTop directly.
     const navigatorActiveRef = React.useRef(false)
-
-    // ─── Auto-scroll gate ─────────────────────────────────────────────────────
-    // Blocks auto-scroll to bottom during switch/restoration/navigator scroll.
-    // Simple boolean: true = auto-scroll allowed.
     const autoScrollReadyRef = React.useRef(false)
 
-    // ─── scrollToFn ───────────────────────────────────────────────────────────
     const scrollToFn: (
       offset: number,
-      options: { behavior?: ScrollBehavior; adjustments?: number },
-      instance: Virtualizer<HTMLDivElement, Element>
+      options: { behavior?: ScrollBehavior },
+      instance: Virtualizer<Element, Element>
     ) => void = React.useCallback((offset, { behavior }, instance) => {
       isProgrammaticScrollRef.current = true
       elementScroll(offset, { behavior }, instance)
-      requestAnimationFrame(() => { isProgrammaticScrollRef.current = false })
+      requestAnimationFrame(() => {
+        isProgrammaticScrollRef.current = false
+      })
     }, [])
 
     const avgAssistantHeightRef = React.useRef(5000)
     const updateAvgAssistantHeight = React.useCallback((newHeight: number) => {
-      avgAssistantHeightRef.current = Math.round(avgAssistantHeightRef.current * 0.7 + newHeight * 0.3)
+      avgAssistantHeightRef.current = Math.round(
+        avgAssistantHeightRef.current * 0.7 + newHeight * 0.3
+      )
     }, [])
 
-    const virtualizer = useVirtualizer<HTMLDivElement, Element>({
+    const virtualizer = useVirtualizer({
       count: filteredMessages.length,
       getScrollElement: () => scrollRef.current,
       estimateSize: (index) => {
@@ -132,11 +136,6 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
         if (msgId) {
           const role = (el as HTMLElement).dataset.role ?? 'user'
           const prev = measuredSizesRef.current.get(msgId)
-          const estimate = prev ?? (role === 'assistant' ? avgAssistantHeightRef.current : 80)
-          const delta = h - estimate
-          if (Math.abs(delta) > 50) {
-            console.log(`[Measure] msgId=${msgId.slice(0, 8)} role=${role} estimated=${estimate} actual=${h} delta=${delta}`)
-          }
           measuredSizesRef.current.set(msgId, h)
           if (role === 'assistant' && h > 80) updateAvgAssistantHeight(h)
         }
@@ -150,12 +149,7 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
         const el = instance.scrollElement as HTMLElement | null
         const dist = el ? distFromBottom(el) : 999
         const dir = instance.scrollDirection ?? 'none'
-        const range = `${items[0].index}..${items[items.length - 1].index}`
-        console.log(`[onChange] dir=${dir} offset=${instance.scrollOffset} total=${Math.round(instance.getTotalSize())} dist=${Math.round(dist)} range=${range} scrolling=${instance.isScrolling}`)
 
-        // ── Auto-scroll to bottom for new messages ─────────────────────────────
-        // All guards are collapsed into one flag (autoScrollReadyRef) that is
-        // set only after mount/switch setup is complete.
         if (!autoScrollRef.current) return
         if (streamingRef.current) return
         if (userScrolledAwayRef.current) return
@@ -164,49 +158,45 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
         if (dist === 0) {
           const lastIdx = filteredMessagesRef.current.length - 1
           if (lastIdx >= 0) {
-            console.log(`[AutoScroll] at-bottom dir=${dir} — scrolling to ${lastIdx}`)
             instance.scrollToIndex(lastIdx, { align: 'end', behavior: 'auto' })
           }
         }
-      },
+      }
     })
 
     const virtualizerRef = React.useRef(virtualizer)
     virtualizerRef.current = virtualizer
 
-    // ─── Scroll application helper ────────────────────────────────────────────
-    // Polls until scrollHeight is large enough, then sets scrollTop once.
-    // Used for both restoration and initial scroll-to-bottom.
-    const applyScrollTop = React.useCallback((
-      el: HTMLElement,
-      savedScrollTop: number,
-      onLanded: (actual: number) => void,
-      maxAttempts = 60
-    ) => {
-      let attempts = 0
-      const tryApply = () => {
-        const maxScroll = el.scrollHeight - el.clientHeight
-        if (maxScroll >= savedScrollTop || attempts >= maxAttempts) {
-          const final = Math.min(savedScrollTop, Math.max(0, maxScroll))
-          console.log(`[Restore] applying scrollTop=${final} attempts=${attempts} maxScroll=${maxScroll}`)
-          isProgrammaticScrollRef.current = true
-          el.scrollTop = final
-          requestAnimationFrame(() => {
-            isProgrammaticScrollRef.current = false
-            // Confirm it actually landed (browser may clamp again if layout shifts)
+    const applyScrollTop = React.useCallback(
+      (
+        el: HTMLElement,
+        savedScrollTop: number,
+        onLanded: (actual: number) => void,
+        maxAttempts = 60
+      ) => {
+        let attempts = 0
+        const tryApply = () => {
+          const maxScroll = el.scrollHeight - el.clientHeight
+          if (maxScroll >= savedScrollTop || attempts >= maxAttempts) {
+            const final = Math.min(savedScrollTop, Math.max(0, maxScroll))
+            isProgrammaticScrollRef.current = true
+            el.scrollTop = final
             requestAnimationFrame(() => {
-              onLanded(el.scrollTop)
+              isProgrammaticScrollRef.current = false
+              requestAnimationFrame(() => {
+                onLanded(el.scrollTop)
+              })
             })
-          })
-        } else {
-          attempts++
-          requestAnimationFrame(tryApply)
+          } else {
+            attempts++
+            requestAnimationFrame(tryApply)
+          }
         }
-      }
-      requestAnimationFrame(tryApply)
-    }, [])
+        requestAnimationFrame(tryApply)
+      },
+      []
+    )
 
-    // ─── Conversation switch handler ──────────────────────────────────────────
     React.useLayoutEffect(() => {
       if (!isSwitchingRef.current) return
       isSwitchingRef.current = false
@@ -214,7 +204,6 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
       const el = scrollRef.current
       if (!el) return
 
-      // Reset all state
       navigatorActiveRef.current = false
       autoScrollReadyRef.current = false
       userScrolledAwayRef.current = false
@@ -222,23 +211,25 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
       const token = initialScrollTokenRef.current
       if (token?.scrollTop) {
         applyScrollTop(el, token.scrollTop, (actual) => {
-          console.log(`[Restore] ✅ landed scrollTop=${actual}`)
-          autoScrollReadyRef.current = false // stay blocked — user is mid-list
           if (onScrollSettledRef.current && token.messageId) {
-            onScrollSettledRef.current({ messageId: token.messageId, scrollTop: actual })
+            onScrollSettledRef.current({
+              messageId: token.messageId,
+              scrollTop: actual
+            })
           }
         })
       } else {
-        // New conversation with no token — scroll to bottom
         const lastIdx = filteredMessagesRef.current.length - 1
         if (lastIdx >= 0) {
-          virtualizerRef.current.scrollToIndex(lastIdx, { align: 'end', behavior: 'auto' })
+          virtualizerRef.current.scrollToIndex(lastIdx, {
+            align: 'end',
+            behavior: 'auto'
+          })
         }
         autoScrollReadyRef.current = true
       }
-    }) // runs every render, guarded by isSwitchingRef
+    })
 
-    // ─── Mount handler ────────────────────────────────────────────────────────
     const didMountRef = React.useRef(false)
     React.useLayoutEffect(() => {
       if (didMountRef.current) return
@@ -250,30 +241,32 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
       const token = initialScrollTokenRef.current
       if (token?.scrollTop) {
         applyScrollTop(el, token.scrollTop, (actual) => {
-          console.log(`[Restore] ✅ mount landed scrollTop=${actual}`)
           if (onScrollSettledRef.current && token.messageId) {
-            onScrollSettledRef.current({ messageId: token.messageId, scrollTop: actual })
+            onScrollSettledRef.current({
+              messageId: token.messageId,
+              scrollTop: actual
+            })
           }
         })
       } else {
         const lastIdx = filteredMessagesRef.current.length - 1
         if (lastIdx >= 0) {
-          virtualizerRef.current.scrollToIndex(lastIdx, { align: 'end', behavior: 'auto' })
+          virtualizerRef.current.scrollToIndex(lastIdx, {
+            align: 'end',
+            behavior: 'auto'
+          })
         }
         autoScrollReadyRef.current = true
       }
     }, [applyScrollTop])
 
-    // ─── User scroll detection ────────────────────────────────────────────────
     React.useEffect(() => {
       const el = scrollRef.current
       if (!el) return
       const onScroll = () => {
         if (isProgrammaticScrollRef.current) return
         if (navigatorActiveRef.current) {
-          // User scrolled during navigator — cancel it
           navigatorActiveRef.current = false
-          console.log(`[UserScroll] cancelled navigator scroll`)
         }
         const dist = distFromBottom(el)
         userScrolledAwayRef.current = dist > 100
@@ -282,21 +275,26 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
       return () => el.removeEventListener('scroll', onScroll)
     }, [])
 
-    // ─── Search reset ─────────────────────────────────────────────────────────
     React.useLayoutEffect(() => {
-      if (searchQuery.trim()) virtualizerRef.current.scrollToOffset(0, { behavior: 'auto' })
+      if (searchQuery.trim())
+        virtualizerRef.current.scrollToOffset(0, { behavior: 'auto' })
     }, [searchQuery])
     React.useEffect(() => {
       if (searchQuery.trim()) virtualizerRef.current.measure()
     }, [searchQuery])
 
-    // ─── Streaming auto-scroll ────────────────────────────────────────────────
     const lastItemNodeRef = React.useRef<Element | null>(null)
     const streamingRoRef = React.useRef<ResizeObserver | null>(null)
 
     React.useEffect(() => {
-      if (streamingRoRef.current) { streamingRoRef.current.disconnect(); streamingRoRef.current = null }
-      if (!streamingMessageId) { userScrolledAwayRef.current = false; return }
+      if (streamingRoRef.current) {
+        streamingRoRef.current.disconnect()
+        streamingRoRef.current = null
+      }
+      if (!streamingMessageId) {
+        userScrolledAwayRef.current = false
+        return
+      }
       userScrolledAwayRef.current = false
       const el = scrollRef.current
       if (!el) return
@@ -304,18 +302,24 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
         if (!autoScrollRef.current || userScrolledAwayRef.current) return
         isProgrammaticScrollRef.current = true
         el.scrollTop = el.scrollHeight
-        requestAnimationFrame(() => { isProgrammaticScrollRef.current = false })
+        requestAnimationFrame(() => {
+          isProgrammaticScrollRef.current = false
+        })
       }
       scrollToBottom()
       const ro = new ResizeObserver(scrollToBottom)
       streamingRoRef.current = ro
       if (lastItemNodeRef.current) ro.observe(lastItemNodeRef.current)
-      return () => { ro.disconnect(); streamingRoRef.current = null }
+      return () => {
+        ro.disconnect()
+        streamingRoRef.current = null
+      }
     }, [streamingMessageId])
 
-    // ─── Visible user index tracking ─────────────────────────────────────────
     const callbackRef = React.useRef(onVisibleUserIndexChange)
-    React.useLayoutEffect(() => { callbackRef.current = onVisibleUserIndexChange })
+    React.useLayoutEffect(() => {
+      callbackRef.current = onVisibleUserIndexChange
+    })
 
     React.useEffect(() => {
       const el = scrollRef.current
@@ -327,8 +331,8 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
         if (fullIdx !== -1) filteredToFull.set(fi, fullIdx)
       })
       const userFilteredIndices = filteredMessages
-        .map((m, i) => m.role === 'user' ? i : -1)
-        .filter(i => i !== -1)
+        .map((m, i) => (m.role === 'user' ? i : -1))
+        .filter((i) => i !== -1)
 
       if (userFilteredIndices.length === 0) return
 
@@ -357,117 +361,135 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
 
       el.addEventListener('scroll', report, { passive: true })
       const t = setTimeout(report, 50)
-      return () => { clearTimeout(t); el.removeEventListener('scroll', report) }
+      return () => {
+        clearTimeout(t)
+        el.removeEventListener('scroll', report)
+      }
     }, [filteredMessages, messages, onVisibleUserIndexChange])
 
-    // ─── Imperative handle ───────────────────────────────────────────────────
-    React.useImperativeHandle(ref, () => ({
-      scrollToMessage: (fullIndex: number) => {
-        const el = scrollRef.current
-        if (!el) return
-        const targetId = messages[fullIndex]?.id
-        if (!targetId) return
-        const fi = filteredMessagesRef.current.findIndex((m) => m.id === targetId)
-        if (fi === -1) return
+    // ─── Imperative handle with optional callback ────────────────────────────
+    React.useImperativeHandle(
+      ref,
+      () => ({
+        scrollToMessage: (fullIndex: number, onComplete?: () => void) => {
+          const el = scrollRef.current
+          if (!el) return
+          const targetId = messages[fullIndex]?.id
+          if (!targetId) return
+          const fi = filteredMessagesRef.current.findIndex(
+            (m) => m.id === targetId
+          )
+          if (fi === -1) return
 
-        navigatorActiveRef.current = true
+          navigatorActiveRef.current = true
 
-        // Use scrollToIndex to get the virtualizer to render the target item,
-        // then poll until the item's position is stable and apply scrollTop directly.
-        virtualizerRef.current.scrollToIndex(fi, { align: 'start', behavior: 'auto' })
+          virtualizerRef.current.scrollToIndex(fi, {
+            align: 'start',
+            behavior: 'auto'
+          })
 
-        let lastStart = -1
-        let stableTicks = 0
-        const poll = () => {
-          if (!navigatorActiveRef.current) return // user cancelled
-          const vItems = virtualizerRef.current.getVirtualItems()
-          const targetItem = vItems.find(it => it.index === fi)
-          if (!targetItem) {
-            // Item not yet in render window — keep requesting
-            virtualizerRef.current.scrollToIndex(fi, { align: 'start', behavior: 'auto' })
-            requestAnimationFrame(poll)
-            return
-          }
-          const start = targetItem.start
-          if (Math.abs(start - lastStart) <= 2) {
-            stableTicks++
-          } else {
-            stableTicks = 0
-          }
-          lastStart = start
+          let lastStart = -1
+          let stableTicks = 0
+          const poll = () => {
+            if (!navigatorActiveRef.current) return
+            const vItems = virtualizerRef.current.getVirtualItems()
+            const targetItem = vItems.find((it) => it.index === fi)
+            if (!targetItem) {
+              virtualizerRef.current.scrollToIndex(fi, {
+                align: 'start',
+                behavior: 'auto'
+              })
+              requestAnimationFrame(poll)
+              return
+            }
+            const start = targetItem.start
+            if (Math.abs(start - lastStart) <= 2) {
+              stableTicks++
+            } else {
+              stableTicks = 0
+            }
+            lastStart = start
 
-          if (stableTicks >= 3) {
-            // Position is stable — apply it
-            console.log(`[Navigator] stable at start=${start} after ${stableTicks} ticks`)
-            navigatorActiveRef.current = false
-            isProgrammaticScrollRef.current = true
-            el.scrollTop = start
-            requestAnimationFrame(() => {
-              isProgrammaticScrollRef.current = false
-              // Save token
-              if (onScrollSettledRef.current) {
-                const msg = filteredMessagesRef.current[fi]
-                if (msg) {
-                  onScrollSettledRef.current({ messageId: msg.id, scrollTop: start })
-                  console.log(`[Navigator] ✅ converged msgId=${msg.id.slice(0, 8)} scrollTop=${start}`)
+            if (stableTicks >= 3) {
+              navigatorActiveRef.current = false
+              isProgrammaticScrollRef.current = true
+              el.scrollTop = start
+              requestAnimationFrame(() => {
+                isProgrammaticScrollRef.current = false
+                if (onScrollSettledRef.current) {
+                  const msg = filteredMessagesRef.current[fi]
+                  if (msg) {
+                    onScrollSettledRef.current({
+                      messageId: msg.id,
+                      scrollTop: start
+                    })
+                  }
                 }
+                if (onComplete) onComplete()
+              })
+            } else {
+              virtualizerRef.current.scrollToIndex(fi, {
+                align: 'start',
+                behavior: 'auto'
+              })
+              requestAnimationFrame(poll)
+            }
+          }
+          requestAnimationFrame(poll)
+        },
+
+        scrollToBottom: () => {
+          const el = scrollRef.current
+          if (!el) return
+          const lastIdx = filteredMessagesRef.current.length - 1
+          if (lastIdx < 0) return
+          virtualizerRef.current.scrollToIndex(lastIdx, {
+            align: 'end',
+            behavior: 'auto'
+          })
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              if (scrollRef.current) {
+                isProgrammaticScrollRef.current = true
+                scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+                requestAnimationFrame(() => {
+                  isProgrammaticScrollRef.current = false
+                })
               }
             })
-          } else {
-            // Keep scrollToIndex to fight drift, keep polling
-            virtualizerRef.current.scrollToIndex(fi, { align: 'start', behavior: 'auto' })
-            requestAnimationFrame(poll)
-          }
-        }
-        requestAnimationFrame(poll)
-      },
-
-      scrollToBottom: () => {
-        const el = scrollRef.current
-        if (!el) return
-        const lastIdx = filteredMessagesRef.current.length - 1
-        if (lastIdx < 0) return
-        virtualizerRef.current.scrollToIndex(lastIdx, { align: 'end', behavior: 'auto' })
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            if (scrollRef.current) {
-              isProgrammaticScrollRef.current = true
-              scrollRef.current.scrollTop = scrollRef.current.scrollHeight
-              requestAnimationFrame(() => { isProgrammaticScrollRef.current = false })
-            }
           })
-        })
-      },
+        },
 
-      getScrollElement: () => scrollRef.current,
+        getScrollElement: () => scrollRef.current,
+        getScrollToken: (): ScrollToken | null => {
+          if (navigatorActiveRef.current) return null
+          const el = scrollRef.current
+          if (!el) return null
+          const vItems = virtualizerRef.current.getVirtualItems()
+          if (vItems.length === 0) return null
+          const scrollTop = el.scrollTop
+          let topItem = vItems[0]
+          for (const item of vItems) {
+            if (item.start <= scrollTop) topItem = item
+            else break
+          }
+          const msg = filteredMessagesRef.current[topItem.index]
+          if (!msg) return null
+          return { messageId: msg.id, scrollTop }
+        },
 
-      getScrollToken: (): ScrollToken | null => {
-        if (navigatorActiveRef.current) return null
-        const el = scrollRef.current
-        if (!el) return null
-        const vItems = virtualizerRef.current.getVirtualItems()
-        if (vItems.length === 0) return null
-        const scrollTop = el.scrollTop
-        let topItem = vItems[0]
-        for (const item of vItems) {
-          if (item.start <= scrollTop) topItem = item
-          else break
+        isScrollingToMessage: () => navigatorActiveRef.current,
+        getScrollPosition: () => scrollRef.current?.scrollTop ?? 0,
+
+        onScroll: (cb: () => void) => {
+          const el = scrollRef.current
+          if (!el) return () => {}
+          el.addEventListener('scroll', cb, { passive: true })
+          return () => el.removeEventListener('scroll', cb)
         }
-        const msg = filteredMessagesRef.current[topItem.index]
-        if (!msg) return null
-        return { messageId: msg.id, scrollTop }
-      },
-
-      isScrollingToMessage: () => navigatorActiveRef.current,
-      getScrollPosition: () => scrollRef.current?.scrollTop ?? 0,
-
-      onScroll: (cb: () => void) => {
-        const el = scrollRef.current
-        if (!el) return () => { }
-        el.addEventListener('scroll', cb, { passive: true })
-        return () => el.removeEventListener('scroll', cb)
-      },
-    }), [messages])
+      }),
+      [messages]
+    )
 
     // ─── Render ──────────────────────────────────────────────────────────────
     const virtualItems = virtualizer.getVirtualItems()
@@ -479,7 +501,9 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
           {isLoading && (
             <motion.div
               className="flex items-center justify-center h-full text-sm text-muted-foreground"
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.2 }}
             >
               <div className="flex flex-col items-center gap-2">
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -491,20 +515,35 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
           {!isLoading && filteredMessages.length === 0 && (
             <motion.div
               className="flex flex-col items-center justify-center h-full text-center px-8"
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.2 }}
             >
-              <img src="/illustrations/empty-messages.svg" alt="Empty conversation" className="w-48 h-48 mb-4 opacity-90" />
+              <img
+                src="/illustrations/empty-messages.svg"
+                alt="Empty conversation"
+                className="w-48 h-48 mb-4 opacity-90"
+              />
               <h3 className="text-lg font-semibold text-foreground mb-1">
-                {searchQuery ? 'No matching messages' : 'This conversation is empty'}
+                {searchQuery
+                  ? 'No matching messages'
+                  : 'This conversation is empty'}
               </h3>
               <p className="text-sm text-muted-foreground max-w-xs">
-                {searchQuery ? 'Try a different search term.' : 'Type a message below to begin your chat with the agent.'}
+                {searchQuery
+                  ? 'Try a different search term.'
+                  : 'Type a message below to begin your chat with the agent.'}
               </p>
             </motion.div>
           )}
 
           {!isLoading && filteredMessages.length > 0 && (
-            <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
+            <div
+              style={{
+                height: virtualizer.getTotalSize(),
+                position: 'relative'
+              }}
+            >
               {virtualItems.map((virtualItem) => {
                 const message = filteredMessages[virtualItem.index]
                 const isLast = virtualItem.index === lastFilteredIdx
@@ -515,8 +554,13 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
                       virtualizer.measureElement(node)
                       if (isLast) {
                         if (node !== lastItemNodeRef.current) {
-                          if (lastItemNodeRef.current && streamingRoRef.current) {
-                            streamingRoRef.current.unobserve(lastItemNodeRef.current)
+                          if (
+                            lastItemNodeRef.current &&
+                            streamingRoRef.current
+                          ) {
+                            streamingRoRef.current.unobserve(
+                              lastItemNodeRef.current
+                            )
                           }
                           lastItemNodeRef.current = node
                           if (node && streamingRoRef.current) {
@@ -533,15 +577,17 @@ export const MessageThread = React.forwardRef<MessageThreadHandle, MessageThread
                       top: 0,
                       left: 0,
                       width: '100%',
-                      transform: `translateY(${virtualItem.start}px)`,
+                      transform: `translateY(${virtualItem.start}px)`
                     }}
                   >
-                    <div className="pl-6 py-1.5">
+                    <div className="px-4 py-1.5">
                       <MessageBubble
                         message={message}
                         isStreaming={message.id === streamingMessageId}
                         isHighlighted={message.id === highlightedMessageId}
-                        searchQuery={searchQuery.trim() ? searchQuery : undefined}
+                        searchQuery={
+                          searchQuery.trim() ? searchQuery : undefined
+                        }
                       />
                     </div>
                   </div>

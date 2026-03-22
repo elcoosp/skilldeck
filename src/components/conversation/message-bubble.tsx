@@ -33,8 +33,6 @@ interface MessageBubbleProps {
 }
 
 // ─── Shiki singleton ─────────────────────────────────────────────────────────
-// Top-level await: module won't finish loading until Shiki is ready.
-// rehypePlugins is a stable module-level constant — no state, no re-renders.
 const highlighter = await createHighlighter({
   themes: ['github-light', 'vitesse-dark'],
   langs: ['javascript', 'typescript', 'python', 'bash', 'json', 'tsx', 'jsx', 'css', 'html'],
@@ -124,29 +122,27 @@ export const MessageBubble = memo(function MessageBubble({
   const [copied, setCopied] = useState(false)
   const proseRef = useRef<HTMLDivElement>(null)
 
-  // ─── Heading ID generation per message ─────────────────────────────────────
-  // We use a counter that resets for each message because the same message is
-  // never re-rendered with the same content (new message = new key). The counter
-  // must be stable across the component's lifetime for this message, so we store
-  // it in a ref. But because `markdownComponents` is memoized, the counter must
-  // be defined inside the memo's factory and reset each time the message changes.
-  // We'll create a ref that holds the current counter and increment it imperatively.
-  const headingCounterRef = useRef(0)
+  // ─── Position‑based heading counter (resets when content changes) ─────────
+  const headingIndexRef = useRef(0)
+  const lastContentRef = useRef('')
+  if (lastContentRef.current !== message.content) {
+    lastContentRef.current = message.content
+    headingIndexRef.current = 0
+    console.log(`[MessageBubble] Reset heading index for message ${message.id.slice(0, 8)}`)
+  }
 
+  // ─── Markdown components with position‑based IDs ─────────────────────────
   const markdownComponents = useMemo(() => {
-    // Reset counter for this message (since the memo re-runs when dependencies change)
-    headingCounterRef.current = 0
-
-    const makeHeading = (level: number) => ({ children, ...props }: any) => {
-      // Extract plain text from children (could be a mix of strings and React elements)
-      const text = (typeof children === 'string' ? children
-        : Array.isArray(children) ? children.map((c: any) => typeof c === 'string' ? c : '').join('')
-          : ''
+    const makeHeading = (level: number) => ({ children, node, ...props }: any) => {
+      const text = (
+        typeof children === 'string' ? children
+          : Array.isArray(children)
+            ? children.map((c: any) => (typeof c === 'string' ? c : '')).join('')
+            : ''
       ).trim()
-      const id = `heading-${headingCounterRef.current++}-${text
-        .toLowerCase()
-        .replace(/\s+/g, '-')
-        .replace(/[^\w-]/g, '')}`
+
+      const id = `h-${message.id}-${headingIndexRef.current++}`
+      console.log(`[MessageBubble] makeHeading: h${level} text="${text.slice(0, 40)}", id="${id}"`)
       return React.createElement(`h${level}`, { id, ...props }, children)
     }
 
@@ -155,8 +151,10 @@ export const MessageBubble = memo(function MessageBubble({
       h2: makeHeading(2),
       h3: makeHeading(3),
       h4: makeHeading(4),
+      h5: makeHeading(5),
+      h6: makeHeading(6),
       pre: CodePre,
-      a: ({ href, children }: any) => (
+      a: ({ href, children, node, ...props }: any) => (
         <a
           href={href}
           onClick={async (e) => {
@@ -166,6 +164,7 @@ export const MessageBubble = memo(function MessageBubble({
             }
           }}
           className="cursor-pointer underline"
+          {...props}
         >
           {children}
         </a>
@@ -195,25 +194,32 @@ export const MessageBubble = memo(function MessageBubble({
             }}
             className="inline-code cursor-pointer rounded bg-muted px-1 py-0.5 font-mono text-sm hover:bg-primary/20 transition-colors"
             title="Click to copy"
+            {...props}
           >
             {children}
           </span>
         )
       },
-      table: ({ children }: any) => (
-        <div className="overflow-x-auto my-2">
+      table: ({ children, node, ...props }: any) => (
+        <div className="overflow-x-auto my-2" {...props}>
           <table className="border-collapse border border-border text-xs">{children}</table>
         </div>
       ),
-      th: ({ children }: any) => (
-        <th className="border border-border bg-muted/50 px-2 py-1 text-left font-medium">{children}</th>
+      th: ({ children, node, ...props }: any) => (
+        <th className="border border-border bg-muted/50 px-2 py-1 text-left font-medium" {...props}>
+          {children}
+        </th>
       ),
-      td: ({ children }: any) => (
-        <td className="border border-border px-2 py-1">{children}</td>
+      td: ({ children, node, ...props }: any) => (
+        <td className="border border-border px-2 py-1" {...props}>
+
+          {children}
+        </td>
       ),
     }
-  }, []) // stable ref is fine – message.id doesn't change, so counter is per message instance
+  }, [message.id, message.content]) // Recreate when message changes
 
+  // ─── Search highlighting effect (unchanged) ───────────────────────────────
   useEffect(() => {
     const container = proseRef.current
     if (!container) return
