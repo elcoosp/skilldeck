@@ -11,7 +11,9 @@ import {
   ExternalLink,
   RefreshCw,
   Trash2,
-  X
+  X,
+  Share2,
+  Loader2
 } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { toast } from 'sonner'
@@ -22,7 +24,7 @@ import {
   TooltipContent,
   TooltipTrigger
 } from '@/components/ui/tooltip'
-import { useDisableRule } from '@/hooks/use-skills' // <-- corrected import
+import { useDisableRule } from '@/hooks/use-skills'
 import type { LintWarning } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
 import { useUIStore } from '@/store/ui'
@@ -31,6 +33,7 @@ import { BlockedSkillAlert } from './blocked-skill-alert'
 import { ConflictResolver } from './conflict-resolver'
 import { InstallDialog } from './install-dialog'
 import { LintWarningPanel } from './lint-warning-panel'
+import { ShareSkillModal } from './share-skill-modal'
 import { TrustBadge } from './trust-badge'
 
 interface Props {
@@ -48,6 +51,9 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
   const [showBlockedAlert, setShowBlockedAlert] = useState(false)
   const [showConflictResolver, setShowConflictResolver] = useState(false)
   const [diff, setDiff] = useState('')
+  const [showShareModal, setShowShareModal] = useState(false)
+  const [skillContent, setSkillContent] = useState('')
+  const [loadingContent, setLoadingContent] = useState(false)
 
   const isInstalled =
     skill.status === 'installed' || skill.status === 'local_only'
@@ -217,12 +223,32 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
     )
   }
 
+  // ── Share skill ───────────────────────────────────────────────────────────
+  const handleShareClick = async () => {
+    if (!skill.localData?.path) return
+    setLoadingContent(true)
+    try {
+      const res = await commands.getInstalledSkillContent(skill.name, 'personal')
+      if (res.status === 'ok' && res.data) {
+        setSkillContent(res.data)
+        setShowShareModal(true)
+      } else {
+        toast.error('Could not read skill content')
+      }
+    } catch (err) {
+      toast.error(`Failed to fetch skill: ${err}`)
+    } finally {
+      setLoadingContent(false)
+    }
+  }
+
   const isBusy =
     install.isPending ||
     uninstall.isPending ||
     sync.isPending ||
     diffMutation.isPending ||
-    relint.isPending
+    relint.isPending ||
+    loadingContent
 
   const handleInstallClick = () => {
     if (!skill.registryData) return
@@ -533,6 +559,23 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
             {sync.isPending ? 'Syncing registry…' : 'Sync registry'}
           </Button>
         )}
+
+        {/* Share button */}
+        {skill.localData?.path && (
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={handleShareClick}
+            disabled={isBusy}
+          >
+            {loadingContent ? (
+              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Share2 className="mr-2 h-3.5 w-3.5" />
+            )}
+            Share as Gist
+          </Button>
+        )}
       </div>
 
       {/* Dialogs */}
@@ -565,6 +608,14 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
           onKeepLocal={handleKeepLocal}
           onOverwrite={() => handleOverwrite('personal')}
           onClose={() => setShowConflictResolver(false)}
+        />
+      )}
+
+      {showShareModal && (
+        <ShareSkillModal
+          skillName={skill.name}
+          contentMd={skillContent}
+          onClose={() => setShowShareModal(false)}
         />
       )}
     </div>
