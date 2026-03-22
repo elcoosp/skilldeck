@@ -17,6 +17,7 @@ import { useSubagentEvents } from '@/hooks/use-subagent-events'
 import { useSettingsStore } from '@/store/settings'
 import type { SettingsTab } from '@/store/ui'
 import { useUIStore } from '@/store/ui'
+import { loadLocale, locales } from '@/lib/i18n'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -41,6 +42,14 @@ function ThemeSync() {
     root.classList.toggle('dark', resolved === 'dark')
   }, [theme])
 
+  return null
+}
+
+function LanguageSync() {
+  const language = useSettingsStore((s) => s.language)
+  useEffect(() => {
+    loadLocale(language as keyof typeof locales)
+  }, [language])
   return null
 }
 
@@ -128,6 +137,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <ThemeSync />
+        <LanguageSync />
         <AppContent />
       </TooltipProvider>
     </QueryClientProvider>

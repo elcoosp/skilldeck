@@ -19,6 +19,8 @@ import {
   usePlatformPreferences
 } from '@/hooks/use-platform'
 import { useProfiles, useUpdateProfile } from '@/hooks/use-profiles'
+import { useSettingsStore } from '@/store/settings'
+import { loadLocale, locales } from '@/lib/i18n'
 import type { UpdatePreferencesPayload } from '@/lib/platform'
 
 export function PreferencesTab() {
@@ -35,6 +37,10 @@ export function PreferencesTab() {
   const [systemPromptDraft, setSystemPromptDraft] = useState('')
 
   const selectedProfile = profiles.find((p) => p.id === selectedProfileId)
+
+  // Language preference
+  const settingsLanguage = useSettingsStore((s) => s.language)
+  const setLanguage = useSettingsStore((s) => s.setLanguage)
 
   if (query.isLoading || profilesLoading) {
     return (
@@ -263,6 +269,26 @@ export function PreferencesTab() {
           <option value="light">Light</option>
           <option value="dark">Dark</option>
         </select>
+      </Section>
+
+      {/* Language */}
+      <Section icon={<Globe size={14} />} title="Language">
+        <select
+          value={settingsLanguage}
+          onChange={(e) => {
+            const lang = e.target.value
+            setLanguage(lang)
+            loadLocale(lang as keyof typeof locales)
+          }}
+          className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+        >
+          {Object.entries(locales).map(([code, label]) => (
+            <option key={code} value={code}>{label}</option>
+          ))}
+        </select>
+        <p className="text-xs text-muted-foreground mt-1">
+          UI language. Translations are community contributed; help us add more!
+        </p>
       </Section>
 
       {/* Analytics consent */}
