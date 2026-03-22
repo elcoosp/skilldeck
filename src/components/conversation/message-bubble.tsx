@@ -521,9 +521,9 @@ const AssistantMessageActions = memo(function AssistantMessageActions({
         </DropdownMenuItem>
         <DropdownMenuItem onClick={onBookmark} className="cursor-pointer">
           {isBookmarked ? (
-            <BookmarkCheck className="mr-2 h-4 w-4 text-amber-500" />
+            <BookmarkCheck className="mr-2 h-4 w-4 text-amber-400 fill-amber-400" />
           ) : (
-            <Bookmark className="mr-2 h-4 w-4" />
+            <Bookmark className="mr-2 h-4 w-4 text-amber-400/70" />
           )}
           <span>{isBookmarked ? 'Remove bookmark' : 'Bookmark'}</span>
         </DropdownMenuItem>
@@ -594,7 +594,7 @@ const HeadingBookmarkButton = memo(function HeadingBookmarkButton({
       <Bookmark
         className={cn(
           'size-3 transition-colors',
-          isBookmarked ? 'text-primary fill-primary' : 'text-muted-foreground'
+          isBookmarked ? 'text-amber-400 fill-amber-400' : 'text-muted-foreground'
         )}
       />
     </button>
