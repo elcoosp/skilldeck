@@ -1030,7 +1030,7 @@ export type McpToolResponse = { name: string; description: string; input_schema:
 /**
  * Serialisable message returned to the frontend.
  */
-export type MessageData = { id: string; conversation_id: string; role: string; content: string; created_at: string; context_items: ContextItem[] | null; metadata: JsonValue | null }
+export type MessageData = { id: string; conversation_id: string; role: string; content: string; created_at: string; context_items: ContextItem[] | null; metadata: JsonValue | null; input_tokens: number | null; output_tokens: number | null; seen: boolean }
 /**
  * Lightweight message representation used by the Markdown gist exporter.
  */

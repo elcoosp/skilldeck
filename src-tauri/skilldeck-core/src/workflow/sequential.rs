@@ -148,7 +148,6 @@ async fn run_step_with_agent(
         message: e.to_string(),
     })??;
 
-    // Extract the assistant message content from the result
     let result = agent_result
         .messages
         .iter()

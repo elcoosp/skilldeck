@@ -9,6 +9,6 @@ pub mod tool_dispatcher;
 
 pub use built_in_tools::all as all_built_in_tools;
 pub use context_builder::ContextBuilder;
-pub use r#loop::{AgentLoop, AgentLoopConfig, AgentLoopEvent};
+pub use r#loop::{AgentLoop, AgentLoopConfig, AgentLoopEvent, AgentRunResult};
 pub use subagent::{SubagentManager, SubagentSession, SubagentStatus};
 pub use tool_dispatcher::{ApprovalGate, ApprovalResult, ToolDispatcher};

@@ -1,11 +1,11 @@
 // src-tauri/src/commands/messages.rs
-// File: src-tauri/src/commands/messages.rs
 //! Message Tauri commands.
 
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ConnectionTrait, DbBackend, EntityTrait, QueryFilter,
-    QueryOrder, Statement,
+    QueryOrder, Statement, Update,
 };
+use sea_query::Expr;
 use serde::{Deserialize, Serialize};
 use specta::{Type, specta};
 use std::pin::Pin;
@@ -382,10 +382,9 @@ pub async fn mark_messages_seen(
         .map_err(|e| e.to_string())?;
     let conv_uuid = Uuid::parse_str(&conversation_id).map_err(|e| e.to_string())?;
 
-    use sea_orm::UpdateMany;
-    UpdateMany::new(messages::Entity)
-        .set(messages::Column::Seen, true)
-        .filter(messages::Column::ConversationId.eq(conv_uuid))
+    messages::Entity::update_many()
+        .col_expr(messages::COLUMN.seen, Expr::value(true))
+        .filter(messages::COLUMN.conversation_id.eq(conv_uuid))
         .exec(db)
         .await
         .map_err(|e| e.to_string())?;
@@ -817,6 +816,7 @@ fn run_agent_loop(
                     }
                 };
                 let now = chrono::Utc::now().fixed_offset();
+                let messages_len = result.messages.len();
 
                 for (i, msg) in result.messages.into_iter().enumerate() {
                     let role_str = match msg.role {
@@ -835,8 +835,7 @@ fn run_agent_loop(
                         context_items: Set(Some(serde_json::Value::Array(vec![]))),
                         ..Default::default()
                     };
-                    // Set token fields only for the last assistant message (or for all assistant messages? We'll set for the final one)
-                    if i == result.messages.len() - 1 && role_str == "assistant" {
+                    if i == messages_len - 1 && role_str == "assistant" {
                         active.input_tokens = Set(Some(result.input_tokens as i32));
                         active.output_tokens = Set(Some(result.output_tokens as i32));
                         active.cache_read_tokens = Set(Some(result.cache_read_tokens as i32));

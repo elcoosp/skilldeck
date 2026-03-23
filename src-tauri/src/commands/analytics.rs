@@ -1,9 +1,8 @@
-// src-tauri/src/commands/analytics.rs
 //! Analytics Tauri command.
 //! Aggregates real usage data from the local database.
 
 use chrono::{Duration, Utc};
-use sea_orm::{ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder};
+use sea_orm::{ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect};
 use serde::Serialize;
 use specta::{Type, specta};
 use std::sync::Arc;
@@ -13,7 +12,6 @@ use crate::state::AppState;
 use skilldeck_models::{
     conversations::Column as ConversationColumn, conversations::Entity as Conversations,
     messages::Column as MessageColumn, messages::Entity as Messages,
-    usage_events::Entity as UsageEvents,
 };
 
 #[derive(Debug, Serialize, Type)]

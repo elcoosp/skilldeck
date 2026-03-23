@@ -143,7 +143,10 @@ pub async fn get_branch_messages(
                 content: m.content,
                 created_at: m.created_at.to_string(),
                 context_items,
-                metadata: m.metadata, // <-- added metadata field
+                metadata: m.metadata,
+                input_tokens: None,
+                output_tokens: None,
+                seen: false,
             }
         })
         .collect())
