@@ -370,12 +370,17 @@ mod tests {
     use super::*;
     use crate::skills::SkillRegistry;
     use crate::traits::Skill;
+    use skilldeck_lint::LintConfig;
+    use std::sync::Arc;
+    use tokio::sync::RwLock;
 
     fn make_dispatcher() -> ToolDispatcher {
+        let lint_config = Arc::new(RwLock::new(LintConfig::default()));
+        let skill_registry = Arc::new(SkillRegistry::new(lint_config));
         ToolDispatcher::new(
             Arc::new(McpRegistry::new()),
             Arc::new(ApprovalGate::new()),
-            Arc::new(SkillRegistry::new()),
+            skill_registry,
             false,
             None,
         )
@@ -438,7 +443,8 @@ mod tests {
     #[tokio::test]
     async fn builtin_load_skill_returns_json() {
         // Create a registry with a pre‑loaded skill
-        let skill_registry = Arc::new(SkillRegistry::new());
+        let lint_config = Arc::new(RwLock::new(LintConfig::default()));
+        let skill_registry = Arc::new(SkillRegistry::new(lint_config));
         let skill = Skill::new(
             "my-skill".into(),
             "desc".into(),
