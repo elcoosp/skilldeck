@@ -39,6 +39,7 @@
     "i18n": "pnpm i18n:extract && pnpm i18n:compile",
     "release": "git-cliff -o CHANGELOG.md",
     "issues:gen": "pnpx @elcoosp-ai/seedling gen",
+    "issues:move": "node scripts/move-closed-issues.js",
     "issues:sync": "pnpx @elcoosp-ai/seedling sync --repo elcoosp/skilldeck --dir ./docs/issues"
   },
   "dependencies": {
@@ -120,6 +121,7 @@
     "autoprefixer": "^10.4.21",
     "cspell": "^9.7.0",
     "git-cliff": "^2.12.0",
+    "js-yaml": "^4.1.1",
     "lefthook": "^2.1.4",
     "playwright": "^1.58.2",
     "postcss": "^8.5.4",

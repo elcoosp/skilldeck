@@ -237,6 +237,9 @@ importers:
       git-cliff:
         specifier: ^2.12.0
         version: 2.12.0
+      js-yaml:
+        specifier: ^4.1.1
+        version: 4.1.1
       lefthook:
         specifier: ^2.1.4
         version: 2.1.4
