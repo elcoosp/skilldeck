@@ -24,6 +24,7 @@ import { useUIStore } from '@/store/ui'
 import { cn } from '@/lib/utils'
 import { extractHeadings } from '@/lib/markdown-toc'
 import { useAssistantMessageStore } from '@/store/assistant-messages'
+import { commands } from '@/lib/bindings'
 
 // ─── Scroll token cache ───────────────────────────────────────────────────────
 // Persists scroll positions across conversation switches within the session.
@@ -131,20 +132,25 @@ export function CenterPanel() {
   const messagesLengthRef = useRef(realMessageCount)
   messagesLengthRef.current = realMessageCount
 
+  // Compute unseen count (assistant messages not seen)
+  const unseenCount = useMemo(() => {
+    return messages.filter(m => !m.seen && m.role === 'assistant').length
+  }, [messages])
+
   const [showJumpToLatest, setShowJumpToLatest] = useState(false)
-  const [unseenCount, setUnseenCount] = useState(0)
+  const [unseenJumpCount, setUnseenJumpCount] = useState(0)
   const lastSeenCountRef = useRef(realMessageCount)
 
   useEffect(() => {
     lastSeenCountRef.current = messagesLengthRef.current
-    setUnseenCount(0)
+    setUnseenJumpCount(0)
     setShowJumpToLatest(false)
   }, [activeKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (isRunning) {
       lastSeenCountRef.current = messagesLengthRef.current
-      setUnseenCount(0)
+      setUnseenJumpCount(0)
     }
   }, [isRunning]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -167,9 +173,9 @@ export function CenterPanel() {
     setShowJumpToLatest(!nearBottom && messagesLengthRef.current > 0)
     if (nearBottom) {
       lastSeenCountRef.current = messagesLengthRef.current
-      setUnseenCount(0)
+      setUnseenJumpCount(0)
     } else {
-      setUnseenCount(Math.max(0, messagesLengthRef.current - lastSeenCountRef.current))
+      setUnseenJumpCount(Math.max(0, messagesLengthRef.current - lastSeenCountRef.current))
     }
   }, [])
 
@@ -191,7 +197,7 @@ export function CenterPanel() {
     if (messages.length === 0) return
     threadRef.current?.scrollToBottom()
     lastSeenCountRef.current = messagesLengthRef.current
-    setUnseenCount(0)
+    setUnseenJumpCount(0)
     const lastMsg = messages[messages.length - 1]
     if (lastMsg) {
       setHighlightedMessageId(lastMsg.id)
@@ -291,6 +297,12 @@ export function CenterPanel() {
       threadRef.current?.scrollToMessage(messageIndex, scrollToHeading)
     }
   }, [messages, handleVisibleUserIndexChange])
+
+  // ─── Message visibility handler ───────────────────────────────────────────
+  const handleMessageVisible = useCallback(async (messageId: string) => {
+    const res = await commands.markMessageSeen(messageId)
+    if (res.status === 'error') console.error('Failed to mark message seen:', res.error)
+  }, [])
 
   // ─── Keyboard shortcut ⌘F / Ctrl+F ───────────────────────────────────────
   useEffect(() => {
@@ -404,6 +416,7 @@ export function CenterPanel() {
           autoScroll={autoScroll}
           onVisibleUserIndexChange={handleVisibleUserIndexChange}
           onScrollSettled={handleScrollSettled}
+          onMessageVisible={handleMessageVisible}
         />
 
         {messages.length > 2 && (
@@ -416,7 +429,7 @@ export function CenterPanel() {
           />
         )}
 
-        {/* Jump to latest button */}
+        {/* Jump to latest button with unseen count badge */}
         <button
           type="button"
           onClick={jumpToLatest}
