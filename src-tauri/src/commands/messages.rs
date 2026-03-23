@@ -1,3 +1,4 @@
+// src-tauri/src/commands/messages.rs
 // File: src-tauri/src/commands/messages.rs
 //! Message Tauri commands.
 
@@ -16,7 +17,9 @@ use crate::commands::queue;
 use crate::{events::AgentEvent, state::AppState};
 use async_trait::async_trait;
 use futures::Future;
-use skilldeck_core::agent::{AgentLoop, AgentLoopConfig, AgentLoopEvent, all_built_in_tools};
+use skilldeck_core::agent::{
+    AgentLoop, AgentLoopConfig, AgentLoopEvent, AgentRunResult, all_built_in_tools,
+};
 use skilldeck_core::traits::subagent_spawner::SubagentSpawner;
 use skilldeck_models::context_item::{ContextItem, FolderScope};
 use skilldeck_models::conversations::{self, Entity as Conversations};
@@ -78,29 +81,7 @@ pub async fn cancel_agent(
     state.cancel_agent(&conversation_id);
     Ok(())
 }
-#[specta]
-#[tauri::command]
-pub async fn mark_messages_seen(
-    state: State<'_, Arc<AppState>>,
-    conversation_id: String,
-) -> Result<(), String> {
-    let db = state
-        .registry
-        .db
-        .connection()
-        .await
-        .map_err(|e| e.to_string())?;
-    let conv_uuid = Uuid::parse_str(&conversation_id).map_err(|e| e.to_string())?;
 
-    use sea_orm::UpdateMany;
-    UpdateMany::new(Messages)
-        .set(messages::Column::Seen, true)
-        .filter(messages::Column::ConversationId.eq(conv_uuid))
-        .exec(db)
-        .await
-        .map_err(|e| e.to_string())?;
-    Ok(())
-}
 #[specta]
 #[tauri::command]
 pub async fn list_messages(
@@ -137,6 +118,9 @@ pub async fn list_messages(
                 created_at: m.created_at.to_string(),
                 context_items,
                 metadata: m.metadata,
+                input_tokens: m.input_tokens,
+                output_tokens: m.output_tokens,
+                seen: m.seen,
             }
         })
         .collect())
@@ -242,6 +226,7 @@ pub async fn search_all_messages(
     }
     Ok(results)
 }
+
 // =============================================================================
 // Internal send function
 // =============================================================================
@@ -264,7 +249,6 @@ pub(crate) async fn send_message_internal(
     let msg_id = Uuid::new_v4();
     let now = chrono::Utc::now().fixed_offset();
 
-    // Convert context_items to JSON, default to empty array if None
     let items_json = context_items
         .as_ref()
         .map(|items| serde_json::to_value(items).map_err(|e| e.to_string()))
@@ -308,7 +292,7 @@ pub(crate) async fn send_message_internal(
             state_arc,
             conv_id_clone,
             content_clone,
-            msg_id, // Pass the ID of the message we just inserted
+            msg_id,
             context_items_clone,
             app_clone,
         )
@@ -382,6 +366,30 @@ pub async fn resolve_tool_approval(
         .approval_gate
         .resolve(&tool_call_id, result)
         .map_err(|e| e.to_string())
+}
+
+#[specta]
+#[tauri::command]
+pub async fn mark_messages_seen(
+    state: State<'_, Arc<AppState>>,
+    conversation_id: String,
+) -> Result<(), String> {
+    let db = state
+        .registry
+        .db
+        .connection()
+        .await
+        .map_err(|e| e.to_string())?;
+    let conv_uuid = Uuid::parse_str(&conversation_id).map_err(|e| e.to_string())?;
+
+    use sea_orm::UpdateMany;
+    UpdateMany::new(messages::Entity)
+        .set(messages::Column::Seen, true)
+        .filter(messages::Column::ConversationId.eq(conv_uuid))
+        .exec(db)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 // ── Internal helper ───────────────────────────────────────────────────────────
@@ -489,7 +497,7 @@ fn run_agent_loop(
     state: Arc<AppState>,
     conversation_id: String,
     user_message: String,
-    current_msg_id: Uuid, // ID of the user message we just inserted, to be excluded from history
+    current_msg_id: Uuid,
     context_items: Option<Vec<ContextItem>>,
     app: tauri::AppHandle,
 ) {
@@ -586,7 +594,6 @@ fn run_agent_loop(
             }
         };
 
-        // Build history, excluding the message we just inserted (it will be added again by agent.run)
         let history = history_rows
             .into_iter()
             .filter(|m| m.id != current_msg_id)
@@ -668,12 +675,10 @@ fn run_agent_loop(
             }
         }
 
-        // Log all skill names currently in the registry for debugging
         let all_skills = state.registry.skill_registry.skills().await;
         let skill_names: Vec<String> = all_skills.into_iter().map(|s| s.name).collect();
         tracing::info!("Skills in registry: {:?}", skill_names);
 
-        // Build enriched user message with attached context inlined (instead of injecting into system prompt)
         let enriched_user_message = if let Some(items) = context_items {
             tracing::info!("Processing {} context items", items.len());
             let mut combined_context = String::new();
@@ -794,7 +799,7 @@ fn run_agent_loop(
 
         let loop_result = loop_handle.await;
         match loop_result {
-            Ok(Ok(new_messages)) => {
+            Ok(Ok(result)) => {
                 let db = match state.registry.db.connection().await {
                     Ok(conn) => conn,
                     Err(e) => {
@@ -813,7 +818,7 @@ fn run_agent_loop(
                 };
                 let now = chrono::Utc::now().fixed_offset();
 
-                for msg in new_messages {
+                for (i, msg) in result.messages.into_iter().enumerate() {
                     let role_str = match msg.role {
                         skilldeck_core::traits::MessageRole::User => "user",
                         skilldeck_core::traits::MessageRole::Assistant => "assistant",
@@ -821,7 +826,7 @@ fn run_agent_loop(
                         skilldeck_core::traits::MessageRole::System => "system",
                     };
                     let msg_id = Uuid::new_v4();
-                    let active = messages::ActiveModel {
+                    let mut active = messages::ActiveModel {
                         id: Set(msg_id),
                         conversation_id: Set(conv_uuid),
                         role: Set(role_str.to_string()),
@@ -830,6 +835,13 @@ fn run_agent_loop(
                         context_items: Set(Some(serde_json::Value::Array(vec![]))),
                         ..Default::default()
                     };
+                    // Set token fields only for the last assistant message (or for all assistant messages? We'll set for the final one)
+                    if i == result.messages.len() - 1 && role_str == "assistant" {
+                        active.input_tokens = Set(Some(result.input_tokens as i32));
+                        active.output_tokens = Set(Some(result.output_tokens as i32));
+                        active.cache_read_tokens = Set(Some(result.cache_read_tokens as i32));
+                        active.cache_write_tokens = Set(Some(result.cache_write_tokens as i32));
+                    }
                     if let Err(e) = active.insert(db).await {
                         let _ = app.emit(
                             "agent-event",

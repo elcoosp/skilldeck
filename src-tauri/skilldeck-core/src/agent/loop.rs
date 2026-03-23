@@ -82,6 +82,16 @@ pub struct AgentLoop {
     supports_toon: bool,
 }
 
+/// Result returned by the agent loop, containing new messages and token usage.
+#[derive(Debug, Clone)]
+pub struct AgentRunResult {
+    pub messages: Vec<ChatMessage>,
+    pub input_tokens: u32,
+    pub output_tokens: u32,
+    pub cache_read_tokens: u32,
+    pub cache_write_tokens: u32,
+}
+
 impl AgentLoop {
     pub fn new(
         provider: Arc<dyn ModelProvider>,
@@ -148,7 +158,7 @@ impl AgentLoop {
 
     /// Run the agent loop for a single user turn.
     #[instrument(skip(self), fields(model = %self.model_id))]
-    pub async fn run(mut self, user_message: String) -> Result<Vec<ChatMessage>, CoreError> {
+    pub async fn run(mut self, user_message: String) -> Result<AgentRunResult, CoreError> {
         info!("Agent loop starting");
 
         self.messages.push(ChatMessage {
@@ -159,6 +169,12 @@ impl AgentLoop {
 
         let after_user_len = self.messages.len();
         let mut iteration = 0u32;
+
+        // Accumulate final token usage
+        let mut final_input_tokens = 0;
+        let mut final_output_tokens = 0;
+        let mut final_cache_read_tokens = 0;
+        let mut final_cache_write_tokens = 0;
 
         loop {
             // Check cancellation at the top of each iteration.
@@ -205,6 +221,12 @@ impl AgentLoop {
                 name: None,
             });
 
+            // Update final token counts from this iteration
+            final_input_tokens += result.input_tokens;
+            final_output_tokens += result.output_tokens;
+            final_cache_read_tokens += result.cache_read_tokens;
+            final_cache_write_tokens += result.cache_write_tokens;
+
             if result.tool_calls.is_empty() {
                 let _ = self
                     .tx
@@ -226,8 +248,6 @@ impl AgentLoop {
                     });
                 }
 
-                // FIX 2: Give the compiler an explicit type for the clone so it
-                // can resolve the ToolCall variant without ambiguity (E0282).
                 let tool_call_clone: ToolCall = tool_call.clone();
                 let _ = self
                     .tx
@@ -257,7 +277,6 @@ impl AgentLoop {
                         Ok(load_result) => {
                             let final_content = match load_result.format {
                                 SkillContentFormat::Toon => {
-                                    // Decode the Toon back to the original markdown
                                     match toon_rust::decode(&load_result.content, None) {
                                         Ok(value) => value
                                             .as_str()
@@ -268,7 +287,7 @@ impl AgentLoop {
                                                 "Failed to decode Toon skill content: {}",
                                                 e
                                             );
-                                            load_result.content // fallback to raw string
+                                            load_result.content
                                         }
                                     }
                                 }
@@ -287,7 +306,13 @@ impl AgentLoop {
 
         info!("Agent loop completed after {} iteration(s)", iteration);
         let new_messages = self.messages[after_user_len..].to_vec();
-        Ok(new_messages)
+        Ok(AgentRunResult {
+            messages: new_messages,
+            input_tokens: final_input_tokens,
+            output_tokens: final_output_tokens,
+            cache_read_tokens: final_cache_read_tokens,
+            cache_write_tokens: final_cache_write_tokens,
+        })
     }
 
     fn build_request(&self) -> Result<CompletionRequest, CoreError> {
@@ -312,9 +337,7 @@ impl AgentLoop {
             self.messages.clone()
         };
 
-        // Encode tools as Toon if supported
         let tools_toon = if self.supports_toon && !self.tools.is_empty() {
-            // Convert tools to a JSON array
             let tools_json =
                 serde_json::to_value(&self.tools).map_err(|e| CoreError::Internal {
                     message: format!("Failed to serialize tools: {}", e),
@@ -324,7 +347,7 @@ impl AgentLoop {
                 Ok(encoded) => Some(encoded),
                 Err(e) => {
                     tracing::error!("Failed to encode tools as Toon: {}", e);
-                    None // fall back to regular tools
+                    None
                 }
             }
         } else {
@@ -362,7 +385,6 @@ impl AgentLoop {
 
         while let Some(chunk) = stream.next().await {
             if self.cancel_token.is_cancelled() {
-                // discard accumulated content and break
                 return Err(CoreError::Cancelled {
                     operation: "stream".into(),
                 });
