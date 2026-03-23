@@ -380,3 +380,27 @@
 .delay-1200 {
   animation-delay: 1.2s;
 }
+
+/* ============================================ */
+/* Code block horizontal scrollbar & wrapping   */
+/* ============================================ */
+.prose pre,
+pre[class*="language-"] {
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: pre-wrap;
+  word-break: break-all;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.prose pre::-webkit-scrollbar,
+pre[class*="language-"]::-webkit-scrollbar {
+  height: 4px;
+}
+
+.prose pre::-webkit-scrollbar-thumb,
+pre[class*="language-"]::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
+}
