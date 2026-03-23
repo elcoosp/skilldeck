@@ -2,6 +2,7 @@ import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { commands } from '@/lib/bindings'
+import { useChatContextStore } from '@/store/chat-context-store'
 import { useUIStore } from '@/store/ui'
 import { cn } from '@/lib/utils'
 
@@ -22,6 +23,10 @@ export function GlobalDropZone() {
   const activeConversationIdRef = useRef(activeConversationId)
   const leftWidthPxRef = useRef(leftPx)
   const rightWidthPxRef = useRef(rightPx)
+
+  // Get current context items for the active conversation (to check duplicates)
+  const itemsMap = useChatContextStore((s) => s.items)
+  const activeItems = itemsMap[activeConversationId ?? ''] ?? []
 
   useEffect(() => {
     activeConversationIdRef.current = activeConversationId
@@ -108,11 +113,28 @@ export function GlobalDropZone() {
               return
             }
 
+            // Check for already attached files in the target conversation
+            const targetItems = itemsMap[targetId] ?? []
+            const existingPaths = new Set(
+              targetItems
+                .filter((item) => item.type === 'file')
+                .map((item) => (item as any).data?.path)
+                .filter((p): p is string => !!p)
+            )
+
+            const newPaths = paths.filter((p) => !existingPaths.has(p))
+            if (newPaths.length < paths.length) {
+              const duplicates = paths.filter((p) => existingPaths.has(p))
+              toast.warning(`Already attached: ${duplicates.join(', ')}`)
+            }
+
+            if (newPaths.length === 0) return
+
             commands
-              .attachFilesToConversation(targetId, paths)
+              .attachFilesToConversation(targetId, newPaths)
               .then((res) => {
                 if (res.status === 'error') toast.error(res.error)
-                else toast.success(`Attached ${paths.length} file(s) to conversation`)
+                // Toast already shown in use-attach-files-listener, so we don't show another
               })
               .catch(() => toast.error('Failed to attach files'))
 
@@ -133,7 +155,7 @@ export function GlobalDropZone() {
 
     setup().catch(console.error)
     return () => unlisten?.()
-  }, [])
+  }, [itemsMap]) // Add itemsMap as dependency to capture latest context items
 
   // Guard: don't render overlay until panel sizes are known (avoids covering left panel)
   if (leftPx === 0) return null
