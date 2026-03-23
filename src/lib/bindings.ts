@@ -1037,7 +1037,7 @@ export type ContextItem = { type: "skill"; name: string } | { type: "file"; path
 /**
  * Lightweight summary used by the sidebar list.
  */
-export type ConversationSummary = { id: string; title: string | null; profile_id: string; profile_name: string | null; profile_deleted: boolean; workspace_id: string | null; created_at: string; updated_at: string; message_count: string; pinned: boolean }
+export type ConversationSummary = { id: string; title: string | null; profile_id: string; profile_name: string | null; profile_deleted: boolean; workspace_id: string | null; created_at: string; updated_at: string; message_count: string; folder_id: string | null; pinned: boolean }
 export type CreateBookmarkRequest = { conversation_id: string; message_id: string; heading_anchor: string | null; label: string | null }
 export type CreateBranchRequest = { conversation_id: string; parent_message_id: string; name: string | null }
 export type DailyCount = { date: string; count: string }

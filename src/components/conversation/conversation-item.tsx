@@ -1,7 +1,13 @@
 // src/components/conversation/conversation-item.tsx
 /**
  * Sidebar conversation list item with inline rename, context menu, pin toggle,
- * workspace badge, profile badge, and drag-and-drop file attachment.
+ * workspace badge, profile badge, and per-item drag-and-drop file attachment.
+ *
+ * Per-item drop works by reading the position from the GlobalDropZone's
+ * Tauri drag-drop event and checking whether it lands over this element's
+ * bounding rect.  We expose a custom event `skilldeck:drag-drop` that
+ * GlobalDropZone dispatches so individual items can react without each
+ * needing their own Tauri listener.
  */
 
 import { formatDistanceToNow } from 'date-fns'
@@ -40,10 +46,17 @@ interface ConversationItemProps {
   isDeleting?: boolean
   onDeleteStart?: (conversationId: string) => void
   onClick: () => void
-  workspaceName?: string // optional workspace name to display as badge
+  workspaceName?: string
   profileName?: string | null
   profileDeleted?: boolean
   showProfileBadge?: boolean
+}
+
+// Custom event dispatched by GlobalDropZone so each item can react.
+export interface SkilldeckDragDropDetail {
+  type: 'enter' | 'over' | 'drop' | 'leave'
+  paths: string[]
+  position: { x: number; y: number }
 }
 
 export function ConversationItem({
@@ -62,14 +75,64 @@ export function ConversationItem({
   const inputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // Drag-and-drop state
   const [isDragTarget, setIsDragTarget] = useState(false)
-  const dragTimeoutRef = useRef<ReturnType<typeof setTimeout>>()
 
   const deleteMutation = useDeleteConversation()
   const renameMutation = useRenameConversation()
   const pinMutation = usePinConversation()
   const unpinMutation = useUnpinConversation()
+
+  // ── Per-item Tauri drag-drop via custom event from GlobalDropZone ──────────
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+
+    const onDragDrop = (e: Event) => {
+      const { type, paths, position } = (e as CustomEvent<SkilldeckDragDropDetail>).detail
+      const rect = el.getBoundingClientRect()
+      const isOver =
+        position.x >= rect.left &&
+        position.x <= rect.right &&
+        position.y >= rect.top &&
+        position.y <= rect.bottom
+
+      if (type === 'leave') {
+        setIsDragTarget(false)
+        return
+      }
+
+      if (!isOver) {
+        if (isDragTarget) setIsDragTarget(false)
+        return
+      }
+
+      if (type === 'enter' || type === 'over') {
+        setIsDragTarget(true)
+        return
+      }
+
+      if (type === 'drop') {
+        setIsDragTarget(false)
+        if (paths.length === 0) return
+        commands
+          .attachFilesToConversation(conversation.id, paths)
+          .then((res) => {
+            if (res.status === 'error') {
+              toast.error(res.error)
+            } else {
+              toast.success(
+                `Attached ${paths.length} file(s) to "${conversation.title ?? 'conversation'}"`
+              )
+            }
+          })
+      }
+    }
+
+    window.addEventListener('skilldeck:drag-drop', onDragDrop)
+    return () => window.removeEventListener('skilldeck:drag-drop', onDragDrop)
+  }, [conversation.id, conversation.title, isDragTarget])
+
+  // ─────────────────────────────────────────────────────────────────────────
 
   const cancelRename = useCallback(() => {
     setDraft(conversation.title ?? '')
@@ -93,36 +156,6 @@ export function ConversationItem({
     }
   }
 
-  // Drag handlers
-  const handleDragEnter = (e: React.DragEvent) => {
-    e.preventDefault()
-    if (dragTimeoutRef.current) clearTimeout(dragTimeoutRef.current)
-    setIsDragTarget(true)
-  }
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault()
-    dragTimeoutRef.current = setTimeout(() => setIsDragTarget(false), 150)
-  }
-
-  const handleDrop = async (e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragTarget(false)
-
-    const files = Array.from(e.dataTransfer.files)
-    if (files.length === 0) return
-
-    const paths = files.map((f) => f.path)
-    const res = await commands.attachFilesToConversation(conversation.id, paths)
-    if (res.status === 'error') {
-      toast.error(res.error)
-    } else {
-      toast.success(
-        `Attached ${files.length} file(s) to ${conversation.title ?? 'conversation'}`
-      )
-    }
-  }
-
   useEffect(() => {
     if (isRenaming) {
       inputRef.current?.focus()
@@ -130,10 +163,8 @@ export function ConversationItem({
     }
   }, [isRenaming])
 
-  // Click outside to cancel rename (without saving)
   useEffect(() => {
     if (!isRenaming) return
-
     const handleClickOutside = (event: MouseEvent) => {
       if (
         containerRef.current &&
@@ -142,7 +173,6 @@ export function ConversationItem({
         cancelRename()
       }
     }
-
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [isRenaming, cancelRename])
@@ -150,9 +180,7 @@ export function ConversationItem({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault()
-      if (!isRenaming && !isDeleting) {
-        onClick()
-      }
+      if (!isRenaming && !isDeleting) onClick()
     }
     if (e.key === 'Escape' && isRenaming) {
       e.preventDefault()
@@ -189,23 +217,14 @@ export function ConversationItem({
         isActive
           ? 'bg-primary/10 text-foreground'
           : 'hover:bg-muted/70 text-muted-foreground hover:text-foreground',
-        isDeleting && 'pointer-events-none opacity-50'
+        isDeleting && 'pointer-events-none opacity-50',
+        // Highlight when this item is the drop target
+        isDragTarget && 'ring-2 ring-primary ring-inset'
       )}
     >
-      {/* Drag-and-drop overlay (highlight on drop target) */}
-      <div
-        onDragEnter={handleDragEnter}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        className={cn(
-          'absolute inset-0 rounded-md transition-all pointer-events-none',
-          isDragTarget && 'ring-2 ring-primary ring-inset pointer-events-auto'
-        )}
-      />
-
       {/* Main content */}
       <div className="flex-1 min-w-0 relative z-10">
-        {/* Title row – fixed height to prevent layout shift */}
+        {/* Title row */}
         <div className="flex items-center gap-1 h-5">
           <AnimatePresence mode="wait">
             {isRenaming ? (
@@ -225,14 +244,8 @@ export function ConversationItem({
                   onChange={(e) => setDraft(e.target.value)}
                   onBlur={commitRename}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      commitRename()
-                    }
-                    if (e.key === 'Escape') {
-                      e.preventDefault()
-                      cancelRename()
-                    }
+                    if (e.key === 'Enter') { e.preventDefault(); commitRename() }
+                    if (e.key === 'Escape') { e.preventDefault(); cancelRename() }
                   }}
                   disabled={renameMutation.isPending || isDeleting}
                   className="w-full h-full text-xs bg-transparent border-b border-primary outline-none px-0 leading-none box-border"
@@ -252,7 +265,6 @@ export function ConversationItem({
             )}
           </AnimatePresence>
 
-          {/* Pin icon – always visible but faint when unpinned */}
           <Button
             variant="ghost"
             size="icon-xs"
@@ -263,9 +275,7 @@ export function ConversationItem({
                 : 'opacity-0 group-hover:opacity-50'
             )}
             onClick={togglePin}
-            aria-label={
-              conversation.pinned ? 'Unpin conversation' : 'Pin conversation'
-            }
+            aria-label={conversation.pinned ? 'Unpin conversation' : 'Pin conversation'}
           >
             {conversation.pinned ? (
               <Pin className="size-3 fill-primary" />
@@ -274,7 +284,6 @@ export function ConversationItem({
             )}
           </Button>
 
-          {/* Pencil icon – only visible on hover */}
           {!isRenaming && !isDeleting && (
             <Button
               variant="ghost"
@@ -292,9 +301,7 @@ export function ConversationItem({
           )}
         </div>
 
-        {/* Metadata – always visible, with optional workspace badge and profile badge */}
         <p className="text-[11px] text-muted-foreground/70 truncate mt-0.5 flex items-center gap-1 flex-wrap">
-          {/* Profile badge (only when showProfileBadge is true) */}
           {showProfileBadge && profileName && (
             <Badge
               variant="outline"
@@ -302,15 +309,12 @@ export function ConversationItem({
                 'text-[10px] px-1 py-0',
                 profileDeleted && 'text-muted-foreground border-dashed'
               )}
-              title={
-                profileDeleted ? 'This profile has been deleted' : undefined
-              }
+              title={profileDeleted ? 'This profile has been deleted' : undefined}
             >
               {profileName}
               {profileDeleted && <span className="ml-0.5">(deleted)</span>}
             </Badge>
           )}
-
           {conversation.pinned && (
             <span className="inline-flex items-center gap-0.5 text-primary">
               <Pin className="size-2.5 fill-primary" /> Pinned
@@ -328,7 +332,6 @@ export function ConversationItem({
         </p>
       </div>
 
-      {/* Dropdown menu */}
       {!isRenaming && !isDeleting && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

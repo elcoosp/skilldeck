@@ -18,6 +18,7 @@
         "visible": true,
         "center": true,
         "resizable": true,
+        "dragDropEnabled": true,
         "fullscreen": false,
         "decorations": true
       }

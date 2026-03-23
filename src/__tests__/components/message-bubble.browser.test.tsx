@@ -12,9 +12,12 @@ const makeMessage = (overrides: Partial<MessageData> = {}): MessageData => ({
   content: 'Hello, world!',
   created_at: '2024-01-01T00:00:00Z',
   context_items: null,
-  metadata: null, // <-- added
+  metadata: null,
+  input_tokens: null,
+  output_tokens: null,
+  seen: false,
   ...overrides
-})
+});
 
 // ── Styling ───────────────────────────────────────────────────────────────────
 

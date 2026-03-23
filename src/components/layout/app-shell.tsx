@@ -17,6 +17,7 @@ import { useUIStore } from '@/store/ui'
 import { CenterPanel } from './center-panel'
 import { LeftPanel } from './left-panel'
 import { RightPanel } from './right-panel'
+import { GlobalDropZone } from '@/components/chat/global-drop-zone'
 
 export function AppShell() {
   const panelSizes = useUIStore((s) => s.panelSizes)
@@ -113,6 +114,9 @@ export function AppShell() {
       {/* Global overlays */}
       <CommandPalette />
       {settingsOpen && <SettingsOverlay />}
+
+      {/* Global drop zone for file drag-and-drop */}
+      <GlobalDropZone />
 
       {/* Toast notifications */}
       <Toaster position="bottom-right" richColors closeButton />

@@ -19,6 +19,7 @@ import { useSettingsStore } from '@/store/settings'
 import type { SettingsTab } from '@/store/ui'
 import { useUIStore } from '@/store/ui'
 import { loadLocale, locales } from '@/lib/i18n'
+import { useAttachFilesListener } from './hooks/use-attach-files-listener'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -59,6 +60,7 @@ function GlobalEventListeners() {
   useMcpEvents()
   useSubagentEvents()
   useSkillEvents()
+  useAttachFilesListener()
   return null
 }
 

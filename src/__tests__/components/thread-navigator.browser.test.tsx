@@ -16,11 +16,11 @@ vi.mock('react-dom', () => ({
 
 describe('ThreadNavigator', () => {
   const mockMessages: MessageData[] = [
-    { id: '1', role: 'user', content: 'Hello', conversation_id: 'c1', created_at: '', context_items: null, metadata: null },
-    { id: '2', role: 'assistant', content: 'Hi', conversation_id: 'c1', created_at: '', context_items: null, metadata: null },
-    { id: '3', role: 'user', content: 'How are you?', conversation_id: 'c1', created_at: '', context_items: null, metadata: null },
-    { id: '4', role: 'assistant', content: '# Heading\nSome text', conversation_id: 'c1', created_at: '', context_items: null, metadata: null },
-    { id: '5', role: 'user', content: 'Thanks', conversation_id: 'c1', created_at: '', context_items: null, metadata: null },
+    { id: '1', role: 'user', content: 'Hello', conversation_id: 'c1', created_at: '', context_items: null, metadata: null, input_tokens: null, output_tokens: null, seen: false },
+    { id: '2', role: 'assistant', content: 'Hi', conversation_id: 'c1', created_at: '', context_items: null, metadata: null, input_tokens: null, output_tokens: null, seen: false },
+    { id: '3', role: 'user', content: 'How are you?', conversation_id: 'c1', created_at: '', context_items: null, metadata: null, input_tokens: null, output_tokens: null, seen: false },
+    { id: '4', role: 'assistant', content: '# Heading\nSome text', conversation_id: 'c1', created_at: '', context_items: null, metadata: null, input_tokens: null, output_tokens: null, seen: false },
+    { id: '5', role: 'user', content: 'Thanks', conversation_id: 'c1', created_at: '', context_items: null, metadata: null, input_tokens: null, output_tokens: null, seen: false },
   ]
 
   const mockHeadingsMap = {
