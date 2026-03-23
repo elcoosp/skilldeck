@@ -1,7 +1,7 @@
 // src/components/conversation/conversation-item.tsx
 /**
  * Sidebar conversation list item with inline rename, context menu, pin toggle,
- * workspace badge, and profile badge.
+ * workspace badge, profile badge, and drag-and-drop file attachment.
  */
 
 import { formatDistanceToNow } from 'date-fns'
@@ -15,6 +15,7 @@ import {
   Trash2
 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -29,6 +30,7 @@ import {
   useRenameConversation,
   useUnpinConversation
 } from '@/hooks/use-conversations'
+import { commands } from '@/lib/bindings'
 import type { ConversationSummary } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
 
@@ -39,9 +41,9 @@ interface ConversationItemProps {
   onDeleteStart?: (conversationId: string) => void
   onClick: () => void
   workspaceName?: string // optional workspace name to display as badge
-  profileName?: string | null // <-- new
-  profileDeleted?: boolean // <-- new
-  showProfileBadge?: boolean // <-- new
+  profileName?: string | null
+  profileDeleted?: boolean
+  showProfileBadge?: boolean
 }
 
 export function ConversationItem({
@@ -59,6 +61,10 @@ export function ConversationItem({
   const [draft, setDraft] = useState(conversation.title ?? '')
   const inputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+
+  // Drag-and-drop state
+  const [isDragTarget, setIsDragTarget] = useState(false)
+  const dragTimeoutRef = useRef<ReturnType<typeof setTimeout>>()
 
   const deleteMutation = useDeleteConversation()
   const renameMutation = useRenameConversation()
@@ -84,6 +90,36 @@ export function ConversationItem({
       unpinMutation.mutate(conversation.id)
     } else {
       pinMutation.mutate(conversation.id)
+    }
+  }
+
+  // Drag handlers
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault()
+    if (dragTimeoutRef.current) clearTimeout(dragTimeoutRef.current)
+    setIsDragTarget(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    dragTimeoutRef.current = setTimeout(() => setIsDragTarget(false), 150)
+  }
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragTarget(false)
+
+    const files = Array.from(e.dataTransfer.files)
+    if (files.length === 0) return
+
+    const paths = files.map((f) => f.path)
+    const res = await commands.attachFilesToConversation(conversation.id, paths)
+    if (res.status === 'error') {
+      toast.error(res.error)
+    } else {
+      toast.success(
+        `Attached ${files.length} file(s) to ${conversation.title ?? 'conversation'}`
+      )
     }
   }
 
@@ -149,15 +185,26 @@ export function ConversationItem({
       onKeyDown={handleKeyDown}
       className={cn(
         'group relative flex items-start gap-2 w-full px-2 py-2 rounded-md text-left transition-colors cursor-pointer',
-        'pr-6', // <-- consistent right padding to prevent highlight width variation
+        'pr-6',
         isActive
           ? 'bg-primary/10 text-foreground'
           : 'hover:bg-muted/70 text-muted-foreground hover:text-foreground',
         isDeleting && 'pointer-events-none opacity-50'
       )}
     >
+      {/* Drag-and-drop overlay (highlight on drop target) */}
+      <div
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className={cn(
+          'absolute inset-0 rounded-md transition-all pointer-events-none',
+          isDragTarget && 'ring-2 ring-primary ring-inset pointer-events-auto'
+        )}
+      />
+
       {/* Main content */}
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 relative z-10">
         {/* Title row – fixed height to prevent layout shift */}
         <div className="flex items-center gap-1 h-5">
           <AnimatePresence mode="wait">

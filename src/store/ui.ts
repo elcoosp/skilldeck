@@ -7,11 +7,10 @@
  * - unlockStage (progressive feature unlock)
  * - leftTab (active left sidebar tab)
  * - rightTab (active right sidebar tab)
+ * - collapsedDateGroups (collapsed state of date groups in left panel)
  *
  * All other state (active conversation, drafts, streaming, etc.) is ephemeral
  * and resets on app restart.
- *
- * Scroll positions are NOT stored here — see scrollPositionCache in center-panel.tsx.
  */
 
 import { create } from 'zustand'
@@ -114,6 +113,11 @@ interface UIState {
   // ── Platform features flag (manually persisted to localStorage) ────────
   platformFeaturesEnabled: boolean
   setPlatformFeaturesEnabled: (enabled: boolean) => void
+
+  // ── Collapsed date groups in left panel (persisted) ───────────────────
+  collapsedDateGroups: Record<string, boolean>
+  toggleDateGroup: (key: string) => void
+  setDateGroupCollapsed: (key: string, collapsed: boolean) => void
 }
 
 export const useUIStore = create<UIState>()(
@@ -236,7 +240,24 @@ export const useUIStore = create<UIState>()(
 
       // Unlock stage
       unlockStage: 0,
-      setUnlockStage: (stage) => set({ unlockStage: stage })
+      setUnlockStage: (stage) => set({ unlockStage: stage }),
+
+      // Collapsed date groups
+      collapsedDateGroups: {},
+      toggleDateGroup: (key) =>
+        set((state) => ({
+          collapsedDateGroups: {
+            ...state.collapsedDateGroups,
+            [key]: !state.collapsedDateGroups[key]
+          }
+        })),
+      setDateGroupCollapsed: (key, collapsed) =>
+        set((state) => ({
+          collapsedDateGroups: {
+            ...state.collapsedDateGroups,
+            [key]: collapsed
+          }
+        }))
     }),
     {
       name: 'skilldeck-ui',
@@ -244,7 +265,8 @@ export const useUIStore = create<UIState>()(
         panelSizes: state.panelSizes,
         unlockStage: state.unlockStage,
         leftTab: state.leftTab,
-        rightTab: state.rightTab
+        rightTab: state.rightTab,
+        collapsedDateGroups: state.collapsedDateGroups
       })
     }
   )

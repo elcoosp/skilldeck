@@ -11,11 +11,12 @@ pub struct Model {
     pub profile_id: Uuid,
     pub title: Option<String>,
     pub workspace_id: Option<Uuid>,
+    pub folder_id: Option<Uuid>,
     pub status: String,
     pub created_at: DateTimeWithTimeZone,
     pub updated_at: DateTimeWithTimeZone,
     pub archived_at: Option<DateTimeWithTimeZone>,
-    pub pinned: bool, // <-- added
+    pub pinned: bool,
 
     // Relations
     #[sea_orm(belongs_to, from = "profile_id", to = "id")]
@@ -23,6 +24,9 @@ pub struct Model {
 
     #[sea_orm(belongs_to, from = "workspace_id", to = "id")]
     pub workspace: HasOne<super::workspaces::Entity>,
+
+    #[sea_orm(belongs_to, from = "folder_id", to = "id")]
+    pub folder: HasOne<super::folders::Entity>,
 
     #[sea_orm(has_many)]
     pub messages: HasMany<super::messages::Entity>,

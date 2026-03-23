@@ -1,13 +1,14 @@
 // src/components/layout/left-panel.tsx
 /**
  * Left panel — conversation list, search, new chat, workspace switcher,
- * and profile filter.
+ * and profile filter, now with pinned conversations, folder grouping, and dated collapsible groups.
  */
 
 import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 import { open } from '@tauri-apps/plugin-dialog'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ChevronDown, FolderOpen, Plus, Search, Settings } from 'lucide-react'
+import { Collapsible } from 'radix-ui'
+import { ChevronDown, FolderOpen, FolderPlus, Plus, Search, Settings } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { ConversationItem } from '@/components/conversation/conversation-item'
@@ -32,6 +33,7 @@ import {
   useConversations,
   useCreateConversation
 } from '@/hooks/use-conversations'
+import { useFolders, useCreateFolder, useMoveConversationToFolder } from '@/hooks/use-folders'
 import { useProfiles } from '@/hooks/use-profiles'
 import { useOpenWorkspace, useWorkspaces } from '@/hooks/use-workspaces'
 import { cn } from '@/lib/utils'
@@ -82,6 +84,20 @@ function EmptyStateAnimation({ alt, className }: EmptyStateAnimationProps) {
 }
 
 // ----------------------------------------------------------------------
+// Helper to group conversations by date
+// ----------------------------------------------------------------------
+import { isToday, isYesterday, subDays } from 'date-fns'
+
+function getDateGroupKey(dateStr: string): string {
+  const date = new Date(dateStr)
+  if (isToday(date)) return 'Today'
+  if (isYesterday(date)) return 'Yesterday'
+  if (date > subDays(new Date(), 7)) return 'Last 7 days'
+  if (date > subDays(new Date(), 30)) return 'Last 30 days'
+  return 'Older'
+}
+
+// ----------------------------------------------------------------------
 // Main component
 // ----------------------------------------------------------------------
 export function LeftPanel() {
@@ -111,6 +127,20 @@ export function LeftPanel() {
   const { data: conversations, isLoading: conversationsLoading } =
     useConversations(filterProfileId)
 
+  // Folders
+  const { data: folders = [], isLoading: foldersLoading } = useFolders()
+  const createFolder = useCreateFolder()
+  const moveConversationToFolder = useMoveConversationToFolder()
+
+  // UI state for collapsed date groups
+  const collapsedDateGroups = useUIStore((s) => s.collapsedDateGroups)
+  const toggleDateGroup = useUIStore((s) => s.toggleDateGroup)
+  const setDateGroupCollapsed = useUIStore((s) => s.setDateGroupCollapsed)
+
+  // New folder creation modal state (simple prompt)
+  const [showNewFolderInput, setShowNewFolderInput] = useState(false)
+  const [newFolderName, setNewFolderName] = useState('')
+
   // Pass the profile ID to useCreateConversation so it can invalidate the correct query key
   const createConversation = useCreateConversation(defaultProfile?.id)
 
@@ -132,6 +162,33 @@ export function LeftPanel() {
       ? (c.title ?? '').toLowerCase().includes(searchQuery.toLowerCase())
       : true
   )
+
+  // Separate pinned and unpinned conversations
+  const pinnedConversations = filtered?.filter((c) => c.pinned) ?? []
+  const unpinned = filtered?.filter((c) => !c.pinned) ?? []
+
+  // Group unpinned conversations by folder
+  const conversationsByFolder = new Map<string, typeof unpinned>()
+  const conversationsWithoutFolder: typeof unpinned = []
+
+  for (const conv of unpinned) {
+    if (conv.folder_id) {
+      const folderId = conv.folder_id
+      const list = conversationsByFolder.get(folderId) || []
+      list.push(conv)
+      conversationsByFolder.set(folderId, list)
+    } else {
+      conversationsWithoutFolder.push(conv)
+    }
+  }
+
+  // Group the remaining (folderless) conversations by date
+  const groupedByDate: Record<string, typeof unpinned> = {}
+  for (const conv of conversationsWithoutFolder) {
+    const key = getDateGroupKey(conv.updated_at)
+    if (!groupedByDate[key]) groupedByDate[key] = []
+    groupedByDate[key].push(conv)
+  }
 
   const handleNew = () => {
     if (!defaultProfile) {
@@ -181,7 +238,28 @@ export function LeftPanel() {
     setDeletingId(null)
   }
 
-  const isLoading = profilesLoading || conversationsLoading
+  const handleCreateFolder = async () => {
+    if (!newFolderName.trim()) return
+    try {
+      await createFolder.mutateAsync(newFolderName.trim())
+      setNewFolderName('')
+      setShowNewFolderInput(false)
+      toast.success('Folder created')
+    } catch (err) {
+      toast.error(`Failed to create folder: ${err}`)
+    }
+  }
+
+  const handleMoveToFolder = async (conversationId: string, folderId: string | null) => {
+    try {
+      await moveConversationToFolder.mutateAsync({ conversationId, folderId })
+      toast.success(folderId ? 'Moved to folder' : 'Removed from folder')
+    } catch (err) {
+      toast.error(`Failed to move: ${err}`)
+    }
+  }
+
+  const isLoading = profilesLoading || conversationsLoading || foldersLoading
 
   // Find the currently selected profile name (if any)
   const selectedProfile = filterProfileId
@@ -341,32 +419,175 @@ export function LeftPanel() {
               mode="popLayout"
               onExitComplete={handleDeleteComplete}
             >
-              {filtered?.map((c) => (
-                <motion.div
-                  key={c.id}
-                  layout
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{
-                    opacity: 0,
-                    x: -10,
-                    transition: { duration: 0.2 }
-                  }}
+              {/* Pinned section */}
+              {pinnedConversations.length > 0 && (
+                <Collapsible.Root defaultOpen>
+                  <Collapsible.Trigger className="flex items-center justify-between w-full px-2 py-1 text-xs font-semibold uppercase text-muted-foreground hover:text-foreground transition-colors group">
+                    <span className="flex items-center gap-1.5">
+                      <span className="size-1.5 rounded-full bg-primary" />
+                      Pinned
+                    </span>
+                    <ChevronDown className="size-3 transition-transform group-data-[state=open]:rotate-0 group-data-[state=closed]:-rotate-90" />
+                  </Collapsible.Trigger>
+                  <Collapsible.Content className="space-y-0.5 pl-2">
+                    {pinnedConversations.map((c) => (
+                      <motion.div
+                        key={c.id}
+                        layout
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{
+                          opacity: 0,
+                          x: -10,
+                          transition: { duration: 0.2 }
+                        }}
+                      >
+                        <ConversationItem
+                          conversation={c}
+                          isActive={c.id === activeConversationId}
+                          isDeleting={c.id === deletingId}
+                          onDeleteStart={handleDeleteStart}
+                          onClick={() => setActiveConversation(c.id)}
+                          workspaceName={
+                            getWorkspaceName(c.workspace_id) ?? undefined
+                          }
+                          profileName={c.profile_name}
+                          profileDeleted={c.profile_deleted}
+                          showProfileBadge={filterProfileId === null}
+                        />
+                      </motion.div>
+                    ))}
+                  </Collapsible.Content>
+                </Collapsible.Root>
+              )}
+
+              {/* Folders section */}
+              {folders.length > 0 && (
+                <div className="mt-2 pt-2 border-t border-border/50">
+                  <div className="flex items-center justify-between px-2 py-1">
+                    <span className="text-xs font-semibold uppercase text-muted-foreground">
+                      Folders
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={() => setShowNewFolderInput(true)}
+                      title="New folder"
+                    >
+                      <FolderPlus className="size-3.5" />
+                    </Button>
+                  </div>
+
+                  {showNewFolderInput && (
+                    <div className="px-2 py-1 flex gap-1">
+                      <Input
+                        placeholder="Folder name"
+                        value={newFolderName}
+                        onChange={(e) => setNewFolderName(e.target.value)}
+                        className="h-7 text-xs"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleCreateFolder()
+                          if (e.key === 'Escape') setShowNewFolderInput(false)
+                        }}
+                      />
+                      <Button size="xs" onClick={handleCreateFolder}>
+                        Create
+                      </Button>
+                    </div>
+                  )}
+
+                  {folders.map((folder) => {
+                    const folderConvs = conversationsByFolder.get(folder.id) ?? []
+                    if (folderConvs.length === 0) return null
+                    return (
+                      <Collapsible.Root key={folder.id} defaultOpen>
+                        <Collapsible.Trigger className="group flex items-center justify-between w-full px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
+                          <div className="flex items-center gap-1.5">
+                            <Folder className="size-3.5" />
+                            <span className="truncate">{folder.name}</span>
+                            <span className="text-[10px] text-muted-foreground">
+                              ({folderConvs.length})
+                            </span>
+                          </div>
+                          <ChevronDown className="size-3 transition-transform group-data-[state=open]:rotate-0 group-data-[state=closed]:-rotate-90" />
+                        </Collapsible.Trigger>
+                        <Collapsible.Content className="space-y-0.5 pl-5">
+                          {folderConvs.map((c) => (
+                            <motion.div
+                              key={c.id}
+                              layout
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{
+                                opacity: 0,
+                                x: -10,
+                                transition: { duration: 0.2 }
+                              }}
+                            >
+                              <ConversationItem
+                                conversation={c}
+                                isActive={c.id === activeConversationId}
+                                isDeleting={c.id === deletingId}
+                                onDeleteStart={handleDeleteStart}
+                                onClick={() => setActiveConversation(c.id)}
+                                workspaceName={
+                                  getWorkspaceName(c.workspace_id) ?? undefined
+                                }
+                                profileName={c.profile_name}
+                                profileDeleted={c.profile_deleted}
+                                showProfileBadge={filterProfileId === null}
+                              />
+                            </motion.div>
+                          ))}
+                        </Collapsible.Content>
+                      </Collapsible.Root>
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* Dated groups (only for conversations without a folder) */}
+              {Object.entries(groupedByDate).map(([key, convs]) => (
+                <Collapsible.Root
+                  key={key}
+                  open={!collapsedDateGroups[key]}
+                  onOpenChange={(open) => setDateGroupCollapsed(key, !open)}
                 >
-                  <ConversationItem
-                    conversation={c}
-                    isActive={c.id === activeConversationId}
-                    isDeleting={c.id === deletingId}
-                    onDeleteStart={handleDeleteStart}
-                    onClick={() => setActiveConversation(c.id)}
-                    workspaceName={
-                      getWorkspaceName(c.workspace_id) ?? undefined
-                    }
-                    profileName={c.profile_name}
-                    profileDeleted={c.profile_deleted}
-                    showProfileBadge={filterProfileId === null}
-                  />
-                </motion.div>
+                  <Collapsible.Trigger className="flex items-center justify-between w-full px-2 py-1 text-xs font-semibold uppercase text-muted-foreground hover:text-foreground transition-colors group mt-2 first:mt-0">
+                    {key}
+                    <ChevronDown className="size-3 transition-transform group-data-[state=open]:rotate-0 group-data-[state=closed]:-rotate-90" />
+                  </Collapsible.Trigger>
+                  <Collapsible.Content className="space-y-0.5 pl-2">
+                    {convs.map((c) => (
+                      <motion.div
+                        key={c.id}
+                        layout
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{
+                          opacity: 0,
+                          x: -10,
+                          transition: { duration: 0.2 }
+                        }}
+                      >
+                        <ConversationItem
+                          conversation={c}
+                          isActive={c.id === activeConversationId}
+                          isDeleting={c.id === deletingId}
+                          onDeleteStart={handleDeleteStart}
+                          onClick={() => setActiveConversation(c.id)}
+                          workspaceName={
+                            getWorkspaceName(c.workspace_id) ?? undefined
+                          }
+                          profileName={c.profile_name}
+                          profileDeleted={c.profile_deleted}
+                          showProfileBadge={filterProfileId === null}
+                        />
+                      </motion.div>
+                    ))}
+                  </Collapsible.Content>
+                </Collapsible.Root>
               ))}
             </AnimatePresence>
           )}

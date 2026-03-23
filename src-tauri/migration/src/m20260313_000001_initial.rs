@@ -173,6 +173,7 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(Conversations::Table)
                     .if_not_exists()
+                    .col(uuid(Conversations::FolderId).null())
                     .col(uuid(Conversations::Id).primary_key())
                     .col(uuid(Conversations::ProfileId).not_null())
                     .col(string(Conversations::Title).null())
@@ -1493,6 +1494,7 @@ enum Workspaces {
 enum Conversations {
     Table,
     Id,
+    FolderId,
     ProfileId,
     Title,
     WorkspaceId,

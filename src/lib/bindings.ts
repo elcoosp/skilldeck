@@ -5,6 +5,54 @@
 
 
 export const commands = {
+async attachFilesToConversation(conversationId: string, paths: string[]) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("attach_files_to_conversation", { conversationId, paths }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async listFolders() : Promise<Result<FolderData[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_folders") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async createFolder(name: string) : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("create_folder", { name }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async renameFolder(id: string, name: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("rename_folder", { id, name }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async deleteFolder(id: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("delete_folder", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async moveConversationToFolder(conversationId: string, folderId: string | null) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("move_conversation_to_folder", { conversationId, folderId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 /**
  * Set the global auto-approve configuration.
  */
@@ -1003,6 +1051,7 @@ export type FileEntry = { name: string; path: string; is_dir: boolean; size: str
  * Shallow vs deep file counts for a folder, used by `FolderScopeModal`.
  */
 export type FolderCounts = { shallow: string; deep: string }
+export type FolderData = { id: string; name: string; created_at: string }
 /**
  * Determines how deeply to traverse a folder when assembling content.
  * Stored as a string in the JSON column (e.g., "shallow" or "deep").
