@@ -2,9 +2,10 @@
 //! Message Tauri commands.
 
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, ConnectionTrait, DbBackend, EntityTrait, Expr,
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, ConnectionTrait, DbBackend, EntityTrait,
     QueryFilter, QueryOrder, Statement,
 };
+use sea_query::Expr;
 use serde::{Deserialize, Serialize};
 use specta::{Type, specta};
 use std::pin::Pin;
