@@ -323,8 +323,8 @@ pub async fn mark_messages_seen(
     let conv_uuid = Uuid::parse_str(&conversation_id).map_err(|e| e.to_string())?;
 
     messages::Entity::update_many()
-        .col_expr(messages::Column::Seen, Expr::value(true))
-        .filter(messages::Column::ConversationId.eq(conv_uuid))
+        .col_expr(messages::COLUMN.seen, Expr::value(true))
+        .filter(messages::COLUMN.conversation_id.eq(conv_uuid))
         .exec(db)
         .await
         .map_err(|e| e.to_string())?;

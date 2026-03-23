@@ -81,10 +81,10 @@ pub async fn lint_skill(
     path: PathBuf,
     workspace_config_path: Option<PathBuf>,
 ) -> Result<Vec<LintWarning>, String> {
-    // Read the global config from the shared state (already merged from file).
-    let global_config = state.lint_config.read().await.clone();
+    // Read the current global config from shared state
+    let mut global_config = state.lint_config.read().await.clone();
 
-    // If a workspace config path is provided, merge it on top.
+    // If a workspace config path is provided, merge it on top
     let final_config = if let Some(ws_path) = workspace_config_path {
         LintConfig::from_files(None, Some(&ws_path)).unwrap_or(global_config)
     } else {
@@ -360,10 +360,11 @@ pub async fn disable_lint_rule(
         .await
         .map_err(|e| e.to_string())?;
 
-    if matches!(scope, ConfigScope::Global)
-        && let Ok(new_config) = LintConfig::from_files(Some(&config_path), None)
-    {
-        *state.lint_config.write().await = new_config;
+    // Update in-memory config for global scope so subsequent lints see the change
+    if matches!(scope, ConfigScope::Global) {
+        if let Ok(new_config) = LintConfig::from_files(Some(&config_path), None) {
+            *state.lint_config.write().await = new_config;
+        }
     }
 
     Ok(())
