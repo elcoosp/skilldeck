@@ -1,26 +1,6 @@
 // src/store/ui.ts
-/**
- * UI state — Zustand store with selective persistence.
- *
- * Persisted across sessions:
- * - panelSizes (left/right panel widths)
- * - unlockStage (progressive feature unlock)
- * - leftTab (active left sidebar tab)
- * - rightTab (active right sidebar tab)
- *
- * All other state (active conversation, drafts, streaming, etc.) is ephemeral
- * and resets on app restart.
- *
- * Scroll positions are NOT stored here — see scrollPositionCache in center-panel.tsx.
- */
-
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-
-interface PanelSizes {
-  left: number
-  right: number
-}
 
 export type SettingsTab =
   | 'apikeys'
@@ -47,9 +27,9 @@ interface UIState {
   activeBranchId: string | null
   setActiveBranch: (id: string | null) => void
 
-  // ── Panel sizes (persisted) ───────────────────────────────────────────
-  panelSizes: PanelSizes
-  setPanelSizes: (sizes: Partial<PanelSizes>) => void
+  // ── Pixel sizes for drop zone (ephemeral) ─────────────────────────────
+  panelSizesPx: { left: number; right: number }
+  setPanelSizesPx: (sizes: { left: number; right: number }) => void
 
   // ── Draft messages (per conversation) ─────────────────────────────────
   drafts: Record<string, string>
@@ -114,6 +94,11 @@ interface UIState {
   // ── Platform features flag (manually persisted to localStorage) ────────
   platformFeaturesEnabled: boolean
   setPlatformFeaturesEnabled: (enabled: boolean) => void
+
+  // ── Collapsed date groups in left panel (persisted) ───────────────────
+  collapsedDateGroups: Record<string, boolean>
+  toggleDateGroup: (key: string) => void
+  setDateGroupCollapsed: (key: string, collapsed: boolean) => void
 }
 
 export const useUIStore = create<UIState>()(
@@ -162,10 +147,9 @@ export const useUIStore = create<UIState>()(
       activeBranchId: null,
       setActiveBranch: (id) => set({ activeBranchId: id }),
 
-      // Panel sizes
-      panelSizes: { left: 280, right: 320 },
-      setPanelSizes: (sizes) =>
-        set((state) => ({ panelSizes: { ...state.panelSizes, ...sizes } })),
+      // Pixel sizes
+      panelSizesPx: { left: 0, right: 0 },
+      setPanelSizesPx: (sizes) => set({ panelSizesPx: { ...sizes } }),
 
       // Drafts
       drafts: {},
@@ -183,8 +167,8 @@ export const useUIStore = create<UIState>()(
         set((state) => ({
           streamingText: {
             ...state.streamingText,
-            [conversationId]: (state.streamingText[conversationId] ?? '') + delta
-          }
+            [conversationId]: (state.streamingText[conversationId] ?? '') + delta,
+          },
         })),
       clearStreamingText: (conversationId) =>
         set((state) => {
@@ -236,16 +220,39 @@ export const useUIStore = create<UIState>()(
 
       // Unlock stage
       unlockStage: 0,
-      setUnlockStage: (stage) => set({ unlockStage: stage })
+      setUnlockStage: (stage) => set({ unlockStage: stage }),
+
+      // Collapsed date groups
+      collapsedDateGroups: {},
+      toggleDateGroup: (key) =>
+        set((state) => ({
+          collapsedDateGroups: {
+            ...state.collapsedDateGroups,
+            [key]: !state.collapsedDateGroups[key],
+          },
+        })),
+      setDateGroupCollapsed: (key, collapsed) =>
+        set((state) => ({
+          collapsedDateGroups: {
+            ...state.collapsedDateGroups,
+            [key]: collapsed,
+          },
+        })),
     }),
     {
       name: 'skilldeck-ui',
       partialize: (state) => ({
-        panelSizes: state.panelSizes,
         unlockStage: state.unlockStage,
         leftTab: state.leftTab,
-        rightTab: state.rightTab
-      })
+        rightTab: state.rightTab,
+        collapsedDateGroups: state.collapsedDateGroups,
+        // panelSizesPx is NOT persisted
+      }),
     }
   )
 )
+
+// Feature gate selectors remain unchanged
+export const selectHasSkillsUnlocked = (state: UIState) => state.unlockStage >= 1
+export const selectHasMcpUnlocked = (state: UIState) => state.unlockStage >= 2
+export const selectHasWorkflowsUnlocked = (state: UIState) => state.unlockStage >= 3

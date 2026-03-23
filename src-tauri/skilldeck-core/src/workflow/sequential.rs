@@ -11,18 +11,19 @@ use super::{
 use crate::{
     CoreError,
     agent::{AgentLoop, AgentLoopConfig, AgentLoopEvent},
-    traits::ModelProvider,
+    traits::{Database, ModelProvider},
 };
 
 // ── Execution context ─────────────────────────────────────────────────────────
 
-/// Carries provider + model so each step can spawn its own `AgentLoop`.
+/// Carries provider + model + db so each step can spawn its own `AgentLoop`.
 /// When `None` is passed to `execute` / `execute_step`, the stub path runs.
 #[derive(Clone)]
 pub struct StepExecutionContext {
     pub provider: Arc<dyn ModelProvider>,
     pub model_id: String,
     pub config: AgentLoopConfig,
+    pub db: Arc<dyn Database>, // <-- new
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -131,6 +132,7 @@ async fn run_step_with_agent(
         ctx.model_id.clone(),
         ctx.config.clone(),
         event_tx,
+        ctx.db.clone(), // <-- pass the database
     );
 
     let prompt_owned = prompt.to_string();
@@ -143,11 +145,12 @@ async fn run_step_with_agent(
         }
     }
 
-    let new_messages = loop_handle.await.map_err(|e| CoreError::Internal {
+    let agent_result = loop_handle.await.map_err(|e| CoreError::Internal {
         message: e.to_string(),
     })??;
 
-    let result = new_messages
+    let result = agent_result
+        .messages
         .iter()
         .rev()
         .find(|m| matches!(m.role, crate::traits::MessageRole::Assistant))

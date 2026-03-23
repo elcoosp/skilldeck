@@ -28,7 +28,7 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { openUrl } from '@tauri-apps/plugin-opener'  // <-- added
+import { openUrl } from '@tauri-apps/plugin-opener'
 import { UnifiedSkillList } from '@/components/skills/unified-skill-list'
 import { BouncingDots } from '@/components/ui/bouncing-dots'
 import { Button } from '@/components/ui/button'
@@ -41,6 +41,7 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { WorkflowEditor } from '@/components/workflow/workflow-editor'
+import { WorkflowGraph } from '@/components/workflow/workflow-graph'
 import { useAnalytics } from '@/hooks/use-analytics'
 import { useConversations } from '@/hooks/use-conversations'
 import { useProfiles } from '@/hooks/use-profiles'
@@ -52,8 +53,10 @@ import {
 import { useWorkflowEvents } from '@/hooks/use-workflow-events'
 import { commands } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
-import { useUIStore } from '@/store/ui'
+import { useUIStore, selectHasSkillsUnlocked, selectHasWorkflowsUnlocked } from '@/store/ui'
 import { McpTab } from './mcp-tab'
+import { useSessionStats } from '@/hooks/use-session-stats'
+import { AnalyticsHeatmap } from '../analytics/analytics-heatmap'
 
 type Tab = 'session' | 'skills' | 'mcp' | 'workflow' | 'analytics'
 
@@ -72,24 +75,27 @@ const TABS: {
 export function RightPanel() {
   const [activeTab, setActiveTab] = useState<Tab>('session')
   const activeConversationId = useUIStore((s) => s.activeConversationId)
+  const unlockStage = useUIStore((s) => s.unlockStage)
+  const hasSkillsUnlocked = useUIStore(selectHasSkillsUnlocked)
+  const hasWorkflowsUnlocked = useUIStore(selectHasWorkflowsUnlocked)
+
+  // Filter tabs based on unlock stage
+  const visibleTabs = TABS.filter(tab => {
+    if (tab.id === 'skills') return hasSkillsUnlocked
+    if (tab.id === 'workflow') return hasWorkflowsUnlocked
+    return true
+  })
 
   return (
     <div className="flex flex-col h-full">
-      {/*
-        Tab bar — each tab takes an equal share of the full bar width (flex-1).
-        The icon is always centred inside that reserved slot. The label fades
-        in on hover WITHOUT displacing the icon or shifting neighbouring tabs,
-        because the tab's width never changes.
-      */}
       <div className="flex border-b border-border shrink-0">
-        {TABS.map(({ id, label, Icon }) => (
+        {visibleTabs.map(({ id, label, Icon }) => (
           <button
             key={id}
             type="button"
             onClick={() => setActiveTab(id)}
             className={cn(
               'group relative flex items-center justify-center',
-              // min-w holds space for the icon; width grows smoothly to fit label
               'min-w-[2.25rem] px-2 py-2.5 text-xs font-medium',
               'transition-[color,width] duration-200 ease-in-out',
               activeTab === id
@@ -101,7 +107,6 @@ export function RightPanel() {
             <span
               className={cn(
                 'whitespace-nowrap overflow-hidden pointer-events-none',
-                // width:0 → auto via max-width; smooth, no jump
                 'max-w-0 group-hover:max-w-[6rem]',
                 'ml-0 group-hover:ml-1.5',
                 'opacity-0 group-hover:opacity-100',
@@ -120,7 +125,6 @@ export function RightPanel() {
           <McpTab />
         </div>
       ) : activeTab === 'skills' ? (
-        // Skills tab owns its own scroll and layout (virtualized marketplace)
         <div className="flex-1 min-h-0 overflow-hidden w-full min-w-0">
           <UnifiedSkillList />
         </div>
@@ -161,11 +165,9 @@ function useAvailableModels(provider: string) {
 }
 
 function SessionTab({ conversationId }: { conversationId: string | null }) {
-  // Get profiles and default profile to pass to conversations query
   const { data: profiles } = useProfiles()
   const defaultProfile = profiles?.find((p) => p.is_default) ?? profiles?.[0]
 
-  // Pass profileId to useConversations() so it uses the SAME query key as left-panel
   const {
     data: conversations,
     isLoading: conversationsLoading,
@@ -181,6 +183,9 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
     },
     staleTime: 30_000
   })
+
+  // ── Token counter ──
+  const { inputTokens, outputTokens } = useSessionStats(conversationId)
 
   if (!conversationId) {
     return (
@@ -274,6 +279,23 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
           currentModelId={profile.model_id}
         />
       </section>
+
+      {/* Token usage */}
+      <section className="space-y-2">
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          Token Usage (Current Session)
+        </h3>
+        <div className="grid grid-cols-2 gap-2 text-sm">
+          <div className="rounded border border-border p-2">
+            <span className="text-muted-foreground">Input</span>
+            <div className="font-mono text-base">{inputTokens.toLocaleString()}</div>
+          </div>
+          <div className="rounded border border-border p-2">
+            <span className="text-muted-foreground">Output</span>
+            <div className="font-mono text-base">{outputTokens.toLocaleString()}</div>
+          </div>
+        </div>
+      </section>
     </div>
   )
 }
@@ -322,6 +344,7 @@ function WorkflowTab() {
   const runMutation = useRunWorkflowDefinition()
   const [editorOpen, setEditorOpen] = useState(false)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
+  const [selectedWorkflow, setSelectedWorkflow] = useState<any | null>(null)
 
   const handleDelete = (id: string, name: string) => {
     if (confirm(`Delete workflow "${name}"?`)) {
@@ -441,7 +464,6 @@ function WorkflowTab() {
             <BouncingDots />
           </div>
         ) : savedWorkflows.length === 0 ? (
-          // ✨ Whimsical empty state with fade+scale animation
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -479,6 +501,17 @@ function WorkflowTab() {
                 <Button
                   size="icon-xs"
                   variant="ghost"
+                  onClick={() => {
+                    setSelectedWorkflow(wf.definition)
+                    setEditorOpen(true)
+                  }}
+                  title="Edit workflow"
+                >
+                  <ChevronRight className="size-3" />
+                </Button>
+                <Button
+                  size="icon-xs"
+                  variant="ghost"
                   onClick={() => runMutation.mutate(wf.id)}
                   disabled={runMutation.isPending}
                   title="Run workflow"
@@ -499,7 +532,22 @@ function WorkflowTab() {
         )}
       </div>
 
-      <WorkflowEditor open={editorOpen} onOpenChange={setEditorOpen} />
+      {/* Workflow graph visualization */}
+      {selectedWorkflow && (
+        <div className="mt-4 border-t pt-3">
+          <h4 className="text-xs font-medium mb-2">Visualization</h4>
+          <div className="h-64 border rounded-md bg-muted/20 p-1">
+            <WorkflowGraph definition={selectedWorkflow} stepStatuses={{}} />
+          </div>
+        </div>
+      )}
+
+      <WorkflowEditor
+        open={editorOpen}
+        onOpenChange={setEditorOpen}
+        initialDefinition={selectedWorkflow}
+        onSaved={() => setSelectedWorkflow(null)}
+      />
     </div>
   )
 }
@@ -524,11 +572,6 @@ function AnalyticsTab() {
       </div>
     )
   }
-
-  const maxTokens =
-    analytics.messages_per_day.length > 0
-      ? Math.max(...analytics.messages_per_day.map((d) => d.count))
-      : 1
 
   return (
     <div className="p-4 space-y-5">
@@ -571,30 +614,13 @@ function AnalyticsTab() {
         </div>
       </div>
 
-      {/* Messages per day */}
-      {analytics.messages_per_day.length > 0 && (
-        <div>
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-            Messages — Last 30 Days
-          </h3>
-          <div className="flex items-end gap-1 h-20">
-            {analytics.messages_per_day.map(({ date, count }) => (
-              <div
-                key={date}
-                className="flex-1 flex flex-col items-center gap-1"
-              >
-                <div
-                  className="w-full rounded-t bg-primary/60 transition-all"
-                  style={{ height: `${(count / maxTokens) * 100}%` }}
-                />
-                <span className="text-[9px] text-muted-foreground">
-                  {new Date(date).getDate()}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Heatmap */}
+      <div className="overflow-x-auto">
+        <AnalyticsHeatmap
+          messagesData={analytics.messages_per_day}
+          conversationsData={analytics.conversations_per_day}
+        />
+      </div>
 
       {/* Skills used */}
       {analytics.skills_used.length > 0 && (
@@ -609,12 +635,6 @@ function AnalyticsTab() {
             </div>
           ))}
         </div>
-      )}
-
-      {analytics.messages_per_day.length === 0 && (
-        <p className="text-xs text-muted-foreground text-center py-4">
-          No activity yet. Start a conversation to see analytics.
-        </p>
       )}
     </div>
   )

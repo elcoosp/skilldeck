@@ -1,3 +1,4 @@
+// src-tauri/src/commands/settings.rs
 //! Settings Tauri commands — API key management via OS keyring.
 //!
 //! Keys are stored under the service name `"skilldeck"` with the provider
@@ -145,4 +146,41 @@ pub async fn test_api_connection(provider: String, key: String) -> Result<bool, 
         }
         _ => Err(format!("Unknown provider: {provider}")),
     }
+}
+
+// ── Auto-approve configuration ───────────────────────────────────────────────
+
+#[derive(Debug, Deserialize, Type)]
+pub struct AutoApproveConfigDto {
+    pub auto_approve_reads: bool,
+    pub auto_approve_writes: bool,
+    pub auto_approve_shell: bool,
+    pub auto_approve_http_requests: bool,
+    pub auto_approve_selects: bool,
+    pub auto_approve_mutations: bool,
+}
+
+/// Set the global auto-approve configuration.
+#[specta]
+#[tauri::command]
+pub async fn set_auto_approve_config(
+    state: State<'_, Arc<AppState>>,
+    config: AutoApproveConfigDto,
+    _app: tauri::AppHandle,
+) -> Result<(), String> {
+    use skilldeck_core::agent::tool_dispatcher::AutoApproveConfig;
+
+    let core_config = AutoApproveConfig {
+        reads: config.auto_approve_reads,
+        writes: config.auto_approve_writes,
+        shell: config.auto_approve_shell,
+        http_requests: config.auto_approve_http_requests,
+        selects: config.auto_approve_selects,
+        mutations: config.auto_approve_mutations,
+    };
+    *state.global_auto_approve.write().await = core_config;
+    // Emit event so existing ToolDispatcher instances can update.
+    // Note: We'll rely on the dispatcher reading the global config at creation time.
+    // Future improvement: broadcast changes.
+    Ok(())
 }

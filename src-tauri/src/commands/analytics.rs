@@ -2,20 +2,16 @@
 //! Aggregates real usage data from the local database.
 
 use chrono::{Duration, Utc};
-use sea_orm::{ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder};
+use sea_orm::{ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect};
 use serde::Serialize;
-use specta::{Type, specta}; // <-- import specta macro
+use specta::{Type, specta};
 use std::sync::Arc;
 use tauri::State;
 
 use crate::state::AppState;
 use skilldeck_models::{
-    conversations::Column as ConversationColumn,
-    conversations::Entity as Conversations,
-    messages::Column as MessageColumn,
-    // usage_events::Column as UsageColumn, // <-- removed unused import
-    messages::Entity as Messages,
-    usage_events::Entity as UsageEvents,
+    conversations::Column as ConversationColumn, conversations::Entity as Conversations,
+    messages::Column as MessageColumn, messages::Entity as Messages,
 };
 
 #[derive(Debug, Serialize, Type)]
@@ -72,7 +68,7 @@ pub async fn get_analytics(state: State<'_, Arc<AppState>>) -> Result<AnalyticsD
     // Messages per day for the last 30 days
     let thirty_days_ago = Utc::now() - Duration::days(30);
     let messages = Messages::find()
-        .filter(MessageColumn::CreatedAt.gte(thirty_days_ago)) // <-- removed .into()
+        .filter(MessageColumn::CreatedAt.gte(thirty_days_ago))
         .order_by_asc(MessageColumn::CreatedAt)
         .all(db)
         .await
@@ -119,18 +115,32 @@ pub async fn get_analytics(state: State<'_, Arc<AppState>>) -> Result<AnalyticsD
         .map(|(name, count)| SkillUsage { name, count })
         .collect();
 
-    // Token usage totals
-    let usage_events = UsageEvents::find()
-        .all(db)
+    // Token usage totals from messages table
+    let input_sum: i64 = Messages::find()
+        .select_only()
+        .column_as(MessageColumn::InputTokens.sum(), "sum")
+        .filter(MessageColumn::InputTokens.is_not_null())
+        .into_tuple()
+        .one(db)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| e.to_string())?
+        .unwrap_or(0);
 
-    let mut token_totals = TokenTotals::default();
-    for event in usage_events {
-        token_totals.input_tokens += event.input_tokens.unwrap_or(0) as i64;
-        token_totals.output_tokens += event.output_tokens.unwrap_or(0) as i64;
-    }
-    token_totals.total_tokens = token_totals.input_tokens + token_totals.output_tokens;
+    let output_sum: i64 = Messages::find()
+        .select_only()
+        .column_as(MessageColumn::OutputTokens.sum(), "sum")
+        .filter(MessageColumn::OutputTokens.is_not_null())
+        .into_tuple()
+        .one(db)
+        .await
+        .map_err(|e| e.to_string())?
+        .unwrap_or(0);
+
+    let token_totals = TokenTotals {
+        input_tokens: input_sum,
+        output_tokens: output_sum,
+        total_tokens: input_sum + output_sum,
+    };
 
     Ok(AnalyticsData {
         total_conversations,

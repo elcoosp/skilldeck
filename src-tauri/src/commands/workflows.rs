@@ -1,3 +1,4 @@
+// src-tauri/src/commands/workflows.rs
 //! Workflow definition Tauri commands.
 
 use sea_orm::{ActiveModelTrait, ActiveValue::Set, EntityTrait, QueryOrder};
@@ -8,6 +9,7 @@ use std::sync::Arc;
 use tauri::{Emitter, State};
 use uuid::Uuid;
 
+use crate::events::WorkflowEvent;
 use crate::state::AppState;
 use skilldeck_models::workflow_definitions::{self, Entity as WorkflowDefs};
 
@@ -145,6 +147,8 @@ pub async fn delete_workflow_definition(
 
     Ok(())
 }
+
+/// Run a workflow definition and emit events.
 #[specta]
 #[tauri::command]
 pub async fn run_workflow_definition(
@@ -181,11 +185,14 @@ pub async fn run_workflow_definition(
         .map(|m| m.id)
         .unwrap_or_else(|| "llama3.2:latest".to_string());
 
+    let db_arc = state.registry.db.clone();
+
     let executor = WorkflowExecutor::with_provider(
         tx,
         provider,
         model_id,
         state.config.agent.max_eval_opt_iterations,
+        db_arc,
     );
 
     let execution_id = Uuid::new_v4();
@@ -195,7 +202,47 @@ pub async fn run_workflow_definition(
     tokio::spawn(async move {
         let _ = executor.execute(definition).await;
         while let Some(event) = rx.recv().await {
-            let _ = app_handle.emit("workflow-event", event);
+            // Convert core event to Tauri event with proper string conversions
+            let tauri_event = match event {
+                skilldeck_core::workflow::WorkflowEvent::Started { id } => {
+                    WorkflowEvent::Started { id: id.to_string() }
+                }
+                skilldeck_core::workflow::WorkflowEvent::StepStarted {
+                    workflow_id,
+                    step_id,
+                } => WorkflowEvent::StepStarted {
+                    workflow_id: workflow_id.to_string(),
+                    step_id,
+                },
+                skilldeck_core::workflow::WorkflowEvent::StepCompleted {
+                    workflow_id,
+                    step_id,
+                    result,
+                } => WorkflowEvent::StepCompleted {
+                    workflow_id: workflow_id.to_string(),
+                    step_id,
+                    result,
+                },
+                skilldeck_core::workflow::WorkflowEvent::StepFailed {
+                    workflow_id,
+                    step_id,
+                    error,
+                } => WorkflowEvent::StepFailed {
+                    workflow_id: workflow_id.to_string(),
+                    step_id,
+                    error,
+                },
+                skilldeck_core::workflow::WorkflowEvent::Completed { id } => {
+                    WorkflowEvent::Completed { id: id.to_string() }
+                }
+                skilldeck_core::workflow::WorkflowEvent::Failed { id, error } => {
+                    WorkflowEvent::Failed {
+                        id: id.to_string(),
+                        message: error,
+                    }
+                }
+            };
+            let _ = app_handle.emit("workflow-event", tauri_event);
         }
     });
 

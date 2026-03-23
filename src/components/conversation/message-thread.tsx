@@ -8,6 +8,10 @@ import { motion } from 'framer-motion'
 import * as React from 'react'
 import type { MessageData } from '@/lib/bindings'
 import { MessageBubble } from './message-bubble'
+import { useSendMessage } from '@/hooks/use-messages'
+import { useUIStore } from '@/store/ui'
+import { useToolApprovalStore } from '@/store/tool-approvals'   // NEW
+import { ToolApprovalCard } from './tool-approval-card'         // NEW
 
 export interface ScrollToken {
   messageId: string
@@ -37,6 +41,8 @@ interface MessageThreadProps {
   autoScroll?: boolean
   onVisibleUserIndexChange?: (index: number) => void
   onScrollSettled?: (token: ScrollToken) => void
+  /** Called when a message becomes visible (50% in view) */
+  onMessageVisible?: (messageId: string) => void
 }
 
 function distFromBottom(el: HTMLElement): number {
@@ -65,17 +71,35 @@ export const MessageThread = React.forwardRef<
       initialScrollToken,
       autoScroll = true,
       onVisibleUserIndexChange,
-      onScrollSettled
+      onScrollSettled,
+      onMessageVisible,
     },
     ref
   ) => {
     const scrollRef = React.useRef<HTMLDivElement>(null)
 
+    // Get active conversation ID for sending retry messages
+    const activeConversationId = useUIStore((s) => s.activeConversationId)
+    const sendMutation = useSendMessage(activeConversationId!)
+
+    // Add retry ability to user messages whose next assistant message is cancelled
+    const messagesWithRetry = React.useMemo(() => {
+      return messages.map((msg, idx) => {
+        if (msg.role === 'user' && idx + 1 < messages.length) {
+          const nextMsg = messages[idx + 1]
+          if (nextMsg.role === 'assistant' && nextMsg.status === 'cancelled') {
+            return { ...msg, retryAvailable: true }
+          }
+        }
+        return msg
+      })
+    }, [messages])
+
     const filteredMessages = React.useMemo(() => {
-      if (!searchQuery.trim()) return messages
+      if (!searchQuery.trim()) return messagesWithRetry
       const q = searchQuery.toLowerCase()
-      return messages.filter((m) => m.content.toLowerCase().includes(q))
-    }, [messages, searchQuery])
+      return messagesWithRetry.filter((m) => m.content.toLowerCase().includes(q))
+    }, [messagesWithRetry, searchQuery])
 
     const filteredMessagesRef = React.useRef(filteredMessages)
     filteredMessagesRef.current = filteredMessages
@@ -338,6 +362,80 @@ export const MessageThread = React.forwardRef<
       return () => { clearTimeout(t); el.removeEventListener('scroll', report) }
     }, [filteredMessages, messages, onVisibleUserIndexChange])
 
+    // Intersection Observer for marking messages as seen
+    React.useEffect(() => {
+      const container = scrollRef.current
+      if (!container || !onMessageVisible) return
+
+      const seenMessages = new Set<string>()
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              const messageId = entry.target.getAttribute('data-message-id')
+              if (messageId && !seenMessages.has(messageId)) {
+                seenMessages.add(messageId)
+                onMessageVisible(messageId)
+              }
+            }
+          })
+        },
+        { threshold: 0.5, root: container }
+      )
+
+      // Observe existing messages
+      const elements = container.querySelectorAll('[data-message-id]')
+      elements.forEach((el) => observer.observe(el))
+
+      // MutationObserver to handle dynamically added messages
+      const mutationObserver = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          mutation.addedNodes.forEach((node) => {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+              const el = node as Element
+              const messageId = el.getAttribute('data-message-id')
+              if (messageId) {
+                observer.observe(el)
+                // Check visibility immediately (might be in view due to auto-scroll)
+                const rect = el.getBoundingClientRect()
+                const containerRect = container.getBoundingClientRect()
+                if (rect.top >= containerRect.top && rect.bottom <= containerRect.bottom) {
+                  if (!seenMessages.has(messageId)) {
+                    seenMessages.add(messageId)
+                    onMessageVisible(messageId)
+                  }
+                }
+              }
+            }
+          })
+        })
+      })
+
+      mutationObserver.observe(container, { childList: true, subtree: true })
+
+      return () => {
+        observer.disconnect()
+        mutationObserver.disconnect()
+      }
+    }, [onMessageVisible, scrollRef.current])
+
+    // NEW: Get pending approvals from store
+    const pendingApprovals = useToolApprovalStore((s) => s.pending)
+    const removePending = useToolApprovalStore((s) => s.removePending)
+
+    // NEW: Auto‑scroll when a new approval card appears
+    React.useEffect(() => {
+      if (pendingApprovals.size === 0) return
+      const el = scrollRef.current
+      if (!el || userScrolledAwayRef.current) return
+      requestAnimationFrame(() => {
+        isProgrammaticScrollRef.current = true
+        el.scrollTop = el.scrollHeight
+        requestAnimationFrame(() => { isProgrammaticScrollRef.current = false })
+      })
+    }, [pendingApprovals.size])
+
     React.useImperativeHandle(
       ref,
       () => ({
@@ -488,6 +586,14 @@ export const MessageThread = React.forwardRef<
                   {virtualItems.map((virtualItem) => {
                     const message = filteredMessages[virtualItem.index]
                     const isLast = virtualItem.index === lastFilteredIdx
+                    const isUserMessage = message.role === 'user'
+                    const retryAvailable = (message as any).retryAvailable
+
+                    // For user messages that need a retry, pass the retry handler
+                    const handleRetry = retryAvailable
+                      ? () => sendMutation.mutateAsync({ content: message.content })
+                      : undefined
+
                     return (
                       <div
                         key={message.id}
@@ -524,11 +630,26 @@ export const MessageThread = React.forwardRef<
                             searchQuery={searchQuery.trim() ? searchQuery : undefined}
                             searchCaseSensitive={searchCaseSensitive}
                             searchRegex={searchRegex}
+                            onRetry={handleRetry}
                           />
                         </div>
                       </div>
                     )
                   })}
+                </div>
+              )}
+
+              {/* NEW: Render pending tool approvals */}
+              {pendingApprovals.size > 0 && (
+                <div className="px-4 py-2 flex flex-col gap-2">
+                  {Array.from(pendingApprovals.entries()).map(([toolCallId, toolCall]) => (
+                    <ToolApprovalCard
+                      key={toolCallId}
+                      toolCallId={toolCallId}
+                      toolCall={toolCall}
+                      onResolved={() => removePending(toolCallId)}
+                    />
+                  ))}
                 </div>
               )}
             </div>

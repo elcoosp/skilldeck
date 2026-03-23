@@ -1,3 +1,4 @@
+// src-tauri/skilldeck-core/src/agent/tool_dispatcher.rs
 //! Tool dispatcher — routes ToolCall events to built-ins, MCP servers, or
 //! through an approval gate for external side-effecting tools.
 //!
@@ -8,13 +9,14 @@
 use serde_json::Value;
 use std::sync::Arc;
 use tokio::sync::oneshot;
+use tokio::time::Duration;
 
 use crate::{
     CoreError,
     agent::load_skill_result::{LoadSkillResult, SkillContentFormat},
     mcp::registry::McpRegistry,
     skills::SkillRegistry,
-    traits::{McpCallResult, ToolCall, subagent_spawner::SubagentSpawner},
+    traits::{McpCallResult, ToolApprovalEmitter, ToolCall, subagent_spawner::SubagentSpawner},
 };
 
 // ── Approval gate ─────────────────────────────────────────────────────────────
@@ -33,22 +35,30 @@ pub enum ApprovalResult {
 /// Async approval gate.  Pending requests are keyed by `tool_call_id`.
 pub struct ApprovalGate {
     pending: dashmap::DashMap<String, oneshot::Sender<ApprovalResult>>,
+    emitter: Option<Arc<dyn ToolApprovalEmitter>>,
 }
 
 impl ApprovalGate {
-    pub fn new() -> Self {
+    pub fn new(emitter: Option<Arc<dyn ToolApprovalEmitter>>) -> Self {
         Self {
             pending: dashmap::DashMap::new(),
+            emitter,
         }
     }
 
     /// Suspend the calling task until the frontend resolves the approval.
     pub async fn request_approval(
         &self,
+        conversation_id: &str,
         tool_call_id: String,
-        _tool_name: String,
-        _input: Value,
+        tool_name: String,
+        input: Value,
     ) -> Result<ApprovalResult, CoreError> {
+        // Emit event to frontend if an emitter is configured
+        if let Some(emitter) = &self.emitter {
+            emitter.emit_tool_approval_required(conversation_id, &tool_call_id, &tool_name, &input);
+        }
+
         let (tx, rx) = oneshot::channel();
         self.pending.insert(tool_call_id.clone(), tx);
         rx.await.map_err(|_| CoreError::Cancelled {
@@ -81,7 +91,7 @@ impl ApprovalGate {
 
 impl Default for ApprovalGate {
     fn default() -> Self {
-        Self::new()
+        Self::new(None)
     }
 }
 
@@ -95,7 +105,7 @@ impl Default for ApprovalGate {
 /// known patterns for each category.
 #[derive(Debug, Clone, Default)]
 pub struct AutoApproveConfig {
-    /// Auto-approve all read-like tools (list_*, read_*, get_*, fetch_*).
+    /// Auto-approve all read-like tools (list_*, read_*, get_*, fetch_*, show_*, describe_*, stat_*, check_*).
     pub reads: bool,
     /// Auto-approve all write-like tools (write_*, create_*, update_*, put_*).
     pub writes: bool,
@@ -114,7 +124,22 @@ impl AutoApproveConfig {
     pub fn is_auto_approved(&self, tool_name: &str) -> bool {
         let n = tool_name.to_lowercase();
 
-        if self.reads && matches_any_prefix(&n, &["list_", "read_", "get_", "fetch_", "show_"]) {
+        // Fix C: Added describe_, stat_, check_ to the read prefixes
+        if self.reads
+            && matches_any_prefix(
+                &n,
+                &[
+                    "list_",
+                    "read_",
+                    "get_",
+                    "fetch_",
+                    "show_",
+                    "describe_",
+                    "stat_",
+                    "check_",
+                ],
+            )
+        {
             return true;
         }
         if self.writes && matches_any_prefix(&n, &["write_", "create_", "update_", "put_", "set_"])
@@ -166,6 +191,8 @@ pub struct ToolDispatcher {
     supports_toon: bool,
     /// Subagent spawner (optional).
     subagent_spawner: Option<Arc<dyn SubagentSpawner>>,
+    /// Conversation ID for this dispatcher (used in approval events).
+    conversation_id: String,
 }
 
 impl ToolDispatcher {
@@ -175,14 +202,20 @@ impl ToolDispatcher {
         skill_registry: Arc<SkillRegistry>,
         supports_toon: bool,
         subagent_spawner: Option<Arc<dyn SubagentSpawner>>,
+        conversation_id: String,
     ) -> Self {
         Self {
             mcp_registry,
             approval_gate,
             skill_registry,
-            auto_approve: Arc::new(tokio::sync::RwLock::new(AutoApproveConfig::default())),
+            // Fix A: auto‑approve reads by default
+            auto_approve: Arc::new(tokio::sync::RwLock::new(AutoApproveConfig {
+                reads: true,
+                ..Default::default()
+            })),
             supports_toon,
             subagent_spawner,
+            conversation_id,
         }
     }
 
@@ -209,10 +242,34 @@ impl ToolDispatcher {
 
         // 2. Check if this tool needs approval.
         if self.needs_approval(name).await {
-            let approval = self
-                .approval_gate
-                .request_approval(tool_call.id.clone(), name.clone(), args.clone())
-                .await?;
+            // Fix B: log that we are waiting for user approval
+            tracing::info!(
+                "Tool '{}' (id={}) is waiting for user approval",
+                name,
+                tool_call.id
+            );
+
+            // Fix B: add a timeout to prevent hanging forever
+            let approval = match tokio::time::timeout(
+                Duration::from_secs(120),
+                self.approval_gate.request_approval(
+                    &self.conversation_id,
+                    tool_call.id.clone(),
+                    name.clone(),
+                    args.clone(),
+                ),
+            )
+            .await
+            {
+                Ok(Ok(approval)) => approval,
+                Ok(Err(e)) => return Err(e),
+                Err(_) => {
+                    return Err(CoreError::McpToolExecution {
+                        tool_name: name.clone(),
+                        message: "Approval timed out after 120s".into(),
+                    });
+                }
+            };
 
             let effective_args = match approval {
                 ApprovalResult::Approved { edited_input } => edited_input.unwrap_or(args),
@@ -369,14 +426,20 @@ mod tests {
     use super::*;
     use crate::skills::SkillRegistry;
     use crate::traits::Skill;
+    use skilldeck_lint::LintConfig;
+    use std::sync::Arc;
+    use tokio::sync::RwLock;
 
     fn make_dispatcher() -> ToolDispatcher {
+        let lint_config = Arc::new(RwLock::new(LintConfig::default()));
+        let skill_registry = Arc::new(SkillRegistry::new(lint_config));
         ToolDispatcher::new(
             Arc::new(McpRegistry::new()),
-            Arc::new(ApprovalGate::new()),
-            Arc::new(SkillRegistry::new()),
+            Arc::new(ApprovalGate::new(None)),
+            skill_registry,
             false,
             None,
+            "test-conversation".into(),
         )
     }
 
@@ -391,7 +454,9 @@ mod tests {
     #[tokio::test]
     async fn external_tools_need_approval_by_default() {
         let d = make_dispatcher();
-        assert!(d.needs_approval("read_file").await);
+        // Since reads is now true by default, we expect some reads tools to be auto-approved.
+        // So we test a write tool which still requires approval.
+        assert!(d.needs_approval("write_file").await);
         assert!(d.needs_approval("execute_shell").await);
     }
 
@@ -437,7 +502,8 @@ mod tests {
     #[tokio::test]
     async fn builtin_load_skill_returns_json() {
         // Create a registry with a pre‑loaded skill
-        let skill_registry = Arc::new(SkillRegistry::new());
+        let lint_config = Arc::new(RwLock::new(LintConfig::default()));
+        let skill_registry = Arc::new(SkillRegistry::new(lint_config));
         let skill = Skill::new(
             "my-skill".into(),
             "desc".into(),
@@ -450,10 +516,11 @@ mod tests {
 
         let d = ToolDispatcher::new(
             Arc::new(McpRegistry::new()),
-            Arc::new(ApprovalGate::new()),
+            Arc::new(ApprovalGate::new(None)),
             skill_registry,
             false,
             None,
+            "test-conversation".into(),
         );
 
         let tc = ToolCall {
@@ -494,14 +561,14 @@ mod tests {
 
     #[test]
     fn approval_gate_cancel_all_clears_pending() {
-        let gate = ApprovalGate::new();
+        let gate = ApprovalGate::new(None);
         gate.cancel_all();
         assert!(gate.pending.is_empty());
     }
 
     #[test]
     fn approval_gate_resolve_unknown_id_errors() {
-        let gate = ApprovalGate::new();
+        let gate = ApprovalGate::new(None);
         let result = gate.resolve(
             "nonexistent",
             ApprovalResult::Approved { edited_input: None },
@@ -518,6 +585,9 @@ mod tests {
         };
         assert!(cfg.is_auto_approved("list_files"));
         assert!(cfg.is_auto_approved("read_contents"));
+        assert!(cfg.is_auto_approved("describe_table"));
+        assert!(cfg.is_auto_approved("stat_file"));
+        assert!(cfg.is_auto_approved("check_permission"));
         assert!(cfg.is_auto_approved("run_command"));
         assert!(!cfg.is_auto_approved("write_file"));
         assert!(!cfg.is_auto_approved("delete_row"));

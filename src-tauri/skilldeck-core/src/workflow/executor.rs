@@ -15,7 +15,11 @@ use super::{
         WorkflowStatus,
     },
 };
-use crate::{CoreError, agent::AgentLoopConfig, traits::ModelProvider};
+use crate::{
+    CoreError,
+    agent::AgentLoopConfig,
+    traits::{Database, ModelProvider},
+};
 
 pub struct WorkflowExecutor {
     tx: Sender<WorkflowEvent>,
@@ -41,6 +45,7 @@ impl WorkflowExecutor {
         provider: Arc<dyn ModelProvider>,
         model_id: String,
         max_eval_opt_iterations: u32,
+        db: Arc<dyn Database>,
     ) -> Self {
         Self {
             tx,
@@ -48,6 +53,7 @@ impl WorkflowExecutor {
                 provider,
                 model_id,
                 config: AgentLoopConfig::default(),
+                db,
             }),
             max_eval_opt_iterations,
         }

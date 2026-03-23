@@ -173,6 +173,7 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(Conversations::Table)
                     .if_not_exists()
+                    .col(uuid(Conversations::FolderId).null())
                     .col(uuid(Conversations::Id).primary_key())
                     .col(uuid(Conversations::ProfileId).not_null())
                     .col(string(Conversations::Title).null())
@@ -233,6 +234,7 @@ impl MigrationTrait for Migration {
                     .col(uuid(Messages::Id).primary_key())
                     .col(uuid(Messages::ConversationId).not_null())
                     .col(uuid(Messages::ParentId).null())
+                    .col(boolean(Messages::Seen).not_null())
                     .col(uuid(Messages::BranchId).null())
                     .col(string(Messages::Role).not_null())
                     .col(text(Messages::Content).not_null())
@@ -242,6 +244,8 @@ impl MigrationTrait for Migration {
                     .col(integer(Messages::OutputTokens).null())
                     .col(integer(Messages::CacheReadTokens).null())
                     .col(integer(Messages::CacheWriteTokens).null())
+                    // NEW: status column
+                    .col(string(Messages::Status).not_null().default("active"))
                     .col(
                         timestamp_with_time_zone(Messages::CreatedAt)
                             .not_null()
@@ -367,6 +371,36 @@ impl MigrationTrait for Migration {
                     .col(QueuedMessages::ConversationId)
                     .col(QueuedMessages::Position)
                     .unique()
+                    .to_owned(),
+            )
+            .await?;
+
+        // =====================================================================
+        // CONVERSATION DRAFTS TABLE (NEW)
+        // =====================================================================
+        manager
+            .create_table(
+                Table::create()
+                    .table(ConversationDrafts::Table)
+                    .if_not_exists()
+                    .col(uuid(ConversationDrafts::ConversationId).primary_key())
+                    .col(text(ConversationDrafts::TextContent).null())
+                    .col(json(ConversationDrafts::ContextItems).null())
+                    .col(
+                        timestamp_with_time_zone(ConversationDrafts::UpdatedAt)
+                            .not_null()
+                            .default(Expr::current_timestamp()),
+                    )
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk_conversation_drafts_conversation_id")
+                            .from(
+                                ConversationDrafts::Table,
+                                ConversationDrafts::ConversationId,
+                            )
+                            .to(Conversations::Table, Conversations::Id)
+                            .on_delete(ForeignKeyAction::Cascade),
+                    )
                     .to_owned(),
             )
             .await?;
@@ -1419,7 +1453,8 @@ impl MigrationTrait for Migration {
             "conversation_mcp_overrides",
             "profile_skills",
             "profile_mcps",
-            "queued_messages", // <-- new table added
+            "queued_messages",
+            "conversation_drafts", // new table
             "tool_call_events",
             "conversation_branches",
             "messages",
@@ -1492,6 +1527,7 @@ enum Workspaces {
 enum Conversations {
     Table,
     Id,
+    FolderId,
     ProfileId,
     Title,
     WorkspaceId,
@@ -1510,6 +1546,7 @@ enum Messages {
     ConversationId,
     ParentId,
     BranchId,
+    Seen,
     Role,
     Content,
     Metadata,
@@ -1517,6 +1554,7 @@ enum Messages {
     OutputTokens,
     CacheReadTokens,
     CacheWriteTokens,
+    Status, // <-- added
     CreatedAt,
 }
 
@@ -1541,6 +1579,15 @@ enum QueuedMessages {
     Content,
     Position,
     CreatedAt,
+    UpdatedAt,
+}
+
+#[derive(DeriveIden)]
+enum ConversationDrafts {
+    Table,
+    ConversationId,
+    TextContent,
+    ContextItems,
     UpdatedAt,
 }
 

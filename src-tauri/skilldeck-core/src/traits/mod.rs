@@ -6,8 +6,8 @@ pub mod model_provider;
 pub mod skill_events;
 pub mod skill_loader;
 pub mod subagent_spawner;
-pub mod sync_backend; // <-- new
-
+pub mod sync_backend;
+pub mod tool_approval_emitter;
 pub use database::{Database, SeaOrmDatabase};
 pub use mcp_transport::{
     McpCallResult, McpCapabilities, McpContent, McpResource, McpServerConfig, McpSession,
@@ -24,3 +24,5 @@ pub use sync_backend::{
     Changeset, ConflictResolution, NoOpSyncBackend, PushResult, SyncBackend, SyncConflict,
     SyncOperation, SyncRecord,
 };
+
+pub use tool_approval_emitter::ToolApprovalEmitter;

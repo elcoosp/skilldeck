@@ -10,7 +10,7 @@ assignees:
   - elcoosp
 references:
   - ../plans/v1.md#15-chunk-12-react-frontend--components
-state: in-progress
+state: closed
 createdAt: '2026-03-12T13:59:50.860Z'
 priority: should
 effort: 2d
@@ -72,11 +72,11 @@ We need to implement the right panel tabs for session management (active skills,
 
 - [x] Session tab shows active skills
 - [x] Session tab shows MCP servers
-- [ ] Workflow tab shows DAG (placeholder, not using React Flow)
-- [ ] Workflow tab shows step status (uses `useWorkflowEvents` but no DAG)
-- [ ] Analytics tab shows token usage (mock data)
-- [ ] Token counter displays correctly (not implemented)
-- [x] Unit tests verify rendering (some exist)
+- [x] Workflow tab shows DAG
+- [x] Workflow tab shows step status
+- [x] Analytics tab shows token usage
+- [x] Token counter displays correctly
+- [x] Unit tests verify rendering
 
 ## Dependencies
 
@@ -88,4 +88,4 @@ We need to implement the right panel tabs for session management (active skills,
 - **Complexity:** Medium
 - **Effort:** 2d
 
-**Completion Note:** The right panel exists and contains SessionTab, SkillsTab, and McpTab. Workflow and Analytics tabs are implemented with placeholder/mock content, not fully functional. Token counter is not present.
+**Completion Note:** Right panel tabs are fully implemented. Session tab shows conversation details, profile, model, and token usage. Workflow tab displays saved workflows, active workflow progress, and a DAG visualization using React Flow. Analytics tab shows real token usage and message statistics from the database. All tabs are functional.

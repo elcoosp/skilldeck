@@ -1,6 +1,7 @@
 // src/components/conversation/thread-navigator.tsx
 import { memo, useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import slugify from "slugify"
 import { createPortal } from 'react-dom'
 import { Bookmark, ChevronRight } from 'lucide-react'
 import type { MessageData } from '@/lib/bindings'
@@ -495,7 +496,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
-        <div className="relative overflow-hidden pr-1" style={{ height: `${containerHeight}px` }}>
+        <div className="relative overflow-hidden pr-1 pt-1 pb-1" style={{ height: `${containerHeight}px` }}>
           <motion.div
             className="flex flex-col gap-1"
             animate={{ y: translateY }}
@@ -531,12 +532,19 @@ const ThreadNavigator = memo(function ThreadNavigator({
                       transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                     />
                   </div>
-                  {hasBookmarks && (
-                    <span
-                      className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-amber-400 ring-1 ring-background"
-                      aria-hidden
-                    />
-                  )}
+                  <AnimatePresence mode="wait">
+                    {hasBookmarks && (
+                      <motion.span
+                        key={msg.id}
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.8 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-amber-400 ring-1 ring-background"
+                        aria-hidden
+                      />
+                    )}
+                  </AnimatePresence>
                 </button>
               )
             })}
@@ -658,8 +666,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
                             >
                               <div className="ml-3 mt-0.5 mb-1.5 border-l-2 border-primary/20 pl-2 space-y-px">
                                 {headings.map(h => {
-                                  const anchor = `heading-${assistantMsgId}-${h.tocIndex}`
-                                  const hBookmarked = isHeadingBookmarked(assistantMsgId, anchor)
+                                  const hBookmarked = isHeadingBookmarked(assistantMsgId, slugify(h.text))
                                   const isH1 = h.level === 1
                                   const isH2 = h.level === 2
                                   const isActiveHeading = isActive && h.tocIndex === activeHeadingIndex

@@ -5,6 +5,81 @@
 
 
 export const commands = {
+async getConversationDraft(conversationId: string) : Promise<Result<[string, JsonValue[]] | null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_conversation_draft", { conversationId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async upsertConversationDraft(conversationId: string, textContent: string | null, contextItems: JsonValue[] | null) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("upsert_conversation_draft", { conversationId, textContent, contextItems }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async attachFilesToConversation(conversationId: string, paths: string[]) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("attach_files_to_conversation", { conversationId, paths }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async listFolders() : Promise<Result<FolderData[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_folders") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async createFolder(name: string) : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("create_folder", { name }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async renameFolder(id: string, name: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("rename_folder", { id, name }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async deleteFolder(id: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("delete_folder", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async moveConversationToFolder(conversationId: string, folderId: string | null) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("move_conversation_to_folder", { conversationId, folderId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Set the global auto-approve configuration.
+ */
+async setAutoApproveConfig(config: AutoApproveConfigDto) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_auto_approve_config", { config }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async addBookmark(req: CreateBookmarkRequest) : Promise<Result<BookmarkData, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("add_bookmark", { req }) };
@@ -256,6 +331,17 @@ async listMessages(conversationId: string, branchId: string | null) : Promise<Re
 async searchMessages(req: SearchMessagesRequest) : Promise<Result<SearchMessagesResult[], string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("search_messages", { req }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Mark a single message as seen.
+ */
+async markMessageSeen(messageId: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("mark_message_seen", { messageId }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -950,11 +1036,7 @@ export type AddQueuedMessageRequest = { conversation_id: string; content: string
 /**
  * Payload for the `"agent-event"` Tauri channel.
  */
-export type AgentEvent = { type: "cancelled"; conversation_id: string } | { type: "started"; conversation_id: string } | { type: "token"; conversation_id: string; delta: string } | { type: "tool_call"; conversation_id: string; tool_call: AgentToolCall } | { type: "tool_result"; conversation_id: string; tool_call_id: string; result: string } | { type: "done"; conversation_id: string; input_tokens: number; output_tokens: number } | { type: "error"; conversation_id: string; message: string } | 
-/**
- * New messages have been persisted to the database.
- */
-{ type: "persisted"; conversation_id: string }
+export type AgentEvent = { type: "cancelled"; conversation_id: string } | { type: "started"; conversation_id: string } | { type: "token"; conversation_id: string; delta: string } | { type: "tool_call"; conversation_id: string; tool_call: AgentToolCall } | { type: "tool_result"; conversation_id: string; tool_call_id: string; result: string } | { type: "done"; conversation_id: string; input_tokens: number; output_tokens: number } | { type: "error"; conversation_id: string; message: string } | { type: "persisted"; conversation_id: string } | { type: "tool_approval_required"; conversation_id: string; tool_call_id: string; tool_name: string; arguments: JsonValue }
 export type AgentToolCall = { id: string; name: string; arguments: JsonValue }
 export type AnalyticsData = { total_conversations: string; total_messages: string; messages_per_day: DailyCount[]; skills_used: SkillUsage[]; token_usage: TokenTotals }
 /**
@@ -963,6 +1045,7 @@ export type AnalyticsData = { total_conversations: string; total_messages: strin
 export type ApiKeyStatus = { provider: string; has_key: boolean }
 export type AssembleFolderRequest = { path: string; deep: boolean; max_bytes: string | null }
 export type AssembleFolderResponse = { assembled_content: string; file_count: string }
+export type AutoApproveConfigDto = { auto_approve_reads: boolean; auto_approve_writes: boolean; auto_approve_shell: boolean; auto_approve_http_requests: boolean; auto_approve_selects: boolean; auto_approve_mutations: boolean }
 export type BookmarkData = { id: string; message_id: string; heading_anchor: string | null; label: string | null; created_at: string }
 export type BranchInfo = { id: string; name: string | null; parent_message_id: string; created_at: string; message_count: string }
 export type ConfigScope = "global" | "workspace"
@@ -970,7 +1053,7 @@ export type ContextItem = { type: "skill"; name: string } | { type: "file"; path
 /**
  * Lightweight summary used by the sidebar list.
  */
-export type ConversationSummary = { id: string; title: string | null; profile_id: string; profile_name: string | null; profile_deleted: boolean; workspace_id: string | null; created_at: string; updated_at: string; message_count: string; pinned: boolean }
+export type ConversationSummary = { id: string; title: string | null; profile_id: string; profile_name: string | null; profile_deleted: boolean; workspace_id: string | null; created_at: string; updated_at: string; message_count: string; folder_id: string | null; pinned: boolean }
 export type CreateBookmarkRequest = { conversation_id: string; message_id: string; heading_anchor: string | null; label: string | null }
 export type CreateBranchRequest = { conversation_id: string; parent_message_id: string; name: string | null }
 export type DailyCount = { date: string; count: string }
@@ -984,6 +1067,7 @@ export type FileEntry = { name: string; path: string; is_dir: boolean; size: str
  * Shallow vs deep file counts for a folder, used by `FolderScopeModal`.
  */
 export type FolderCounts = { shallow: string; deep: string }
+export type FolderData = { id: string; name: string; created_at: string }
 /**
  * Determines how deeply to traverse a folder when assembling content.
  * Stored as a string in the JSON column (e.g., "shallow" or "deep").
@@ -1023,14 +1107,14 @@ suggested_fix: string | null }
 /**
  * Payload for the `"mcp-event"` Tauri channel.
  */
-export type McpEvent = { type: "server_connected"; name: string } | { type: "server_disconnected"; name: string } | { type: "tool_discovered"; server: string; tool: McpToolInfo }
+export type McpEvent = { type: "server_connected"; name: string } | { type: "server_disconnected"; name: string } | { type: "server_failed"; name: string; message: string } | { type: "tool_discovered"; server: string; tool: McpToolInfo }
 export type McpServerResponse = { id: string; name: string; transport: string; status: string; tools: McpToolResponse[] }
 export type McpToolInfo = { name: string; description: string }
 export type McpToolResponse = { name: string; description: string; input_schema: JsonValue }
 /**
  * Serialisable message returned to the frontend.
  */
-export type MessageData = { id: string; conversation_id: string; role: string; content: string; created_at: string; context_items: ContextItem[] | null; metadata: JsonValue | null }
+export type MessageData = { id: string; conversation_id: string; role: string; content: string; created_at: string; context_items: ContextItem[] | null; metadata: JsonValue | null; input_tokens: number | null; output_tokens: number | null; seen: boolean }
 /**
  * Lightweight message representation used by the Markdown gist exporter.
  */
@@ -1075,7 +1159,7 @@ export type WorkflowDefinitionResponse = { id: string; name: string; definition:
 /**
  * Payload for the `"workflow-event"` Tauri channel.
  */
-export type WorkflowEvent = { type: "started"; id: string } | { type: "step_started"; workflow_id: string; step_id: string } | { type: "step_completed"; workflow_id: string; step_id: string; result: string | null } | { type: "completed"; id: string } | { type: "failed"; id: string; message: string }
+export type WorkflowEvent = { type: "started"; id: string } | { type: "step_started"; workflow_id: string; step_id: string } | { type: "step_completed"; workflow_id: string; step_id: string; result: string | null } | { type: "step_failed"; workflow_id: string; step_id: string; error: string } | { type: "completed"; id: string } | { type: "failed"; id: string; message: string }
 export type WorkspaceData = { id: string; path: string; name: string; project_type: string; is_open: boolean; context_files: string[]; indexed_file_count: string }
 
 /** tauri-specta globals **/

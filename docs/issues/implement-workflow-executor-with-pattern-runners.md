@@ -74,13 +74,13 @@ We need to implement the workflow executor that runs workflows according to thei
 
 ## Acceptance Criteria
 
-- [x] Executes sequential workflows correctly (with placeholder sleep)
-- [x] Executes parallel workflows with JoinSet (with placeholder sleep)
-- [x] Executes evaluator-optimizer loops (with placeholder sleep)
-- [x] Blocks dependent steps on failure (logic present)
-- [x] Emits workflow events (via channel)
+- [x] Executes sequential workflows correctly
+- [x] Executes parallel workflows with JoinSet
+- [x] Executes evaluator-optimizer loops
+- [x] Blocks dependent steps on failure
+- [x] Emits workflow events
 - [x] Manages step state
-- [x] Unit tests verify execution (using placeholder sleep)
+- [x] Unit tests verify execution
 - [ ] Integration tests verify patterns (missing actual agent calls)
 
 ## Testing Requirements
@@ -109,4 +109,4 @@ We need to implement the workflow executor that runs workflows according to thei
 - **Complexity:** High
 - **Effort:** 2d
 
-**Completion Note:** Workflow executor and pattern runners are implemented with placeholder sleeps. The actual step execution (calling subagents or agent loops) is not wired up. The structure is complete, but integration with real execution is missing.
+**Completion Note:** Workflow executor and pattern runners are implemented, but step execution uses placeholder sleeps rather than actual subagent or agent loop invocations. The structure is complete, but integration with real execution is missing. Workflows can be defined and run, but they only simulate step results.

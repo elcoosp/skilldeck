@@ -95,6 +95,9 @@ mod tests {
             disk_path: Some(PathBuf::new()),
             source: source.into(),
             content_hash: None,
+            lint_warnings: None,
+            security_score: 5,
+            quality_score: 5,
         }
     }
 

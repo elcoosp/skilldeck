@@ -1,10 +1,11 @@
-// File: src-tauri/src/commands/messages.rs
+// src-tauri/src/commands/messages.rs
 //! Message Tauri commands.
 
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ConnectionTrait, DbBackend, EntityTrait, QueryFilter,
-    QueryOrder, Statement,
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, ConnectionTrait, DbBackend, EntityTrait,
+    QueryFilter, QueryOrder, Statement,
 };
+use sea_query::Expr;
 use serde::{Deserialize, Serialize};
 use specta::{Type, specta};
 use std::pin::Pin;
@@ -32,6 +33,9 @@ pub struct MessageData {
     pub created_at: String,
     pub context_items: Option<Vec<ContextItem>>,
     pub metadata: Option<serde_json::Value>,
+    pub input_tokens: Option<i32>,
+    pub output_tokens: Option<i32>,
+    pub seen: bool,
 }
 
 /// Request for searching messages within a conversation.
@@ -112,9 +116,36 @@ pub async fn list_messages(
                 created_at: m.created_at.to_string(),
                 context_items,
                 metadata: m.metadata,
+                input_tokens: m.input_tokens,
+                output_tokens: m.output_tokens,
+                seen: m.seen,
             }
         })
         .collect())
+}
+
+/// Mark a single message as seen.
+#[specta]
+#[tauri::command]
+pub async fn mark_message_seen(
+    state: State<'_, Arc<AppState>>,
+    message_id: String,
+) -> Result<(), String> {
+    let db = state
+        .registry
+        .db
+        .connection()
+        .await
+        .map_err(|e| e.to_string())?;
+    let msg_uuid = Uuid::parse_str(&message_id).map_err(|e| e.to_string())?;
+
+    messages::Entity::update_many()
+        .col_expr(messages::Column::Seen, Expr::value(true))
+        .filter(messages::Column::Id.eq(msg_uuid))
+        .exec(db)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 /// Search messages within a conversation using FTS5.
@@ -217,88 +248,6 @@ pub async fn search_all_messages(
     }
     Ok(results)
 }
-// =============================================================================
-// Internal send function
-// =============================================================================
-
-pub(crate) async fn send_message_internal(
-    state: Arc<AppState>,
-    conversation_id: String,
-    content: String,
-    context_items: Option<Vec<ContextItem>>,
-    app: tauri::AppHandle,
-    metadata: Option<serde_json::Value>,
-) -> Result<(), String> {
-    let db = state
-        .registry
-        .db
-        .connection()
-        .await
-        .map_err(|e| e.to_string())?;
-    let conv_uuid = Uuid::parse_str(&conversation_id).map_err(|e| e.to_string())?;
-    let msg_id = Uuid::new_v4();
-    let now = chrono::Utc::now().fixed_offset();
-
-    // Convert context_items to JSON, default to empty array if None
-    let items_json = context_items
-        .as_ref()
-        .map(|items| serde_json::to_value(items).map_err(|e| e.to_string()))
-        .transpose()?
-        .unwrap_or(serde_json::Value::Array(vec![]));
-
-    let user_msg = messages::ActiveModel {
-        id: Set(msg_id),
-        conversation_id: Set(conv_uuid),
-        role: Set("user".to_string()),
-        content: Set(content.clone()),
-        metadata: Set(metadata),
-        context_items: Set(Some(items_json)),
-        created_at: Set(now),
-        ..Default::default()
-    };
-    user_msg.insert(db).await.map_err(|e| e.to_string())?;
-
-    let _ = app.emit(
-        "agent-event",
-        AgentEvent::Persisted {
-            conversation_id: conversation_id.clone(),
-        },
-    );
-
-    let _ = app.emit(
-        "agent-event",
-        AgentEvent::Started {
-            conversation_id: conversation_id.clone(),
-        },
-    );
-
-    let state_arc = state.clone();
-    let conv_id_clone = conversation_id.clone();
-    let content_clone = content.clone();
-    let app_clone = app.clone();
-    let context_items_clone = context_items;
-
-    let future: Pin<Box<dyn Future<Output = ()> + Send + 'static>> = Box::pin(async move {
-        run_agent_loop(
-            state_arc,
-            conv_id_clone,
-            content_clone,
-            msg_id, // Pass the ID of the message we just inserted
-            context_items_clone,
-            app_clone,
-        )
-    });
-    tokio::spawn(future);
-
-    Ok(())
-}
-
-#[derive(Debug, Deserialize, Type)]
-pub struct SendMessageRequest {
-    pub conversation_id: String,
-    pub content: String,
-    pub context_items: Option<Vec<ContextItem>>,
-}
 
 #[specta]
 #[tauri::command]
@@ -359,7 +308,112 @@ pub async fn resolve_tool_approval(
         .map_err(|e| e.to_string())
 }
 
-// ── Internal helper ───────────────────────────────────────────────────────────
+#[specta]
+#[tauri::command]
+pub async fn mark_messages_seen(
+    state: State<'_, Arc<AppState>>,
+    conversation_id: String,
+) -> Result<(), String> {
+    let db = state
+        .registry
+        .db
+        .connection()
+        .await
+        .map_err(|e| e.to_string())?;
+    let conv_uuid = Uuid::parse_str(&conversation_id).map_err(|e| e.to_string())?;
+
+    messages::Entity::update_many()
+        .col_expr(messages::COLUMN.seen, Expr::value(true))
+        .filter(messages::COLUMN.conversation_id.eq(conv_uuid))
+        .exec(db)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[derive(Debug, Deserialize, Type)]
+pub struct SendMessageRequest {
+    pub conversation_id: String,
+    pub content: String,
+    pub context_items: Option<Vec<ContextItem>>,
+}
+
+// =============================================================================
+// Internal send function
+// =============================================================================
+
+pub(crate) async fn send_message_internal(
+    state: Arc<AppState>,
+    conversation_id: String,
+    content: String,
+    context_items: Option<Vec<ContextItem>>,
+    app: tauri::AppHandle,
+    metadata: Option<serde_json::Value>,
+) -> Result<(), String> {
+    let db = state
+        .registry
+        .db
+        .connection()
+        .await
+        .map_err(|e| e.to_string())?;
+    let conv_uuid = Uuid::parse_str(&conversation_id).map_err(|e| e.to_string())?;
+    let msg_id = Uuid::new_v4();
+    let now = chrono::Utc::now().fixed_offset();
+
+    let items_json = context_items
+        .as_ref()
+        .map(|items| serde_json::to_value(items).map_err(|e| e.to_string()))
+        .transpose()?
+        .unwrap_or(serde_json::Value::Array(vec![]));
+
+    let user_msg = messages::ActiveModel {
+        id: Set(msg_id),
+        conversation_id: Set(conv_uuid),
+        role: Set("user".to_string()),
+        content: Set(content.clone()),
+        metadata: Set(metadata),
+        context_items: Set(Some(items_json)),
+        created_at: Set(now),
+        seen: Set(false),
+        status: Set("active".to_string()),
+        ..Default::default()
+    };
+    user_msg.insert(db).await.map_err(|e| e.to_string())?;
+
+    let _ = app.emit(
+        "agent-event",
+        AgentEvent::Persisted {
+            conversation_id: conversation_id.clone(),
+        },
+    );
+
+    let _ = app.emit(
+        "agent-event",
+        AgentEvent::Started {
+            conversation_id: conversation_id.clone(),
+        },
+    );
+
+    let state_arc = state.clone();
+    let conv_id_clone = conversation_id.clone();
+    let content_clone = content.clone();
+    let app_clone = app.clone();
+    let context_items_clone = context_items;
+
+    let future: Pin<Box<dyn Future<Output = ()> + Send + 'static>> = Box::pin(async move {
+        run_agent_loop(
+            state_arc,
+            conv_id_clone,
+            content_clone,
+            msg_id,
+            context_items_clone,
+            app_clone,
+        )
+    });
+    tokio::spawn(future);
+
+    Ok(())
+}
 
 use skilldeck_core::traits::{McpTool, ToolDefinition};
 
@@ -464,7 +518,7 @@ fn run_agent_loop(
     state: Arc<AppState>,
     conversation_id: String,
     user_message: String,
-    current_msg_id: Uuid, // ID of the user message we just inserted, to be excluded from history
+    current_msg_id: Uuid,
     context_items: Option<Vec<ContextItem>>,
     app: tauri::AppHandle,
 ) {
@@ -514,7 +568,12 @@ fn run_agent_loop(
             Arc::clone(&state.registry.skill_registry),
             provider.supports_toon(),
             Some(spawner as Arc<dyn SubagentSpawner>),
+            conversation_id.clone(),
         ));
+
+        // Set initial auto-approve config from global state
+        let global_config = state.global_auto_approve.read().await.clone();
+        dispatcher.set_auto_approve(global_config).await;
 
         let db = match state.registry.db.connection().await {
             Ok(conn) => conn,
@@ -561,7 +620,6 @@ fn run_agent_loop(
             }
         };
 
-        // Build history, excluding the message we just inserted (it will be added again by agent.run)
         let history = history_rows
             .into_iter()
             .filter(|m| m.id != current_msg_id)
@@ -577,9 +635,23 @@ fn run_agent_loop(
             })
             .collect();
 
-        let mut agent = AgentLoop::new(provider.clone(), model_id, AgentLoopConfig::default(), tx)
-            .with_history(history)
-            .with_dispatcher(dispatcher);
+        let db_arc = state.registry.db.clone();
+
+        let mut agent = AgentLoop::new(
+            provider.clone(),
+            model_id,
+            AgentLoopConfig::default(),
+            tx,
+            db_arc,
+        )
+        .with_history(history)
+        .with_dispatcher(dispatcher);
+
+        // Store cancellation token in state
+        let cancel_token = agent.cancellation_token();
+        state
+            .agent_cancel_tokens
+            .insert(conversation_id.clone(), cancel_token);
 
         let all_mcp_tools = state.registry.mcp_registry.all_tools();
         for (server_name, mcp_tool) in all_mcp_tools {
@@ -643,12 +715,10 @@ fn run_agent_loop(
             }
         }
 
-        // Log all skill names currently in the registry for debugging
         let all_skills = state.registry.skill_registry.skills().await;
         let skill_names: Vec<String> = all_skills.into_iter().map(|s| s.name).collect();
         tracing::info!("Skills in registry: {:?}", skill_names);
 
-        // Build enriched user message with attached context inlined (instead of injecting into system prompt)
         let enriched_user_message = if let Some(items) = context_items {
             tracing::info!("Processing {} context items", items.len());
             let mut combined_context = String::new();
@@ -768,8 +838,12 @@ fn run_agent_loop(
         }
 
         let loop_result = loop_handle.await;
+
+        // Remove cancellation token
+        state.agent_cancel_tokens.remove(&conversation_id);
+
         match loop_result {
-            Ok(Ok(new_messages)) => {
+            Ok(Ok(result)) => {
                 let db = match state.registry.db.connection().await {
                     Ok(conn) => conn,
                     Err(e) => {
@@ -787,8 +861,9 @@ fn run_agent_loop(
                     }
                 };
                 let now = chrono::Utc::now().fixed_offset();
+                let messages_len = result.messages.len();
 
-                for msg in new_messages {
+                for (i, msg) in result.messages.into_iter().enumerate() {
                     let role_str = match msg.role {
                         skilldeck_core::traits::MessageRole::User => "user",
                         skilldeck_core::traits::MessageRole::Assistant => "assistant",
@@ -796,15 +871,23 @@ fn run_agent_loop(
                         skilldeck_core::traits::MessageRole::System => "system",
                     };
                     let msg_id = Uuid::new_v4();
-                    let active = messages::ActiveModel {
+                    let mut active = messages::ActiveModel {
                         id: Set(msg_id),
                         conversation_id: Set(conv_uuid),
                         role: Set(role_str.to_string()),
                         content: Set(msg.content),
                         created_at: Set(now),
                         context_items: Set(Some(serde_json::Value::Array(vec![]))),
+                        seen: Set(false),
+                        status: Set("active".to_string()),
                         ..Default::default()
                     };
+                    if i == messages_len - 1 && role_str == "assistant" {
+                        active.input_tokens = Set(Some(result.input_tokens as i32));
+                        active.output_tokens = Set(Some(result.output_tokens as i32));
+                        active.cache_read_tokens = Set(Some(result.cache_read_tokens as i32));
+                        active.cache_write_tokens = Set(Some(result.cache_write_tokens as i32));
+                    }
                     if let Err(e) = active.insert(db).await {
                         let _ = app.emit(
                             "agent-event",

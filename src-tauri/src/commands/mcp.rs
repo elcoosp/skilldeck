@@ -4,10 +4,11 @@ use specta::{Type, specta};
 
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use tauri::State;
+use tauri::{Emitter, State};
 use uuid::Uuid;
 
-use crate::AppState;
+use crate::events::McpEvent;
+use crate::state::AppState;
 use skilldeck_core::CoreError;
 
 // ── Shared response types ─────────────────────────────────────────────────────
@@ -45,7 +46,8 @@ pub struct AddMcpServerPayload {
 #[tauri::command]
 pub async fn add_mcp_server(
     payload: AddMcpServerPayload,
-    state: State<'_, Arc<AppState>>, // Arc<AppState> — matches handle.manage(Arc::new(state))
+    state: State<'_, Arc<AppState>>,
+    app: tauri::AppHandle,
 ) -> Result<String, String> {
     let db = state
         .registry
@@ -79,9 +81,6 @@ pub async fn add_mcp_server(
 
     let now = chrono::Utc::now().fixed_offset();
 
-    // If a row with the same name already exists (e.g. a previous add that
-    // failed to connect), reuse it — update its config and reset its status
-    // rather than hitting the UNIQUE constraint with a second insert.
     let existing = McpServers::find()
         .filter(Column::Name.eq(&payload.name))
         .one(db)
@@ -129,8 +128,9 @@ pub async fn add_mcp_server(
     {
         let registry = state.registry.mcp_registry.clone();
         let db_url = state.db_url.clone();
+        let app_handle = app.clone();
         tokio::spawn(async move {
-            if let Err(e) = connect_server_by_id(&registry, id, &db_url).await {
+            if let Err(e) = connect_server_by_id(&registry, id, &db_url, &app_handle).await {
                 tracing::warn!("Auto-connect for {id} failed: {e}");
             }
         });
@@ -145,7 +145,8 @@ pub async fn add_mcp_server(
 #[tauri::command]
 pub async fn remove_mcp_server(
     id: String,
-    state: State<'_, Arc<AppState>>, // Arc<AppState>
+    state: State<'_, Arc<AppState>>,
+    app: tauri::AppHandle,
 ) -> Result<(), String> {
     let parsed_id: Uuid = id.parse().map_err(|e| format!("Invalid id: {e}"))?;
 
@@ -156,6 +157,13 @@ pub async fn remove_mcp_server(
         .await
         .map_err(|e| e.to_string())?;
 
+    // Emit disconnected event before removal
+    if let Some(server) = state.registry.mcp_registry.get(parsed_id) {
+        let _ = app.emit(
+            "mcp-event",
+            McpEvent::ServerDisconnected { name: server.name },
+        );
+    }
     state.registry.mcp_registry.disconnect(parsed_id);
 
     use sea_orm::{EntityTrait, ModelTrait};
@@ -180,7 +188,7 @@ pub async fn remove_mcp_server(
 #[specta]
 #[tauri::command]
 pub async fn list_mcp_servers(
-    state: State<'_, Arc<AppState>>, // Arc<AppState>
+    state: State<'_, Arc<AppState>>,
 ) -> Result<Vec<McpServerResponse>, String> {
     let servers = state.registry.mcp_registry.list();
 
@@ -217,11 +225,12 @@ pub async fn list_mcp_servers(
 #[tauri::command]
 pub async fn connect_mcp_server(
     id: String,
-    state: State<'_, Arc<AppState>>, // Arc<AppState>
+    state: State<'_, Arc<AppState>>,
+    app: tauri::AppHandle,
 ) -> Result<(), String> {
     let parsed_id: Uuid = id.parse().map_err(|e| format!("Invalid id: {e}"))?;
 
-    connect_server_by_id(&state.registry.mcp_registry, parsed_id, &state.db_url)
+    connect_server_by_id(&state.registry.mcp_registry, parsed_id, &state.db_url, &app)
         .await
         .map_err(|e| e.to_string())
 }
@@ -232,10 +241,17 @@ pub async fn connect_mcp_server(
 #[tauri::command]
 pub async fn disconnect_mcp_server(
     id: String,
-    state: State<'_, Arc<AppState>>, // Arc<AppState>
+    state: State<'_, Arc<AppState>>,
+    app: tauri::AppHandle,
 ) -> Result<(), String> {
     let parsed_id: Uuid = id.parse().map_err(|e| format!("Invalid id: {e}"))?;
 
+    if let Some(server) = state.registry.mcp_registry.get(parsed_id) {
+        let _ = app.emit(
+            "mcp-event",
+            McpEvent::ServerDisconnected { name: server.name },
+        );
+    }
     state.registry.mcp_registry.disconnect(parsed_id);
     Ok(())
 }
@@ -243,9 +259,10 @@ pub async fn disconnect_mcp_server(
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
 async fn connect_server_by_id(
-    registry: &std::sync::Arc<skilldeck_core::mcp::McpRegistry>,
+    registry: &Arc<skilldeck_core::mcp::McpRegistry>,
     id: Uuid,
     db_url: &str,
+    app: &tauri::AppHandle,
 ) -> Result<(), CoreError> {
     let db = skilldeck_core::open_db(db_url, false).await?;
 
@@ -268,5 +285,40 @@ async fn connect_server_by_id(
         config: record.config_json,
     };
 
-    registry.connect(id, mcp_config).await
+    let result = registry.connect(id, mcp_config).await;
+    match &result {
+        Ok(()) => {
+            if let Some(server) = registry.get(id) {
+                let _ = app.emit(
+                    "mcp-event",
+                    McpEvent::ServerConnected {
+                        name: server.name.clone(),
+                    },
+                );
+                // Emit tool discovered events for each tool
+                for tool in &server.tools {
+                    let _ = app.emit(
+                        "mcp-event",
+                        McpEvent::ToolDiscovered {
+                            server: server.name.clone(),
+                            tool: crate::events::McpToolInfo {
+                                name: tool.name.clone(),
+                                description: tool.description.clone(),
+                            },
+                        },
+                    );
+                }
+            }
+        }
+        Err(e) => {
+            let _ = app.emit(
+                "mcp-event",
+                McpEvent::ServerFailed {
+                    name: record.name,
+                    message: e.to_string(),
+                },
+            );
+        }
+    }
+    result
 }

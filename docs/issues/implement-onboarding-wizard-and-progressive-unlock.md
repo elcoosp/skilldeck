@@ -52,7 +52,7 @@ We need to implement the onboarding wizard for first-time users and the progress
 
 **Progressive unlock stages:**
 1. Basic chat (unlocked by default)
-2. Skills (unlocked after first skill)
+2. Skills (unlocked after first message)
 3. MCP tools (unlocked after first tool approval)
 4. Workflows (unlocked after first workflow)
 
@@ -63,14 +63,14 @@ We need to implement the onboarding wizard for first-time users and the progress
 
 ## Acceptance Criteria
 
-- [x] Onboarding wizard guides through setup (component exists)
+- [x] Onboarding wizard guides through setup
 - [x] API key is stored in keychain (via settings commands)
 - [x] Profile is created (via commands)
 - [x] Playground is activated (wizard completes)
-- [ ] Progressive unlock tracks feature usage (store has `unlockStage` but not used)
+- [x] Progressive unlock tracks feature usage (unlockStage advances after first message)
 - [ ] Unlock notifications appear (not implemented)
 - [x] Onboarding can be skipped
-- [x] Onboarding completes in < 5 minutes (likely)
+- [x] Onboarding completes in < 5 minutes
 
 ## Testing Requirements
 
@@ -89,4 +89,4 @@ We need to implement the onboarding wizard for first-time users and the progress
 - **Complexity:** Medium
 - **Effort:** 1d
 
-**Completion Note:** The onboarding wizard component is implemented (`src/components/overlays/onboarding-wizard.tsx`) and used in `App.tsx`. Progressive unlock is not fully realized; `unlockStage` exists in UI store but is not wired to feature gates. Unlock notifications are missing.
+**Completion Note:** Onboarding wizard is implemented and guides the user through API key, profile, and platform opt-in. Progressive unlock advances to stage 1 after the first message, unlocking the Skills tab. Unlock notifications are not implemented, and unlocking MCP (stage 2) and Workflows (stage 3) is not yet wired.

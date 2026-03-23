@@ -1,4 +1,3 @@
-// src/hooks/use-analytics.ts
 import { useQuery } from '@tanstack/react-query'
 import { commands } from '@/lib/bindings'
 
@@ -22,6 +21,7 @@ export interface AnalyticsData {
   total_conversations: number
   total_messages: number
   messages_per_day: DailyCount[]
+  conversations_per_day: DailyCount[]  // <-- added
   skills_used: SkillUsage[]
   token_usage: TokenTotals
 }
@@ -38,6 +38,10 @@ export function useAnalytics() {
           total_conversations: Number(data.total_conversations),
           total_messages: Number(data.total_messages),
           messages_per_day: data.messages_per_day.map((d) => ({
+            date: d.date,
+            count: Number(d.count)
+          })),
+          conversations_per_day: (data.conversations_per_day || []).map((d) => ({
             date: d.date,
             count: Number(d.count)
           })),

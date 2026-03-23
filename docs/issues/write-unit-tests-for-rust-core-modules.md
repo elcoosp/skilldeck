@@ -101,4 +101,4 @@ We need to write unit tests for all Rust core modules including error types, dat
 - **Complexity:** Medium
 - **Effort:** 3d
 
-**Completion Note:** Many unit tests exist for core modules, but coverage is incomplete. Some modules (like providers, database) lack comprehensive tests. Agent loop has only configuration tests.
+**Completion Note:** Many unit tests exist for core modules, but coverage is incomplete. Some modules (like providers, database) lack comprehensive tests. Agent loop has only configuration tests. Workflow executor and evaluator-optimizer have basic tests.

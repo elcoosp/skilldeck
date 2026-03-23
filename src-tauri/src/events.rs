@@ -1,4 +1,4 @@
-// File: src-tauri/src/events.rs
+// src-tauri/src/events.rs
 //! Typed IPC event payloads emitted from Rust to the React frontend.
 //!
 //! All event names use kebab-case and match the listeners in `src/lib/events.ts`.
@@ -41,9 +41,15 @@ pub enum AgentEvent {
         conversation_id: String,
         message: String,
     },
-    /// New messages have been persisted to the database.
     Persisted {
         conversation_id: String,
+    },
+    // NEW: Tool approval required
+    ToolApprovalRequired {
+        conversation_id: String,
+        tool_call_id: String,
+        tool_name: String,
+        arguments: serde_json::Value,
     },
 }
 
@@ -62,6 +68,7 @@ pub struct AgentToolCall {
 pub enum McpEvent {
     ServerConnected { name: String },
     ServerDisconnected { name: String },
+    ServerFailed { name: String, message: String },
     ToolDiscovered { server: String, tool: McpToolInfo },
 }
 
@@ -89,6 +96,11 @@ pub enum WorkflowEvent {
         step_id: String,
         result: Option<String>,
     },
+    StepFailed {
+        workflow_id: String,
+        step_id: String,
+        error: String,
+    },
     Completed {
         id: String,
     },
@@ -98,7 +110,7 @@ pub enum WorkflowEvent {
     },
 }
 
-// ── Skill events (new) ────────────────────────────────────────────────────────
+// ── Skill events ─────────────────────────────────────────────────────────────
 
 /// Payload for the `"skill-event"` Tauri channel.
 #[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]

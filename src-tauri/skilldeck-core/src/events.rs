@@ -1,16 +1,12 @@
-// File: src-tauri/src/events.rs
-//! Typed IPC event payloads emitted from Rust to the React frontend.
-//!
-//! All event names use kebab-case and match the listeners in `src/lib/events.ts`.
+// src-tauri/skilldeck-core/src/events.rs
+//! Core event types (not Tauri-specific).
 
 use serde::{Deserialize, Serialize};
 use specta::Type;
-use tauri_specta::Event;
 
 // ── Agent events ─────────────────────────────────────────────────────────────
 
-/// Payload for the `"agent-event"` Tauri channel.
-#[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum AgentEvent {
     Cancelled {
@@ -41,7 +37,6 @@ pub enum AgentEvent {
         conversation_id: String,
         message: String,
     },
-    /// New messages have been persisted to the database.
     Persisted {
         conversation_id: String,
     },
@@ -56,12 +51,12 @@ pub struct AgentToolCall {
 
 // ── MCP events ────────────────────────────────────────────────────────────────
 
-/// Payload for the `"mcp-event"` Tauri channel.
-#[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum McpEvent {
     ServerConnected { name: String },
     ServerDisconnected { name: String },
+    ServerFailed { name: String, message: String },
     ToolDiscovered { server: String, tool: McpToolInfo },
 }
 
@@ -73,8 +68,7 @@ pub struct McpToolInfo {
 
 // ── Workflow events ───────────────────────────────────────────────────────────
 
-/// Payload for the `"workflow-event"` Tauri channel.
-#[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum WorkflowEvent {
     Started {
@@ -89,11 +83,16 @@ pub enum WorkflowEvent {
         step_id: String,
         result: Option<String>,
     },
+    StepFailed {
+        workflow_id: String,
+        step_id: String,
+        error: String,
+    },
     Completed {
         id: String,
     },
     Failed {
         id: String,
-        message: String,
+        error: String,
     },
 }

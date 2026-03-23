@@ -1,4 +1,3 @@
-// src/hooks/use-agent-stream.ts
 /**
  * useAgentStream — subscribe to Tauri agent-event channel for a given
  * conversation and drive streaming text + running state in the UI store.
@@ -7,7 +6,7 @@
  *   Rust ring-buffer → 50 ms debounce → Tauri emit → this hook → rAF → render
  *
  * Also handles auto-naming conversations from the first user message
- * when the 'persisted' event fires.
+ * when the 'persisted' event fires, and progressive unlock.
  */
 
 import { useQueryClient } from '@tanstack/react-query'
@@ -18,6 +17,7 @@ import { commands } from '@/lib/bindings'
 import type { AgentEvent as LocalAgentEvent } from '@/lib/events'
 import { onAgentEvent } from '@/lib/events'
 import { useUIStore } from '@/store/ui'
+import { useToolApprovalStore } from '@/store/tool-approvals' // <-- new
 
 export function useAgentStream(conversationId: string | null) {
   const queryClient = useQueryClient()
@@ -25,6 +25,12 @@ export function useAgentStream(conversationId: string | null) {
   const clearStreamingText = useUIStore((s) => s.clearStreamingText)
   const setAgentRunning = useUIStore((s) => s.setAgentRunning)
   const setStreamingError = useUIStore((s) => s.setStreamingError)
+  const unlockStage = useUIStore((s) => s.unlockStage)
+  const setUnlockStage = useUIStore((s) => s.setUnlockStage)
+
+  // Tool approval store actions
+  const addPending = useToolApprovalStore((s) => s.addPending)       // <-- new
+  const clearAllApprovals = useToolApprovalStore((s) => s.clearAll) // <-- new
 
   // Buffer deltas between rAF ticks to avoid per-token setState calls.
   const pendingBuffer = useRef('')
@@ -130,6 +136,24 @@ export function useAgentStream(conversationId: string | null) {
           }
           break
 
+        case 'tool_approval_required': // <-- new case
+          addPending(event.tool_call_id, {
+            name: event.tool_name,
+            arguments: event.arguments,
+          })
+          break
+
+        case 'cancelled':
+          // Mark agent as stopped and invalidate messages to show cancelled badge
+          setAgentRunning(conversationId, false)
+          clearStreamingText(conversationId)
+          clearAllApprovals() // <-- clear pending approvals on cancellation
+          queryClient.invalidateQueries({
+            queryKey: ['messages', conversationId],
+            exact: false
+          })
+          break
+
         case 'done':
           if (pendingBuffer.current) {
             appendStreamingText(conversationId, pendingBuffer.current)
@@ -137,9 +161,15 @@ export function useAgentStream(conversationId: string | null) {
           }
           setAgentRunning(conversationId, false)
           clearStreamingText(conversationId)
+          clearAllApprovals() // <-- clear pending approvals on completion
           queryClient.invalidateQueries({
             queryKey: ['queued-messages', conversationId]
           })
+
+          // ── Progressive unlock: after first message, unlock skills ──
+          if (unlockStage === 0) {
+            setUnlockStage(1)
+          }
           break
 
         case 'error':
@@ -147,6 +177,7 @@ export function useAgentStream(conversationId: string | null) {
           setAgentRunning(conversationId, false)
           setStreamingError(conversationId, true) // record error
           clearStreamingText(conversationId)
+          clearAllApprovals() // <-- clear pending approvals on error
           toast.error(
             event.message || 'An error occurred while processing your message'
           )
@@ -207,7 +238,11 @@ export function useAgentStream(conversationId: string | null) {
     clearStreamingText,
     setAgentRunning,
     setStreamingError,
-    queryClient
+    queryClient,
+    unlockStage,
+    setUnlockStage,
+    addPending,           // <-- new dependency
+    clearAllApprovals,    // <-- new dependency
   ])
 
   const streamingText = useUIStore(

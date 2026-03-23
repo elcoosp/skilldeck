@@ -97,7 +97,7 @@
 
   /* NEW: Highlight color for search matches (solid blue with good contrast) */
   --highlight-inline: rgba(245, 158, 11, 0.2);
-  /* blue-500 */
+  --highlight-inline-user: rgba(255, 140, 0, 0.6);
 }
 
 .dark {
@@ -158,7 +158,8 @@
 
   /* NEW: Highlight color for search matches – brighter for dark mode */
   --highlight-inline: rgba(251, 191, 36, 0.25);
-  /* blue-400 */
+
+  --highlight-inline-user: rgba(255, 200, 0, 0.6);
 }
 
 @theme inline {
@@ -378,4 +379,28 @@
 /* Custom delay utility – not provided by Tailwind by default */
 .delay-1200 {
   animation-delay: 1.2s;
+}
+
+/* ============================================ */
+/* Code block horizontal scrollbar & wrapping   */
+/* ============================================ */
+.prose pre,
+pre[class*="language-"] {
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: pre-wrap;
+  word-break: break-all;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.prose pre::-webkit-scrollbar,
+pre[class*="language-"]::-webkit-scrollbar {
+  height: 4px;
+}
+
+.prose pre::-webkit-scrollbar-thumb,
+pre[class*="language-"]::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
 }

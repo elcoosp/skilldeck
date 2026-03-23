@@ -1,11 +1,4 @@
-/**
- * Main application shell — three-panel resizable layout.
- *
- * Implements the ASR-STR-002 IPC-only architecture: React owns zero business
- * logic; every data operation goes through invoke() or event listeners.
- */
-
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { Group, Panel, Separator } from 'react-resizable-panels'
 import { Toaster } from 'sonner'
@@ -17,21 +10,66 @@ import { useUIStore } from '@/store/ui'
 import { CenterPanel } from './center-panel'
 import { LeftPanel } from './left-panel'
 import { RightPanel } from './right-panel'
+import { GlobalDropZone } from '@/components/chat/global-drop-zone'
+
+const LAYOUT_STORAGE_KEY = 'skilldeck-panel-layout'
+const DEFAULT_LAYOUT = [20, 60, 20]
 
 export function AppShell() {
-  const panelSizes = useUIStore((s) => s.panelSizes)
-  const setPanelSizes = useUIStore((s) => s.setPanelSizes)
+  const setPanelSizesPx = useUIStore((s) => s.setPanelSizesPx)
+
+  const [layout, setLayout] = useState<number[]>(() => {
+    try {
+      const stored = localStorage.getItem(LAYOUT_STORAGE_KEY)
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        if (Array.isArray(parsed) && parsed.length === 3) {
+          return parsed
+        }
+      }
+    } catch { }
+    return DEFAULT_LAYOUT
+  })
+
+  // Observe left and right panels by their data-panel attribute
+  useEffect(() => {
+    const getPanels = () => {
+      const panels = document.querySelectorAll('[data-panel]')
+      return {
+        left: panels[0] as HTMLDivElement,
+        right: panels[2] as HTMLDivElement
+      }
+    }
+
+    const updateSizes = () => {
+      const { left, right } = getPanels()
+      const leftWidth = left?.clientWidth ?? 0
+      const rightWidth = right?.clientWidth ?? 0
+      setPanelSizesPx({ left: leftWidth, right: rightWidth })
+    }
+
+    updateSizes()
+
+    const observer = new ResizeObserver(() => updateSizes())
+    const { left, right } = getPanels()
+    if (left) observer.observe(left)
+    if (right) observer.observe(right)
+
+    window.addEventListener('resize', updateSizes)
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', updateSizes)
+    }
+  }, [setPanelSizesPx])
+
   const setCommandPaletteOpen = useUIStore((s) => s.setCommandPaletteOpen)
   const setSettingsOpen = useUIStore((s) => s.setSettingsOpen)
   const setGlobalSearchOpen = useUIStore((s) => s.setGlobalSearchOpen)
   const settingsOpen = useUIStore((s) => s.settingsOpen)
 
-  // Ensure the app is registered with the platform (no-op if already done).
   usePlatformRegistration()
-  // Subscribe to nudge events from the background poller.
   useNudgeListener()
 
-  // Global keyboard shortcuts (declarative hooks)
   useHotkeys('meta+k, ctrl+k', (e) => {
     e.preventDefault()
     setCommandPaletteOpen(true)
@@ -47,7 +85,6 @@ export function AppShell() {
     setGlobalSearchOpen(true)
   })
 
-  // Native fallback – guarantees shortcuts work even if the hook fails
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -69,52 +106,38 @@ export function AppShell() {
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-background text-foreground flex flex-col">
-      {/* Product Hunt launch banner (dismissible) */}
       <LaunchNotificationBanner />
 
       <div className="flex-1 overflow-hidden">
         <Group
           orientation="horizontal"
-          onLayoutChange={(sizes) =>
-            setPanelSizes({ left: sizes[0], right: sizes[2] })
-          }
+          defaultLayout={layout}
+          onLayoutChange={(sizes) => {
+            setLayout(sizes)
+            localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(sizes))
+          }}
         >
-          {/* Left — conversation list */}
-          <Panel
-            defaultSize={`${panelSizes.left}px`}
-            minSize="15%"
-            maxSize="30%"
-            className="border-r border-border"
-          >
+          <Panel minSize="15%" maxSize="30%" className="border-r border-border">
             <LeftPanel />
           </Panel>
 
           <Separator className="w-px bg-border hover:bg-primary/30 transition-colors cursor-col-resize" />
 
-          {/* Center — message thread + input */}
           <Panel minSize="35%">
             <CenterPanel />
           </Panel>
 
           <Separator className="w-px bg-border hover:bg-primary/30 transition-colors cursor-col-resize" />
 
-          {/* Right — session info / workflow / analytics */}
-          <Panel
-            defaultSize={`${panelSizes.right}px`}
-            minSize="18%"
-            maxSize="35%"
-            className="border-l border-border"
-          >
+          <Panel minSize="18%" maxSize="35%" className="border-l border-border">
             <RightPanel />
           </Panel>
         </Group>
       </div>
 
-      {/* Global overlays */}
       <CommandPalette />
       {settingsOpen && <SettingsOverlay />}
-
-      {/* Toast notifications */}
+      <GlobalDropZone />
       <Toaster position="bottom-right" richColors closeButton />
     </div>
   )

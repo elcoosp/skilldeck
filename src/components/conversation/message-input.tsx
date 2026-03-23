@@ -1,3 +1,4 @@
+// src/components/conversation/message-input.tsx
 /**
  * Message input — auto-growing textarea with draft persistence, slash commands,
  * skill mention (@), file reference (#) entry points, and file attachments.
@@ -11,8 +12,9 @@
 import { open } from '@tauri-apps/plugin-dialog'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { AtSign, Hash, Paperclip, Send, Square, Timer } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
+import { useDebouncedCallback } from 'use-debounce'
 
 import { AttachedItemsList } from '@/components/chat/attached-items-list'
 import { ChatCommandPalette } from '@/components/chat/chat-command-palette'
@@ -54,7 +56,7 @@ import type { UnifiedSkill } from '@/types/skills'
 interface MessageInputProps {
   conversationId: UUID
   workspaceRoot?: string
-  onRequestScrollToBottom?: () => void   // <-- new prop
+  onRequestScrollToBottom?: () => void
 }
 
 interface FileChip {
@@ -64,6 +66,8 @@ interface FileChip {
 
 type UploadStatus = 'pending' | 'success' | 'error'
 type UploadStatusMap = Map<string, { status: UploadStatus }>
+
+const MAX_HEIGHT = 192 // 12 * 16px = 192px
 
 export function MessageInput({
   conversationId,
@@ -77,6 +81,7 @@ export function MessageInput({
     new Map()
   )
   const [isSending, setIsSending] = useState(false)
+  const [contentHeight, setContentHeight] = useState(36)
 
   // ── Workspace context ───────────────────────────────────────────────────
   const activeWorkspaceId = useUIStore((s) => s.activeWorkspaceId)
@@ -133,15 +138,26 @@ export function MessageInput({
     useState<RegistrySkillData | null>(null)
 
   // Context store actions
-  const items = useChatContextStore((s) => s.items)
+  const itemsMap = useChatContextStore((s) => s.items)
   const addFile = useChatContextStore((s) => s.addFile)
   const addFolder = useChatContextStore((s) => s.addFolder)
   const addSkill = useChatContextStore((s) => s.addSkill)
   const clearItems = useChatContextStore((s) => s.clearItems)
 
-  // ── Draft sync & auto-grow ────────────────────────────────────────────────
+  const currentItems = itemsMap[conversationId] ?? []
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally only sync on conversation change
+  // ─── Height calculation for textarea ─────────────────────────────────────
+  useLayoutEffect(() => {
+    const el = textareaRef.current
+    if (!el) return
+    // Force reflow by setting to 0px
+    el.style.height = '0px'
+    const newHeight = Math.min(el.scrollHeight, MAX_HEIGHT)
+    el.style.height = `${newHeight}px`
+    setContentHeight(newHeight)
+  }, [content])
+
+  // ─── Draft sync & auto-grow ────────────────────────────────────────────────
   useEffect(() => {
     setContent(draft)
   }, [conversationId])
@@ -156,7 +172,7 @@ export function MessageInput({
     const el = textareaRef.current
     if (!el) return
     el.style.height = 'auto'
-    el.style.height = `${Math.min(el.scrollHeight, 200)}px`
+    el.style.height = `${Math.min(el.scrollHeight, MAX_HEIGHT)}px`
   }, [content])
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: focus on conversation change
@@ -164,7 +180,42 @@ export function MessageInput({
     textareaRef.current?.focus()
   }, [conversationId])
 
-  // ── Picker position ───────────────────────────────────────────────────────
+  // ─── Draft persistence: load from DB on mount ────────────────────────────────
+  useEffect(() => {
+    if (!conversationId) return
+    commands.getConversationDraft(conversationId).then((res) => {
+      if (res.status === 'ok' && res.data) {
+        const [text, items] = res.data
+        setContent(text)
+        items.forEach((item: any) => {
+          if (item.type === 'file') addFile(conversationId, item.data)
+          else if (item.type === 'folder') addFolder(conversationId, item.data)
+          else if (item.type === 'skill') addSkill(conversationId, item.data)
+        })
+      }
+    }).catch((err) => console.error('Failed to load draft:', err))
+  }, [conversationId, addFile, addFolder, addSkill])
+
+  // ─── Debounced save draft to DB ─────────────────────────────────────────────
+  const debouncedSaveDraft = useDebouncedCallback(
+    (text: string, items: any[]) => {
+      if (!conversationId) return
+      const itemsJson = items.map((item) => item.data)
+      commands.upsertConversationDraft(conversationId, text, itemsJson).catch((err) => {
+        console.error('Failed to save draft:', err)
+      })
+    },
+    500
+  )
+
+  // Save on content or items change
+  useEffect(() => {
+    if (!conversationId) return
+    const items = itemsMap[conversationId] ?? []
+    debouncedSaveDraft(content, items)
+  }, [content, conversationId, itemsMap, debouncedSaveDraft])
+
+  // ─── Picker position ───────────────────────────────────────────────────────
 
   const calculatePickerPosition = useCallback(() => {
     if (!textareaRef.current) return null
@@ -175,14 +226,14 @@ export function MessageInput({
     }
   }, [])
 
-  // ── Picker close ──────────────────────────────────────────────────────────
+  // ─── Picker close ──────────────────────────────────────────────────────────
 
   const closePicker = useCallback(() => {
     setTriggerState(null)
     setPickerPosition(null)
   }, [])
 
-  // ── Clear trigger text from textarea ─────────────────────────────────────
+  // ─── Clear trigger text from textarea ─────────────────────────────────────
 
   const clearTriggerText = useCallback(
     (trigger: TriggerState) => {
@@ -228,7 +279,7 @@ export function MessageInput({
               const res = await commands.countFolderFiles(file.path)
               if (res.status === 'ok') {
                 const counts = res.data as unknown as FolderCounts
-                addFolder({
+                addFolder(conversationId, {
                   id: file.path,
                   name: file.path.split('/').pop() || file.path,
                   path: file.path,
@@ -252,7 +303,7 @@ export function MessageInput({
         return
       }
 
-      addFile({
+      addFile(conversationId, {
         id: file.path,
         name: file.name,
         path: file.path,
@@ -263,6 +314,7 @@ export function MessageInput({
     },
     [
       triggerState,
+      conversationId,
       loadDirectory,
       addFile,
       addFolder,
@@ -275,12 +327,12 @@ export function MessageInput({
 
   const confirmAddSkill = useCallback(
     (skill: RegistrySkillData) => {
-      addSkill(skill)
+      addSkill(conversationId, skill)
       if (triggerState) clearTriggerText(triggerState)
       setSkillForReview(null)
       closePicker()
     },
-    [addSkill, triggerState, clearTriggerText, closePicker]
+    [addSkill, conversationId, triggerState, clearTriggerText, closePicker]
   )
 
   const handleSkillSelect = useCallback(
@@ -487,7 +539,7 @@ export function MessageInput({
       }
     }
 
-    const metadataItems: ContextItem[] = items.map((item) => {
+    const metadataItems: ContextItem[] = currentItems.map((item) => {
       if (item.type === 'file') {
         return {
           type: 'file',
@@ -516,14 +568,13 @@ export function MessageInput({
     setSelectedFiles([])
     setProcessingFiles(new Map())
     clearDraft(finalConversationId)
-    clearItems()
+    clearItems(finalConversationId)
 
     try {
       await sendMutation.mutateAsync({
         content: finalContent,
         contextItems: metadataItems.length > 0 ? metadataItems : undefined
       })
-      // Request scroll to bottom after message is sent
       onRequestScrollToBottom?.()
     } catch (err) {
       toast.error(`Failed to send message: ${err}`)
@@ -542,7 +593,7 @@ export function MessageInput({
     setActiveConversation,
     clearDraft,
     clearItems,
-    items,
+    currentItems,
     sendMutation,
     onRequestScrollToBottom
   ])
@@ -609,25 +660,29 @@ export function MessageInput({
         <AttachedItemsList />
 
         <div className="flex items-center gap-2 px-3 py-2">
-          <Textarea
-            ref={textareaRef}
-            value={content}
-            onChange={handleChange}
-            onKeyDown={handleKeyDown}
-            onCompositionStart={() => setIsComposing(true)}
-            onCompositionEnd={() => setIsComposing(false)}
-            placeholder={
-              isRunning
-                ? 'Agent is running… (type to queue)'
-                : 'Type a message… (@ for skills · # for files)'
-            }
-            disabled={false}
-            className={cn(
-              'flex-1 min-h-[36px] max-h-[200px] resize-none border-0 shadow-none bg-transparent',
-              'focus-visible:ring-0 text-sm leading-6 py-2 px-1.5 overflow-y-hidden'
-            )}
-            rows={1}
-          />
+          <motion.div
+            animate={{ height: contentHeight }}
+            transition={{ duration: shouldReduceMotion ? 0 : 0.15 }}
+            className="overflow-hidden flex-1"
+          >
+            <Textarea
+              ref={textareaRef}
+              value={content}
+              onChange={handleChange}
+              onKeyDown={handleKeyDown}
+              onCompositionStart={() => setIsComposing(true)}
+              onCompositionEnd={() => setIsComposing(false)}
+              placeholder={
+                isRunning
+                  ? 'Agent is running… (type to queue)'
+                  : 'Type a message… (@ for skills · # for files)'
+              }
+              disabled={false}
+              className="w-full resize-none border-0 shadow-none bg-transparent focus-visible:ring-0 text-sm leading-6 py-2 px-1.5 overflow-y-auto thin-scrollbar min-h-[36px]"
+              style={{ height: '100%' }}
+              rows={1}
+            />
+          </motion.div>
 
           {/* Button group with animations */}
           <div className="flex items-center gap-2 shrink-0">

@@ -1,9 +1,3 @@
-// src/components/conversation/conversation-item.tsx
-/**
- * Sidebar conversation list item with inline rename, context menu, pin toggle,
- * workspace badge, and profile badge.
- */
-
 import { formatDistanceToNow } from 'date-fns'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
@@ -15,6 +9,7 @@ import {
   Trash2
 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -29,6 +24,7 @@ import {
   useRenameConversation,
   useUnpinConversation
 } from '@/hooks/use-conversations'
+import { commands } from '@/lib/bindings'
 import type { ConversationSummary } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
 
@@ -38,10 +34,17 @@ interface ConversationItemProps {
   isDeleting?: boolean
   onDeleteStart?: (conversationId: string) => void
   onClick: () => void
-  workspaceName?: string // optional workspace name to display as badge
-  profileName?: string | null // <-- new
-  profileDeleted?: boolean // <-- new
-  showProfileBadge?: boolean // <-- new
+  workspaceName?: string
+  profileName?: string | null
+  profileDeleted?: boolean
+  showProfileBadge?: boolean
+}
+
+export interface SkilldeckDragDropDetail {
+  type: 'enter' | 'over' | 'drop' | 'leave'
+  paths: string[]
+  position: { x: number; y: number }
+  targetConversationId: string | null
 }
 
 export function ConversationItem({
@@ -60,10 +63,64 @@ export function ConversationItem({
   const inputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
+  const [isDragTarget, setIsDragTarget] = useState(false)
+  const isDragTargetRef = useRef(false)
+
   const deleteMutation = useDeleteConversation()
   const renameMutation = useRenameConversation()
   const pinMutation = usePinConversation()
   const unpinMutation = useUnpinConversation()
+
+  // ── Listen to the custom drag‑drop event from GlobalDropZone ──────────────
+  useEffect(() => {
+    const onDragDrop = (e: Event) => {
+      const { type, paths, targetConversationId } =
+        (e as CustomEvent<SkilldeckDragDropDetail>).detail
+
+      const isOver = targetConversationId === conversation.id
+
+      if (type === 'leave') {
+        if (isDragTargetRef.current) {
+          isDragTargetRef.current = false
+          setIsDragTarget(false)
+        }
+        return
+      }
+
+      if (type === 'enter' || type === 'over') {
+        const next = isOver
+        if (next !== isDragTargetRef.current) {
+          isDragTargetRef.current = next
+          setIsDragTarget(next)
+        }
+        return
+      }
+
+      if (type === 'drop' && isOver && isDragTargetRef.current) {
+        isDragTargetRef.current = false
+        setIsDragTarget(false)
+        if (paths.length === 0) return
+
+        commands
+          .attachFilesToConversation(conversation.id, paths)
+          .then((res) => {
+            if (res.status === 'error') {
+              toast.error(res.error)
+            } else {
+              toast.success(
+                `Attached ${paths.length} file(s) to "${conversation.title ?? 'conversation'}"`
+              )
+            }
+          })
+          .catch(() => toast.error('Failed to attach files'))
+      }
+    }
+
+    window.addEventListener('skilldeck:drag-drop', onDragDrop)
+    return () => window.removeEventListener('skilldeck:drag-drop', onDragDrop)
+  }, [conversation.id, conversation.title])
+
+  // ─────────────────────────────────────────────────────────────────────────
 
   const cancelRename = useCallback(() => {
     setDraft(conversation.title ?? '')
@@ -94,10 +151,8 @@ export function ConversationItem({
     }
   }, [isRenaming])
 
-  // Click outside to cancel rename (without saving)
   useEffect(() => {
     if (!isRenaming) return
-
     const handleClickOutside = (event: MouseEvent) => {
       if (
         containerRef.current &&
@@ -106,7 +161,6 @@ export function ConversationItem({
         cancelRename()
       }
     }
-
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [isRenaming, cancelRename])
@@ -114,9 +168,7 @@ export function ConversationItem({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault()
-      if (!isRenaming && !isDeleting) {
-        onClick()
-      }
+      if (!isRenaming && !isDeleting) onClick()
     }
     if (e.key === 'Escape' && isRenaming) {
       e.preventDefault()
@@ -143,23 +195,27 @@ export function ConversationItem({
   return (
     <div
       ref={containerRef}
+      data-conversation-id={conversation.id}
       role="button"
       tabIndex={0}
       onClick={() => !isRenaming && !isDeleting && onClick()}
       onKeyDown={handleKeyDown}
       className={cn(
         'group relative flex items-start gap-2 w-full px-2 py-2 rounded-md text-left transition-colors cursor-pointer',
+        'pr-6',
         isActive
           ? 'bg-primary/10 text-foreground'
           : 'hover:bg-muted/70 text-muted-foreground hover:text-foreground',
-        isDeleting && 'pointer-events-none opacity-50'
+        isDeleting && 'pointer-events-none opacity-50',
+        // Ring always visible when dragging over, with extra background for active item
+        isDragTarget && 'ring-2 ring-inset ring-primary',
+        isDragTarget && isActive && 'bg-primary/20',
+        isDragTarget && !isActive && 'bg-primary/5 text-foreground',
       )}
     >
-      {/* Main content */}
-      <div className="flex-1 min-w-0">
-        {/* Title row – fixed height to prevent layout shift */}
+      <div className="flex-1 min-w-0 relative z-10">
         <div className="flex items-center gap-1 h-5">
-          <AnimatePresence mode="wait">
+          <AnimatePresence mode="wait" initial={false}>
             {isRenaming ? (
               <motion.div
                 key="input"
@@ -204,7 +260,6 @@ export function ConversationItem({
             )}
           </AnimatePresence>
 
-          {/* Pin icon – always visible but faint when unpinned */}
           <Button
             variant="ghost"
             size="icon-xs"
@@ -215,9 +270,7 @@ export function ConversationItem({
                 : 'opacity-0 group-hover:opacity-50'
             )}
             onClick={togglePin}
-            aria-label={
-              conversation.pinned ? 'Unpin conversation' : 'Pin conversation'
-            }
+            aria-label={conversation.pinned ? 'Unpin conversation' : 'Pin conversation'}
           >
             {conversation.pinned ? (
               <Pin className="size-3 fill-primary" />
@@ -226,7 +279,6 @@ export function ConversationItem({
             )}
           </Button>
 
-          {/* Pencil icon – only visible on hover */}
           {!isRenaming && !isDeleting && (
             <Button
               variant="ghost"
@@ -244,9 +296,7 @@ export function ConversationItem({
           )}
         </div>
 
-        {/* Metadata – always visible, with optional workspace badge and profile badge */}
         <p className="text-[11px] text-muted-foreground/70 truncate mt-0.5 flex items-center gap-1 flex-wrap">
-          {/* Profile badge (only when showProfileBadge is true) */}
           {showProfileBadge && profileName && (
             <Badge
               variant="outline"
@@ -254,15 +304,12 @@ export function ConversationItem({
                 'text-[10px] px-1 py-0',
                 profileDeleted && 'text-muted-foreground border-dashed'
               )}
-              title={
-                profileDeleted ? 'This profile has been deleted' : undefined
-              }
+              title={profileDeleted ? 'This profile has been deleted' : undefined}
             >
               {profileName}
               {profileDeleted && <span className="ml-0.5">(deleted)</span>}
             </Badge>
           )}
-
           {conversation.pinned && (
             <span className="inline-flex items-center gap-0.5 text-primary">
               <Pin className="size-2.5 fill-primary" /> Pinned
@@ -280,7 +327,6 @@ export function ConversationItem({
         </p>
       </div>
 
-      {/* Dropdown menu */}
       {!isRenaming && !isDeleting && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

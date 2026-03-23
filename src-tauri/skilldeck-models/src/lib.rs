@@ -8,6 +8,7 @@ pub mod attachments;
 pub mod bookmarks;
 pub mod context_item;
 pub mod conversation_branches;
+pub mod conversation_drafts;
 pub mod conversation_mcp_overrides;
 pub mod conversation_model_override;
 pub mod conversation_skill_overrides;
