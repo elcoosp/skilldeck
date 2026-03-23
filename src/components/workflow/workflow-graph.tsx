@@ -1,5 +1,5 @@
 // src/components/workflow/workflow-graph.tsx
-import ReactFlow, { Node, Edge, Background, Controls, MarkerType } from '@xyflow/react'
+import { ReactFlow, Node, Edge, Background, Controls, MarkerType } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 
 interface WorkflowGraphProps {

@@ -272,6 +272,17 @@ async searchMessages(req: SearchMessagesRequest) : Promise<Result<SearchMessages
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * Mark a single message as seen.
+ */
+async markMessageSeen(messageId: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("mark_message_seen", { messageId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async sendMessage(req: SendMessageRequest) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("send_message", { req }) };
