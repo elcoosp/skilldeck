@@ -375,6 +375,7 @@ pub(crate) async fn send_message_internal(
         context_items: Set(Some(items_json)),
         created_at: Set(now),
         seen: Set(false),
+        status: Set("active".to_string()),
         ..Default::default()
     };
     user_msg.insert(db).await.map_err(|e| e.to_string())?;
@@ -877,6 +878,7 @@ fn run_agent_loop(
                         created_at: Set(now),
                         context_items: Set(Some(serde_json::Value::Array(vec![]))),
                         seen: Set(false),
+                        status: Set("active".to_string()),
                         ..Default::default()
                     };
                     if i == messages_len - 1 && role_str == "assistant" {
