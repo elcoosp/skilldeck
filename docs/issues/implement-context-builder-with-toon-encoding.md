@@ -73,4 +73,4 @@ We need to implement the context builder that assembles the complete context for
 - **Complexity:** Medium
 - **Effort:** 1d
 
-**Completion Note:** ContextBuilder builds system prompt and trims messages, but TOON encoding is not implemented. The builder is used by AgentLoop.
+**Completion Note:** ContextBuilder builds system prompt and trims messages, but TOON encoding is not implemented. The builder is used by AgentLoop. TOON encoding for tools is handled separately; for skills and system prompt, only plain text is used.

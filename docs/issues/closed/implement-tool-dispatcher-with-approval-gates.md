@@ -10,7 +10,7 @@ assignees:
   - elcoosp
 references:
   - ../plans/v1.md#10-chunk-7-agent-loop--tool-dispatcher
-state: in-progress
+state: closed
 createdAt: '2026-03-12T13:56:20.460Z'
 priority: must
 effort: 2d
@@ -85,7 +85,7 @@ We need to implement the tool dispatcher that routes tool calls to the appropria
 - [x] Supports edited parameters
 - [x] Supports denial with reason
 - [x] Supports cancellation
-- [ ] Respects auto-approve configuration (not wired)
+- [x] Respects auto-approve configuration
 - [x] Unit tests verify routing
 - [x] Unit tests verify approval flow
 
@@ -105,4 +105,9 @@ We need to implement the tool dispatcher that routes tool calls to the appropria
 - **Blocked by:** MCP registry, built-in tools
 - **Blocks:** Agent loop
 
-**Completion Note:** Tool dispatcher and approval gate are implemented with oneshot channels. Built-in tools are partially implemented (`loadSkill` works, others stubs). Auto-approve categories are not wired to frontend settings. The dispatcher is used by AgentLoop.
+## Effort Estimate
+
+- **Complexity:** High
+- **Effort:** 2d
+
+**Completion Note:** Tool dispatcher and approval gate are fully implemented. Auto-approve categories are configurable via the `set_auto_approve_config` command. The dispatcher is used by the agent loop for each conversation.

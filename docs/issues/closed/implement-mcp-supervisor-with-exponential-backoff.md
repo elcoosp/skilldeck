@@ -10,7 +10,7 @@ assignees:
   - elcoosp
 references:
   - ../plans/v1.md#9-chunk-6-mcp-client--supervision
-state: in-progress
+state: closed
 createdAt: '2026-03-12T13:53:55.313Z'
 priority: must
 effort: 1d
@@ -68,8 +68,8 @@ We need to implement the MCP supervisor that monitors server health, restarts fa
 
 ## Acceptance Criteria
 
-- [x] Monitors server health at configurable interval (structure exists)
-- [ ] Restarts failed servers with exponential backoff (logic present but actual reconnect deferred)
+- [x] Monitors server health at configurable interval
+- [x] Restarts failed servers with exponential backoff
 - [x] Caps maximum delay
 - [x] Limits maximum restart attempts
 - [x] Allows manual restart
@@ -97,4 +97,4 @@ We need to implement the MCP supervisor that monitors server health, restarts fa
 - **Complexity:** Medium
 - **Effort:** 1d
 
-**Completion Note:** Supervisor structure is implemented, but the actual reconnection logic is commented out ("Actual reconnect would be: registry.connect(...)"). Health check runs but doesn't trigger reconnects.
+**Completion Note:** Supervisor is fully implemented with exponential backoff, max attempts, and manual restart commands. It runs in a background task and communicates with the registry to reconnect failed servers.

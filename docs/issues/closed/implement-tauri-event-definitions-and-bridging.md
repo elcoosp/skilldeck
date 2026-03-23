@@ -10,7 +10,7 @@ assignees:
   - elcoosp
 references:
   - ../plans/v1.md#13-chunk-10-tauri-shell--commands--events
-state: in-progress
+state: closed
 createdAt: '2026-03-12T13:59:50.857Z'
 priority: must
 effort: 0.5d
@@ -70,9 +70,9 @@ We need to define all event types for agent events, MCP events, and workflow eve
 
 - [x] All event types are defined (AgentEvent in core/events.rs, WorkflowEvent in workflow/types.rs)
 - [x] Events serialize to JSON correctly
-- [x] Events are emitted from agent loop (via `app.emit` in `messages.rs`)
-- [ ] Events are emitted from MCP supervisor (not yet)
-- [ ] Events are emitted from workflow executor (sent to channel but not Tauri)
+- [x] Events are emitted from agent loop
+- [x] Events are emitted from MCP supervisor
+- [x] Events are emitted from workflow executor
 - [x] Frontend can subscribe to events (via `events.ts` listeners)
 
 ## Dependencies
@@ -85,4 +85,4 @@ We need to define all event types for agent events, MCP events, and workflow eve
 - **Complexity:** Low
 - **Effort:** 0.5d
 
-**Completion Note:** Event types are defined. Agent loop events are emitted via Tauri in `run_agent_loop`. MCP supervisor and workflow executor events are not yet bridged to Tauri. The frontend listeners are present.
+**Completion Note:** Event types are fully defined and bridged. Agent loop events are emitted in `messages.rs`. MCP events are emitted from the supervisor and from the MCP commands. Workflow events are emitted from the `run_workflow_definition` command. Frontend listeners are implemented in `events.ts`.
