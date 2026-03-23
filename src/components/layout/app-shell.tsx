@@ -1,5 +1,3 @@
-// src/components/layout/app-shell.tsx
-
 import { useEffect, useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { Group, Panel, Separator } from 'react-resizable-panels'
@@ -26,19 +24,16 @@ export function AppShell() {
       if (stored) {
         const parsed = JSON.parse(stored)
         if (Array.isArray(parsed) && parsed.length === 3) {
-          console.log('[AppShell] Loaded layout from storage:', parsed)
           return parsed
         }
       }
     } catch { }
-    console.log('[AppShell] Using default layout:', DEFAULT_LAYOUT)
     return DEFAULT_LAYOUT
   })
 
   // Observe left and right panels by their data-panel attribute
   useEffect(() => {
     const getPanels = () => {
-      // The first panel (left) and the third panel (right) – assume order
       const panels = document.querySelectorAll('[data-panel]')
       return {
         left: panels[0] as HTMLDivElement,
@@ -50,22 +45,17 @@ export function AppShell() {
       const { left, right } = getPanels()
       const leftWidth = left?.clientWidth ?? 0
       const rightWidth = right?.clientWidth ?? 0
-      console.log('[AppShell] Observed panel widths:', { leftWidth, rightWidth })
       setPanelSizesPx({ left: leftWidth, right: rightWidth })
     }
 
-    // Initial update (may run before panels are mounted, but ResizeObserver will catch later)
     updateSizes()
 
-    // Set up ResizeObservers on the panels
     const observer = new ResizeObserver(() => updateSizes())
     const { left, right } = getPanels()
     if (left) observer.observe(left)
     if (right) observer.observe(right)
 
-    // Also observe window resize as a fallback
     window.addEventListener('resize', updateSizes)
-
     return () => {
       observer.disconnect()
       window.removeEventListener('resize', updateSizes)
@@ -123,7 +113,6 @@ export function AppShell() {
           orientation="horizontal"
           defaultLayout={layout}
           onLayoutChange={(sizes) => {
-            // Store the layout for persistence
             setLayout(sizes)
             localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(sizes))
           }}

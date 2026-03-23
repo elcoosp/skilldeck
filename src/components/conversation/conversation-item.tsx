@@ -44,6 +44,7 @@ export interface SkilldeckDragDropDetail {
   type: 'enter' | 'over' | 'drop' | 'leave'
   paths: string[]
   position: { x: number; y: number }
+  targetConversationId: string | null
 }
 
 export function ConversationItem({
@@ -63,31 +64,21 @@ export function ConversationItem({
   const containerRef = useRef<HTMLDivElement>(null)
 
   const [isDragTarget, setIsDragTarget] = useState(false)
-  const isDragTargetRef = useRef(false) // stable ref to avoid stale closures
+  const isDragTargetRef = useRef(false)
 
   const deleteMutation = useDeleteConversation()
   const renameMutation = useRenameConversation()
   const pinMutation = usePinConversation()
   const unpinMutation = useUnpinConversation()
 
-  // ── Fixed drag‑drop listener ──────────────────────────────────────────────
+  // ── Listen to the custom drag‑drop event from GlobalDropZone ──────────────
   useEffect(() => {
-    const el = containerRef.current
-    if (!el) return
-
     const onDragDrop = (e: Event) => {
-      const { type, paths, position } = (e as CustomEvent<SkilldeckDragDropDetail>).detail
+      const { type, paths, targetConversationId } =
+        (e as CustomEvent<SkilldeckDragDropDetail>).detail
 
-      // 1) Determine the element under the cursor using native browser hit testing.
-      //    Tauri gives us physical pixels. We try both with and without dividing by dPR
-      //    to cover both coordinate space possibilities across platforms.
-      const hitA = document.elementFromPoint(position.x / window.devicePixelRatio, position.y / window.devicePixelRatio)
-      const hitB = document.elementFromPoint(position.x, position.y)
-      const hit = (hitA && document.body.contains(hitA)) ? hitA : hitB
+      const isOver = targetConversationId === conversation.id
 
-      const isOver = hit !== null && el.contains(hit)
-
-      // 2) Handle leave event separately – always clear drag target.
       if (type === 'leave') {
         if (isDragTargetRef.current) {
           isDragTargetRef.current = false
@@ -96,44 +87,37 @@ export function ConversationItem({
         return
       }
 
-      // 3) For enter/over, update drag target state based on hit test.
       if (type === 'enter' || type === 'over') {
-        if (isOver && !isDragTargetRef.current) {
-          isDragTargetRef.current = true
-          setIsDragTarget(true)
-        } else if (!isOver && isDragTargetRef.current) {
-          isDragTargetRef.current = false
-          setIsDragTarget(false)
+        const next = isOver
+        if (next !== isDragTargetRef.current) {
+          isDragTargetRef.current = next
+          setIsDragTarget(next)
         }
         return
       }
 
-      // 4) For drop, only act if we are still the target and the hit test passes.
-      if (type === 'drop' && isOver) {
-        if (isDragTargetRef.current) {
-          isDragTargetRef.current = false
-          setIsDragTarget(false)
-          if (paths.length === 0) return
+      if (type === 'drop' && isOver && isDragTargetRef.current) {
+        isDragTargetRef.current = false
+        setIsDragTarget(false)
+        if (paths.length === 0) return
 
-          commands
-            .attachFilesToConversation(conversation.id, paths)
-            .then((res) => {
-              if (res.status === 'error') {
-                toast.error(res.error)
-              } else {
-                toast.success(
-                  `Attached ${paths.length} file(s) to "${conversation.title ?? 'conversation'}"`
-                )
-              }
-            })
-            .catch(() => toast.error('Failed to attach files'))
-        }
+        commands
+          .attachFilesToConversation(conversation.id, paths)
+          .then((res) => {
+            if (res.status === 'error') {
+              toast.error(res.error)
+            } else {
+              toast.success(
+                `Attached ${paths.length} file(s) to "${conversation.title ?? 'conversation'}"`
+              )
+            }
+          })
+          .catch(() => toast.error('Failed to attach files'))
       }
     }
 
     window.addEventListener('skilldeck:drag-drop', onDragDrop)
     return () => window.removeEventListener('skilldeck:drag-drop', onDragDrop)
-    // Note: isDragTarget is NOT in the dependency array – the ref handles mutable state.
   }, [conversation.id, conversation.title])
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -211,6 +195,7 @@ export function ConversationItem({
   return (
     <div
       ref={containerRef}
+      data-conversation-id={conversation.id}
       role="button"
       tabIndex={0}
       onClick={() => !isRenaming && !isDeleting && onClick()}
@@ -222,8 +207,10 @@ export function ConversationItem({
           ? 'bg-primary/10 text-foreground'
           : 'hover:bg-muted/70 text-muted-foreground hover:text-foreground',
         isDeleting && 'pointer-events-none opacity-50',
-        // Visual feedback when dragging over this conversation
-        isDragTarget && 'ring-2 ring-primary ring-inset'
+        // Ring always visible when dragging over, with extra background for active item
+        isDragTarget && 'ring-2 ring-inset ring-primary',
+        isDragTarget && isActive && 'bg-primary/20',
+        isDragTarget && !isActive && 'bg-primary/5 text-foreground',
       )}
     >
       <div className="flex-1 min-w-0 relative z-10">

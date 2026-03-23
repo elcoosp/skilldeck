@@ -1,5 +1,3 @@
-// src/components/chat/global-drop-zone.tsx
-
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
@@ -15,14 +13,8 @@ type DragDropPayload =
 
 export function GlobalDropZone() {
   const activeConversationId = useUIStore((s) => s.activeConversationId)
-  const leftPx = useUIStore((s) => {
-    const val = s.panelSizesPx?.left ?? 0
-    return val
-  })
-  const rightPx = useUIStore((s) => {
-    const val = s.panelSizesPx?.right ?? 0
-    return val
-  })
+  const leftPx = useUIStore((s) => s.panelSizesPx?.left ?? 0)
+  const rightPx = useUIStore((s) => s.panelSizesPx?.right ?? 0)
 
   const [isDragging, setIsDragging] = useState(false)
 
@@ -48,16 +40,49 @@ export function GlobalDropZone() {
       unlisten = await webview.onDragDropEvent((event) => {
         const payload = event.payload as DragDropPayload
 
-        const safeDetail = {
-          type: payload.type,
-          paths: 'paths' in payload ? payload.paths : [],
-          position: 'position' in payload ? payload.position : { x: -1, y: -1 },
+        // Always hit‑test. The overlay starts at leftPx, so:
+        // - For x < leftPx, we hit the actual DOM (conversation items)
+        // - For x >= leftPx, we hit the overlay (which has no data-conversation-id)
+        let targetConversationId: string | null = null
+        if ('position' in payload && payload.position) {
+          const { x, y } = payload.position
+          const hit = document.elementFromPoint(x, y)
+          const elementInfo = {
+            tag: hit?.tagName,
+            id: hit?.id,
+            class: hit?.className,
+            dataConvId: hit?.getAttribute('data-conversation-id'),
+          }
+          targetConversationId =
+            hit?.closest('[data-conversation-id]')?.getAttribute('data-conversation-id') ?? null
+
+          console.log(`[GlobalDropZone] ${payload.type}`, {
+            physX: x,
+            physY: y,
+            leftWidth: leftWidthPxRef.current,
+            rightWidth: rightWidthPxRef.current,
+            windowInnerWidth: window.innerWidth,
+            hitElement: elementInfo,
+            targetConversationId,
+          })
+        } else {
+          console.log(`[GlobalDropZone] ${payload.type} (no position)`)
         }
-        window.dispatchEvent(new CustomEvent('skilldeck:drag-drop', { detail: safeDetail }))
+
+        // Broadcast the event with the resolved target ID
+        window.dispatchEvent(
+          new CustomEvent('skilldeck:drag-drop', {
+            detail: {
+              type: payload.type,
+              paths: 'paths' in payload ? payload.paths : [],
+              position: 'position' in payload ? payload.position : { x: -1, y: -1 },
+              targetConversationId,
+            },
+          })
+        )
 
         const leftWidth = leftWidthPxRef.current
         const rightWidth = rightWidthPxRef.current
-        console.log('[DropZone] Drag event:', payload.type, 'leftWidthRef:', leftWidth, 'rightWidthRef:', rightWidth)
 
         switch (payload.type) {
           case 'enter':
@@ -75,16 +100,9 @@ export function GlobalDropZone() {
 
             const dropX = payload.position.x
             const rightPanelStart = window.innerWidth - rightWidth
-            console.log('[DropZone] Drop at x:', dropX, 'leftBoundary:', leftWidth, 'rightBoundary:', rightPanelStart)
 
-            if (dropX <= leftWidth) {
-              console.log('[DropZone] Dropped on left panel – ignoring')
-              return
-            }
-            if (dropX >= rightPanelStart) {
-              console.log('[DropZone] Dropped on right panel – ignoring')
-              return
-            }
+            // Ignore drops on left or right panels (still attach only to the active conversation)
+            if (dropX <= leftWidth || dropX >= rightPanelStart) return
 
             const currentActiveId = activeConversationIdRef.current
             if (!currentActiveId) {
@@ -113,11 +131,12 @@ export function GlobalDropZone() {
     return () => unlisten?.()
   }, [])
 
-  // Log the style being applied
-  console.log('[DropZone] Rendering with leftPx:', leftPx)
+  // Guard: don't render overlay until panel sizes are known (avoids covering left panel)
+  if (leftPx === 0) return null
 
   return (
     <div
+      data-drag-overlay
       className={cn(
         'fixed top-0 bottom-0 z-50 pointer-events-none transition-opacity duration-200',
         isDragging ? 'opacity-100' : 'opacity-0'
