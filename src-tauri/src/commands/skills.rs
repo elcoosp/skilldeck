@@ -82,7 +82,7 @@ pub async fn lint_skill(
     workspace_config_path: Option<PathBuf>,
 ) -> Result<Vec<LintWarning>, String> {
     // Read the current global config from shared state
-    let mut global_config = state.lint_config.read().await.clone();
+    let global_config = state.lint_config.read().await.clone();
 
     // If a workspace config path is provided, merge it on top
     let final_config = if let Some(ws_path) = workspace_config_path {

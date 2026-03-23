@@ -1,6 +1,6 @@
-use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, QueryOrder, Set};
+use sea_orm::{ActiveModelTrait, EntityTrait, QueryFilter, QueryOrder, Set};
 use sea_query::Expr;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use specta::{Type, specta};
 use std::sync::Arc;
 use tauri::State;

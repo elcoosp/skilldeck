@@ -1,4 +1,6 @@
 // src/components/conversation/message-bubble.tsx
+// (Full file with retry and cancelled badge added)
+
 // ─── DEBUG INSTRUMENTATION ────────────────────────────────────────────────────
 const DEBUG = true
 
@@ -171,6 +173,7 @@ interface MessageBubbleProps {
   searchQuery?: string
   searchCaseSensitive?: boolean
   searchRegex?: boolean
+  onRetry?: () => void // <-- NEW: retry handler
 }
 
 // ─── Lazy Shiki highlighter singleton ─────────────────────────────────────────
@@ -657,7 +660,10 @@ const Th = memo(({ children, node, ...props }: any) => (
 Th.displayName = 'Th'
 
 const Td = memo(({ children, node, ...props }: any) => (
-  <td className="border border-border px-2 py-1" {...props}>{children}</td>
+  <td className="border border-border px-2 py-1" {...props}>
+
+    {children}
+  </td>
 ))
 Td.displayName = 'Td'
 
@@ -903,6 +909,7 @@ function MessageBubbleInner({
   searchQuery = '',
   searchCaseSensitive = false,
   searchRegex = false,
+  onRetry, // <-- NEW: retry handler
 }: MessageBubbleProps) {
   const [copied, setCopied] = useState(false)
   const proseRef = useRef<HTMLDivElement>(null)
@@ -1011,7 +1018,7 @@ function MessageBubbleInner({
     if (!document.contains(container)) return
 
     let pattern = searchQuery
-    if (!searchRegex) pattern = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    if (!searchRegex) pattern = searchQuery.replace(/[.*+?^${ }()|[\]\\]/g, '\\$&')
     const flags = searchCaseSensitive ? 'g' : 'gi'
     let regex: RegExp
     try { regex = new RegExp(pattern, flags) } catch { return }
@@ -1329,6 +1336,35 @@ function MessageBubbleInner({
             </motion.button>
           )}
         </AnimatePresence>
+
+        {/* ========== NEW: Retry button for user message (if onRetry provided) ========== */}
+        {isUser && onRetry && (
+          <div className="text-xs text-muted-foreground mt-1 flex justify-end">
+            <button
+              type="button"
+              onClick={onRetry}
+              className="text-xs text-primary hover:underline"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {/* ========== NEW: Cancelled badge + retry for assistant message ========== */}
+        {isAssistant && message.status === 'cancelled' && (
+          <div className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
+            <span className="italic">Cancelled</span>
+            {onRetry && (
+              <button
+                type="button"
+                onClick={onRetry}
+                className="text-xs text-primary hover:underline"
+              >
+                Retry
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </motion.div>
   )
@@ -1346,6 +1382,7 @@ export const MessageBubble = memo(
     if (prev.message.role !== next.message.role) return false
     if (prev.message.metadata !== next.message.metadata) return false
     if (prev.message.context_items !== next.message.context_items) return false
+    if (prev.message.status !== next.message.status) return false // <-- added to handle cancelled
     if (next.isStreaming) return prev.message.content === next.message.content
     return prev.message.content === next.message.content
   }

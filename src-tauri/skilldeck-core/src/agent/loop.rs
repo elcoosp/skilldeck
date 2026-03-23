@@ -80,6 +80,8 @@ pub struct AgentLoop {
     cancel_token: CancellationToken,
     /// Whether the model supports Toon encoding.
     supports_toon: bool,
+    /// Database connection (for persisting cancellation status)
+    db: Arc<dyn crate::traits::Database>,
 }
 
 /// Result returned by the agent loop, containing new messages and token usage.
@@ -98,6 +100,7 @@ impl AgentLoop {
         model_id: String,
         config: AgentLoopConfig,
         tx: mpsc::Sender<Result<AgentLoopEvent, CoreError>>,
+        db: Arc<dyn crate::traits::Database>,
     ) -> Self {
         let supports_toon = provider.supports_toon();
         Self {
@@ -112,6 +115,7 @@ impl AgentLoop {
             tx,
             cancel_token: CancellationToken::new(),
             supports_toon,
+            db,
         }
     }
 
@@ -181,6 +185,24 @@ impl AgentLoop {
             if self.cancel_token.is_cancelled() {
                 info!("Agent loop cancelled");
                 let _ = self.tx.send(Ok(AgentLoopEvent::Cancelled)).await;
+
+                // Mark the last assistant message as cancelled in DB.
+                if let Some(last_assistant) = self
+                    .messages
+                    .iter()
+                    .rev()
+                    .find(|m| m.role == MessageRole::Assistant)
+                {
+                    let conn = self.db.connection().await?;
+                    use sea_orm::{EntityTrait, QueryFilter};
+                    use skilldeck_models::messages::{self, Entity as Messages};
+                    Messages::update_many()
+                        .col_expr(messages::COLUMN.status, "cancelled".into())
+                        .filter(messages::COLUMN.content.eq(&last_assistant.content))
+                        .exec(conn)
+                        .await?;
+                }
+
                 return Err(CoreError::Cancelled {
                     operation: "agent-loop".into(),
                 });
@@ -489,7 +511,8 @@ mod tests {
         let (tx, _rx) = mpsc::channel(1);
         let provider: Arc<dyn ModelProvider> =
             Arc::new(crate::providers::OllamaProvider::new(11434));
-        let agent = AgentLoop::new(provider, "test".into(), AgentLoopConfig::default(), tx);
+        let db = Arc::new(crate::db::SqliteDatabase::open(":memory:").await.unwrap());
+        let agent = AgentLoop::new(provider, "test".into(), AgentLoopConfig::default(), tx, db);
         let child = agent.cancellation_token();
         agent.cancel();
         assert!(child.is_cancelled());

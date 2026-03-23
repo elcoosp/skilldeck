@@ -8,6 +8,8 @@ import { motion } from 'framer-motion'
 import * as React from 'react'
 import type { MessageData } from '@/lib/bindings'
 import { MessageBubble } from './message-bubble'
+import { useSendMessage } from '@/hooks/use-messages'
+import { useUIStore } from '@/store/ui'
 
 export interface ScrollToken {
   messageId: string
@@ -74,11 +76,28 @@ export const MessageThread = React.forwardRef<
   ) => {
     const scrollRef = React.useRef<HTMLDivElement>(null)
 
+    // Get active conversation ID for sending retry messages
+    const activeConversationId = useUIStore((s) => s.activeConversationId)
+    const sendMutation = useSendMessage(activeConversationId!)
+
+    // Add retry ability to user messages whose next assistant message is cancelled
+    const messagesWithRetry = React.useMemo(() => {
+      return messages.map((msg, idx) => {
+        if (msg.role === 'user' && idx + 1 < messages.length) {
+          const nextMsg = messages[idx + 1]
+          if (nextMsg.role === 'assistant' && nextMsg.status === 'cancelled') {
+            return { ...msg, retryAvailable: true }
+          }
+        }
+        return msg
+      })
+    }, [messages])
+
     const filteredMessages = React.useMemo(() => {
-      if (!searchQuery.trim()) return messages
+      if (!searchQuery.trim()) return messagesWithRetry
       const q = searchQuery.toLowerCase()
-      return messages.filter((m) => m.content.toLowerCase().includes(q))
-    }, [messages, searchQuery])
+      return messagesWithRetry.filter((m) => m.content.toLowerCase().includes(q))
+    }, [messagesWithRetry, searchQuery])
 
     const filteredMessagesRef = React.useRef(filteredMessages)
     filteredMessagesRef.current = filteredMessages
@@ -397,7 +416,7 @@ export const MessageThread = React.forwardRef<
         observer.disconnect()
         mutationObserver.disconnect()
       }
-    }, [onMessageVisible, scrollRef.current]) // scrollRef.current is stable but we need to re-run when container changes
+    }, [onMessageVisible, scrollRef.current])
 
     React.useImperativeHandle(
       ref,
@@ -549,6 +568,14 @@ export const MessageThread = React.forwardRef<
                   {virtualItems.map((virtualItem) => {
                     const message = filteredMessages[virtualItem.index]
                     const isLast = virtualItem.index === lastFilteredIdx
+                    const isUserMessage = message.role === 'user'
+                    const retryAvailable = (message as any).retryAvailable
+
+                    // For user messages that need a retry, pass the retry handler
+                    const handleRetry = retryAvailable
+                      ? () => sendMutation.mutateAsync({ content: message.content })
+                      : undefined
+
                     return (
                       <div
                         key={message.id}
@@ -585,6 +612,7 @@ export const MessageThread = React.forwardRef<
                             searchQuery={searchQuery.trim() ? searchQuery : undefined}
                             searchCaseSensitive={searchCaseSensitive}
                             searchRegex={searchRegex}
+                            onRetry={handleRetry}
                           />
                         </div>
                       </div>

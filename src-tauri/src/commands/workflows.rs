@@ -185,11 +185,14 @@ pub async fn run_workflow_definition(
         .map(|m| m.id)
         .unwrap_or_else(|| "llama3.2:latest".to_string());
 
+    let db_arc = state.registry.db.clone();
+
     let executor = WorkflowExecutor::with_provider(
         tx,
         provider,
         model_id,
         state.config.agent.max_eval_opt_iterations,
+        db_arc,
     );
 
     let execution_id = Uuid::new_v4();

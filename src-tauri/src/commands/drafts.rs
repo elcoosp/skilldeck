@@ -54,16 +54,20 @@ pub async fn upsert_conversation_draft(
     let uuid = Uuid::parse_str(&conversation_id).map_err(|e| e.to_string())?;
 
     let now = chrono::Utc::now().fixed_offset();
-    let items_json = context_items.map(|items| serde_json::to_value(items).unwrap());
+    let items_json = context_items
+        .map(|items| serde_json::to_value(items).map_err(|e| e.to_string()))
+        .transpose()?;
 
-    // Use upsert (insert or replace) for SQLite
-    let existing = Drafts::find_by_id(uuid).one(db).await?;
+    let existing = Drafts::find_by_id(uuid)
+        .one(db)
+        .await
+        .map_err(|e| e.to_string())?;
     if let Some(draft) = existing {
         let mut active: conversation_drafts::ActiveModel = draft.into();
         active.text_content = Set(text_content);
         active.context_items = Set(items_json);
         active.updated_at = Set(now);
-        active.update(db).await?;
+        active.update(db).await.map_err(|e| e.to_string())?;
     } else {
         let draft = conversation_drafts::ActiveModel {
             conversation_id: Set(uuid),
@@ -71,7 +75,7 @@ pub async fn upsert_conversation_draft(
             context_items: Set(items_json),
             updated_at: Set(now),
         };
-        draft.insert(db).await?;
+        draft.insert(db).await.map_err(|e| e.to_string())?;
     }
     Ok(())
 }

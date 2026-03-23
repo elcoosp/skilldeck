@@ -11,7 +11,7 @@
 use serde::{Deserialize, Serialize};
 use specta::{Type, specta};
 use std::sync::Arc;
-use tauri::{Emitter, State};
+use tauri::State;
 use tauri_plugin_keyring::KeyringExt;
 
 use crate::state::AppState;
@@ -166,7 +166,7 @@ pub struct AutoApproveConfigDto {
 pub async fn set_auto_approve_config(
     state: State<'_, Arc<AppState>>,
     config: AutoApproveConfigDto,
-    app: tauri::AppHandle,
+    _app: tauri::AppHandle,
 ) -> Result<(), String> {
     use skilldeck_core::agent::tool_dispatcher::AutoApproveConfig;
 

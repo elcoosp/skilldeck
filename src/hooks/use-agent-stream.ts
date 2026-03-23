@@ -132,6 +132,16 @@ export function useAgentStream(conversationId: string | null) {
           }
           break
 
+        case 'cancelled':
+          // Mark agent as stopped and invalidate messages to show cancelled badge
+          setAgentRunning(conversationId, false)
+          clearStreamingText(conversationId)
+          queryClient.invalidateQueries({
+            queryKey: ['messages', conversationId],
+            exact: false
+          })
+          break
+
         case 'done':
           if (pendingBuffer.current) {
             appendStreamingText(conversationId, pendingBuffer.current)

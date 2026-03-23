@@ -17,7 +17,6 @@ use crate::commands::queue;
 use crate::{events::AgentEvent, state::AppState};
 use async_trait::async_trait;
 use futures::Future;
-use skilldeck_core::agent::tool_dispatcher::AutoApproveConfig;
 use skilldeck_core::agent::{AgentLoop, AgentLoopConfig, AgentLoopEvent, all_built_in_tools};
 use skilldeck_core::traits::subagent_spawner::SubagentSpawner;
 use skilldeck_models::context_item::{ContextItem, FolderScope};
@@ -634,9 +633,17 @@ fn run_agent_loop(
             })
             .collect();
 
-        let mut agent = AgentLoop::new(provider.clone(), model_id, AgentLoopConfig::default(), tx)
-            .with_history(history)
-            .with_dispatcher(dispatcher);
+        let db_arc = state.registry.db.clone();
+
+        let mut agent = AgentLoop::new(
+            provider.clone(),
+            model_id,
+            AgentLoopConfig::default(),
+            tx,
+            db_arc,
+        )
+        .with_history(history)
+        .with_dispatcher(dispatcher);
 
         // Store cancellation token in state
         let cancel_token = agent.cancellation_token();

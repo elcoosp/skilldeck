@@ -5,6 +5,22 @@
 
 
 export const commands = {
+async getConversationDraft(conversationId: string) : Promise<Result<[string, JsonValue[]] | null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_conversation_draft", { conversationId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async upsertConversationDraft(conversationId: string, textContent: string | null, contextItems: JsonValue[] | null) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("upsert_conversation_draft", { conversationId, textContent, contextItems }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async attachFilesToConversation(conversationId: string, paths: string[]) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("attach_files_to_conversation", { conversationId, paths }) };
