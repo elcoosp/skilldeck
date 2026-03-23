@@ -50,6 +50,7 @@ pub fn run() {
     // Build Tauri Specta builder with all commands and events
     let builder = Builder::<tauri::Wry>::new()
         .commands(collect_commands![
+            set_auto_approve_config,
             add_bookmark,
             remove_bookmark,
             list_bookmarks,
