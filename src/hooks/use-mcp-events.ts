@@ -1,4 +1,3 @@
-// src/hooks/use-mcp-events.ts
 /**
  * useMcpEvents — subscribe to Tauri mcp-event channel and keep mcp-servers
  * query fresh whenever a server connects, disconnects, or discovers a tool.
