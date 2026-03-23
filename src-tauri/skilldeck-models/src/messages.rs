@@ -27,6 +27,7 @@ pub struct Model {
     pub output_tokens: Option<i32>,
     pub cache_read_tokens: Option<i32>,
     pub cache_write_tokens: Option<i32>,
+    pub status: String, // <-- added
     pub created_at: DateTimeWithTimeZone,
     // Relations
     #[sea_orm(belongs_to, from = "conversation_id", to = "id")]

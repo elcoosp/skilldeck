@@ -5,6 +5,7 @@ pub mod attachments;
 pub mod bookmarks;
 pub mod branches;
 pub mod conversations;
+pub mod drafts;
 pub mod export;
 pub mod files;
 pub mod folders;
