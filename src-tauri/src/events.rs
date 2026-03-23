@@ -102,3 +102,15 @@ pub enum WorkflowEvent {
         message: String,
     },
 }
+
+// ── Skill events ─────────────────────────────────────────────────────────────
+
+/// Payload for the `"skill-event"` Tauri channel.
+#[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum SkillEvent {
+    Updated {
+        source_label: String,
+        skill_name: String,
+    },
+}

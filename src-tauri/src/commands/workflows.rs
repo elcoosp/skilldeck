@@ -199,16 +199,16 @@ pub async fn run_workflow_definition(
     tokio::spawn(async move {
         let _ = executor.execute(definition).await;
         while let Some(event) = rx.recv().await {
-            // Convert core event to Tauri event
+            // Convert core event to Tauri event with proper string conversions
             let tauri_event = match event {
                 skilldeck_core::workflow::WorkflowEvent::Started { id } => {
-                    WorkflowEvent::Started { id }
+                    WorkflowEvent::Started { id: id.to_string() }
                 }
                 skilldeck_core::workflow::WorkflowEvent::StepStarted {
                     workflow_id,
                     step_id,
                 } => WorkflowEvent::StepStarted {
-                    workflow_id,
+                    workflow_id: workflow_id.to_string(),
                     step_id,
                 },
                 skilldeck_core::workflow::WorkflowEvent::StepCompleted {
@@ -216,7 +216,7 @@ pub async fn run_workflow_definition(
                     step_id,
                     result,
                 } => WorkflowEvent::StepCompleted {
-                    workflow_id,
+                    workflow_id: workflow_id.to_string(),
                     step_id,
                     result,
                 },
@@ -225,15 +225,18 @@ pub async fn run_workflow_definition(
                     step_id,
                     error,
                 } => WorkflowEvent::StepFailed {
-                    workflow_id,
+                    workflow_id: workflow_id.to_string(),
                     step_id,
                     error,
                 },
                 skilldeck_core::workflow::WorkflowEvent::Completed { id } => {
-                    WorkflowEvent::Completed { id }
+                    WorkflowEvent::Completed { id: id.to_string() }
                 }
                 skilldeck_core::workflow::WorkflowEvent::Failed { id, error } => {
-                    WorkflowEvent::Failed { id, error }
+                    WorkflowEvent::Failed {
+                        id: id.to_string(),
+                        message: error,
+                    }
                 }
             };
             let _ = app_handle.emit("workflow-event", tauri_event);

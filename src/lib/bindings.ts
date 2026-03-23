@@ -5,6 +5,17 @@
 
 
 export const commands = {
+/**
+ * Set the global auto-approve configuration.
+ */
+async setAutoApproveConfig(config: AutoApproveConfigDto) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_auto_approve_config", { config }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async addBookmark(req: CreateBookmarkRequest) : Promise<Result<BookmarkData, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("add_bookmark", { req }) };
@@ -950,11 +961,7 @@ export type AddQueuedMessageRequest = { conversation_id: string; content: string
 /**
  * Payload for the `"agent-event"` Tauri channel.
  */
-export type AgentEvent = { type: "cancelled"; conversation_id: string } | { type: "started"; conversation_id: string } | { type: "token"; conversation_id: string; delta: string } | { type: "tool_call"; conversation_id: string; tool_call: AgentToolCall } | { type: "tool_result"; conversation_id: string; tool_call_id: string; result: string } | { type: "done"; conversation_id: string; input_tokens: number; output_tokens: number } | { type: "error"; conversation_id: string; message: string } | 
-/**
- * New messages have been persisted to the database.
- */
-{ type: "persisted"; conversation_id: string }
+export type AgentEvent = { type: "cancelled"; conversation_id: string } | { type: "started"; conversation_id: string } | { type: "token"; conversation_id: string; delta: string } | { type: "tool_call"; conversation_id: string; tool_call: AgentToolCall } | { type: "tool_result"; conversation_id: string; tool_call_id: string; result: string } | { type: "done"; conversation_id: string; input_tokens: number; output_tokens: number } | { type: "error"; conversation_id: string; message: string } | { type: "persisted"; conversation_id: string }
 export type AgentToolCall = { id: string; name: string; arguments: JsonValue }
 export type AnalyticsData = { total_conversations: string; total_messages: string; messages_per_day: DailyCount[]; skills_used: SkillUsage[]; token_usage: TokenTotals }
 /**
@@ -963,6 +970,7 @@ export type AnalyticsData = { total_conversations: string; total_messages: strin
 export type ApiKeyStatus = { provider: string; has_key: boolean }
 export type AssembleFolderRequest = { path: string; deep: boolean; max_bytes: string | null }
 export type AssembleFolderResponse = { assembled_content: string; file_count: string }
+export type AutoApproveConfigDto = { auto_approve_reads: boolean; auto_approve_writes: boolean; auto_approve_shell: boolean; auto_approve_http_requests: boolean; auto_approve_selects: boolean; auto_approve_mutations: boolean }
 export type BookmarkData = { id: string; message_id: string; heading_anchor: string | null; label: string | null; created_at: string }
 export type BranchInfo = { id: string; name: string | null; parent_message_id: string; created_at: string; message_count: string }
 export type ConfigScope = "global" | "workspace"
@@ -1023,7 +1031,7 @@ suggested_fix: string | null }
 /**
  * Payload for the `"mcp-event"` Tauri channel.
  */
-export type McpEvent = { type: "server_connected"; name: string } | { type: "server_disconnected"; name: string } | { type: "tool_discovered"; server: string; tool: McpToolInfo }
+export type McpEvent = { type: "server_connected"; name: string } | { type: "server_disconnected"; name: string } | { type: "server_failed"; name: string; message: string } | { type: "tool_discovered"; server: string; tool: McpToolInfo }
 export type McpServerResponse = { id: string; name: string; transport: string; status: string; tools: McpToolResponse[] }
 export type McpToolInfo = { name: string; description: string }
 export type McpToolResponse = { name: string; description: string; input_schema: JsonValue }
@@ -1075,7 +1083,7 @@ export type WorkflowDefinitionResponse = { id: string; name: string; definition:
 /**
  * Payload for the `"workflow-event"` Tauri channel.
  */
-export type WorkflowEvent = { type: "started"; id: string } | { type: "step_started"; workflow_id: string; step_id: string } | { type: "step_completed"; workflow_id: string; step_id: string; result: string | null } | { type: "completed"; id: string } | { type: "failed"; id: string; message: string }
+export type WorkflowEvent = { type: "started"; id: string } | { type: "step_started"; workflow_id: string; step_id: string } | { type: "step_completed"; workflow_id: string; step_id: string; result: string | null } | { type: "step_failed"; workflow_id: string; step_id: string; error: string } | { type: "completed"; id: string } | { type: "failed"; id: string; message: string }
 export type WorkspaceData = { id: string; path: string; name: string; project_type: string; is_open: boolean; context_files: string[]; indexed_file_count: string }
 
 /** tauri-specta globals **/

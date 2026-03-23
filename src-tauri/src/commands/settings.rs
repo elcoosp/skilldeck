@@ -11,7 +11,7 @@
 use serde::{Deserialize, Serialize};
 use specta::{Type, specta};
 use std::sync::Arc;
-use tauri::State;
+use tauri::{Emitter, State};
 use tauri_plugin_keyring::KeyringExt;
 
 use crate::state::AppState;
@@ -180,7 +180,7 @@ pub async fn set_auto_approve_config(
     };
     *state.global_auto_approve.write().await = core_config;
     // Emit event so existing ToolDispatcher instances can update.
-    app.emit("auto-approve-config-changed", &core_config)
-        .map_err(|e| e.to_string())?;
+    // Note: We'll rely on the dispatcher reading the global config at creation time.
+    // Future improvement: broadcast changes.
     Ok(())
 }

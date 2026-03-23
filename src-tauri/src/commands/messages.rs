@@ -3,7 +3,7 @@
 
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ConnectionTrait, DbBackend, EntityTrait, QueryFilter,
-    QueryOrder, Statement, Update,
+    QueryOrder, Statement,
 };
 use sea_query::Expr;
 use serde::{Deserialize, Serialize};
@@ -18,9 +18,7 @@ use crate::{events::AgentEvent, state::AppState};
 use async_trait::async_trait;
 use futures::Future;
 use skilldeck_core::agent::tool_dispatcher::AutoApproveConfig;
-use skilldeck_core::agent::{
-    AgentLoop, AgentLoopConfig, AgentLoopEvent, AgentRunResult, all_built_in_tools,
-};
+use skilldeck_core::agent::{AgentLoop, AgentLoopConfig, AgentLoopEvent, all_built_in_tools};
 use skilldeck_core::traits::subagent_spawner::SubagentSpawner;
 use skilldeck_models::context_item::{ContextItem, FolderScope};
 use skilldeck_models::conversations::{self, Entity as Conversations};
@@ -550,20 +548,9 @@ fn run_agent_loop(
             Some(spawner as Arc<dyn SubagentSpawner>),
         ));
 
-        // --- NEW: Set initial auto-approve config and listen for changes ---
+        // Set initial auto-approve config from global state
         let global_config = state.global_auto_approve.read().await.clone();
         dispatcher.set_auto_approve(global_config).await;
-
-        let dispatcher_clone = dispatcher.clone();
-        let app_clone = app.clone();
-        tokio::spawn(async move {
-            let mut rx =
-                app_clone.listen_global::<AutoApproveConfig>("auto-approve-config-changed");
-            while let Some(config) = rx.recv().await {
-                dispatcher_clone.set_auto_approve(config).await;
-            }
-        });
-        // -------------------------------------------------------------
 
         let db = match state.registry.db.connection().await {
             Ok(conn) => conn,
@@ -629,12 +616,11 @@ fn run_agent_loop(
             .with_history(history)
             .with_dispatcher(dispatcher);
 
-        // --- NEW: Store cancellation token in state ---
+        // Store cancellation token in state
         let cancel_token = agent.cancellation_token();
         state
             .agent_cancel_tokens
             .insert(conversation_id.clone(), cancel_token);
-        // -------------------------------------------
 
         let all_mcp_tools = state.registry.mcp_registry.all_tools();
         for (server_name, mcp_tool) in all_mcp_tools {
@@ -822,9 +808,8 @@ fn run_agent_loop(
 
         let loop_result = loop_handle.await;
 
-        // --- NEW: Remove cancellation token ---
+        // Remove cancellation token
         state.agent_cancel_tokens.remove(&conversation_id);
-        // -------------------------------------
 
         match loop_result {
             Ok(Ok(result)) => {
