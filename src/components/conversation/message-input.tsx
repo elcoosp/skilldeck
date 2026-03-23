@@ -1,3 +1,4 @@
+// src/components/conversation/message-input.tsx
 /**
  * Message input — auto-growing textarea with draft persistence, slash commands,
  * skill mention (@), file reference (#) entry points, and file attachments.
@@ -22,7 +23,7 @@ import { SecurityWarningDialog } from '@/components/chat/security-warning-dialog
 import { QueueHeader } from '@/components/conversation/queue/queue-header'
 import { QueueList } from '@/components/conversation/queue/queue-list'
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Tooltip,
   TooltipContent,
@@ -77,6 +78,10 @@ export function MessageInput({
     new Map()
   )
   const [isSending, setIsSending] = useState(false)
+
+  // ── Scrollable height state ──────────────────────────────────────────────
+  const [contentHeight, setContentHeight] = useState(36) // initial height in px
+  const MAX_HEIGHT = 192 // 12 * 16
 
   // ── Workspace context ───────────────────────────────────────────────────
   const activeWorkspaceId = useUIStore((s) => s.activeWorkspaceId)
@@ -151,12 +156,20 @@ export function MessageInput({
     return () => clearTimeout(t)
   }, [content, conversationId, setDraft])
 
+  // Update textarea height based on scrollHeight
+  useEffect(() => {
+    if (textareaRef.current) {
+      const newHeight = Math.min(textareaRef.current.scrollHeight, MAX_HEIGHT)
+      setContentHeight(newHeight)
+    }
+  }, [content])
+
   // biome-ignore lint/correctness/useExhaustiveDependencies: effect depends on content indirectly
   useEffect(() => {
     const el = textareaRef.current
     if (!el) return
     el.style.height = 'auto'
-    el.style.height = `${Math.min(el.scrollHeight, 200)}px`
+    el.style.height = `${Math.min(el.scrollHeight, MAX_HEIGHT)}px`
   }, [content])
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: focus on conversation change
@@ -609,25 +622,36 @@ export function MessageInput({
         <AttachedItemsList />
 
         <div className="flex items-center gap-2 px-3 py-2">
-          <Textarea
-            ref={textareaRef}
-            value={content}
-            onChange={handleChange}
-            onKeyDown={handleKeyDown}
-            onCompositionStart={() => setIsComposing(true)}
-            onCompositionEnd={() => setIsComposing(false)}
-            placeholder={
-              isRunning
-                ? 'Agent is running… (type to queue)'
-                : 'Type a message… (@ for skills · # for files)'
-            }
-            disabled={false}
-            className={cn(
-              'flex-1 min-h-[36px] max-h-[200px] resize-none border-0 shadow-none bg-transparent',
-              'focus-visible:ring-0 text-sm leading-6 py-2 px-1.5 overflow-y-hidden'
-            )}
-            rows={1}
-          />
+          <div className="flex-1 min-h-[36px]">
+            <motion.div
+              animate={{ height: contentHeight }}
+              transition={{ duration: 0.15 }}
+              className="overflow-hidden"
+            >
+              <ScrollArea className="h-full">
+                <textarea
+                  ref={textareaRef}
+                  value={content}
+                  onChange={handleChange}
+                  onKeyDown={handleKeyDown}
+                  onCompositionStart={() => setIsComposing(true)}
+                  onCompositionEnd={() => setIsComposing(false)}
+                  placeholder={
+                    isRunning
+                      ? 'Agent is running… (type to queue)'
+                      : 'Type a message… (@ for skills · # for files)'
+                  }
+                  disabled={false}
+                  className={cn(
+                    'w-full resize-none bg-transparent outline-none thin-scrollbar p-0 text-sm leading-6',
+                    'focus-visible:ring-0'
+                  )}
+                  style={{ minHeight: 36, height: '100%' }}
+                  rows={1}
+                />
+              </ScrollArea>
+            </motion.div>
+          </div>
 
           {/* Button group with animations */}
           <div className="flex items-center gap-2 shrink-0">
