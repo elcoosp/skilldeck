@@ -31,6 +31,11 @@ export function useAttachFilesListener() {
             toast.warning(`Already attached: ${duplicates.join(', ')}`)
           }
 
+          if (newPaths.length > 0) {
+            // Show single success toast for all new attachments
+            toast.success(`Attached ${newPaths.length} file(s)`)
+          }
+
           for (const path of newPaths) {
             const name = path.split('/').pop() || path
             addFile(conversation_id, { id: path, name, path, size: undefined })
