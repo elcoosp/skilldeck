@@ -32,6 +32,9 @@ pub struct MessageData {
     pub created_at: String,
     pub context_items: Option<Vec<ContextItem>>,
     pub metadata: Option<serde_json::Value>,
+    pub input_tokens: Option<i32>,
+    pub output_tokens: Option<i32>,
+    pub seen: bool,
 }
 
 /// Request for searching messages within a conversation.
@@ -75,7 +78,29 @@ pub async fn cancel_agent(
     state.cancel_agent(&conversation_id);
     Ok(())
 }
+#[specta]
+#[tauri::command]
+pub async fn mark_messages_seen(
+    state: State<'_, Arc<AppState>>,
+    conversation_id: String,
+) -> Result<(), String> {
+    let db = state
+        .registry
+        .db
+        .connection()
+        .await
+        .map_err(|e| e.to_string())?;
+    let conv_uuid = Uuid::parse_str(&conversation_id).map_err(|e| e.to_string())?;
 
+    use sea_orm::UpdateMany;
+    UpdateMany::new(Messages)
+        .set(messages::Column::Seen, true)
+        .filter(messages::Column::ConversationId.eq(conv_uuid))
+        .exec(db)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
 #[specta]
 #[tauri::command]
 pub async fn list_messages(
