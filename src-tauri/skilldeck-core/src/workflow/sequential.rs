@@ -1,3 +1,4 @@
+// src-tauri/skilldeck-core/src/workflow/sequential.rs
 //! Sequential workflow execution — steps run one after another in topo order.
 
 use std::sync::Arc;
@@ -143,11 +144,13 @@ async fn run_step_with_agent(
         }
     }
 
-    let new_messages = loop_handle.await.map_err(|e| CoreError::Internal {
+    let agent_result = loop_handle.await.map_err(|e| CoreError::Internal {
         message: e.to_string(),
     })??;
 
-    let result = new_messages
+    // Extract the assistant message content from the result
+    let result = agent_result
+        .messages
         .iter()
         .rev()
         .find(|m| matches!(m.role, crate::traits::MessageRole::Assistant))
