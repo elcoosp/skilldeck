@@ -1,4 +1,3 @@
-// src/components/conversation/message-input.tsx
 /**
  * Message input — auto-growing textarea with draft persistence, slash commands,
  * skill mention (@), file reference (#) entry points, and file attachments.
@@ -24,6 +23,7 @@ import { QueueHeader } from '@/components/conversation/queue/queue-header'
 import { QueueList } from '@/components/conversation/queue/queue-list'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Tooltip,
   TooltipContent,
@@ -55,7 +55,7 @@ import type { UnifiedSkill } from '@/types/skills'
 interface MessageInputProps {
   conversationId: UUID
   workspaceRoot?: string
-  onRequestScrollToBottom?: () => void   // <-- new prop
+  onRequestScrollToBottom?: () => void
 }
 
 interface FileChip {
@@ -65,6 +65,8 @@ interface FileChip {
 
 type UploadStatus = 'pending' | 'success' | 'error'
 type UploadStatusMap = Map<string, { status: UploadStatus }>
+
+const MAX_HEIGHT = 192 // 12 * 16px = 192px
 
 export function MessageInput({
   conversationId,
@@ -78,10 +80,7 @@ export function MessageInput({
     new Map()
   )
   const [isSending, setIsSending] = useState(false)
-
-  // ── Scrollable height state ──────────────────────────────────────────────
-  const [contentHeight, setContentHeight] = useState(36) // initial height in px
-  const MAX_HEIGHT = 192 // 12 * 16
+  const [contentHeight, setContentHeight] = useState(36)
 
   // ── Workspace context ───────────────────────────────────────────────────
   const activeWorkspaceId = useUIStore((s) => s.activeWorkspaceId)
@@ -144,9 +143,15 @@ export function MessageInput({
   const addSkill = useChatContextStore((s) => s.addSkill)
   const clearItems = useChatContextStore((s) => s.clearItems)
 
-  // ── Draft sync & auto-grow ────────────────────────────────────────────────
+  // ─── Height calculation for textarea ─────────────────────────────────────
+  useEffect(() => {
+    if (textareaRef.current) {
+      const newHeight = Math.min(textareaRef.current.scrollHeight, MAX_HEIGHT)
+      setContentHeight(newHeight)
+    }
+  }, [content])
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally only sync on conversation change
+  // ── Draft sync & auto-grow ────────────────────────────────────────────────
   useEffect(() => {
     setContent(draft)
   }, [conversationId])
@@ -155,14 +160,6 @@ export function MessageInput({
     const t = setTimeout(() => setDraft(conversationId, content), 500)
     return () => clearTimeout(t)
   }, [content, conversationId, setDraft])
-
-  // Update textarea height based on scrollHeight
-  useEffect(() => {
-    if (textareaRef.current) {
-      const newHeight = Math.min(textareaRef.current.scrollHeight, MAX_HEIGHT)
-      setContentHeight(newHeight)
-    }
-  }, [content])
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: effect depends on content indirectly
   useEffect(() => {
@@ -536,7 +533,6 @@ export function MessageInput({
         content: finalContent,
         contextItems: metadataItems.length > 0 ? metadataItems : undefined
       })
-      // Request scroll to bottom after message is sent
       onRequestScrollToBottom?.()
     } catch (err) {
       toast.error(`Failed to send message: ${err}`)
@@ -622,36 +618,35 @@ export function MessageInput({
         <AttachedItemsList />
 
         <div className="flex items-center gap-2 px-3 py-2">
-          <div className="flex-1 min-h-[36px]">
-            <motion.div
-              animate={{ height: contentHeight }}
-              transition={{ duration: 0.15 }}
-              className="overflow-hidden"
-            >
-              <ScrollArea className="h-full">
-                <textarea
-                  ref={textareaRef}
-                  value={content}
-                  onChange={handleChange}
-                  onKeyDown={handleKeyDown}
-                  onCompositionStart={() => setIsComposing(true)}
-                  onCompositionEnd={() => setIsComposing(false)}
-                  placeholder={
-                    isRunning
-                      ? 'Agent is running… (type to queue)'
-                      : 'Type a message… (@ for skills · # for files)'
-                  }
-                  disabled={false}
-                  className={cn(
-                    'w-full resize-none bg-transparent outline-none thin-scrollbar p-0 text-sm leading-6',
-                    'focus-visible:ring-0'
-                  )}
-                  style={{ minHeight: 36, height: '100%' }}
-                  rows={1}
-                />
-              </ScrollArea>
-            </motion.div>
-          </div>
+          <motion.div
+            animate={{ height: contentHeight }}
+            transition={{ duration: shouldReduceMotion ? 0 : 0.15 }}
+            className="overflow-hidden flex-1"
+          >
+            <ScrollArea className="h-full">
+              <Textarea
+                ref={textareaRef}
+                value={content}
+                onChange={handleChange}
+                onKeyDown={handleKeyDown}
+                onCompositionStart={() => setIsComposing(true)}
+                onCompositionEnd={() => setIsComposing(false)}
+                placeholder={
+                  isRunning
+                    ? 'Agent is running… (type to queue)'
+                    : 'Type a message… (@ for skills · # for files)'
+                }
+                disabled={false}
+                className={cn(
+                  'w-full resize-none border-0 shadow-none bg-transparent',
+                  'focus-visible:ring-0 text-sm leading-6 py-2 px-1.5 overflow-y-hidden',
+                  'min-h-[36px]'
+                )}
+                style={{ height: '100%' }}
+                rows={1}
+              />
+            </ScrollArea>
+          </motion.div>
 
           {/* Button group with animations */}
           <div className="flex items-center gap-2 shrink-0">
