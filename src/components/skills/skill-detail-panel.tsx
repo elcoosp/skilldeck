@@ -4,7 +4,7 @@
 // blocked skill alerts, and platform awareness.
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { revealItemInDir } from '@tauri-apps/plugin-opener'
+import { openUrl, revealItemInDir } from '@tauri-apps/plugin-opener'
 import {
   AlertTriangle,
   Download,
@@ -35,6 +35,7 @@ import { InstallDialog } from './install-dialog'
 import { LintWarningPanel } from './lint-warning-panel'
 import { ShareSkillModal } from './share-skill-modal'
 import { TrustBadge } from './trust-badge'
+import { DOCS_LINT_URL } from '@/lib/config'
 
 interface Props {
   skill: UnifiedSkill
@@ -435,14 +436,13 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
                 <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
                 <SectionLabel>Lint Issues</SectionLabel>
               </div>
-              <a
-                href="https://docs.skilldeck.dev/en/latest/guides/skill-linting"
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                type="button"
+                onClick={() => openUrl(DOCS_LINT_URL)}
                 className="text-xs text-primary hover:underline"
               >
                 Learn more about linting
-              </a>
+              </button>
             </div>
             <LintWarningPanel
               warnings={lintWarnings}
