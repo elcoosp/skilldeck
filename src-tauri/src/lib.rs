@@ -79,7 +79,8 @@ pub fn run() {
             rename_conversation,
             // messages
             list_messages,
-            search_messages, // <-- new command
+            search_messages,
+            mark_message_seen, // <-- new command
             send_message,
             resolve_tool_approval,
             // profiles
