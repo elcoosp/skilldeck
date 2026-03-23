@@ -5,11 +5,11 @@
   },
   "implement-agent-loop-with-streaming-and-debouncing": {
     "number": 2,
-    "mtime": 1773672304331.482
+    "mtime": 1774262809921.1143
   },
   "implement-built-in-tools-loadskill-spawnsubagent-m": {
     "number": 3,
-    "mtime": 1773672304331.8296
+    "mtime": 1774262821708.7085
   },
   "implement-claude-model-provider": {
     "number": 4,
@@ -17,15 +17,15 @@
   },
   "implement-context-builder-with-toon-encoding": {
     "number": 5,
-    "mtime": 1773672304332.3965
+    "mtime": 1774262833620.6858
   },
   "implement-context-loader-for-workspace-files": {
     "number": 6,
-    "mtime": 1773672304332.6191
+    "mtime": 1773739727228.7559
   },
   "implement-conversation-components": {
     "number": 7,
-    "mtime": 1773672304332.8892
+    "mtime": 1773739727229.1824
   },
   "implement-core-error-types-and-error-taxonomy": {
     "number": 8,
@@ -33,7 +33,7 @@
   },
   "implement-database-layer-with-sqlite-and-seaorm": {
     "number": 9,
-    "mtime": 1773672304334.0378
+    "mtime": 1773739727229.6743
   },
   "implement-filesystem-skill-loader": {
     "number": 10,
@@ -53,7 +53,7 @@
   },
   "implement-mcp-supervisor-with-exponential-backoff": {
     "number": 14,
-    "mtime": 1773672304335.4192
+    "mtime": 1774262840503.1165
   },
   "implement-mcp-types-and-json-rpc-protocol": {
     "number": 15,
@@ -65,7 +65,7 @@
   },
   "implement-onboarding-wizard-and-progressive-unlock": {
     "number": 17,
-    "mtime": 1773672304336.3064
+    "mtime": 1774262851353.6765
   },
   "implement-openai-model-provider": {
     "number": 18,
@@ -73,11 +73,11 @@
   },
   "implement-react-layout-components": {
     "number": 19,
-    "mtime": 1773672304337.077
+    "mtime": 1773739727230.6567
   },
   "implement-right-panel-tabs-session-workflow-analyt": {
     "number": 20,
-    "mtime": 1773672304337.775
+    "mtime": 1774262866349.8157
   },
   "implement-skill-resolver-with-priority-ordering": {
     "number": 21,
@@ -93,11 +93,11 @@
   },
   "implement-subagent-session-management": {
     "number": 24,
-    "mtime": 1773672304338.742
+    "mtime": 1774262874453.913
   },
   "implement-tauri-commands-for-conversations-and-mes": {
     "number": 25,
-    "mtime": 1773672304338.9175
+    "mtime": 1773739727231.527
   },
   "implement-tauri-commands-for-profiles-skills-and-m": {
     "number": 26,
@@ -105,23 +105,23 @@
   },
   "implement-tauri-commands-for-settings-and-export": {
     "number": 27,
-    "mtime": 1773672304339.34
+    "mtime": 1773739727231.9287
   },
   "implement-tauri-event-definitions-and-bridging": {
     "number": 28,
-    "mtime": 1773672304339.4934
+    "mtime": 1774262883283.6726
   },
   "implement-tauri-state-management-and-initializatio": {
     "number": 29,
-    "mtime": 1773672304339.6714
+    "mtime": 1773739727233.0432
   },
   "implement-tool-dispatcher-with-approval-gates": {
     "number": 30,
-    "mtime": 1773672304340.081
+    "mtime": 1774262892421.9639
   },
   "implement-workflow-executor-with-pattern-runners": {
     "number": 31,
-    "mtime": 1773672304340.413
+    "mtime": 1774262903299.7456
   },
   "implement-workflow-types-and-graph-structure": {
     "number": 32,
@@ -137,22 +137,22 @@
   },
   "set-up-react-frontend-foundation": {
     "number": 35,
-    "mtime": 1773672304341.3706
+    "mtime": 1773739727233.75
   },
   "write-bdd-scenario-tests-for-critical-user-journey": {
     "number": 36,
-    "mtime": 1773672304341.5269
+    "mtime": 1774262913819.3179
   },
   "write-integration-tests-for-core-workflows": {
     "number": 37,
-    "mtime": 1773672304341.7148
+    "mtime": 1774262923180.4846
   },
   "write-nfr-verification-tests-performance-security-": {
     "number": 38,
-    "mtime": 1773672304342.0144
+    "mtime": 1774262932538.6284
   },
   "write-unit-tests-for-rust-core-modules": {
     "number": 39,
-    "mtime": 1773672304342.229
+    "mtime": 1774262942007
   }
 }

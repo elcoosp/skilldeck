@@ -119,4 +119,4 @@ We need to implement the agent loop that orchestrates the conversation flow: rec
 - **Complexity:** High
 - **Effort:** 2d
 
-**Completion Note:** Agent loop is implemented with streaming, debouncing, and tool handling. Persistence occurs in the Tauri command after loop completion. Cancellation token exists but is not yet linked to the loop instance. Integration tests are partially present but need expansion.
+**Completion Note:** Agent loop is implemented with streaming, debouncing, and tool handling. Persistence occurs in the Tauri command after loop completion. Cancellation token exists but is not yet linked to the loop instance (the token is not stored in `agent_cancel_tokens`). Integration tests are partially present but need expansion.
