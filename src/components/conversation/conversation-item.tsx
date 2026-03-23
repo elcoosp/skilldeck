@@ -1,5 +1,3 @@
-// src/components/conversation/conversation-item.tsx
-
 import { formatDistanceToNow } from 'date-fns'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
@@ -48,9 +46,6 @@ export interface SkilldeckDragDropDetail {
   position: { x: number; y: number }
 }
 
-// Global ref to track which conversation is currently being dragged over
-let currentDragTargetId: string | null = null
-
 export function ConversationItem({
   conversation,
   isActive,
@@ -68,103 +63,77 @@ export function ConversationItem({
   const containerRef = useRef<HTMLDivElement>(null)
 
   const [isDragTarget, setIsDragTarget] = useState(false)
+  const isDragTargetRef = useRef(false) // stable ref to avoid stale closures
 
   const deleteMutation = useDeleteConversation()
   const renameMutation = useRenameConversation()
   const pinMutation = usePinConversation()
   const unpinMutation = useUnpinConversation()
 
-  // ── Native drag events for visual feedback ─────────────────────────────
+  // ── Fixed drag‑drop listener ──────────────────────────────────────────────
   useEffect(() => {
     const el = containerRef.current
-    if (!el) {
-      console.log(`[ConvItem ${conversation.id}] ref not ready yet`)
-      return
-    }
+    if (!el) return
 
-    console.log(`[ConvItem ${conversation.id}] setting up drag listeners`)
-
-    const handleDragEnter = (e: DragEvent) => {
-      console.log(`[ConvItem ${conversation.id}] dragenter`, e.dataTransfer?.types)
-      e.preventDefault()
-      if (e.dataTransfer?.types.includes('Files')) {
-        currentDragTargetId = conversation.id
-        setIsDragTarget(true)
-        console.log(`[ConvItem ${conversation.id}] isDragTarget set to true`)
-      }
-    }
-
-    const handleDragOver = (e: DragEvent) => {
-      e.preventDefault()
-      if (currentDragTargetId === conversation.id && !isDragTarget) {
-        setIsDragTarget(true)
-        console.log(`[ConvItem ${conversation.id}] dragover: re-applied highlight`)
-      }
-    }
-
-    const handleDragLeave = (e: DragEvent) => {
-      console.log(`[ConvItem ${conversation.id}] dragleave`, e.relatedTarget)
-      if (!el.contains(e.relatedTarget as Node)) {
-        if (currentDragTargetId === conversation.id) {
-          currentDragTargetId = null
-        }
-        setIsDragTarget(false)
-        console.log(`[ConvItem ${conversation.id}] isDragTarget set to false`)
-      }
-    }
-
-    const handleDrop = (e: DragEvent) => {
-      e.preventDefault()
-      console.log(`[ConvItem ${conversation.id}] drop (native)`)
-      setIsDragTarget(false)
-      if (currentDragTargetId === conversation.id) {
-        currentDragTargetId = null
-      }
-    }
-
-    el.addEventListener('dragenter', handleDragEnter)
-    el.addEventListener('dragover', handleDragOver)
-    el.addEventListener('dragleave', handleDragLeave)
-    el.addEventListener('drop', handleDrop)
-
-    return () => {
-      el.removeEventListener('dragenter', handleDragEnter)
-      el.removeEventListener('dragover', handleDragOver)
-      el.removeEventListener('dragleave', handleDragLeave)
-      el.removeEventListener('drop', handleDrop)
-    }
-  }, [conversation.id, isDragTarget])
-
-  // ── Tauri drop event listener ─────────────────────────────────────────
-  useEffect(() => {
     const onDragDrop = (e: Event) => {
-      const { type, paths } = (e as CustomEvent<SkilldeckDragDropDetail>).detail
-      console.log(`[ConvItem ${conversation.id}] Tauri event:`, type)
+      const { type, paths, position } = (e as CustomEvent<SkilldeckDragDropDetail>).detail
 
-      if (type !== 'drop') return
+      // 1) Determine the element under the cursor using native browser hit testing.
+      //    Tauri gives us physical pixels. We try both with and without dividing by dPR
+      //    to cover both coordinate space possibilities across platforms.
+      const hitA = document.elementFromPoint(position.x / window.devicePixelRatio, position.y / window.devicePixelRatio)
+      const hitB = document.elementFromPoint(position.x, position.y)
+      const hit = (hitA && document.body.contains(hitA)) ? hitA : hitB
 
-      if (currentDragTargetId === conversation.id) {
-        currentDragTargetId = null
-        console.log(`[ConvItem ${conversation.id}] handling drop with paths:`, paths)
-        if (paths.length === 0) return
+      const isOver = hit !== null && el.contains(hit)
 
-        commands
-          .attachFilesToConversation(conversation.id, paths)
-          .then((res) => {
-            if (res.status === 'error') {
-              toast.error(res.error)
-            } else {
-              toast.success(
-                `Attached ${paths.length} file(s) to "${conversation.title ?? 'conversation'}"`
-              )
-            }
-          })
-          .catch(() => toast.error('Failed to attach files'))
+      // 2) Handle leave event separately – always clear drag target.
+      if (type === 'leave') {
+        if (isDragTargetRef.current) {
+          isDragTargetRef.current = false
+          setIsDragTarget(false)
+        }
+        return
+      }
+
+      // 3) For enter/over, update drag target state based on hit test.
+      if (type === 'enter' || type === 'over') {
+        if (isOver && !isDragTargetRef.current) {
+          isDragTargetRef.current = true
+          setIsDragTarget(true)
+        } else if (!isOver && isDragTargetRef.current) {
+          isDragTargetRef.current = false
+          setIsDragTarget(false)
+        }
+        return
+      }
+
+      // 4) For drop, only act if we are still the target and the hit test passes.
+      if (type === 'drop' && isOver) {
+        if (isDragTargetRef.current) {
+          isDragTargetRef.current = false
+          setIsDragTarget(false)
+          if (paths.length === 0) return
+
+          commands
+            .attachFilesToConversation(conversation.id, paths)
+            .then((res) => {
+              if (res.status === 'error') {
+                toast.error(res.error)
+              } else {
+                toast.success(
+                  `Attached ${paths.length} file(s) to "${conversation.title ?? 'conversation'}"`
+                )
+              }
+            })
+            .catch(() => toast.error('Failed to attach files'))
+        }
       }
     }
 
     window.addEventListener('skilldeck:drag-drop', onDragDrop)
     return () => window.removeEventListener('skilldeck:drag-drop', onDragDrop)
+    // Note: isDragTarget is NOT in the dependency array – the ref handles mutable state.
   }, [conversation.id, conversation.title])
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -257,9 +226,7 @@ export function ConversationItem({
         isDragTarget && 'ring-2 ring-primary ring-inset'
       )}
     >
-      {/* Main content */}
       <div className="flex-1 min-w-0 relative z-10">
-        {/* Title row */}
         <div className="flex items-center gap-1 h-5">
           <AnimatePresence mode="wait" initial={false}>
             {isRenaming ? (

@@ -86,10 +86,19 @@ function EmptyStateAnimation({ alt, className }: EmptyStateAnimationProps) {
 // ----------------------------------------------------------------------
 // Helper to group conversations by date
 // ----------------------------------------------------------------------
-import { isToday, isYesterday, subDays } from 'date-fns'
+import { isToday, isYesterday, subDays, parseISO, isValid } from 'date-fns'
 
 function getDateGroupKey(dateStr: string): string {
-  const date = new Date(dateStr)
+  // Handles "2026-03-23 15:35:22.009975 +00:00"
+  // date-fns parseISO requires a T separator and no space before offset
+  const normalized = dateStr
+    .replace(' ', 'T')           // first space only: date/time separator
+    .replace(' +', '+')          // remove space before timezone offset
+    .replace(' -', '-')
+
+  const date = parseISO(normalized)
+  if (!isValid(date)) return 'Older'
+
   if (isToday(date)) return 'Today'
   if (isYesterday(date)) return 'Yesterday'
   if (date > subDays(new Date(), 7)) return 'Last 7 days'
