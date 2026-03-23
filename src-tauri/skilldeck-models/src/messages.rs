@@ -16,6 +16,8 @@ pub struct Model {
     pub parent_id: Option<Uuid>,
     /// Optional branch — `None` for main trunk.
     pub branch_id: Option<Uuid>,
+
+    pub seen: bool,
     pub role: String,
     #[sea_orm(column_type = "Text")]
     pub content: String,
