@@ -2,8 +2,8 @@
 //! Message Tauri commands.
 
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ConnectionTrait, DbBackend, EntityTrait, Expr, QueryFilter,
-    QueryOrder, Statement,
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, ConnectionTrait, DbBackend, EntityTrait, Expr,
+    QueryFilter, QueryOrder, Statement,
 };
 use serde::{Deserialize, Serialize};
 use specta::{Type, specta};
