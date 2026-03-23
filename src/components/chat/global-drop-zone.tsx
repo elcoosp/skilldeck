@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { commands } from '@/lib/bindings'
 import { useUIStore } from '@/store/ui'
-import { useChatContextStore } from '@/store/chat-context-store'
 import { cn } from '@/lib/utils'
 
 type DragDropPayload =
@@ -16,7 +15,6 @@ export function GlobalDropZone() {
   const activeConversationId = useUIStore((s) => s.activeConversationId)
   const leftPx = useUIStore((s) => s.panelSizesPx?.left ?? 0)
   const rightPx = useUIStore((s) => s.panelSizesPx?.right ?? 0)
-  const setActiveConversation = useUIStore((s) => s.setActiveConversation)
 
   const [isDragging, setIsDragging] = useState(false)
 
@@ -42,16 +40,33 @@ export function GlobalDropZone() {
       unlisten = await webview.onDragDropEvent((event) => {
         const payload = event.payload as DragDropPayload
 
-        // Hit test to find the target conversation
+        // Hit‑test to find the conversation element under the cursor
         let targetConversationId: string | null = null
         if ('position' in payload && payload.position) {
           const { x, y } = payload.position
           const hit = document.elementFromPoint(x, y)
           targetConversationId =
             hit?.closest('[data-conversation-id]')?.getAttribute('data-conversation-id') ?? null
+
+          console.log(`[GlobalDropZone] ${payload.type}`, {
+            physX: x,
+            physY: y,
+            leftWidth: leftWidthPxRef.current,
+            rightWidth: rightWidthPxRef.current,
+            windowInnerWidth: window.innerWidth,
+            hitElement: {
+              tag: hit?.tagName,
+              id: hit?.id,
+              class: hit?.className,
+              dataConvId: hit?.getAttribute('data-conversation-id'),
+            },
+            targetConversationId,
+          })
+        } else {
+          console.log(`[GlobalDropZone] ${payload.type} (no position)`)
         }
 
-        // Broadcast the event for other components
+        // Broadcast the event with the resolved target ID (for conversation-item to handle activation)
         window.dispatchEvent(
           new CustomEvent('skilldeck:drag-drop', {
             detail: {
@@ -86,42 +101,25 @@ export function GlobalDropZone() {
             // Ignore drops on left or right panels
             if (dropX <= leftWidth || dropX >= rightPanelStart) return
 
-            // Use the hit-tested target conversation ID, or fallback to active
+            // Use the target conversation if we found one, otherwise fall back to active
             const targetId = targetConversationId ?? activeConversationIdRef.current
             if (!targetId) {
-              toast.error('No conversation to attach to')
+              toast.error('No conversation target found')
               return
             }
 
-            // Activate if different
-            if (targetId !== activeConversationIdRef.current) {
-              setActiveConversation(targetId)
-            }
-
-            // Check for duplicates using the target conversation's context items
-            const existingItems = useChatContextStore.getState().items[targetId] ?? []
-            const existingPaths = new Set(
-              existingItems
-                .filter(item => item.type === 'file')
-                .map(item => item.data.path)
-            )
-            const newPaths = paths.filter(p => !existingPaths.has(p))
-
-            if (newPaths.length < paths.length) {
-              const duplicates = paths.filter(p => existingPaths.has(p))
-              toast.warning(`Already attached: ${duplicates.join(', ')}`)
-            }
-
-            if (newPaths.length === 0) return
-
             commands
-              .attachFilesToConversation(targetId, newPaths)
+              .attachFilesToConversation(targetId, paths)
               .then((res) => {
-                if (res.status === 'error') {
-                  toast.error(res.error)
-                }
-                // No success toast here – handled by use-attach-files-listener
+                if (res.status === 'error') toast.error(res.error)
+                else toast.success(`Attached ${paths.length} file(s) to conversation`)
               })
+              .catch(() => toast.error('Failed to attach files'))
+
+            // If we dropped onto a different conversation, activate it
+            if (targetConversationId && targetConversationId !== activeConversationIdRef.current) {
+              useUIStore.getState().setActiveConversation(targetConversationId)
+            }
             break
           }
 
@@ -135,9 +133,9 @@ export function GlobalDropZone() {
 
     setup().catch(console.error)
     return () => unlisten?.()
-  }, [setActiveConversation])
+  }, [])
 
-  // Guard: don't render overlay until panel sizes are known
+  // Guard: don't render overlay until panel sizes are known (avoids covering left panel)
   if (leftPx === 0) return null
 
   return (
@@ -154,7 +152,7 @@ export function GlobalDropZone() {
     >
       <div className="absolute inset-0 bg-background/60 backdrop-blur-sm border-2 border-dashed border-primary/50 rounded-lg flex items-center justify-center">
         <p className="text-muted-foreground text-sm select-none">
-          Drop files to attach to current conversation
+          Drop files to attach to conversation
         </p>
       </div>
     </div>

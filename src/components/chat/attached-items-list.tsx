@@ -2,10 +2,16 @@ import type React from 'react'
 import { useChatContextStore } from '@/store/chat-context-store'
 import { useUIStore } from '@/store/ui'
 import { ContextChip } from './context-chip'
+import type { AttachedItem } from '@/types/chat-context'
+
+// Stable empty array reference to avoid creating new arrays on every selector call
+const EMPTY_ARRAY: AttachedItem[] = []
 
 export const AttachedItemsList: React.FC = () => {
   const activeConversationId = useUIStore((s) => s.activeConversationId)
-  const items = useChatContextStore((s) => s.items[activeConversationId ?? ''] ?? [])
+  const items = useChatContextStore(
+    (s) => s.items[activeConversationId ?? ''] ?? EMPTY_ARRAY
+  )
   const removeItem = useChatContextStore((s) => s.removeItem)
 
   if (!activeConversationId || items.length === 0) return null
