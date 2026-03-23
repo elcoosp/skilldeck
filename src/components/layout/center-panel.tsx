@@ -1,3 +1,4 @@
+// src/components/layout/center-panel.tsx
 /**
  * Center panel — virtualized message thread and input bar.
  */
