@@ -56,6 +56,7 @@ import { cn } from '@/lib/utils'
 import { useUIStore, selectHasSkillsUnlocked, selectHasWorkflowsUnlocked } from '@/store/ui'
 import { McpTab } from './mcp-tab'
 import { useSessionStats } from '@/hooks/use-session-stats'
+import { AnalyticsHeatmap } from '../analytics/analytics-heatmap'
 
 type Tab = 'session' | 'skills' | 'mcp' | 'workflow' | 'analytics'
 
@@ -572,11 +573,6 @@ function AnalyticsTab() {
     )
   }
 
-  const maxTokens =
-    analytics.messages_per_day.length > 0
-      ? Math.max(...analytics.messages_per_day.map((d) => d.count))
-      : 1
-
   return (
     <div className="p-4 space-y-5">
       {/* Overview stats */}
@@ -618,30 +614,13 @@ function AnalyticsTab() {
         </div>
       </div>
 
-      {/* Messages per day */}
-      {analytics.messages_per_day.length > 0 && (
-        <div>
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-            Messages — Last 30 Days
-          </h3>
-          <div className="flex items-end gap-1 h-20">
-            {analytics.messages_per_day.map(({ date, count }) => (
-              <div
-                key={date}
-                className="flex-1 flex flex-col items-center gap-1"
-              >
-                <div
-                  className="w-full rounded-t bg-primary/60 transition-all"
-                  style={{ height: `${(count / maxTokens) * 100}%` }}
-                />
-                <span className="text-[9px] text-muted-foreground">
-                  {new Date(date).getDate()}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Heatmap */}
+      <div className="overflow-x-auto">
+        <AnalyticsHeatmap
+          messagesData={analytics.messages_per_day}
+          conversationsData={analytics.conversations_per_day}
+        />
+      </div>
 
       {/* Skills used */}
       {analytics.skills_used.length > 0 && (
@@ -656,12 +635,6 @@ function AnalyticsTab() {
             </div>
           ))}
         </div>
-      )}
-
-      {analytics.messages_per_day.length === 0 && (
-        <p className="text-xs text-muted-foreground text-center py-4">
-          No activity yet. Start a conversation to see analytics.
-        </p>
       )}
     </div>
   )
