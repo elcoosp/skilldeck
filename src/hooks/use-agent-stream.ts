@@ -7,7 +7,7 @@
  *   Rust ring-buffer → 50 ms debounce → Tauri emit → this hook → rAF → render
  *
  * Also handles auto-naming conversations from the first user message
- * when the 'persisted' event fires.
+ * when the 'persisted' event fires, and progressive unlock.
  */
 
 import { useQueryClient } from '@tanstack/react-query'
@@ -25,6 +25,8 @@ export function useAgentStream(conversationId: string | null) {
   const clearStreamingText = useUIStore((s) => s.clearStreamingText)
   const setAgentRunning = useUIStore((s) => s.setAgentRunning)
   const setStreamingError = useUIStore((s) => s.setStreamingError)
+  const unlockStage = useUIStore((s) => s.unlockStage)
+  const setUnlockStage = useUIStore((s) => s.setUnlockStage)
 
   // Buffer deltas between rAF ticks to avoid per-token setState calls.
   const pendingBuffer = useRef('')
@@ -140,6 +142,11 @@ export function useAgentStream(conversationId: string | null) {
           queryClient.invalidateQueries({
             queryKey: ['queued-messages', conversationId]
           })
+
+          // ── Progressive unlock: after first message, unlock skills ──
+          if (unlockStage === 0) {
+            setUnlockStage(1)
+          }
           break
 
         case 'error':
@@ -207,7 +214,9 @@ export function useAgentStream(conversationId: string | null) {
     clearStreamingText,
     setAgentRunning,
     setStreamingError,
-    queryClient
+    queryClient,
+    unlockStage,
+    setUnlockStage
   ])
 
   const streamingText = useUIStore(

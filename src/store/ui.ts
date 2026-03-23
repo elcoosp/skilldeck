@@ -249,3 +249,8 @@ export const useUIStore = create<UIState>()(
     }
   )
 )
+
+// ── Feature gate selectors ───────────────────────────────────────────────────
+export const selectHasSkillsUnlocked = (state: UIState) => state.unlockStage >= 1
+export const selectHasMcpUnlocked = (state: UIState) => state.unlockStage >= 2
+export const selectHasWorkflowsUnlocked = (state: UIState) => state.unlockStage >= 3
