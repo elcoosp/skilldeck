@@ -1036,7 +1036,7 @@ export type AddQueuedMessageRequest = { conversation_id: string; content: string
 /**
  * Payload for the `"agent-event"` Tauri channel.
  */
-export type AgentEvent = { type: "cancelled"; conversation_id: string } | { type: "started"; conversation_id: string } | { type: "token"; conversation_id: string; delta: string } | { type: "tool_call"; conversation_id: string; tool_call: AgentToolCall } | { type: "tool_result"; conversation_id: string; tool_call_id: string; result: string } | { type: "done"; conversation_id: string; input_tokens: number; output_tokens: number } | { type: "error"; conversation_id: string; message: string } | { type: "persisted"; conversation_id: string }
+export type AgentEvent = { type: "cancelled"; conversation_id: string } | { type: "started"; conversation_id: string } | { type: "token"; conversation_id: string; delta: string } | { type: "tool_call"; conversation_id: string; tool_call: AgentToolCall } | { type: "tool_result"; conversation_id: string; tool_call_id: string; result: string } | { type: "done"; conversation_id: string; input_tokens: number; output_tokens: number } | { type: "error"; conversation_id: string; message: string } | { type: "persisted"; conversation_id: string } | { type: "tool_approval_required"; conversation_id: string; tool_call_id: string; tool_name: string; arguments: JsonValue }
 export type AgentToolCall = { id: string; name: string; arguments: JsonValue }
 export type AnalyticsData = { total_conversations: string; total_messages: string; messages_per_day: DailyCount[]; skills_used: SkillUsage[]; token_usage: TokenTotals }
 /**

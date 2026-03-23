@@ -22,6 +22,7 @@ export type AgentEventType =
   | 'done'
   | 'error'
   | 'persisted'
+  | 'tool_approval_required'  // <-- new
 
 export interface AgentEvent {
   type: AgentEventType
@@ -33,6 +34,9 @@ export interface AgentEvent {
   input_tokens?: number
   output_tokens?: number
   message?: string
+  // Fields for tool_approval_required
+  tool_name?: string
+  arguments?: Record<string, unknown>
 }
 
 export interface ToolCallInfo {

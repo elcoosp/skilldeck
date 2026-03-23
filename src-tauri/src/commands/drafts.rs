@@ -1,4 +1,4 @@
-use sea_orm::{ActiveModelTrait, ActiveValue::Set, EntityTrait, QueryFilter};
+use sea_orm::{ActiveModelTrait, ActiveValue::Set, EntityTrait};
 use specta::specta;
 use std::sync::Arc;
 use tauri::State;

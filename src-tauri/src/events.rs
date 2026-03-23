@@ -44,6 +44,13 @@ pub enum AgentEvent {
     Persisted {
         conversation_id: String,
     },
+    // NEW: Tool approval required
+    ToolApprovalRequired {
+        conversation_id: String,
+        tool_call_id: String,
+        tool_name: String,
+        arguments: serde_json::Value,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]

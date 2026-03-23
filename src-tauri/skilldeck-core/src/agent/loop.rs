@@ -1,4 +1,3 @@
-// File: skilldeck-core/src/agent/loop.rs
 //! Core agent loop implementation.
 //!
 //! 1. Receive user message
@@ -12,9 +11,9 @@ use futures::StreamExt;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
-use tokio::time::Instant;
+use tokio::time::{Instant, timeout};
 use tokio_util::sync::CancellationToken;
-use tracing::{error, info, instrument, warn};
+use tracing::{debug, error, info, instrument, warn};
 
 use crate::{
     CoreError,
@@ -92,6 +91,17 @@ pub struct AgentRunResult {
     pub output_tokens: u32,
     pub cache_read_tokens: u32,
     pub cache_write_tokens: u32,
+}
+
+// Helper macro to send events and abort on receiver drop.
+macro_rules! send_event {
+    ($self:expr, $event:expr) => {{
+        if $self.tx.send(Ok($event)).await.is_err() {
+            return Err(CoreError::Cancelled {
+                operation: "agent-loop:receiver-dropped".into(),
+            });
+        }
+    }};
 }
 
 impl AgentLoop {
@@ -184,7 +194,7 @@ impl AgentLoop {
             // Check cancellation at the top of each iteration.
             if self.cancel_token.is_cancelled() {
                 info!("Agent loop cancelled");
-                let _ = self.tx.send(Ok(AgentLoopEvent::Cancelled)).await;
+                send_event!(self, AgentLoopEvent::Cancelled);
 
                 // Mark the last assistant message as cancelled in DB.
                 if let Some(last_assistant) = self
@@ -217,13 +227,32 @@ impl AgentLoop {
                 break;
             }
 
+            info!("Agent iteration {} starting", iteration);
             let request = self.build_request()?;
+
+            // === DIAGNOSTIC: log the entire request (especially tool messages) ===
+            debug!(
+                "Sending request to provider:\n  model: {}\n  system: {:?}\n  messages: {:#?}\n  tools (raw): {}",
+                request.model_id,
+                request.system,
+                request.messages,
+                request.tools.len()
+            );
+            // If there are tool messages, log them in detail
+            for msg in &request.messages {
+                if msg.role == MessageRole::Tool {
+                    debug!(
+                        "Tool message: name={:?}, content={:?}",
+                        msg.name, msg.content
+                    );
+                }
+            }
 
             let stream = tokio::select! {
                 res = self.provider.complete(request) => res?,
                 _ = self.cancel_token.cancelled() => {
                     info!("Agent loop cancelled during provider call");
-                    let _ = self.tx.send(Ok(AgentLoopEvent::Cancelled)).await;
+                    send_event!(self, AgentLoopEvent::Cancelled);
                     return Err(CoreError::Cancelled { operation: "agent-loop:complete".into() });
                 }
             };
@@ -232,7 +261,7 @@ impl AgentLoop {
                 res = self.process_stream(stream) => res?,
                 _ = self.cancel_token.cancelled() => {
                     info!("Agent loop cancelled during stream processing");
-                    let _ = self.tx.send(Ok(AgentLoopEvent::Cancelled)).await;
+                    send_event!(self, AgentLoopEvent::Cancelled);
                     return Err(CoreError::Cancelled { operation: "agent-loop:stream".into() });
                 }
             };
@@ -249,43 +278,75 @@ impl AgentLoop {
             final_cache_read_tokens += result.cache_read_tokens;
             final_cache_write_tokens += result.cache_write_tokens;
 
+            info!(
+                "Iteration {}: content length={}, tool_calls={}, tokens (in/out/cacheR/cacheW) = {}/{}/{}/{}",
+                iteration,
+                result.content.len(),
+                result.tool_calls.len(),
+                result.input_tokens,
+                result.output_tokens,
+                result.cache_read_tokens,
+                result.cache_write_tokens
+            );
+
             if result.tool_calls.is_empty() {
-                let _ = self
-                    .tx
-                    .send(Ok(AgentLoopEvent::Done {
+                send_event!(
+                    self,
+                    AgentLoopEvent::Done {
                         input_tokens: result.input_tokens,
                         output_tokens: result.output_tokens,
                         cache_read_tokens: result.cache_read_tokens,
                         cache_write_tokens: result.cache_write_tokens,
-                    }))
-                    .await;
+                    }
+                );
                 break;
             }
 
             for tool_call in result.tool_calls {
                 if self.cancel_token.is_cancelled() {
-                    let _ = self.tx.send(Ok(AgentLoopEvent::Cancelled)).await;
+                    send_event!(self, AgentLoopEvent::Cancelled);
                     return Err(CoreError::Cancelled {
                         operation: "agent-loop:tool".into(),
                     });
                 }
 
                 let tool_call_clone: ToolCall = tool_call.clone();
-                let _ = self
-                    .tx
-                    .send(Ok(AgentLoopEvent::ToolCall {
+                send_event!(
+                    self,
+                    AgentLoopEvent::ToolCall {
                         tool_call: tool_call_clone,
-                    }))
-                    .await;
+                    }
+                );
 
-                let tool_result = self.execute_tool(&tool_call).await;
+                info!("Executing tool: {:?}", tool_call);
+                // Wrap the tool execution in a 30-second timeout to prevent hangs
+                let tool_result = timeout(Duration::from_secs(30), self.execute_tool(&tool_call))
+                    .await
+                    .map_err(|_| {
+                        error!("Tool '{}' timed out after 30s", tool_call.function.name);
+                        CoreError::Internal {
+                            message: format!("Tool '{}' timed out", tool_call.function.name),
+                        }
+                    })
+                    .and_then(|res| res); // flatten the Result<Result<_, _>, _>
+
                 let content = match tool_result {
-                    Ok(v) => serde_json::to_string(&v).unwrap_or_default(),
+                    Ok(v) => {
+                        let json = serde_json::to_string(&v).unwrap_or_default();
+                        debug!("Tool result: {}", json);
+                        json
+                    }
                     Err(e) => {
                         error!("Tool execution error: {}", e);
                         format!("{{\"error\":\"{}\"}}", e)
                     }
                 };
+
+                // Diagnostic: log the tool call ID (if present) to help debug missing tool_call_id.
+                debug!(
+                    "Tool call id: {:?}, but ChatMessage does not store it yet. The provider may reject this message.",
+                    tool_call.id
+                );
 
                 self.messages.push(ChatMessage {
                     role: MessageRole::Tool,
@@ -316,10 +377,10 @@ impl AgentLoop {
                                 SkillContentFormat::Text => load_result.content,
                             };
                             self.skills.push(final_content);
-                            tracing::info!("Dynamically loaded skill '{}'", load_result.loaded);
+                            info!("Dynamically loaded skill '{}'", load_result.loaded);
                         }
                         Err(e) => {
-                            tracing::error!("Failed to parse loadSkill result: {}", e);
+                            error!("Failed to parse loadSkill result: {}", e);
                         }
                     }
                 }
@@ -413,28 +474,32 @@ impl AgentLoop {
             }
             match chunk? {
                 CompletionChunk::Token { content: token } => {
+                    debug!("Token chunk: {:?}", token);
                     content.push_str(&token);
                     buffer.push_str(&token);
 
                     if last_emit.elapsed() >= debounce || buffer.len() > 100 {
-                        let _ = self
-                            .tx
-                            .send(Ok(AgentLoopEvent::Token {
+                        debug!("Flushing buffer (size={})", buffer.len());
+                        send_event!(
+                            self,
+                            AgentLoopEvent::Token {
                                 delta: buffer.clone(),
-                            }))
-                            .await;
+                            }
+                        );
                         buffer.clear();
                         last_emit = Instant::now();
                     }
                 }
                 CompletionChunk::ToolCall { tool_call } => {
+                    debug!("Tool call chunk: {:?}", tool_call);
                     if !buffer.is_empty() {
-                        let _ = self
-                            .tx
-                            .send(Ok(AgentLoopEvent::Token {
+                        debug!("Flushing buffer before tool call");
+                        send_event!(
+                            self,
+                            AgentLoopEvent::Token {
                                 delta: buffer.clone(),
-                            }))
-                            .await;
+                            }
+                        );
                         buffer.clear();
                     }
                     tool_calls.push(tool_call);
@@ -445,6 +510,21 @@ impl AgentLoop {
                     cache_read_tokens: crt,
                     cache_write_tokens: cwt,
                 } => {
+                    // Flush any remaining buffered tokens before processing Done
+                    if !buffer.is_empty() {
+                        debug!("Flushing buffer on Done (size={})", buffer.len());
+                        send_event!(
+                            self,
+                            AgentLoopEvent::Token {
+                                delta: buffer.clone(),
+                            }
+                        );
+                        buffer.clear();
+                    }
+                    debug!(
+                        "Done chunk: in={}, out={}, cacheR={}, cacheW={}",
+                        it, ot, crt, cwt
+                    );
                     input_tokens = it;
                     output_tokens = ot;
                     cache_read_tokens = crt;
@@ -453,11 +533,15 @@ impl AgentLoop {
             }
         }
 
+        // Final flush in case the stream ended without a Done chunk
         if !buffer.is_empty() {
-            let _ = self
-                .tx
-                .send(Ok(AgentLoopEvent::Token { delta: buffer }))
-                .await;
+            debug!("Final flush after stream ended");
+            send_event!(
+                self,
+                AgentLoopEvent::Token {
+                    delta: buffer.clone(),
+                }
+            );
         }
 
         Ok(StreamResult {

@@ -1,4 +1,3 @@
-// src-tauri/src/state.rs
 //! Application state management.
 
 use dashmap::DashMap;
@@ -32,6 +31,7 @@ use adk_rust::server::a2a::A2aClient;
 
 // Import the SkillEventEmitter trait
 use skilldeck_core::traits::SkillEventEmitter;
+use skilldeck_core::traits::ToolApprovalEmitter; // <-- new
 
 // Import core event types
 use skilldeck_core::events::McpEvent as CoreMcpEvent;
@@ -82,6 +82,32 @@ impl SkillEventEmitter for TauriSkillEventEmitter {
             SkillEvent::Updated {
                 source_label,
                 skill_name,
+            },
+        );
+    }
+}
+
+/// Tauri‑specific implementation of ToolApprovalEmitter.
+struct TauriToolApprovalEmitter {
+    app_handle: tauri::AppHandle,
+}
+
+impl ToolApprovalEmitter for TauriToolApprovalEmitter {
+    fn emit_tool_approval_required(
+        &self,
+        conversation_id: &str,
+        tool_call_id: &str,
+        tool_name: &str,
+        arguments: &serde_json::Value,
+    ) {
+        use crate::events::AgentEvent;
+        let _ = self.app_handle.emit(
+            "agent-event",
+            AgentEvent::ToolApprovalRequired {
+                conversation_id: conversation_id.to_string(),
+                tool_call_id: tool_call_id.to_string(),
+                tool_name: tool_name.to_string(),
+                arguments: arguments.clone(),
             },
         );
     }
@@ -188,7 +214,15 @@ impl AppState {
         info!("Registering Ollama provider (port 11434)");
         registry.register_provider(OllamaProvider::new(11434));
 
-        let approval_gate = Arc::new(skilldeck_core::agent::ApprovalGate::new());
+        // Create the tool approval emitter
+        let tool_approval_emitter = TauriToolApprovalEmitter {
+            app_handle: app.clone(),
+        };
+
+        // Create the approval gate with the emitter
+        let approval_gate = Arc::new(skilldeck_core::agent::ApprovalGate::new(
+            Some(Arc::new(tool_approval_emitter) as Arc<dyn ToolApprovalEmitter>),
+        ));
 
         // ── Start MCP supervisor with event emitter ────────────────────────────
         let app_handle = app.clone();

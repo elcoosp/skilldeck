@@ -10,6 +10,8 @@ import type { MessageData } from '@/lib/bindings'
 import { MessageBubble } from './message-bubble'
 import { useSendMessage } from '@/hooks/use-messages'
 import { useUIStore } from '@/store/ui'
+import { useToolApprovalStore } from '@/store/tool-approvals'   // NEW
+import { ToolApprovalCard } from './tool-approval-card'         // NEW
 
 export interface ScrollToken {
   messageId: string
@@ -418,6 +420,22 @@ export const MessageThread = React.forwardRef<
       }
     }, [onMessageVisible, scrollRef.current])
 
+    // NEW: Get pending approvals from store
+    const pendingApprovals = useToolApprovalStore((s) => s.pending)
+    const removePending = useToolApprovalStore((s) => s.removePending)
+
+    // NEW: Auto‑scroll when a new approval card appears
+    React.useEffect(() => {
+      if (pendingApprovals.size === 0) return
+      const el = scrollRef.current
+      if (!el || userScrolledAwayRef.current) return
+      requestAnimationFrame(() => {
+        isProgrammaticScrollRef.current = true
+        el.scrollTop = el.scrollHeight
+        requestAnimationFrame(() => { isProgrammaticScrollRef.current = false })
+      })
+    }, [pendingApprovals.size])
+
     React.useImperativeHandle(
       ref,
       () => ({
@@ -618,6 +636,20 @@ export const MessageThread = React.forwardRef<
                       </div>
                     )
                   })}
+                </div>
+              )}
+
+              {/* NEW: Render pending tool approvals */}
+              {pendingApprovals.size > 0 && (
+                <div className="px-4 py-2 flex flex-col gap-2">
+                  {Array.from(pendingApprovals.entries()).map(([toolCallId, toolCall]) => (
+                    <ToolApprovalCard
+                      key={toolCallId}
+                      toolCallId={toolCallId}
+                      toolCall={toolCall}
+                      onResolved={() => removePending(toolCallId)}
+                    />
+                  ))}
                 </div>
               )}
             </div>

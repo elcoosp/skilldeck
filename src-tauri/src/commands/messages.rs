@@ -568,6 +568,7 @@ fn run_agent_loop(
             Arc::clone(&state.registry.skill_registry),
             provider.supports_toon(),
             Some(spawner as Arc<dyn SubagentSpawner>),
+            conversation_id.clone(),
         ));
 
         // Set initial auto-approve config from global state
