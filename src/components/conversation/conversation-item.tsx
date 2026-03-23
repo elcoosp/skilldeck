@@ -149,6 +149,7 @@ export function ConversationItem({
       onKeyDown={handleKeyDown}
       className={cn(
         'group relative flex items-start gap-2 w-full px-2 py-2 rounded-md text-left transition-colors cursor-pointer',
+        'pr-6', // <-- consistent right padding to prevent highlight width variation
         isActive
           ? 'bg-primary/10 text-foreground'
           : 'hover:bg-muted/70 text-muted-foreground hover:text-foreground',
