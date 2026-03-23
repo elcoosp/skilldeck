@@ -14,6 +14,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { AtSign, Hash, Paperclip, Send, Square, Timer } from 'lucide-react'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
+import { useDebouncedCallback } from 'use-debounce'
 
 import { AttachedItemsList } from '@/components/chat/attached-items-list'
 import { ChatCommandPalette } from '@/components/chat/chat-command-palette'
@@ -137,11 +138,13 @@ export function MessageInput({
     useState<RegistrySkillData | null>(null)
 
   // Context store actions
-  const items = useChatContextStore((s) => s.items)
+  const itemsMap = useChatContextStore((s) => s.items)
   const addFile = useChatContextStore((s) => s.addFile)
   const addFolder = useChatContextStore((s) => s.addFolder)
   const addSkill = useChatContextStore((s) => s.addSkill)
   const clearItems = useChatContextStore((s) => s.clearItems)
+
+  const currentItems = itemsMap[conversationId] ?? []
 
   // ─── Height calculation for textarea ─────────────────────────────────────
   useLayoutEffect(() => {
@@ -154,7 +157,7 @@ export function MessageInput({
     setContentHeight(newHeight)
   }, [content])
 
-  // ── Draft sync & auto-grow ────────────────────────────────────────────────
+  // ─── Draft sync & auto-grow ────────────────────────────────────────────────
   useEffect(() => {
     setContent(draft)
   }, [conversationId])
@@ -177,7 +180,42 @@ export function MessageInput({
     textareaRef.current?.focus()
   }, [conversationId])
 
-  // ── Picker position ───────────────────────────────────────────────────────
+  // ─── Draft persistence: load from DB on mount ────────────────────────────────
+  useEffect(() => {
+    if (!conversationId) return
+    commands.getConversationDraft(conversationId).then((res) => {
+      if (res.status === 'ok' && res.data) {
+        const [text, items] = res.data
+        setContent(text)
+        items.forEach((item: any) => {
+          if (item.type === 'file') addFile(conversationId, item.data)
+          else if (item.type === 'folder') addFolder(conversationId, item.data)
+          else if (item.type === 'skill') addSkill(conversationId, item.data)
+        })
+      }
+    }).catch((err) => console.error('Failed to load draft:', err))
+  }, [conversationId, addFile, addFolder, addSkill])
+
+  // ─── Debounced save draft to DB ─────────────────────────────────────────────
+  const debouncedSaveDraft = useDebouncedCallback(
+    (text: string, items: any[]) => {
+      if (!conversationId) return
+      const itemsJson = items.map((item) => item.data)
+      commands.upsertConversationDraft(conversationId, text, itemsJson).catch((err) => {
+        console.error('Failed to save draft:', err)
+      })
+    },
+    500
+  )
+
+  // Save on content or items change
+  useEffect(() => {
+    if (!conversationId) return
+    const items = itemsMap[conversationId] ?? []
+    debouncedSaveDraft(content, items)
+  }, [content, conversationId, itemsMap, debouncedSaveDraft])
+
+  // ─── Picker position ───────────────────────────────────────────────────────
 
   const calculatePickerPosition = useCallback(() => {
     if (!textareaRef.current) return null
@@ -188,14 +226,14 @@ export function MessageInput({
     }
   }, [])
 
-  // ── Picker close ──────────────────────────────────────────────────────────
+  // ─── Picker close ──────────────────────────────────────────────────────────
 
   const closePicker = useCallback(() => {
     setTriggerState(null)
     setPickerPosition(null)
   }, [])
 
-  // ── Clear trigger text from textarea ─────────────────────────────────────
+  // ─── Clear trigger text from textarea ─────────────────────────────────────
 
   const clearTriggerText = useCallback(
     (trigger: TriggerState) => {
@@ -241,7 +279,7 @@ export function MessageInput({
               const res = await commands.countFolderFiles(file.path)
               if (res.status === 'ok') {
                 const counts = res.data as unknown as FolderCounts
-                addFolder({
+                addFolder(conversationId, {
                   id: file.path,
                   name: file.path.split('/').pop() || file.path,
                   path: file.path,
@@ -265,7 +303,7 @@ export function MessageInput({
         return
       }
 
-      addFile({
+      addFile(conversationId, {
         id: file.path,
         name: file.name,
         path: file.path,
@@ -276,6 +314,7 @@ export function MessageInput({
     },
     [
       triggerState,
+      conversationId,
       loadDirectory,
       addFile,
       addFolder,
@@ -288,12 +327,12 @@ export function MessageInput({
 
   const confirmAddSkill = useCallback(
     (skill: RegistrySkillData) => {
-      addSkill(skill)
+      addSkill(conversationId, skill)
       if (triggerState) clearTriggerText(triggerState)
       setSkillForReview(null)
       closePicker()
     },
-    [addSkill, triggerState, clearTriggerText, closePicker]
+    [addSkill, conversationId, triggerState, clearTriggerText, closePicker]
   )
 
   const handleSkillSelect = useCallback(
@@ -500,7 +539,7 @@ export function MessageInput({
       }
     }
 
-    const metadataItems: ContextItem[] = items.map((item) => {
+    const metadataItems: ContextItem[] = currentItems.map((item) => {
       if (item.type === 'file') {
         return {
           type: 'file',
@@ -529,7 +568,7 @@ export function MessageInput({
     setSelectedFiles([])
     setProcessingFiles(new Map())
     clearDraft(finalConversationId)
-    clearItems()
+    clearItems(finalConversationId)
 
     try {
       await sendMutation.mutateAsync({
@@ -554,7 +593,7 @@ export function MessageInput({
     setActiveConversation,
     clearDraft,
     clearItems,
-    items,
+    currentItems,
     sendMutation,
     onRequestScrollToBottom
   ])

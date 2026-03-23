@@ -68,6 +68,7 @@
     "framer-motion": "^12.36.0",
     "fuse.js": "^7.1.0",
     "hast-util-is-element": "^3.0.0",
+    "hast-util-to-string": "^3.0.1",
     "lucide-react": "^0.577.0",
     "mdast-util-from-markdown": "^2.0.3",
     "radix-ui": "^1.4.3",

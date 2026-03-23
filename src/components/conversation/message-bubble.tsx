@@ -1,5 +1,5 @@
 // src/components/conversation/message-bubble.tsx
-// (Full file with retry and cancelled badge added)
+// (Full file with retry, cancelled badge, and enhanced CodePre with filename/language header)
 
 // ─── DEBUG INSTRUMENTATION ────────────────────────────────────────────────────
 const DEBUG = true
@@ -150,6 +150,7 @@ import { toast } from 'sonner'
 import { ContextChip } from '@/components/chat/context-chip'
 import type { MessageData } from '@/lib/bindings'
 import { rehypeLinkifyCodeUrls } from '@/lib/rehype-linkify-code'
+import { rehypeCodeMeta } from '@/lib/rehype-code-meta'           // <-- NEW
 import { cn, highlightText } from '@/lib/utils'
 import { SubagentCard } from './subagent-card'
 import { openUrl } from '@tauri-apps/plugin-opener'
@@ -190,7 +191,7 @@ const getHighlighter = () => {
 
 // ─── Stable plugin arrays (module-level, never recreated) ─────────────────────
 const remarkPlugins = [remarkGfm]
-const rehypePluginsBase = [rehypeLinkifyCodeUrls, rehypeSlug]
+const rehypePluginsBase = [rehypeLinkifyCodeUrls, rehypeSlug, rehypeCodeMeta] // <-- ADDED
 
 // ─── Streaming context for code block auto‑scroll ──────────────────────────
 const StreamingContext = React.createContext<boolean>(false)
@@ -231,7 +232,9 @@ function CodePre({ children, ...props }: any) {
     return ''
   }, [])
 
+  // Get language and filename from props (set by rehypeCodeMeta)
   const language = props['data-language'] ?? 'code'
+  const filename = props['data-filename'] ?? null
 
   const copy = useCallback(async () => {
     await navigator.clipboard.writeText(extractText(children).replace(/\n$/, ''))
@@ -358,6 +361,9 @@ function CodePre({ children, ...props }: any) {
 
   const toggleCollapsed = useCallback(() => setCollapsed((v) => !v), [])
 
+  // Determine what to show in the header
+  const displayLabel = filename || language || 'code'
+
   const headerContent = (
     <>
       <button
@@ -369,7 +375,7 @@ function CodePre({ children, ...props }: any) {
         <motion.div animate={{ rotate: collapsed ? 0 : 90 }} transition={{ duration: 0.15 }}>
           <ChevronRight className="size-3.5" />
         </motion.div>
-        <span>{language}</span>
+        <span>{displayLabel}</span>
       </button>
       <button
         type="button"
@@ -393,9 +399,6 @@ function CodePre({ children, ...props }: any) {
             pointerEvents: 'none',
             borderRadius: 'var(--radius)',
             boxShadow: '0 0 0 0 transparent',
-            // No opacity transition — spurious sync() calls during streaming/layout
-            // would cause visible flicker. opacity is set instantly.
-            // border-radius and shadow still animate for the sticky→normal transition.
             transition: 'border-radius 200ms ease, box-shadow 200ms ease',
           }}
         >
@@ -478,10 +481,6 @@ const AssistantMessageActions = memo(function AssistantMessageActions({
     if (open) {
       _openChangeTime = performance.now()
       mark('dropdown:onOpenChange:open')
-      // Log the timestamp so we can correlate with LongTask startTimes in the console.
-      // LongTask entries report startTime relative to navigationStart — if a longtask
-      // startTime is >= _openChangeTime, it happened AFTER onOpenChange, meaning
-      // Radix's own portal/focus code is the culprit, not React rendering.
       console.log(
         `[MB:Actions] [${message.id.slice(0, 8)}] onOpenChange → true`,
         `| t=${_openChangeTime.toFixed(0)}ms`,
@@ -504,7 +503,6 @@ const AssistantMessageActions = memo(function AssistantMessageActions({
           aria-label="Message options"
           onClick={() => {
             if (!DEBUG) return
-            // This fires at the very start of the click, before React does anything.
             mark('dropdown:click')
             dbgMeasureToFrame('click → paint (total blocked time)')
             console.log(`[MB:Actions] [${message.id.slice(0, 8)}] trigger clicked`)
@@ -647,7 +645,7 @@ const InlineCode = memo(function InlineCode({ children, ...props }: any) {
 // Stable table components (module-level)
 const TableWrapper = memo(({ children, node, ...props }: any) => (
   <div className="overflow-x-auto my-2" {...props}>
-    <table className="border-collapse border border-border text-xs">{children}</table>
+    <table className="border-collapse border border-border text-xs">{children} </table>
   </div>
 ))
 TableWrapper.displayName = 'TableWrapper'
@@ -661,7 +659,6 @@ Th.displayName = 'Th'
 
 const Td = memo(({ children, node, ...props }: any) => (
   <td className="border border-border px-2 py-1" {...props}>
-
     {children}
   </td>
 ))
@@ -683,8 +680,6 @@ function getRehypePlugins(highlighter: Highlighter | null) {
 }
 
 // ─── Hook: build markdown components, stable across streaming ─────────────────
-// Components only change when messageId, activeConversationId, or scrollContainer changes.
-// Critically: NOT on message.content — we use a ref for the heading counter instead.
 function useMarkdownComponents(
   messageId: string,
   activeConversationId: string | null,
@@ -786,10 +781,6 @@ function useMarkdownComponents(
 }
 
 // ─── MemoizedMarkdown ─────────────────────────────────────────────────────────
-// The single biggest cost: MarkdownHooks re-runs the full remark/rehype
-// pipeline on every render even when content hasn't changed. This wrapper
-// memoizes on (children, rehypePlugins, components) so re-renders caused by
-// Radix flushSync or context changes don't re-parse markdown.
 const MemoizedMarkdown = React.memo(function MemoizedMarkdown({
   children,
   remarkPlugins,
@@ -817,14 +808,6 @@ const MemoizedMarkdown = React.memo(function MemoizedMarkdown({
 )
 
 // ─── CollapsibleContent ───────────────────────────────────────────────────────
-// KEY DESIGN: isCollapsed is NOT a prop. Instead the parent calls
-// collapsibleRef.collapse() / .expand() imperatively. This means the children
-// (MemoizedMarkdown, HeadingBookmarkButtons, etc.) are NEVER re-rendered when
-// the message is collapsed/expanded — only the outer div's style changes.
-//
-// Previously passing isCollapsed as a prop caused the parent bubble to re-render
-// → CollapsibleContent re-rendered → new children JSX instances → React
-// reconciled 60+ heading components → 911ms jank on every collapse click.
 export interface CollapsibleHandle {
   collapse: () => void
   expand: () => void
@@ -846,7 +829,7 @@ const CollapsibleContent = React.forwardRef<
       const currentHeight = el.scrollHeight
       el.style.maxHeight = `${currentHeight}px`
       el.style.overflow = 'hidden'
-      el.getBoundingClientRect() // force reflow
+      el.getBoundingClientRect()
       el.style.transition = 'max-height 0.18s ease, opacity 0.18s ease'
       el.style.maxHeight = '0px'
       el.style.opacity = '0'
@@ -861,8 +844,6 @@ const CollapsibleContent = React.forwardRef<
         if (!outerRef.current) return
         const targetHeight = outerRef.current.scrollHeight
         if (targetHeight === 0) {
-          // Content hasn't laid out yet (virtualizer just mounted this row).
-          // Retry after a frame — by then the browser will have measured it.
           if (DEBUG) console.log(`[MB:Collapse] [${messageId.slice(0, 8)}] scrollHeight=0, retrying...`)
           requestAnimationFrame(doExpand)
           return
@@ -909,14 +890,13 @@ function MessageBubbleInner({
   searchQuery = '',
   searchCaseSensitive = false,
   searchRegex = false,
-  onRetry, // <-- NEW: retry handler
+  onRetry,
 }: MessageBubbleProps) {
   const [copied, setCopied] = useState(false)
   const proseRef = useRef<HTMLDivElement>(null)
-  const contentRef = useRef<HTMLDivElement>(null) // attached to the outer bubble div, covers all message types
+  const contentRef = useRef<HTMLDivElement>(null)
   const [highlighter, setHighlighter] = useState<Highlighter | null>(null)
 
-  // Mark the start of this bubble's render for perf timeline
   const renderMarkStart = `bubble-render:${message.id}:start`
   mark(renderMarkStart)
   trackRender('Bubble', message.id)
@@ -941,7 +921,6 @@ function MessageBubbleInner({
     )
   )
 
-  // ─── Why-render tracking ──────────────────────────────────────────────────
   const prevBubbleValuesRef = useRef<Record<string, unknown> | null>(null)
   dbgWhyRender('Bubble', message.id, {
     messageId: message.id,
@@ -958,22 +937,18 @@ function MessageBubbleInner({
     scrollContainerRef: scrollContainer,
   }, prevBubbleValuesRef)
 
-  // Load Shiki asynchronously
   useEffect(() => {
     getHighlighter().then(setHighlighter)
   }, [])
 
-  // ─── Heading counter via ref — reset when messageId changes, NOT on content ──
   const headingIndexRef = useRef(0)
   const lastMessageIdRef = useRef('')
   if (lastMessageIdRef.current !== message.id) {
     lastMessageIdRef.current = message.id
     headingIndexRef.current = 0
   }
-  // Also reset on content during streaming (new content may reorder headings)
   const lastContentLenRef = useRef(0)
   if (isStreaming) {
-    // Only reset if content shrank (rare edge case, e.g. edit) or is a fresh stream
     if (message.content.length < lastContentLenRef.current) {
       headingIndexRef.current = 0
     }
@@ -994,10 +969,8 @@ function MessageBubbleInner({
   const isSystem = message.role === 'system'
   const syntheticStreaming = message.id === '__streaming__'
 
-  // ─── Search highlighting effect ──────────────────────────────────────────
+  // Search highlighting effect (unchanged)
   useEffect(() => {
-    // Use the outer bubble div so all message types (user, assistant, tool,
-    // system) are covered. proseRef only exists for assistant messages.
     const container = contentRef.current
     if (!container) return
 
@@ -1018,7 +991,7 @@ function MessageBubbleInner({
     if (!document.contains(container)) return
 
     let pattern = searchQuery
-    if (!searchRegex) pattern = searchQuery.replace(/[.*+?^${ }()|[\]\\]/g, '\\$&')
+    if (!searchRegex) pattern = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     const flags = searchCaseSensitive ? 'g' : 'gi'
     let regex: RegExp
     try { regex = new RegExp(pattern, flags) } catch { return }
@@ -1049,8 +1022,6 @@ function MessageBubbleInner({
         if (match.index > last) frag.appendChild(document.createTextNode(text.slice(last, match.index)))
         const mark = document.createElement('mark')
         mark.setAttribute('data-search', '')
-        // User messages have a primary-color background so use a distinct
-        // highlight colour; assistant/tool/system use the default.
         mark.style.backgroundColor = isUser
           ? 'var(--highlight-inline-user, rgba(255,255,255,0.35))'
           : 'var(--highlight-inline, rgba(250,204,21,0.4))'
@@ -1100,7 +1071,6 @@ function MessageBubbleInner({
     }
   }, [message.id, message.content])
 
-  // Track whether callbacks are stable — new identity = AssistantMessageActions will re-render
   const prevCopyRef = useRef<Function | null>(null)
   const prevDownloadRef = useRef<Function | null>(null)
   if (DEBUG) {
@@ -1114,15 +1084,9 @@ function MessageBubbleInner({
     prevDownloadRef.current = downloadMessage
   }
 
-  // ─── Collapse — fully imperative, zero re-renders on toggle ─────────────
-  // Previously: setCollapsed(true) → bubble re-renders → CollapsibleContent
-  // re-renders → children (MemoizedMarkdown + 9 HeadingBtns) re-render → 62
-  // component renders → 911ms jank.
-  // Now: toggle calls collapsibleRef.collapse/expand() → only DOM style changes,
-  // React never knows about it.
   const collapsibleRef = useRef<CollapsibleHandle>(null)
-  const collapsedStateRef = useRef(false) // mirrors collapsibleRef for UI reads
-  const [, forceUpdate] = useState(0) // only called to repaint chevron/label
+  const collapsedStateRef = useRef(false)
+  const [, forceUpdate] = useState(0)
   const isCollapsed = collapsedStateRef.current
   const canCollapse = (isAssistant || isSystem || isTool) && !isStreaming && !syntheticStreaming
 
@@ -1136,7 +1100,6 @@ function MessageBubbleInner({
       handle.collapse()
       collapsedStateRef.current = true
     }
-    // Only re-render the bubble to update chevron direction and aria-label
     forceUpdate(n => n + 1)
     if (DEBUG) {
       const newState = collapsedStateRef.current
@@ -1154,8 +1117,6 @@ function MessageBubbleInner({
   }
 
   if (DEBUG) {
-    // Close the render mark — everything between renderMarkStart and here is
-    // synchronous React work for this one bubble (hooks, useMemo, etc.)
     const renderMarkEnd = `bubble-render:${message.id}:end`
     mark(renderMarkEnd)
     measure(
@@ -1273,11 +1234,6 @@ function MessageBubbleInner({
               </div>
             )}
 
-            {/* NOTE: maxHeight:99999 causes CSS to animate the full 0→99999px range
-                  even for small content, forcing the browser to compute layout across
-                  ~99000px of virtual space on every animation frame = jank.
-                  Replaced with a measured approach: on expand we read the real
-                  scrollHeight and animate to that. On collapse we animate to 0. */}
             <CollapsibleContent ref={collapsibleRef} initialCollapsed={false} messageId={message.id}>
               {isAssistant || syntheticStreaming ? (
                 <div
@@ -1290,9 +1246,6 @@ function MessageBubbleInner({
                     </div>
                   ) : (
                     <StreamingContext.Provider value={isStreaming || syntheticStreaming}>
-                      {/* MemoizedMarkdown skips re-parsing when content/plugins unchanged.
-                            This is the critical guard against Radix flushSync causing
-                            remark/rehype to re-run for every visible assistant message. */}
                       <MemoizedMarkdown
                         remarkPlugins={remarkPlugins}
                         rehypePlugins={rehypePlugins}
@@ -1337,7 +1290,6 @@ function MessageBubbleInner({
           )}
         </AnimatePresence>
 
-        {/* ========== NEW: Retry button for user message (if onRetry provided) ========== */}
         {isUser && onRetry && (
           <div className="text-xs text-muted-foreground mt-1 flex justify-end">
             <button
@@ -1350,7 +1302,6 @@ function MessageBubbleInner({
           </div>
         )}
 
-        {/* ========== NEW: Cancelled badge + retry for assistant message ========== */}
         {isAssistant && message.status === 'cancelled' && (
           <div className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
             <span className="italic">Cancelled</span>
@@ -1382,7 +1333,7 @@ export const MessageBubble = memo(
     if (prev.message.role !== next.message.role) return false
     if (prev.message.metadata !== next.message.metadata) return false
     if (prev.message.context_items !== next.message.context_items) return false
-    if (prev.message.status !== next.message.status) return false // <-- added to handle cancelled
+    if (prev.message.status !== next.message.status) return false
     if (next.isStreaming) return prev.message.content === next.message.content
     return prev.message.content === next.message.content
   }
