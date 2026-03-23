@@ -1,3 +1,4 @@
+// src/components/conversation/message-input.tsx
 /**
  * Message input — auto-growing textarea with draft persistence, slash commands,
  * skill mention (@), file reference (#) entry points, and file attachments.
@@ -11,7 +12,7 @@
 import { open } from '@tauri-apps/plugin-dialog'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { AtSign, Hash, Paperclip, Send, Square, Timer } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
 import { AttachedItemsList } from '@/components/chat/attached-items-list'
@@ -22,7 +23,6 @@ import { SecurityWarningDialog } from '@/components/chat/security-warning-dialog
 import { QueueHeader } from '@/components/conversation/queue/queue-header'
 import { QueueList } from '@/components/conversation/queue/queue-list'
 import { Button } from '@/components/ui/button'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
 import {
   Tooltip,
@@ -144,11 +144,14 @@ export function MessageInput({
   const clearItems = useChatContextStore((s) => s.clearItems)
 
   // ─── Height calculation for textarea ─────────────────────────────────────
-  useEffect(() => {
-    if (textareaRef.current) {
-      const newHeight = Math.min(textareaRef.current.scrollHeight, MAX_HEIGHT)
-      setContentHeight(newHeight)
-    }
+  useLayoutEffect(() => {
+    const el = textareaRef.current
+    if (!el) return
+    // Force reflow by setting to 0px
+    el.style.height = '0px'
+    const newHeight = Math.min(el.scrollHeight, MAX_HEIGHT)
+    el.style.height = `${newHeight}px`
+    setContentHeight(newHeight)
   }, [content])
 
   // ── Draft sync & auto-grow ────────────────────────────────────────────────
@@ -623,29 +626,23 @@ export function MessageInput({
             transition={{ duration: shouldReduceMotion ? 0 : 0.15 }}
             className="overflow-hidden flex-1"
           >
-            <ScrollArea className="h-full">
-              <Textarea
-                ref={textareaRef}
-                value={content}
-                onChange={handleChange}
-                onKeyDown={handleKeyDown}
-                onCompositionStart={() => setIsComposing(true)}
-                onCompositionEnd={() => setIsComposing(false)}
-                placeholder={
-                  isRunning
-                    ? 'Agent is running… (type to queue)'
-                    : 'Type a message… (@ for skills · # for files)'
-                }
-                disabled={false}
-                className={cn(
-                  'w-full resize-none border-0 shadow-none bg-transparent',
-                  'focus-visible:ring-0 text-sm leading-6 py-2 px-1.5 overflow-y-hidden',
-                  'min-h-[36px]'
-                )}
-                style={{ height: '100%' }}
-                rows={1}
-              />
-            </ScrollArea>
+            <Textarea
+              ref={textareaRef}
+              value={content}
+              onChange={handleChange}
+              onKeyDown={handleKeyDown}
+              onCompositionStart={() => setIsComposing(true)}
+              onCompositionEnd={() => setIsComposing(false)}
+              placeholder={
+                isRunning
+                  ? 'Agent is running… (type to queue)'
+                  : 'Type a message… (@ for skills · # for files)'
+              }
+              disabled={false}
+              className="w-full resize-none border-0 shadow-none bg-transparent focus-visible:ring-0 text-sm leading-6 py-2 px-1.5 overflow-y-auto thin-scrollbar min-h-[36px]"
+              style={{ height: '100%' }}
+              rows={1}
+            />
           </motion.div>
 
           {/* Button group with animations */}
