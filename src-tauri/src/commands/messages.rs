@@ -2,10 +2,9 @@
 //! Message Tauri commands.
 
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ConnectionTrait, DbBackend, EntityTrait, QueryFilter,
+    ActiveModelTrait, ActiveValue::Set, ConnectionTrait, DbBackend, EntityTrait, Expr, QueryFilter,
     QueryOrder, Statement,
 };
-use sea_query::Expr;
 use serde::{Deserialize, Serialize};
 use specta::{Type, specta};
 use std::pin::Pin;
@@ -125,6 +124,30 @@ pub async fn list_messages(
         .collect())
 }
 
+/// Mark a single message as seen.
+#[specta]
+#[tauri::command]
+pub async fn mark_message_seen(
+    state: State<'_, Arc<AppState>>,
+    message_id: String,
+) -> Result<(), String> {
+    let db = state
+        .registry
+        .db
+        .connection()
+        .await
+        .map_err(|e| e.to_string())?;
+    let msg_uuid = Uuid::parse_str(&message_id).map_err(|e| e.to_string())?;
+
+    messages::Entity::update_many()
+        .col_expr(messages::Column::Seen, Expr::value(true))
+        .filter(messages::Column::Id.eq(msg_uuid))
+        .exec(db)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 /// Search messages within a conversation using FTS5.
 #[specta]
 #[tauri::command]
@@ -226,6 +249,95 @@ pub async fn search_all_messages(
     Ok(results)
 }
 
+#[specta]
+#[tauri::command]
+pub async fn send_message(
+    state: State<'_, Arc<AppState>>,
+    req: SendMessageRequest,
+    app: tauri::AppHandle,
+) -> Result<(), String> {
+    if state.is_agent_running(&req.conversation_id) {
+        let id = queue::add_queued_message_internal(
+            &state,
+            &req.conversation_id,
+            req.content,
+            req.context_items,
+        )
+        .await?;
+        let _ = app.emit(
+            "queued-message-added",
+            serde_json::json!({
+                "conversation_id": req.conversation_id,
+                "id": id
+            }),
+        );
+        return Ok(());
+    }
+
+    let state_clone = (*state).clone();
+    send_message_internal(
+        state_clone,
+        req.conversation_id,
+        req.content,
+        req.context_items,
+        app,
+        None,
+    )
+    .await
+}
+
+#[specta]
+#[tauri::command]
+pub async fn resolve_tool_approval(
+    state: State<'_, Arc<AppState>>,
+    tool_call_id: String,
+    approved: bool,
+    edited_input: Option<serde_json::Value>,
+) -> Result<(), String> {
+    use skilldeck_core::agent::tool_dispatcher::ApprovalResult;
+
+    let result = if approved {
+        ApprovalResult::Approved { edited_input }
+    } else {
+        ApprovalResult::Denied { reason: None }
+    };
+
+    state
+        .approval_gate
+        .resolve(&tool_call_id, result)
+        .map_err(|e| e.to_string())
+}
+
+#[specta]
+#[tauri::command]
+pub async fn mark_messages_seen(
+    state: State<'_, Arc<AppState>>,
+    conversation_id: String,
+) -> Result<(), String> {
+    let db = state
+        .registry
+        .db
+        .connection()
+        .await
+        .map_err(|e| e.to_string())?;
+    let conv_uuid = Uuid::parse_str(&conversation_id).map_err(|e| e.to_string())?;
+
+    messages::Entity::update_many()
+        .col_expr(messages::Column::Seen, Expr::value(true))
+        .filter(messages::Column::ConversationId.eq(conv_uuid))
+        .exec(db)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[derive(Debug, Deserialize, Type)]
+pub struct SendMessageRequest {
+    pub conversation_id: String,
+    pub content: String,
+    pub context_items: Option<Vec<ContextItem>>,
+}
+
 // =============================================================================
 // Internal send function
 // =============================================================================
@@ -301,97 +413,6 @@ pub(crate) async fn send_message_internal(
 
     Ok(())
 }
-
-#[derive(Debug, Deserialize, Type)]
-pub struct SendMessageRequest {
-    pub conversation_id: String,
-    pub content: String,
-    pub context_items: Option<Vec<ContextItem>>,
-}
-
-#[specta]
-#[tauri::command]
-pub async fn send_message(
-    state: State<'_, Arc<AppState>>,
-    req: SendMessageRequest,
-    app: tauri::AppHandle,
-) -> Result<(), String> {
-    if state.is_agent_running(&req.conversation_id) {
-        let id = queue::add_queued_message_internal(
-            &state,
-            &req.conversation_id,
-            req.content,
-            req.context_items,
-        )
-        .await?;
-        let _ = app.emit(
-            "queued-message-added",
-            serde_json::json!({
-                "conversation_id": req.conversation_id,
-                "id": id
-            }),
-        );
-        return Ok(());
-    }
-
-    let state_clone = (*state).clone();
-    send_message_internal(
-        state_clone,
-        req.conversation_id,
-        req.content,
-        req.context_items,
-        app,
-        None,
-    )
-    .await
-}
-
-#[specta]
-#[tauri::command]
-pub async fn resolve_tool_approval(
-    state: State<'_, Arc<AppState>>,
-    tool_call_id: String,
-    approved: bool,
-    edited_input: Option<serde_json::Value>,
-) -> Result<(), String> {
-    use skilldeck_core::agent::tool_dispatcher::ApprovalResult;
-
-    let result = if approved {
-        ApprovalResult::Approved { edited_input }
-    } else {
-        ApprovalResult::Denied { reason: None }
-    };
-
-    state
-        .approval_gate
-        .resolve(&tool_call_id, result)
-        .map_err(|e| e.to_string())
-}
-
-#[specta]
-#[tauri::command]
-pub async fn mark_messages_seen(
-    state: State<'_, Arc<AppState>>,
-    conversation_id: String,
-) -> Result<(), String> {
-    let db = state
-        .registry
-        .db
-        .connection()
-        .await
-        .map_err(|e| e.to_string())?;
-    let conv_uuid = Uuid::parse_str(&conversation_id).map_err(|e| e.to_string())?;
-
-    messages::Entity::update_many()
-        .col_expr(messages::COLUMN.seen, Expr::value(true))
-        .filter(messages::COLUMN.conversation_id.eq(conv_uuid))
-        .exec(db)
-        .await
-        .map_err(|e| e.to_string())?;
-    Ok(())
-}
-
-// ── Internal helper ───────────────────────────────────────────────────────────
 
 use skilldeck_core::traits::{McpTool, ToolDefinition};
 
