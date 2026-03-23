@@ -37,6 +37,8 @@ interface MessageThreadProps {
   autoScroll?: boolean
   onVisibleUserIndexChange?: (index: number) => void
   onScrollSettled?: (token: ScrollToken) => void
+  /** Called when a message becomes visible (50% in view) */
+  onMessageVisible?: (messageId: string) => void
 }
 
 function distFromBottom(el: HTMLElement): number {
@@ -65,7 +67,8 @@ export const MessageThread = React.forwardRef<
       initialScrollToken,
       autoScroll = true,
       onVisibleUserIndexChange,
-      onScrollSettled
+      onScrollSettled,
+      onMessageVisible,
     },
     ref
   ) => {
@@ -337,6 +340,64 @@ export const MessageThread = React.forwardRef<
       const t = setTimeout(report, 50)
       return () => { clearTimeout(t); el.removeEventListener('scroll', report) }
     }, [filteredMessages, messages, onVisibleUserIndexChange])
+
+    // Intersection Observer for marking messages as seen
+    React.useEffect(() => {
+      const container = scrollRef.current
+      if (!container || !onMessageVisible) return
+
+      const seenMessages = new Set<string>()
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              const messageId = entry.target.getAttribute('data-message-id')
+              if (messageId && !seenMessages.has(messageId)) {
+                seenMessages.add(messageId)
+                onMessageVisible(messageId)
+              }
+            }
+          })
+        },
+        { threshold: 0.5, root: container }
+      )
+
+      // Observe existing messages
+      const elements = container.querySelectorAll('[data-message-id]')
+      elements.forEach((el) => observer.observe(el))
+
+      // MutationObserver to handle dynamically added messages
+      const mutationObserver = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          mutation.addedNodes.forEach((node) => {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+              const el = node as Element
+              const messageId = el.getAttribute('data-message-id')
+              if (messageId) {
+                observer.observe(el)
+                // Check visibility immediately (might be in view due to auto-scroll)
+                const rect = el.getBoundingClientRect()
+                const containerRect = container.getBoundingClientRect()
+                if (rect.top >= containerRect.top && rect.bottom <= containerRect.bottom) {
+                  if (!seenMessages.has(messageId)) {
+                    seenMessages.add(messageId)
+                    onMessageVisible(messageId)
+                  }
+                }
+              }
+            }
+          })
+        })
+      })
+
+      mutationObserver.observe(container, { childList: true, subtree: true })
+
+      return () => {
+        observer.disconnect()
+        mutationObserver.disconnect()
+      }
+    }, [onMessageVisible, scrollRef.current]) // scrollRef.current is stable but we need to re-run when container changes
 
     React.useImperativeHandle(
       ref,
