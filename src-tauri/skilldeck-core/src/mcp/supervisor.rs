@@ -104,6 +104,7 @@ pub enum SupervisorCommand {
 pub fn start_supervisor(
     registry: Arc<McpRegistry>,
     config: SupervisorConfig,
+    app_handle: Option<tauri::AppHandle>,
 ) -> mpsc::Sender<SupervisorCommand> {
     let (tx, mut rx) = mpsc::channel::<SupervisorCommand>(32);
 
@@ -132,6 +133,12 @@ pub fn start_supervisor(
                                         server.name, config.max_attempts
                                     );
                                     registry.mark_failed(server.id);
+                                    if let Some(ref app) = app_handle {
+                                        let _ = app.emit("mcp-event", crate::events::McpEvent::ServerFailed {
+                                            name: server.name,
+                                            message: format!("Max retries ({}) exceeded", config.max_attempts),
+                                        });
+                                    }
                                     continue;
                                 }
 
@@ -155,12 +162,23 @@ pub fn start_supervisor(
                                 match registry.connect(server.id, server_config).await {
                                     Ok(()) => {
                                         info!("Supervisor: '{}' reconnected successfully", server.name);
-                                        if let Some(s) = states.get_mut(&server.id) {
-                                            s.reset(&config);
+                                        if let Some(state) = states.get_mut(&server.id) {
+                                            state.reset(&config);
+                                        }
+                                        if let Some(ref app) = app_handle {
+                                            let _ = app.emit("mcp-event", crate::events::McpEvent::ServerConnected {
+                                                name: server.name,
+                                            });
                                         }
                                     }
                                     Err(e) => {
                                         error!("Supervisor: reconnect of '{}' failed: {}", server.name, e);
+                                        if let Some(ref app) = app_handle {
+                                            let _ = app.emit("mcp-event", crate::events::McpEvent::ServerFailed {
+                                                name: server.name,
+                                                message: e.to_string(),
+                                            });
+                                        }
                                     }
                                 }
                             }
@@ -196,8 +214,23 @@ pub fn start_supervisor(
                                 // Attempt reconnect right now if config is available.
                                 if let Some(server_config) = configs.get(&id).cloned() {
                                     match registry.connect(id, server_config).await {
-                                        Ok(()) => info!("Manual reconnect of '{}' succeeded", server.name),
-                                        Err(e) => error!("Manual reconnect of '{}' failed: {}", server.name, e),
+                                        Ok(()) => {
+                                            info!("Manual reconnect of '{}' succeeded", server.name);
+                                            if let Some(ref app) = app_handle {
+                                                let _ = app.emit("mcp-event", crate::events::McpEvent::ServerConnected {
+                                                    name: server.name,
+                                                });
+                                            }
+                                        }
+                                        Err(e) => {
+                                            error!("Manual reconnect of '{}' failed: {}", server.name, e);
+                                            if let Some(ref app) = app_handle {
+                                                let _ = app.emit("mcp-event", crate::events::McpEvent::ServerFailed {
+                                                    name: server.name,
+                                                    message: e.to_string(),
+                                                });
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -259,7 +292,7 @@ mod tests {
     #[tokio::test]
     async fn stop_command_terminates_supervisor() {
         let registry = Arc::new(McpRegistry::new());
-        let tx = start_supervisor(registry, SupervisorConfig::default());
+        let tx = start_supervisor(registry, SupervisorConfig::default(), None);
         tx.send(SupervisorCommand::Stop).await.unwrap();
         // No panic = success.
     }
@@ -267,7 +300,7 @@ mod tests {
     #[tokio::test]
     async fn register_config_command_accepted() {
         let registry = Arc::new(McpRegistry::new());
-        let tx = start_supervisor(registry, SupervisorConfig::default());
+        let tx = start_supervisor(registry, SupervisorConfig::default(), None);
         let cfg = McpServerConfig {
             transport: "stdio".into(),
             config: serde_json::json!({"command": "echo"}),

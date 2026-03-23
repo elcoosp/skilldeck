@@ -13,7 +13,7 @@ use tracing::{info, warn};
 
 use skilldeck_core::{
     Registry, SeaOrmDatabase,
-    agent::tool_dispatcher::ApprovalGate,
+    agent::{SubagentManager, tool_dispatcher::AutoApproveConfig},
     db::open_db,
     mcp::{
         SseTransport, StdioTransport,
@@ -89,7 +89,7 @@ pub struct AppState {
     /// Core registry: DB connection + provider map + MCP/skill registries.
     pub registry: Arc<Registry>,
     /// Async approval gate: suspends agent tasks awaiting user approval.
-    pub approval_gate: Arc<ApprovalGate>,
+    pub approval_gate: Arc<skilldeck_core::agent::ApprovalGate>,
     /// MCP supervisor command channel (used to register configs and trigger restarts).
     #[allow(dead_code)]
     pub supervisor_tx: tokio::sync::mpsc::Sender<SupervisorCommand>,
@@ -118,6 +118,10 @@ pub struct AppState {
     pub app_handle: tauri::AppHandle,
     /// Per-conversation flag to pause auto-send when editing/dragging/selecting.
     pub auto_send_paused: Arc<DashMap<String, bool>>,
+    /// Global auto-approve configuration (shared by all ToolDispatcher instances).
+    pub global_auto_approve: Arc<RwLock<AutoApproveConfig>>,
+    /// Subagent session manager.
+    pub subagent_manager: Arc<tokio::sync::Mutex<SubagentManager>>,
 }
 
 impl AppState {
@@ -181,12 +185,13 @@ impl AppState {
         info!("Registering Ollama provider (port 11434)");
         registry.register_provider(OllamaProvider::new(11434));
 
-        let approval_gate = Arc::new(ApprovalGate::new());
+        let approval_gate = Arc::new(skilldeck_core::agent::ApprovalGate::new());
 
         // ── Start MCP supervisor ──────────────────────────────────────────────
         let supervisor_tx = start_supervisor(
             Arc::clone(&registry.mcp_registry),
             SupervisorConfig::default(),
+            Some(app.clone()), // pass AppHandle for events
         );
 
         // ── Re-register stored MCP server configs with the supervisor ─────────
@@ -252,6 +257,8 @@ impl AppState {
             subagent_results,
             app_handle: app.clone(),
             auto_send_paused,
+            global_auto_approve: Arc::new(RwLock::new(AutoApproveConfig::default())),
+            subagent_manager: Arc::new(tokio::sync::Mutex::new(SubagentManager::new())),
         };
 
         state.ensure_default_profile().await;

@@ -1,3 +1,4 @@
+// src-tauri/skilldeck-core/src/agent/tool_dispatcher.rs
 //! Tool dispatcher — routes ToolCall events to built-ins, MCP servers, or
 //! through an approval gate for external side-effecting tools.
 //!

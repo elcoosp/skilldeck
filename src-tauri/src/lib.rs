@@ -1,3 +1,4 @@
+// src-tauri/src/lib.rs
 //! Tauri application entry point (library form for testability).
 //!
 //! This module wires together:
