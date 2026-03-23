@@ -14,6 +14,7 @@ use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 use tracing::{error, info, warn};
 
+use crate::events::McpEvent;
 use crate::mcp::registry::{McpRegistry, ServerStatus};
 use crate::traits::McpServerConfig;
 
@@ -101,24 +102,25 @@ pub enum SupervisorCommand {
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /// Spawn the supervisor task and return the command sender.
+///
+/// The `event_emitter` closure is called whenever a server connects, fails,
+/// or disconnects (though disconnect is not automatically emitted; use
+/// `ServerDisconnected` from the Tauri side when disconnecting manually).
 pub fn start_supervisor(
     registry: Arc<McpRegistry>,
     config: SupervisorConfig,
-    app_handle: Option<tauri::AppHandle>,
+    event_emitter: Option<Box<dyn Fn(McpEvent) + Send + Sync>>,
 ) -> mpsc::Sender<SupervisorCommand> {
     let (tx, mut rx) = mpsc::channel::<SupervisorCommand>(32);
 
     tokio::spawn(async move {
         let mut states: HashMap<uuid::Uuid, RestartState> = HashMap::new();
-        // Configs stored by `RegisterConfig` commands so we can reconnect.
         let mut configs: HashMap<uuid::Uuid, McpServerConfig> = HashMap::new();
         let mut tick = tokio::time::interval(config.check_interval);
 
         loop {
             tokio::select! {
                 _ = tick.tick() => {
-                    // Collect ids + statuses first to avoid holding the
-                    // registry lock across the async connect call.
                     let servers = registry.list();
 
                     for server in servers {
@@ -133,9 +135,9 @@ pub fn start_supervisor(
                                         server.name, config.max_attempts
                                     );
                                     registry.mark_failed(server.id);
-                                    if let Some(ref app) = app_handle {
-                                        let _ = app.emit("mcp-event", crate::events::McpEvent::ServerFailed {
-                                            name: server.name,
+                                    if let Some(ref emitter) = event_emitter {
+                                        emitter(McpEvent::ServerFailed {
+                                            name: server.name.clone(),
                                             message: format!("Max retries ({}) exceeded", config.max_attempts),
                                         });
                                     }
@@ -146,7 +148,6 @@ pub fn start_supervisor(
                                     continue;
                                 }
 
-                                // Only attempt if we have the config stored.
                                 let Some(server_config) = configs.get(&server.id).cloned() else {
                                     warn!(
                                         "No config stored for server '{}'; cannot reconnect automatically",
@@ -165,17 +166,15 @@ pub fn start_supervisor(
                                         if let Some(state) = states.get_mut(&server.id) {
                                             state.reset(&config);
                                         }
-                                        if let Some(ref app) = app_handle {
-                                            let _ = app.emit("mcp-event", crate::events::McpEvent::ServerConnected {
-                                                name: server.name,
-                                            });
+                                        if let Some(ref emitter) = event_emitter {
+                                            emitter(McpEvent::ServerConnected { name: server.name.clone() });
                                         }
                                     }
                                     Err(e) => {
                                         error!("Supervisor: reconnect of '{}' failed: {}", server.name, e);
-                                        if let Some(ref app) = app_handle {
-                                            let _ = app.emit("mcp-event", crate::events::McpEvent::ServerFailed {
-                                                name: server.name,
+                                        if let Some(ref emitter) = event_emitter {
+                                            emitter(McpEvent::ServerFailed {
+                                                name: server.name.clone(),
                                                 message: e.to_string(),
                                             });
                                         }
@@ -183,7 +182,6 @@ pub fn start_supervisor(
                                 }
                             }
                             ServerStatus::Connected => {
-                                // Reset backoff on healthy servers.
                                 if let Some(state) = states.get_mut(&server.id) {
                                     state.reset(&config);
                                 }
@@ -206,27 +204,23 @@ pub fn start_supervisor(
                             if let Some(server) = registry.get(id) {
                                 info!("Manual restart requested for '{}'", server.name);
 
-                                // Reset backoff so the next tick retries immediately.
                                 states.entry(id)
                                     .or_insert_with(|| RestartState::new(config.initial_delay))
                                     .reset(&config);
 
-                                // Attempt reconnect right now if config is available.
                                 if let Some(server_config) = configs.get(&id).cloned() {
                                     match registry.connect(id, server_config).await {
                                         Ok(()) => {
                                             info!("Manual reconnect of '{}' succeeded", server.name);
-                                            if let Some(ref app) = app_handle {
-                                                let _ = app.emit("mcp-event", crate::events::McpEvent::ServerConnected {
-                                                    name: server.name,
-                                                });
+                                            if let Some(ref emitter) = event_emitter {
+                                                emitter(McpEvent::ServerConnected { name: server.name.clone() });
                                             }
                                         }
                                         Err(e) => {
                                             error!("Manual reconnect of '{}' failed: {}", server.name, e);
-                                            if let Some(ref app) = app_handle {
-                                                let _ = app.emit("mcp-event", crate::events::McpEvent::ServerFailed {
-                                                    name: server.name,
+                                            if let Some(ref emitter) = event_emitter {
+                                                emitter(McpEvent::ServerFailed {
+                                                    name: server.name.clone(),
                                                     message: e.to_string(),
                                                 });
                                             }
@@ -252,6 +246,7 @@ pub fn start_supervisor(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::mcp::McpRegistry;
 
     #[test]
     fn restart_state_exponential_backoff() {

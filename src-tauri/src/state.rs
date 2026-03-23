@@ -33,6 +33,9 @@ use adk_rust::server::a2a::A2aClient;
 // Import the SkillEventEmitter trait
 use skilldeck_core::traits::SkillEventEmitter;
 
+// Import core event types
+use skilldeck_core::events::McpEvent as CoreMcpEvent;
+
 const KEYRING_SERVICE: &str = "skilldeck";
 
 /// Reload persisted MCP servers from the database into the registry.
@@ -187,11 +190,31 @@ impl AppState {
 
         let approval_gate = Arc::new(skilldeck_core::agent::ApprovalGate::new());
 
-        // ── Start MCP supervisor ──────────────────────────────────────────────
+        // ── Start MCP supervisor with event emitter ────────────────────────────
+        let app_handle = app.clone();
+        let event_emitter = move |event: CoreMcpEvent| {
+            use crate::events::McpEvent;
+            let tauri_event = match event {
+                CoreMcpEvent::ServerConnected { name } => McpEvent::ServerConnected { name },
+                CoreMcpEvent::ServerDisconnected { name } => McpEvent::ServerDisconnected { name },
+                CoreMcpEvent::ServerFailed { name, message } => {
+                    McpEvent::ServerFailed { name, message }
+                }
+                CoreMcpEvent::ToolDiscovered { server, tool } => McpEvent::ToolDiscovered {
+                    server,
+                    tool: crate::events::McpToolInfo {
+                        name: tool.name,
+                        description: tool.description,
+                    },
+                },
+            };
+            let _ = app_handle.emit("mcp-event", tauri_event);
+        };
+
         let supervisor_tx = start_supervisor(
             Arc::clone(&registry.mcp_registry),
             SupervisorConfig::default(),
-            Some(app.clone()), // pass AppHandle for events
+            Some(Box::new(event_emitter)),
         );
 
         // ── Re-register stored MCP server configs with the supervisor ─────────

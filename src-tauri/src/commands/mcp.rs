@@ -289,7 +289,12 @@ async fn connect_server_by_id(
     match &result {
         Ok(()) => {
             if let Some(server) = registry.get(id) {
-                let _ = app.emit("mcp-event", McpEvent::ServerConnected { name: server.name });
+                let _ = app.emit(
+                    "mcp-event",
+                    McpEvent::ServerConnected {
+                        name: server.name.clone(),
+                    },
+                );
                 // Emit tool discovered events for each tool
                 for tool in &server.tools {
                     let _ = app.emit(
