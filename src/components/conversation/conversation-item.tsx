@@ -1,14 +1,4 @@
 // src/components/conversation/conversation-item.tsx
-/**
- * Sidebar conversation list item with inline rename, context menu, pin toggle,
- * workspace badge, profile badge, and per-item drag-and-drop file attachment.
- *
- * Per-item drop works by reading the position from the GlobalDropZone's
- * Tauri drag-drop event and checking whether it lands over this element's
- * bounding rect.  We expose a custom event `skilldeck:drag-drop` that
- * GlobalDropZone dispatches so individual items can react without each
- * needing their own Tauri listener.
- */
 
 import { formatDistanceToNow } from 'date-fns'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -52,12 +42,14 @@ interface ConversationItemProps {
   showProfileBadge?: boolean
 }
 
-// Custom event dispatched by GlobalDropZone so each item can react.
 export interface SkilldeckDragDropDetail {
   type: 'enter' | 'over' | 'drop' | 'leave'
   paths: string[]
   position: { x: number; y: number }
 }
+
+// Global ref to track which conversation is currently being dragged over
+let currentDragTargetId: string | null = null
 
 export function ConversationItem({
   conversation,
@@ -82,38 +74,80 @@ export function ConversationItem({
   const pinMutation = usePinConversation()
   const unpinMutation = useUnpinConversation()
 
-  // ── Per-item Tauri drag-drop via custom event from GlobalDropZone ──────────
+  // ── Native drag events for visual feedback ─────────────────────────────
   useEffect(() => {
     const el = containerRef.current
-    if (!el) return
+    if (!el) {
+      console.log(`[ConvItem ${conversation.id}] ref not ready yet`)
+      return
+    }
 
-    const onDragDrop = (e: Event) => {
-      const { type, paths, position } = (e as CustomEvent<SkilldeckDragDropDetail>).detail
-      const rect = el.getBoundingClientRect()
-      const isOver =
-        position.x >= rect.left &&
-        position.x <= rect.right &&
-        position.y >= rect.top &&
-        position.y <= rect.bottom
+    console.log(`[ConvItem ${conversation.id}] setting up drag listeners`)
 
-      if (type === 'leave') {
-        setIsDragTarget(false)
-        return
-      }
-
-      if (!isOver) {
-        if (isDragTarget) setIsDragTarget(false)
-        return
-      }
-
-      if (type === 'enter' || type === 'over') {
+    const handleDragEnter = (e: DragEvent) => {
+      console.log(`[ConvItem ${conversation.id}] dragenter`, e.dataTransfer?.types)
+      e.preventDefault()
+      if (e.dataTransfer?.types.includes('Files')) {
+        currentDragTargetId = conversation.id
         setIsDragTarget(true)
-        return
+        console.log(`[ConvItem ${conversation.id}] isDragTarget set to true`)
       }
+    }
 
-      if (type === 'drop') {
+    const handleDragOver = (e: DragEvent) => {
+      e.preventDefault()
+      if (currentDragTargetId === conversation.id && !isDragTarget) {
+        setIsDragTarget(true)
+        console.log(`[ConvItem ${conversation.id}] dragover: re-applied highlight`)
+      }
+    }
+
+    const handleDragLeave = (e: DragEvent) => {
+      console.log(`[ConvItem ${conversation.id}] dragleave`, e.relatedTarget)
+      if (!el.contains(e.relatedTarget as Node)) {
+        if (currentDragTargetId === conversation.id) {
+          currentDragTargetId = null
+        }
         setIsDragTarget(false)
+        console.log(`[ConvItem ${conversation.id}] isDragTarget set to false`)
+      }
+    }
+
+    const handleDrop = (e: DragEvent) => {
+      e.preventDefault()
+      console.log(`[ConvItem ${conversation.id}] drop (native)`)
+      setIsDragTarget(false)
+      if (currentDragTargetId === conversation.id) {
+        currentDragTargetId = null
+      }
+    }
+
+    el.addEventListener('dragenter', handleDragEnter)
+    el.addEventListener('dragover', handleDragOver)
+    el.addEventListener('dragleave', handleDragLeave)
+    el.addEventListener('drop', handleDrop)
+
+    return () => {
+      el.removeEventListener('dragenter', handleDragEnter)
+      el.removeEventListener('dragover', handleDragOver)
+      el.removeEventListener('dragleave', handleDragLeave)
+      el.removeEventListener('drop', handleDrop)
+    }
+  }, [conversation.id, isDragTarget])
+
+  // ── Tauri drop event listener ─────────────────────────────────────────
+  useEffect(() => {
+    const onDragDrop = (e: Event) => {
+      const { type, paths } = (e as CustomEvent<SkilldeckDragDropDetail>).detail
+      console.log(`[ConvItem ${conversation.id}] Tauri event:`, type)
+
+      if (type !== 'drop') return
+
+      if (currentDragTargetId === conversation.id) {
+        currentDragTargetId = null
+        console.log(`[ConvItem ${conversation.id}] handling drop with paths:`, paths)
         if (paths.length === 0) return
+
         commands
           .attachFilesToConversation(conversation.id, paths)
           .then((res) => {
@@ -125,12 +159,13 @@ export function ConversationItem({
               )
             }
           })
+          .catch(() => toast.error('Failed to attach files'))
       }
     }
 
     window.addEventListener('skilldeck:drag-drop', onDragDrop)
     return () => window.removeEventListener('skilldeck:drag-drop', onDragDrop)
-  }, [conversation.id, conversation.title, isDragTarget])
+  }, [conversation.id, conversation.title])
 
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -218,7 +253,7 @@ export function ConversationItem({
           ? 'bg-primary/10 text-foreground'
           : 'hover:bg-muted/70 text-muted-foreground hover:text-foreground',
         isDeleting && 'pointer-events-none opacity-50',
-        // Highlight when this item is the drop target
+        // Visual feedback when dragging over this conversation
         isDragTarget && 'ring-2 ring-primary ring-inset'
       )}
     >
@@ -226,7 +261,7 @@ export function ConversationItem({
       <div className="flex-1 min-w-0 relative z-10">
         {/* Title row */}
         <div className="flex items-center gap-1 h-5">
-          <AnimatePresence mode="wait">
+          <AnimatePresence mode="wait" initial={false}>
             {isRenaming ? (
               <motion.div
                 key="input"
@@ -244,8 +279,14 @@ export function ConversationItem({
                   onChange={(e) => setDraft(e.target.value)}
                   onBlur={commitRename}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') { e.preventDefault(); commitRename() }
-                    if (e.key === 'Escape') { e.preventDefault(); cancelRename() }
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      commitRename()
+                    }
+                    if (e.key === 'Escape') {
+                      e.preventDefault()
+                      cancelRename()
+                    }
                   }}
                   disabled={renameMutation.isPending || isDeleting}
                   className="w-full h-full text-xs bg-transparent border-b border-primary outline-none px-0 leading-none box-border"
