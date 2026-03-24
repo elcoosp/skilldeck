@@ -353,7 +353,7 @@ export function CenterPanel() {
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
           <Input
             ref={searchInputRef}
-            placeholder="Search in this conversation…"
+            placeholder="Search…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-8 pr-16 h-8 text-sm"
