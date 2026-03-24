@@ -1,7 +1,8 @@
 //! SeaORM models for the platform's skills registry tables.
 
+use crate::skills::metadata::SkillMetadata;
 use sea_orm::entity::prelude::*;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize}; // <-- added
 
 // ── Skill entity ──────────────────────────────────────────────────────────────
 
@@ -31,6 +32,7 @@ pub struct Model {
     pub last_linted_at: Option<DateTimeWithTimeZone>,
     pub created_at: DateTimeWithTimeZone,
     pub updated_at: DateTimeWithTimeZone,
+    pub metadata: Option<SkillMetadata>, // <-- added
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
