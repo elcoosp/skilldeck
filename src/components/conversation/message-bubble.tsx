@@ -1,127 +1,5 @@
 // src/components/conversation/message-bubble.tsx
-// (Full file with retry, cancelled badge, and enhanced CodePre with filename/language header)
-
-// ─── DEBUG INSTRUMENTATION ────────────────────────────────────────────────────
-const DEBUG = true
-
-// ── Render counters ───────────────────────────────────────────────────────────
-const renderCounts = new Map<string, number>()
-function getRenderCount(key: string) {
-  const n = (renderCounts.get(key) ?? 0) + 1
-  renderCounts.set(key, n)
-  return n
-}
-
-// ── Why-render tracker ────────────────────────────────────────────────────────
-function dbgWhyRender(
-  component: string,
-  instanceId: string,
-  current: Record<string, unknown>,
-  prevRef: React.MutableRefObject<Record<string, unknown> | null>
-) {
-  if (!DEBUG) return
-  const id8 = instanceId.slice(0, 8)
-  const n = getRenderCount(`${component}::${instanceId}`)
-  const prev = prevRef.current
-  if (!prev) {
-    console.log(`[MB:${component}] [${id8}] #${n} MOUNT`)
-    prevRef.current = current
-    return
-  }
-  const changed: Record<string, { from: unknown; to: unknown }> = {}
-  for (const k of Object.keys(current)) {
-    if (prev[k] !== current[k]) changed[k] = { from: prev[k], to: current[k] }
-  }
-  if (Object.keys(changed).length === 0) {
-    console.warn(`[MB:${component}] [${id8}] #${n} RE-RENDER — NO prop changes (context/state)`)
-  } else {
-    console.log(`[MB:${component}] [${id8}] #${n} RE-RENDER`, changed)
-  }
-  prevRef.current = current
-}
-
-// ── performance.mark helpers ──────────────────────────────────────────────────
-function mark(name: string) { if (DEBUG) performance.mark(name) }
-function measure(name: string, start: string, end: string) {
-  if (!DEBUG) return
-  try {
-    const m = performance.measure(name, start, end)
-    const flag = m.duration > 16 ? '🔴' : m.duration > 4 ? '🟡' : '🟢'
-    console.log(`[MB:PERF] ${flag} ${name}: ${m.duration.toFixed(2)}ms`)
-  } catch { /* marks missing */ }
-}
-
-// ── Frame-time probe ──────────────────────────────────────────────────────────
-function dbgMeasureToFrame(label: string) {
-  if (!DEBUG) return
-  const t0 = performance.now()
-  requestAnimationFrame(() => {
-    const delta = performance.now() - t0
-    const flag = delta > 16 ? '🔴 JANK' : delta > 8 ? '🟡 SLOW' : '🟢 OK'
-    console.log(`[MB:PERF] ${flag} "${label}" → next frame in ${delta.toFixed(1)}ms`)
-  })
-}
-
-// ── Zustand selector call counter ─────────────────────────────────────────────
-let _selectorCallsThisTick = 0
-let _selectorTickScheduled = false
-function trackSelectorCall(label: string) {
-  if (!DEBUG) return
-  _selectorCallsThisTick++
-  if (!_selectorTickScheduled) {
-    _selectorTickScheduled = true
-    queueMicrotask(() => {
-      console.log(`[MB:PERF] Zustand selectors this tick: ${_selectorCallsThisTick} (last: "${label}")`)
-      _selectorCallsThisTick = 0
-      _selectorTickScheduled = false
-    })
-  }
-}
-
-// ── React render batch counter ────────────────────────────────────────────────
-let _renderCallsThisBatch = 0
-let _renderBatchScheduled = false
-function trackRender(_component: string, _id: string) {
-  if (!DEBUG) return
-  _renderCallsThisBatch++
-  if (!_renderBatchScheduled) {
-    _renderBatchScheduled = true
-    requestAnimationFrame(() => {
-      console.log(`[MB:PERF] React rendered ${_renderCallsThisBatch} components in last batch`)
-      _renderCallsThisBatch = 0
-      _renderBatchScheduled = false
-    })
-  }
-}
-
-// ── Long-task observer ────────────────────────────────────────────────────────
-// Every task >50ms gets logged with its start time. Cross-reference the
-// startTime against when onOpenChange fires to isolate which long task
-// is responsible for the 1778ms block.
-if (DEBUG && typeof PerformanceObserver !== 'undefined') {
-  try {
-    const _ltObs = new PerformanceObserver((list) => {
-      for (const entry of list.getEntries()) {
-        const attr = (entry as any).attribution
-        const attrStr = attr
-          ? attr.map((a: any) =>
-            [a.containerType, a.containerName, a.name].filter(Boolean).join('/')
-          ).join(', ')
-          : 'n/a'
-        console.warn(
-          `[MB:LONGTASK] 🔴 ${entry.duration.toFixed(0)}ms @ t+${entry.startTime.toFixed(0)}ms | ${attrStr}`
-        )
-      }
-    })
-    _ltObs.observe({ type: 'longtask', buffered: true })
-    console.log('[MB:PERF] LongTask observer active (reports tasks >50ms)')
-  } catch { /* longtask not supported in this environment */ }
-}
-
-// ── onOpenChange timestamp anchor ─────────────────────────────────────────────
-// We can't mark the click reliably (Radix swallows it), so instead we mark
-// onOpenChange and use the LongTask startTimes to see what ran before/after.
-let _openChangeTime = 0
+// (Full file with retry, cancelled badge, enhanced CodePre, and tool result support)
 
 import rehypeShiki from '@shikijs/rehype'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -150,9 +28,10 @@ import { toast } from 'sonner'
 import { ContextChip } from '@/components/chat/context-chip'
 import type { MessageData } from '@/lib/bindings'
 import { rehypeLinkifyCodeUrls } from '@/lib/rehype-linkify-code'
-import { rehypeCodeMeta } from '@/lib/rehype-code-meta'           // <-- NEW
+import { rehypeCodeMeta } from '@/lib/rehype-code-meta'
 import { cn, highlightText } from '@/lib/utils'
 import { SubagentCard } from './subagent-card'
+import { ToolResultBubble } from './tool-result-bubble' // <-- NEW import
 import { openUrl } from '@tauri-apps/plugin-opener'
 import {
   DropdownMenu,
@@ -174,7 +53,7 @@ interface MessageBubbleProps {
   searchQuery?: string
   searchCaseSensitive?: boolean
   searchRegex?: boolean
-  onRetry?: () => void // <-- NEW: retry handler
+  onRetry?: () => void
 }
 
 // ─── Lazy Shiki highlighter singleton ─────────────────────────────────────────
@@ -191,7 +70,7 @@ const getHighlighter = () => {
 
 // ─── Stable plugin arrays (module-level, never recreated) ─────────────────────
 const remarkPlugins = [remarkGfm]
-const rehypePluginsBase = [rehypeLinkifyCodeUrls, rehypeSlug, rehypeCodeMeta] // <-- ADDED
+const rehypePluginsBase = [rehypeLinkifyCodeUrls, rehypeSlug, rehypeCodeMeta]
 
 // ─── Streaming context for code block auto‑scroll ──────────────────────────
 const StreamingContext = React.createContext<boolean>(false)
@@ -445,16 +324,6 @@ const AssistantMessageActions = memo(function AssistantMessageActions({
   onCopy: () => void
   onDownload: () => void
 }) {
-  // Track every render of this component
-  trackRender('Actions', message.id)
-  const prevValuesRef = useRef<Record<string, unknown> | null>(null)
-  dbgWhyRender('Actions', message.id, {
-    messageId: message.id,
-    conversationId,
-    onCopyRef: onCopy,
-    onDownloadRef: onDownload,
-  }, prevValuesRef)
-
   const selectorFn = useCallback(
     (s: any) => {
       if (!conversationId) return false
@@ -465,48 +334,20 @@ const AssistantMessageActions = memo(function AssistantMessageActions({
     [conversationId, message.id]
   )
 
-  const isBookmarked = useBookmarksStore((s) => {
-    const result = selectorFn(s)
-    trackSelectorCall(`Actions[${message.id.slice(0, 8)}] isBookmarked`)
-    return result
-  })
+  const isBookmarked = useBookmarksStore(selectorFn)
 
   const onBookmark = useCallback(() => {
     if (!conversationId) return
     useBookmarksStore.getState().toggleBookmark(conversationId, message.id, undefined, 'Message')
   }, [conversationId, message.id])
 
-  const handleOpenChange = useCallback((open: boolean) => {
-    if (!DEBUG) return
-    if (open) {
-      _openChangeTime = performance.now()
-      mark('dropdown:onOpenChange:open')
-      console.log(
-        `[MB:Actions] [${message.id.slice(0, 8)}] onOpenChange → true`,
-        `| t=${_openChangeTime.toFixed(0)}ms`,
-        `| any LONGTASK with startTime ≥ this = Radix cost`
-      )
-      dbgMeasureToFrame('onOpenChange(true) → paint')
-    } else {
-      mark('dropdown:onOpenChange:close')
-      dbgMeasureToFrame('onOpenChange(false) → paint')
-      console.log(`[MB:Actions] [${message.id.slice(0, 8)}] onOpenChange → false`)
-    }
-  }, [message.id])
-
   return (
-    <DropdownMenu onOpenChange={handleOpenChange} modal={false}>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <button
           type="button"
           className="p-0.5 hover:bg-muted-foreground/20 rounded transition-colors"
           aria-label="Message options"
-          onClick={() => {
-            if (!DEBUG) return
-            mark('dropdown:click')
-            dbgMeasureToFrame('click → paint (total blocked time)')
-            console.log(`[MB:Actions] [${message.id.slice(0, 8)}] trigger clicked`)
-          }}
         >
           <MoreHorizontal className="size-3.5" />
         </button>
@@ -564,23 +405,15 @@ const HeadingBookmarkButton = memo(function HeadingBookmarkButton({
   headingLabel: string
   conversationId: string | null
 }) {
-  trackRender('HeadingBtn', `${messageId}::${headingAnchor}`)
-  const prevValuesRef = useRef<Record<string, unknown> | null>(null)
-  dbgWhyRender('HeadingBtn', `${messageId}::${headingAnchor}`, {
-    messageId, headingAnchor, headingLabel, conversationId,
-  }, prevValuesRef)
-
   const isBookmarked = useBookmarksStore(
     useCallback(
       (s) => {
         if (!conversationId) return false
         const convBookmarks = s.bookmarks[conversationId]
         if (!convBookmarks || !Array.isArray(convBookmarks)) return false
-        const result = convBookmarks.some(
+        return convBookmarks.some(
           (b) => b.message_id === messageId && b.heading_anchor === headingAnchor
         )
-        trackSelectorCall(`HeadingBtn[${headingAnchor}]`)
-        return result
       },
       [conversationId, messageId, headingAnchor]
     )
@@ -732,11 +565,6 @@ function useMarkdownComponents(
   )
 
   return useMemo(() => {
-    if (DEBUG) console.log(`[MB:useMarkdownComponents] [${messageId.slice(0, 8)}] recomputing — deps changed`, {
-      messageId, activeConversationId,
-      scrollContainerRef: scrollContainer,
-      headingIndexRef,
-    })
     const makeHeading = (level: number) =>
       ({ children, node, ...props }: any) => {
         const idx = headingIndexRef.current++
@@ -833,7 +661,6 @@ const CollapsibleContent = React.forwardRef<
       el.style.transition = 'max-height 0.18s ease, opacity 0.18s ease'
       el.style.maxHeight = '0px'
       el.style.opacity = '0'
-      if (DEBUG) console.log(`[MB:Collapse] [${messageId.slice(0, 8)}] collapsing from ${currentHeight}px`)
     },
     expand() {
       const el = outerRef.current
@@ -844,11 +671,9 @@ const CollapsibleContent = React.forwardRef<
         if (!outerRef.current) return
         const targetHeight = outerRef.current.scrollHeight
         if (targetHeight === 0) {
-          if (DEBUG) console.log(`[MB:Collapse] [${messageId.slice(0, 8)}] scrollHeight=0, retrying...`)
           requestAnimationFrame(doExpand)
           return
         }
-        if (DEBUG) console.log(`[MB:Collapse] [${messageId.slice(0, 8)}] expanding to ${targetHeight}px`)
         const el2 = outerRef.current
         el2.style.transition = 'max-height 0.18s ease, opacity 0.18s ease'
         el2.style.maxHeight = `${targetHeight}px`
@@ -897,14 +722,7 @@ function MessageBubbleInner({
   const contentRef = useRef<HTMLDivElement>(null)
   const [highlighter, setHighlighter] = useState<Highlighter | null>(null)
 
-  const renderMarkStart = `bubble-render:${message.id}:start`
-  mark(renderMarkStart)
-  trackRender('Bubble', message.id)
-
-  const activeConversationId = useUIStore((s) => {
-    trackSelectorCall(`Bubble[${message.id.slice(0, 8)}] UIStore`)
-    return s.activeConversationId
-  })
+  const activeConversationId = useUIStore((s) => s.activeConversationId)
   const scrollContainer = useContext(ScrollContainerContext)
 
   const isBookmarked = useBookmarksStore(
@@ -913,29 +731,11 @@ function MessageBubbleInner({
         if (!activeConversationId) return false
         const convBookmarks = s.bookmarks[activeConversationId]
         if (!convBookmarks || !Array.isArray(convBookmarks)) return false
-        const result = convBookmarks.some((b) => b.message_id === message.id)
-        trackSelectorCall(`Bubble[${message.id.slice(0, 8)}] isBookmarked`)
-        return result
+        return convBookmarks.some((b) => b.message_id === message.id)
       },
       [activeConversationId, message.id]
     )
   )
-
-  const prevBubbleValuesRef = useRef<Record<string, unknown> | null>(null)
-  dbgWhyRender('Bubble', message.id, {
-    messageId: message.id,
-    role: message.role,
-    contentLength: message.content?.length ?? 0,
-    metadata: message.metadata,
-    isStreaming,
-    isHighlighted,
-    searchQuery,
-    searchCaseSensitive,
-    searchRegex,
-    activeConversationId,
-    isBookmarked,
-    scrollContainerRef: scrollContainer,
-  }, prevBubbleValuesRef)
 
   useEffect(() => {
     getHighlighter().then(setHighlighter)
@@ -1037,6 +837,7 @@ function MessageBubbleInner({
 
     return clearMarks
   }, [searchQuery, searchCaseSensitive, searchRegex, message.content, isUser])
+
   const showShimmer = (isAssistant || syntheticStreaming) && isStreaming && !message.content
 
   const isQueued = useMemo(() => {
@@ -1071,19 +872,6 @@ function MessageBubbleInner({
     }
   }, [message.id, message.content])
 
-  const prevCopyRef = useRef<Function | null>(null)
-  const prevDownloadRef = useRef<Function | null>(null)
-  if (DEBUG) {
-    if (prevCopyRef.current && prevCopyRef.current !== copyMessage) {
-      console.warn(`[MB:Bubble] [${message.id.slice(0, 8)}] copyMessage identity changed — AssistantMessageActions will re-render. Dep: message.content length=${message.content.length}`)
-    }
-    if (prevDownloadRef.current && prevDownloadRef.current !== downloadMessage) {
-      console.warn(`[MB:Bubble] [${message.id.slice(0, 8)}] downloadMessage identity changed — AssistantMessageActions will re-render. Deps: id=${message.id} contentLen=${message.content.length}`)
-    }
-    prevCopyRef.current = copyMessage
-    prevDownloadRef.current = downloadMessage
-  }
-
   const collapsibleRef = useRef<CollapsibleHandle>(null)
   const collapsedStateRef = useRef(false)
   const [, forceUpdate] = useState(0)
@@ -1101,12 +889,7 @@ function MessageBubbleInner({
       collapsedStateRef.current = true
     }
     forceUpdate(n => n + 1)
-    if (DEBUG) {
-      const newState = collapsedStateRef.current
-      console.log(`[MB:Collapse] [${message.id.slice(0, 8)}] toggle → collapsed=${newState}`)
-      dbgMeasureToFrame(`${newState ? 'collapse' : 'expand'} animate → paint`)
-    }
-  }, [message.id])
+  }, [])
 
   let subagentData: any = null
   if (isAssistant && !isStreaming && message.content) {
@@ -1116,13 +899,35 @@ function MessageBubbleInner({
     return <SubagentCard stepName={subagentData.task || 'Subagent'} status="running" onOpen={() => { }} />
   }
 
-  if (DEBUG) {
-    const renderMarkEnd = `bubble-render:${message.id}:end`
-    mark(renderMarkEnd)
-    measure(
-      `⚛️ Bubble[${message.id.slice(0, 8)}] render (sync JS)`,
-      `bubble-render:${message.id}:start`,
-      renderMarkEnd
+  // ─── TOOL MESSAGE HANDLING ──────────────────────────────────────────────────
+  if (isTool) {
+    // Parse the raw content (Anthropic tool result format)
+    const parseToolContent = (raw: string): { blocks: Array<{ type: string; text: string }>; isError: boolean } => {
+      try {
+        const parsed = JSON.parse(raw)
+        return {
+          blocks: parsed.content ?? [{ type: 'text', text: raw }],
+          isError: parsed.is_error ?? false,
+        }
+      } catch {
+        return { blocks: [{ type: 'text', text: raw }], isError: false }
+      }
+    }
+
+    const { blocks, isError } = parseToolContent(message.content)
+    // Combine all text blocks into a single string for the bubble content
+    const combinedText = blocks.map(b => b.text).join('\n\n')
+    const toolName = (message.metadata as any)?.tool_name as string | undefined
+
+    // Add left margin to align with avatar + gap (size-7 = 28px + gap-3 = 12px → 40px)
+    return (
+      <div className="ml-10">
+        <ToolResultBubble
+          content={combinedText}
+          toolName={toolName}
+          isError={isError}
+        />
+      </div>
     )
   }
 
