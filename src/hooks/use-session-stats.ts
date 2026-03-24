@@ -4,7 +4,7 @@
  * Accumulates input/output tokens from AgentEvent::Done events.
  */
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { onAgentEvent, AgentEvent } from '@/lib/events'
 import type { UUID } from '@/lib/types'
 
@@ -14,17 +14,25 @@ export interface SessionStats {
 }
 
 export function useSessionStats(conversationId: UUID | null): SessionStats {
-  const statsRef = useRef<SessionStats>({ inputTokens: 0, outputTokens: 0 })
+  const [stats, setStats] = useState<SessionStats>({
+    inputTokens: 0,
+    outputTokens: 0
+  })
 
   useEffect(() => {
-    if (!conversationId) return
+    if (!conversationId) {
+      setStats({ inputTokens: 0, outputTokens: 0 })
+      return
+    }
 
     let unlisten: (() => void) | null = null
 
     const handleEvent = (event: AgentEvent) => {
       if (event.conversation_id === conversationId && event.type === 'done') {
-        statsRef.current.inputTokens += event.input_tokens ?? 0
-        statsRef.current.outputTokens += event.output_tokens ?? 0
+        setStats((prev) => ({
+          inputTokens: prev.inputTokens + (event.input_tokens ?? 0),
+          outputTokens: prev.outputTokens + (event.output_tokens ?? 0)
+        }))
       }
     }
 
@@ -34,9 +42,9 @@ export function useSessionStats(conversationId: UUID | null): SessionStats {
 
     return () => {
       unlisten?.()
-      // Reset stats when conversation changes? We keep accumulating per session.
+      setStats({ inputTokens: 0, outputTokens: 0 }) // reset on unmount or conversation change
     }
   }, [conversationId])
 
-  return statsRef.current
+  return stats
 }
