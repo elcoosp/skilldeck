@@ -1,6 +1,8 @@
-//! Initial platform schema.
+//! Initial schema for SkillDeck Platform.
 //!
-//! Creates all tables for the Core, Preferences, and Growth domains.
+//! Creates all tables: users, api_keys, user_preferences, referral_codes,
+//! referral_signups, activity_events, nudge_templates, pending_nudges,
+//! skills, skill_sources, feedback, feedback_comments.
 
 use sea_orm_migration::prelude::*;
 
@@ -15,7 +17,6 @@ impl MigrationTrait for Migration {
             .create_table(
                 Table::create()
                     .table(Users::Table)
-                    .if_not_exists()
                     .col(ColumnDef::new(Users::Id).uuid().not_null().primary_key())
                     .col(
                         ColumnDef::new(Users::CreatedAt)
@@ -32,7 +33,6 @@ impl MigrationTrait for Migration {
             .create_table(
                 Table::create()
                     .table(ApiKeys::Table)
-                    .if_not_exists()
                     .col(ColumnDef::new(ApiKeys::Id).uuid().not_null().primary_key())
                     .col(ColumnDef::new(ApiKeys::UserId).uuid().not_null())
                     .col(ColumnDef::new(ApiKeys::KeyHash).string().not_null())
@@ -57,7 +57,6 @@ impl MigrationTrait for Migration {
             .create_table(
                 Table::create()
                     .table(UserPreferences::Table)
-                    .if_not_exists()
                     .col(
                         ColumnDef::new(UserPreferences::UserId)
                             .uuid()
@@ -86,7 +85,7 @@ impl MigrationTrait for Migration {
                     )
                     .col(
                         ColumnDef::new(UserPreferences::NotificationChannels)
-                            .json()
+                            .json_binary()
                             .not_null()
                             .default(r#"["in-app"]"#),
                     )
@@ -129,7 +128,6 @@ impl MigrationTrait for Migration {
             .create_table(
                 Table::create()
                     .table(ReferralCodes::Table)
-                    .if_not_exists()
                     .col(
                         ColumnDef::new(ReferralCodes::Id)
                             .uuid()
@@ -176,7 +174,6 @@ impl MigrationTrait for Migration {
             .create_table(
                 Table::create()
                     .table(ReferralSignups::Table)
-                    .if_not_exists()
                     .col(
                         ColumnDef::new(ReferralSignups::Id)
                             .uuid()
@@ -208,7 +205,6 @@ impl MigrationTrait for Migration {
             .create_table(
                 Table::create()
                     .table(ActivityEvents::Table)
-                    .if_not_exists()
                     .col(
                         ColumnDef::new(ActivityEvents::Id)
                             .uuid()
@@ -223,7 +219,7 @@ impl MigrationTrait for Migration {
                     )
                     .col(
                         ColumnDef::new(ActivityEvents::Metadata)
-                            .json()
+                            .json_binary()
                             .not_null()
                             .default("{}"),
                     )
@@ -248,7 +244,6 @@ impl MigrationTrait for Migration {
             .create_table(
                 Table::create()
                     .table(NudgeTemplates::Table)
-                    .if_not_exists()
                     .col(
                         ColumnDef::new(NudgeTemplates::Id)
                             .uuid()
@@ -281,7 +276,6 @@ impl MigrationTrait for Migration {
             .create_table(
                 Table::create()
                     .table(PendingNudges::Table)
-                    .if_not_exists()
                     .col(
                         ColumnDef::new(PendingNudges::Id)
                             .uuid()
@@ -309,11 +303,166 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
+        // ── Skills: skills table ─────────────────────────────────────────────
+        manager
+            .create_table(
+                Table::create()
+                    .table(Skills::Table)
+                    .col(ColumnDef::new(Skills::Id).uuid().not_null().primary_key())
+                    .col(ColumnDef::new(Skills::Name).string().not_null())
+                    .col(ColumnDef::new(Skills::Description).text().not_null())
+                    .col(ColumnDef::new(Skills::Source).string().not_null())
+                    .col(ColumnDef::new(Skills::SourceUrl).string())
+                    .col(ColumnDef::new(Skills::Version).string())
+                    .col(ColumnDef::new(Skills::Author).string())
+                    .col(ColumnDef::new(Skills::License).string())
+                    .col(ColumnDef::new(Skills::Compatibility).text())
+                    .col(ColumnDef::new(Skills::AllowedTools).text())
+                    .col(ColumnDef::new(Skills::ContentHash).string().not_null())
+                    .col(ColumnDef::new(Skills::Content).text().not_null())
+                    .col(ColumnDef::new(Skills::LintWarnings).json_binary())
+                    .col(ColumnDef::new(Skills::Tags).json_binary())
+                    .col(ColumnDef::new(Skills::Category).string())
+                    .col(ColumnDef::new(Skills::Embedding).blob())
+                    .col(ColumnDef::new(Skills::SecurityScore).integer().default(5))
+                    .col(ColumnDef::new(Skills::QualityScore).integer().default(5))
+                    .col(
+                        ColumnDef::new(Skills::MetadataSource)
+                            .string()
+                            .default("author"),
+                    )
+                    .col(ColumnDef::new(Skills::LastLintedAt).timestamp_with_time_zone())
+                    .col(ColumnDef::new(Skills::Metadata).json_binary())
+                    .col(
+                        ColumnDef::new(Skills::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Skills::UpdatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        // Unique index on (name, source)
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_skills_name_source")
+                    .table(Skills::Table)
+                    .col(Skills::Name)
+                    .col(Skills::Source)
+                    .unique()
+                    .to_owned(),
+            )
+            .await?;
+
+        // ── Skills: skill_sources table ──────────────────────────────────────
+        manager
+            .create_table(
+                Table::create()
+                    .table(SkillSources::Table)
+                    .col(
+                        ColumnDef::new(SkillSources::Id)
+                            .uuid()
+                            .not_null()
+                            .primary_key(),
+                    )
+                    .col(ColumnDef::new(SkillSources::SourceType).string().not_null())
+                    .col(
+                        ColumnDef::new(SkillSources::Url)
+                            .string()
+                            .not_null()
+                            .unique_key(),
+                    )
+                    .col(ColumnDef::new(SkillSources::Label).string())
+                    .col(ColumnDef::new(SkillSources::LastCrawledAt).timestamp_with_time_zone())
+                    .col(
+                        ColumnDef::new(SkillSources::IsEnabled)
+                            .boolean()
+                            .default(true),
+                    )
+                    .col(
+                        ColumnDef::new(SkillSources::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        // ── Feedback: feedback table ─────────────────────────────────────────
+        manager
+            .create_table(
+                Table::create()
+                    .table(Feedback::Table)
+                    .col(ColumnDef::new(Feedback::Id).uuid().not_null().primary_key())
+                    .col(ColumnDef::new(Feedback::Source).string().not_null())
+                    .col(ColumnDef::new(Feedback::SourceId).string())
+                    .col(ColumnDef::new(Feedback::UserEmail).string())
+                    .col(ColumnDef::new(Feedback::UserName).string())
+                    .col(ColumnDef::new(Feedback::Content).text().not_null())
+                    .col(ColumnDef::new(Feedback::Url).text())
+                    .col(ColumnDef::new(Feedback::CreatedAt).timestamp().not_null())
+                    .col(
+                        ColumnDef::new(Feedback::Status)
+                            .string()
+                            .not_null()
+                            .default("new"),
+                    )
+                    .col(ColumnDef::new(Feedback::AssignedTo).string())
+                    .col(ColumnDef::new(Feedback::Tags).json_binary())
+                    .col(ColumnDef::new(Feedback::Metadata).json_binary())
+                    .to_owned(),
+            )
+            .await?;
+
+        // ── Feedback: feedback_comments table ─────────────────────────────────
+        manager
+            .create_table(
+                Table::create()
+                    .table(FeedbackComment::Table)
+                    .col(
+                        ColumnDef::new(FeedbackComment::Id)
+                            .uuid()
+                            .not_null()
+                            .primary_key(),
+                    )
+                    .col(
+                        ColumnDef::new(FeedbackComment::FeedbackId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(ColumnDef::new(FeedbackComment::Author).string().not_null())
+                    .col(ColumnDef::new(FeedbackComment::Comment).text().not_null())
+                    .col(
+                        ColumnDef::new(FeedbackComment::CreatedAt)
+                            .timestamp()
+                            .not_null(),
+                    )
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk_feedback_comment_feedback")
+                            .from(FeedbackComment::Table, FeedbackComment::FeedbackId)
+                            .to(Feedback::Table, Feedback::Id)
+                            .on_delete(ForeignKeyAction::Cascade),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
         Ok(())
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         for table in [
+            FeedbackComment::Table.into_iden(),
+            Feedback::Table.into_iden(),
+            SkillSources::Table.into_iden(),
+            Skills::Table.into_iden(),
             PendingNudges::Table.into_iden(),
             NudgeTemplates::Table.into_iden(),
             ActivityEvents::Table.into_iden(),
@@ -331,11 +480,161 @@ impl MigrationTrait for Migration {
     }
 }
 
-#[derive(Iden)] enum Users { Table, Id, CreatedAt, LastSeen }
-#[derive(Iden)] enum ApiKeys { Table, Id, UserId, KeyHash, CreatedAt }
-#[derive(Iden)] enum UserPreferences { Table, UserId, Email, EmailVerified, VerificationToken, NudgeFrequency, NudgeOptOut, NotificationChannels, ThemePreference, Timezone, AnalyticsOptIn, CreatedAt, UpdatedAt }
-#[derive(Iden)] enum ReferralCodes { Table, Id, UserId, Code, CreatedAt, Uses, MaxUses }
-#[derive(Iden)] enum ReferralSignups { Table, Id, CodeId, ReferredEmail, ReferredIp, SignedUpAt, ConvertedAt }
-#[derive(Iden)] enum ActivityEvents { Table, Id, UserId, EventType, Metadata, CreatedAt }
-#[derive(Iden)] enum NudgeTemplates { Table, Id, Name, Subject, BodyHtml, CtaLabel, CtaAction, WinTheme, Active, CreatedAt }
-#[derive(Iden)] enum PendingNudges { Table, Id, UserId, Message, CtaLabel, CtaAction, CreatedAt, DeliveredAt }
+#[derive(Iden)]
+enum Users {
+    Table,
+    Id,
+    CreatedAt,
+    LastSeen,
+}
+
+#[derive(Iden)]
+enum ApiKeys {
+    Table,
+    Id,
+    UserId,
+    KeyHash,
+    CreatedAt,
+}
+
+#[derive(Iden)]
+enum UserPreferences {
+    Table,
+    UserId,
+    Email,
+    EmailVerified,
+    VerificationToken,
+    NudgeFrequency,
+    NudgeOptOut,
+    NotificationChannels,
+    ThemePreference,
+    Timezone,
+    AnalyticsOptIn,
+    CreatedAt,
+    UpdatedAt,
+}
+
+#[derive(Iden)]
+enum ReferralCodes {
+    Table,
+    Id,
+    UserId,
+    Code,
+    CreatedAt,
+    Uses,
+    MaxUses,
+}
+
+#[derive(Iden)]
+enum ReferralSignups {
+    Table,
+    Id,
+    CodeId,
+    ReferredEmail,
+    ReferredIp,
+    SignedUpAt,
+    ConvertedAt,
+}
+
+#[derive(Iden)]
+enum ActivityEvents {
+    Table,
+    Id,
+    UserId,
+    EventType,
+    Metadata,
+    CreatedAt,
+}
+
+#[derive(Iden)]
+enum NudgeTemplates {
+    Table,
+    Id,
+    Name,
+    Subject,
+    BodyHtml,
+    CtaLabel,
+    CtaAction,
+    WinTheme,
+    Active,
+    CreatedAt,
+}
+
+#[derive(Iden)]
+enum PendingNudges {
+    Table,
+    Id,
+    UserId,
+    Message,
+    CtaLabel,
+    CtaAction,
+    CreatedAt,
+    DeliveredAt,
+}
+
+#[derive(Iden)]
+enum Skills {
+    Table,
+    Id,
+    Name,
+    Description,
+    Source,
+    SourceUrl,
+    Version,
+    Author,
+    License,
+    Compatibility,
+    AllowedTools,
+    ContentHash,
+    Content,
+    LintWarnings,
+    Tags,
+    Category,
+    Embedding,
+    SecurityScore,
+    QualityScore,
+    MetadataSource,
+    LastLintedAt,
+    Metadata,
+    CreatedAt,
+    UpdatedAt,
+}
+
+#[derive(Iden)]
+enum SkillSources {
+    Table,
+    Id,
+    SourceType,
+    Url,
+    Label,
+    LastCrawledAt,
+    IsEnabled,
+    CreatedAt,
+}
+
+#[derive(Iden)]
+enum Feedback {
+    Table,
+    Id,
+    Source,
+    SourceId,
+    UserEmail,
+    UserName,
+    Content,
+    Url,
+    CreatedAt,
+    Status,
+    AssignedTo,
+    Tags,
+    Metadata,
+}
+
+#[derive(Iden)]
+enum FeedbackComment {
+    Table,
+    Id,
+    FeedbackId,
+    Author,
+    Comment,
+    CreatedAt,
+}
