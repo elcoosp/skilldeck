@@ -16,6 +16,7 @@ use crate::{
     feedback,
     growth::{handlers as growth_handlers, nudge_engine},
     preferences::handlers as pref_handlers,
+    skills::handlers as skills_handlers, // <-- import skills handlers
 };
 
 /// Shared state available to every handler via `State<Arc<AppState>>`.
@@ -110,6 +111,11 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         )
         // Growth — activity events
         .route("/api/growth/event", post(growth_handlers::track_event))
+        // Skills
+        .route("/api/skills", get(skills_handlers::list_skills))
+        .route("/api/skills/search", get(skills_handlers::search_skills))
+        .route("/api/skills/{id}", get(skills_handlers::get_skill))
+        .route("/api/skills/sync", get(skills_handlers::sync))
         .layer(middleware::from_fn_with_state(
             Arc::clone(&state),
             crate::middleware::auth_middleware,
