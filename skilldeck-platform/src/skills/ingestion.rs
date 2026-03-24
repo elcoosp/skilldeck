@@ -1,12 +1,13 @@
 //! Skill ingestion from various sources.
 
-use crate::skills::metadata::SkillMetadata;
+use crate::skills::metadata::{ClawhubMetadata, SkillMetadata, SkillsShMetadata};
 use crate::skills::models::{ActiveModel as SkillActiveModel, Column, Entity as Skills};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
 };
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tracing::{info, warn};
 use uuid::Uuid;
@@ -17,13 +18,8 @@ use uuid::Uuid;
 
 #[async_trait]
 pub trait RegistryAdapter: Send + Sync {
-    /// Unique identifier for this adapter (used to match source_type).
     fn source_type(&self) -> &str;
-
-    /// Fetch the list of skill identifiers (slugs/IDs) from the registry.
     async fn fetch_skill_list(&self, base_url: &str) -> Result<Vec<String>, anyhow::Error>;
-
-    /// Fetch the full detail for a given skill identifier.
     async fn fetch_skill_detail(
         &self,
         base_url: &str,
@@ -54,14 +50,12 @@ pub struct UnifiedSkill {
 // Helpers
 // -----------------------------------------------------------------------------
 
-/// Compute SHA-256 hash of a string.
 pub fn compute_sha256(content: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(content.as_bytes());
     format!("{:x}", hasher.finalize())
 }
 
-/// Check if a skill with the given name and source needs to be updated based on content hash.
 pub async fn skill_needs_update(
     db: &DatabaseConnection,
     name: &str,
@@ -80,7 +74,6 @@ pub async fn skill_needs_update(
     })
 }
 
-/// Upsert a UnifiedSkill into the skills table.
 pub async fn upsert_skill(
     db: &DatabaseConnection,
     skill: UnifiedSkill,
@@ -141,14 +134,213 @@ pub async fn upsert_skill(
     Ok(id)
 }
 
+// -----------------------------------------------------------------------------
+// ClawHub Adapter
+// -----------------------------------------------------------------------------
+
+#[derive(Debug, Deserialize, Serialize)]
+struct ClawhubListResponse {
+    skills: Vec<ClawhubListSkill>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+struct ClawhubListSkill {
+    slug: String,
+    name: String,
+    description: String,
+    downloads: u64,
+    tags: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct ClawhubSkillDetail {
+    name: String,
+    description: String,
+    content: String,
+    version: Option<String>,
+    author: Option<String>,
+    license: Option<String>,
+    tags: Vec<String>,
+    category: Option<String>,
+}
+
+pub struct ClawhubAdapter;
+
+#[async_trait]
+impl RegistryAdapter for ClawhubAdapter {
+    fn source_type(&self) -> &str {
+        "clawhub"
+    }
+
+    async fn fetch_skill_list(&self, _base_url: &str) -> Result<Vec<String>, anyhow::Error> {
+        let url = "https://wry-manatee-359.convex.cloud/api/query";
+        let client = reqwest::Client::new();
+        let mut offset = 0;
+        let num_items = 200;
+        let mut slugs = Vec::new();
+
+        loop {
+            let body = serde_json::json!({
+                "path": "skills:listPublicPageV4",
+                "format": "convex_encoded_json",
+                "args": [{
+                    "dir": "desc",
+                    "highlightedOnly": false,
+                    "nonSuspiciousOnly": false,
+                    "numItems": num_items,
+                    "sort": "downloads",
+                    "offset": offset
+                }]
+            });
+            let resp = client.post(url).json(&body).send().await?;
+            if !resp.status().is_success() {
+                anyhow::bail!("ClawHub API error: {}", resp.status());
+            }
+            let data: ClawhubListResponse = resp.json().await?;
+            if data.skills.is_empty() {
+                break;
+            }
+            slugs.extend(data.skills.iter().map(|s| s.slug.clone()));
+            if data.skills.len() < num_items {
+                break;
+            }
+            offset += num_items;
+        }
+        Ok(slugs)
+    }
+
+    async fn fetch_skill_detail(
+        &self,
+        _base_url: &str,
+        slug: &str,
+    ) -> Result<UnifiedSkill, anyhow::Error> {
+        let url = "https://wry-manatee-359.convex.cloud/api/query";
+        let client = reqwest::Client::new();
+        let body = serde_json::json!({
+            "path": "skills:getBySlug",
+            "format": "convex_encoded_json",
+            "args": [{ "slug": slug }]
+        });
+        let resp = client.post(url).json(&body).send().await?;
+        let detail: ClawhubSkillDetail = resp.json().await?;
+
+        let metadata = SkillMetadata::Clawhub(ClawhubMetadata {
+            slug: slug.to_string(),
+            downloads: 0,
+            tags: detail.tags.clone(),
+            original_data: serde_json::to_value(&detail)?,
+        });
+
+        Ok(UnifiedSkill {
+            name: detail.name,
+            description: detail.description,
+            content: detail.content,
+            source: self.source_type().to_string(),
+            source_url: Some(format!("https://clawhub.ai/skill/{}", slug)),
+            version: detail.version,
+            author: detail.author,
+            license: detail.license,
+            tags: detail.tags,
+            category: detail.category,
+            metadata: Some(metadata),
+        })
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Skills.sh Adapter
+// -----------------------------------------------------------------------------
+
+#[derive(Debug, Deserialize, Serialize)]
+struct SkillsListResponse {
+    skills: Vec<SkillsListSkill>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+struct SkillsListSkill {
+    skill_id: String,
+    source: String,
+    name: String,
+    installs: u64,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct SkillsSkillDetail {
+    name: String,
+    description: String,
+    content: String,
+    version: Option<String>,
+    author: Option<String>,
+    license: Option<String>,
+    tags: Vec<String>,
+    category: Option<String>,
+}
+
+pub struct SkillsShAdapter;
+
+#[async_trait]
+impl RegistryAdapter for SkillsShAdapter {
+    fn source_type(&self) -> &str {
+        "skills.sh"
+    }
+
+    async fn fetch_skill_list(&self, base_url: &str) -> Result<Vec<String>, anyhow::Error> {
+        let list_url = format!("{}/api/skills", base_url);
+        let client = reqwest::Client::new();
+        let response = client.get(&list_url).send().await?;
+        if !response.status().is_success() {
+            anyhow::bail!("skills.sh API error: {}", response.status());
+        }
+        let skills: Vec<SkillsListSkill> = response.json().await?;
+        Ok(skills
+            .into_iter()
+            .map(|s| format!("{}/{}", s.source, s.skill_id))
+            .collect())
+    }
+
+    async fn fetch_skill_detail(
+        &self,
+        base_url: &str,
+        id: &str,
+    ) -> Result<UnifiedSkill, anyhow::Error> {
+        let url = format!("{}/api/skills/{}", base_url, id);
+        let client = reqwest::Client::new();
+        let response = client.get(&url).send().await?;
+        if !response.status().is_success() {
+            anyhow::bail!("skills.sh API error: {}", response.status());
+        }
+        let detail: SkillsSkillDetail = response.json().await?;
+
+        // Parse the composite ID (source/skill_id)
+        let (source, skill_id) = id.split_once('/').unwrap_or(("", id));
+
+        let metadata = SkillMetadata::SkillsSh(SkillsShMetadata {
+            skill_id: skill_id.to_string(),
+            source: source.to_string(),
+            installs: 0, // Not available in detail; could be fetched from list
+            original_data: serde_json::to_value(&detail)?,
+        });
+
+        Ok(UnifiedSkill {
+            name: detail.name,
+            description: detail.description,
+            content: detail.content,
+            source: self.source_type().to_string(),
+            source_url: Some(format!("https://skills.sh/skill/{}", id)),
+            version: detail.version,
+            author: detail.author,
+            license: detail.license,
+            tags: detail.tags,
+            category: detail.category,
+            metadata: Some(metadata),
+        })
+    }
+}
+
 // =============================================================================
 // EXISTING GITHUB INGESTION CODE (unchanged)
 // =============================================================================
 
-/// Ingest all skills from a GitHub organisation's repositories.
-///
-/// For each repository, checks whether `SKILL.md` exists in the root and, if
-/// so, downloads it, computes a SHA-256 content hash and upserts the record.
 pub async fn crawl_github_org(
     db: &DatabaseConnection,
     org: &str,
@@ -158,7 +350,6 @@ pub async fn crawl_github_org(
 
     let client = build_http_client(github_token)?;
 
-    // List repositories in the org via GitHub REST API.
     let repos_url = format!("https://api.github.com/orgs/{}/repos?per_page=100", org);
     let repos: Vec<serde_json::Value> = client
         .get(&repos_url)
@@ -184,7 +375,7 @@ pub async fn crawl_github_org(
                 info!("Ingested skill '{}' from {}/{}", repo_name, org, repo_name);
                 ingested_ids.push(id);
             }
-            Ok(None) => {} // No SKILL.md found
+            Ok(None) => {}
             Err(e) => {
                 warn!("Failed to ingest {}/{}: {}", org, repo_name, e);
             }
@@ -199,9 +390,6 @@ pub async fn crawl_github_org(
     Ok(ingested_ids)
 }
 
-/// Ingest a single GitHub repository.
-///
-/// Returns `Ok(Some(id))` if a skill was upserted, `Ok(None)` if no SKILL.md.
 pub async fn ingest_repo(
     db: &DatabaseConnection,
     client: &reqwest::Client,
@@ -210,7 +398,6 @@ pub async fn ingest_repo(
     branch: &str,
     html_url: &str,
 ) -> Result<Option<Uuid>> {
-    // Try to fetch raw SKILL.md content.
     let raw_url = format!(
         "https://raw.githubusercontent.com/{}/{}/{}/SKILL.md",
         org, repo, branch
@@ -218,14 +405,13 @@ pub async fn ingest_repo(
 
     let response = client.get(&raw_url).send().await?;
     if !response.status().is_success() {
-        return Ok(None); // No SKILL.md in this repo.
+        return Ok(None);
     }
 
     let content = response.text().await?;
     let content_hash = compute_sha256(&content);
     let source_url = format!("{}/blob/{}/SKILL.md", html_url, branch);
 
-    // Parse frontmatter fields.
     let fm = parse_frontmatter_simple(&content);
 
     let name = fm.get("name").cloned().unwrap_or_else(|| repo.to_string());
@@ -239,8 +425,6 @@ pub async fn ingest_repo(
 
     let now = chrono::Utc::now().fixed_offset();
 
-    // Check if we already have this skill (by name + source).
-    use crate::skills::models::Column;
     let existing = Skills::find()
         .filter(Column::Name.eq(&name))
         .filter(Column::Source.eq(org))
@@ -248,7 +432,6 @@ pub async fn ingest_repo(
         .await?;
 
     let id = if let Some(existing) = existing {
-        // Skip update if content hasn't changed.
         if existing.content_hash == content_hash {
             return Ok(Some(existing.id));
         }
@@ -285,8 +468,6 @@ pub async fn ingest_repo(
 
     Ok(Some(id))
 }
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 fn build_http_client(token: Option<&str>) -> Result<reqwest::Client> {
     let mut headers = reqwest::header::HeaderMap::new();
