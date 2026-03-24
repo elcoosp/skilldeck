@@ -1,6 +1,6 @@
 //! Skill ingestion from various sources.
 
-use crate::skills::metadata::{ClawhubMetadata, SkillMetadata, SkillsShMetadata};
+use crate::skills::metadata::{ClawhubMetadata, SkillMetadata};
 use crate::skills::models::skill_source::{Column as SourceColumn, Entity as SkillSources};
 use crate::skills::models::{
     ActiveModel as SkillActiveModel, Column as SkillColumn, Entity as Skills,

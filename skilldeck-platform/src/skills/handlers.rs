@@ -8,13 +8,14 @@ use axum::{
     http::StatusCode,
 };
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, QueryOrder, QuerySelect};
+use std::sync::Arc;
 use uuid::Uuid;
 
-/// GET /api/v1/skills
+/// GET /api/skills
 ///
 /// List skills with optional filtering by category, tags, and free-text search.
 pub async fn list_skills(
-    State(state): State<AppState>,
+    State(state): State<Arc<AppState>>, // Changed from State<AppState> to State<Arc<AppState>>
     Query(params): Query<Pagination>,
 ) -> Result<Json<Vec<SkillResponse>>, (StatusCode, String)> {
     use crate::skills::models::Column;
@@ -52,9 +53,9 @@ pub async fn list_skills(
     Ok(Json(skills.into_iter().map(SkillResponse::from).collect()))
 }
 
-/// GET /api/v1/skills/:id
+/// GET /api/skills/:id
 pub async fn get_skill(
-    State(state): State<AppState>,
+    State(state): State<Arc<AppState>>, // Changed
     Path(id): Path<String>,
 ) -> Result<Json<SkillResponse>, (StatusCode, String)> {
     let uuid =
@@ -69,20 +70,20 @@ pub async fn get_skill(
     Ok(Json(SkillResponse::from(skill)))
 }
 
-/// GET /api/v1/skills/search?q=...
+/// GET /api/skills/search?q=...
 pub async fn search_skills(
-    State(state): State<AppState>,
+    State(state): State<Arc<AppState>>, // Changed
     Query(params): Query<Pagination>,
 ) -> Result<Json<Vec<SkillResponse>>, (StatusCode, String)> {
     // Delegate to list_skills with search param forwarded.
     list_skills(State(state), Query(params)).await
 }
 
-/// GET /api/v1/sync?since=<timestamp>
+/// GET /api/skills/sync?since=<timestamp>
 ///
 /// Returns skills updated after the given timestamp for delta syncing.
 pub async fn sync(
-    State(state): State<AppState>,
+    State(state): State<Arc<AppState>>, // Changed
     Query(params): Query<SyncParams>,
 ) -> Result<Json<SyncResponse>, (StatusCode, String)> {
     use crate::skills::models::Column;
