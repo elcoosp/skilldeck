@@ -16,6 +16,7 @@ use uuid::Uuid;
 use crate::commands::messages::send_message_internal;
 use crate::state::AppState;
 use skilldeck_models::context_item::ContextItem;
+use skilldeck_models::messages::MessageMetadata;
 use skilldeck_models::queued_messages::{self, Entity as Queued};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -311,10 +312,11 @@ pub fn auto_send_next_queued(state: Arc<AppState>, conversation_id: String, app:
         if let Ok(queued) = list_queued_messages_internal(&state, &conversation_id).await {
             if let Some(first) = queued.first() {
                 if let Ok(()) = delete_queued_message_internal(&state, &first.id).await {
-                    let metadata = serde_json::json!({
-                        "from_queue": true,
-                        "queued_at": first.created_at,
-                    });
+                    let meta = MessageMetadata {
+                        from_queue: Some(true),
+                        queued_at: Some(first.created_at.clone()),
+                        ..Default::default()
+                    };
                     let state_clone = state.clone();
                     let conv_clone = conversation_id.clone();
                     let content_clone = first.content.clone();
@@ -328,7 +330,7 @@ pub fn auto_send_next_queued(state: Arc<AppState>, conversation_id: String, app:
                                 content_clone,
                                 None,
                                 app_clone,
-                                Some(metadata),
+                                Some(meta),
                             )
                             .await;
                         });

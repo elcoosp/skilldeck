@@ -21,7 +21,7 @@ use skilldeck_core::agent::{AgentLoop, AgentLoopConfig, AgentLoopEvent, all_buil
 use skilldeck_core::traits::subagent_spawner::SubagentSpawner;
 use skilldeck_models::context_item::{ContextItem, FolderScope};
 use skilldeck_models::conversations::{self, Entity as Conversations};
-use skilldeck_models::messages::{self, Entity as Messages};
+use skilldeck_models::messages::{self, Entity as Messages, MessageMetadata};
 
 /// Serialisable message returned to the frontend.
 #[derive(Debug, Clone, Serialize, Type)]
@@ -32,7 +32,7 @@ pub struct MessageData {
     pub content: String,
     pub created_at: String,
     pub context_items: Option<Vec<ContextItem>>,
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<MessageMetadata>,
     pub input_tokens: Option<i32>,
     pub output_tokens: Option<i32>,
     pub seen: bool,
@@ -115,7 +115,7 @@ pub async fn list_messages(
                 content: m.content,
                 created_at: m.created_at.to_string(),
                 context_items,
-                metadata: m.metadata,
+                metadata: m.metadata.clone(),
                 input_tokens: m.input_tokens,
                 output_tokens: m.output_tokens,
                 seen: m.seen,
@@ -348,7 +348,7 @@ pub(crate) async fn send_message_internal(
     content: String,
     context_items: Option<Vec<ContextItem>>,
     app: tauri::AppHandle,
-    metadata: Option<serde_json::Value>,
+    metadata: Option<MessageMetadata>,
 ) -> Result<(), String> {
     let db = state
         .registry
@@ -888,6 +888,17 @@ fn run_agent_loop(
                         active.cache_read_tokens = Set(Some(result.cache_read_tokens as i32));
                         active.cache_write_tokens = Set(Some(result.cache_write_tokens as i32));
                     }
+
+                    // Set metadata for tool messages
+                    if role_str == "tool" {
+                        let meta = MessageMetadata {
+                            tool_name: msg.name.clone(),
+                            tool_call_id: None, // will be filled in a future iteration
+                            ..Default::default()
+                        };
+                        active.metadata = Set(Some(meta));
+                    }
+
                     if let Err(e) = active.insert(db).await {
                         let _ = app.emit(
                             "agent-event",
