@@ -110,8 +110,8 @@ pub async fn upsert_skill(
         active.category = Set(skill.category);
         active.metadata = Set(skill.metadata);
         active.updated_at = Set(now);
-        active.update(db).await?;
-        active.id
+        let updated = active.update(db).await?;
+        updated.id
     } else {
         let id = Uuid::new_v4();
         let active = SkillActiveModel {
