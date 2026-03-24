@@ -253,10 +253,10 @@ export const FileMentionPicker: React.FC<FileMentionPickerProps> = ({
                   aria-selected={index === selectedIndex}
                   tabIndex={-1}
                   className={cn(
-                    'flex items-center gap-2 px-2 py-1.5 rounded-sm cursor-pointer text-sm',
+                    'flex items-center gap-2 px-2 py-1.5 rounded-sm cursor-pointer text-sm text-foreground',
                     index === selectedIndex
-                      ? 'bg-accent text-accent-foreground'
-                      : 'hover:bg-accent/50'
+                      ? 'bg-primary/10'
+                      : 'hover:bg-primary/10'
                   )}
                   onClick={() => handleItemSelect(file)}
                   onKeyDown={(e) => {
