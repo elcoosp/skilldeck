@@ -1,14 +1,19 @@
 //! Skill ingestion from various sources.
 
 use crate::skills::metadata::{ClawhubMetadata, SkillMetadata, SkillsShMetadata};
-use crate::skills::models::{ActiveModel as SkillActiveModel, Column, Entity as Skills};
+use crate::skills::models::skill_source::{Column as SourceColumn, Entity as SkillSources};
+use crate::skills::models::{
+    ActiveModel as SkillActiveModel, Column as SkillColumn, Entity as Skills,
+};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
+use once_cell::sync::Lazy;
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::collections::HashMap;
 use tracing::{info, warn};
 use uuid::Uuid;
 
@@ -63,8 +68,8 @@ pub async fn skill_needs_update(
     new_content_hash: &str,
 ) -> Result<bool, anyhow::Error> {
     let existing = Skills::find()
-        .filter(Column::Name.eq(name))
-        .filter(Column::Source.eq(source))
+        .filter(SkillColumn::Name.eq(name))
+        .filter(SkillColumn::Source.eq(source))
         .one(db)
         .await?;
 
@@ -82,8 +87,8 @@ pub async fn upsert_skill(
     let now = chrono::Utc::now().fixed_offset();
 
     let existing = Skills::find()
-        .filter(Column::Name.eq(&skill.name))
-        .filter(Column::Source.eq(&skill.source))
+        .filter(SkillColumn::Name.eq(&skill.name))
+        .filter(SkillColumn::Source.eq(&skill.source))
         .one(db)
         .await?;
 
@@ -248,33 +253,8 @@ impl RegistryAdapter for ClawhubAdapter {
 }
 
 // -----------------------------------------------------------------------------
-// Skills.sh Adapter
+// Skills.sh Adapter (stub for now)
 // -----------------------------------------------------------------------------
-
-#[derive(Debug, Deserialize, Serialize)]
-struct SkillsListResponse {
-    skills: Vec<SkillsListSkill>,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-struct SkillsListSkill {
-    skill_id: String,
-    source: String,
-    name: String,
-    installs: u64,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-struct SkillsSkillDetail {
-    name: String,
-    description: String,
-    content: String,
-    version: Option<String>,
-    author: Option<String>,
-    license: Option<String>,
-    tags: Vec<String>,
-    category: Option<String>,
-}
 
 pub struct SkillsShAdapter;
 
@@ -284,57 +264,99 @@ impl RegistryAdapter for SkillsShAdapter {
         "skills.sh"
     }
 
-    async fn fetch_skill_list(&self, base_url: &str) -> Result<Vec<String>, anyhow::Error> {
-        let list_url = format!("{}/api/skills", base_url);
-        let client = reqwest::Client::new();
-        let response = client.get(&list_url).send().await?;
-        if !response.status().is_success() {
-            anyhow::bail!("skills.sh API error: {}", response.status());
-        }
-        let skills: Vec<SkillsListSkill> = response.json().await?;
-        Ok(skills
-            .into_iter()
-            .map(|s| format!("{}/{}", s.source, s.skill_id))
-            .collect())
+    async fn fetch_skill_list(&self, _base_url: &str) -> Result<Vec<String>, anyhow::Error> {
+        todo!("Implement skills.sh list")
     }
 
     async fn fetch_skill_detail(
         &self,
-        base_url: &str,
-        id: &str,
+        _base_url: &str,
+        _id: &str,
     ) -> Result<UnifiedSkill, anyhow::Error> {
-        let url = format!("{}/api/skills/{}", base_url, id);
-        let client = reqwest::Client::new();
-        let response = client.get(&url).send().await?;
-        if !response.status().is_success() {
-            anyhow::bail!("skills.sh API error: {}", response.status());
-        }
-        let detail: SkillsSkillDetail = response.json().await?;
-
-        // Parse the composite ID (source/skill_id)
-        let (source, skill_id) = id.split_once('/').unwrap_or(("", id));
-
-        let metadata = SkillMetadata::SkillsSh(SkillsShMetadata {
-            skill_id: skill_id.to_string(),
-            source: source.to_string(),
-            installs: 0, // Not available in detail; could be fetched from list
-            original_data: serde_json::to_value(&detail)?,
-        });
-
-        Ok(UnifiedSkill {
-            name: detail.name,
-            description: detail.description,
-            content: detail.content,
-            source: self.source_type().to_string(),
-            source_url: Some(format!("https://skills.sh/skill/{}", id)),
-            version: detail.version,
-            author: detail.author,
-            license: detail.license,
-            tags: detail.tags,
-            category: detail.category,
-            metadata: Some(metadata),
-        })
+        todo!("Implement skills.sh detail")
     }
+}
+
+// -----------------------------------------------------------------------------
+// Adapter Registry
+// -----------------------------------------------------------------------------
+
+static ADAPTERS: Lazy<HashMap<String, Box<dyn RegistryAdapter>>> = Lazy::new(|| {
+    let mut m: HashMap<String, Box<dyn RegistryAdapter>> = HashMap::new();
+    m.insert("clawhub".to_string(), Box::new(ClawhubAdapter));
+    m.insert("skills.sh".to_string(), Box::new(SkillsShAdapter));
+    m
+});
+
+fn get_adapter(source_type: &str) -> Option<&'static Box<dyn RegistryAdapter>> {
+    ADAPTERS.get(source_type)
+}
+
+// -----------------------------------------------------------------------------
+// Daily Crawler for All Enabled Sources
+// -----------------------------------------------------------------------------
+
+/// Crawl all enabled web registry sources and upsert skills.
+pub async fn crawl_all_enabled_sources(db: &DatabaseConnection) -> Result<usize, anyhow::Error> {
+    let sources = SkillSources::find()
+        .filter(SourceColumn::IsEnabled.eq(true))
+        .filter(SourceColumn::SourceType.eq("web_registry"))
+        .all(db)
+        .await?;
+
+    let mut total = 0;
+    for source in sources {
+        let adapter = if source.url.contains("clawhub.ai") {
+            get_adapter("clawhub")
+        } else if source.url.contains("skills.sh") {
+            get_adapter("skills.sh")
+        } else {
+            tracing::warn!("No adapter for URL: {}", source.url);
+            continue;
+        }
+        .ok_or_else(|| anyhow::anyhow!("Adapter not found"))?;
+
+        tracing::info!("Crawling source {}", source.url);
+        let ids = adapter.fetch_skill_list(&source.url).await?;
+        tracing::info!("Found {} skills in source", ids.len());
+
+        let mut inserted = 0;
+        let mut skipped = 0;
+
+        for id in ids {
+            let skill = match adapter.fetch_skill_detail(&source.url, &id).await {
+                Ok(s) => s,
+                Err(e) => {
+                    tracing::warn!("Failed to fetch detail for {}: {}", id, e);
+                    continue;
+                }
+            };
+
+            let hash = compute_sha256(&skill.content);
+            if !skill_needs_update(db, &skill.name, &skill.source, &hash).await? {
+                tracing::debug!("Skill {} unchanged, skipping", skill.name);
+                skipped += 1;
+                continue;
+            }
+
+            let _ = upsert_skill(db, skill).await?;
+            inserted += 1;
+        }
+
+        total += inserted;
+        tracing::info!(
+            "Source {}: {} inserted, {} skipped",
+            source.url,
+            inserted,
+            skipped
+        );
+
+        // Update last_crawled_at
+        let mut active: crate::skills::models::skill_source::ActiveModel = source.into();
+        active.last_crawled_at = Set(Some(chrono::Utc::now().fixed_offset()));
+        active.update(db).await?;
+    }
+    Ok(total)
 }
 
 // =============================================================================
@@ -426,8 +448,8 @@ pub async fn ingest_repo(
     let now = chrono::Utc::now().fixed_offset();
 
     let existing = Skills::find()
-        .filter(Column::Name.eq(&name))
-        .filter(Column::Source.eq(org))
+        .filter(SkillColumn::Name.eq(&name))
+        .filter(SkillColumn::Source.eq(org))
         .one(db)
         .await?;
 
