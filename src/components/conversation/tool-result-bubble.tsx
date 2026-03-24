@@ -6,6 +6,8 @@ import {
   Terminal,
   Wrench,
 } from 'lucide-react'
+
+import { sentenceCase } from 'change-case'
 import { useState, useMemo } from 'react'
 import { FileIcon, FolderIcon } from '@react-symbols/icons/utils'
 import { cn } from '@/lib/utils'
@@ -127,7 +129,7 @@ export function ToolResultBubble({ content, toolName, isError = false }: ToolRes
     return <Wrench className="size-3 shrink-0 text-muted-foreground" />
   }
 
-  const displayName = toolName || 'Tool result'
+  const displayName = toolName ? sentenceCase(toolName) : 'Tool result';
 
   return (
     <div
@@ -181,8 +183,8 @@ export function ToolResultBubble({ content, toolName, isError = false }: ToolRes
 
       {/* Expanded content – no extra padding */}
       {!collapsed && (
-        <div className="border-t border-border px-3 py-2">
-          <div className="max-h-80 overflow-auto thin-scrollbar">
+        <div className="border-t border-border">
+          <div className="max-h-80 overflow-auto thin-scrollbar px-3 py-2">
             {contentType === 'filetree' && <FileTreeRenderer text={content} />}
             {contentType === 'json' && <JSONRenderer text={content} />}
             {contentType === 'text' && <TextRenderer text={content} />}

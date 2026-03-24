@@ -1114,11 +1114,33 @@ export type McpToolResponse = { name: string; description: string; input_schema:
 /**
  * Serialisable message returned to the frontend.
  */
-export type MessageData = { id: string; conversation_id: string; role: string; content: string; created_at: string; context_items: ContextItem[] | null; metadata: JsonValue | null; input_tokens: number | null; output_tokens: number | null; seen: boolean }
+export type MessageData = { id: string; conversation_id: string; role: string; content: string; created_at: string; context_items: ContextItem[] | null; metadata: MessageMetadata | null; input_tokens: number | null; output_tokens: number | null; seen: boolean }
 /**
  * Lightweight message representation used by the Markdown gist exporter.
  */
 export type MessageExport = { role: string; content: string }
+/**
+ * Typed metadata stored on every message row.
+ * All fields are optional — missing fields mean "not applicable for this role".
+ */
+export type MessageMetadata = { 
+/**
+ * Set on `role = user` messages sent from the queue.
+ */
+from_queue?: boolean | null; 
+/**
+ * ISO-8601 timestamp of when the message entered the queue.
+ */
+queued_at?: string | null; 
+/**
+ * Set on `role = tool` messages — the name of the tool that produced this result.
+ */
+tool_name?: string | null; 
+/**
+ * Set on `role = tool` messages — the tool_call_id that pairs this result
+ * with the assistant's tool_use block.
+ */
+tool_call_id?: string | null }
 /**
  * A minimal model descriptor returned to the frontend.
  */
