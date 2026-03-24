@@ -3895,6 +3895,7 @@ dependencies = [
  "dotenvy",
  "hex",
  "migration",
+ "once_cell",
  "rand 0.10.0",
  "reqwest",
  "resend-rs",
