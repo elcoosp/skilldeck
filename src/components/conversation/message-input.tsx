@@ -10,8 +10,9 @@
  */
 
 import { open } from '@tauri-apps/plugin-dialog'
+import { openUrl } from '@tauri-apps/plugin-opener'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { AtSign, Hash, Paperclip, Send, Square, Timer } from 'lucide-react'
+import { AtSign, Globe, Hash, Paperclip, Send, Square, Timer } from 'lucide-react'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { useDebouncedCallback } from 'use-debounce'
@@ -28,6 +29,7 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   Tooltip,
   TooltipContent,
+  TooltipProvider,
   TooltipTrigger
 } from '@/components/ui/tooltip'
 import { useCreateConversation } from '@/hooks/use-conversations'
@@ -43,6 +45,7 @@ import type { ContextItem, RegistrySkillData } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
 import type { UUID } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import { extractUrls } from '@/lib/url-detection'
 import { useChatContextStore } from '@/store/chat-context-store'
 import { useQueueStore } from '@/store/queue'
 import { useUIStore } from '@/store/ui'
@@ -145,6 +148,13 @@ export function MessageInput({
   const clearItems = useChatContextStore((s) => s.clearItems)
 
   const currentItems = itemsMap[conversationId] ?? []
+
+  // ─── URL detection ───────────────────────────────────────────────────────
+  const [detectedUrls, setDetectedUrls] = useState<string[]>([])
+
+  useEffect(() => {
+    setDetectedUrls(extractUrls(content))
+  }, [content])
 
   // ─── Height calculation for textarea ─────────────────────────────────────
   useLayoutEffect(() => {
@@ -658,6 +668,31 @@ export function MessageInput({
         )}
       >
         <AttachedItemsList />
+
+        {/* URL chips */}
+        {detectedUrls.length > 0 && (
+          <div className="flex flex-wrap gap-1 px-1 pb-1">
+            {detectedUrls.map((url, idx) => (
+              <TooltipProvider key={idx}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={() => openUrl(url)}
+                      className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-xs text-primary hover:underline cursor-pointer"
+                    >
+                      <Globe className="size-3" />
+                      <span className="truncate max-w-[200px]">{url}</span>
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    <p>Open {url}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ))}
+          </div>
+        )}
 
         <div className="flex items-center gap-2 px-3 py-2">
           <motion.div

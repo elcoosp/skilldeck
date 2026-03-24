@@ -114,7 +114,7 @@ export const ContextChip: React.FC<ContextChipProps> = ({
         <button
           type="button"
           onClick={() => onRemove(id)}
-          className="ml-1 text-foreground/60 hover:text-foreground hover:bg-white/10 rounded-full p-0.5 transition-colors"
+          className="ml-1 rounded-full p-0.5 transition-colors bg-background/20 text-foreground hover:bg-background/50 hover:text-foreground"
           aria-label={`Remove ${name}`}
         >
           <X className="w-3 h-3" />
