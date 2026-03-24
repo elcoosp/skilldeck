@@ -2,10 +2,7 @@
 
 use sea_orm_migration::prelude::*;
 
-mod m20260315_000001_create_platform_schema;
 mod m20260315_000001_initial_schema;
-mod m20260316_000002_create_skill_tables;
-mod m20260317_000003_create_feedback_tables;
 pub struct Migrator;
 
 #[async_trait::async_trait]
