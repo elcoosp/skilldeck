@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
-import { useHotkeys } from 'react-hotkeys-hook'
-import { Group, Panel, Separator } from 'react-resizable-panels'
+// src/components/layout/app-shell.tsx
+import { useEffect, useRef, useState, useCallback } from 'react'
+import { Group, Panel, Separator, type Layout } from 'react-resizable-panels'
 import { Toaster } from 'sonner'
+import { useHotkeys } from 'react-hotkeys-hook'
 import { CommandPalette } from '@/components/overlays/command-palette'
 import { LaunchNotificationBanner } from '@/components/overlays/launch-notification'
 import { SettingsOverlay } from '@/components/overlays/settings-overlay'
@@ -13,53 +14,73 @@ import { RightPanel } from './right-panel'
 import { GlobalDropZone } from '@/components/chat/global-drop-zone'
 
 const LAYOUT_STORAGE_KEY = 'skilldeck-panel-layout'
-const DEFAULT_LAYOUT = [20, 60, 20]
+
+// Panel IDs – stable strings used as keys in the Layout map
+const PANEL_LEFT = 'left'
+const PANEL_CENTER = 'center'
+const PANEL_RIGHT = 'right'
+
+const DEFAULT_LAYOUT: Layout = {
+  [PANEL_LEFT]: 20,
+  [PANEL_CENTER]: 60,
+  [PANEL_RIGHT]: 20,
+}
 
 export function AppShell() {
   const setPanelSizesPx = useUIStore((s) => s.setPanelSizesPx)
 
-  const [layout, setLayout] = useState<number[]>(() => {
+  const [layout, setLayout] = useState<Layout>(() => {
     try {
       const stored = localStorage.getItem(LAYOUT_STORAGE_KEY)
       if (stored) {
         const parsed = JSON.parse(stored)
+        // Accept both old number[] format and new Layout map
         if (Array.isArray(parsed) && parsed.length === 3) {
-          return parsed
+          return {
+            [PANEL_LEFT]: parsed[0],
+            [PANEL_CENTER]: parsed[1],
+            [PANEL_RIGHT]: parsed[2],
+          }
+        }
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          return parsed as Layout
         }
       }
     } catch { }
     return DEFAULT_LAYOUT
   })
 
-  // Observe left and right panels by their data-panel attribute
+  // Sync pixel sizes on mount (one-time read, no ResizeObserver)
   useEffect(() => {
-    const getPanels = () => {
-      const panels = document.querySelectorAll('[data-panel]')
-      return {
-        left: panels[0] as HTMLDivElement,
-        right: panels[2] as HTMLDivElement
-      }
-    }
+    const panels = document.querySelectorAll('[data-panel]')
+    const left = panels[0] as HTMLDivElement
+    const right = panels[2] as HTMLDivElement
+    setPanelSizesPx({
+      left: left?.clientWidth ?? 0,
+      right: right?.clientWidth ?? 0,
+    })
+  }, [setPanelSizesPx])
 
-    const updateSizes = () => {
-      const { left, right } = getPanels()
-      const leftWidth = left?.clientWidth ?? 0
-      const rightWidth = right?.clientWidth ?? 0
-      setPanelSizesPx({ left: leftWidth, right: rightWidth })
-    }
+  // Debounce ref for localStorage persistence
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-    updateSizes()
+  // ⚠️ Use onLayoutChanged (fires once on pointer release) instead of
+  // onLayoutChange (fires on every pointer move). This eliminates lag.
+  const handleLayoutChanged = useCallback((newLayout: Layout) => {
+    setLayout(newLayout)
 
-    const observer = new ResizeObserver(() => updateSizes())
-    const { left, right } = getPanels()
-    if (left) observer.observe(left)
-    if (right) observer.observe(right)
+    // Derive pixel sizes from percentages – no DOM read needed
+    const totalWidth = window.innerWidth
+    setPanelSizesPx({
+      left: Math.round(((newLayout[PANEL_LEFT] ?? 20) / 100) * totalWidth),
+      right: Math.round(((newLayout[PANEL_RIGHT] ?? 20) / 100) * totalWidth),
+    })
 
-    window.addEventListener('resize', updateSizes)
-    return () => {
-      observer.disconnect()
-      window.removeEventListener('resize', updateSizes)
-    }
+    // Debounce the write just in case
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    saveTimerRef.current = setTimeout(() => {
+      localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(newLayout))
+    }, 300)
   }, [setPanelSizesPx])
 
   const setCommandPaletteOpen = useUIStore((s) => s.setCommandPaletteOpen)
@@ -112,24 +133,31 @@ export function AppShell() {
         <Group
           orientation="horizontal"
           defaultLayout={layout}
-          onLayoutChange={(sizes) => {
-            setLayout(sizes)
-            localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(sizes))
-          }}
+          onLayoutChanged={handleLayoutChanged}
         >
-          <Panel minSize="15%" maxSize="30%" className="border-r border-border">
+          <Panel
+            id={PANEL_LEFT}
+            minSize={"15%"}
+            maxSize={"30%"}
+            className="border-r border-border"
+          >
             <LeftPanel />
           </Panel>
 
           <Separator className="w-px bg-border hover:bg-primary/30 transition-colors cursor-col-resize" />
 
-          <Panel minSize="35%">
+          <Panel id={PANEL_CENTER} minSize={35}>
             <CenterPanel />
           </Panel>
 
           <Separator className="w-px bg-border hover:bg-primary/30 transition-colors cursor-col-resize" />
 
-          <Panel minSize="18%" maxSize="35%" className="border-l border-border">
+          <Panel
+            id={PANEL_RIGHT}
+            minSize={"18%"}
+            maxSize={"35%"}
+            className="border-l border-border"
+          >
             <RightPanel />
           </Panel>
         </Group>
