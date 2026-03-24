@@ -4,10 +4,16 @@
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useDebounce } from 'use-debounce'
-import { ArrowDown, Search, X } from 'lucide-react'
+import { ArrowDown, CaseSensitive, Regex, Search, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { BranchNav } from '@/components/conversation/branch-nav'
 import { MessageInput } from '@/components/conversation/message-input'
 import {
@@ -350,36 +356,49 @@ export function CenterPanel() {
             placeholder="Search in this conversation…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8 pr-24 h-8 text-sm"
+            className="pl-8 pr-16 h-8 text-sm"
           />
           {/* Toggle buttons inside the input */}
           <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setSearchCaseSensitive(!searchCaseSensitive)}
-              className={cn(
-                "p-0.5 rounded text-xs font-mono transition-colors",
-                searchCaseSensitive
-                  ? "text-primary bg-primary/10"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-              title="Case sensitive (Aa)"
-            >
-              Aa
-            </button>
-            <button
-              type="button"
-              onClick={() => setSearchRegex(!searchRegex)}
-              className={cn(
-                "p-0.5 rounded text-xs font-mono transition-colors",
-                searchRegex
-                  ? "text-primary bg-primary/10"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-              title="Regular expression (.*)"
-            >
-              .*
-            </button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => setSearchCaseSensitive(!searchCaseSensitive)}
+                    className={cn(
+                      "p-0.5 rounded transition-colors",
+                      searchCaseSensitive
+                        ? "text-primary bg-primary/10"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <CaseSensitive className="size-3.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>Case sensitive</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => setSearchRegex(!searchRegex)}
+                    className={cn(
+                      "p-0.5 rounded transition-colors",
+                      searchRegex
+                        ? "text-primary bg-primary/10"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <Regex className="size-3.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>Regular expression</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <KbdGroup className="hidden sm:flex ml-1">
               <Kbd>{modifierKey}</Kbd><Kbd>F</Kbd>
             </KbdGroup>
