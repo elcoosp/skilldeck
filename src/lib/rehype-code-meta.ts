@@ -1,9 +1,8 @@
 import { visit } from 'unist-util-visit'
-import type { Root } from 'hast'
-import { toString } from 'hast-util-to-string'
+import { toString as hastToString } from 'hast-util-to-string'
 
 export function rehypeCodeMeta() {
-  return (tree: Root) => {
+  return (tree: { type: "root", children: unknown[] }) => {
     visit(tree, 'element', (node) => {
       // Only process <pre> elements that contain <code>
       if (node.tagName !== 'pre') return
@@ -19,7 +18,7 @@ export function rehypeCodeMeta() {
       const language = langClass ? langClass.slice(9) : null
 
       // Extract code text
-      const codeText = toString(codeNode)
+      const codeText = hastToString(codeNode)
       const lines = codeText.split('\n')
       const firstLine = lines[0] || ''
 
