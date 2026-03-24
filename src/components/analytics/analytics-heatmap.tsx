@@ -50,9 +50,12 @@ export function AnalyticsHeatmap({ messagesData, conversationsData }: AnalyticsH
   const startDate = new Date(minDate.getFullYear(), 0, 1) // Jan 1 of that year
 
   // Helper to render a rect with tooltip
-  const RectWithTooltip = ({ props, data }: { props: React.SVGProps<SVGRectElement>; data: any }) => {
-    const { date, count } = data
-    const tooltipContent = `${date} : ${count} ${count === 1 ? 'activity' : 'activities'}`
+  const RectWithTooltip = ({ props, data, label }: { props: React.SVGProps<SVGRectElement>; data: any; label: string }) => {
+    const count = data.count ?? 0
+    const { date } = data
+    const tooltipContent = count
+      ? `${date}: ${count} ${count === 1 ? label : label + 's'}`
+      : `${date}: no ${label}s`
 
     return (
       <TooltipProvider>
@@ -82,7 +85,7 @@ export function AnalyticsHeatmap({ messagesData, conversationsData }: AnalyticsH
           value={messagesHeatmapData}
           startDate={startDate}
           rectRender={(props, data) => (
-            <RectWithTooltip props={props} data={data} />
+            <RectWithTooltip props={props} data={data} label="message" />
           )}
         />
       </div>
@@ -95,7 +98,7 @@ export function AnalyticsHeatmap({ messagesData, conversationsData }: AnalyticsH
           value={conversationsHeatmapData}
           startDate={startDate}
           rectRender={(props, data) => (
-            <RectWithTooltip props={props} data={data} />
+            <RectWithTooltip props={props} data={data} label="conversation" />
           )}
         />
       </div>
