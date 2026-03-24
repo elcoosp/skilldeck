@@ -1,5 +1,6 @@
 // src/components/skills/share-skill-modal.tsx
-import { ExternalLink, Github, Share2, X } from 'lucide-react'
+import { SiGithub } from '@icons-pack/react-simple-icons';
+import { ExternalLink, Share2, X } from 'lucide-react'
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { toast } from 'sonner'
@@ -125,7 +126,7 @@ export function ShareSkillModal({ skillName, contentMd, onClose }: Props) {
                 disabled={saving}
                 className="w-full py-2 rounded-lg bg-primary text-primary-foreground font-medium text-sm hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                <Github size={14} />
+                <SiGithub size={14} />
                 {saving ? 'Sharing…' : 'Share as GitHub Gist'}
               </button>
             </>
