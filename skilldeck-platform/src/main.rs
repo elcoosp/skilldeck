@@ -3,6 +3,7 @@
 //! Extended to include:
 //! - Hourly lint cron job for all registered skills
 //! - Skill enrichment queue (runs once on startup for unenriched skills)
+//! - Daily web registry crawl (every 24 hours)
 
 use anyhow::Context;
 use std::sync::Arc;
@@ -67,6 +68,23 @@ async fn main() -> anyhow::Result<()> {
             match skills::enrichment::enrich_pending_skills(&db_clone, &ollama_host).await {
                 Ok(n) => info!("Enriched {} skill(s)", n),
                 Err(e) => error!("Enrichment failed: {}", e),
+            }
+        });
+    }
+
+    // ── Background: daily web registry crawl (every 24 hours) ──────────────
+    {
+        let db_clone = db.clone();
+        tokio::spawn(async move {
+            // First tick after initial delay (5 minutes to let server start)
+            tokio::time::sleep(std::time::Duration::from_secs(300)).await;
+            let mut interval = tokio::time::interval(std::time::Duration::from_secs(24 * 3600));
+            loop {
+                interval.tick().await;
+                info!("Running daily web registry crawl…");
+                if let Err(e) = skills::ingestion::crawl_all_enabled_sources(&db_clone).await {
+                    error!("Web registry crawl failed: {}", e);
+                }
             }
         });
     }
