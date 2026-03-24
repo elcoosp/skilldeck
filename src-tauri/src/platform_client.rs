@@ -110,6 +110,60 @@ pub struct RegisterResponse {
     pub api_key: String,
 }
 
+// Feedback DTOs
+#[derive(Debug, Serialize, Type)]
+pub struct CreateFeedbackRequest {
+    pub source: String,
+    pub source_id: Option<String>,
+    pub user_email: Option<String>,
+    pub user_name: Option<String>,
+    pub content: String,
+    pub url: Option<String>,
+    pub metadata: Option<serde_json::Value>,
+}
+
+// Skills DTOs
+#[derive(Debug, Serialize, Deserialize, Clone, Type)]
+pub struct SkillResponse {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub source: String,
+    pub source_url: Option<String>,
+    pub version: Option<String>,
+    pub author: Option<String>,
+    pub license: Option<String>,
+    pub tags: Vec<String>,
+    pub category: Option<String>,
+    pub lint_warnings: Vec<serde_json::Value>,
+    pub security_score: i32,
+    pub quality_score: i32,
+    pub metadata_source: String,
+    pub content: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Type)]
+pub struct ListSkillsParams {
+    pub page: Option<u64>,
+    pub per_page: Option<u64>,
+    pub category: Option<String>,
+    pub search: Option<String>,
+    pub tags: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Type)]
+pub struct SyncSkillsParams {
+    pub since: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Type)]
+pub struct SyncSkillsResponse {
+    pub skills: Vec<SkillResponse>,
+    pub synced_at: String,
+}
+
 // ── Client ────────────────────────────────────────────────────────────────────
 
 #[derive(Clone)]
@@ -286,6 +340,40 @@ impl PlatformClient {
             Self::check_response(resp).await
         };
         self.retry(fut, None).await
+    }
+
+    /// Public endpoint for feedback submission (e.g., from docs site).
+    pub async fn create_feedback(
+        &self,
+        req: CreateFeedbackRequest,
+        cancel: Option<CancellationToken>,
+    ) -> Result<(), PlatformError> {
+        self.check_enabled()?;
+        let url = format!("{}/api/feedback", self.base_url);
+        let fut = || async {
+            let resp = self.http.post(&url).json(&req).send().await?;
+            Self::check_response(resp).await
+        };
+        self.retry_no_content(fut, cancel).await
+    }
+
+    /// Validate a referral code (public, used during signup).
+    pub async fn validate_referral_code(
+        &self,
+        code: &str,
+        cancel: Option<CancellationToken>,
+    ) -> Result<bool, PlatformError> {
+        self.check_enabled()?;
+        let url = format!("{}/api/growth/referral/validate/{}", self.base_url, code);
+        let fut = || async {
+            let resp = self.http.get(&url).send().await?;
+            Self::check_response(resp).await
+        };
+        let response: serde_json::Value = self.retry(fut, cancel).await?;
+        Ok(response
+            .get("valid")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false))
     }
 
     // ── Preferences ───────────────────────────────────────────────────────────
@@ -546,5 +634,101 @@ impl PlatformClient {
             }
         }
         unreachable!()
+    }
+
+    // ── Skills ────────────────────────────────────────────────────────────────
+
+    /// List skills with optional filtering.
+    pub async fn list_skills(
+        &self,
+        params: ListSkillsParams,
+        cancel: Option<CancellationToken>,
+    ) -> Result<Vec<SkillResponse>, PlatformError> {
+        self.check_enabled()?;
+        let auth = self.auth_header()?;
+        let url = format!("{}/api/skills", self.base_url);
+        let fut = || async {
+            let req = self.http.get(&url).header("Authorization", &auth);
+            let req = if let Some(page) = params.page {
+                req.query(&[("page", page)])
+            } else {
+                req
+            };
+            let req = if let Some(per_page) = params.per_page {
+                req.query(&[("per_page", per_page)])
+            } else {
+                req
+            };
+            let req = if let Some(category) = &params.category {
+                req.query(&[("category", category)])
+            } else {
+                req
+            };
+            let req = if let Some(search) = &params.search {
+                req.query(&[("search", search)])
+            } else {
+                req
+            };
+            let req = if let Some(tags) = &params.tags {
+                req.query(&[("tags", tags)])
+            } else {
+                req
+            };
+            let resp = req.send().await?;
+            Self::check_response(resp).await
+        };
+        self.retry(fut, cancel).await
+    }
+
+    /// Get a single skill by ID.
+    pub async fn get_skill(
+        &self,
+        id: Uuid,
+        cancel: Option<CancellationToken>,
+    ) -> Result<SkillResponse, PlatformError> {
+        self.check_enabled()?;
+        let auth = self.auth_header()?;
+        let url = format!("{}/api/skills/{}", self.base_url, id);
+        let fut = || async {
+            let resp = self
+                .http
+                .get(&url)
+                .header("Authorization", &auth)
+                .send()
+                .await?;
+            Self::check_response(resp).await
+        };
+        self.retry(fut, cancel).await
+    }
+
+    /// Search skills (same as list_skills with search param, but kept for convenience).
+    pub async fn search_skills(
+        &self,
+        params: ListSkillsParams,
+        cancel: Option<CancellationToken>,
+    ) -> Result<Vec<SkillResponse>, PlatformError> {
+        self.list_skills(params, cancel).await
+    }
+
+    /// Delta sync: get skills updated after a given timestamp.
+    pub async fn sync_skills(
+        &self,
+        since: Option<chrono::DateTime<chrono::FixedOffset>>,
+        cancel: Option<CancellationToken>,
+    ) -> Result<SyncSkillsResponse, PlatformError> {
+        self.check_enabled()?;
+        let auth = self.auth_header()?;
+        let url = format!("{}/api/skills/sync", self.base_url);
+        let fut = || async {
+            let req = self.http.get(&url).header("Authorization", &auth);
+            let req = if let Some(dt) = since {
+                req.query(&[("since", dt.to_rfc3339())])
+            } else {
+                req
+            };
+            let resp = req.send().await?;
+            Self::check_response(resp).await
+        };
+        self.retry(fut, cancel).await
     }
 }
