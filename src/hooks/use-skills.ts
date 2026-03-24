@@ -2,6 +2,7 @@
 // Mutations and skill-related operations (install, uninstall, sync, diff, disable rule, source management).
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData } from '@tanstack/react-query'
 import { commands } from '@/lib/bindings'
 
 export function useSyncRegistry() {
@@ -152,5 +153,33 @@ export function useRemoveSkillSource() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['skill-sources'] })
     }
+  })
+}
+
+// Added category parameter
+export function useRegistrySkills(search?: string, category?: string, enabled?: boolean) {
+  return useQuery({
+    queryKey: ['registry_skills', search ?? null, category ?? null],
+    queryFn: async () => {
+      const res = await commands.fetchRegistrySkills(category ?? null, search ?? null)
+      if (res.status === 'ok') return res.data
+      throw new Error(res.error)
+    },
+    placeholderData: keepPreviousData,
+    retry: false,
+    staleTime: 60_000,
+    enabled: enabled !== false
+  })
+}
+
+export function useLocalSkills() {
+  return useQuery({
+    queryKey: ['local_skills'],
+    queryFn: async () => {
+      const res = await commands.listSkills()
+      if (res.status === 'ok') return res.data
+      throw new Error(res.error)
+    },
+    staleTime: 30_000
   })
 }

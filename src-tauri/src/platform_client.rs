@@ -5,7 +5,7 @@
 //! serialises request bodies, deserialises responses, and propagates errors;
 //! higher-level logic lives in the Tauri command handlers.
 
-use reqwest::{Client, StatusCode};
+use reqwest::{Client, StatusCode, Url};
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 use specta::Type;
@@ -646,35 +646,33 @@ impl PlatformClient {
     ) -> Result<Vec<SkillResponse>, PlatformError> {
         self.check_enabled()?;
         let auth = self.auth_header()?;
-        let url = format!("{}/api/skills", self.base_url);
+        let base_url = format!("{}/api/skills", self.base_url);
+        let mut url = Url::parse(&base_url).map_err(|e| PlatformError::Network(e.into()))?;
+
+        if let Some(page) = params.page {
+            url.query_pairs_mut().append_pair("page", &page.to_string());
+        }
+        if let Some(per_page) = params.per_page {
+            url.query_pairs_mut()
+                .append_pair("per_page", &per_page.to_string());
+        }
+        if let Some(category) = &params.category {
+            url.query_pairs_mut().append_pair("category", category);
+        }
+        if let Some(search) = &params.search {
+            url.query_pairs_mut().append_pair("search", search);
+        }
+        if let Some(tags) = &params.tags {
+            url.query_pairs_mut().append_pair("tags", tags);
+        }
+
         let fut = || async {
-            let req = self.http.get(&url).header("Authorization", &auth);
-            let req = if let Some(page) = params.page {
-                req.query(&[("page", page)])
-            } else {
-                req
-            };
-            let req = if let Some(per_page) = params.per_page {
-                req.query(&[("per_page", per_page)])
-            } else {
-                req
-            };
-            let req = if let Some(category) = &params.category {
-                req.query(&[("category", category)])
-            } else {
-                req
-            };
-            let req = if let Some(search) = &params.search {
-                req.query(&[("search", search)])
-            } else {
-                req
-            };
-            let req = if let Some(tags) = &params.tags {
-                req.query(&[("tags", tags)])
-            } else {
-                req
-            };
-            let resp = req.send().await?;
+            let resp = self
+                .http
+                .get(url.clone())
+                .header("Authorization", &auth)
+                .send()
+                .await?;
             Self::check_response(resp).await
         };
         self.retry(fut, cancel).await
@@ -718,15 +716,20 @@ impl PlatformClient {
     ) -> Result<SyncSkillsResponse, PlatformError> {
         self.check_enabled()?;
         let auth = self.auth_header()?;
-        let url = format!("{}/api/skills/sync", self.base_url);
+        let base_url = format!("{}/api/skills/sync", self.base_url);
+        let mut url = Url::parse(&base_url).map_err(|e| PlatformError::Network(e.into()))?;
+
+        if let Some(dt) = since {
+            url.query_pairs_mut().append_pair("since", &dt.to_rfc3339());
+        }
+
         let fut = || async {
-            let req = self.http.get(&url).header("Authorization", &auth);
-            let req = if let Some(dt) = since {
-                req.query(&[("since", dt.to_rfc3339())])
-            } else {
-                req
-            };
-            let resp = req.send().await?;
+            let resp = self
+                .http
+                .get(url.clone())
+                .header("Authorization", &auth)
+                .send()
+                .await?;
             Self::check_response(resp).await
         };
         self.retry(fut, cancel).await
