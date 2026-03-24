@@ -647,7 +647,7 @@ impl PlatformClient {
         self.check_enabled()?;
         let auth = self.auth_header()?;
         let base_url = format!("{}/api/skills", self.base_url);
-        let mut url = Url::parse(&base_url).map_err(|e| PlatformError::Network(e.into()))?;
+        let mut url = Url::parse(&base_url).expect("invalid base URL");
 
         if let Some(page) = params.page {
             url.query_pairs_mut().append_pair("page", &page.to_string());
@@ -717,7 +717,7 @@ impl PlatformClient {
         self.check_enabled()?;
         let auth = self.auth_header()?;
         let base_url = format!("{}/api/skills/sync", self.base_url);
-        let mut url = Url::parse(&base_url).map_err(|e| PlatformError::Network(e.into()))?;
+        let mut url = Url::parse(&base_url).expect("invalid base URL");
 
         if let Some(dt) = since {
             url.query_pairs_mut().append_pair("since", &dt.to_rfc3339());
