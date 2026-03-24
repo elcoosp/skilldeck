@@ -3,11 +3,10 @@
 import {
   CheckCircle,
   ChevronLeft,
-  FileIcon,
-  FolderIcon,
   Loader2,
   XCircle
 } from 'lucide-react'
+import { FileIcon, FolderIcon } from '@react-symbols/icons/utils'
 import type React from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -30,7 +29,6 @@ interface FileMentionPickerProps {
   onSelect: (file: FileEntry, isDeep?: boolean) => void
   onClose: () => void
   onQueryChange?: (query: string) => void
-  // New prop to detect workspace status
   workspaceRoot?: string
 }
 
@@ -274,16 +272,13 @@ export const FileMentionPicker: React.FC<FileMentionPickerProps> = ({
                       file.name === '..' ? (
                         <ChevronLeft className="w-4 h-4" />
                       ) : (
-                        <FolderIcon className="w-4 h-4" />
+                        <FolderIcon folderName={file.name} width={16} height={16} />
                       )
                     ) : (
-                      <FileIcon className="w-4 h-4" />
+                      <FileIcon fileName={file.name} width={16} height={16} />
                     )}
                   </span>
-                  <span className="font-medium truncate w-24">{file.name}</span>
-                  <span className="text-xs text-muted-foreground flex-1 truncate">
-                    {file.path}
-                  </span>
+                  <span className="font-medium truncate flex-1">{file.name}</span>
                   <span
                     className={cn(
                       'text-xs tabular-nums shrink-0',

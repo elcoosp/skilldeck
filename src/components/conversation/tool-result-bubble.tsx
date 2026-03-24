@@ -1,15 +1,13 @@
-// src/components/conversation/tool-result-bubble.tsx
 import {
   Check,
   ChevronDown,
   ChevronRight,
   Copy,
-  File,
-  Folder,
   Terminal,
   Wrench,
 } from 'lucide-react'
 import { useState, useMemo } from 'react'
+import { FileIcon, FolderIcon } from '@react-symbols/icons/utils'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 
@@ -53,8 +51,8 @@ function FileTreeRenderer({ text }: { text: string }) {
       {entries.map((e, i) => (
         <div key={i} className="flex items-center gap-1.5" style={{ paddingLeft: e.depth * 12 }}>
           {e.isDir
-            ? <Folder className="size-3 text-amber-400 shrink-0" />
-            : <File className="size-3 text-muted-foreground shrink-0" />}
+            ? <FolderIcon folderName={e.name} width={12} height={12} className="shrink-0" />
+            : <FileIcon fileName={e.name} width={12} height={12} className="shrink-0" />}
           <span className={e.isDir ? 'text-foreground font-medium' : 'text-muted-foreground'}>
             {e.name}
           </span>
@@ -124,8 +122,8 @@ export function ToolResultBubble({ content, toolName, isError = false }: ToolRes
     if (!toolName) return <Wrench className="size-3 shrink-0 text-muted-foreground" />
     const name = toolName.toLowerCase()
     if (name.includes('run') || name.includes('shell') || name.includes('terminal')) return <Terminal className="size-3 shrink-0 text-muted-foreground" />
-    if (name.includes('file')) return <File className="size-3 shrink-0 text-muted-foreground" />
-    if (name.includes('dir')) return <Folder className="size-3 shrink-0 text-muted-foreground" />
+    if (name.includes('file')) return <FileIcon fileName={toolName} width={12} height={12} className="shrink-0 text-muted-foreground" />
+    if (name.includes('dir')) return <FolderIcon folderName={toolName} width={12} height={12} className="shrink-0 text-muted-foreground" />
     return <Wrench className="size-3 shrink-0 text-muted-foreground" />
   }
 
