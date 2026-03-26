@@ -7,6 +7,8 @@ use sea_orm::{FromJsonQueryResult, entity::prelude::*};
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
+use crate::context_item::ContextItems;
+
 /// Typed metadata stored on every message row.
 /// All fields are optional — missing fields mean "not applicable for this role".
 #[derive(
@@ -48,7 +50,7 @@ pub struct Model {
     #[sea_orm(column_type = "Text")]
     pub content: String,
     pub metadata: Option<MessageMetadata>,
-    pub context_items: Option<Json>,
+    pub context_items: Option<ContextItems>,
     pub input_tokens: Option<i32>,
     pub output_tokens: Option<i32>,
     pub cache_read_tokens: Option<i32>,

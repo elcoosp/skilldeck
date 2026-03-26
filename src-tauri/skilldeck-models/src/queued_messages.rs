@@ -2,6 +2,8 @@
 
 use sea_orm::entity::prelude::*;
 
+use crate::context_item::ContextItems;
+
 #[sea_orm::model]
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
 #[sea_orm(table_name = "queued_messages")]
@@ -13,7 +15,7 @@ pub struct Model {
     pub position: i32,
     pub created_at: DateTimeWithTimeZone,
     pub updated_at: DateTimeWithTimeZone,
-    pub context_items: Option<Json>, // <-- added
+    pub context_items: Option<ContextItems>,
 
     // Relation to conversations (belongs-to)
     #[sea_orm(belongs_to, from = "conversation_id", to = "id")]
