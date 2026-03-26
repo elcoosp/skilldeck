@@ -31,10 +31,11 @@ import { cn } from '@/lib/utils'
 import { extractHeadings } from '@/lib/markdown-toc'
 import { useAssistantMessageStore } from '@/store/assistant-messages'
 import { commands } from '@/lib/bindings'
+import { getScrollToken, setScrollToken } from '@/lib/scroll-token' // <-- NEW
 
 // ─── Scroll token cache ───────────────────────────────────────────────────────
 // Persists scroll positions across conversation switches within the session.
-const scrollTokenCache = new Map<string, ScrollToken>()
+// Now backed by sessionStorage via the scroll-token module.
 
 // ─── Heading extraction: runs outside React, result is cached by message id ──
 // We track which (id, content-length) pairs we've already processed so we
@@ -60,7 +61,7 @@ export function CenterPanel() {
   const [debouncedSearch] = useDebounce(searchQuery, 300)
   const [autoScroll, setAutoScroll] = useState(true)
 
-  // NEW: search toggles
+  // search toggles
   const [searchCaseSensitive, setSearchCaseSensitive] = useState(false)
   const [searchRegex, setSearchRegex] = useState(false)
 
@@ -120,7 +121,7 @@ export function CenterPanel() {
     if (activeKeyRef.current && threadRef.current) {
       if (!threadRef.current.isScrollingToMessage?.()) {
         const token = threadRef.current.getScrollToken()
-        if (token) scrollTokenCache.set(activeKeyRef.current, token)
+        if (token) setScrollToken(activeKeyRef.current, token) // <-- NEW
       }
     }
     activeKeyRef.current = activeKey
@@ -128,7 +129,7 @@ export function CenterPanel() {
 
   const initialScrollToken = (() => {
     if (!activeKey) return undefined
-    const cached = scrollTokenCache.get(activeKey)
+    const cached = getScrollToken(activeKey) // <-- NEW
     if (!cached || typeof cached.messageId !== 'string') return undefined
     return cached
   })()
@@ -146,6 +147,9 @@ export function CenterPanel() {
   const [showJumpToLatest, setShowJumpToLatest] = useState(false)
   const [unseenJumpCount, setUnseenJumpCount] = useState(0)
   const lastSeenCountRef = useRef(realMessageCount)
+
+  // Flag to delay computeShowJump until initial scroll settled
+  const initialScrollSettledRef = useRef(false)
 
   useEffect(() => {
     lastSeenCountRef.current = messagesLengthRef.current
@@ -172,6 +176,21 @@ export function CenterPanel() {
     }
   }, [scrollToMessageId, messages, setScrollToMessageId])
 
+  // Helper to bulk-mark unseen assistant messages as seen
+  const markAllUnseenAsSeen = useCallback(async () => {
+    const unseenIds = messages
+      .filter(m => !m.seen && m.role === 'assistant' && m.id !== '__streaming__')
+      .map(m => m.id)
+    if (unseenIds.length === 0) return
+    try {
+      await Promise.all(unseenIds.map(id => commands.markMessageSeen(id)))
+      // Invalidate messages query to refresh seen flags
+      // (We'll rely on the store to eventually update; no need to force re-fetch)
+    } catch (err) {
+      console.error('Failed to mark messages seen:', err)
+    }
+  }, [messages])
+
   const computeShowJump = useCallback(() => {
     const el = threadRef.current?.getScrollElement()
     if (!el) return
@@ -180,18 +199,21 @@ export function CenterPanel() {
     if (nearBottom) {
       lastSeenCountRef.current = messagesLengthRef.current
       setUnseenJumpCount(0)
+      markAllUnseenAsSeen() // <-- NEW
     } else {
       setUnseenJumpCount(Math.max(0, messagesLengthRef.current - lastSeenCountRef.current))
     }
-  }, [])
+  }, [markAllUnseenAsSeen])
 
+  // Attach scroll listener with delayed initial call
   useEffect(() => {
     let unsub = () => { }
     const t = setTimeout(() => {
       const thread = threadRef.current
       if (!thread) return
       unsub = thread.onScroll(computeShowJump)
-      computeShowJump()
+      // Only call computeShowJump if the initial scroll has already settled
+      if (initialScrollSettledRef.current) computeShowJump()
     }, 50)
     return () => { clearTimeout(t); unsub() }
   }, [activeKey, computeShowJump])
@@ -204,18 +226,22 @@ export function CenterPanel() {
     threadRef.current?.scrollToBottom()
     lastSeenCountRef.current = messagesLengthRef.current
     setUnseenJumpCount(0)
+    markAllUnseenAsSeen() // <-- NEW
     const lastMsg = messages[messages.length - 1]
     if (lastMsg) {
       setHighlightedMessageId(lastMsg.id)
       if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current)
       highlightTimeoutRef.current = setTimeout(() => setHighlightedMessageId(null), 800)
     }
-  }, [messages])
+  }, [messages, markAllUnseenAsSeen])
 
   // ─── Scroll settled — save token after programmatic navigation ────────────
   const handleScrollSettled = useCallback((token: ScrollToken) => {
     if (activeKeyRef.current) {
-      scrollTokenCache.set(activeKeyRef.current, token)
+      setScrollToken(activeKeyRef.current, token) // <-- NEW
+    }
+    if (!initialScrollSettledRef.current) {
+      initialScrollSettledRef.current = true
     }
   }, [])
 

@@ -11,7 +11,6 @@ use tauri::State;
 use uuid::Uuid;
 
 use crate::state::AppState;
-use skilldeck_models::context_item::ContextItem;
 use skilldeck_models::conversation_branches::{self, Entity as Branches};
 use skilldeck_models::messages::{self, Entity as Messages};
 
