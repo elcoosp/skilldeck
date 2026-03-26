@@ -26,7 +26,7 @@ import {
   Zap,
   Play
 } from 'lucide-react'
-import { useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { UnifiedSkillList } from '@/components/skills/unified-skill-list'
@@ -57,7 +57,8 @@ import { useUIStore, selectHasSkillsUnlocked, selectHasWorkflowsUnlocked } from 
 import { McpTab } from './mcp-tab'
 import { useSessionStats } from '@/hooks/use-session-stats'
 import { AnalyticsHeatmap } from '../analytics/analytics-heatmap'
-
+import { Dialog, DialogFooter, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog'
+import { startOfMonth, endOfMonth, format, startOfYear, endOfYear, isWithinInterval } from 'date-fns'
 type Tab = 'session' | 'skills' | 'mcp' | 'workflow' | 'analytics'
 
 const TABS: {
@@ -553,9 +554,50 @@ function WorkflowTab() {
 }
 
 // ── Analytics tab ─────────────────────────────────────────────────────────────
-
 function AnalyticsTab() {
   const { data: analytics, isLoading, error } = useAnalytics()
+  const [fullYearDialogOpen, setFullYearDialogOpen] = useState(false)
+
+  const currentMonthStart = useMemo(() => startOfMonth(new Date()), [])
+  const currentMonthEnd = useMemo(() => endOfMonth(new Date()), [])
+
+  // Filter messages and conversations to current month for compact view
+  const currentMonthMessages = useMemo(() => {
+    if (!analytics) return []
+    return analytics.messages_per_day.filter(item => {
+      const date = new Date(item.date)
+      return isWithinInterval(date, { start: currentMonthStart, end: currentMonthEnd })
+    })
+  }, [analytics, currentMonthStart, currentMonthEnd])
+
+  const currentMonthConversations = useMemo(() => {
+    if (!analytics) return []
+    return analytics.conversations_per_day.filter(item => {
+      const date = new Date(item.date)
+      return isWithinInterval(date, { start: currentMonthStart, end: currentMonthEnd })
+    })
+  }, [analytics, currentMonthStart, currentMonthEnd])
+
+  // For full year, use all data (no filtering)
+  const fullYearStart = useMemo(() => {
+    if (!analytics) return startOfMonth(new Date())
+    const allDates = [...analytics.messages_per_day, ...analytics.conversations_per_day]
+      .map(d => new Date(d.date))
+      .filter(d => !isNaN(d.getTime()))
+    if (allDates.length === 0) return startOfMonth(new Date())
+    const minDate = new Date(Math.min(...allDates.map(d => d.getTime())))
+    return startOfMonth(minDate)
+  }, [analytics])
+
+  const fullYearEnd = useMemo(() => {
+    if (!analytics) return endOfMonth(new Date())
+    const allDates = [...analytics.messages_per_day, ...analytics.conversations_per_day]
+      .map(d => new Date(d.date))
+      .filter(d => !isNaN(d.getTime()))
+    if (allDates.length === 0) return endOfMonth(new Date())
+    const maxDate = new Date(Math.max(...allDates.map(d => d.getTime())))
+    return endOfMonth(maxDate)
+  }, [analytics])
 
   if (isLoading) {
     return (
@@ -614,12 +656,49 @@ function AnalyticsTab() {
         </div>
       </div>
 
-      {/* Heatmap */}
-      <div className="overflow-x-auto">
-        <AnalyticsHeatmap
-          messagesData={analytics.messages_per_day}
-          conversationsData={analytics.conversations_per_day}
-        />
+      {/* Compact month heatmap */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            Activity (current month)
+          </h3>
+          <Dialog open={fullYearDialogOpen} onOpenChange={setFullYearDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="sm" className="text-xs h-6 px-2">
+                View full year
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-6xl w-[95vw]" style={{ maxHeight: '90vh', overflowY: 'auto' }}>
+              <DialogHeader>
+                <DialogTitle>Activity heatmap – full year</DialogTitle>
+                <DialogDescription>
+                  Daily activity from the earliest recorded data to the most recent.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="py-4 overflow-x-auto">
+                <AnalyticsHeatmap
+                  messagesData={analytics.messages_per_day}
+                  conversationsData={analytics.conversations_per_day}
+                  startDate={fullYearStart}
+                  endDate={fullYearEnd}
+                  compact={false}
+                />
+              </div>
+              <DialogFooter>
+                <Button onClick={() => setFullYearDialogOpen(false)}>Close</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+        <div>
+          <AnalyticsHeatmap
+            messagesData={currentMonthMessages}
+            conversationsData={currentMonthConversations}
+            startDate={currentMonthStart}
+            endDate={currentMonthEnd}
+            compact={true}
+          />
+        </div>
       </div>
 
       {/* Skills used */}

@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useDebounce } from 'use-debounce'
 import { ArrowDown, CaseSensitive, Regex, Search, X } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'                           // <-- NEW
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
@@ -33,14 +34,7 @@ import { useAssistantMessageStore } from '@/store/assistant-messages'
 import { commands } from '@/lib/bindings'
 import { getScrollToken, setScrollToken } from '@/lib/scroll-token' // <-- NEW
 
-// ─── Scroll token cache ───────────────────────────────────────────────────────
-// Persists scroll positions across conversation switches within the session.
-// Now backed by sessionStorage via the scroll-token module.
-
 // ─── Heading extraction: runs outside React, result is cached by message id ──
-// We track which (id, content-length) pairs we've already processed so we
-// never call extractHeadings twice for the same content, and never touch the
-// store for messages that haven't changed.
 const headingCache = new Map<string, { contentLen: number; hasHeadings: boolean }>()
 
 export function CenterPanel() {
@@ -72,6 +66,9 @@ export function CenterPanel() {
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // ─── React Query client for cache invalidation ────────────────────────────
+  const queryClient = useQueryClient()
+
   // ─── Streaming state ──────────────────────────────────────────────────────
   const { isRunning } = useAgentStream(activeConversationId)
   const messages = useMessagesWithStream(activeConversationId, activeBranchId)
@@ -93,7 +90,6 @@ export function CenterPanel() {
       const cached = headingCache.get(msg.id)
       const contentLen = msg.content.length
 
-      // Skip if we've already processed this exact content length
       if (cached?.contentLen === contentLen) continue
 
       const headings = extractHeadings(msg.content, msg.id)
@@ -105,7 +101,6 @@ export function CenterPanel() {
     }
   }, [messages, setHeadings, clearHeadings])
 
-  // Clean up on conversation switch
   useEffect(() => {
     return () => { headingCache.delete('__streaming__') }
   }, [activeConversationId])
@@ -121,7 +116,7 @@ export function CenterPanel() {
     if (activeKeyRef.current && threadRef.current) {
       if (!threadRef.current.isScrollingToMessage?.()) {
         const token = threadRef.current.getScrollToken()
-        if (token) setScrollToken(activeKeyRef.current, token) // <-- NEW
+        if (token) setScrollToken(activeKeyRef.current, token)
       }
     }
     activeKeyRef.current = activeKey
@@ -129,7 +124,7 @@ export function CenterPanel() {
 
   const initialScrollToken = (() => {
     if (!activeKey) return undefined
-    const cached = getScrollToken(activeKey) // <-- NEW
+    const cached = getScrollToken(activeKey)
     if (!cached || typeof cached.messageId !== 'string') return undefined
     return cached
   })()
@@ -139,7 +134,6 @@ export function CenterPanel() {
   const messagesLengthRef = useRef(realMessageCount)
   messagesLengthRef.current = realMessageCount
 
-  // Compute unseen count (assistant messages not seen)
   const unseenCount = useMemo(() => {
     return messages.filter(m => !m.seen && m.role === 'assistant').length
   }, [messages])
@@ -148,21 +142,20 @@ export function CenterPanel() {
   const [unseenJumpCount, setUnseenJumpCount] = useState(0)
   const lastSeenCountRef = useRef(realMessageCount)
 
-  // Flag to delay computeShowJump until initial scroll settled
   const initialScrollSettledRef = useRef(false)
 
   useEffect(() => {
     lastSeenCountRef.current = messagesLengthRef.current
     setUnseenJumpCount(0)
     setShowJumpToLatest(false)
-  }, [activeKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeKey])
 
   useEffect(() => {
     if (isRunning) {
       lastSeenCountRef.current = messagesLengthRef.current
       setUnseenJumpCount(0)
     }
-  }, [isRunning]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isRunning])
 
   useEffect(() => {
     if (!scrollToMessageId || !messages.length) return
@@ -184,22 +177,31 @@ export function CenterPanel() {
     if (unseenIds.length === 0) return
     try {
       await Promise.all(unseenIds.map(id => commands.markMessageSeen(id)))
-      // Invalidate messages query to refresh seen flags
-      // (We'll rely on the store to eventually update; no need to force re-fetch)
+      // Invalidate the messages cache so unseenCount recomputes from fresh data
+      queryClient.invalidateQueries({ queryKey: ['messages', activeConversationId] })
     } catch (err) {
       console.error('Failed to mark messages seen:', err)
     }
-  }, [messages])
+  }, [messages, activeConversationId, queryClient])
 
   const computeShowJump = useCallback(() => {
     const el = threadRef.current?.getScrollElement()
     if (!el) return
+
+    // If content doesn't overflow, there's nothing to jump to
+    if (el.scrollHeight <= el.clientHeight + 1) {
+      setShowJumpToLatest(false)
+      setUnseenJumpCount(0)
+      lastSeenCountRef.current = messagesLengthRef.current
+      return
+    }
+
     const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 100
     setShowJumpToLatest(!nearBottom && messagesLengthRef.current > 0)
     if (nearBottom) {
       lastSeenCountRef.current = messagesLengthRef.current
       setUnseenJumpCount(0)
-      markAllUnseenAsSeen() // <-- NEW
+      markAllUnseenAsSeen()
     } else {
       setUnseenJumpCount(Math.max(0, messagesLengthRef.current - lastSeenCountRef.current))
     }
@@ -212,7 +214,6 @@ export function CenterPanel() {
       const thread = threadRef.current
       if (!thread) return
       unsub = thread.onScroll(computeShowJump)
-      // Only call computeShowJump if the initial scroll has already settled
       if (initialScrollSettledRef.current) computeShowJump()
     }, 50)
     return () => { clearTimeout(t); unsub() }
@@ -220,13 +221,13 @@ export function CenterPanel() {
 
   useEffect(() => { computeShowJump() }, [realMessageCount, computeShowJump])
 
-  // ─── Jump to latest ───────────────────────────────────────────────────────
   const jumpToLatest = useCallback(() => {
     if (messages.length === 0) return
     threadRef.current?.scrollToBottom()
     lastSeenCountRef.current = messagesLengthRef.current
     setUnseenJumpCount(0)
-    markAllUnseenAsSeen() // <-- NEW
+    setShowJumpToLatest(false)                             // <-- NEW: eagerly hide
+    markAllUnseenAsSeen()
     const lastMsg = messages[messages.length - 1]
     if (lastMsg) {
       setHighlightedMessageId(lastMsg.id)
@@ -238,7 +239,7 @@ export function CenterPanel() {
   // ─── Scroll settled — save token after programmatic navigation ────────────
   const handleScrollSettled = useCallback((token: ScrollToken) => {
     if (activeKeyRef.current) {
-      setScrollToken(activeKeyRef.current, token) // <-- NEW
+      setScrollToken(activeKeyRef.current, token)
     }
     if (!initialScrollSettledRef.current) {
       initialScrollSettledRef.current = true
@@ -292,8 +293,6 @@ export function CenterPanel() {
   }, [activeUserMessageIndex])
 
   // ─── Heading click handler ────────────────────────────────────────────────
-  // messageIndex = index of the ASSISTANT message in messages[]
-  // tocIndex     = positional DOM index of the heading within that bubble
   const handleHeadingClick = useCallback((messageIndex: number, tocIndex: number) => {
     const targetMsgId = messages[messageIndex]?.id
     const scrollContainer = threadRef.current?.getScrollElement()
@@ -309,7 +308,6 @@ export function CenterPanel() {
         const target = headingEls[tocIndex]
         if (!target) return
 
-        // Guard against collapsed content
         const targetRect = (target as HTMLElement).getBoundingClientRect()
         if (targetRect.top === 0 && targetRect.bottom === 0) return
 
@@ -384,7 +382,6 @@ export function CenterPanel() {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-8 pr-16 h-8 text-sm"
           />
-          {/* Toggle buttons inside the input */}
           <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
             <TooltipProvider>
               <Tooltip>
