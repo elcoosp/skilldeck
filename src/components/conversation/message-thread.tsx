@@ -1,4 +1,4 @@
-// message-thread.tsx
+// src/components/conversation/message-thread.tsx
 import {
   useVirtualizer,
   elementScroll,
@@ -424,18 +424,6 @@ export const MessageThread = React.forwardRef<
     const pendingApprovals = useToolApprovalStore((s) => s.pending)
     const removePending = useToolApprovalStore((s) => s.removePending)
 
-    // NEW: Auto‑scroll when a new approval card appears
-    React.useEffect(() => {
-      if (pendingApprovals.size === 0) return
-      const el = scrollRef.current
-      if (!el || userScrolledAwayRef.current) return
-      requestAnimationFrame(() => {
-        isProgrammaticScrollRef.current = true
-        el.scrollTop = el.scrollHeight
-        requestAnimationFrame(() => { isProgrammaticScrollRef.current = false })
-      })
-    }, [pendingApprovals.size])
-
     React.useImperativeHandle(
       ref,
       () => ({
@@ -638,21 +626,22 @@ export const MessageThread = React.forwardRef<
                   })}
                 </div>
               )}
+            </div>
 
-              {/* NEW: Render pending tool approvals */}
-              {pendingApprovals.size > 0 && (
-                <div className="px-4 py-2 flex flex-col gap-2">
-                  {Array.from(pendingApprovals.entries()).map(([toolCallId, toolCall]) => (
+            {/* NEW: Render pending tool approvals as an absolute overlay */}
+            {pendingApprovals.size > 0 && (
+              <div className="absolute bottom-0 left-0 right-0 z-20 px-4 pb-3 flex flex-col gap-2 pointer-events-none">
+                {Array.from(pendingApprovals.entries()).map(([toolCallId, toolCall]) => (
+                  <div key={toolCallId} className="pointer-events-auto">
                     <ToolApprovalCard
-                      key={toolCallId}
                       toolCallId={toolCallId}
                       toolCall={toolCall}
                       onResolved={() => removePending(toolCallId)}
                     />
-                  ))}
-                </div>
-              )}
-            </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </AutoScrollContext.Provider>
       </ScrollContainerContext.Provider>

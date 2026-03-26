@@ -14,6 +14,8 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Button } from '@/components/ui/button'
 import { useUnifiedSkills } from '@/hooks/use-unified-skills'
 import { commands } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
@@ -58,6 +60,7 @@ function useColumnCount(ref: React.RefObject<HTMLElement | null>) {
 const ROW_HEIGHT_ESTIMATE = 164 // px
 
 export function UnifiedSkillList() {
+  const [activeTab, setActiveTab] = useState<'local' | 'registry'>('local')
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('all')
   const [debouncedSearch] = useDebounce(search, 300)
@@ -65,6 +68,9 @@ export function UnifiedSkillList() {
   const [isMeasured, setIsMeasured] = useState(false)
   const isMeasuredRef = useRef(false)
   const measurementsRef = useRef<Map<Element, number>>(new Map())
+  const [lastSynced, setLastSynced] = useState<Date | null>(null)
+  const [isBatchUpdating, setIsBatchUpdating] = useState(false)
+  const [registrationNeeded, setRegistrationNeeded] = useState(false)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const columns = useColumnCount(containerRef)
@@ -81,9 +87,38 @@ export function UnifiedSkillList() {
     search: debouncedSearch || undefined
   })
 
+  // Filter skills based on active tab
+  const filteredSkillsByTab = useMemo(() => {
+    if (activeTab === 'local') {
+      return unifiedSkills.filter(
+        (s) => s.status === 'local_only' || s.status === 'installed' || s.status === 'update_available'
+      )
+    } else {
+      return unifiedSkills.filter((s) => s.status === 'available')
+    }
+  }, [unifiedSkills, activeTab])
+
+  // Apply category filter (only meaningful for registry skills)
+  const filteredSkills = useMemo(() => {
+    if (category === 'all') return filteredSkillsByTab
+    return filteredSkillsByTab.filter((s) => s.registryData?.category === category)
+  }, [filteredSkillsByTab, category])
+
+  // Update lastSynced whenever registry data appears or after a successful sync
+  useEffect(() => {
+    if (!registryError && unifiedSkills.some(s => s.registryData)) {
+      setLastSynced(new Date())
+      setRegistrationNeeded(false)
+    }
+  }, [unifiedSkills, registryError])
+
   const localWithIssues = unifiedSkills
     .filter((s) => s.status === 'local_only' || s.status === 'installed')
     .filter((s) => (s.localData?.lint_warnings?.length ?? 0) > 0).length
+
+  const updateAvailableCount = useMemo(() => {
+    return unifiedSkills.filter(s => s.status === 'update_available').length
+  }, [unifiedSkills])
 
   const categories = useMemo(() => {
     const cats = new Set<string>()
@@ -97,11 +132,6 @@ export function UnifiedSkillList() {
     })
     return ['all', ...Array.from(cats).sort()]
   }, [unifiedSkills])
-
-  const filteredSkills = useMemo(() => {
-    if (category === 'all') return unifiedSkills
-    return unifiedSkills.filter((s) => s.registryData?.category === category)
-  }, [unifiedSkills, category])
 
   const qc = useQueryClient()
   const syncMutation = useMutation({
@@ -159,6 +189,52 @@ export function UnifiedSkillList() {
     onError: (err) => toast.error(`Update failed: ${err}`)
   })
 
+  const batchUpdateMutation = useMutation({
+    mutationFn: async () => {
+      const updateSkills = unifiedSkills.filter(s => s.status === 'update_available')
+      if (updateSkills.length === 0) return { successCount: 0, failCount: 0 }
+
+      setIsBatchUpdating(true)
+      let successCount = 0
+      let failCount = 0
+
+      for (const skill of updateSkills) {
+        if (!skill.registryData) continue
+        try {
+          await commands.installSkill(
+            skill.registryData.name,
+            skill.registryData.content,
+            'personal',
+            true
+          )
+          successCount++
+        } catch (err) {
+          console.error(`Failed to update ${skill.name}:`, err)
+          failCount++
+        }
+      }
+
+      return { successCount, failCount }
+    },
+    onSuccess: (result) => {
+      if (result) {
+        const { successCount, failCount } = result
+        if (failCount === 0) {
+          toast.success(`Updated ${successCount} skill(s)`)
+        } else {
+          toast.warning(`Updated ${successCount}, ${failCount} failed`)
+        }
+      }
+      qc.invalidateQueries({ queryKey: ['local_skills'] })
+      qc.invalidateQueries({ queryKey: ['registry_skills'] })
+      setIsBatchUpdating(false)
+    },
+    onError: (err) => {
+      toast.error(`Batch update failed: ${err}`)
+      setIsBatchUpdating(false)
+    }
+  })
+
   const platformFeaturesEnabled = useUIStore((s) => s.platformFeaturesEnabled)
   const setSettingsTab = useUIStore((s) => s.setSettingsTab)
   const setSettingsOpen = useUIStore((s) => s.setSettingsOpen)
@@ -209,23 +285,43 @@ export function UnifiedSkillList() {
   }
 
   const handleUpdate = (skill: UnifiedSkill) => {
+    if (isBatchUpdating) {
+      toast.info('Batch update in progress, please wait')
+      return
+    }
     updateMutation.mutate(skill)
   }
+
+  const handleSync = useCallback(() => {
+    syncMutation.mutate(undefined, {
+      onSuccess: () => {
+        setLastSynced(new Date())
+        setRegistrationNeeded(false)
+      },
+      onError: (err) => {
+        if (err.message === 'PLATFORM_NOT_CONFIGURED') {
+          setRegistrationNeeded(true)
+          toast.error('Platform not registered', {
+            action: {
+              label: 'Register',
+              onClick: () => {
+                setSettingsTab('platform')
+                setSettingsOpen(true)
+              }
+            }
+          })
+        } else {
+          toast.error(`Sync failed: ${err.message}`)
+        }
+      }
+    })
+  }, [syncMutation, setSettingsTab, setSettingsOpen])
 
   return (
     <div className="flex h-full min-h-0">
       <div className="flex flex-col flex-1 min-w-0 h-full" ref={containerRef}>
-        <div className="px-3 pt-3">
-          <PlatformStatusBanner
-            variant={!platformFeaturesEnabled ? 'disabled' : registryError ? 'error' : null}
-            onEnable={handleEnablePlatform}
-            onRetry={() => syncMutation.mutate()}
-            onRegister={() => { setSettingsTab('platform'); setSettingsOpen(true); }}
-            errorMessage={registryError?.message}
-          />
-        </div>
-
-        <div className="flex items-center justify-between px-3 pt-0 pb-2 shrink-0">
+        {/* Header – padding matches MCP tab */}
+        <div className="flex items-center justify-between px-3 pt-3 pb-2 shrink-0">
           <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
             Skill Registry
           </span>
@@ -238,13 +334,29 @@ export function UnifiedSkillList() {
                 {localWithIssues} ⚠
               </span>
             )}
+            {activeTab === 'local' && updateAvailableCount > 0 && (
+              <Button
+                size="xs"
+                variant="outline"
+                onClick={() => batchUpdateMutation.mutate()}
+                disabled={isBatchUpdating || batchUpdateMutation.isPending}
+                className="h-6 px-2 text-xs"
+              >
+                {isBatchUpdating ? (
+                  <>
+                    <RefreshCw className="size-3 mr-1 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  <>Update all ({updateAvailableCount})</>
+                )}
+              </Button>
+            )}
             <button
               type="button"
-              onClick={() => syncMutation.mutate()}
+              onClick={() => handleSync()}
               disabled={!platformFeaturesEnabled || syncMutation.isPending}
-              title={
-                !platformFeaturesEnabled ? 'Enable platform to sync' : 'Refresh'
-              }
+              title={!platformFeaturesEnabled ? 'Enable platform to sync' : 'Refresh'}
               className={cn(
                 'p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40',
                 syncMutation.isPending && 'animate-spin'
@@ -255,141 +367,96 @@ export function UnifiedSkillList() {
           </div>
         </div>
 
-        <div className="px-3 pb-3 flex gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Search skills…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className={cn(
-                'w-full h-8 pl-8 pr-3 rounded-md border border-input bg-background',
-                'text-sm placeholder:text-muted-foreground',
-                'focus:outline-none focus:ring-1 focus:ring-ring'
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="flex flex-col flex-1 min-h-0">
+          <TabsList className="mx-3 w-fit">
+            <TabsTrigger value="local">Local</TabsTrigger>
+            <TabsTrigger value="registry">Registry</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="local" className="flex-1 min-h-0 overflow-hidden flex flex-col">
+            <div className="px-3 pb-3 flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search skills…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className={cn(
+                    'w-full h-8 pl-8 pr-3 rounded-md border border-input bg-background',
+                    'text-sm placeholder:text-muted-foreground',
+                    'focus:outline-none focus:ring-1 focus:ring-ring'
+                  )}
+                />
+              </div>
+              {activeTab === 'registry' && categories.length > 1 && (
+                <Select value={category} onValueChange={setCategory}>
+                  <SelectTrigger className="w-[140px] h-8">
+                    <SelectValue placeholder="Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat} value={cat} className="text-xs">
+                        {cat === 'all' ? 'All categories' : cat}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               )}
-            />
-          </div>
-
-          {categories.length > 1 && (
-            <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger className="w-[140px] h-8">
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((cat) => (
-                  <SelectItem key={cat} value={cat} className="text-xs">
-                    {cat === 'all' ? 'All categories' : cat}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        </div>
-
-        {isLoading ? (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center space-y-2">
-              <div className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
-              <p className="text-xs text-muted-foreground">
-                Loading marketplace…
-              </p>
             </div>
-          </div>
-        ) : !isMeasured ? (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center space-y-2">
-              <div className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
-              <p className="text-xs text-muted-foreground">
-                Preparing marketplace…
-              </p>
-            </div>
-          </div>
-        ) : filteredSkills.length === 0 ? (
-          <EmptyState search={search} hasRegistryError={!!registryError} />
-        ) : (
-          <div
-            ref={parentRef}
-            className="flex-1 overflow-auto px-4 py-4 overflow-x-hidden"
-            style={{ scrollbarGutter: 'stable' }}
-          >
-            <div
-              style={{
-                height: `${rowVirtualizer.getTotalSize()}px`,
-                width: '100%',
-                position: 'relative'
-              }}
-            >
-              {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                const startIdx = virtualRow.index * columns
-                const rowItems = filteredSkills.slice(
-                  startIdx,
-                  startIdx + columns
-                )
 
-                return (
-                  <div
-                    key={virtualRow.index}
-                    data-index={virtualRow.index}
-                    ref={rowVirtualizer.measureElement}
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '100%',
-                      transform: `translateY(${virtualRow.start}px)`,
-                      display: 'grid',
-                      gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-                      gap: '0.75rem',
-                      paddingBottom: '0.75rem',
-                      contain: 'layout style'
-                    }}
-                  >
-                    {rowItems.map((skill, colIdx) => (
-                      <motion.div
-                        layout="position"
-                        key={skill.id}
-                        style={{
-                          contain: 'content'
-                        }}
-                        initial={{ opacity: 0, y: 12, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        transition={{
-                          type: 'spring',
-                          stiffness: 100,
-                          damping: 12,
-                          delay: colIdx * 0.03
-                        }}
-                      >
-                        <UnifiedSkillCard
-                          skill={skill}
-                          isSelected={resolvedSelected?.id === skill.id}
-                          onClick={(s) =>
-                            setSelected((prev) =>
-                              prev?.id === s.id ? null : s
-                            )
-                          }
-                          onInstall={
-                            platformFeaturesEnabled ? handleInstall : undefined
-                          }
-                          onUpdate={
-                            platformFeaturesEnabled ? handleUpdate : undefined
-                          }
-                        />
-                      </motion.div>
+            {renderContent()}
+          </TabsContent>
+
+          <TabsContent value="registry" className="flex-1 min-h-0 overflow-hidden flex flex-col">
+            <div className="mb-2">
+              {!platformFeaturesEnabled && (
+                <PlatformStatusBanner
+                  variant="disabled"
+                  onEnable={handleEnablePlatform}
+                />
+              )}
+              {lastSynced && platformFeaturesEnabled && (
+                <div className="text-right text-[10px] text-muted-foreground px-3 pt-1">
+                  Last synced: {lastSynced.toLocaleTimeString()}
+                </div>
+              )}
+            </div>
+            <div className="px-3 pb-3 flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search skills…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className={cn(
+                    'w-full h-8 pl-8 pr-3 rounded-md border border-input bg-background',
+                    'text-sm placeholder:text-muted-foreground',
+                    'focus:outline-none focus:ring-1 focus:ring-ring'
+                  )}
+                />
+              </div>
+              {activeTab === 'registry' && categories.length > 1 && (
+                <Select value={category} onValueChange={setCategory}>
+                  <SelectTrigger className="w-[140px] h-8">
+                    <SelectValue placeholder="Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat} value={cat} className="text-xs">
+                        {cat === 'all' ? 'All categories' : cat}
+                      </SelectItem>
                     ))}
-                    {Array.from({
-                      length: columns - rowItems.length
-                    }).map((_, i) => (
-                      // biome-ignore lint/suspicious/noArrayIndexKey: static placeholder
-                      <div key={`pad-${i}`} />
-                    ))}
-                  </div>
-                )
-              })}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
-          </div>
-        )}
+
+            {renderContent()}
+          </TabsContent>
+        </Tabs>
       </div>
 
       {resolvedSelected && (
@@ -400,14 +467,150 @@ export function UnifiedSkillList() {
       )}
     </div>
   )
+
+  function renderContent() {
+    if (isLoading) {
+      return (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center space-y-2">
+            <div className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-xs text-muted-foreground">
+              Loading marketplace…
+            </p>
+          </div>
+        </div>
+      )
+    }
+
+    if (!isMeasured) {
+      return (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center space-y-2">
+            <div className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-xs text-muted-foreground">
+              Preparing marketplace…
+            </p>
+          </div>
+        </div>
+      )
+    }
+
+    if (filteredSkills.length === 0) {
+      return (
+        <EmptyState
+          search={search}
+          hasRegistryError={!!registryError}
+          tab={activeTab}
+          platformEnabled={platformFeaturesEnabled}
+          registrationNeeded={registrationNeeded}
+          onEnablePlatform={handleEnablePlatform}
+          onSync={handleSync}
+          isSyncing={syncMutation.isPending}
+        />
+      )
+    }
+
+    return (
+      <div
+        ref={parentRef}
+        className="h-full overflow-auto px-4 py-4 overflow-x-hidden thin-scrollbar"
+        style={{ scrollbarGutter: 'stable' }}
+      >
+        <div
+          style={{
+            height: `${rowVirtualizer.getTotalSize()}px`,
+            width: '100%',
+            position: 'relative'
+          }}
+        >
+          {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+            const startIdx = virtualRow.index * columns
+            const rowItems = filteredSkills.slice(startIdx, startIdx + columns)
+
+            return (
+              <div
+                key={virtualRow.index}
+                data-index={virtualRow.index}
+                ref={rowVirtualizer.measureElement}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  transform: `translateY(${virtualRow.start}px)`,
+                  display: 'grid',
+                  gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+                  gap: '0.75rem',
+                  paddingBottom: '0.75rem',
+                  contain: 'layout style'
+                }}
+              >
+                {rowItems.map((skill, colIdx) => (
+                  <motion.div
+                    layout="position"
+                    key={skill.id}
+                    style={{
+                      contain: 'content'
+                    }}
+                    initial={{ opacity: 0, y: 12, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{
+                      type: 'spring',
+                      stiffness: 100,
+                      damping: 12,
+                      delay: colIdx * 0.03
+                    }}
+                  >
+                    <UnifiedSkillCard
+                      skill={skill}
+                      isSelected={resolvedSelected?.id === skill.id}
+                      onClick={(s) =>
+                        setSelected((prev) =>
+                          prev?.id === s.id ? null : s
+                        )
+                      }
+                      onInstall={
+                        platformFeaturesEnabled ? handleInstall : undefined
+                      }
+                      onUpdate={
+                        platformFeaturesEnabled ? handleUpdate : undefined
+                      }
+                    />
+                  </motion.div>
+                ))}
+                {Array.from({
+                  length: columns - rowItems.length
+                }).map((_, i) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: static placeholder
+                  <div key={`pad-${i}`} />
+                ))}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
 }
 
 function EmptyState({
   search,
-  hasRegistryError
+  hasRegistryError,
+  tab,
+  platformEnabled,
+  registrationNeeded,
+  onEnablePlatform,
+  onSync,
+  isSyncing
 }: {
   search: string
   hasRegistryError: boolean
+  tab: 'local' | 'registry'
+  platformEnabled: boolean
+  registrationNeeded?: boolean
+  onEnablePlatform?: () => void
+  onSync?: () => void
+  isSyncing?: boolean
 }) {
   if (hasRegistryError) {
     return (
@@ -446,19 +649,84 @@ function EmptyState({
     )
   }
 
+  if (tab === 'local') {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-4">
+        <img
+          src="/illustrations/empty-skills.jpeg"
+          alt="No local skills"
+          className="w-48 h-48 mb-2 opacity-90 rounded-3xl"
+        />
+        <h3 className="text-base font-semibold text-foreground mb-1">
+          No local skills
+        </h3>
+        <p className="text-sm text-muted-foreground max-w-xs">
+          Install skills from the registry or create your own.
+        </p>
+      </div>
+    )
+  }
+
+  // Registry tab empty state
+  if (!platformEnabled) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-4">
+        <img
+          src="/illustrations/empty-skills.jpeg"
+          alt="Platform not connected"
+          className="w-48 h-48 mb-2 opacity-90 rounded-3xl"
+        />
+        <h3 className="text-base font-semibold text-foreground mb-1">
+          Connect to Platform
+        </h3>
+        <p className="text-sm text-muted-foreground max-w-xs mb-2">
+          Enable platform features to discover and install community skills.
+        </p>
+        <Button size="sm" onClick={onEnablePlatform}>
+          Connect Platform
+        </Button>
+      </div>
+    )
+  }
+
+  if (registrationNeeded) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-4">
+        <img
+          src="/illustrations/empty-skills.jpeg"
+          alt="Platform not registered"
+          className="w-48 h-48 mb-2 opacity-90 rounded-3xl"
+        />
+        <h3 className="text-base font-semibold text-foreground mb-1">
+          Platform not registered
+        </h3>
+        <p className="text-sm text-muted-foreground max-w-xs mb-2">
+          You need to register with the platform to sync skills.
+        </p>
+        <Button size="sm" onClick={onEnablePlatform}>
+          Register Now
+        </Button>
+      </div>
+    )
+  }
+
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-4">
       <img
         src="/illustrations/empty-skills.jpeg"
-        alt="No skills"
+        alt="No registry skills"
         className="w-48 h-48 mb-2 opacity-90 rounded-3xl"
       />
       <h3 className="text-base font-semibold text-foreground mb-1">
-        Your toolkit is waiting to be built.
+        No registry skills
       </h3>
-      <p className="text-sm text-muted-foreground max-w-xs">
-        Sync the registry or create your own skill—every deck needs its cards.
+      <p className="text-sm text-muted-foreground max-w-xs mb-2">
+        Sync with the platform to discover new skills.
       </p>
+      <Button size="sm" onClick={onSync} disabled={isSyncing}>
+        <RefreshCw className={`size-3.5 mr-1.5 ${isSyncing ? 'animate-spin' : ''}`} />
+        Sync now
+      </Button>
     </div>
   )
 }
