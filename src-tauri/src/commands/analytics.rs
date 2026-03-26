@@ -9,7 +9,7 @@ use std::sync::Arc;
 use tauri::State;
 
 use crate::state::AppState;
-use skilldeck_models::context_item::ContextItems;
+use skilldeck_models::context_item::{ContextItem, ContextItems};
 use skilldeck_models::{
     conversations::Column as ConversationColumn, conversations::Entity as Conversations,
     messages::Column as MessageColumn, messages::Entity as Messages,

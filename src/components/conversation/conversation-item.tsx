@@ -1,3 +1,6 @@
+// src/components/conversation/conversation-item.tsx
+// (full file after modifications)
+
 import { formatDistanceToNow } from 'date-fns'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
@@ -70,6 +73,12 @@ export function ConversationItem({
   const renameMutation = useRenameConversation()
   const pinMutation = usePinConversation()
   const unpinMutation = useUnpinConversation()
+
+  // Mount guard to prevent re‑animation on re‑renders (e.g., panel resize)
+  const hasMounted = useRef(false)
+  useEffect(() => {
+    hasMounted.current = true
+  }, [])
 
   // ── Listen to the custom drag‑drop event from GlobalDropZone ──────────────
   useEffect(() => {
@@ -207,7 +216,6 @@ export function ConversationItem({
           ? 'bg-primary/10 text-foreground'
           : 'hover:bg-muted/70 text-muted-foreground hover:text-foreground',
         isDeleting && 'pointer-events-none opacity-50',
-        // Ring always visible when dragging over, with extra background for active item
         isDragTarget && 'ring-2 ring-inset ring-primary',
         isDragTarget && isActive && 'bg-primary/20',
         isDragTarget && !isActive && 'bg-primary/5 text-foreground',
@@ -219,9 +227,9 @@ export function ConversationItem({
             {isRenaming ? (
               <motion.div
                 key="input"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
+                initial={hasMounted.current ? false : { opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
                 transition={{ duration: 0.15 }}
                 className="flex-1 h-full"
                 onClick={(e) => e.stopPropagation()}
@@ -249,9 +257,9 @@ export function ConversationItem({
             ) : (
               <motion.span
                 key="title"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
+                initial={hasMounted.current ? false : { opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
                 transition={{ duration: 0.15 }}
                 className="text-xs font-medium truncate leading-none"
               >

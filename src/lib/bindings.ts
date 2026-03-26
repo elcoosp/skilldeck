@@ -5,6 +5,14 @@
 
 
 export const commands = {
+async getHomeDir() : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_home_dir") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async getConversationDraft(conversationId: string) : Promise<Result<[string, JsonValue[]] | null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_conversation_draft", { conversationId }) };

@@ -29,14 +29,15 @@ pub async fn get_conversation_draft(
     if let Some(d) = draft {
         let text = d.text_content.unwrap_or_default();
         // Convert ContextItems to Vec<serde_json::Value> for frontend compatibility
-        let items = d
-            .context_items
-            .map(|c| {
-                serde_json::to_value(c.0)
-                    .map_err(|e| e.to_string())
-                    .unwrap_or_default()
-            })
-            .unwrap_or_default();
+        let items: Vec<serde_json::Value> = if let Some(context) = d.context_items {
+            context
+                .0
+                .into_iter()
+                .map(|item| serde_json::to_value(item).map_err(|e| e.to_string()))
+                .collect::<Result<Vec<_>, _>>()?
+        } else {
+            Vec::new()
+        };
         Ok(Some((text, items)))
     } else {
         Ok(None)
