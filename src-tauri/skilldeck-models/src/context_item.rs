@@ -26,7 +26,7 @@ pub enum ContextItem {
 
 /// Determines how deeply to traverse a folder when assembling content.
 /// Stored as a string in the JSON column (e.g., "shallow" or "deep").
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq,Eq Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum FolderScope {
     Shallow, // only direct children
