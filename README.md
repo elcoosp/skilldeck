@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/elcoosp/skilldeck/main/docs/brand/logo-main.svg" alt="SkillDeck Logo" width="200"/>
+  <img src="https://raw.githubusercontent.com/elcoosp/skilldeck/main/docs/brand/logo-dev.svg" alt="SkillDeck Logo" width="200"/>
 </p>
 
 # SkillDeck

@@ -20,7 +20,7 @@ pub struct AnalyticsData {
     total_conversations: u64,
     total_messages: u64,
     messages_per_day: Vec<DailyCount>,
-    conversations_per_day: Vec<DailyCount>, // <-- added
+    conversations_per_day: Vec<DailyCount>,
     skills_used: Vec<SkillUsage>,
     token_usage: TokenTotals,
 }
@@ -67,10 +67,8 @@ pub async fn get_analytics(state: State<'_, Arc<AppState>>) -> Result<AnalyticsD
         .await
         .map_err(|e| e.to_string())?;
 
-    // Messages per day for the last 30 days
-    let thirty_days_ago = Utc::now() - Duration::days(30);
+    // Messages per day (all time)
     let messages = Messages::find()
-        .filter(MessageColumn::CreatedAt.gte(thirty_days_ago))
         .order_by_asc(MessageColumn::CreatedAt)
         .all(db)
         .await
@@ -81,16 +79,14 @@ pub async fn get_analytics(state: State<'_, Arc<AppState>>) -> Result<AnalyticsD
         let date = msg.created_at.format("%Y-%m-%d").to_string();
         *daily_counts.entry(date).or_insert(0) += 1;
     }
-
     let mut messages_per_day: Vec<DailyCount> = daily_counts
         .into_iter()
         .map(|(date, count)| DailyCount { date, count })
         .collect();
     messages_per_day.sort_by(|a, b| a.date.cmp(&b.date));
 
-    // Conversations per day (last 30 days)
+    // Conversations per day (all time)
     let conversations = Conversations::find()
-        .filter(ConversationColumn::CreatedAt.gte(thirty_days_ago))
         .order_by_asc(ConversationColumn::CreatedAt)
         .all(db)
         .await
@@ -101,14 +97,13 @@ pub async fn get_analytics(state: State<'_, Arc<AppState>>) -> Result<AnalyticsD
         let date = conv.created_at.format("%Y-%m-%d").to_string();
         *conv_daily_counts.entry(date).or_insert(0) += 1;
     }
-
     let mut conversations_per_day: Vec<DailyCount> = conv_daily_counts
         .into_iter()
         .map(|(date, count)| DailyCount { date, count })
         .collect();
     conversations_per_day.sort_by(|a, b| a.date.cmp(&b.date));
 
-    // Skills used (count occurrences in context_items JSON)
+    // Skills used (all time)
     let messages_with_context = Messages::find()
         .filter(MessageColumn::ContextItems.is_not_null())
         .all(db)
@@ -125,14 +120,12 @@ pub async fn get_analytics(state: State<'_, Arc<AppState>>) -> Result<AnalyticsD
             }
         }
     }
-
     let skills_used: Vec<SkillUsage> = skill_counts
         .into_iter()
         .map(|(name, count)| SkillUsage { name, count })
         .collect();
 
-    // Token usage totals from messages table
-    // Use Option<i64> to handle NULL sums (when no messages with token data exist)
+    // Token usage totals (all time)
     let input_sum: i64 = Messages::find()
         .select_only()
         .column_as(MessageColumn::InputTokens.sum(), "sum")

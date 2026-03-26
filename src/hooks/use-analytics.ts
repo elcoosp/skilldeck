@@ -21,7 +21,7 @@ export interface AnalyticsData {
   total_conversations: number
   total_messages: number
   messages_per_day: DailyCount[]
-  conversations_per_day: DailyCount[]  // <-- added
+  conversations_per_day: DailyCount[]
   skills_used: SkillUsage[]
   token_usage: TokenTotals
 }
@@ -32,7 +32,6 @@ export function useAnalytics() {
     queryFn: async (): Promise<AnalyticsData> => {
       const res = await commands.getAnalytics()
       if (res.status === 'ok') {
-        // Convert string fields from bindings to numbers
         const data = res.data
         return {
           total_conversations: Number(data.total_conversations),

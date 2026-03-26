@@ -7772,6 +7772,7 @@ dependencies = [
  "dirs-next",
  "futures",
  "glob",
+ "hex",
  "migration",
  "notify",
  "notify-debouncer-mini",
