@@ -73,7 +73,10 @@ pub async fn add_queued_message_internal(
         .map(|m| m.position)
         .unwrap_or(0);
 
-    let context_items_model = context_items.map(ContextItems);
+    // Ensure we always have a non-None value for context_items (empty array if none)
+    let context_items_model = context_items
+        .map(ContextItems)
+        .unwrap_or_else(|| ContextItems(vec![]));
 
     let id = Uuid::new_v4();
     let now = chrono::Utc::now().fixed_offset();
@@ -85,14 +88,13 @@ pub async fn add_queued_message_internal(
         position: Set(max_pos + 1),
         created_at: Set(now),
         updated_at: Set(now),
-        context_items: Set(context_items_model),
+        context_items: Set(Some(context_items_model)),
     };
 
     model.insert(db).await.map_err(|e| e.to_string())?;
     tracing::info!("Queued message added with id={}", id);
     Ok(id.to_string())
 }
-
 pub async fn list_queued_messages_internal(
     state: &AppState,
     conversation_id: &str,

@@ -358,8 +358,11 @@ pub(crate) async fn send_message_internal(
     let msg_id = Uuid::new_v4();
     let now = chrono::Utc::now().fixed_offset();
 
-    // Clone context_items before moving it into the model
-    let context_items_model = context_items.clone().map(ContextItems);
+    // Clone before mapping to avoid moving the original `context_items`
+    let context_items_model = context_items
+        .clone()
+        .map(ContextItems)
+        .unwrap_or_else(|| ContextItems(vec![]));
 
     let user_msg = messages::ActiveModel {
         id: Set(msg_id),
@@ -367,7 +370,7 @@ pub(crate) async fn send_message_internal(
         role: Set("user".to_string()),
         content: Set(content.clone()),
         metadata: Set(metadata),
-        context_items: Set(context_items_model),
+        context_items: Set(Some(context_items_model)),
         created_at: Set(now),
         seen: Set(false),
         status: Set("active".to_string()),
@@ -393,7 +396,7 @@ pub(crate) async fn send_message_internal(
     let conv_id_clone = conversation_id.clone();
     let content_clone = content.clone();
     let app_clone = app.clone();
-    let context_items_clone = context_items; // Now context_items is still available
+    let context_items_clone = context_items; // now we still have the original because we cloned earlier
 
     let future: Pin<Box<dyn Future<Output = ()> + Send + 'static>> = Box::pin(async move {
         run_agent_loop(
