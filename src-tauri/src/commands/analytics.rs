@@ -9,7 +9,7 @@ use std::sync::Arc;
 use tauri::State;
 
 use crate::state::AppState;
-use skilldeck_models::context_item::{ContextItem, ContextItems};
+use skilldeck_models::context_item::ContextItem;
 use skilldeck_models::{
     conversations::Column as ConversationColumn, conversations::Entity as Conversations,
     messages::Column as MessageColumn, messages::Entity as Messages,
@@ -20,6 +20,7 @@ pub struct AnalyticsData {
     total_conversations: u64,
     total_messages: u64,
     messages_per_day: Vec<DailyCount>,
+    conversations_per_day: Vec<DailyCount>, // <-- added
     skills_used: Vec<SkillUsage>,
     token_usage: TokenTotals,
 }
@@ -75,7 +76,7 @@ pub async fn get_analytics(state: State<'_, Arc<AppState>>) -> Result<AnalyticsD
         .await
         .map_err(|e| e.to_string())?;
 
-    let mut daily_counts: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
+    let mut daily_counts = std::collections::HashMap::new();
     for msg in messages {
         let date = msg.created_at.format("%Y-%m-%d").to_string();
         *daily_counts.entry(date).or_insert(0) += 1;
@@ -87,6 +88,26 @@ pub async fn get_analytics(state: State<'_, Arc<AppState>>) -> Result<AnalyticsD
         .collect();
     messages_per_day.sort_by(|a, b| a.date.cmp(&b.date));
 
+    // Conversations per day (last 30 days)
+    let conversations = Conversations::find()
+        .filter(ConversationColumn::CreatedAt.gte(thirty_days_ago))
+        .order_by_asc(ConversationColumn::CreatedAt)
+        .all(db)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let mut conv_daily_counts = std::collections::HashMap::new();
+    for conv in conversations {
+        let date = conv.created_at.format("%Y-%m-%d").to_string();
+        *conv_daily_counts.entry(date).or_insert(0) += 1;
+    }
+
+    let mut conversations_per_day: Vec<DailyCount> = conv_daily_counts
+        .into_iter()
+        .map(|(date, count)| DailyCount { date, count })
+        .collect();
+    conversations_per_day.sort_by(|a, b| a.date.cmp(&b.date));
+
     // Skills used (count occurrences in context_items JSON)
     let messages_with_context = Messages::find()
         .filter(MessageColumn::ContextItems.is_not_null())
@@ -94,7 +115,7 @@ pub async fn get_analytics(state: State<'_, Arc<AppState>>) -> Result<AnalyticsD
         .await
         .map_err(|e| e.to_string())?;
 
-    let mut skill_counts: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
+    let mut skill_counts = std::collections::HashMap::new();
     for msg in messages_with_context {
         if let Some(context) = msg.context_items {
             for item in context.0 {
@@ -111,24 +132,25 @@ pub async fn get_analytics(state: State<'_, Arc<AppState>>) -> Result<AnalyticsD
         .collect();
 
     // Token usage totals from messages table
+    // Use Option<i64> to handle NULL sums (when no messages with token data exist)
     let input_sum: i64 = Messages::find()
         .select_only()
         .column_as(MessageColumn::InputTokens.sum(), "sum")
-        .filter(MessageColumn::InputTokens.is_not_null())
-        .into_tuple()
+        .into_tuple::<Option<i64>>()
         .one(db)
         .await
         .map_err(|e| e.to_string())?
+        .flatten()
         .unwrap_or(0);
 
     let output_sum: i64 = Messages::find()
         .select_only()
         .column_as(MessageColumn::OutputTokens.sum(), "sum")
-        .filter(MessageColumn::OutputTokens.is_not_null())
-        .into_tuple()
+        .into_tuple::<Option<i64>>()
         .one(db)
         .await
         .map_err(|e| e.to_string())?
+        .flatten()
         .unwrap_or(0);
 
     let token_totals = TokenTotals {
@@ -141,6 +163,7 @@ pub async fn get_analytics(state: State<'_, Arc<AppState>>) -> Result<AnalyticsD
         total_conversations,
         total_messages,
         messages_per_day,
+        conversations_per_day,
         skills_used,
         token_usage: token_totals,
     })
