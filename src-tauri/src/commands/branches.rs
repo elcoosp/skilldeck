@@ -133,9 +133,7 @@ pub async fn get_branch_messages(
     Ok(messages
         .into_iter()
         .map(|m| {
-            let context_items = m
-                .context_items
-                .and_then(|json| serde_json::from_value::<Vec<ContextItem>>(json).ok());
+            let context_items = m.context_items.map(|c| c.0);
             crate::commands::messages::MessageData {
                 id: m.id.to_string(),
                 conversation_id: m.conversation_id.to_string(),

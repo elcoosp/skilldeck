@@ -1,6 +1,6 @@
+//! Tauri command to get the user's home directory.
+
 use specta::specta;
-use std::sync::Arc;
-use tauri::State;
 
 #[specta]
 #[tauri::command]

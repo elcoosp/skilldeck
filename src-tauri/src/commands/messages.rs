@@ -19,7 +19,7 @@ use async_trait::async_trait;
 use futures::Future;
 use skilldeck_core::agent::{AgentLoop, AgentLoopConfig, AgentLoopEvent, all_built_in_tools};
 use skilldeck_core::traits::subagent_spawner::SubagentSpawner;
-use skilldeck_models::context_item::{ContextItem, FolderScope};
+use skilldeck_models::context_item::{ContextItem, ContextItems, FolderScope};
 use skilldeck_models::conversations::{self, Entity as Conversations};
 use skilldeck_models::messages::{self, Entity as Messages, MessageMetadata};
 
@@ -96,8 +96,8 @@ pub async fn list_messages(
     let conv_uuid = Uuid::parse_str(&conversation_id).map_err(|e| e.to_string())?;
 
     let rows = Messages::find()
-        .filter(messages::COLUMN.conversation_id.eq(conv_uuid))
-        .order_by_asc(messages::COLUMN.created_at)
+        .filter(messages::Column::ConversationId.eq(conv_uuid))
+        .order_by_asc(messages::Column::CreatedAt)
         .all(db)
         .await
         .map_err(|e| e.to_string())?;
@@ -105,9 +105,7 @@ pub async fn list_messages(
     Ok(rows
         .into_iter()
         .map(|m| {
-            let context_items = m
-                .context_items
-                .and_then(|json| serde_json::from_value::<Vec<ContextItem>>(json).ok());
+            let context_items = m.context_items.map(|c| c.0);
             MessageData {
                 id: m.id.to_string(),
                 conversation_id: m.conversation_id.to_string(),
@@ -261,7 +259,7 @@ pub async fn send_message(
             &state,
             &req.conversation_id,
             req.content,
-            req.context_items,
+            req.context_items.clone(),
         )
         .await?;
         let _ = app.emit(
@@ -360,11 +358,7 @@ pub(crate) async fn send_message_internal(
     let msg_id = Uuid::new_v4();
     let now = chrono::Utc::now().fixed_offset();
 
-    let items_json = context_items
-        .as_ref()
-        .map(|items| serde_json::to_value(items).map_err(|e| e.to_string()))
-        .transpose()?
-        .unwrap_or(serde_json::Value::Array(vec![]));
+    let context_items_model = context_items.map(ContextItems);
 
     let user_msg = messages::ActiveModel {
         id: Set(msg_id),
@@ -372,7 +366,7 @@ pub(crate) async fn send_message_internal(
         role: Set("user".to_string()),
         content: Set(content.clone()),
         metadata: Set(metadata),
-        context_items: Set(Some(items_json)),
+        context_items: Set(context_items_model),
         created_at: Set(now),
         seen: Set(false),
         status: Set("active".to_string()),
@@ -877,7 +871,7 @@ fn run_agent_loop(
                         role: Set(role_str.to_string()),
                         content: Set(msg.content),
                         created_at: Set(now),
-                        context_items: Set(Some(serde_json::Value::Array(vec![]))),
+                        context_items: Set(Some(ContextItems(vec![]))),
                         seen: Set(false),
                         status: Set("active".to_string()),
                         ..Default::default()

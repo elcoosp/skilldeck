@@ -5,6 +5,7 @@ use tauri::State;
 use uuid::Uuid;
 
 use crate::state::AppState;
+use skilldeck_models::context_item::ContextItems;
 use skilldeck_models::conversation_drafts::{self, Entity as Drafts};
 
 #[specta]
@@ -27,9 +28,14 @@ pub async fn get_conversation_draft(
         .map_err(|e| e.to_string())?;
     if let Some(d) = draft {
         let text = d.text_content.unwrap_or_default();
+        // Convert ContextItems to Vec<serde_json::Value> for frontend compatibility
         let items = d
             .context_items
-            .and_then(|j| serde_json::from_value(j).ok())
+            .map(|c| {
+                serde_json::to_value(c.0)
+                    .map_err(|e| e.to_string())
+                    .unwrap_or_default()
+            })
             .unwrap_or_default();
         Ok(Some((text, items)))
     } else {
@@ -54,9 +60,20 @@ pub async fn upsert_conversation_draft(
     let uuid = Uuid::parse_str(&conversation_id).map_err(|e| e.to_string())?;
 
     let now = chrono::Utc::now().fixed_offset();
-    let items_json = context_items
-        .map(|items| serde_json::to_value(items).map_err(|e| e.to_string()))
-        .transpose()?;
+
+    // Convert Vec<serde_json::Value> to Option<ContextItems> (if present)
+    let context_items_model = if let Some(items) = context_items {
+        // Convert each value to ContextItem
+        let mut vec = Vec::new();
+        for val in items {
+            let item: skilldeck_models::context_item::ContextItem =
+                serde_json::from_value(val).map_err(|e| e.to_string())?;
+            vec.push(item);
+        }
+        Some(ContextItems(vec))
+    } else {
+        None
+    };
 
     let existing = Drafts::find_by_id(uuid)
         .one(db)
@@ -65,14 +82,14 @@ pub async fn upsert_conversation_draft(
     if let Some(draft) = existing {
         let mut active: conversation_drafts::ActiveModel = draft.into();
         active.text_content = Set(text_content);
-        active.context_items = Set(items_json);
+        active.context_items = Set(context_items_model);
         active.updated_at = Set(now);
         active.update(db).await.map_err(|e| e.to_string())?;
     } else {
         let draft = conversation_drafts::ActiveModel {
             conversation_id: Set(uuid),
             text_content: Set(text_content),
-            context_items: Set(items_json),
+            context_items: Set(context_items_model),
             updated_at: Set(now),
         };
         draft.insert(db).await.map_err(|e| e.to_string())?;

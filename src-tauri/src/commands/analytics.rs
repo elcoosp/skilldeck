@@ -9,6 +9,7 @@ use std::sync::Arc;
 use tauri::State;
 
 use crate::state::AppState;
+use skilldeck_models::context_item::ContextItems;
 use skilldeck_models::{
     conversations::Column as ConversationColumn, conversations::Entity as Conversations,
     messages::Column as MessageColumn, messages::Entity as Messages,
@@ -95,16 +96,10 @@ pub async fn get_analytics(state: State<'_, Arc<AppState>>) -> Result<AnalyticsD
 
     let mut skill_counts: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
     for msg in messages_with_context {
-        if let Some(context_json) = msg.context_items {
-            if let Ok(items) = serde_json::from_value::<Vec<serde_json::Value>>(context_json) {
-                for item in items {
-                    if let Some(item_type) = item.get("type").and_then(|t| t.as_str()) {
-                        if item_type == "skill" {
-                            if let Some(name) = item.get("name").and_then(|n| n.as_str()) {
-                                *skill_counts.entry(name.to_string()).or_insert(0) += 1;
-                            }
-                        }
-                    }
+        if let Some(context) = msg.context_items {
+            for item in context.0 {
+                if let ContextItem::Skill { name } = item {
+                    *skill_counts.entry(name).or_insert(0) += 1;
                 }
             }
         }

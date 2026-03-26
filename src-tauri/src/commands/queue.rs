@@ -15,7 +15,7 @@ use uuid::Uuid;
 
 use crate::commands::messages::send_message_internal;
 use crate::state::AppState;
-use skilldeck_models::context_item::ContextItem;
+use skilldeck_models::context_item::{ContextItem, ContextItems};
 use skilldeck_models::messages::MessageMetadata;
 use skilldeck_models::queued_messages::{self, Entity as Queued};
 
@@ -73,11 +73,7 @@ pub async fn add_queued_message_internal(
         .map(|m| m.position)
         .unwrap_or(0);
 
-    let items_json = context_items
-        .as_ref()
-        .map(|items| serde_json::to_value(items).map_err(|e| e.to_string()))
-        .transpose()?
-        .unwrap_or(serde_json::Value::Array(vec![]));
+    let context_items_model = context_items.map(ContextItems);
 
     let id = Uuid::new_v4();
     let now = chrono::Utc::now().fixed_offset();
@@ -89,7 +85,7 @@ pub async fn add_queued_message_internal(
         position: Set(max_pos + 1),
         created_at: Set(now),
         updated_at: Set(now),
-        context_items: Set(Some(items_json)),
+        context_items: Set(context_items_model),
     };
 
     model.insert(db).await.map_err(|e| e.to_string())?;
@@ -287,7 +283,7 @@ pub async fn merge_queued_messages_internal(
         position: Set(min_position),
         created_at: Set(now),
         updated_at: Set(now),
-        context_items: Set(Some(serde_json::Value::Array(vec![]))),
+        context_items: Set(Some(ContextItems(vec![]))),
     };
     new_msg.insert(&txn).await.map_err(|e| e.to_string())?;
 
