@@ -62,7 +62,7 @@ impl FilesystemSkillLoader {
         let content_hash = {
             let mut hasher = Sha256::new();
             hasher.update(body.as_bytes());
-            format!("{:x}", hasher.finalize())
+            hex::encode(hasher.finalize())
         };
 
         Ok(Skill {
@@ -84,7 +84,7 @@ impl FilesystemSkillLoader {
     pub fn compute_dir_hash(skill_dir: &Path) -> String {
         let mut hasher = Sha256::new();
         hasher.update(skill_dir.to_string_lossy().as_bytes());
-        format!("{:x}", hasher.finalize())
+        hex::encode(hasher.finalize())
     }
 }
 
