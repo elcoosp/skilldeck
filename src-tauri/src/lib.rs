@@ -8,6 +8,7 @@
 //! - Tracing subscriber
 //! - Nudge poller and background skill sync
 
+mod artifacts;
 mod commands;
 mod config;
 mod events;
@@ -22,9 +23,10 @@ mod sync;
 pub use subagent_server::SubagentServer;
 
 use commands::{
-    analytics::*, attachments::*, bookmarks::*, branches::*, conversations::*, drafts::*,
-    export::*, files::*, folders::*, gist::*, home_dir::*, mcp::*, messages::*, ollama::*,
-    platform::*, profiles::*, queue::*, settings::*, skills::*, workflows::*, workspaces::*,
+    analytics::*, artifacts::*, attachments::*, bookmarks::*, branches::*, conversations::*,
+    drafts::*, export::*, files::*, folders::*, gist::*, home_dir::*, mcp::*, messages::*,
+    ollama::*, platform::*, profiles::*, queue::*, settings::*, skills::*, workflows::*,
+    workspaces::*,
 };
 use events::{AgentEvent, McpEvent, SkillEvent, WorkflowEvent};
 use state::AppState;
@@ -50,6 +52,8 @@ pub fn run() {
     // Build Tauri Specta builder with all commands and events
     let builder = Builder::<tauri::Wry>::new()
         .commands(collect_commands![
+            copy_artifact_to_branch,
+            list_artifacts,
             get_home_dir,
             get_conversation_draft,
             upsert_conversation_draft,

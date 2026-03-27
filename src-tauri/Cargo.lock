@@ -7726,6 +7726,7 @@ dependencies = [
  "hex",
  "ignore",
  "parking_lot",
+ "regex",
  "reqwest 0.13.2",
  "sea-orm",
  "sea-query",

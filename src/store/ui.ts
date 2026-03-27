@@ -80,7 +80,7 @@ interface UIState {
   leftTab: 'conversations' | 'skills' | 'community'
   setLeftTab: (tab: 'conversations' | 'skills' | 'community') => void
 
-  rightTab: 'session' | 'skills' | 'mcp' | 'workflow' | 'analytics'
+  rightTab: 'session' | 'skills' | 'mcp' | 'workflow' | 'analytics' | 'artifacts'
   setRightTab: (tab: 'session' | 'skills' | 'mcp' | 'workflow' | 'analytics') => void
 
   // ── Progressive unlock stage (persisted) ──────────────────────────────

@@ -1,0 +1,161 @@
+// src-tauri/src/commands/artifacts.rs
+use sea_orm::{ActiveValue::Set, EntityTrait, QueryFilter, QueryOrder};
+use serde::Serialize;
+use specta::{Type, specta};
+use std::sync::Arc;
+use tauri::State;
+use uuid::Uuid;
+
+use crate::state::AppState;
+use skilldeck_models::artifacts::{self, Entity as Artifacts};
+use skilldeck_models::conversation_branches::{self, Entity as Branches};
+use skilldeck_models::messages::{self, Entity as Messages};
+
+#[derive(Debug, Clone, Serialize, Type)]
+pub struct ArtifactData {
+    pub id: String,
+    pub message_id: String,
+    pub branch_id: Option<String>,
+    pub r#type: String,
+    pub name: String,
+    pub content: String,
+    pub language: Option<String>,
+    pub logical_key: Option<String>,
+    pub created_at: String,
+}
+
+impl ArtifactData {
+    async fn from_model(a: artifacts::Model) -> Result<Self, String> {
+        let content = if let Some(path) = a.storage_path {
+            tokio::fs::read_to_string(&path)
+                .await
+                .map_err(|e| e.to_string())?
+        } else {
+            a.content
+        };
+        Ok(Self {
+            id: a.id.to_string(),
+            message_id: a.message_id.to_string(),
+            branch_id: a.branch_id.map(|id| id.to_string()),
+            r#type: a.r#type,
+            name: a.name,
+            content,
+            language: a.language,
+            logical_key: a.logical_key,
+            created_at: a.created_at.to_rfc3339(),
+        })
+    }
+}
+
+#[specta]
+#[tauri::command]
+pub async fn list_artifacts(
+    state: State<'_, Arc<AppState>>,
+    conversation_id: String,
+    branch_id: Option<String>,
+) -> Result<Vec<ArtifactData>, String> {
+    let db = state
+        .registry
+        .db
+        .connection()
+        .await
+        .map_err(|e| e.to_string())?;
+    let conv_uuid = Uuid::parse_str(&conversation_id).map_err(|e| e.to_string())?;
+    let branch_uuid = branch_id
+        .map(|id| Uuid::parse_str(&id))
+        .transpose()
+        .map_err(|e| e.to_string())?;
+
+    let mut query = Artifacts::find()
+        .inner_join(Messages)
+        .filter(messages::COLUMN.conversation_id.eq(conv_uuid));
+
+    if let Some(branch_uuid) = branch_uuid {
+        query = query.filter(artifacts::COLUMN.branch_id.eq(branch_uuid));
+    } else {
+        query = query.filter(artifacts::COLUMN.branch_id.is_null());
+    }
+
+    let rows = query
+        .order_by_desc(artifacts::COLUMN.created_at)
+        .all(db)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let mut result = Vec::new();
+    for row in rows {
+        result.push(ArtifactData::from_model(row).await?);
+    }
+    Ok(result)
+}
+
+// ── New command for Chunk 2 ───────────────────────────────────────────────────
+
+#[specta]
+#[tauri::command]
+pub async fn copy_artifact_to_branch(
+    state: State<'_, Arc<AppState>>,
+    artifact_id: String,
+    target_branch_id: String,
+) -> Result<String, String> {
+    let db = state
+        .registry
+        .db
+        .connection()
+        .await
+        .map_err(|e| e.to_string())?;
+    let art_uuid = Uuid::parse_str(&artifact_id).map_err(|e| e.to_string())?;
+    let branch_uuid = Uuid::parse_str(&target_branch_id).map_err(|e| e.to_string())?;
+
+    // Fetch the artifact
+    let artifact = Artifacts::find_by_id(art_uuid)
+        .one(db)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "Artifact not found".to_string())?;
+
+    // Verify that target branch belongs to same conversation
+    let conv_uuid = match Messages::find_by_id(artifact.message_id)
+        .one(db)
+        .await
+        .map_err(|e| e.to_string())?
+    {
+        Some(msg) => msg.conversation_id,
+        None => return Err("Artifact's message not found".to_string()),
+    };
+
+    // Check that branch exists and belongs to that conversation
+    let branch = Branches::find_by_id(branch_uuid)
+        .one(db)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "Target branch not found".to_string())?;
+    if branch.conversation_id != conv_uuid {
+        return Err("Branch does not belong to the same conversation".to_string());
+    }
+
+    // Prepare content for the draft message
+    let language = artifact.language.as_deref().unwrap_or("");
+    let content = format!("```{}\n{}\n```", language, artifact.content);
+
+    // Create a draft message in the target branch
+    let draft_id = Uuid::new_v4();
+    let now = chrono::Utc::now().fixed_offset();
+
+    let draft = messages::ActiveModel {
+        id: Set(draft_id),
+        conversation_id: Set(conv_uuid),
+        branch_id: Set(Some(branch_uuid)),
+        role: Set("user".to_string()),
+        content: Set(content),
+        metadata: Set(None),
+        context_items: Set(Some(skilldeck_models::context_item::ContextItems(vec![]))),
+        created_at: Set(now),
+        seen: Set(false),
+        status: Set("draft".to_string()), // we'll use "draft" status
+        ..Default::default()
+    };
+    draft.insert(db).await.map_err(|e| e.to_string())?;
+
+    Ok(draft_id.to_string())
+}

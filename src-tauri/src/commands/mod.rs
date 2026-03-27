@@ -1,6 +1,7 @@
 // src-tauri/src/commands/mod.rs
 //! Tauri command modules.
 pub mod analytics;
+pub mod artifacts;
 pub mod attachments;
 pub mod bookmarks;
 pub mod branches;
