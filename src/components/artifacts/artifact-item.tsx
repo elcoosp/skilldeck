@@ -1,11 +1,10 @@
-import { useState } from 'react';
 import { ArtifactData } from '@/lib/bindings';
-import { FileCode, FileText, Copy } from 'lucide-react';
-import { BranchPicker } from './branch-picker';
-import { useUIStore } from '@/store/ui';
-import { toast } from 'sonner';
+import { FileCode, FileText, GitCompare, Copy } from 'lucide-react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { commands } from '@/lib/bindings';
-import { useQueryClient } from '@tanstack/react-query';
+import { VersionDiffModal } from './version-diff-modal';
+import { toast } from 'sonner';
 
 interface ArtifactItemProps {
   artifact: ArtifactData;
@@ -13,36 +12,29 @@ interface ArtifactItemProps {
 }
 
 export function ArtifactItem({ artifact, compact = false }: ArtifactItemProps) {
-  const [showBranchPicker, setShowBranchPicker] = useState(false);
-  const [copying, setCopying] = useState(false);
-  const activeConversationId = useUIStore((s) => s.activeConversationId);
-  const qc = useQueryClient();
-
   const Icon = artifact.type === 'code' ? FileCode : FileText;
+  const [showDiff, setShowDiff] = useState(false);
+  const { data: versions, isLoading: versionsLoading } = useQuery({
+    queryKey: ['artifact-versions', artifact.id],
+    queryFn: async () => {
+      const res = await commands.listArtifactVersions(artifact.id);
+      if (res.status === 'ok') return res.data;
+      throw new Error(res.error);
+    },
+    enabled: !!artifact.logical_key,
+  });
 
-  const handleCopy = async (branchId: string) => {
-    setCopying(true);
-    try {
-      const res = await commands.copyArtifactToBranch(artifact.id, branchId);
-      if (res.status === 'ok') {
-        toast.success(`Artifact copied to branch`);
-        setShowBranchPicker(false);
-        // Invalidate queries to reflect new draft message? Not needed yet.
-        qc.invalidateQueries({ queryKey: ['artifacts'] });
-      } else {
-        toast.error(res.error);
-      }
-    } catch (err) {
-      toast.error(String(err));
-    } finally {
-      setCopying(false);
-    }
+  const hasMultipleVersions = versions && versions.length >= 2;
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(artifact.content);
+    toast.success('Copied to clipboard');
   };
 
   return (
-    <div className={`rounded-lg border border-border ${compact ? 'p-1' : 'p-2'} hover:bg-muted/30 transition-colors`}>
+    <div className={`rounded-lg border border-border ${compact ? 'p-1' : 'p-2'} hover:bg-muted/30 transition-colors group`}>
       <div className="flex items-start gap-2">
-        <Icon className="size-4 text-muted-foreground mt-0.5" />
+        <Icon className="size-4 text-muted-foreground mt-0.5 shrink-0" />
         <div className="flex-1 min-w-0">
           <p className="text-xs font-medium truncate">{artifact.name}</p>
           <p className="text-[11px] text-muted-foreground truncate">
@@ -55,28 +47,34 @@ export function ArtifactItem({ artifact, compact = false }: ArtifactItemProps) {
             </pre>
           )}
         </div>
-        {!compact && (
-          <div className="relative">
-            <button
-              className="text-muted-foreground hover:text-foreground p-1"
-              onClick={() => setShowBranchPicker(!showBranchPicker)}
-              disabled={copying}
-              title="Copy to branch"
-            >
-              <Copy className="size-3" />
-            </button>
-            {showBranchPicker && activeConversationId && (
-              <div className="absolute right-0 mt-1 z-10">
-                <BranchPicker
-                  conversationId={activeConversationId}
-                  onSelect={handleCopy}
-                  disabled={copying}
-                />
-              </div>
-            )}
-          </div>
-        )}
+
+        {/* Actions */}
+        <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            className="p-1 text-muted-foreground hover:text-foreground rounded"
+            onClick={handleCopy}
+            title="Copy content"
+          >
+            <Copy className="size-3" />
+          </button>
+          <button
+            className="p-1 text-muted-foreground hover:text-foreground rounded disabled:opacity-50"
+            onClick={() => setShowDiff(true)}
+            disabled={!hasMultipleVersions || versionsLoading}
+            title={hasMultipleVersions ? 'Compare versions' : 'Need at least 2 versions'}
+          >
+            <GitCompare className="size-3" />
+          </button>
+        </div>
       </div>
+
+      {showDiff && versions && (
+        <VersionDiffModal
+          open={showDiff}
+          onClose={() => setShowDiff(false)}
+          versions={versions}
+        />
+      )}
     </div>
   );
 }

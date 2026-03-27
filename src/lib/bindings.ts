@@ -5,6 +5,14 @@
 
 
 export const commands = {
+async listArtifactVersions(artifactId: string) : Promise<Result<ArtifactData[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_artifact_versions", { artifactId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async copyArtifactToBranch(artifactId: string, targetBranchId: string) : Promise<Result<string, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("copy_artifact_to_branch", { artifactId, targetBranchId }) };

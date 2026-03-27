@@ -52,6 +52,7 @@ pub fn run() {
     // Build Tauri Specta builder with all commands and events
     let builder = Builder::<tauri::Wry>::new()
         .commands(collect_commands![
+            list_artifact_versions,
             copy_artifact_to_branch,
             list_artifacts,
             get_home_dir,

@@ -45,7 +45,43 @@ impl ArtifactData {
         })
     }
 }
+#[specta]
+#[tauri::command]
+pub async fn list_artifact_versions(
+    state: State<'_, Arc<AppState>>,
+    artifact_id: String,
+) -> Result<Vec<ArtifactData>, String> {
+    let db = state
+        .registry
+        .db
+        .connection()
+        .await
+        .map_err(|e| e.to_string())?;
+    let art_uuid = Uuid::parse_str(&artifact_id).map_err(|e| e.to_string())?;
 
+    let artifact = Artifacts::find_by_id(art_uuid)
+        .one(db)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "Artifact not found".to_string())?;
+
+    let logical_key = artifact
+        .logical_key
+        .ok_or_else(|| "Artifact has no logical key".to_string())?;
+
+    let versions = Artifacts::find()
+        .filter(artifacts::COLUMN.logical_key.eq(logical_key))
+        .order_by_desc(artifacts::COLUMN.created_at)
+        .all(db)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let mut result = Vec::new();
+    for v in versions {
+        result.push(ArtifactData::from_model(v).await?);
+    }
+    Ok(result)
+}
 #[specta]
 #[tauri::command]
 pub async fn list_artifacts(
