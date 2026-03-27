@@ -1,4 +1,3 @@
-// src/components/conversation/message-thread.tsx
 import {
   useVirtualizer,
   elementScroll,
@@ -43,6 +42,8 @@ interface MessageThreadProps {
   onScrollSettled?: (token: ScrollToken) => void
   /** Called when a message becomes visible (50% in view) */
   onMessageVisible?: (messageId: string) => void
+  /** ID of the message where the branch starts, used to mark branch parent */
+  branchParentMessageId?: string | null
 }
 
 function distFromBottom(el: HTMLElement): number {
@@ -73,9 +74,13 @@ export const MessageThread = React.forwardRef<
       onVisibleUserIndexChange,
       onScrollSettled,
       onMessageVisible,
+      branchParentMessageId,
     },
     ref
   ) => {
+    // Debug log
+    console.log('[MessageThread] branchParentMessageId:', branchParentMessageId)
+
     const scrollRef = React.useRef<HTMLDivElement>(null)
 
     // Get active conversation ID for sending retry messages
@@ -591,11 +596,15 @@ export const MessageThread = React.forwardRef<
                     const isLast = virtualItem.index === lastFilteredIdx
                     const isUserMessage = message.role === 'user'
                     const retryAvailable = (message as any).retryAvailable
-
-                    // For user messages that need a retry, pass the retry handler
                     const handleRetry = retryAvailable
                       ? () => sendMutation.mutateAsync({ content: message.content })
                       : undefined
+                    const isBranchParent = branchParentMessageId === message.id
+
+                    // Debug log for each message
+                    if (isBranchParent) {
+                      console.log('[MessageThread] Marking message as branch parent:', message.id, message.content.slice(0, 50))
+                    }
 
                     return (
                       <div
@@ -634,6 +643,7 @@ export const MessageThread = React.forwardRef<
                             searchCaseSensitive={searchCaseSensitive}
                             searchRegex={searchRegex}
                             onRetry={handleRetry}
+                            isBranchParent={isBranchParent}
                           />
                         </div>
                       </div>

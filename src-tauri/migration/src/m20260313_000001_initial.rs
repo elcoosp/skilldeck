@@ -224,7 +224,42 @@ impl MigrationTrait for Migration {
                 )
                 .await?;
         }
-
+        // messages headings manager
+        .create_table(
+            Table::create()
+                .table(MessageHeadings::Table)
+                .col(
+                    ColumnDef::new(MessageHeadings::Id)
+                        .uuid()
+                        .not_null()
+                        .primary_key(),
+                )
+                .col(
+                    ColumnDef::new(MessageHeadings::MessageId)
+                        .uuid()
+                        .not_null()
+                        .unique_key(),
+                )
+                .col(
+                    ColumnDef::new(MessageHeadings::Headings)
+                        .json_binary()
+                        .not_null(),
+                )
+                .col(
+                    ColumnDef::new(MessageHeadings::CreatedAt)
+                        .timestamp_with_time_zone()
+                        .not_null(),
+                )
+                .foreign_key(
+                    ForeignKey::create()
+                        .name("fk-message-headings-message-id")
+                        .from(MessageHeadings::Table, MessageHeadings::MessageId)
+                        .to(messages::Table, messages::Id)
+                        .on_delete(ForeignKeyAction::Cascade),
+                )
+                .to_owned(),
+        )
+        .await;
         // messages
         manager
             .create_table(
@@ -2102,4 +2137,12 @@ impl Iden for ModelPricing {
             ModelPricing::ValidFrom => "valid_from",
         }
     }
+}
+#[derive(Iden)]
+enum MessageHeadings {
+    Table,
+    Id,
+    MessageId,
+    Headings,
+    CreatedAt,
 }

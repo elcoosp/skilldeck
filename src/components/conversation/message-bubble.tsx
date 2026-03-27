@@ -47,6 +47,7 @@ import { useUIStore } from '@/store/ui'
 import { save } from '@tauri-apps/plugin-dialog'
 import { writeTextFile } from '@tauri-apps/plugin-fs'
 import { CreateBranchModal } from './create-branch-modal'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 interface MessageBubbleProps {
   message: MessageData
@@ -56,6 +57,7 @@ interface MessageBubbleProps {
   searchCaseSensitive?: boolean
   searchRegex?: boolean
   onRetry?: () => void
+  isBranchParent?: boolean
 }
 
 // ─── Lazy Shiki highlighter singleton ─────────────────────────────────────────
@@ -503,8 +505,10 @@ Th.displayName = 'Th'
 
 const Td = memo(({ children, node, ...props }: any) => (
   <td className="border border-border px-2 py-1" {...props}>
+
     {children}
   </td>
+
 ))
 Td.displayName = 'Td'
 
@@ -727,6 +731,7 @@ function MessageBubbleInner({
   searchCaseSensitive = false,
   searchRegex = false,
   onRetry,
+  isBranchParent = false,
 }: MessageBubbleProps) {
   const [copied, setCopied] = useState(false)
   const [branchModalOpen, setBranchModalOpen] = useState(false)
@@ -736,6 +741,11 @@ function MessageBubbleInner({
 
   const activeConversationId = useUIStore((s) => s.activeConversationId)
   const scrollContainer = useContext(ScrollContainerContext)
+
+  // Debug log for branch parent
+  if (isBranchParent) {
+    console.log('[MessageBubble] Rendering branch parent icon for message:', message.id)
+  }
 
   const isBookmarked = useBookmarksStore(
     useCallback(
@@ -807,7 +817,7 @@ function MessageBubbleInner({
     if (!document.contains(container)) return
 
     let pattern = searchQuery
-    if (!searchRegex) pattern = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    if (!searchRegex) pattern = searchQuery.replace(/[.*+?^${ }()|[\]\\]/g, '\\$&')
     const flags = searchCaseSensitive ? 'g' : 'gi'
     let regex: RegExp
     try { regex = new RegExp(pattern, flags) } catch { return }
@@ -1049,6 +1059,22 @@ function MessageBubbleInner({
                     onDownload={downloadMessage}
                     onBranch={handleBranch}
                   />
+                )}
+
+                {/* Branch parent indicator */}
+                {isAssistant && !isStreaming && !syntheticStreaming && isBranchParent && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="inline-flex items-center gap-1 ml-1 text-muted-foreground">
+                          <GitBranch className="size-3" />
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        <p>Branch starts here</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 )}
               </div>
             )}
