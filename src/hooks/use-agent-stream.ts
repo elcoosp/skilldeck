@@ -1,3 +1,4 @@
+// src/hooks/use-agent-stream.ts
 /**
  * useAgentStream — subscribe to Tauri agent-event channel for a given
  * conversation and drive streaming text + running state in the UI store.
@@ -17,7 +18,7 @@ import { commands } from '@/lib/bindings'
 import type { AgentEvent as LocalAgentEvent } from '@/lib/events'
 import { onAgentEvent } from '@/lib/events'
 import { useUIStore } from '@/store/ui'
-import { useToolApprovalStore } from '@/store/tool-approvals' // <-- new
+import { useToolApprovalStore } from '@/store/tool-approvals'
 
 export function useAgentStream(conversationId: string | null) {
   const queryClient = useQueryClient()
@@ -29,28 +30,48 @@ export function useAgentStream(conversationId: string | null) {
   const setUnlockStage = useUIStore((s) => s.setUnlockStage)
 
   // Tool approval store actions
-  const addPending = useToolApprovalStore((s) => s.addPending)       // <-- new
-  const clearAllApprovals = useToolApprovalStore((s) => s.clearAll) // <-- new
+  const addPending = useToolApprovalStore((s) => s.addPending)
+  const clearAllApprovals = useToolApprovalStore((s) => s.clearAll)
 
-  // Buffer deltas between rAF ticks to avoid per-token setState calls.
+  // Buffer for accumulating tokens between flushes
   const pendingBuffer = useRef('')
-  const rafHandle = useRef<number>(0)
+  const flushTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isFlushing = useRef(false)
+
   // Track listener readiness to avoid race conditions
   const listenerReady = useRef(false)
   const eventBuffer = useRef<LocalAgentEvent[]>([])
   // Track auto-name attempts per conversation to prevent duplicates
   const autoNameAttempted = useRef<Set<string>>(new Set())
 
-  useEffect(() => {
-    if (!conversationId) return
-
-    const flushBuffer = () => {
+  // Schedule a flush of the pending buffer after a short debounce.
+  // This reduces the number of state updates and GC pressure.
+  const scheduleFlush = () => {
+    if (flushTimer.current) clearTimeout(flushTimer.current)
+    flushTimer.current = setTimeout(() => {
       if (pendingBuffer.current) {
-        appendStreamingText(conversationId, pendingBuffer.current)
+        // Append the accumulated buffer to the store.
+        appendStreamingText(conversationId!, pendingBuffer.current)
         pendingBuffer.current = ''
       }
-      rafHandle.current = 0
+      flushTimer.current = null
+    }, 50) // 50ms debounce – imperceptible to the user
+  }
+
+  // Immediately flush any pending buffer (used on cancellation/done).
+  const flushNow = () => {
+    if (flushTimer.current) {
+      clearTimeout(flushTimer.current)
+      flushTimer.current = null
     }
+    if (pendingBuffer.current) {
+      appendStreamingText(conversationId!, pendingBuffer.current)
+      pendingBuffer.current = ''
+    }
+  }
+
+  useEffect(() => {
+    if (!conversationId) return
 
     const processBufferedEvents = () => {
       while (eventBuffer.current.length > 0) {
@@ -130,13 +151,11 @@ export function useAgentStream(conversationId: string | null) {
         case 'token':
           if (event.delta) {
             pendingBuffer.current += event.delta
-            if (!rafHandle.current) {
-              rafHandle.current = requestAnimationFrame(flushBuffer)
-            }
+            scheduleFlush()
           }
           break
 
-        case 'tool_approval_required': // <-- new case
+        case 'tool_approval_required':
           addPending(event.tool_call_id, {
             name: event.tool_name,
             arguments: event.arguments,
@@ -144,10 +163,10 @@ export function useAgentStream(conversationId: string | null) {
           break
 
         case 'cancelled':
-          // Mark agent as stopped and invalidate messages to show cancelled badge
+          flushNow() // flush any pending buffer before clearing
           setAgentRunning(conversationId, false)
           clearStreamingText(conversationId)
-          clearAllApprovals() // <-- clear pending approvals on cancellation
+          clearAllApprovals()
           queryClient.invalidateQueries({
             queryKey: ['messages', conversationId],
             exact: false
@@ -155,13 +174,10 @@ export function useAgentStream(conversationId: string | null) {
           break
 
         case 'done':
-          if (pendingBuffer.current) {
-            appendStreamingText(conversationId, pendingBuffer.current)
-            pendingBuffer.current = ''
-          }
+          flushNow() // flush any remaining buffer
           setAgentRunning(conversationId, false)
           clearStreamingText(conversationId)
-          clearAllApprovals() // <-- clear pending approvals on completion
+          clearAllApprovals()
           queryClient.invalidateQueries({
             queryKey: ['queued-messages', conversationId]
           })
@@ -173,11 +189,11 @@ export function useAgentStream(conversationId: string | null) {
           break
 
         case 'error':
-          pendingBuffer.current = ''
+          flushNow() // discard buffer on error
           setAgentRunning(conversationId, false)
           setStreamingError(conversationId, true) // record error
           clearStreamingText(conversationId)
-          clearAllApprovals() // <-- clear pending approvals on error
+          clearAllApprovals()
           toast.error(
             event.message || 'An error occurred while processing your message'
           )
@@ -226,7 +242,11 @@ export function useAgentStream(conversationId: string | null) {
     })
 
     return () => {
-      if (rafHandle.current) cancelAnimationFrame(rafHandle.current)
+      // Clean up timers and buffers
+      if (flushTimer.current) {
+        clearTimeout(flushTimer.current)
+        flushTimer.current = null
+      }
       pendingBuffer.current = ''
       listenerReady.current = false
       eventBuffer.current = []
@@ -241,8 +261,8 @@ export function useAgentStream(conversationId: string | null) {
     queryClient,
     unlockStage,
     setUnlockStage,
-    addPending,           // <-- new dependency
-    clearAllApprovals,    // <-- new dependency
+    addPending,
+    clearAllApprovals,
   ])
 
   const streamingText = useUIStore(
