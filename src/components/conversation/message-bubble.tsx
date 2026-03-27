@@ -1,5 +1,8 @@
 // src/components/conversation/message-bubble.tsx
-// (Full file with branch creation, retry, cancelled badge, enhanced CodePre, and tool result support)
+/**
+ * MessageBubble — displays a single message with markdown rendering, syntax highlighting,
+ * search highlighting, and bookmarking.
+ */
 
 import rehypeShiki from '@shikijs/rehype'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -43,11 +46,10 @@ import {
 import { ScrollContainerContext, AutoScrollContext } from './message-thread'
 import { createPortal } from 'react-dom'
 import { useBookmarksStore } from '@/store/bookmarks'
+import { useConversationStore } from '@/store/conversation' // changed
 import { save } from '@tauri-apps/plugin-dialog'
 import { writeTextFile } from '@tauri-apps/plugin-fs'
 import { CreateBranchModal } from './create-branch-modal'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { useConversationStore } from '@/store/conversation'
 
 interface MessageBubbleProps {
   message: MessageData
@@ -57,7 +59,6 @@ interface MessageBubbleProps {
   searchCaseSensitive?: boolean
   searchRegex?: boolean
   onRetry?: () => void
-  isBranchParent?: boolean
 }
 
 // ─── Lazy Shiki highlighter singleton ─────────────────────────────────────────
@@ -115,7 +116,6 @@ function CodePre({ children, ...props }: any) {
     return ''
   }, [])
 
-  // Get language and filename from props (set by rehypeCodeMeta)
   const language = props['data-language'] ?? 'code'
   const filename = props['data-filename'] ?? null
 
@@ -180,8 +180,6 @@ function CodePre({ children, ...props }: any) {
     }
 
     const sync = () => {
-      // Code block must actually overflow its internal scroll container
-      // for the sticky header to make any sense at all.
       const codeOverflows = scrollable.scrollHeight > scrollable.clientHeight
       if (collapsed || !codeOverflows) {
         hide()
@@ -191,17 +189,12 @@ function CodePre({ children, ...props }: any) {
       const rootRect = root.getBoundingClientRect()
       const containerRect = container.getBoundingClientRect()
 
-      // Guard: skip if the scroll container itself has no layout yet
-      // (happens during initial mount, streaming, or while the parent
-      // message bubble is being measured by the virtualizer).
       if (rootRect.width === 0 || rootRect.height === 0) {
         hide()
         return
       }
 
-      // The code block header has scrolled off the top of the thread viewport
       const topGone = containerRect.top < rootRect.top
-      // At least 32px of the code block's body is still visible (not just clipped)
       const bottomVisible = containerRect.bottom > rootRect.top + 32
 
       if (topGone && bottomVisible) {
@@ -219,9 +212,6 @@ function CodePre({ children, ...props }: any) {
       }
     }
 
-    // Debounce ResizeObserver through rAF so we never read getBoundingClientRect
-    // mid-layout (e.g. during streaming when new lines are being added).
-    // This eliminates the flicker caused by stale layout values.
     let rafId = 0
     const syncRaf = () => {
       cancelAnimationFrame(rafId)
@@ -232,7 +222,6 @@ function CodePre({ children, ...props }: any) {
     const ro = new ResizeObserver(syncRaf)
     ro.observe(container)
     ro.observe(scrollable)
-    // Run once after mount — use rAF so layout is stable
     rafId = requestAnimationFrame(sync)
 
     return () => {
@@ -244,7 +233,6 @@ function CodePre({ children, ...props }: any) {
 
   const toggleCollapsed = useCallback(() => setCollapsed((v) => !v), [])
 
-  // Determine what to show in the header
   const displayLabel = filename || language || 'code'
 
   const headerContent = (
@@ -491,7 +479,7 @@ const InlineCode = memo(function InlineCode({ children, ...props }: any) {
 // Stable table components (module-level)
 const TableWrapper = memo(({ children, node, ...props }: any) => (
   <div className="overflow-x-auto my-2" {...props}>
-    <table className="border-collapse border border-border text-xs">{children} </table>
+    <table className="border-collapse border border-border text-xs">{children}</table>
   </div>
 ))
 TableWrapper.displayName = 'TableWrapper'
@@ -505,15 +493,14 @@ Th.displayName = 'Th'
 
 const Td = memo(({ children, node, ...props }: any) => (
   <td className="border border-border px-2 py-1" {...props}>
-
     {children}
   </td>
-
 ))
 Td.displayName = 'Td'
 
 // ─── Shared rehype plugins cache keyed by highlighter instance ───────────────
 const rehypePluginsCache = new WeakMap<Highlighter, any[]>()
+
 function getRehypePlugins(highlighter: Highlighter | null) {
   if (!highlighter) return rehypePluginsBase
   let cached = rehypePluginsCache.get(highlighter)
@@ -731,7 +718,6 @@ function MessageBubbleInner({
   searchCaseSensitive = false,
   searchRegex = false,
   onRetry,
-  isBranchParent = false,
 }: MessageBubbleProps) {
   const [copied, setCopied] = useState(false)
   const [branchModalOpen, setBranchModalOpen] = useState(false)
@@ -739,13 +725,8 @@ function MessageBubbleInner({
   const contentRef = useRef<HTMLDivElement>(null)
   const [highlighter, setHighlighter] = useState<Highlighter | null>(null)
 
-  const activeConversationId = useConversationStore((s) => s.activeConversationId)
+  const activeConversationId = useConversationStore((s) => s.activeConversationId) // changed
   const scrollContainer = useContext(ScrollContainerContext)
-
-  // Debug log for branch parent
-  if (isBranchParent) {
-    console.log('[MessageBubble] Rendering branch parent icon for message:', message.id)
-  }
 
   const isBookmarked = useBookmarksStore(
     useCallback(
@@ -781,7 +762,11 @@ function MessageBubbleInner({
     lastContentLenRef.current = message.content.length
   }
 
-  const rehypePlugins = getRehypePlugins(highlighter)
+  // ─── Memoize rehypePlugins so they are stable ─────────────────────────────
+  const rehypePlugins = useMemo(() => {
+    return getRehypePlugins(highlighter)
+  }, [highlighter])
+
   const markdownComponents = useMarkdownComponents(
     message.id,
     activeConversationId,
@@ -817,7 +802,7 @@ function MessageBubbleInner({
     if (!document.contains(container)) return
 
     let pattern = searchQuery
-    if (!searchRegex) pattern = searchQuery.replace(/[.*+?^${ }()|[\]\\]/g, '\\$&')
+    if (!searchRegex) pattern = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     const flags = searchCaseSensitive ? 'g' : 'gi'
     let regex: RegExp
     try { regex = new RegExp(pattern, flags) } catch { return }
@@ -1059,22 +1044,6 @@ function MessageBubbleInner({
                     onDownload={downloadMessage}
                     onBranch={handleBranch}
                   />
-                )}
-
-                {/* Branch parent indicator */}
-                {isAssistant && !isStreaming && !syntheticStreaming && isBranchParent && (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="inline-flex items-center gap-1 ml-1 text-muted-foreground">
-                          <GitBranch className="size-3" />
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent side="top">
-                        <p>Branch starts here</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
                 )}
               </div>
             )}

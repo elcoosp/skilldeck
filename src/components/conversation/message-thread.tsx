@@ -78,8 +78,6 @@ export const MessageThread = React.forwardRef<
     },
     ref
   ) => {
-    // Debug log
-    console.log('[MessageThread] branchParentMessageId:', branchParentMessageId)
 
     const scrollRef = React.useRef<HTMLDivElement>(null)
 
@@ -594,17 +592,11 @@ export const MessageThread = React.forwardRef<
                   {virtualItems.map((virtualItem) => {
                     const message = filteredMessages[virtualItem.index]
                     const isLast = virtualItem.index === lastFilteredIdx
-                    const isUserMessage = message.role === 'user'
                     const retryAvailable = (message as any).retryAvailable
                     const handleRetry = retryAvailable
                       ? () => sendMutation.mutateAsync({ content: message.content })
                       : undefined
                     const isBranchParent = branchParentMessageId === message.id
-
-                    // Debug log for each message
-                    if (isBranchParent) {
-                      console.log('[MessageThread] Marking message as branch parent:', message.id, message.content.slice(0, 50))
-                    }
 
                     return (
                       <div
