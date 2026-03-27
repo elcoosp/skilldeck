@@ -34,6 +34,7 @@ import { commands } from '@/lib/bindings'
 import { getScrollToken, setScrollToken } from '@/lib/scroll-token'
 // NEW: import the bootstrap hook
 import { useConversationBootstrap } from '@/hooks/use-conversation-bootstrap'
+import { useQueryClient } from '@tanstack/react-query'
 
 // ─── Heading extraction: runs outside React, result is cached by message id ──
 const headingCache = new Map<string, { contentLen: number; hasHeadings: boolean }>()

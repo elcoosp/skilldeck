@@ -5,6 +5,7 @@ import type { ContextItem, MessageData } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
 import type { UUID } from '@/lib/types'
 import { useUIStore } from '@/store/ui'
+import { useShallow } from 'zustand/react/shallow'
 
 export function useMessages(
   conversationId: UUID | null,
@@ -14,7 +15,7 @@ export function useMessages(
     queryKey: ['messages', conversationId, branchId],
     queryFn: async () => {
       if (!conversationId) return []
-      const res = await commands.listMessages(conversationId, branchId ?? null)
+      const res = await commands.listMessages(conversationId!, branchId ?? null)
       if (res.status === 'ok') return res.data
       throw new Error(res.error)
     },
@@ -27,7 +28,6 @@ export function useMessages(
 export function useSendMessage(conversationId: UUID) {
   const queryClient = useQueryClient()
   const { unlock } = useAchievements()
-  const activeBranchId = useUIStore((s) => s.activeBranchId)
 
   return useMutation({
     mutationFn: async ({
@@ -40,21 +40,19 @@ export function useSendMessage(conversationId: UUID) {
       const res = await commands.sendMessage({
         conversation_id: conversationId,
         content,
-        branch_id: activeBranchId,
-        context_items: contextItems ?? null
+        context_items: contextItems ?? null // convert undefined to null
       })
       if (res.status === 'error') throw new Error(res.error)
       return res.data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['messages', conversationId, activeBranchId] })
+      queryClient.invalidateQueries({ queryKey: ['messages', conversationId] })
       queryClient.invalidateQueries({ queryKey: ['conversations'] })
 
       setTimeout(() => {
         const messages = queryClient.getQueryData<MessageData[]>([
           'messages',
-          conversationId,
-          activeBranchId
+          conversationId
         ])
         if (messages) {
           const userMessageCount = messages.filter(
@@ -77,20 +75,22 @@ export function useMessagesWithStream(
   branchId?: UUID | null
 ): MessageData[] {
   const { data: messages = [] } = useMessages(conversationId, branchId)
-  const streamingText = useUIStore(
-    (s) => s.streamingText[conversationId ?? ''] ?? ''
-  )
-  const isRunning = useUIStore(
-    (s) => s.agentRunning[conversationId ?? ''] ?? false
-  )
-  const hasError = useUIStore(
-    (s) => s.streamingError[conversationId ?? ''] ?? false
+
+  // Replace three separate selectors with a single useShallow
+  const { streamingText, isRunning, hasError } = useUIStore(
+    useShallow((s) => ({
+      streamingText: s.streamingText[conversationId ?? ''] ?? '',
+      isRunning: s.agentRunning[conversationId ?? ''] ?? false,
+      hasError: s.streamingError[conversationId ?? ''] ?? false,
+    }))
   )
 
+  // If there's a streaming error, don't show the placeholder
   if (hasError) {
     return messages
   }
 
+  // If the agent is not running and we're not expecting a response, just return messages
   const lastMessage = messages[messages.length - 1]
   const expectingResponse = lastMessage?.role === 'user'
 
@@ -98,6 +98,7 @@ export function useMessagesWithStream(
     return messages
   }
 
+  // Add streaming bubble (content may be empty initially)
   const streamBubble: MessageData = {
     id: '__streaming__',
     conversation_id: conversationId!,
@@ -106,9 +107,9 @@ export function useMessagesWithStream(
     created_at: new Date().toISOString(),
     context_items: null,
     metadata: null,
-    input_tokens: null,
-    output_tokens: null,
-    seen: false,
+    seen: false,        // added to match MessageData type
+    input_tokens: null, // added to match MessageData type
+    output_tokens: null // added to match MessageData type
   }
 
   return [...messages, streamBubble]
