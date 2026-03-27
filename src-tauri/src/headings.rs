@@ -18,7 +18,7 @@ pub fn extract_headings(content: &str) -> Vec<TocItem> {
                 current_level = level as i32;
                 current_text.clear();
             }
-            Event::End(TagEnd::Heading) if in_heading => {
+            Event::End(TagEnd::Heading(_)) if in_heading => {
                 headings.push(TocItem {
                     id: format!("heading-{}-{}", Uuid::new_v4(), toc_index),
                     toc_index,
