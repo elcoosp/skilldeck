@@ -12,7 +12,6 @@ import { useSendMessage } from '@/hooks/use-messages'
 import { useUIStore } from '@/store/ui'
 import { useToolApprovalStore } from '@/store/tool-approvals'
 import { ToolApprovalCard } from './tool-approval-card'
-import { cn } from '@/lib/utils'
 
 export interface ScrollToken {
   messageId: string
@@ -42,8 +41,8 @@ interface MessageThreadProps {
   autoScroll?: boolean
   onVisibleUserIndexChange?: (index: number) => void
   onScrollSettled?: (token: ScrollToken) => void
+  /** Called when a message becomes visible (50% in view) */
   onMessageVisible?: (messageId: string) => void
-  branchPointMessageId?: string | null  // NEW
 }
 
 function distFromBottom(el: HTMLElement): number {
@@ -74,7 +73,6 @@ export const MessageThread = React.forwardRef<
       onVisibleUserIndexChange,
       onScrollSettled,
       onMessageVisible,
-      branchPointMessageId,
     },
     ref
   ) => {
@@ -293,6 +291,7 @@ export const MessageThread = React.forwardRef<
     const lastItemNodeRef = React.useRef<Element | null>(null)
     const streamingRoRef = React.useRef<ResizeObserver | null>(null)
 
+    // ─── Streaming auto-scroll with requestAnimationFrame to avoid layout thrashing ───
     React.useEffect(() => {
       if (streamingRoRef.current) {
         streamingRoRef.current.disconnect()
@@ -305,17 +304,31 @@ export const MessageThread = React.forwardRef<
       userScrolledAwayRef.current = false
       const el = scrollRef.current
       if (!el) return
+
       const scrollToBottom = () => {
         if (!autoScrollRef.current || userScrolledAwayRef.current) return
-        isProgrammaticScrollRef.current = true
-        el.scrollTop = el.scrollHeight
-        requestAnimationFrame(() => { isProgrammaticScrollRef.current = false })
+        // Schedule the scroll in the next animation frame to separate read/write phases.
+        requestAnimationFrame(() => {
+          if (!autoScrollRef.current || userScrolledAwayRef.current) return
+          isProgrammaticScrollRef.current = true
+          el.scrollTop = el.scrollHeight
+          requestAnimationFrame(() => {
+            isProgrammaticScrollRef.current = false
+          })
+        })
       }
+
+      // Trigger an immediate scroll to catch any already-rendered content.
       scrollToBottom()
+
       const ro = new ResizeObserver(scrollToBottom)
       streamingRoRef.current = ro
       if (lastItemNodeRef.current) ro.observe(lastItemNodeRef.current)
-      return () => { ro.disconnect(); streamingRoRef.current = null }
+
+      return () => {
+        ro.disconnect()
+        streamingRoRef.current = null
+      }
     }, [streamingMessageId])
 
     const callbackRef = React.useRef(onVisibleUserIndexChange)
@@ -422,6 +435,7 @@ export const MessageThread = React.forwardRef<
       }
     }, [onMessageVisible, scrollRef.current])
 
+    // NEW: Get pending approvals from store
     const pendingApprovals = useToolApprovalStore((s) => s.pending)
     const removePending = useToolApprovalStore((s) => s.removePending)
 
@@ -577,8 +591,8 @@ export const MessageThread = React.forwardRef<
                     const isLast = virtualItem.index === lastFilteredIdx
                     const isUserMessage = message.role === 'user'
                     const retryAvailable = (message as any).retryAvailable
-                    const isBranchPoint = branchPointMessageId === message.id
 
+                    // For user messages that need a retry, pass the retry handler
                     const handleRetry = retryAvailable
                       ? () => sendMutation.mutateAsync({ content: message.content })
                       : undefined
@@ -611,15 +625,6 @@ export const MessageThread = React.forwardRef<
                           transform: `translateY(${virtualItem.start}px)`
                         }}
                       >
-                        {/* Branch point indicator */}
-                        {isBranchPoint && (
-                          <div className="relative py-2">
-                            <div className="absolute inset-x-0 top-0 h-px bg-primary/50" />
-                            <div className="absolute left-1/2 -translate-x-1/2 -top-2 text-[10px] font-medium text-primary bg-background px-2 rounded-full border border-primary/30 whitespace-nowrap">
-                              Branch starts here
-                            </div>
-                          </div>
-                        )}
                         <div className="px-4 py-1.5">
                           <MessageBubble
                             message={message}
@@ -638,7 +643,7 @@ export const MessageThread = React.forwardRef<
               )}
             </div>
 
-            {/* Render pending tool approvals as an absolute overlay */}
+            {/* NEW: Render pending tool approvals as an absolute overlay */}
             {pendingApprovals.size > 0 && (
               <div className="absolute bottom-0 left-0 right-0 z-20 px-4 pb-3 flex flex-col gap-2 pointer-events-none">
                 {Array.from(pendingApprovals.entries()).map(([toolCallId, toolCall]) => (
