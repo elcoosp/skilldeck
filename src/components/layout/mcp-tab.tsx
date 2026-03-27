@@ -24,7 +24,6 @@ import { cn } from '@/lib/utils'
 import { CatalogCard } from './catalog-card'
 import { CustomServerForm } from './custom-server-form'
 import { LiveServerCard } from './live-server-card'
-import { useUIStore } from '@/store/ui'
 import { useActiveConversationWorkspaceId } from '@/hooks/use-conversations'
 import { useWorkspaces } from '@/hooks/use-workspaces'
 

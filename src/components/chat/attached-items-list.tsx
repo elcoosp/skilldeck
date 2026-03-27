@@ -1,6 +1,5 @@
 import type React from 'react'
 import { useChatContextStore } from '@/store/chat-context-store'
-import { useUIStore } from '@/store/ui'
 import { ContextChip } from './context-chip'
 import type { AttachedItem } from '@/types/chat-context'
 import { useConversationStore } from '@/store/conversation'

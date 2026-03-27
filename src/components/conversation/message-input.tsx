@@ -48,7 +48,6 @@ import { cn } from '@/lib/utils'
 import { extractUrls } from '@/lib/url-detection'
 import { useChatContextStore } from '@/store/chat-context-store'
 import { useQueueStore } from '@/store/queue'
-import { useUIStore } from '@/store/ui'
 import type {
   FileEntry,
   FolderCounts,

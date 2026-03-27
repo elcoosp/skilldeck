@@ -17,7 +17,6 @@ import {
 } from '@/hooks/use-conversations'
 import { useProfiles } from '@/hooks/use-profiles'
 import { useUnifiedSkills } from '@/hooks/use-unified-skills' // changed
-import { useUIStore } from '@/store/ui'
 import { useUIOverlaysStore } from '@/store/ui-overlays'
 import { useConversationStore } from '@/store/conversation'
 

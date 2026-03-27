@@ -4,7 +4,6 @@ import { useAchievements } from '@/hooks/use-achievements'
 import type { ContextItem, MessageData } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
 import type { UUID } from '@/lib/types'
-import { useUIStore } from '@/store/ui'
 import { useShallow } from 'zustand/react/shallow'
 import { useUIEphemeralStore } from '@/store/ui-ephemeral'
 

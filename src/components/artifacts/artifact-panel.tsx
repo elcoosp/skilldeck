@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
 import { commands } from '@/lib/bindings';
-import { useUIStore } from '@/store/ui';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ArtifactItem } from './artifact-item';
 import { Loader2 } from 'lucide-react';

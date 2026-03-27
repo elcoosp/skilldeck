@@ -5,7 +5,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useMessagesWithStream } from '@/hooks/use-messages'
 import type { MessageData } from '@/lib/bindings'
 import * as bindings from '@/lib/bindings'
-import { useUIStore } from '@/store/ui'
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 

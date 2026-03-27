@@ -43,7 +43,6 @@ import {
 import { ScrollContainerContext, AutoScrollContext } from './message-thread'
 import { createPortal } from 'react-dom'
 import { useBookmarksStore } from '@/store/bookmarks'
-import { useUIStore } from '@/store/ui'
 import { save } from '@tauri-apps/plugin-dialog'
 import { writeTextFile } from '@tauri-apps/plugin-fs'
 import { CreateBranchModal } from './create-branch-modal'

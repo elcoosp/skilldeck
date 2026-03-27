@@ -55,8 +55,8 @@ import {
 import { useWorkflowEvents } from '@/hooks/use-workflow-events'
 import { commands } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
-import { selectHasSkillsUnlocked, selectHasWorkflowsUnlocked } from '@/store/ui'
-import { useUIPersistentStore } from '@/store/ui-state'
+
+import { UIPersistentState, useUIPersistentStore } from '@/store/ui-state'
 import { useUILayoutStore } from '@/store/ui-layout'
 import { useUIOverlaysStore } from '@/store/ui-overlays'
 import { McpTab } from './mcp-tab'
@@ -65,6 +65,13 @@ import { AnalyticsHeatmap } from '../analytics/analytics-heatmap'
 import { Dialog, DialogFooter, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog'
 import { startOfMonth, endOfMonth, format, startOfYear, endOfYear, isWithinInterval } from 'date-fns'
 import { useConversationStore } from '@/store/conversation'
+
+
+
+// Feature gate selectors remain unchanged
+const selectHasSkillsUnlocked = (state: UIPersistentState) => state.unlockStage >= 1
+const selectHasMcpUnlocked = (state: UIPersistentState) => state.unlockStage >= 2
+const selectHasWorkflowsUnlocked = (state: UIPersistentState) => state.unlockStage >= 3
 
 type Tab = 'session' | 'skills' | 'mcp' | 'workflow' | 'analytics' | 'artifacts'
 

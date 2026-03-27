@@ -6,7 +6,6 @@ import { Bookmark, ChevronRight } from 'lucide-react'
 import type { MessageData } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
 import { useBookmarksStore } from '@/store/bookmarks'
-import { useUIStore } from '@/store/ui'
 import type { HeadingItem } from '@/lib/bindings' // adjust import as needed
 import { useConversationStore } from '@/store/conversation'
 

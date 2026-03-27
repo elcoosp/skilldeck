@@ -4,7 +4,6 @@ import { FileCode, FileText, Copy, GitCompare, Pin, PinOff } from 'lucide-react'
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { commands } from '@/lib/bindings';
-import { useUIStore } from '@/store/ui';
 import { BranchPicker } from './branch-picker';
 import { VersionDiffModal } from './version-diff-modal';
 import { cn } from '@/lib/utils';

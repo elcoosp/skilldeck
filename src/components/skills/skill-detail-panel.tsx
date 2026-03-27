@@ -27,7 +27,6 @@ import {
 import { useDisableRule } from '@/hooks/use-skills'
 import type { LintWarning } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
-import { useUIStore } from '@/store/ui'
 import type { UnifiedSkill } from '@/types/skills'
 import { BlockedSkillAlert } from './blocked-skill-alert'
 import { ConflictResolver } from './conflict-resolver'

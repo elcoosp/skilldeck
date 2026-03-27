@@ -19,7 +19,6 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { commands } from '@/lib/bindings'
 import type { GlobalSearchResult } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
-import { useUIStore } from '@/store/ui'
 import { useConversationStore } from '@/store/conversation'
 
 interface GlobalSearchModalProps {

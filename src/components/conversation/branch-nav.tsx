@@ -9,7 +9,6 @@
 
 import { ChevronLeft, ChevronRight, GitBranch } from 'lucide-react'
 import { useBranches } from '@/hooks/use-branches'
-import { useUIStore } from '@/store/ui'
 import { useConversationStore } from '@/store/conversation'
 
 interface BranchNavProps {

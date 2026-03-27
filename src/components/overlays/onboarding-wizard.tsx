@@ -9,7 +9,6 @@ import {
   ensurePlatformRegistration,
   updatePlatformPreferences
 } from '@/lib/platform'
-import { useUIStore } from '@/store/ui'
 import { useUIPersistentStore } from '@/store/ui-state'
 import { useUILayoutStore } from '@/store/ui-layout'
 import { useConversationStore } from '@/store/conversation'

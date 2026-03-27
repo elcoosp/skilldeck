@@ -43,7 +43,6 @@ import type { ApiKeyStatus, ProfileData } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
 import { useSettingsStore } from '@/store/settings'
-import { useUIStore } from '@/store/ui'
 import { useUIOverlaysStore } from '@/store/ui-overlays'
 
 

@@ -3,7 +3,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCreateBranch } from '@/hooks/use-branches';
-import { useUIStore } from '@/store/ui';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { useConversationStore } from '@/store/conversation';
