@@ -3,7 +3,7 @@ import { commands } from '@/lib/bindings';
 import { useUIStore } from '@/store/ui';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Pin } from 'lucide-react';
-import { ArtifactItem } from './artifact-item';
+import { ArtifactItem } from '../artifacts/artifact-item';
 
 export function PinnedBar() {
   const activeConversationId = useUIStore((s) => s.activeConversationId);

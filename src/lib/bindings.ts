@@ -5,6 +5,30 @@
 
 
 export const commands = {
+async pinArtifact(artifactId: string, branchId: string | null, isGlobal: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("pin_artifact", { artifactId, branchId, isGlobal }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async unpinArtifact(artifactId: string, branchId: string | null) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("unpin_artifact", { artifactId, branchId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async listPinnedArtifacts(conversationId: string, branchId: string | null) : Promise<Result<ArtifactData[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_pinned_artifacts", { conversationId, branchId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async listArtifactVersions(artifactId: string) : Promise<Result<ArtifactData[], string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("list_artifact_versions", { artifactId }) };

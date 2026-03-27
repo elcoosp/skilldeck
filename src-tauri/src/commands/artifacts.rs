@@ -1,4 +1,6 @@
-use sea_orm::{ActiveModelTrait, EntityTrait, QueryFilter, QueryOrder, Set};
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, EntityTrait, ModelTrait, QueryFilter, QueryOrder, Set,
+};
 use serde::Serialize;
 use skilldeck_models::pinned_artifacts::{self, Entity as PinnedArtifacts};
 use specta::{Type, specta};
