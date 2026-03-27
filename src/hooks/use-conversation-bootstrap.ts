@@ -1,34 +1,29 @@
-// src/hooks/use-conversation-bootstrap.ts
-import { useQuery } from '@tanstack/react-query'
-import { commands } from '@/lib/bindings'
-import type { UUID } from '@/lib/types'
+import { useQuery } from '@tanstack/react-query';
+import { commands } from '@/lib/bindings';
+import type { UUID } from '@/lib/types';
+import type { MessageData } from '@/lib/bindings';
+import type { BranchInfo } from '@/hooks/use-branches';
+import type { QueuedMessage } from '@/hooks/use-queued-messages';
+import type { HeadingItem } from '@/hooks/use-message-headings'; // we'll create this hook later
 
 export interface ConversationBootstrapData {
-  messages: Awaited<ReturnType<typeof commands.listMessages>>['data']
-  branches: Awaited<ReturnType<typeof commands.listBranches>>['data']
-  draft: Awaited<ReturnType<typeof commands.getConversationDraft>>['data']
-  queued: Awaited<ReturnType<typeof commands.listQueuedMessages>>['data']
+  messages: MessageData[];
+  branches: BranchInfo[];
+  draft: [string, any[]] | null;
+  queued: QueuedMessage[];
+  headings: HeadingItem[];
 }
 
 export function useConversationBootstrap(conversationId: UUID | null) {
   return useQuery({
     queryKey: ['conversation-bootstrap', conversationId],
     queryFn: async () => {
-      if (!conversationId) return null
-      const [messagesRes, branchesRes, draftRes, queuedRes] = await Promise.all([
-        commands.listMessages(conversationId, null),
-        commands.listBranches(conversationId),
-        commands.getConversationDraft(conversationId),
-        commands.listQueuedMessages(conversationId),
-      ])
-      return {
-        messages: messagesRes.status === 'ok' ? messagesRes.data : [],
-        branches: branchesRes.status === 'ok' ? branchesRes.data : [],
-        draft: draftRes.status === 'ok' ? draftRes.data : null,
-        queued: queuedRes.status === 'ok' ? queuedRes.data : [],
-      } as ConversationBootstrapData
+      if (!conversationId) return null;
+      const res = await commands.getConversationBootstrap(conversationId);
+      if (res.status === 'ok') return res.data as ConversationBootstrapData;
+      throw new Error(res.error);
     },
     enabled: !!conversationId,
     staleTime: 5000,
-  })
+  });
 }

@@ -28,16 +28,12 @@ import { useMessagesWithStream } from '@/hooks/use-messages'
 import { useWorkspaces } from '@/hooks/use-workspaces'
 import { useUIStore } from '@/store/ui'
 import { cn } from '@/lib/utils'
-import { extractHeadings } from '@/lib/markdown-toc'
-import { useAssistantMessageStore } from '@/store/assistant-messages'
 import { commands } from '@/lib/bindings'
 import { getScrollToken, setScrollToken } from '@/lib/scroll-token'
-// NEW: import the bootstrap hook
 import { useConversationBootstrap } from '@/hooks/use-conversation-bootstrap'
 import { useQueryClient } from '@tanstack/react-query'
-
-// ─── Heading extraction: runs outside React, result is cached by message id ──
-const headingCache = new Map<string, { contentLen: number; hasHeadings: boolean }>()
+import type { HeadingItem } from '@/hooks/use-message-headings'
+import { useBranches } from '@/hooks/use-branches'
 
 export function CenterPanel() {
   // ─── Granular UIStore selectors (primitives only — no object selectors) ───
@@ -81,37 +77,18 @@ export function CenterPanel() {
     return last?.role === 'assistant' ? last.id : undefined
   })()
 
-  // ─── Bootstrap data: replaces separate calls for queued, draft, branches ───
-  // We keep it even if not all data is used immediately; future refactors can use it.
+  // ─── Bootstrap data: replaces separate calls for queued, draft, branches, headings ───
   const { data: bootstrap, isLoading: bootstrapLoading } = useConversationBootstrap(activeConversationId)
-  // We'll use bootstrap.queued instead of separate useQueuedMessages
   const queuedMessages = bootstrap?.queued ?? []
+  const headings = bootstrap?.headings ?? []
 
-  // ─── Headings extraction for assistant messages ───────────────────────────
-  const setHeadings = useAssistantMessageStore((s) => s.setHeadings)
-  const clearHeadings = useAssistantMessageStore((s) => s.clearHeadings)
+  // ─── Get branch parent message ID for indicator ───────────────────────────
+  const { data: branches = [] } = useBranches(activeConversationId)
+  const currentBranch = branches.find(b => b.id === activeBranchId)
+  const branchParentMessageId = currentBranch?.parent_message_id ?? null
 
-  useEffect(() => {
-    for (const msg of messages) {
-      if (msg.role !== 'assistant' || !msg.content || msg.id === '__streaming__') continue
-
-      const cached = headingCache.get(msg.id)
-      const contentLen = msg.content.length
-
-      if (cached?.contentLen === contentLen) continue
-
-      const headings = extractHeadings(msg.content, msg.id)
-      const hasHeadings = headings.length > 0
-      headingCache.set(msg.id, { contentLen, hasHeadings })
-
-      if (hasHeadings) setHeadings(msg.id, headings)
-      else clearHeadings(msg.id)
-    }
-  }, [messages, setHeadings, clearHeadings])
-
-  useEffect(() => {
-    return () => { headingCache.delete('__streaming__') }
-  }, [activeConversationId])
+  // Optional debug log (remove later)
+  console.log('[CenterPanel] branchParentMessageId:', branchParentMessageId)
 
   // ─── Conversation key ─────────────────────────────────────────────────────
   const activeKey = activeConversationId
@@ -234,7 +211,7 @@ export function CenterPanel() {
     threadRef.current?.scrollToBottom()
     lastSeenCountRef.current = messagesLengthRef.current
     setUnseenJumpCount(0)
-    setShowJumpToLatest(false)                             // <-- NEW: eagerly hide
+    setShowJumpToLatest(false)
     markAllUnseenAsSeen()
     const lastMsg = messages[messages.length - 1]
     if (lastMsg) {
@@ -375,6 +352,16 @@ export function CenterPanel() {
     )
   }
 
+  // Build headings map for ThreadNavigator
+  const headingsByMessage = useMemo(() => {
+    const map = new Map<string, HeadingItem[]>()
+    for (const h of headings) {
+      if (!map.has(h.message_id)) map.set(h.message_id, [])
+      map.get(h.message_id)!.push(h)
+    }
+    return map
+  }, [headings])
+
   return (
     <div className="relative flex flex-col h-full">
       {activeConversationId && <BranchNav conversationId={activeConversationId} />}
@@ -467,6 +454,7 @@ export function CenterPanel() {
           onVisibleUserIndexChange={handleVisibleUserIndexChange}
           onScrollSettled={handleScrollSettled}
           onMessageVisible={handleMessageVisible}
+          branchParentMessageId={branchParentMessageId}
         />
 
         {messages.length > 2 && (
@@ -476,6 +464,7 @@ export function CenterPanel() {
             activeHeadingIndex={activeHeadingIndex}
             onScrollTo={handleNavigatorScrollTo}
             onHeadingClick={handleHeadingClick}
+            headingsByMessage={headingsByMessage}
           />
         )}
 

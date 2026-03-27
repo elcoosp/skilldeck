@@ -1062,6 +1062,14 @@ async updateConversationWorkspace(id: string, workspaceId: string | null) : Prom
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+async getConversationMessagesHeadings(conversationId: string) : Promise<Result<HeadingItem[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_conversation_messages_headings", { conversationId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
@@ -1132,6 +1140,7 @@ export type FolderData = { id: string; name: string; created_at: string }
 export type FolderScope = "shallow" | "deep"
 export type GistFile = { filename: string; content: string }
 export type GistInfo = { id: string; url: string; html_url: string; description: string }
+export type HeadingItem = { id: string; message_id: string; toc_index: number; text: string; level: number }
 /**
  * Result returned after a successful installation.
  */

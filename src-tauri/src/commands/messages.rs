@@ -14,6 +14,7 @@ use tauri::{Emitter, State};
 use uuid::Uuid;
 
 use crate::artifacts::storage::store_artifact_content;
+use crate::commands::headings::{HeadingItem, get_conversation_messages_headings}; // <-- new
 use crate::commands::queue;
 use crate::{events::AgentEvent, state::AppState};
 use async_trait::async_trait;
@@ -71,6 +72,15 @@ pub struct GlobalSearchResult {
     pub message_id: String,
     pub message_snippet: String,
     pub created_at: String,
+}
+
+#[derive(Debug, Serialize, Type)]
+pub struct ConversationBootstrapData {
+    pub messages: Vec<MessageData>,
+    pub branches: Vec<crate::commands::branches::BranchInfo>,
+    pub draft: Option<(String, Vec<serde_json::Value>)>,
+    pub queued: Vec<crate::commands::queue::QueuedMessage>,
+    pub headings: Vec<HeadingItem>, // <-- new
 }
 
 #[specta]
@@ -376,6 +386,33 @@ pub struct SendMessageRequest {
     pub content: String,
     pub branch_id: Option<String>,
     pub context_items: Option<Vec<ContextItem>>,
+}
+
+/// Get conversation bootstrap data (messages, branches, draft, queued, headings).
+#[specta]
+#[tauri::command]
+pub async fn get_conversation_bootstrap(
+    state: State<'_, Arc<AppState>>,
+    conversation_id: String,
+) -> Result<ConversationBootstrapData, String> {
+    let messages = list_messages(state.clone(), conversation_id.clone(), None).await?;
+    let branches =
+        crate::commands::branches::list_branches(state.clone(), conversation_id.clone()).await?;
+    let draft =
+        crate::commands::drafts::get_conversation_draft(state.clone(), conversation_id.clone())
+            .await?;
+    let queued =
+        crate::commands::queue::list_queued_messages(state.clone(), conversation_id.clone())
+            .await?;
+    let headings = get_conversation_messages_headings(state, conversation_id.clone()).await?;
+
+    Ok(ConversationBootstrapData {
+        messages,
+        branches,
+        draft,
+        queued,
+        headings,
+    })
 }
 
 // =============================================================================
@@ -1037,7 +1074,7 @@ fn run_agent_loop(
                         }
                     }
 
-                    // ** NEW: Store headings for assistant messages **
+                    // Store headings for assistant messages
                     if role_str == "assistant" {
                         use skilldeck_models::message_headings::{
                             ActiveModel as HeadingsActiveModel, HeadingsJson,

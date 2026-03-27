@@ -1,4 +1,4 @@
-use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, QueryOrder};
+use sea_orm::{ColumnTrait, EntityOrSelect, EntityTrait, QueryFilter, QuerySelect};
 use serde::Serialize;
 use specta::{Type, specta};
 use std::sync::Arc;
@@ -37,8 +37,8 @@ pub async fn get_conversation_messages_headings(
     let message_ids = Messages::find()
         .filter(skilldeck_models::messages::Column::ConversationId.eq(conv_uuid))
         .filter(skilldeck_models::messages::Column::Role.eq("assistant"))
-        .select_only()
-        .column(skilldeck_models::messages::Column::Id)
+        .select()
+        .columns(vec![skilldeck_models::messages::Column::Id])
         .into_tuple::<Uuid>()
         .all(db)
         .await
