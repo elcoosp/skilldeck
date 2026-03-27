@@ -1,4 +1,3 @@
-// src/components/conversation/message-bubble.tsx
 /**
  * MessageBubble — displays a single message with markdown rendering, syntax highlighting,
  * search highlighting, and bookmarking.
@@ -46,10 +45,11 @@ import {
 import { ScrollContainerContext, AutoScrollContext } from './message-thread'
 import { createPortal } from 'react-dom'
 import { useBookmarksStore } from '@/store/bookmarks'
-import { useConversationStore } from '@/store/conversation' // changed
+import { useConversationStore } from '@/store/conversation'
 import { save } from '@tauri-apps/plugin-dialog'
 import { writeTextFile } from '@tauri-apps/plugin-fs'
 import { CreateBranchModal } from './create-branch-modal'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 interface MessageBubbleProps {
   message: MessageData
@@ -59,6 +59,7 @@ interface MessageBubbleProps {
   searchCaseSensitive?: boolean
   searchRegex?: boolean
   onRetry?: () => void
+  isBranchParent?: boolean
 }
 
 // ─── Lazy Shiki highlighter singleton ─────────────────────────────────────────
@@ -718,6 +719,7 @@ function MessageBubbleInner({
   searchCaseSensitive = false,
   searchRegex = false,
   onRetry,
+  isBranchParent = false,
 }: MessageBubbleProps) {
   const [copied, setCopied] = useState(false)
   const [branchModalOpen, setBranchModalOpen] = useState(false)
@@ -725,7 +727,7 @@ function MessageBubbleInner({
   const contentRef = useRef<HTMLDivElement>(null)
   const [highlighter, setHighlighter] = useState<Highlighter | null>(null)
 
-  const activeConversationId = useConversationStore((s) => s.activeConversationId) // changed
+  const activeConversationId = useConversationStore((s) => s.activeConversationId)
   const scrollContainer = useContext(ScrollContainerContext)
 
   const isBookmarked = useBookmarksStore(
@@ -1044,6 +1046,22 @@ function MessageBubbleInner({
                     onDownload={downloadMessage}
                     onBranch={handleBranch}
                   />
+                )}
+
+                {/* Branch parent indicator */}
+                {isAssistant && !isStreaming && !syntheticStreaming && isBranchParent && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="inline-flex items-center gap-1 ml-1 text-muted-foreground">
+                          <GitBranch className="size-3" />
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        <p>Branch starts here</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 )}
               </div>
             )}
