@@ -927,11 +927,12 @@ fn run_agent_loop(
                         skilldeck_core::traits::MessageRole::System => "system",
                     };
                     let msg_id = Uuid::new_v4();
+                    let content = msg.content.clone();
                     let mut active = messages::ActiveModel {
                         id: Set(msg_id),
                         conversation_id: Set(conv_uuid),
                         role: Set(role_str.to_string()),
-                        content: Set(msg.content),
+                        content: Set(content.clone()),
                         created_at: Set(now),
                         context_items: Set(Some(ContextItems(vec![]))),
                         seen: Set(false),
@@ -968,8 +969,7 @@ fn run_agent_loop(
                     // Extract artifacts for assistant messages
                     if role_str == "assistant" {
                         let branch_id = None; // FIXME: retrieve from message's branch if any
-                        if let Err(e) = extract_artifacts(msg_id, branch_id, &msg.content, db).await
-                        {
+                        if let Err(e) = extract_artifacts(msg_id, branch_id, &content, db).await {
                             tracing::warn!("Failed to extract artifacts: {}", e);
                         }
                     }

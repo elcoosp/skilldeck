@@ -1,5 +1,4 @@
-// src-tauri/src/commands/artifacts.rs
-use sea_orm::{ActiveValue::Set, EntityTrait, QueryFilter, QueryOrder};
+use sea_orm::{ActiveModelTrait, EntityTrait, QueryFilter, QueryOrder, Set};
 use serde::Serialize;
 use specta::{Type, specta};
 use std::sync::Arc;
@@ -8,7 +7,7 @@ use uuid::Uuid;
 
 use crate::state::AppState;
 use skilldeck_models::artifacts::{self, Entity as Artifacts};
-use skilldeck_models::conversation_branches::{self, Entity as Branches};
+use skilldeck_models::conversation_branches::Entity as Branches;
 use skilldeck_models::messages::{self, Entity as Messages};
 
 #[derive(Debug, Clone, Serialize, Type)]
@@ -89,8 +88,6 @@ pub async fn list_artifacts(
     Ok(result)
 }
 
-// ── New command for Chunk 2 ───────────────────────────────────────────────────
-
 #[specta]
 #[tauri::command]
 pub async fn copy_artifact_to_branch(
@@ -115,13 +112,9 @@ pub async fn copy_artifact_to_branch(
         .ok_or_else(|| "Artifact not found".to_string())?;
 
     // Verify that target branch belongs to same conversation
-    let conv_uuid = match Messages::find_by_id(artifact.message_id)
-        .one(db)
-        .await
-        .map_err(|e| e.to_string())?
-    {
-        Some(msg) => msg.conversation_id,
-        None => return Err("Artifact's message not found".to_string()),
+    let conv_uuid = match Messages::find_by_id(artifact.message_id).one(db).await {
+        Ok(Some(msg)) => msg.conversation_id,
+        _ => return Err("Artifact's message not found".to_string()),
     };
 
     // Check that branch exists and belongs to that conversation
@@ -134,10 +127,6 @@ pub async fn copy_artifact_to_branch(
         return Err("Branch does not belong to the same conversation".to_string());
     }
 
-    // Prepare content for the draft message
-    let language = artifact.language.as_deref().unwrap_or("");
-    let content = format!("```{}\n{}\n```", language, artifact.content);
-
     // Create a draft message in the target branch
     let draft_id = Uuid::new_v4();
     let now = chrono::Utc::now().fixed_offset();
@@ -147,12 +136,16 @@ pub async fn copy_artifact_to_branch(
         conversation_id: Set(conv_uuid),
         branch_id: Set(Some(branch_uuid)),
         role: Set("user".to_string()),
-        content: Set(content),
+        content: Set(format!(
+            "```{}\n{}\n```",
+            artifact.language.unwrap_or_default(),
+            artifact.content
+        )),
         metadata: Set(None),
-        context_items: Set(Some(skilldeck_models::context_item::ContextItems(vec![]))),
+        context_items: Set(None),
         created_at: Set(now),
         seen: Set(false),
-        status: Set("draft".to_string()), // we'll use "draft" status
+        status: Set("draft".to_string()),
         ..Default::default()
     };
     draft.insert(db).await.map_err(|e| e.to_string())?;

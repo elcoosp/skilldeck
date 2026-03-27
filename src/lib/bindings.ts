@@ -5,6 +5,22 @@
 
 
 export const commands = {
+async copyArtifactToBranch(artifactId: string, targetBranchId: string) : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("copy_artifact_to_branch", { artifactId, targetBranchId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async listArtifacts(conversationId: string, branchId: string | null) : Promise<Result<ArtifactData[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_artifacts", { conversationId, branchId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async getHomeDir() : Promise<Result<string, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_home_dir") };
@@ -1051,6 +1067,7 @@ export type AnalyticsData = { total_conversations: string; total_messages: strin
  * Whether a given provider has a stored key.
  */
 export type ApiKeyStatus = { provider: string; has_key: boolean }
+export type ArtifactData = { id: string; message_id: string; branch_id: string | null; type: string; name: string; content: string; language: string | null; logical_key: string | null; created_at: string }
 export type AssembleFolderRequest = { path: string; deep: boolean; max_bytes: string | null }
 export type AssembleFolderResponse = { assembled_content: string; file_count: string }
 export type AutoApproveConfigDto = { auto_approve_reads: boolean; auto_approve_writes: boolean; auto_approve_shell: boolean; auto_approve_http_requests: boolean; auto_approve_selects: boolean; auto_approve_mutations: boolean }
