@@ -17,13 +17,14 @@ import {
 } from '@/hooks/use-conversations'
 import { useProfiles } from '@/hooks/use-profiles'
 import { useUnifiedSkills } from '@/hooks/use-unified-skills' // changed
-import { useUIStore } from '@/store/ui'
+import { useUIOverlaysStore } from '@/store/ui-overlays'
+import { useConversationStore } from '@/store/conversation'
 
 export function CommandPalette() {
-  const open = useUIStore((s) => s.commandPaletteOpen)
-  const setOpen = useUIStore((s) => s.setCommandPaletteOpen)
-  const setActiveConversation = useUIStore((s) => s.setActiveConversation)
-  const setSettingsOpen = useUIStore((s) => s.setSettingsOpen)
+  const open = useUIOverlaysStore((s) => s.commandPaletteOpen)
+  const setOpen = useUIOverlaysStore((s) => s.setCommandPaletteOpen)
+  const setActiveConversation = useConversationStore((s) => s.setActiveConversation)
+  const setSettingsOpen = useUIOverlaysStore((s) => s.setSettingsOpen)
 
   const { data: conversations = [] } = useConversations()
   const { unifiedSkills } = useUnifiedSkills() // use unified skills

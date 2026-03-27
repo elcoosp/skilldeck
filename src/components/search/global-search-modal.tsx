@@ -19,7 +19,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { commands } from '@/lib/bindings'
 import type { GlobalSearchResult } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
-import { useUIStore } from '@/store/ui'
+import { useConversationStore } from '@/store/conversation'
 
 interface GlobalSearchModalProps {
   open: boolean
@@ -33,9 +33,9 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
   const modalRef = useRef<HTMLDivElement>(null)
   const [selectedIndex, setSelectedIndex] = useState(0)
 
-  const setActiveConversation = useUIStore((s) => s.setActiveConversation)
+  const setActiveConversation = useConversationStore((s) => s.setActiveConversation)
 
-  const setScrollToMessageId = useUIStore((s) => s.setScrollToMessageId)
+  const setScrollToMessageId = useConversationStore((s) => s.setScrollToMessageId)
 
   const { data: results = [], isLoading } = useQuery({
     queryKey: ['global-search', debouncedQuery],

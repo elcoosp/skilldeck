@@ -1,6 +1,6 @@
 // src/components/layout/right-panel.tsx
 /**
- * Right panel — tabbed session context: Session, Skills, MCP, Workflow, Analytics.
+ * Right panel — tabbed session context: Session, Skills, MCP, Workflow, Analytics, Artifacts.
  *
  * Tab bar shows icons only. On hover the label fades in and smoothly pushes
  * sibling icons apart via a max-width transition (no layout jumps).
@@ -19,6 +19,7 @@ import {
   BarChart2,
   ChevronRight,
   Cpu,
+  FileCode,
   GitBranch,
   Layers,
   Plus,
@@ -30,6 +31,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { UnifiedSkillList } from '@/components/skills/unified-skill-list'
+import { ArtifactPanel } from '@/components/artifacts/artifact-panel'
 import { BouncingDots } from '@/components/ui/bouncing-dots'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -53,13 +55,24 @@ import {
 import { useWorkflowEvents } from '@/hooks/use-workflow-events'
 import { commands } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
-import { useUIStore, selectHasSkillsUnlocked, selectHasWorkflowsUnlocked } from '@/store/ui'
+
+import { UIPersistentState, useUIPersistentStore } from '@/store/ui-state'
+import { useUILayoutStore } from '@/store/ui-layout'
+import { useUIOverlaysStore } from '@/store/ui-overlays'
 import { McpTab } from './mcp-tab'
 import { useSessionStats } from '@/hooks/use-session-stats'
 import { AnalyticsHeatmap } from '../analytics/analytics-heatmap'
 import { Dialog, DialogFooter, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog'
 import { startOfMonth, endOfMonth, format, startOfYear, endOfYear, isWithinInterval } from 'date-fns'
-type Tab = 'session' | 'skills' | 'mcp' | 'workflow' | 'analytics'
+import { useConversationStore } from '@/store/conversation'
+
+
+
+// Feature gate selectors remain unchanged
+const selectHasSkillsUnlocked = (state: UIPersistentState) => state.unlockStage >= 1
+const selectHasWorkflowsUnlocked = (state: UIPersistentState) => state.unlockStage >= 3
+
+type Tab = 'session' | 'skills' | 'mcp' | 'workflow' | 'analytics' | 'artifacts'
 
 const TABS: {
   id: Tab
@@ -70,20 +83,23 @@ const TABS: {
     { id: 'skills', label: 'Skills', Icon: Layers },
     { id: 'mcp', label: 'MCP', Icon: Zap },
     { id: 'workflow', label: 'Workflow', Icon: GitBranch },
-    { id: 'analytics', label: 'Analytics', Icon: BarChart2 }
+    { id: 'analytics', label: 'Analytics', Icon: BarChart2 },
+    { id: 'artifacts', label: 'Artifacts', Icon: FileCode }
   ]
 
 export function RightPanel() {
   const [activeTab, setActiveTab] = useState<Tab>('session')
-  const activeConversationId = useUIStore((s) => s.activeConversationId)
-  const unlockStage = useUIStore((s) => s.unlockStage)
-  const hasSkillsUnlocked = useUIStore(selectHasSkillsUnlocked)
-  const hasWorkflowsUnlocked = useUIStore(selectHasWorkflowsUnlocked)
+  const activeConversationId = useConversationStore((s) => s.activeConversationId)
+  const unlockStage = useUIPersistentStore((s) => s.unlockStage)
+  const hasSkillsUnlocked = useUIPersistentStore(selectHasSkillsUnlocked)
+  const hasWorkflowsUnlocked = useUIPersistentStore(selectHasWorkflowsUnlocked)
 
   // Filter tabs based on unlock stage
   const visibleTabs = TABS.filter(tab => {
     if (tab.id === 'skills') return hasSkillsUnlocked
     if (tab.id === 'workflow') return hasWorkflowsUnlocked
+    // artifacts is always visible after stage 1 (skills unlocked)
+    if (tab.id === 'artifacts') return hasSkillsUnlocked
     return true
   })
 
@@ -128,6 +144,10 @@ export function RightPanel() {
       ) : activeTab === 'skills' ? (
         <div className="flex-1 min-h-0 overflow-hidden w-full min-w-0">
           <UnifiedSkillList />
+        </div>
+      ) : activeTab === 'artifacts' ? (
+        <div className="flex-1 min-h-0 overflow-hidden w-full min-w-0">
+          <ArtifactPanel />
         </div>
       ) : (
         <ScrollArea className="flex-1 min-h-0">
@@ -190,7 +210,7 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
 
   if (!conversationId) {
     return (
-      <div className="p-4 text-xs text-muted-foreground">
+      <div className="p-4  text-sm text-muted-foreground">
         No active conversation.
       </div>
     )

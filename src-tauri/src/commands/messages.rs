@@ -13,12 +13,16 @@ use std::sync::Arc;
 use tauri::{Emitter, State};
 use uuid::Uuid;
 
+use crate::artifacts::storage::store_artifact_content;
+use crate::commands::headings::{HeadingItem, get_conversation_messages_headings}; // <-- new
 use crate::commands::queue;
 use crate::{events::AgentEvent, state::AppState};
 use async_trait::async_trait;
 use futures::Future;
+use regex::Regex;
 use skilldeck_core::agent::{AgentLoop, AgentLoopConfig, AgentLoopEvent, all_built_in_tools};
 use skilldeck_core::traits::subagent_spawner::SubagentSpawner;
+use skilldeck_models::artifacts;
 use skilldeck_models::context_item::{ContextItem, ContextItems, FolderScope};
 use skilldeck_models::conversations::{self, Entity as Conversations};
 use skilldeck_models::messages::{self, Entity as Messages, MessageMetadata};
@@ -70,6 +74,15 @@ pub struct GlobalSearchResult {
     pub created_at: String,
 }
 
+#[derive(Debug, Serialize, Type)]
+pub struct ConversationBootstrapData {
+    pub messages: Vec<MessageData>,
+    pub branches: Vec<crate::commands::branches::BranchInfo>,
+    pub draft: Option<(String, Vec<serde_json::Value>)>,
+    pub queued: Vec<crate::commands::queue::QueuedMessage>,
+    pub headings: Vec<HeadingItem>, // <-- new
+}
+
 #[specta]
 #[tauri::command]
 pub async fn cancel_agent(
@@ -85,7 +98,7 @@ pub async fn cancel_agent(
 pub async fn list_messages(
     state: State<'_, Arc<AppState>>,
     conversation_id: String,
-    #[allow(unused_variables)] branch_id: Option<String>,
+    branch_id: Option<String>,
 ) -> Result<Vec<MessageData>, String> {
     let db = state
         .registry
@@ -94,9 +107,46 @@ pub async fn list_messages(
         .await
         .map_err(|e| e.to_string())?;
     let conv_uuid = Uuid::parse_str(&conversation_id).map_err(|e| e.to_string())?;
+    let branch_uuid = branch_id
+        .map(|id| Uuid::parse_str(&id))
+        .transpose()
+        .map_err(|e| e.to_string())?;
 
-    let rows = Messages::find()
-        .filter(messages::Column::ConversationId.eq(conv_uuid))
+    let mut query = Messages::find().filter(messages::Column::ConversationId.eq(conv_uuid));
+
+    if let Some(branch_uuid) = branch_uuid {
+        // Get the branch record to find its parent message
+        use skilldeck_models::conversation_branches::Entity as Branches;
+        let branch = Branches::find_by_id(branch_uuid)
+            .one(db)
+            .await
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| format!("Branch {} not found", branch_uuid))?;
+        let parent_msg_id = branch.parent_message_id;
+
+        // Get the parent message to get its created_at timestamp
+        let parent_msg = Messages::find_by_id(parent_msg_id)
+            .one(db)
+            .await
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| format!("Parent message {} not found", parent_msg_id))?;
+
+        // Query: messages from the branch OR main trunk messages up to the parent message
+        use sea_orm::Condition;
+        query = query.filter(
+            Condition::any()
+                .add(messages::Column::BranchId.eq(branch_uuid))
+                .add(
+                    Condition::all()
+                        .add(messages::Column::BranchId.is_null())
+                        .add(messages::Column::CreatedAt.lte(parent_msg.created_at)),
+                ),
+        );
+    } else {
+        query = query.filter(messages::Column::BranchId.is_null());
+    }
+
+    let rows = query
         .order_by_asc(messages::Column::CreatedAt)
         .all(db)
         .await
@@ -277,6 +327,7 @@ pub async fn send_message(
         state_clone,
         req.conversation_id,
         req.content,
+        req.branch_id,
         req.context_items,
         app,
         None,
@@ -333,7 +384,35 @@ pub async fn mark_messages_seen(
 pub struct SendMessageRequest {
     pub conversation_id: String,
     pub content: String,
+    pub branch_id: Option<String>,
     pub context_items: Option<Vec<ContextItem>>,
+}
+
+/// Get conversation bootstrap data (messages, branches, draft, queued, headings).
+#[specta]
+#[tauri::command]
+pub async fn get_conversation_bootstrap(
+    state: State<'_, Arc<AppState>>,
+    conversation_id: String,
+) -> Result<ConversationBootstrapData, String> {
+    let messages = list_messages(state.clone(), conversation_id.clone(), None).await?;
+    let branches =
+        crate::commands::branches::list_branches(state.clone(), conversation_id.clone()).await?;
+    let draft =
+        crate::commands::drafts::get_conversation_draft(state.clone(), conversation_id.clone())
+            .await?;
+    let queued =
+        crate::commands::queue::list_queued_messages(state.clone(), conversation_id.clone())
+            .await?;
+    let headings = get_conversation_messages_headings(state, conversation_id.clone()).await?;
+
+    Ok(ConversationBootstrapData {
+        messages,
+        branches,
+        draft,
+        queued,
+        headings,
+    })
 }
 
 // =============================================================================
@@ -344,6 +423,7 @@ pub(crate) async fn send_message_internal(
     state: Arc<AppState>,
     conversation_id: String,
     content: String,
+    branch_id: Option<String>,
     context_items: Option<Vec<ContextItem>>,
     app: tauri::AppHandle,
     metadata: Option<MessageMetadata>,
@@ -355,10 +435,14 @@ pub(crate) async fn send_message_internal(
         .await
         .map_err(|e| e.to_string())?;
     let conv_uuid = Uuid::parse_str(&conversation_id).map_err(|e| e.to_string())?;
+    let branch_uuid = branch_id
+        .as_ref()
+        .map(|id| Uuid::parse_str(id))
+        .transpose()
+        .map_err(|e| e.to_string())?;
     let msg_id = Uuid::new_v4();
     let now = chrono::Utc::now().fixed_offset();
 
-    // Clone before mapping to avoid moving the original `context_items`
     let context_items_model = context_items
         .clone()
         .map(ContextItems)
@@ -367,6 +451,7 @@ pub(crate) async fn send_message_internal(
     let user_msg = messages::ActiveModel {
         id: Set(msg_id),
         conversation_id: Set(conv_uuid),
+        branch_id: Set(branch_uuid),
         role: Set("user".to_string()),
         content: Set(content.clone()),
         metadata: Set(metadata),
@@ -395,14 +480,16 @@ pub(crate) async fn send_message_internal(
     let state_arc = state.clone();
     let conv_id_clone = conversation_id.clone();
     let content_clone = content.clone();
+    let branch_id_clone = branch_id;
     let app_clone = app.clone();
-    let context_items_clone = context_items; // now we still have the original because we cloned earlier
+    let context_items_clone = context_items;
 
     let future: Pin<Box<dyn Future<Output = ()> + Send + 'static>> = Box::pin(async move {
         run_agent_loop(
             state_arc,
             conv_id_clone,
             content_clone,
+            branch_id_clone,
             msg_id,
             context_items_clone,
             app_clone,
@@ -412,6 +499,61 @@ pub(crate) async fn send_message_internal(
 
     Ok(())
 }
+// =============================================================================
+// Artifact extraction helper
+// =============================================================================
+
+async fn extract_artifacts(
+    message_id: Uuid,
+    branch_id: Option<Uuid>,
+    content: &str,
+    db: &sea_orm::DatabaseConnection,
+) -> Result<(), String> {
+    let re = Regex::new(r"```(\w*)\n([\s\S]*?)```").unwrap();
+    for cap in re.captures_iter(content) {
+        let language = cap.get(1).map(|m| m.as_str().to_string());
+        let code = cap
+            .get(2)
+            .map(|m| m.as_str().to_string())
+            .unwrap_or_default();
+
+        let (storage_path, db_content) = match store_artifact_content(&code).await {
+            Ok(Some(path)) => (Some(path.to_string_lossy().to_string()), String::new()),
+            Ok(None) => (None, code),
+            Err(e) => {
+                tracing::warn!("Failed to store artifact content: {}", e);
+                (None, code)
+            }
+        };
+
+        let logical_key = format!(
+            "code_{}_{}",
+            language.as_deref().unwrap_or("text"),
+            message_id
+        );
+
+        let artifact = artifacts::ActiveModel {
+            id: Set(Uuid::new_v4()),
+            message_id: Set(message_id),
+            branch_id: Set(branch_id),
+            parent_artifact_id: Set(None),
+            logical_key: Set(Some(logical_key)),
+            storage_path: Set(storage_path),
+            r#type: Set("code".to_string()),
+            name: Set(language.clone().unwrap_or_else(|| "code".to_string())),
+            content: Set(db_content),
+            language: Set(language),
+            metadata: Set(None),
+            created_at: Set(chrono::Utc::now().fixed_offset()),
+        };
+        artifact.insert(db).await.map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+// =============================================================================
+// Agent loop runner
+// =============================================================================
 
 use skilldeck_core::traits::{McpTool, ToolDefinition};
 
@@ -516,6 +658,7 @@ fn run_agent_loop(
     state: Arc<AppState>,
     conversation_id: String,
     user_message: String,
+    branch_id: Option<String>,
     current_msg_id: Uuid,
     context_items: Option<Vec<ContextItem>>,
     app: tauri::AppHandle,
@@ -618,9 +761,22 @@ fn run_agent_loop(
             }
         };
 
+        // Filter history to include only messages from the current branch
+        let branch_uuid = branch_id.as_ref().and_then(|id| Uuid::parse_str(id).ok());
         let history = history_rows
             .into_iter()
-            .filter(|m| m.id != current_msg_id)
+            .filter(|m| {
+                // Include user message we just inserted (id != current_msg_id)
+                // and ensure branch matches
+                if m.id == current_msg_id {
+                    return false;
+                }
+                if let Some(branch_uuid) = branch_uuid {
+                    m.branch_id == Some(branch_uuid)
+                } else {
+                    m.branch_id.is_none()
+                }
+            })
             .map(|m| ChatMessage {
                 role: match m.role.as_str() {
                     "user" => skilldeck_core::traits::MessageRole::User,
@@ -869,11 +1025,13 @@ fn run_agent_loop(
                         skilldeck_core::traits::MessageRole::System => "system",
                     };
                     let msg_id = Uuid::new_v4();
+                    let branch_uuid = branch_id.as_ref().and_then(|id| Uuid::parse_str(id).ok());
                     let mut active = messages::ActiveModel {
                         id: Set(msg_id),
                         conversation_id: Set(conv_uuid),
+                        branch_id: Set(branch_uuid),
                         role: Set(role_str.to_string()),
-                        content: Set(msg.content),
+                        content: Set(msg.content.clone()),
                         created_at: Set(now),
                         context_items: Set(Some(ContextItems(vec![]))),
                         seen: Set(false),
@@ -905,6 +1063,36 @@ fn run_agent_loop(
                                 message: format!("Failed to persist message: {}", e),
                             },
                         );
+                    }
+
+                    // Extract artifacts for assistant messages
+                    if role_str == "assistant" {
+                        if let Err(e) =
+                            extract_artifacts(msg_id, branch_uuid, &msg.content, db).await
+                        {
+                            tracing::warn!("Failed to extract artifacts: {}", e);
+                        }
+                    }
+
+                    // Store headings for assistant messages
+                    if role_str == "assistant" {
+                        use skilldeck_models::message_headings::{
+                            ActiveModel as HeadingsActiveModel, HeadingsJson,
+                        };
+                        let headings = crate::headings::extract_headings(&msg.content);
+                        let heading_record = HeadingsActiveModel {
+                            id: Set(Uuid::new_v4()),
+                            message_id: Set(msg_id),
+                            headings: Set(HeadingsJson(headings)),
+                            created_at: Set(now),
+                        };
+                        if let Err(e) = heading_record.insert(db).await {
+                            tracing::warn!(
+                                "Failed to store headings for message {}: {}",
+                                msg_id,
+                                e
+                            );
+                        }
                     }
                 }
 

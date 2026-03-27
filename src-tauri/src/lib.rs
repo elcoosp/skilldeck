@@ -8,9 +8,11 @@
 //! - Tracing subscriber
 //! - Nudge poller and background skill sync
 
+mod artifacts;
 mod commands;
 mod config;
 mod events;
+mod headings; // <-- already added in chunk 2
 mod nudge_poller;
 mod platform_client;
 mod skills;
@@ -22,15 +24,34 @@ mod sync;
 pub use subagent_server::SubagentServer;
 
 use commands::{
-    analytics::*, attachments::*, bookmarks::*, branches::*, conversations::*, drafts::*,
-    export::*, files::*, folders::*, gist::*, home_dir::*, mcp::*, messages::*, ollama::*,
-    platform::*, profiles::*, queue::*, settings::*, skills::*, workflows::*, workspaces::*,
+    analytics::*,
+    artifacts::*,
+    attachments::*,
+    bookmarks::*,
+    branches::*,
+    conversations::*,
+    drafts::*,
+    export::*,
+    files::*,
+    folders::*,
+    gist::*,
+    headings::*, // <-- new: headings
+    home_dir::*,
+    mcp::*,
+    messages::*,
+    ollama::*,
+    platform::*,
+    profiles::*,
+    queue::*,
+    settings::*,
+    skills::*,
+    workflows::*,
+    workspaces::*,
 };
 use events::{AgentEvent, McpEvent, SkillEvent, WorkflowEvent};
 use state::AppState;
 use std::sync::Arc;
 use tauri::Manager;
-use tracing_subscriber::{EnvFilter, fmt};
 
 // Specta bindings export
 use specta_typescript::{BigIntExportBehavior, Typescript};
@@ -38,18 +59,28 @@ use tauri_specta::{Builder, collect_commands, collect_events};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    fmt()
-        .with_env_filter(
-            EnvFilter::from_default_env()
-                .add_directive("skilldeck=info".parse().unwrap())
-                .add_directive("skilldeck_core=info".parse().unwrap())
-                .add_directive("skilldeck_lint=info".parse().unwrap()),
-        )
-        .init();
-
+    #[cfg(not(debug_assertions))]
+    {
+        use tracing_subscriber::{EnvFilter, fmt};
+        fmt()
+            .with_env_filter(
+                EnvFilter::from_default_env()
+                    .add_directive("skilldeck=info".parse().unwrap())
+                    .add_directive("skilldeck_core=info".parse().unwrap())
+                    .add_directive("skilldeck_lint=info".parse().unwrap()),
+            )
+            .init();
+    }
     // Build Tauri Specta builder with all commands and events
     let builder = Builder::<tauri::Wry>::new()
         .commands(collect_commands![
+            get_conversation_bootstrap,
+            pin_artifact,
+            unpin_artifact,
+            list_pinned_artifacts,
+            list_artifact_versions,
+            copy_artifact_to_branch,
+            list_artifacts,
             get_home_dir,
             get_conversation_draft,
             upsert_conversation_draft,
@@ -89,7 +120,7 @@ pub fn run() {
             // messages
             list_messages,
             search_messages,
-            mark_message_seen, // <-- new command
+            mark_message_seen,
             send_message,
             resolve_tool_approval,
             // profiles
@@ -174,6 +205,8 @@ pub fn run() {
             unpin_conversation,
             // new command for updating conversation workspace
             update_conversation_workspace,
+            // headings
+            get_conversation_messages_headings, // <-- new
         ])
         .events(collect_events![
             AgentEvent,
@@ -193,8 +226,17 @@ pub fn run() {
 
     // Get the invoke handler (borrows builder, does not consume it)
     let invoke_handler = builder.invoke_handler();
+    // Start building the Tauri app
+    let mut tauri_builder = tauri::Builder::default();
 
-    tauri::Builder::default()
+    // Conditionally add the devtools plugin only for debug builds
+    #[cfg(debug_assertions)]
+    {
+        let devtools = tauri_plugin_devtools::init();
+        tauri_builder = tauri_builder.plugin(devtools);
+    }
+
+    tauri_builder
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_store::Builder::default().build())
@@ -202,20 +244,16 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(move |app| {
-            // Mount events for Tauri Specta (consumes builder)
             builder.mount_events(app);
 
             let handle = app.handle().clone();
 
-            // Perform heavy initialization (DB, skill scanning, etc.) – this runs synchronously
-            // inside `block_on` to wait for completion before the app starts.
             tauri::async_runtime::block_on(async move {
                 let state = AppState::initialize(&handle)
                     .await
                     .expect("Failed to initialize AppState");
                 let state = Arc::new(state);
 
-                // Start background tasks (nudge poller, skill sync)
                 nudge_poller::start_nudge_poller(handle.clone(), Arc::clone(&state));
 
                 let sync_state = Arc::clone(&state);
@@ -231,7 +269,6 @@ pub fn run() {
                     }
                 });
 
-                // Store the state so commands can access it
                 handle.manage(state);
             });
 

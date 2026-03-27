@@ -224,7 +224,43 @@ impl MigrationTrait for Migration {
                 )
                 .await?;
         }
-
+        // messages headings manager
+        manager
+            .create_table(
+                Table::create()
+                    .table(MessageHeadings::Table)
+                    .col(
+                        ColumnDef::new(MessageHeadings::Id)
+                            .uuid()
+                            .not_null()
+                            .primary_key(),
+                    )
+                    .col(
+                        ColumnDef::new(MessageHeadings::MessageId)
+                            .uuid()
+                            .not_null()
+                            .unique_key(),
+                    )
+                    .col(
+                        ColumnDef::new(MessageHeadings::Headings)
+                            .json_binary()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(MessageHeadings::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk-message-headings-message-id")
+                            .from(MessageHeadings::Table, MessageHeadings::MessageId)
+                            .to(Messages::Table, Messages::Id)
+                            .on_delete(ForeignKeyAction::Cascade),
+                    )
+                    .to_owned(),
+            )
+            .await?;
         // messages
         manager
             .create_table(
@@ -876,17 +912,26 @@ impl MigrationTrait for Migration {
             .create_table(
                 Table::create()
                     .table(Artifacts::Table)
-                    .if_not_exists()
-                    .col(uuid(Artifacts::Id).primary_key())
-                    .col(uuid(Artifacts::MessageId).not_null())
-                    .col(string(Artifacts::Type).not_null())
-                    .col(string(Artifacts::Name).not_null())
-                    .col(text(Artifacts::Content).not_null())
-                    .col(string(Artifacts::Language).null())
                     .col(
-                        timestamp_with_time_zone(Artifacts::CreatedAt)
+                        ColumnDef::new(Artifacts::Id)
+                            .uuid()
                             .not_null()
-                            .default(Expr::current_timestamp()),
+                            .primary_key(),
+                    )
+                    .col(ColumnDef::new(Artifacts::MessageId).uuid().not_null())
+                    .col(ColumnDef::new(Artifacts::BranchId).uuid())
+                    .col(ColumnDef::new(Artifacts::ParentArtifactId).uuid())
+                    .col(ColumnDef::new(Artifacts::LogicalKey).string())
+                    .col(ColumnDef::new(Artifacts::StoragePath).string())
+                    .col(ColumnDef::new(Artifacts::Type).string().not_null())
+                    .col(ColumnDef::new(Artifacts::Name).string().not_null())
+                    .col(ColumnDef::new(Artifacts::Content).text().not_null())
+                    .col(ColumnDef::new(Artifacts::Language).string())
+                    .col(ColumnDef::new(Artifacts::Metadata).json_binary()) // new
+                    .col(
+                        ColumnDef::new(Artifacts::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
                     )
                     .foreign_key(
                         ForeignKey::create()
@@ -898,7 +943,88 @@ impl MigrationTrait for Migration {
                     .to_owned(),
             )
             .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_artifacts_branch_id")
+                    .table(Artifacts::Table)
+                    .col(Artifacts::BranchId)
+                    .to_owned(),
+            )
+            .await?;
 
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_artifacts_logical_key")
+                    .table(Artifacts::Table)
+                    .col(Artifacts::LogicalKey)
+                    .to_owned(),
+            )
+            .await?;
+        // Pinned artifacts
+        manager
+            .create_table(
+                Table::create()
+                    .table(PinnedArtifacts::Table)
+                    .col(
+                        ColumnDef::new(PinnedArtifacts::Id)
+                            .uuid()
+                            .not_null()
+                            .primary_key(),
+                    )
+                    .col(
+                        ColumnDef::new(PinnedArtifacts::ConversationId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(PinnedArtifacts::ArtifactId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(ColumnDef::new(PinnedArtifacts::BranchId).uuid())
+                    .col(
+                        ColumnDef::new(PinnedArtifacts::IsGlobal)
+                            .boolean()
+                            .not_null()
+                            .default(false),
+                    )
+                    .col(
+                        ColumnDef::new(PinnedArtifacts::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk_pinned_artifacts_conversation")
+                            .from(PinnedArtifacts::Table, PinnedArtifacts::ConversationId)
+                            .to(Conversations::Table, Conversations::Id)
+                            .on_delete(ForeignKeyAction::Cascade),
+                    )
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk_pinned_artifacts_artifact")
+                            .from(PinnedArtifacts::Table, PinnedArtifacts::ArtifactId)
+                            .to(Artifacts::Table, Artifacts::Id)
+                            .on_delete(ForeignKeyAction::Cascade),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_pinned_artifacts_unique")
+                    .table(PinnedArtifacts::Table)
+                    .col(PinnedArtifacts::ConversationId)
+                    .col(PinnedArtifacts::ArtifactId)
+                    .col(PinnedArtifacts::BranchId)
+                    .unique()
+                    .to_owned(),
+            )
+            .await?;
         // attachments
         manager
             .create_table(
@@ -1791,10 +1917,15 @@ enum Artifacts {
     Table,
     Id,
     MessageId,
+    BranchId,
+    ParentArtifactId,
+    LogicalKey,
+    StoragePath,
     Type,
     Name,
     Content,
     Language,
+    Metadata,
     CreatedAt,
 }
 
@@ -1983,7 +2114,16 @@ pub enum ModelPricing {
     CacheWriteCostPer1kTokens,
     ValidFrom,
 }
-
+#[derive(Iden)]
+enum PinnedArtifacts {
+    Table,
+    Id,
+    ConversationId,
+    ArtifactId,
+    BranchId,
+    IsGlobal,
+    CreatedAt,
+}
 impl Iden for ModelPricing {
     fn unquoted(&self) -> &str {
         match self {
@@ -1998,4 +2138,12 @@ impl Iden for ModelPricing {
             ModelPricing::ValidFrom => "valid_from",
         }
     }
+}
+#[derive(Iden)]
+enum MessageHeadings {
+    Table,
+    Id,
+    MessageId,
+    Headings,
+    CreatedAt,
 }

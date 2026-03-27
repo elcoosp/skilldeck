@@ -1,4 +1,3 @@
-// src/components/conversation/thread-navigator.tsx
 import { memo, useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import slugify from "slugify"
@@ -6,19 +5,12 @@ import { createPortal } from 'react-dom'
 import { Bookmark, ChevronRight } from 'lucide-react'
 import type { MessageData } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
-import { useAssistantMessageStore } from '@/store/assistant-messages'
 import { useBookmarksStore } from '@/store/bookmarks'
-import { useUIStore } from '@/store/ui'
+import type { HeadingItem } from '@/lib/bindings' // adjust import as needed
+import { useConversationStore } from '@/store/conversation'
 
 const VISIBLE_ITEMS = 10
 const DOT_HEIGHT = 20
-
-const DEBUG = true
-function dbg(msg: string, data?: Record<string, unknown>) {
-  if (!DEBUG) return
-  if (data) console.log(`[Nav] ${msg}`, data)
-  else console.log(`[Nav] ${msg}`)
-}
 
 interface ThreadNavigatorProps {
   messages: MessageData[]
@@ -26,6 +18,7 @@ interface ThreadNavigatorProps {
   activeHeadingIndex?: number | null
   onScrollTo: (index: number) => void
   onHeadingClick: (messageIndex: number, tocIndex: number) => void
+  headings: HeadingItem[]
 }
 
 type NavItem =
@@ -38,15 +31,25 @@ const ThreadNavigator = memo(function ThreadNavigator({
   activeHeadingIndex = null,
   onScrollTo,
   onHeadingClick,
+  headings,
 }: ThreadNavigatorProps) {
   const userMessages = useMemo(
     () => messages.map((msg, idx) => ({ msg, idx })).filter(({ msg }) => msg.role === 'user'),
     [messages]
   )
 
-  const headingsMap = useAssistantMessageStore((s) => s.headingsMap)
+  // Build a map of message_id -> headings array
+  const headingsByMessage = useMemo(() => {
+    const map = new Map<string, HeadingItem[]>()
+    for (const h of headings) {
+      if (!map.has(h.message_id)) map.set(h.message_id, [])
+      map.get(h.message_id)!.push(h)
+    }
+    return map
+  }, [headings])
+
   const bookmarksMap = useBookmarksStore((s) => s.bookmarks)
-  const activeConversationId = useUIStore((s) => s.activeConversationId)
+  const activeConversationId = useConversationStore((s) => s.activeConversationId)
 
   const convBookmarks = useMemo(
     () => (activeConversationId ? (bookmarksMap[activeConversationId] ?? []) : []),
@@ -90,7 +93,6 @@ const ThreadNavigator = memo(function ThreadNavigator({
   const userCollapsedMessages = useRef<Set<number>>(new Set())
 
   const handleToggleToc = useCallback((messageIdx: number, expand: boolean) => {
-    dbg('toggleToc', { messageIdx, expand })
     if (!expand) userCollapsedMessages.current.add(messageIdx)
     else userCollapsedMessages.current.delete(messageIdx)
     setExpandedTocIdx(expand ? messageIdx : null)
@@ -103,14 +105,14 @@ const ThreadNavigator = memo(function ThreadNavigator({
       items.push({ kind: 'message', msgIdx: idx, listIdx })
       if (expandedTocIdx === idx) {
         const assistantMsgId = messages[idx + 1]?.id
-        const headings = assistantMsgId ? (headingsMap[assistantMsgId] ?? []) : []
+        const headings = assistantMsgId ? (headingsByMessage.get(assistantMsgId) ?? []) : []
         headings.forEach(h => {
-          items.push({ kind: 'heading', assistantMsgIdx: idx + 1, tocIndex: h.tocIndex, parentListIdx: listIdx })
+          items.push({ kind: 'heading', assistantMsgIdx: idx + 1, tocIndex: h.toc_index, parentListIdx: listIdx })
         })
       }
     })
     return items
-  }, [userMessages, expandedTocIdx, messages, headingsMap])
+  }, [userMessages, expandedTocIdx, messages, headingsByMessage])
 
   // ─── Keyboard state ───────────────────────────────────────────────────────
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false)
@@ -132,10 +134,6 @@ const ThreadNavigator = memo(function ThreadNavigator({
   const isCardOpen = isHovering || isKeyboardOpen
 
   // ─── STABLE REFS — the keyboard handler reads these, never stale ──────────
-  // This is the fix for "card navigation doesn't work": instead of putting
-  // all these values in the useEffect dep array (which causes the listener to
-  // be re-registered on every state change, creating stale closures), we keep
-  // a single ref object that's always current and read it inside the handler.
   const stateRef = useRef({
     isCardOpen,
     isKeyboardOpen,
@@ -144,7 +142,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
     effectiveActiveIndex,
     userMessages,
     expandedTocIdx,
-    headingsMap,
+    headingsByMessage,
     messages,
   })
   // Update every render — O(1), no re-subscription
@@ -156,7 +154,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
     effectiveActiveIndex,
     userMessages,
     expandedTocIdx,
-    headingsMap,
+    headingsByMessage,
     messages,
   }
 
@@ -227,21 +225,18 @@ const ThreadNavigator = memo(function ThreadNavigator({
   const isDismissingRef = useRef(false)
 
   const handleMouseEnter = () => {
-    // Never re-open via hover while keyboard mode is active or during dismiss
     if (stateRef.current.isKeyboardOpen) return
     if (isDismissingRef.current) return
     if (leaveTimer.current) clearTimeout(leaveTimer.current)
     enterTimer.current = setTimeout(() => setIsHovering(true), 100)
   }
   const handleMouseLeave = () => {
-    // Don't start a leave timer if keyboard mode is driving the card
     if (stateRef.current.isKeyboardOpen) return
     if (enterTimer.current) clearTimeout(enterTimer.current)
     leaveTimer.current = setTimeout(() => setIsHovering(false), 300)
   }
 
   const handleClick = useCallback((idx: number) => {
-    dbg('handleClick', { idx })
     setOptimisticActiveIndex(idx)
     onScrollTo(idx)
   }, [onScrollTo])
@@ -252,7 +247,6 @@ const ThreadNavigator = memo(function ThreadNavigator({
   }, [activeIndex, optimisticActiveIndex])
 
   const handleHeadingClickInner = useCallback((assistantMsgIdx: number, tocIndex: number) => {
-    dbg('handleHeadingClick', { assistantMsgIdx, tocIndex })
     const messageIdx = assistantMsgIdx - 1
     if (stateRef.current.expandedTocIdx !== messageIdx) {
       userCollapsedMessages.current.delete(messageIdx)
@@ -268,11 +262,8 @@ const ThreadNavigator = memo(function ThreadNavigator({
   }, [onHeadingClick])
 
   const closeCard = useCallback(() => {
-    dbg('closeCard')
     if (enterTimer.current) clearTimeout(enterTimer.current)
     if (leaveTimer.current) clearTimeout(leaveTimer.current)
-    // Block hover re-open for 400ms — long enough for the browser to fire
-    // any pending mouseenter/mouseleave events after a click or key press.
     isDismissingRef.current = true
     setTimeout(() => { isDismissingRef.current = false }, 400)
     setIsHovering(false)
@@ -280,27 +271,18 @@ const ThreadNavigator = memo(function ThreadNavigator({
   }, [])
 
   // ─── Focus a nav item imperatively ───────────────────────────────────────
-  // Reads itemRefs directly — no stale closure risk.
   const focusNavItem = useCallback((idx: number) => {
-    dbg('focusNavItem', { idx, total: stateRef.current.navItems.length })
     setFocusedNavIdx(idx)
     requestAnimationFrame(() => {
       const el = itemRefs.current.get(idx)
       if (el) {
         el.focus({ preventScroll: true })
         scrollCardToElement(el)
-      } else {
-        dbg('focusNavItem: no el for idx', { idx, keys: [...itemRefs.current.keys()] })
       }
     })
   }, [scrollCardToElement])
 
   // ─── Keyboard handler — registered ONCE, reads state via stateRef ─────────
-  // KEY FIX: No state or props in the dep array. The handler reads everything
-  // through stateRef.current which is kept up-to-date on every render.
-  // This eliminates both bugs:
-  //   1. Stale focusedNavIdx in card navigation (was reading closure value)
-  //   2. j/k lag from listener being torn down and re-added on every keypress
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement
@@ -314,7 +296,6 @@ const ThreadNavigator = memo(function ThreadNavigator({
           e.preventDefault()
           const cur = s.userMessages.findIndex(u => u.idx === s.effectiveActiveIndex)
           const next = Math.min(s.userMessages.length - 1, cur + 1)
-          dbg('j: next message', { cur, next, total: s.userMessages.length })
           if (next !== cur) handleClick(s.userMessages[next].idx)
           return
         }
@@ -322,7 +303,6 @@ const ThreadNavigator = memo(function ThreadNavigator({
           e.preventDefault()
           const cur = s.userMessages.findIndex(u => u.idx === s.effectiveActiveIndex)
           const prev = Math.max(0, cur - 1)
-          dbg('k: prev message', { cur, prev })
           if (prev !== cur) handleClick(s.userMessages[prev].idx)
           return
         }
@@ -331,8 +311,6 @@ const ThreadNavigator = memo(function ThreadNavigator({
           const activeListIdx = Math.max(0, s.userMessages.findIndex(u => u.idx === s.effectiveActiveIndex))
           const navIdx = s.navItems.findIndex(n => n.kind === 'message' && n.listIdx === activeListIdx)
           const startIdx = Math.max(0, navIdx)
-          dbg('? open card', { activeListIdx, startIdx })
-          // Cancel any pending hover timers so they don't fight keyboard mode
           if (enterTimer.current) clearTimeout(enterTimer.current)
           if (leaveTimer.current) clearTimeout(leaveTimer.current)
           setFocusedNavIdx(startIdx)
@@ -344,7 +322,6 @@ const ThreadNavigator = memo(function ThreadNavigator({
       // ── Card open ───────────────────────────────────────────────────────
       const cur = s.focusedNavIdx
       const total = s.navItems.length
-      dbg(`key "${e.key}" in open card`, { cur, total })
 
       switch (e.key) {
         case 'Escape':
@@ -356,7 +333,6 @@ const ThreadNavigator = memo(function ThreadNavigator({
         case 'j': {
           e.preventDefault()
           const next = Math.min(total - 1, cur + 1)
-          dbg('ArrowDown', { cur, next })
           focusNavItem(next)
           break
         }
@@ -365,7 +341,6 @@ const ThreadNavigator = memo(function ThreadNavigator({
         case 'k': {
           e.preventDefault()
           const prev = Math.max(0, cur - 1)
-          dbg('ArrowUp', { cur, prev })
           focusNavItem(prev)
           break
         }
@@ -384,17 +359,13 @@ const ThreadNavigator = memo(function ThreadNavigator({
         case ' ': {
           e.preventDefault()
           const item = s.navItems[cur]
-          dbg('Enter/Space', { cur, item })
           if (!item) break
           if (item.kind === 'message') {
-            // If this message has headings and TOC is not yet expanded → expand first
             const assistantMsgId = s.messages[item.msgIdx + 1]?.id
-            const headings = assistantMsgId ? (s.headingsMap[assistantMsgId] ?? []) : []
+            const headings = assistantMsgId ? (s.headingsByMessage.get(assistantMsgId) ?? []) : []
             if (headings.length > 0 && s.expandedTocIdx !== item.msgIdx) {
               handleToggleToc(item.msgIdx, true)
-              dbg('Enter: expanding TOC instead of jumping', { msgIdx: item.msgIdx })
             } else {
-              // TOC already expanded (or no headings) → jump to message
               handleClick(item.msgIdx)
               closeCard()
             }
@@ -408,11 +379,9 @@ const ThreadNavigator = memo(function ThreadNavigator({
         case 'l': {
           e.preventDefault()
           const item = s.navItems[cur]
-          dbg('ArrowRight', { cur, item })
           if (item?.kind !== 'message') break
           const assistantMsgId = s.messages[item.msgIdx + 1]?.id
-          const headings = assistantMsgId ? (s.headingsMap[assistantMsgId] ?? []) : []
-          dbg('ArrowRight: expand check', { hasHeadings: headings.length, alreadyExpanded: s.expandedTocIdx === item.msgIdx })
+          const headings = assistantMsgId ? (s.headingsByMessage.get(assistantMsgId) ?? []) : []
           if (headings.length > 0 && s.expandedTocIdx !== item.msgIdx)
             handleToggleToc(item.msgIdx, true)
           break
@@ -422,7 +391,6 @@ const ThreadNavigator = memo(function ThreadNavigator({
         case 'h': {
           e.preventDefault()
           const item = s.navItems[cur]
-          dbg('ArrowLeft', { cur, item })
           if (item?.kind === 'heading') {
             handleToggleToc(item.assistantMsgIdx - 1, false)
             const parentNavIdx = s.navItems.findIndex(
@@ -438,24 +406,21 @@ const ThreadNavigator = memo(function ThreadNavigator({
     }
 
     window.addEventListener('keydown', onKeyDown)
-    dbg('keyboard listener registered')
     return () => {
       window.removeEventListener('keydown', onKeyDown)
-      dbg('keyboard listener removed')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []) // ← empty deps: registered once, reads state via stateRef
+  }, [])
 
   // Focus current item when card opens via keyboard
   useEffect(() => {
     if (!isKeyboardOpen) return
-    dbg('card opened via keyboard, focusing', { focusedNavIdx })
     requestAnimationFrame(() => {
       const el = itemRefs.current.get(focusedNavIdx)
       if (el) { el.focus({ preventScroll: true }); scrollCardToElement(el) }
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isKeyboardOpen]) // only on open, not on every focusedNavIdx change
+  }, [isKeyboardOpen])
 
   // Close when clicking outside
   useEffect(() => {
@@ -589,7 +554,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
                     const isActive = idx === effectiveActiveIndex
                     const assistantMsgIdx = idx + 1
                     const assistantMsgId = messages[assistantMsgIdx]?.id
-                    const headings = assistantMsgId ? (headingsMap[assistantMsgId] ?? []) : []
+                    const headings = assistantMsgId ? (headingsByMessage.get(assistantMsgId) ?? []) : []
                     const hasHeadings = headings.length > 0
                     const isExpanded = expandedTocIdx === idx
                     const hasAnyBookmark = assistantHasAnyBookmark(assistantMsgId)
@@ -669,29 +634,29 @@ const ThreadNavigator = memo(function ThreadNavigator({
                                   const hBookmarked = isHeadingBookmarked(assistantMsgId, slugify(h.text))
                                   const isH1 = h.level === 1
                                   const isH2 = h.level === 2
-                                  const isActiveHeading = isActive && h.tocIndex === activeHeadingIndex
+                                  const isActiveHeading = isActive && h.toc_index === activeHeadingIndex
 
                                   const headingNavIdx = navItems.findIndex(
                                     n =>
                                       n.kind === 'heading' &&
                                       n.assistantMsgIdx === assistantMsgIdx &&
-                                      n.tocIndex === h.tocIndex
+                                      n.tocIndex === h.toc_index
                                   )
                                   const isHFocused = isCardOpen && focusedNavIdx === headingNavIdx
 
                                   return (
                                     <button
-                                      key={h.tocIndex}
+                                      key={h.toc_index}
                                       ref={el => el ? itemRefs.current.set(headingNavIdx, el) : itemRefs.current.delete(headingNavIdx)}
                                       type="button"
                                       tabIndex={-1}
-                                      data-heading-idx={h.tocIndex}
+                                      data-heading-idx={h.toc_index}
                                       className={cn(
                                         'flex w-full items-center text-left rounded transition-colors group outline-none py-0.5',
                                         isHFocused ? 'bg-muted/60' : 'hover:bg-muted/60',
                                       )}
                                       style={{ paddingLeft: `${(h.level - 1) * 8 + 6}px` }}
-                                      onClick={() => handleHeadingClickInner(assistantMsgIdx, h.tocIndex)}
+                                      onClick={() => handleHeadingClickInner(assistantMsgIdx, h.toc_index)}
                                       onMouseEnter={() => setFocusedNavIdx(headingNavIdx)}
                                       onFocus={() => setFocusedNavIdx(headingNavIdx)}
                                     >

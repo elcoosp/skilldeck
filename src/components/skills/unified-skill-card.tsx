@@ -4,9 +4,9 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import type { LintWarning } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
-import { useUIStore } from '@/store/ui'
 import type { UnifiedSkill } from '@/types/skills'
 import { TrustBadge } from './trust-badge'
+import { useUIPersistentStore } from '@/store/ui-state'
 
 interface Props {
   skill: UnifiedSkill
@@ -40,7 +40,7 @@ export function UnifiedSkillCard({
   onUpdate,
   isSelected
 }: Props) {
-  const platformFeaturesEnabled = useUIStore((s) => s.platformFeaturesEnabled)
+  const platformFeaturesEnabled = useUIPersistentStore((s) => s.platformFeaturesEnabled)
   const hasRegistryData = !!skill.registryData
 
   // Use local data if available, fallback to registry data

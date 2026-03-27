@@ -27,7 +27,6 @@ import {
 import { useDisableRule } from '@/hooks/use-skills'
 import type { LintWarning } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
-import { useUIStore } from '@/store/ui'
 import type { UnifiedSkill } from '@/types/skills'
 import { BlockedSkillAlert } from './blocked-skill-alert'
 import { ConflictResolver } from './conflict-resolver'
@@ -36,6 +35,7 @@ import { LintWarningPanel } from './lint-warning-panel'
 import { ShareSkillModal } from './share-skill-modal'
 import { TrustBadge } from './trust-badge'
 import { DOCS_LINT_URL } from '@/lib/config'
+import { useUIPersistentStore } from '@/store/ui-state'
 
 interface Props {
   skill: UnifiedSkill
@@ -44,7 +44,7 @@ interface Props {
 
 export function SkillDetailPanel({ skill, onClose }: Props) {
   const qc = useQueryClient()
-  const platformFeaturesEnabled = useUIStore((s) => s.platformFeaturesEnabled)
+  const platformFeaturesEnabled = useUIPersistentStore((s) => s.platformFeaturesEnabled)
   const lintSectionRef = useRef<HTMLDivElement>(null)
 
   const [actionError, setActionError] = useState<string | null>(null)

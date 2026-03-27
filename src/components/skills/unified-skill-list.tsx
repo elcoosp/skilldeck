@@ -19,11 +19,12 @@ import { Button } from '@/components/ui/button'
 import { useUnifiedSkills } from '@/hooks/use-unified-skills'
 import { commands } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
-import { useUIStore } from '@/store/ui'
 import type { UnifiedSkill } from '@/types/skills'
 import { PlatformStatusBanner } from './platform-status-banner'
 import { SkillDetailPanel } from './skill-detail-panel'
 import { UnifiedSkillCard } from './unified-skill-card'
+import { useUIPersistentStore } from '@/store/ui-state'
+import { useUIOverlaysStore } from '@/store/ui-overlays'
 
 // Responsive column count based on container width
 const BREAKPOINTS = {
@@ -235,9 +236,9 @@ export function UnifiedSkillList() {
     }
   })
 
-  const platformFeaturesEnabled = useUIStore((s) => s.platformFeaturesEnabled)
-  const setSettingsTab = useUIStore((s) => s.setSettingsTab)
-  const setSettingsOpen = useUIStore((s) => s.setSettingsOpen)
+  const platformFeaturesEnabled = useUIPersistentStore((s) => s.platformFeaturesEnabled)
+  const setSettingsTab = useUIOverlaysStore((s) => s.setSettingsTab)
+  const setSettingsOpen = useUIOverlaysStore((s) => s.setSettingsOpen)
 
   const parentRef = useRef<HTMLDivElement>(null)
 

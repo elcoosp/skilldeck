@@ -48,13 +48,15 @@ import { cn } from '@/lib/utils'
 import { extractUrls } from '@/lib/url-detection'
 import { useChatContextStore } from '@/store/chat-context-store'
 import { useQueueStore } from '@/store/queue'
-import { useUIStore } from '@/store/ui'
 import type {
   FileEntry,
   FolderCounts,
   TriggerState
 } from '@/types/chat-context'
 import type { UnifiedSkill } from '@/types/skills'
+import { useWorkspaceStore } from '@/store/workspace'
+import { useUIEphemeralStore } from '@/store/ui-ephemeral'
+import { useConversationStore } from '@/store/conversation'
 
 interface MessageInputProps {
   conversationId: UUID
@@ -87,7 +89,7 @@ export function MessageInput({
   const [contentHeight, setContentHeight] = useState(36)
 
   // ── Workspace context ───────────────────────────────────────────────────
-  const activeWorkspaceId = useUIStore((s) => s.activeWorkspaceId)
+  const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId)
   const { data: workspaces } = useWorkspaces()
   const activeWorkspace = workspaces?.find((w) => w.id === activeWorkspaceId)
   const effectiveWorkspaceRoot = workspaceRoot ?? activeWorkspace?.path
@@ -97,12 +99,12 @@ export function MessageInput({
   const defaultProfile = profiles.find((p) => p.is_default) ?? profiles[0]
 
   // ── Draft / UI store ──────────────────────────────────────────────────────
-  const draft = useUIStore((s) => s.drafts[conversationId] ?? '')
-  const setDraft = useUIStore((s) => s.setDraft)
-  const clearDraft = useUIStore((s) => s.clearDraft)
-  const isRunning = useUIStore((s) => s.agentRunning[conversationId] ?? false)
-  const setActiveConversation = useUIStore((s) => s.setActiveConversation)
-  const setAgentRunning = useUIStore((s) => s.setAgentRunning)
+  const draft = useUIEphemeralStore((s) => s.drafts[conversationId] ?? '')
+  const setDraft = useUIEphemeralStore((s) => s.setDraft)
+  const clearDraft = useUIEphemeralStore((s) => s.clearDraft)
+  const isRunning = useUIEphemeralStore((s) => s.agentRunning[conversationId] ?? false)
+  const setActiveConversation = useConversationStore((s) => s.setActiveConversation)
+  const setAgentRunning = useUIEphemeralStore((s) => s.setAgentRunning)
 
   const [content, setContent] = useState(draft)
 

@@ -1,7 +1,10 @@
-// src/components/conversation/message-bubble.tsx
-// (Full file with retry, cancelled badge, enhanced CodePre, and tool result support)
+/**
+ * MessageBubble — displays a single message with markdown rendering, syntax highlighting,
+ * search highlighting, and bookmarking.
+ */
 
-import rehypeShiki from '@shikijs/rehype'
+import rehypeShikiFromHighlighter from '@shikijs/rehype/core'
+import { getHighlighter } from '@/lib/highlighter'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   AlertCircle,
@@ -17,13 +20,13 @@ import {
   MoreHorizontal,
   User,
   Wrench,
+  GitBranch,
 } from 'lucide-react'
 import React, { memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { MarkdownHooks } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeSlug from 'rehype-slug'
-import type { Highlighter } from 'shiki'
-import { createHighlighter } from 'shiki'
+import type { HighlighterCore } from 'shiki'
 import { toast } from 'sonner'
 import { ContextChip } from '@/components/chat/context-chip'
 import type { MessageData } from '@/lib/bindings'
@@ -31,7 +34,7 @@ import { rehypeLinkifyCodeUrls } from '@/lib/rehype-linkify-code'
 import { rehypeCodeMeta } from '@/lib/rehype-code-meta'
 import { cn, highlightText } from '@/lib/utils'
 import { SubagentCard } from './subagent-card'
-import { ToolResultBubble } from './tool-result-bubble' // <-- NEW import
+import { ToolResultBubble } from './tool-result-bubble'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import {
   DropdownMenu,
@@ -42,9 +45,11 @@ import {
 import { ScrollContainerContext, AutoScrollContext } from './message-thread'
 import { createPortal } from 'react-dom'
 import { useBookmarksStore } from '@/store/bookmarks'
-import { useUIStore } from '@/store/ui'
+import { useConversationStore } from '@/store/conversation'
 import { save } from '@tauri-apps/plugin-dialog'
 import { writeTextFile } from '@tauri-apps/plugin-fs'
+import { CreateBranchModal } from './create-branch-modal'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 interface MessageBubbleProps {
   message: MessageData
@@ -54,18 +59,7 @@ interface MessageBubbleProps {
   searchCaseSensitive?: boolean
   searchRegex?: boolean
   onRetry?: () => void
-}
-
-// ─── Lazy Shiki highlighter singleton ─────────────────────────────────────────
-let highlighterPromise: Promise<Highlighter> | null = null
-const getHighlighter = () => {
-  if (!highlighterPromise) {
-    highlighterPromise = createHighlighter({
-      themes: ['github-light', 'vitesse-dark'],
-      langs: ['javascript', 'typescript', 'python', 'bash', 'json', 'tsx', 'jsx', 'css', 'html'],
-    })
-  }
-  return highlighterPromise
+  isBranchParent?: boolean
 }
 
 // ─── Stable plugin arrays (module-level, never recreated) ─────────────────────
@@ -111,7 +105,6 @@ function CodePre({ children, ...props }: any) {
     return ''
   }, [])
 
-  // Get language and filename from props (set by rehypeCodeMeta)
   const language = props['data-language'] ?? 'code'
   const filename = props['data-filename'] ?? null
 
@@ -176,8 +169,6 @@ function CodePre({ children, ...props }: any) {
     }
 
     const sync = () => {
-      // Code block must actually overflow its internal scroll container
-      // for the sticky header to make any sense at all.
       const codeOverflows = scrollable.scrollHeight > scrollable.clientHeight
       if (collapsed || !codeOverflows) {
         hide()
@@ -187,17 +178,12 @@ function CodePre({ children, ...props }: any) {
       const rootRect = root.getBoundingClientRect()
       const containerRect = container.getBoundingClientRect()
 
-      // Guard: skip if the scroll container itself has no layout yet
-      // (happens during initial mount, streaming, or while the parent
-      // message bubble is being measured by the virtualizer).
       if (rootRect.width === 0 || rootRect.height === 0) {
         hide()
         return
       }
 
-      // The code block header has scrolled off the top of the thread viewport
       const topGone = containerRect.top < rootRect.top
-      // At least 32px of the code block's body is still visible (not just clipped)
       const bottomVisible = containerRect.bottom > rootRect.top + 32
 
       if (topGone && bottomVisible) {
@@ -215,9 +201,6 @@ function CodePre({ children, ...props }: any) {
       }
     }
 
-    // Debounce ResizeObserver through rAF so we never read getBoundingClientRect
-    // mid-layout (e.g. during streaming when new lines are being added).
-    // This eliminates the flicker caused by stale layout values.
     let rafId = 0
     const syncRaf = () => {
       cancelAnimationFrame(rafId)
@@ -228,7 +211,6 @@ function CodePre({ children, ...props }: any) {
     const ro = new ResizeObserver(syncRaf)
     ro.observe(container)
     ro.observe(scrollable)
-    // Run once after mount — use rAF so layout is stable
     rafId = requestAnimationFrame(sync)
 
     return () => {
@@ -240,7 +222,6 @@ function CodePre({ children, ...props }: any) {
 
   const toggleCollapsed = useCallback(() => setCollapsed((v) => !v), [])
 
-  // Determine what to show in the header
   const displayLabel = filename || language || 'code'
 
   const headerContent = (
@@ -312,17 +293,19 @@ function CodePre({ children, ...props }: any) {
   )
 }
 
-// ─── Assistant message actions ─────────────────────────────────────────────────
+// ─── Assistant message actions (with branch) ─────────────────────────────────
 const AssistantMessageActions = memo(function AssistantMessageActions({
   message,
   conversationId,
   onCopy,
   onDownload,
+  onBranch,
 }: {
   message: MessageData
   conversationId: string | null
   onCopy: () => void
   onDownload: () => void
+  onBranch: () => void
 }) {
   const selectorFn = useCallback(
     (s: any) => {
@@ -366,6 +349,13 @@ const AssistantMessageActions = memo(function AssistantMessageActions({
         >
           <Download className="mr-2 h-4 w-4" />
           <span>Download</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={onBranch}
+          className="cursor-pointer hover:bg-primary/10 hover:text-foreground focus:bg-primary/10 focus:text-foreground"
+        >
+          <GitBranch className="mr-2 h-4 w-4" />
+          <span>Branch from here</span>
         </DropdownMenuItem>
         <DropdownMenuItem
           onClick={onBookmark}
@@ -498,13 +488,20 @@ const Td = memo(({ children, node, ...props }: any) => (
 Td.displayName = 'Td'
 
 // ─── Shared rehype plugins cache keyed by highlighter instance ───────────────
-const rehypePluginsCache = new WeakMap<Highlighter, any[]>()
-function getRehypePlugins(highlighter: Highlighter | null) {
+const rehypePluginsCache = new WeakMap<HighlighterCore, any[]>()
+
+function getRehypePlugins(highlighter: HighlighterCore | null) {
   if (!highlighter) return rehypePluginsBase
   let cached = rehypePluginsCache.get(highlighter)
   if (!cached) {
     cached = [
-      [rehypeShiki, { highlighter, themes: { light: 'vitesse-light', dark: 'vitesse-dark' }, useBackground: false }],
+      [rehypeShikiFromHighlighter, highlighter, {
+        theme: 'github-light',            // You can also use dual themes if needed
+        // themes: { light: 'github-light', dark: 'vitesse-dark' },
+        defaultLanguage: 'text',
+        lazy: false,                      // Crucial: disable on‑demand loading
+        addLanguageClass: true,
+      }],
       ...rehypePluginsBase,
     ]
     rehypePluginsCache.set(highlighter, cached)
@@ -716,13 +713,15 @@ function MessageBubbleInner({
   searchCaseSensitive = false,
   searchRegex = false,
   onRetry,
+  isBranchParent = false,
 }: MessageBubbleProps) {
   const [copied, setCopied] = useState(false)
+  const [branchModalOpen, setBranchModalOpen] = useState(false)
   const proseRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
-  const [highlighter, setHighlighter] = useState<Highlighter | null>(null)
+  const [highlighter, setHighlighter] = useState<HighlighterCore | null>(null)
 
-  const activeConversationId = useUIStore((s) => s.activeConversationId)
+  const activeConversationId = useConversationStore((s) => s.activeConversationId)
   const scrollContainer = useContext(ScrollContainerContext)
 
   const isBookmarked = useBookmarksStore(
@@ -736,6 +735,10 @@ function MessageBubbleInner({
       [activeConversationId, message.id]
     )
   )
+
+  const handleBranch = useCallback(() => {
+    setBranchModalOpen(true)
+  }, [])
 
   useEffect(() => {
     getHighlighter().then(setHighlighter)
@@ -755,7 +758,11 @@ function MessageBubbleInner({
     lastContentLenRef.current = message.content.length
   }
 
-  const rehypePlugins = getRehypePlugins(highlighter)
+  // ─── Memoize rehypePlugins so they are stable ─────────────────────────────
+  const rehypePlugins = useMemo(() => {
+    return getRehypePlugins(highlighter)
+  }, [highlighter])
+
   const markdownComponents = useMarkdownComponents(
     message.id,
     activeConversationId,
@@ -901,7 +908,6 @@ function MessageBubbleInner({
 
   // ─── TOOL MESSAGE HANDLING ──────────────────────────────────────────────────
   if (isTool) {
-    // Parse the raw content (Anthropic tool result format)
     const parseToolContent = (raw: string): { blocks: Array<{ type: string; text: string }>; isError: boolean } => {
       try {
         const parsed = JSON.parse(raw)
@@ -915,11 +921,9 @@ function MessageBubbleInner({
     }
 
     const { blocks, isError } = parseToolContent(message.content)
-    // Combine all text blocks into a single string for the bubble content
     const combinedText = blocks.map(b => b.text).join('\n\n')
     const toolName = (message.metadata as any)?.tool_name as string | undefined
 
-    // Add left margin to align with avatar + gap (size-7 = 28px + gap-3 = 12px → 40px)
     return (
       <div className="ml-10">
         <ToolResultBubble
@@ -927,6 +931,43 @@ function MessageBubbleInner({
           toolName={toolName}
           isError={isError}
         />
+      </div>
+    )
+  }
+
+  // Fallback while highlighter is loading – render plain text without highlighting
+  if (!highlighter) {
+    return (
+      <div className="flex gap-3 max-w-full">
+        <div
+          className={cn(
+            'flex-shrink-0 size-7 rounded-full flex items-center justify-center',
+            isUser ? 'bg-primary text-primary-foreground mt-0.5' : 'bg-muted text-foreground mt-1.5'
+          )}
+          aria-hidden
+        >
+          {isUser ? <User className="size-3.5" /> : <Bot className="size-3.5" />}
+        </div>
+        <div
+          className={cn(
+            'flex flex-col min-w-0',
+            isUser ? 'items-end' : 'items-start',
+            isAssistant ? 'w-full max-w-full' : 'max-w-[78%]'
+          )}
+        >
+          <div className={cn(isUser && 'text-right', 'w-full')}>
+            <div
+              className={cn(
+                'relative px-3.5 py-2.5 rounded-xl text-sm leading-relaxed',
+                isUser
+                  ? 'bg-primary text-primary-foreground rounded-tr-sm inline-block'
+                  : 'bg-muted/50 inline-block'
+              )}
+            >
+              <span className="whitespace-pre-wrap break-words">{message.content}</span>
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
@@ -1034,7 +1075,24 @@ function MessageBubbleInner({
                     conversationId={activeConversationId}
                     onCopy={copyMessage}
                     onDownload={downloadMessage}
+                    onBranch={handleBranch}
                   />
+                )}
+
+                {/* Branch parent indicator */}
+                {isAssistant && !isStreaming && !syntheticStreaming && isBranchParent && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="inline-flex items-center gap-1 ml-1 text-muted-foreground">
+                          <GitBranch className="size-3" />
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        <p>Branch starts here</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 )}
               </div>
             )}
@@ -1075,6 +1133,39 @@ function MessageBubbleInner({
                 <span className="whitespace-pre-wrap break-words">{message.content}</span>
               )}
             </CollapsibleContent>
+
+            {/* User message actions */}
+            {isUser && !isStreaming && !syntheticStreaming && (
+              <div className="absolute -left-8 top-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <DropdownMenu modal={false}>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="p-0.5 hover:bg-muted-foreground/20 rounded transition-colors"
+                      aria-label="Message options"
+                    >
+                      <MoreHorizontal className="size-3.5" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-32">
+                    <DropdownMenuItem
+                      onClick={copyMessage}
+                      className="cursor-pointer hover:bg-primary/10 hover:text-foreground focus:bg-primary/10 focus:text-foreground"
+                    >
+                      <Copy className="mr-2 h-4 w-4" />
+                      <span>Copy</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={handleBranch}
+                      className="cursor-pointer hover:bg-primary/10 hover:text-foreground focus:bg-primary/10 focus:text-foreground"
+                    >
+                      <GitBranch className="mr-2 h-4 w-4" />
+                      <span>Branch from here</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1122,6 +1213,13 @@ function MessageBubbleInner({
           </div>
         )}
       </div>
+
+      <CreateBranchModal
+        open={branchModalOpen}
+        onClose={() => setBranchModalOpen(false)}
+        conversationId={activeConversationId!}
+        parentMessageId={message.id}
+      />
     </motion.div>
   )
 }

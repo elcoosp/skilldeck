@@ -5,6 +5,65 @@
 
 
 export const commands = {
+/**
+ * Get conversation bootstrap data (messages, branches, draft, queued, headings).
+ */
+async getConversationBootstrap(conversationId: string) : Promise<Result<ConversationBootstrapData, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_conversation_bootstrap", { conversationId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async pinArtifact(artifactId: string, branchId: string | null, isGlobal: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("pin_artifact", { artifactId, branchId, isGlobal }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async unpinArtifact(artifactId: string, branchId: string | null) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("unpin_artifact", { artifactId, branchId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async listPinnedArtifacts(conversationId: string, branchId: string | null) : Promise<Result<ArtifactData[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_pinned_artifacts", { conversationId, branchId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async listArtifactVersions(artifactId: string) : Promise<Result<ArtifactData[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_artifact_versions", { artifactId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async copyArtifactToBranch(artifactId: string, targetBranchId: string) : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("copy_artifact_to_branch", { artifactId, targetBranchId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async listArtifacts(conversationId: string, branchId: string | null) : Promise<Result<ArtifactData[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_artifacts", { conversationId, branchId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async getHomeDir() : Promise<Result<string, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_home_dir") };
@@ -1014,6 +1073,14 @@ async updateConversationWorkspace(id: string, workspaceId: string | null) : Prom
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+async getConversationMessagesHeadings(conversationId: string) : Promise<Result<HeadingItem[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_conversation_messages_headings", { conversationId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
@@ -1051,6 +1118,7 @@ export type AnalyticsData = { total_conversations: string; total_messages: strin
  * Whether a given provider has a stored key.
  */
 export type ApiKeyStatus = { provider: string; has_key: boolean }
+export type ArtifactData = { id: string; message_id: string; branch_id: string | null; type: string; name: string; content: string; language: string | null; logical_key: string | null; created_at: string }
 export type AssembleFolderRequest = { path: string; deep: boolean; max_bytes: string | null }
 export type AssembleFolderResponse = { assembled_content: string; file_count: string }
 export type AutoApproveConfigDto = { auto_approve_reads: boolean; auto_approve_writes: boolean; auto_approve_shell: boolean; auto_approve_http_requests: boolean; auto_approve_selects: boolean; auto_approve_mutations: boolean }
@@ -1058,6 +1126,7 @@ export type BookmarkData = { id: string; message_id: string; heading_anchor: str
 export type BranchInfo = { id: string; name: string | null; parent_message_id: string; created_at: string; message_count: string }
 export type ConfigScope = "global" | "workspace"
 export type ContextItem = { type: "skill"; name: string } | { type: "file"; path: string; name: string; size: string | null } | { type: "folder"; path: string; name: string; scope: FolderScope; file_count: string }
+export type ConversationBootstrapData = { messages: MessageData[]; branches: BranchInfo[]; draft: [string, JsonValue[]] | null; queued: QueuedMessage[]; headings: HeadingItem[] }
 /**
  * Lightweight summary used by the sidebar list.
  */
@@ -1083,6 +1152,7 @@ export type FolderData = { id: string; name: string; created_at: string }
 export type FolderScope = "shallow" | "deep"
 export type GistFile = { filename: string; content: string }
 export type GistInfo = { id: string; url: string; html_url: string; description: string }
+export type HeadingItem = { id: string; message_id: string; toc_index: number; text: string; level: number }
 /**
  * Result returned after a successful installation.
  */
@@ -1171,7 +1241,7 @@ export type SearchMessagesRequest = { conversation_id: string; query: string; li
  * Result of a search within a conversation.
  */
 export type SearchMessagesResult = { message_id: string; snippet: string }
-export type SendMessageRequest = { conversation_id: string; content: string; context_items: ContextItem[] | null }
+export type SendMessageRequest = { conversation_id: string; content: string; branch_id: string | null; context_items: ContextItem[] | null }
 /**
  * Severity level of a lint warning.
  */

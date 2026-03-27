@@ -4,7 +4,8 @@ import { useAchievements } from '@/hooks/use-achievements'
 import type { ContextItem, MessageData } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
 import type { UUID } from '@/lib/types'
-import { useUIStore } from '@/store/ui'
+import { useShallow } from 'zustand/react/shallow'
+import { useUIEphemeralStore } from '@/store/ui-ephemeral'
 
 export function useMessages(
   conversationId: UUID | null,
@@ -74,14 +75,14 @@ export function useMessagesWithStream(
   branchId?: UUID | null
 ): MessageData[] {
   const { data: messages = [] } = useMessages(conversationId, branchId)
-  const streamingText = useUIStore(
-    (s) => s.streamingText[conversationId ?? ''] ?? ''
-  )
-  const isRunning = useUIStore(
-    (s) => s.agentRunning[conversationId ?? ''] ?? false
-  )
-  const hasError = useUIStore(
-    (s) => s.streamingError[conversationId ?? ''] ?? false
+
+  // Replace three separate selectors with a single useShallow
+  const { streamingText, isRunning, hasError } = useUIEphemeralStore(
+    useShallow((s) => ({
+      streamingText: s.streamingText[conversationId ?? ''] ?? '',
+      isRunning: s.agentRunning[conversationId ?? ''] ?? false,
+      hasError: s.streamingError[conversationId ?? ''] ?? false,
+    }))
   )
 
   // If there's a streaming error, don't show the placeholder
@@ -105,7 +106,10 @@ export function useMessagesWithStream(
     content: streamingText,
     created_at: new Date().toISOString(),
     context_items: null,
-    metadata: null
+    metadata: null,
+    seen: false,        // added to match MessageData type
+    input_tokens: null, // added to match MessageData type
+    output_tokens: null // added to match MessageData type
   }
 
   return [...messages, streamBubble]

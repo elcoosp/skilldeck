@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAgentStream } from '@/hooks/use-agent-stream'
 import type { AgentEvent } from '@/lib/events'
 import * as events from '@/lib/events'
-import { useUIStore } from '@/store/ui'
 
 // ── Setup ─────────────────────────────────────────────────────────────────────
 
@@ -54,7 +53,7 @@ describe('useAgentStream subscription', () => {
 
   it('calls unlisten on unmount', async () => {
     const { unmount } = renderHook(() => useAgentStream('conv-1'))
-    await act(async () => {})
+    await act(async () => { })
     unmount()
     expect(unlistenMock).toHaveBeenCalledOnce()
   })
@@ -70,7 +69,7 @@ describe('useAgentStream subscription', () => {
 describe('useAgentStream event handling', () => {
   it('started event sets isRunning to true', async () => {
     const { result } = renderHook(() => useAgentStream('conv-1'))
-    await act(async () => {})
+    await act(async () => { })
 
     fire({ type: 'started', conversation_id: 'conv-1' })
 
@@ -79,7 +78,7 @@ describe('useAgentStream event handling', () => {
 
   it('token events accumulate into streamingText', async () => {
     const { result } = renderHook(() => useAgentStream('conv-1'))
-    await act(async () => {})
+    await act(async () => { })
 
     fire({ type: 'token', conversation_id: 'conv-1', delta: 'Hello' })
     fire({ type: 'token', conversation_id: 'conv-1', delta: ' world' })
@@ -93,7 +92,7 @@ describe('useAgentStream event handling', () => {
 
   it('done event clears isRunning', async () => {
     const { result } = renderHook(() => useAgentStream('conv-1'))
-    await act(async () => {})
+    await act(async () => { })
 
     fire({ type: 'started', conversation_id: 'conv-1' })
     expect(result.current.isRunning).toBe(true)
@@ -109,7 +108,7 @@ describe('useAgentStream event handling', () => {
 
   it('error event clears isRunning', async () => {
     const { result } = renderHook(() => useAgentStream('conv-1'))
-    await act(async () => {})
+    await act(async () => { })
 
     fire({ type: 'started', conversation_id: 'conv-1' })
     fire({ type: 'error', conversation_id: 'conv-1', message: 'API error' })
@@ -119,7 +118,7 @@ describe('useAgentStream event handling', () => {
 
   it('events for other conversations are ignored', async () => {
     const { result } = renderHook(() => useAgentStream('conv-1'))
-    await act(async () => {})
+    await act(async () => { })
 
     fire({ type: 'started', conversation_id: 'conv-OTHER' })
 
@@ -128,7 +127,7 @@ describe('useAgentStream event handling', () => {
 
   it('token for other conversation does not appear in this stream', async () => {
     renderHook(() => useAgentStream('conv-1'))
-    await act(async () => {})
+    await act(async () => { })
 
     fire({ type: 'token', conversation_id: 'conv-OTHER', delta: 'secret' })
 

@@ -6,8 +6,8 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import type { RegistrySkillData, SkillInfo } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
-import { useUIStore } from '@/store/ui'
 import type { SkillStatus, UnifiedSkill } from '@/types/skills'
+import { useUIPersistentStore } from '@/store/ui-state'
 
 // ── Data fetchers ─────────────────────────────────────────────────────────────
 
@@ -54,7 +54,7 @@ export interface UseUnifiedSkillsOptions {
 
 export function useUnifiedSkills(options: UseUnifiedSkillsOptions = {}) {
   const { search } = options
-  const platformFeaturesEnabled = useUIStore((s) => s.platformFeaturesEnabled)
+  const platformFeaturesEnabled = useUIPersistentStore((s) => s.platformFeaturesEnabled)
 
   const {
     data: localSkills = [],
@@ -115,10 +115,10 @@ export function useUnifiedSkills(options: UseUnifiedSkillsOptions = {}) {
     const filtered =
       search && registrySkills.length === 0
         ? Array.from(map.values()).filter(
-            (s) =>
-              s.name.toLowerCase().includes(search.toLowerCase()) ||
-              s.description.toLowerCase().includes(search.toLowerCase())
-          )
+          (s) =>
+            s.name.toLowerCase().includes(search.toLowerCase()) ||
+            s.description.toLowerCase().includes(search.toLowerCase())
+        )
         : Array.from(map.values())
 
     // 4. Sort: installed/local first, then update_available, then available;

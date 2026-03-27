@@ -43,13 +43,13 @@ import type { ApiKeyStatus, ProfileData } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
 import { useSettingsStore } from '@/store/settings'
-import { useUIStore } from '@/store/ui'
+import { useUIOverlaysStore } from '@/store/ui-overlays'
 
 
 export function SettingsOverlay() {
-  const settingsTab = useUIStore((s) => s.settingsTab)
-  const setSettingsTab = useUIStore((s) => s.setSettingsTab)
-  const setSettingsOpen = useUIStore((s) => s.setSettingsOpen)
+  const settingsTab = useUIOverlaysStore((s) => s.settingsTab)
+  const setSettingsTab = useUIOverlaysStore((s) => s.setSettingsTab)
+  const setSettingsOpen = useUIOverlaysStore((s) => s.setSettingsOpen)
 
   // Outer element is a div to avoid nested button HTML (fixed)
   return (

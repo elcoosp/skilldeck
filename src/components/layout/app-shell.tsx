@@ -7,11 +7,12 @@ import { CommandPalette } from '@/components/overlays/command-palette'
 import { LaunchNotificationBanner } from '@/components/overlays/launch-notification'
 import { SettingsOverlay } from '@/components/overlays/settings-overlay'
 import { useNudgeListener, usePlatformRegistration } from '@/hooks/use-platform'
-import { useUIStore } from '@/store/ui'
 import { CenterPanel } from './center-panel'
 import { LeftPanel } from './left-panel'
 import { RightPanel } from './right-panel'
 import { GlobalDropZone } from '@/components/chat/global-drop-zone'
+import { useUIOverlaysStore } from '@/store/ui-overlays'
+import { useUILayoutStore } from '@/store/ui-layout'
 
 const LAYOUT_STORAGE_KEY = 'skilldeck-panel-layout'
 
@@ -27,7 +28,7 @@ const DEFAULT_LAYOUT: Layout = {
 }
 
 export function AppShell() {
-  const setPanelSizesPx = useUIStore((s) => s.setPanelSizesPx)
+  const setPanelSizesPx = useUILayoutStore((s) => s.setPanelSizesPx)
 
   const [layout, setLayout] = useState<Layout>(() => {
     try {
@@ -83,10 +84,10 @@ export function AppShell() {
     }, 300)
   }, [setPanelSizesPx])
 
-  const setCommandPaletteOpen = useUIStore((s) => s.setCommandPaletteOpen)
-  const setSettingsOpen = useUIStore((s) => s.setSettingsOpen)
-  const setGlobalSearchOpen = useUIStore((s) => s.setGlobalSearchOpen)
-  const settingsOpen = useUIStore((s) => s.settingsOpen)
+  const setCommandPaletteOpen = useUIOverlaysStore((s) => s.setCommandPaletteOpen)
+  const setSettingsOpen = useUIOverlaysStore((s) => s.setSettingsOpen)
+  const setGlobalSearchOpen = useUIOverlaysStore((s) => s.setGlobalSearchOpen)
+  const settingsOpen = useUIOverlaysStore((s) => s.settingsOpen)
 
   usePlatformRegistration()
   useNudgeListener()

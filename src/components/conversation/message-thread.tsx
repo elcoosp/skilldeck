@@ -1,4 +1,3 @@
-// src/components/conversation/message-thread.tsx
 import {
   useVirtualizer,
   elementScroll,
@@ -9,9 +8,9 @@ import * as React from 'react'
 import type { MessageData } from '@/lib/bindings'
 import { MessageBubble } from './message-bubble'
 import { useSendMessage } from '@/hooks/use-messages'
-import { useUIStore } from '@/store/ui'
-import { useToolApprovalStore } from '@/store/tool-approvals'   // NEW
-import { ToolApprovalCard } from './tool-approval-card'         // NEW
+import { useToolApprovalStore } from '@/store/tool-approvals'
+import { ToolApprovalCard } from './tool-approval-card'
+import { useConversationStore } from '@/store/conversation'
 
 export interface ScrollToken {
   messageId: string
@@ -43,6 +42,8 @@ interface MessageThreadProps {
   onScrollSettled?: (token: ScrollToken) => void
   /** Called when a message becomes visible (50% in view) */
   onMessageVisible?: (messageId: string) => void
+  /** ID of the message where the branch starts, used to mark branch parent */
+  branchParentMessageId?: string | null
 }
 
 function distFromBottom(el: HTMLElement): number {
@@ -73,13 +74,15 @@ export const MessageThread = React.forwardRef<
       onVisibleUserIndexChange,
       onScrollSettled,
       onMessageVisible,
+      branchParentMessageId,
     },
     ref
   ) => {
+
     const scrollRef = React.useRef<HTMLDivElement>(null)
 
     // Get active conversation ID for sending retry messages
-    const activeConversationId = useUIStore((s) => s.activeConversationId)
+    const activeConversationId = useConversationStore((s) => s.activeConversationId)
     const sendMutation = useSendMessage(activeConversationId!)
 
     // Add retry ability to user messages whose next assistant message is cancelled
@@ -291,6 +294,7 @@ export const MessageThread = React.forwardRef<
     const lastItemNodeRef = React.useRef<Element | null>(null)
     const streamingRoRef = React.useRef<ResizeObserver | null>(null)
 
+    // ─── Streaming auto-scroll with requestAnimationFrame to avoid layout thrashing ───
     React.useEffect(() => {
       if (streamingRoRef.current) {
         streamingRoRef.current.disconnect()
@@ -303,17 +307,31 @@ export const MessageThread = React.forwardRef<
       userScrolledAwayRef.current = false
       const el = scrollRef.current
       if (!el) return
+
       const scrollToBottom = () => {
         if (!autoScrollRef.current || userScrolledAwayRef.current) return
-        isProgrammaticScrollRef.current = true
-        el.scrollTop = el.scrollHeight
-        requestAnimationFrame(() => { isProgrammaticScrollRef.current = false })
+        // Schedule the scroll in the next animation frame to separate read/write phases.
+        requestAnimationFrame(() => {
+          if (!autoScrollRef.current || userScrolledAwayRef.current) return
+          isProgrammaticScrollRef.current = true
+          el.scrollTop = el.scrollHeight
+          requestAnimationFrame(() => {
+            isProgrammaticScrollRef.current = false
+          })
+        })
       }
+
+      // Trigger an immediate scroll to catch any already-rendered content.
       scrollToBottom()
+
       const ro = new ResizeObserver(scrollToBottom)
       streamingRoRef.current = ro
       if (lastItemNodeRef.current) ro.observe(lastItemNodeRef.current)
-      return () => { ro.disconnect(); streamingRoRef.current = null }
+
+      return () => {
+        ro.disconnect()
+        streamingRoRef.current = null
+      }
     }, [streamingMessageId])
 
     const callbackRef = React.useRef(onVisibleUserIndexChange)
@@ -574,13 +592,11 @@ export const MessageThread = React.forwardRef<
                   {virtualItems.map((virtualItem) => {
                     const message = filteredMessages[virtualItem.index]
                     const isLast = virtualItem.index === lastFilteredIdx
-                    const isUserMessage = message.role === 'user'
                     const retryAvailable = (message as any).retryAvailable
-
-                    // For user messages that need a retry, pass the retry handler
                     const handleRetry = retryAvailable
                       ? () => sendMutation.mutateAsync({ content: message.content })
                       : undefined
+                    const isBranchParent = branchParentMessageId === message.id
 
                     return (
                       <div
@@ -619,6 +635,7 @@ export const MessageThread = React.forwardRef<
                             searchCaseSensitive={searchCaseSensitive}
                             searchRegex={searchRegex}
                             onRetry={handleRetry}
+                            isBranchParent={isBranchParent}
                           />
                         </div>
                       </div>

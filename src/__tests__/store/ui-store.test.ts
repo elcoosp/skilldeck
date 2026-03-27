@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { useUIStore } from '@/store/ui'
 
 // Reset store between tests using the Zustand setState API
 beforeEach(() => {

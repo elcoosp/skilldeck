@@ -1,7 +1,6 @@
 //! Analytics Tauri command.
 //! Aggregates real usage data from the local database.
 
-use chrono::{Duration, Utc};
 use sea_orm::{ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect};
 use serde::Serialize;
 use specta::{Type, specta};

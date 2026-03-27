@@ -18,15 +18,14 @@ use skilldeck_platform::skills;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
-
     tracing_subscriber::fmt()
         .with_env_filter(
-            tracing_subscriber::EnvFilter::from_default_env()
-                .add_directive("skilldeck_platform=debug".parse()?)
-                .add_directive("tower_http=info".parse()?),
+            EnvFilter::from_default_env()
+                .add_directive("skilldeck=info".parse().unwrap())
+                .add_directive("skilldeck_core=info".parse().unwrap())
+                .add_directive("skilldeck_lint=info".parse().unwrap()),
         )
         .init();
-
     let config = Arc::new(Config::from_env()?);
     let db = db::connect(&config.database_url).await?;
 
