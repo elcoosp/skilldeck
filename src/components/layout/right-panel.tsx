@@ -70,7 +70,6 @@ import { useConversationStore } from '@/store/conversation'
 
 // Feature gate selectors remain unchanged
 const selectHasSkillsUnlocked = (state: UIPersistentState) => state.unlockStage >= 1
-const selectHasMcpUnlocked = (state: UIPersistentState) => state.unlockStage >= 2
 const selectHasWorkflowsUnlocked = (state: UIPersistentState) => state.unlockStage >= 3
 
 type Tab = 'session' | 'skills' | 'mcp' | 'workflow' | 'analytics' | 'artifacts'
