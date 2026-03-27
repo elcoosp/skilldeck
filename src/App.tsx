@@ -25,9 +25,10 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 1,
-      refetchOnWindowFocus: false
-    }
-  }
+      refetchOnWindowFocus: false,
+      staleTime: 5000, // 5 seconds default stale time to prevent duplicate fetches
+    },
+  },
 })
 
 function ThemeSync() {
