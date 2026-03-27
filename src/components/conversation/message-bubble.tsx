@@ -80,7 +80,7 @@ const StreamingLoading = memo(() => (
 StreamingLoading.displayName = 'StreamingLoading'
 
 // ─── CodePre with floating header + auto‑scroll during streaming ──────────
-function CodePre({ children, ...props }: any) {
+const CodePre = memo(({ children, ...props }: any) => {
   const [collapsed, setCollapsed] = useState(false)
   const [copied, setCopied] = useState(false)
 
@@ -292,7 +292,11 @@ function CodePre({ children, ...props }: any) {
     </>
   )
 }
-
+  , (prevProps, nextProps) => {
+    // Only re-render if the children content or the collapsed state changed
+    // (props like data-language etc. are assumed stable)
+    return prevProps.children === nextProps.children && prevProps.collapsed === nextProps.collapsed
+  })
 // ─── Assistant message actions (with branch) ─────────────────────────────────
 const AssistantMessageActions = memo(function AssistantMessageActions({
   message,
@@ -501,6 +505,7 @@ function getRehypePlugins(highlighter: HighlighterCore | null) {
         defaultLanguage: 'text',
         lazy: false,                      // Crucial: disable on‑demand loading
         addLanguageClass: true,
+        mergeSameStyleTokens: true,
       }],
       ...rehypePluginsBase,
     ]
@@ -1236,7 +1241,6 @@ export const MessageBubble = memo(
     if (prev.message.role !== next.message.role) return false
     if (prev.message.metadata !== next.message.metadata) return false
     if (prev.message.context_items !== next.message.context_items) return false
-    if (prev.message.status !== next.message.status) return false
     if (next.isStreaming) return prev.message.content === next.message.content
     return prev.message.content === next.message.content
   }
