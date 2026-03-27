@@ -48,6 +48,7 @@ import { save } from '@tauri-apps/plugin-dialog'
 import { writeTextFile } from '@tauri-apps/plugin-fs'
 import { CreateBranchModal } from './create-branch-modal'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { useConversationStore } from '@/store/conversation'
 
 interface MessageBubbleProps {
   message: MessageData
@@ -739,7 +740,7 @@ function MessageBubbleInner({
   const contentRef = useRef<HTMLDivElement>(null)
   const [highlighter, setHighlighter] = useState<Highlighter | null>(null)
 
-  const activeConversationId = useUIStore((s) => s.activeConversationId)
+  const activeConversationId = useConversationStore((s) => s.activeConversationId)
   const scrollContainer = useContext(ScrollContainerContext)
 
   // Debug log for branch parent

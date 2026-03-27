@@ -16,8 +16,10 @@ import { useMcpEvents } from '@/hooks/use-mcp-events'
 import { useSkillEvents } from '@/hooks/use-skill-events'
 import { useSubagentEvents } from '@/hooks/use-subagent-events'
 import { useSettingsStore } from '@/store/settings'
-import type { SettingsTab } from '@/store/ui'
-import { useUIStore } from '@/store/ui'
+import type { SettingsTab } from '@/store/ui-overlays'  // changed
+import { useUIOverlaysStore } from '@/store/ui-overlays' // changed
+import { useUIPersistentStore } from '@/store/ui-state'   // changed
+import { useUILayoutStore } from '@/store/ui-layout'      // changed
 import { loadLocale, locales } from '@/lib/i18n'
 import { useAttachFilesListener } from './hooks/use-attach-files-listener'
 
@@ -25,10 +27,9 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 1,
-      refetchOnWindowFocus: false,
-      staleTime: 5000, // 5 seconds default stale time to prevent duplicate fetches
-    },
-  },
+      refetchOnWindowFocus: false
+    }
+  }
 })
 
 function ThemeSync() {
@@ -66,9 +67,9 @@ function GlobalEventListeners() {
 }
 
 function AppContent() {
-  const onboardingComplete = useUIStore((s) => s.onboardingComplete)
-  const globalSearchOpen = useUIStore((s) => s.globalSearchOpen)
-  const setGlobalSearchOpen = useUIStore((s) => s.setGlobalSearchOpen)
+  const onboardingComplete = useUIPersistentStore((s) => s.onboardingComplete)      // changed
+  const globalSearchOpen = useUIOverlaysStore((s) => s.globalSearchOpen)            // changed
+  const setGlobalSearchOpen = useUIOverlaysStore((s) => s.setGlobalSearchOpen)      // changed
 
   // Global custom event listener for opening global search
   useEffect(() => {
@@ -96,9 +97,9 @@ function AppContent() {
 }
 
 function App() {
-  const setSettingsOpen = useUIStore((s) => s.setSettingsOpen)
-  const setSettingsTab = useUIStore((s) => s.setSettingsTab)
-  const setRightTab = useUIStore((s) => s.setRightTab)
+  const setSettingsOpen = useUIOverlaysStore((s) => s.setSettingsOpen)     // changed
+  const setSettingsTab = useUIOverlaysStore((s) => s.setSettingsTab)       // changed
+  const setRightTab = useUILayoutStore((s) => s.setRightTab)               // changed
 
   // Splash screen state
   const [showSplash, setShowSplash] = useState(true)

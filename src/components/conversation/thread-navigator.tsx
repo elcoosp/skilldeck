@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import { useBookmarksStore } from '@/store/bookmarks'
 import { useUIStore } from '@/store/ui'
 import type { HeadingItem } from '@/lib/bindings' // adjust import as needed
+import { useConversationStore } from '@/store/conversation'
 
 const VISIBLE_ITEMS = 10
 const DOT_HEIGHT = 20
@@ -49,7 +50,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
   }, [headings])
 
   const bookmarksMap = useBookmarksStore((s) => s.bookmarks)
-  const activeConversationId = useUIStore((s) => s.activeConversationId)
+  const activeConversationId = useConversationStore((s) => s.activeConversationId)
 
   const convBookmarks = useMemo(
     () => (activeConversationId ? (bookmarksMap[activeConversationId] ?? []) : []),

@@ -55,12 +55,16 @@ import {
 import { useWorkflowEvents } from '@/hooks/use-workflow-events'
 import { commands } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
-import { useUIStore, selectHasSkillsUnlocked, selectHasWorkflowsUnlocked } from '@/store/ui'
+import { selectHasSkillsUnlocked, selectHasWorkflowsUnlocked } from '@/store/ui'
+import { useUIPersistentStore } from '@/store/ui-state'
+import { useUILayoutStore } from '@/store/ui-layout'
+import { useUIOverlaysStore } from '@/store/ui-overlays'
 import { McpTab } from './mcp-tab'
 import { useSessionStats } from '@/hooks/use-session-stats'
 import { AnalyticsHeatmap } from '../analytics/analytics-heatmap'
 import { Dialog, DialogFooter, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog'
 import { startOfMonth, endOfMonth, format, startOfYear, endOfYear, isWithinInterval } from 'date-fns'
+import { useConversationStore } from '@/store/conversation'
 
 type Tab = 'session' | 'skills' | 'mcp' | 'workflow' | 'analytics' | 'artifacts'
 
@@ -79,10 +83,10 @@ const TABS: {
 
 export function RightPanel() {
   const [activeTab, setActiveTab] = useState<Tab>('session')
-  const activeConversationId = useUIStore((s) => s.activeConversationId)
-  const unlockStage = useUIStore((s) => s.unlockStage)
-  const hasSkillsUnlocked = useUIStore(selectHasSkillsUnlocked)
-  const hasWorkflowsUnlocked = useUIStore(selectHasWorkflowsUnlocked)
+  const activeConversationId = useConversationStore((s) => s.activeConversationId)
+  const unlockStage = useUIPersistentStore((s) => s.unlockStage)
+  const hasSkillsUnlocked = useUIPersistentStore(selectHasSkillsUnlocked)
+  const hasWorkflowsUnlocked = useUIPersistentStore(selectHasWorkflowsUnlocked)
 
   // Filter tabs based on unlock stage
   const visibleTabs = TABS.filter(tab => {

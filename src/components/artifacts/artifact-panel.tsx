@@ -4,10 +4,11 @@ import { useUIStore } from '@/store/ui';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ArtifactItem } from './artifact-item';
 import { Loader2 } from 'lucide-react';
+import { useConversationStore } from '@/store/conversation';
 
 export function ArtifactPanel() {
-  const activeConversationId = useUIStore((s) => s.activeConversationId);
-  const activeBranchId = useUIStore((s) => s.activeBranchId);
+  const activeConversationId = useConversationStore((s) => s.activeConversationId);
+  const activeBranchId = useConversationStore((s) => s.activeBranchId);
   const { data: artifacts, isLoading } = useQuery({
     queryKey: ['artifacts', activeConversationId, activeBranchId],
     queryFn: async () => {

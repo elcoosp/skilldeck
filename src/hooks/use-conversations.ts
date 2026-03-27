@@ -8,6 +8,8 @@ import { commands } from '@/lib/bindings'
 import type { UUID } from '@/lib/types'
 import { useUIStore } from '@/store/ui'
 import { useProfiles } from './use-profiles'
+import { useConversationStore } from '@/store/conversation'
+import { useWorkspaceStore } from '@/store/workspace'
 
 export function useConversations(profileId?: UUID | null) {
   // <-- changed
@@ -31,8 +33,8 @@ export function useConversations(profileId?: UUID | null) {
 
 export function useCreateConversation(profileId?: UUID) {
   const queryClient = useQueryClient()
-  const setActiveConversation = useUIStore((s) => s.setActiveConversation)
-  const activeWorkspaceId = useUIStore((s) => s.activeWorkspaceId)
+  const setActiveConversation = useConversationStore((s) => s.setActiveConversation)
+  const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId)
 
   return useMutation({
     mutationFn: async ({ title }: { title?: string }) => {
@@ -66,8 +68,8 @@ export function useCreateConversation(profileId?: UUID) {
 
 export function useDeleteConversation() {
   const queryClient = useQueryClient()
-  const activeConversationId = useUIStore((s) => s.activeConversationId)
-  const setActiveConversation = useUIStore((s) => s.setActiveConversation)
+  const activeConversationId = useConversationStore((s) => s.activeConversationId)
+  const setActiveConversation = useConversationStore((s) => s.setActiveConversation)
 
   return useMutation({
     mutationFn: async (id: UUID) => {
@@ -189,7 +191,7 @@ export function useUnpinConversation() {
  */
 export function useActiveConversationWorkspaceId(): string | null {
   const queryClient = useQueryClient()
-  const activeConversationId = useUIStore((s) => s.activeConversationId)
+  const activeConversationId = useConversationStore((s) => s.activeConversationId)
   const { data: profiles } = useProfiles()
   const defaultProfile = profiles?.find((p) => p.is_default) ?? profiles?.[0]
 

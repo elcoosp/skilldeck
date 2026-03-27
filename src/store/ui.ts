@@ -1,6 +1,7 @@
 // src/store/ui.ts
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { UIPersistentState } from './ui-state'
 
 export type SettingsTab =
   | 'apikeys'
@@ -253,6 +254,6 @@ export const useUIStore = create<UIState>()(
 )
 
 // Feature gate selectors remain unchanged
-export const selectHasSkillsUnlocked = (state: UIState) => state.unlockStage >= 1
-export const selectHasMcpUnlocked = (state: UIState) => state.unlockStage >= 2
-export const selectHasWorkflowsUnlocked = (state: UIState) => state.unlockStage >= 3
+export const selectHasSkillsUnlocked = (state: UIPersistentState) => state.unlockStage >= 1
+export const selectHasMcpUnlocked = (state: UIPersistentState) => state.unlockStage >= 2
+export const selectHasWorkflowsUnlocked = (state: UIPersistentState) => state.unlockStage >= 3

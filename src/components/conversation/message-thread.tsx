@@ -11,6 +11,7 @@ import { useSendMessage } from '@/hooks/use-messages'
 import { useUIStore } from '@/store/ui'
 import { useToolApprovalStore } from '@/store/tool-approvals'
 import { ToolApprovalCard } from './tool-approval-card'
+import { useConversationStore } from '@/store/conversation'
 
 export interface ScrollToken {
   messageId: string
@@ -84,7 +85,7 @@ export const MessageThread = React.forwardRef<
     const scrollRef = React.useRef<HTMLDivElement>(null)
 
     // Get active conversation ID for sending retry messages
-    const activeConversationId = useUIStore((s) => s.activeConversationId)
+    const activeConversationId = useConversationStore((s) => s.activeConversationId)
     const sendMutation = useSendMessage(activeConversationId!)
 
     // Add retry ability to user messages whose next assistant message is cancelled

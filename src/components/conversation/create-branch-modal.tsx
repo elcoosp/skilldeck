@@ -6,6 +6,7 @@ import { useCreateBranch } from '@/hooks/use-branches';
 import { useUIStore } from '@/store/ui';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
+import { useConversationStore } from '@/store/conversation';
 
 interface CreateBranchModalProps {
   open: boolean;
@@ -17,8 +18,8 @@ interface CreateBranchModalProps {
 export function CreateBranchModal({ open, onClose, conversationId, parentMessageId }: CreateBranchModalProps) {
   const [name, setName] = useState('');
   const createBranch = useCreateBranch();
-  const setActiveBranch = useUIStore((s) => s.setActiveBranch);
-  const setActiveConversation = useUIStore((s) => s.setActiveConversation);
+  const setActiveBranch = useConversationStore((s) => s.setActiveBranch);
+  const setActiveConversation = useConversationStore((s) => s.setActiveConversation);
 
   const queryClient = useQueryClient();
   const handleCreate = async () => {

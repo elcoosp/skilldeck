@@ -37,8 +37,11 @@ import { useFolders, useCreateFolder, useMoveConversationToFolder } from '@/hook
 import { useProfiles } from '@/hooks/use-profiles'
 import { useOpenWorkspace, useWorkspaces } from '@/hooks/use-workspaces'
 import { cn } from '@/lib/utils'
-import { useUIStore } from '@/store/ui'
-
+import { useUIEphemeralStore } from '@/store/ui-ephemeral'
+import { useUIOverlaysStore } from '@/store/ui-overlays'
+import { useConversationStore } from '@/store/conversation'
+import { useWorkspaceStore } from '@/store/workspace'
+import { useUILayoutStore } from '@/store/ui-layout'
 // ----------------------------------------------------------------------
 // Lottie-powered empty state animation with fallback and reduced motion
 // ----------------------------------------------------------------------
@@ -110,15 +113,15 @@ function getDateGroupKey(dateStr: string): string {
 // Main component
 // ----------------------------------------------------------------------
 export function LeftPanel() {
-  const searchQuery = useUIStore((s) => s.searchQuery)
-  const setSearchQuery = useUIStore((s) => s.setSearchQuery)
-  const setSettingsOpen = useUIStore((s) => s.setSettingsOpen)
-  const setSettingsTab = useUIStore((s) => s.setSettingsTab)
-  const setGlobalSearchOpen = useUIStore((s) => s.setGlobalSearchOpen)
-  const activeConversationId = useUIStore((s) => s.activeConversationId)
-  const setActiveConversation = useUIStore((s) => s.setActiveConversation)
-  const activeWorkspaceId = useUIStore((s) => s.activeWorkspaceId)
-  const setActiveWorkspace = useUIStore((s) => s.setActiveWorkspace)
+  const searchQuery = useUIEphemeralStore((s) => s.searchQuery)
+  const setSearchQuery = useUIEphemeralStore((s) => s.setSearchQuery)
+  const setSettingsOpen = useUIOverlaysStore((s) => s.setSettingsOpen)
+  const setSettingsTab = useUIOverlaysStore((s) => s.setSettingsTab)
+  const setGlobalSearchOpen = useUIOverlaysStore((s) => s.setGlobalSearchOpen)
+  const activeConversationId = useConversationStore((s) => s.activeConversationId)
+  const setActiveConversation = useConversationStore((s) => s.setActiveConversation)
+  const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId)
+  const setActiveWorkspace = useWorkspaceStore((s) => s.setActiveWorkspace)
 
   // Track which conversation is being deleted for animation
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -142,9 +145,9 @@ export function LeftPanel() {
   const moveConversationToFolder = useMoveConversationToFolder()
 
   // UI state for collapsed date groups
-  const collapsedDateGroups = useUIStore((s) => s.collapsedDateGroups)
-  const toggleDateGroup = useUIStore((s) => s.toggleDateGroup)
-  const setDateGroupCollapsed = useUIStore((s) => s.setDateGroupCollapsed)
+  const collapsedDateGroups = useUILayoutStore((s) => s.collapsedDateGroups)
+  const toggleDateGroup = useUILayoutStore((s) => s.toggleDateGroup)
+  const setDateGroupCollapsed = useUILayoutStore((s) => s.setDateGroupCollapsed)
 
   // New folder creation modal state (simple prompt)
   const [showNewFolderInput, setShowNewFolderInput] = useState(false)

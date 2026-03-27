@@ -10,17 +10,20 @@ import {
   updatePlatformPreferences
 } from '@/lib/platform'
 import { useUIStore } from '@/store/ui'
+import { useUIPersistentStore } from '@/store/ui-state'
+import { useUILayoutStore } from '@/store/ui-layout'
+import { useConversationStore } from '@/store/conversation'
 
 type Step = 'welcome' | 'apikey' | 'platform' | 'done'
 
 export function OnboardingWizard() {
-  const onboardingComplete = useUIStore((s) => s.onboardingComplete)
-  const setOnboardingComplete = useUIStore((s) => s.setOnboardingComplete)
-  const setPlatformFeaturesEnabled = useUIStore(
+  const onboardingComplete = useUIPersistentStore((s) => s.onboardingComplete)
+  const setOnboardingComplete = useUIPersistentStore((s) => s.setOnboardingComplete)
+  const setPlatformFeaturesEnabled = useUIPersistentStore(
     (s) => s.setPlatformFeaturesEnabled
   )
-  const setActiveConversation = useUIStore((s) => s.setActiveConversation)
-  const setRightTab = useUIStore((s) => s.setRightTab)
+  const setActiveConversation = useConversationStore((s) => s.setActiveConversation)
+  const setRightTab = useUILayoutStore((s) => s.setRightTab)
 
   const [step, setStep] = useState<Step>('welcome')
   const [email, setEmail] = useState('')

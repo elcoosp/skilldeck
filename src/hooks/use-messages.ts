@@ -6,6 +6,7 @@ import { commands } from '@/lib/bindings'
 import type { UUID } from '@/lib/types'
 import { useUIStore } from '@/store/ui'
 import { useShallow } from 'zustand/react/shallow'
+import { useUIEphemeralStore } from '@/store/ui-ephemeral'
 
 export function useMessages(
   conversationId: UUID | null,
@@ -77,7 +78,7 @@ export function useMessagesWithStream(
   const { data: messages = [] } = useMessages(conversationId, branchId)
 
   // Replace three separate selectors with a single useShallow
-  const { streamingText, isRunning, hasError } = useUIStore(
+  const { streamingText, isRunning, hasError } = useUIEphemeralStore(
     useShallow((s) => ({
       streamingText: s.streamingText[conversationId ?? ''] ?? '',
       isRunning: s.agentRunning[conversationId ?? ''] ?? false,

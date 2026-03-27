@@ -8,6 +8,7 @@ import { useUIStore } from '@/store/ui';
 import { BranchPicker } from './branch-picker';
 import { VersionDiffModal } from './version-diff-modal';
 import { cn } from '@/lib/utils';
+import { useConversationStore } from '@/store/conversation';
 
 interface ArtifactItemProps {
   artifact: ArtifactData;
@@ -18,8 +19,8 @@ interface ArtifactItemProps {
 export function ArtifactItem({ artifact, compact = false, onPinChange }: ArtifactItemProps) {
   const Icon = artifact.type === 'code' ? FileCode : FileText;
   const qc = useQueryClient();
-  const activeConversationId = useUIStore((s) => s.activeConversationId);
-  const activeBranchId = useUIStore((s) => s.activeBranchId);
+  const activeConversationId = useConversationStore((s) => s.activeConversationId);
+  const activeBranchId = useConversationStore((s) => s.activeBranchId);
 
   const [showBranchPicker, setShowBranchPicker] = useState(false);
   const [copying, setCopying] = useState(false);

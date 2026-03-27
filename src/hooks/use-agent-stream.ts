@@ -19,15 +19,17 @@ import type { AgentEvent as LocalAgentEvent } from '@/lib/events'
 import { onAgentEvent } from '@/lib/events'
 import { useUIStore } from '@/store/ui'
 import { useToolApprovalStore } from '@/store/tool-approvals'
+import { useUIEphemeralStore } from '@/store/ui-ephemeral'
+import { useUIPersistentStore } from '@/store/ui-state'
 
 export function useAgentStream(conversationId: string | null) {
   const queryClient = useQueryClient()
-  const appendStreamingText = useUIStore((s) => s.appendStreamingText)
-  const clearStreamingText = useUIStore((s) => s.clearStreamingText)
-  const setAgentRunning = useUIStore((s) => s.setAgentRunning)
-  const setStreamingError = useUIStore((s) => s.setStreamingError)
-  const unlockStage = useUIStore((s) => s.unlockStage)
-  const setUnlockStage = useUIStore((s) => s.setUnlockStage)
+  const appendStreamingText = useUIEphemeralStore((s) => s.appendStreamingText)
+  const clearStreamingText = useUIEphemeralStore((s) => s.clearStreamingText)
+  const setAgentRunning = useUIEphemeralStore((s) => s.setAgentRunning)
+  const setStreamingError = useUIEphemeralStore((s) => s.setStreamingError)
+  const unlockStage = useUIPersistentStore((s) => s.unlockStage)
+  const setUnlockStage = useUIPersistentStore((s) => s.setUnlockStage)
 
   // Tool approval store actions
   const addPending = useToolApprovalStore((s) => s.addPending)
@@ -265,10 +267,10 @@ export function useAgentStream(conversationId: string | null) {
     clearAllApprovals,
   ])
 
-  const streamingText = useUIStore(
+  const streamingText = useUIEphemeralStore(
     (s) => s.streamingText[conversationId ?? ''] ?? ''
   )
-  const isRunning = useUIStore(
+  const isRunning = useUIEphemeralStore(
     (s) => s.agentRunning[conversationId ?? ''] ?? false
   )
 

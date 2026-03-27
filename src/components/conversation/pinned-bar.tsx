@@ -4,10 +4,11 @@ import { useUIStore } from '@/store/ui';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Pin } from 'lucide-react';
 import { ArtifactItem } from '../artifacts/artifact-item';
+import { useConversationStore } from '@/store/conversation';
 
 export function PinnedBar() {
-  const activeConversationId = useUIStore((s) => s.activeConversationId);
-  const activeBranchId = useUIStore((s) => s.activeBranchId);
+  const activeConversationId = useConversationStore((s) => s.activeConversationId);
+  const activeBranchId = useConversationStore((s) => s.activeBranchId);
 
   const { data: globalPins } = useQuery({
     queryKey: ['global-pins', activeConversationId],

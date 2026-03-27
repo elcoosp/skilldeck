@@ -5,6 +5,8 @@ import { commands } from '@/lib/bindings'
 import { useChatContextStore } from '@/store/chat-context-store'
 import { useUIStore } from '@/store/ui'
 import { cn } from '@/lib/utils'
+import { useConversationStore } from '@/store/conversation'
+import { useUILayoutStore } from '@/store/ui-layout'
 
 type DragDropPayload =
   | { type: 'enter'; paths: string[]; position: { x: number; y: number } }
@@ -13,9 +15,9 @@ type DragDropPayload =
   | { type: 'leave' }
 
 export function GlobalDropZone() {
-  const activeConversationId = useUIStore((s) => s.activeConversationId)
-  const leftPx = useUIStore((s) => s.panelSizesPx?.left ?? 0)
-  const rightPx = useUIStore((s) => s.panelSizesPx?.right ?? 0)
+  const activeConversationId = useConversationStore((s) => s.activeConversationId)
+  const leftPx = useUILayoutStore((s) => s.panelSizesPx?.left ?? 0)
+  const rightPx = useUILayoutStore((s) => s.panelSizesPx?.right ?? 0)
 
   const [isDragging, setIsDragging] = useState(false)
 

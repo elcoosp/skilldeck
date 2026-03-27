@@ -26,30 +26,29 @@ import { useAgentStream } from '@/hooks/use-agent-stream'
 import { useActiveConversationWorkspaceId } from '@/hooks/use-conversations'
 import { useMessagesWithStream } from '@/hooks/use-messages'
 import { useWorkspaces } from '@/hooks/use-workspaces'
-import { useUIStore } from '@/store/ui'
+import { useConversationStore } from '@/store/conversation'     // changed
+import { useUIEphemeralStore } from '@/store/ui-ephemeral'      // changed
 import { cn } from '@/lib/utils'
 import { commands } from '@/lib/bindings'
 import { getScrollToken, setScrollToken } from '@/lib/scroll-token'
 import { useConversationBootstrap } from '@/hooks/use-conversation-bootstrap'
 import { useQueryClient } from '@tanstack/react-query'
-import type { HeadingItem } from '@/hooks/use-message-headings'
 import { useBranches } from '@/hooks/use-branches'
 
 export function CenterPanel() {
-  // ─── Granular UIStore selectors (primitives only — no object selectors) ───
-  const activeConversationId = useUIStore((s) => s.activeConversationId)
-  const activeBranchId = useUIStore((s) => s.activeBranchId)
-
-  const scrollToMessageId = useUIStore((s) => s.scrollToMessageId)
-  const setScrollToMessageId = useUIStore((s) => s.setScrollToMessageId)
+  // ─── Store selectors (granular) ──────────────────────────────────────────
+  const activeConversationId = useConversationStore((s) => s.activeConversationId)
+  const activeBranchId = useConversationStore((s) => s.activeBranchId)
+  const scrollToMessageId = useConversationStore((s) => s.scrollToMessageId)
+  const setScrollToMessageId = useConversationStore((s) => s.setScrollToMessageId)
+  const searchQuery = useUIEphemeralStore((s) => s.conversationSearchQuery)
+  const setSearchQuery = useUIEphemeralStore((s) => s.setConversationSearchQuery)
 
   const workspaceId = useActiveConversationWorkspaceId()
   const { data: workspaces = [] } = useWorkspaces()
   const activeWorkspace = workspaces.find((w) => w.id === workspaceId)
   const workspaceRoot = activeWorkspace?.path
 
-  const searchQuery = useUIStore((s) => s.conversationSearchQuery)
-  const setSearchQuery = useUIStore((s) => s.setConversationSearchQuery)
   const [debouncedSearch] = useDebounce(searchQuery, 300)
   const [autoScroll, setAutoScroll] = useState(true)
 
@@ -64,10 +63,8 @@ export function CenterPanel() {
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // ─── React Query client for cache invalidation ────────────────────────────
   const queryClient = useQueryClient()
 
-  // ─── Streaming state ──────────────────────────────────────────────────────
   const { isRunning } = useAgentStream(activeConversationId)
   const messages = useMessagesWithStream(activeConversationId, activeBranchId)
 
@@ -77,25 +74,18 @@ export function CenterPanel() {
     return last?.role === 'assistant' ? last.id : undefined
   })()
 
-  // ─── Bootstrap data: replaces separate calls for queued, draft, branches, headings ───
   const { data: bootstrap, isLoading: bootstrapLoading } = useConversationBootstrap(activeConversationId)
   const queuedMessages = bootstrap?.queued ?? []
   const headings = bootstrap?.headings ?? []
 
-  // ─── Get branch parent message ID for indicator ───────────────────────────
   const { data: branches = [] } = useBranches(activeConversationId)
   const currentBranch = branches.find(b => b.id === activeBranchId)
   const branchParentMessageId = currentBranch?.parent_message_id ?? null
 
-  // Optional debug log (remove later)
-  console.log('[CenterPanel] branchParentMessageId:', branchParentMessageId)
-
-  // ─── Conversation key ─────────────────────────────────────────────────────
   const activeKey = activeConversationId
     ? `${activeConversationId}_${activeBranchId ?? 'main'}`
     : undefined
 
-  // ─── Save scroll token on conversation switch (synchronous during render) ─
   const activeKeyRef = useRef<string | undefined>(undefined)
   if (activeKeyRef.current !== activeKey) {
     if (activeKeyRef.current && threadRef.current) {
@@ -114,7 +104,6 @@ export function CenterPanel() {
     return cached
   })()
 
-  // ─── Jump-to-latest + unseen badge ───────────────────────────────────────
   const realMessageCount = messages.filter(m => m.id !== '__streaming__').length
   const messagesLengthRef = useRef(realMessageCount)
   messagesLengthRef.current = realMessageCount
@@ -126,7 +115,6 @@ export function CenterPanel() {
   const [showJumpToLatest, setShowJumpToLatest] = useState(false)
   const [unseenJumpCount, setUnseenJumpCount] = useState(0)
   const lastSeenCountRef = useRef(realMessageCount)
-
   const initialScrollSettledRef = useRef(false)
 
   useEffect(() => {
@@ -154,7 +142,6 @@ export function CenterPanel() {
     }
   }, [scrollToMessageId, messages, setScrollToMessageId])
 
-  // Helper to bulk-mark unseen assistant messages as seen
   const markAllUnseenAsSeen = useCallback(async () => {
     const unseenIds = messages
       .filter(m => !m.seen && m.role === 'assistant' && m.id !== '__streaming__')
@@ -162,7 +149,6 @@ export function CenterPanel() {
     if (unseenIds.length === 0) return
     try {
       await Promise.all(unseenIds.map(id => commands.markMessageSeen(id)))
-      // Invalidate the messages cache so unseenCount recomputes from fresh data
       queryClient.invalidateQueries({ queryKey: ['messages', activeConversationId] })
     } catch (err) {
       console.error('Failed to mark messages seen:', err)
@@ -173,7 +159,6 @@ export function CenterPanel() {
     const el = threadRef.current?.getScrollElement()
     if (!el) return
 
-    // If content doesn't overflow, there's nothing to jump to
     if (el.scrollHeight <= el.clientHeight + 1) {
       setShowJumpToLatest(false)
       setUnseenJumpCount(0)
@@ -192,7 +177,6 @@ export function CenterPanel() {
     }
   }, [markAllUnseenAsSeen])
 
-  // Attach scroll listener with delayed initial call
   useEffect(() => {
     let unsub = () => { }
     const t = setTimeout(() => {
@@ -221,7 +205,6 @@ export function CenterPanel() {
     }
   }, [messages, markAllUnseenAsSeen])
 
-  // ─── Scroll settled — save token after programmatic navigation ────────────
   const handleScrollSettled = useCallback((token: ScrollToken) => {
     if (activeKeyRef.current) {
       setScrollToken(activeKeyRef.current, token)
@@ -231,7 +214,6 @@ export function CenterPanel() {
     }
   }, [])
 
-  // ─── Thread navigator ─────────────────────────────────────────────────────
   const handleVisibleUserIndexChange = useCallback((index: number) => {
     setActiveUserMessageIndex(index)
   }, [])
@@ -245,7 +227,6 @@ export function CenterPanel() {
     threadRef.current?.scrollToMessage(index)
   }, [messages])
 
-  // ─── Active heading tracking ──────────────────────────────────────────────
   useEffect(() => {
     const unsub = threadRef.current?.onScroll(() => {
       const scrollContainer = threadRef.current?.getScrollElement()
@@ -277,7 +258,6 @@ export function CenterPanel() {
     setActiveHeadingIndex(null)
   }, [activeUserMessageIndex])
 
-  // ─── Heading click handler ────────────────────────────────────────────────
   const handleHeadingClick = useCallback((messageIndex: number, tocIndex: number) => {
     const targetMsgId = messages[messageIndex]?.id
     const scrollContainer = threadRef.current?.getScrollElement()
@@ -313,13 +293,11 @@ export function CenterPanel() {
     }
   }, [messages, handleVisibleUserIndexChange])
 
-  // ─── Message visibility handler ───────────────────────────────────────────
   const handleMessageVisible = useCallback(async (messageId: string) => {
     const res = await commands.markMessageSeen(messageId)
     if (res.status === 'error') console.error('Failed to mark message seen:', res.error)
   }, [])
 
-  // ─── Keyboard shortcut ⌘F / Ctrl+F ───────────────────────────────────────
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
@@ -331,7 +309,6 @@ export function CenterPanel() {
     return () => window.removeEventListener('keydown', handler)
   }, [])
 
-  // ─── Clear search on conversation switch ─────────────────────────────────
   useEffect(() => {
     setSearchQuery('')
   }, [activeConversationId, setSearchQuery])
@@ -352,21 +329,10 @@ export function CenterPanel() {
     )
   }
 
-  // Build headings map for ThreadNavigator
-  const headingsByMessage = useMemo(() => {
-    const map = new Map<string, HeadingItem[]>()
-    for (const h of headings) {
-      if (!map.has(h.message_id)) map.set(h.message_id, [])
-      map.get(h.message_id)!.push(h)
-    }
-    return map
-  }, [headings])
-
   return (
     <div className="relative flex flex-col h-full">
       {activeConversationId && <BranchNav conversationId={activeConversationId} />}
 
-      {/* Search bar with toggles */}
       <div className="px-4 py-2 border-b border-border flex items-center gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
@@ -438,7 +404,6 @@ export function CenterPanel() {
         </label>
       </div>
 
-      {/* Message thread — no key= prop, conversationKey drives internal reset */}
       <div className="relative flex-1 min-h-0">
         <MessageThread
           ref={threadRef}
@@ -464,11 +429,10 @@ export function CenterPanel() {
             activeHeadingIndex={activeHeadingIndex}
             onScrollTo={handleNavigatorScrollTo}
             onHeadingClick={handleHeadingClick}
-            headingsByMessage={headingsByMessage}
+            headings={headings}
           />
         )}
 
-        {/* Jump to latest button with unseen count badge */}
         <button
           type="button"
           onClick={jumpToLatest}
@@ -490,7 +454,6 @@ export function CenterPanel() {
         </button>
       </div>
 
-      {/* Input */}
       <div className="shrink-0 border-t border-border">
         <MessageInput conversationId={activeConversationId} workspaceRoot={workspaceRoot} />
       </div>

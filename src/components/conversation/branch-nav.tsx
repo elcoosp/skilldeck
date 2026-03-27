@@ -10,14 +10,15 @@
 import { ChevronLeft, ChevronRight, GitBranch } from 'lucide-react'
 import { useBranches } from '@/hooks/use-branches'
 import { useUIStore } from '@/store/ui'
+import { useConversationStore } from '@/store/conversation'
 
 interface BranchNavProps {
   conversationId: string
 }
 
 export function BranchNav({ conversationId }: BranchNavProps) {
-  const activeBranchId = useUIStore((s) => s.activeBranchId)
-  const setActiveBranch = useUIStore((s) => s.setActiveBranch)
+  const activeBranchId = useConversationStore((s) => s.activeBranchId)
+  const setActiveBranch = useConversationStore((s) => s.setActiveBranch)
   const { data: branches = [], isLoading } = useBranches(conversationId)
   if (isLoading || branches.length === 0) return null;
   const currentIndex = branches.findIndex((b) => b.id === activeBranchId) + 1 // 1-based for display
