@@ -12,7 +12,7 @@ mod artifacts;
 mod commands;
 mod config;
 mod events;
-mod headings; // <-- new
+mod headings; // <-- already added in chunk 2
 mod nudge_poller;
 mod platform_client;
 mod skills;
@@ -24,9 +24,28 @@ mod sync;
 pub use subagent_server::SubagentServer;
 
 use commands::{
-    analytics::*, artifacts::*, attachments::*, bookmarks::*, branches::*, conversations::*,
-    drafts::*, export::*, files::*, folders::*, gist::*, home_dir::*, mcp::*, messages::*,
-    ollama::*, platform::*, profiles::*, queue::*, settings::*, skills::*, workflows::*,
+    analytics::*,
+    artifacts::*,
+    attachments::*,
+    bookmarks::*,
+    branches::*,
+    conversations::*,
+    drafts::*,
+    export::*,
+    files::*,
+    folders::*,
+    gist::*,
+    headings::*, // <-- new: headings
+    home_dir::*,
+    mcp::*,
+    messages::*,
+    ollama::*,
+    platform::*,
+    profiles::*,
+    queue::*,
+    settings::*,
+    skills::*,
+    workflows::*,
     workspaces::*,
 };
 use events::{AgentEvent, McpEvent, SkillEvent, WorkflowEvent};
@@ -183,6 +202,8 @@ pub fn run() {
             unpin_conversation,
             // new command for updating conversation workspace
             update_conversation_workspace,
+            // headings
+            get_conversation_messages_headings, // <-- new
         ])
         .events(collect_events![
             AgentEvent,

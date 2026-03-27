@@ -11,6 +11,7 @@ pub mod export;
 pub mod files;
 pub mod folders;
 pub mod gist;
+pub mod headings;
 pub mod home_dir;
 pub mod mcp;
 pub mod messages;
