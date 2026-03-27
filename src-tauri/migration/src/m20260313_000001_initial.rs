@@ -926,6 +926,69 @@ impl MigrationTrait for Migration {
                     .to_owned(),
             )
             .await?;
+        // Pinned artifacts
+        manager
+            .create_table(
+                Table::create()
+                    .table(PinnedArtifacts::Table)
+                    .col(
+                        ColumnDef::new(PinnedArtifacts::Id)
+                            .uuid()
+                            .not_null()
+                            .primary_key(),
+                    )
+                    .col(
+                        ColumnDef::new(PinnedArtifacts::ConversationId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(PinnedArtifacts::ArtifactId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(ColumnDef::new(PinnedArtifacts::BranchId).uuid())
+                    .col(
+                        ColumnDef::new(PinnedArtifacts::IsGlobal)
+                            .boolean()
+                            .not_null()
+                            .default(false),
+                    )
+                    .col(
+                        ColumnDef::new(PinnedArtifacts::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk_pinned_artifacts_conversation")
+                            .from(PinnedArtifacts::Table, PinnedArtifacts::ConversationId)
+                            .to(Conversations::Table, Conversations::Id)
+                            .on_delete(ForeignKeyAction::Cascade),
+                    )
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk_pinned_artifacts_artifact")
+                            .from(PinnedArtifacts::Table, PinnedArtifacts::ArtifactId)
+                            .to(Artifacts::Table, Artifacts::Id)
+                            .on_delete(ForeignKeyAction::Cascade),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_pinned_artifacts_unique")
+                    .table(PinnedArtifacts::Table)
+                    .col(PinnedArtifacts::ConversationId)
+                    .col(PinnedArtifacts::ArtifactId)
+                    .col(PinnedArtifacts::BranchId)
+                    .unique()
+                    .to_owned(),
+            )
+            .await?;
         // attachments
         manager
             .create_table(
@@ -2015,7 +2078,16 @@ pub enum ModelPricing {
     CacheWriteCostPer1kTokens,
     ValidFrom,
 }
-
+#[derive(Iden)]
+enum PinnedArtifacts {
+    Table,
+    Id,
+    ConversationId,
+    ArtifactId,
+    BranchId,
+    IsGlobal,
+    CreatedAt,
+}
 impl Iden for ModelPricing {
     fn unquoted(&self) -> &str {
         match self {

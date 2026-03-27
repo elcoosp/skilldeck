@@ -1,5 +1,6 @@
 use sea_orm::{ActiveModelTrait, EntityTrait, QueryFilter, QueryOrder, Set};
 use serde::Serialize;
+use skilldeck_models::pinned_artifacts::{self, Entity as PinnedArtifacts};
 use specta::{Type, specta};
 use std::sync::Arc;
 use tauri::State;
@@ -79,6 +80,151 @@ pub async fn list_artifact_versions(
     let mut result = Vec::new();
     for v in versions {
         result.push(ArtifactData::from_model(v).await?);
+    }
+    Ok(result)
+}
+#[specta]
+#[tauri::command]
+pub async fn pin_artifact(
+    state: State<'_, Arc<AppState>>,
+    artifact_id: String,
+    branch_id: Option<String>,
+    is_global: bool,
+) -> Result<(), String> {
+    let db = state
+        .registry
+        .db
+        .connection()
+        .await
+        .map_err(|e| e.to_string())?;
+    let art_uuid = Uuid::parse_str(&artifact_id).map_err(|e| e.to_string())?;
+    let branch_uuid = branch_id
+        .map(|id| Uuid::parse_str(&id))
+        .transpose()
+        .map_err(|e| e.to_string())?;
+
+    // Get conversation_id from artifact
+    let artifact = Artifacts::find_by_id(art_uuid)
+        .one(db)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "Artifact not found".to_string())?;
+    let msg = Messages::find_by_id(artifact.message_id)
+        .one(db)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "Message not found".to_string())?;
+    let conv_uuid = msg.conversation_id;
+
+    // Check if already pinned
+    let existing = PinnedArtifacts::find()
+        .filter(pinned_artifacts::Column::ConversationId.eq(conv_uuid))
+        .filter(pinned_artifacts::Column::ArtifactId.eq(art_uuid))
+        .filter(pinned_artifacts::Column::BranchId.eq(branch_uuid))
+        .one(db)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if existing.is_some() {
+        return Err("Already pinned".to_string());
+    }
+
+    let now = chrono::Utc::now().fixed_offset();
+    let pin = pinned_artifacts::ActiveModel {
+        id: Set(Uuid::new_v4()),
+        conversation_id: Set(conv_uuid),
+        artifact_id: Set(art_uuid),
+        branch_id: Set(branch_uuid),
+        is_global: Set(is_global),
+        created_at: Set(now),
+    };
+    pin.insert(db).await.map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[specta]
+#[tauri::command]
+pub async fn unpin_artifact(
+    state: State<'_, Arc<AppState>>,
+    artifact_id: String,
+    branch_id: Option<String>,
+) -> Result<(), String> {
+    let db = state
+        .registry
+        .db
+        .connection()
+        .await
+        .map_err(|e| e.to_string())?;
+    let art_uuid = Uuid::parse_str(&artifact_id).map_err(|e| e.to_string())?;
+    let branch_uuid = branch_id
+        .map(|id| Uuid::parse_str(&id))
+        .transpose()
+        .map_err(|e| e.to_string())?;
+
+    // Get conversation_id from artifact
+    let artifact = Artifacts::find_by_id(art_uuid)
+        .one(db)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "Artifact not found".to_string())?;
+    let msg = Messages::find_by_id(artifact.message_id)
+        .one(db)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "Message not found".to_string())?;
+    let conv_uuid = msg.conversation_id;
+
+    let pin = PinnedArtifacts::find()
+        .filter(pinned_artifacts::Column::ConversationId.eq(conv_uuid))
+        .filter(pinned_artifacts::Column::ArtifactId.eq(art_uuid))
+        .filter(pinned_artifacts::Column::BranchId.eq(branch_uuid))
+        .one(db)
+        .await
+        .map_err(|e| e.to_string())?;
+    if let Some(p) = pin {
+        p.delete(db).await.map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[specta]
+#[tauri::command]
+pub async fn list_pinned_artifacts(
+    state: State<'_, Arc<AppState>>,
+    conversation_id: String,
+    branch_id: Option<String>,
+) -> Result<Vec<ArtifactData>, String> {
+    let db = state
+        .registry
+        .db
+        .connection()
+        .await
+        .map_err(|e| e.to_string())?;
+    let conv_uuid = Uuid::parse_str(&conversation_id).map_err(|e| e.to_string())?;
+    let branch_uuid = branch_id
+        .map(|id| Uuid::parse_str(&id))
+        .transpose()
+        .map_err(|e| e.to_string())?;
+
+    let mut query =
+        PinnedArtifacts::find().filter(pinned_artifacts::Column::ConversationId.eq(conv_uuid));
+
+    if let Some(branch_uuid) = branch_uuid {
+        query = query.filter(pinned_artifacts::Column::BranchId.eq(branch_uuid));
+    } else {
+        query = query.filter(pinned_artifacts::Column::BranchId.is_null());
+    }
+
+    let pins = query.all(db).await.map_err(|e| e.to_string())?;
+    let mut result = Vec::new();
+    for pin in pins {
+        let artifact = Artifacts::find_by_id(pin.artifact_id)
+            .one(db)
+            .await
+            .map_err(|e| e.to_string())?;
+        if let Some(a) = artifact {
+            result.push(ArtifactData::from_model(a).await?);
+        }
     }
     Ok(result)
 }

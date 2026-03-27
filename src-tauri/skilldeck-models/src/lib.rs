@@ -23,6 +23,7 @@ pub mod mcp_tool_cache;
 pub mod message_embeddings;
 pub mod messages;
 pub mod model_pricing;
+pub mod pinned_artifacts;
 pub mod profile_mcps;
 pub mod profile_skills;
 pub mod profiles;
