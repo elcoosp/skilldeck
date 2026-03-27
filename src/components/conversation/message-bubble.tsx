@@ -1,5 +1,5 @@
 // src/components/conversation/message-bubble.tsx
-// (Full file with retry, cancelled badge, enhanced CodePre, and tool result support)
+// (Full file with branch creation, retry, cancelled badge, enhanced CodePre, and tool result support)
 
 import rehypeShiki from '@shikijs/rehype'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -17,6 +17,7 @@ import {
   MoreHorizontal,
   User,
   Wrench,
+  GitBranch,
 } from 'lucide-react'
 import React, { memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { MarkdownHooks } from 'react-markdown'
@@ -31,7 +32,7 @@ import { rehypeLinkifyCodeUrls } from '@/lib/rehype-linkify-code'
 import { rehypeCodeMeta } from '@/lib/rehype-code-meta'
 import { cn, highlightText } from '@/lib/utils'
 import { SubagentCard } from './subagent-card'
-import { ToolResultBubble } from './tool-result-bubble' // <-- NEW import
+import { ToolResultBubble } from './tool-result-bubble'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import {
   DropdownMenu,
@@ -45,6 +46,7 @@ import { useBookmarksStore } from '@/store/bookmarks'
 import { useUIStore } from '@/store/ui'
 import { save } from '@tauri-apps/plugin-dialog'
 import { writeTextFile } from '@tauri-apps/plugin-fs'
+import { CreateBranchModal } from './create-branch-modal'
 
 interface MessageBubbleProps {
   message: MessageData
@@ -312,17 +314,19 @@ function CodePre({ children, ...props }: any) {
   )
 }
 
-// ─── Assistant message actions ─────────────────────────────────────────────────
+// ─── Assistant message actions (with branch) ─────────────────────────────────
 const AssistantMessageActions = memo(function AssistantMessageActions({
   message,
   conversationId,
   onCopy,
   onDownload,
+  onBranch,
 }: {
   message: MessageData
   conversationId: string | null
   onCopy: () => void
   onDownload: () => void
+  onBranch: () => void
 }) {
   const selectorFn = useCallback(
     (s: any) => {
@@ -366,6 +370,13 @@ const AssistantMessageActions = memo(function AssistantMessageActions({
         >
           <Download className="mr-2 h-4 w-4" />
           <span>Download</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={onBranch}
+          className="cursor-pointer hover:bg-primary/10 hover:text-foreground focus:bg-primary/10 focus:text-foreground"
+        >
+          <GitBranch className="mr-2 h-4 w-4" />
+          <span>Branch from here</span>
         </DropdownMenuItem>
         <DropdownMenuItem
           onClick={onBookmark}
@@ -718,6 +729,7 @@ function MessageBubbleInner({
   onRetry,
 }: MessageBubbleProps) {
   const [copied, setCopied] = useState(false)
+  const [branchModalOpen, setBranchModalOpen] = useState(false)
   const proseRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
   const [highlighter, setHighlighter] = useState<Highlighter | null>(null)
@@ -736,6 +748,10 @@ function MessageBubbleInner({
       [activeConversationId, message.id]
     )
   )
+
+  const handleBranch = useCallback(() => {
+    setBranchModalOpen(true)
+  }, [])
 
   useEffect(() => {
     getHighlighter().then(setHighlighter)
@@ -901,7 +917,6 @@ function MessageBubbleInner({
 
   // ─── TOOL MESSAGE HANDLING ──────────────────────────────────────────────────
   if (isTool) {
-    // Parse the raw content (Anthropic tool result format)
     const parseToolContent = (raw: string): { blocks: Array<{ type: string; text: string }>; isError: boolean } => {
       try {
         const parsed = JSON.parse(raw)
@@ -915,11 +930,9 @@ function MessageBubbleInner({
     }
 
     const { blocks, isError } = parseToolContent(message.content)
-    // Combine all text blocks into a single string for the bubble content
     const combinedText = blocks.map(b => b.text).join('\n\n')
     const toolName = (message.metadata as any)?.tool_name as string | undefined
 
-    // Add left margin to align with avatar + gap (size-7 = 28px + gap-3 = 12px → 40px)
     return (
       <div className="ml-10">
         <ToolResultBubble
@@ -1034,6 +1047,7 @@ function MessageBubbleInner({
                     conversationId={activeConversationId}
                     onCopy={copyMessage}
                     onDownload={downloadMessage}
+                    onBranch={handleBranch}
                   />
                 )}
               </div>
@@ -1075,6 +1089,39 @@ function MessageBubbleInner({
                 <span className="whitespace-pre-wrap break-words">{message.content}</span>
               )}
             </CollapsibleContent>
+
+            {/* User message actions */}
+            {isUser && !isStreaming && !syntheticStreaming && (
+              <div className="absolute -left-8 top-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <DropdownMenu modal={false}>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="p-0.5 hover:bg-muted-foreground/20 rounded transition-colors"
+                      aria-label="Message options"
+                    >
+                      <MoreHorizontal className="size-3.5" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-32">
+                    <DropdownMenuItem
+                      onClick={copyMessage}
+                      className="cursor-pointer hover:bg-primary/10 hover:text-foreground focus:bg-primary/10 focus:text-foreground"
+                    >
+                      <Copy className="mr-2 h-4 w-4" />
+                      <span>Copy</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={handleBranch}
+                      className="cursor-pointer hover:bg-primary/10 hover:text-foreground focus:bg-primary/10 focus:text-foreground"
+                    >
+                      <GitBranch className="mr-2 h-4 w-4" />
+                      <span>Branch from here</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1122,6 +1169,13 @@ function MessageBubbleInner({
           </div>
         )}
       </div>
+
+      <CreateBranchModal
+        open={branchModalOpen}
+        onClose={() => setBranchModalOpen(false)}
+        conversationId={activeConversationId!}
+        parentMessageId={message.id}
+      />
     </motion.div>
   )
 }

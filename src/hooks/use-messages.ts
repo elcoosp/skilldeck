@@ -14,7 +14,7 @@ export function useMessages(
     queryKey: ['messages', conversationId, branchId],
     queryFn: async () => {
       if (!conversationId) return []
-      const res = await commands.listMessages(conversationId!, branchId ?? null)
+      const res = await commands.listMessages(conversationId, branchId ?? null)
       if (res.status === 'ok') return res.data
       throw new Error(res.error)
     },
@@ -27,6 +27,7 @@ export function useMessages(
 export function useSendMessage(conversationId: UUID) {
   const queryClient = useQueryClient()
   const { unlock } = useAchievements()
+  const activeBranchId = useUIStore((s) => s.activeBranchId)
 
   return useMutation({
     mutationFn: async ({
@@ -39,19 +40,21 @@ export function useSendMessage(conversationId: UUID) {
       const res = await commands.sendMessage({
         conversation_id: conversationId,
         content,
-        context_items: contextItems ?? null // convert undefined to null
+        branch_id: activeBranchId,
+        context_items: contextItems ?? null
       })
       if (res.status === 'error') throw new Error(res.error)
       return res.data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['messages', conversationId] })
+      queryClient.invalidateQueries({ queryKey: ['messages', conversationId, activeBranchId] })
       queryClient.invalidateQueries({ queryKey: ['conversations'] })
 
       setTimeout(() => {
         const messages = queryClient.getQueryData<MessageData[]>([
           'messages',
-          conversationId
+          conversationId,
+          activeBranchId
         ])
         if (messages) {
           const userMessageCount = messages.filter(
@@ -84,12 +87,10 @@ export function useMessagesWithStream(
     (s) => s.streamingError[conversationId ?? ''] ?? false
   )
 
-  // If there's a streaming error, don't show the placeholder
   if (hasError) {
     return messages
   }
 
-  // If the agent is not running and we're not expecting a response, just return messages
   const lastMessage = messages[messages.length - 1]
   const expectingResponse = lastMessage?.role === 'user'
 
@@ -97,7 +98,6 @@ export function useMessagesWithStream(
     return messages
   }
 
-  // Add streaming bubble (content may be empty initially)
   const streamBubble: MessageData = {
     id: '__streaming__',
     conversation_id: conversationId!,
@@ -105,7 +105,10 @@ export function useMessagesWithStream(
     content: streamingText,
     created_at: new Date().toISOString(),
     context_items: null,
-    metadata: null
+    metadata: null,
+    input_tokens: null,
+    output_tokens: null,
+    seen: false,
   }
 
   return [...messages, streamBubble]

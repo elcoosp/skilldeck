@@ -200,7 +200,7 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
 
   if (!conversationId) {
     return (
-      <div className="p-4 text-xs text-muted-foreground">
+      <div className="p-4  text-sm text-muted-foreground">
         No active conversation.
       </div>
     )

@@ -326,7 +326,8 @@ pub fn auto_send_next_queued(state: Arc<AppState>, conversation_id: String, app:
                                 state_clone,
                                 conv_clone,
                                 content_clone,
-                                None,
+                                None, // branch_id – queued messages go to main trunk (can be enhanced later)
+                                None, // context_items – we need to add context_items support later
                                 app_clone,
                                 Some(meta),
                             )

@@ -88,7 +88,7 @@ pub async fn cancel_agent(
 pub async fn list_messages(
     state: State<'_, Arc<AppState>>,
     conversation_id: String,
-    #[allow(unused_variables)] branch_id: Option<String>,
+    branch_id: Option<String>,
 ) -> Result<Vec<MessageData>, String> {
     let db = state
         .registry
@@ -97,9 +97,46 @@ pub async fn list_messages(
         .await
         .map_err(|e| e.to_string())?;
     let conv_uuid = Uuid::parse_str(&conversation_id).map_err(|e| e.to_string())?;
+    let branch_uuid = branch_id
+        .map(|id| Uuid::parse_str(&id))
+        .transpose()
+        .map_err(|e| e.to_string())?;
 
-    let rows = Messages::find()
-        .filter(messages::Column::ConversationId.eq(conv_uuid))
+    let mut query = Messages::find().filter(messages::Column::ConversationId.eq(conv_uuid));
+
+    if let Some(branch_uuid) = branch_uuid {
+        // Get the branch record to find its parent message
+        use skilldeck_models::conversation_branches::Entity as Branches;
+        let branch = Branches::find_by_id(branch_uuid)
+            .one(db)
+            .await
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| format!("Branch {} not found", branch_uuid))?;
+        let parent_msg_id = branch.parent_message_id;
+
+        // Get the parent message to get its created_at timestamp
+        let parent_msg = Messages::find_by_id(parent_msg_id)
+            .one(db)
+            .await
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| format!("Parent message {} not found", parent_msg_id))?;
+
+        // Query: messages from the branch OR main trunk messages up to the parent message
+        use sea_orm::Condition;
+        query = query.filter(
+            Condition::any()
+                .add(messages::Column::BranchId.eq(branch_uuid))
+                .add(
+                    Condition::all()
+                        .add(messages::Column::BranchId.is_null())
+                        .add(messages::Column::CreatedAt.lte(parent_msg.created_at)),
+                ),
+        );
+    } else {
+        query = query.filter(messages::Column::BranchId.is_null());
+    }
+
+    let rows = query
         .order_by_asc(messages::Column::CreatedAt)
         .all(db)
         .await
@@ -280,6 +317,7 @@ pub async fn send_message(
         state_clone,
         req.conversation_id,
         req.content,
+        req.branch_id,
         req.context_items,
         app,
         None,
@@ -336,6 +374,7 @@ pub async fn mark_messages_seen(
 pub struct SendMessageRequest {
     pub conversation_id: String,
     pub content: String,
+    pub branch_id: Option<String>,
     pub context_items: Option<Vec<ContextItem>>,
 }
 
@@ -347,6 +386,7 @@ pub(crate) async fn send_message_internal(
     state: Arc<AppState>,
     conversation_id: String,
     content: String,
+    branch_id: Option<String>,
     context_items: Option<Vec<ContextItem>>,
     app: tauri::AppHandle,
     metadata: Option<MessageMetadata>,
@@ -358,6 +398,12 @@ pub(crate) async fn send_message_internal(
         .await
         .map_err(|e| e.to_string())?;
     let conv_uuid = Uuid::parse_str(&conversation_id).map_err(|e| e.to_string())?;
+    // Borrow branch_id instead of moving it
+    let branch_uuid = branch_id
+        .as_ref()
+        .map(|id| Uuid::parse_str(id))
+        .transpose()
+        .map_err(|e| e.to_string())?;
     let msg_id = Uuid::new_v4();
     let now = chrono::Utc::now().fixed_offset();
 
@@ -369,6 +415,7 @@ pub(crate) async fn send_message_internal(
     let user_msg = messages::ActiveModel {
         id: Set(msg_id),
         conversation_id: Set(conv_uuid),
+        branch_id: Set(branch_uuid),
         role: Set("user".to_string()),
         content: Set(content.clone()),
         metadata: Set(metadata),
@@ -397,6 +444,7 @@ pub(crate) async fn send_message_internal(
     let state_arc = state.clone();
     let conv_id_clone = conversation_id.clone();
     let content_clone = content.clone();
+    let branch_id_clone = branch_id; // now we can use branch_id because we didn't move it
     let app_clone = app.clone();
     let context_items_clone = context_items;
 
@@ -405,6 +453,7 @@ pub(crate) async fn send_message_internal(
             state_arc,
             conv_id_clone,
             content_clone,
+            branch_id_clone,
             msg_id,
             context_items_clone,
             app_clone,
@@ -414,7 +463,6 @@ pub(crate) async fn send_message_internal(
 
     Ok(())
 }
-
 // =============================================================================
 // Artifact extraction helper
 // =============================================================================
@@ -468,7 +516,7 @@ async fn extract_artifacts(
 }
 
 // =============================================================================
-// Agent loop runner (unchanged except for artifact extraction)
+// Agent loop runner
 // =============================================================================
 
 use skilldeck_core::traits::{McpTool, ToolDefinition};
@@ -574,6 +622,7 @@ fn run_agent_loop(
     state: Arc<AppState>,
     conversation_id: String,
     user_message: String,
+    branch_id: Option<String>,
     current_msg_id: Uuid,
     context_items: Option<Vec<ContextItem>>,
     app: tauri::AppHandle,
@@ -676,9 +725,22 @@ fn run_agent_loop(
             }
         };
 
+        // Filter history to include only messages from the current branch
+        let branch_uuid = branch_id.as_ref().and_then(|id| Uuid::parse_str(id).ok());
         let history = history_rows
             .into_iter()
-            .filter(|m| m.id != current_msg_id)
+            .filter(|m| {
+                // Include user message we just inserted (id != current_msg_id)
+                // and ensure branch matches
+                if m.id == current_msg_id {
+                    return false;
+                }
+                if let Some(branch_uuid) = branch_uuid {
+                    m.branch_id == Some(branch_uuid)
+                } else {
+                    m.branch_id.is_none()
+                }
+            })
             .map(|m| ChatMessage {
                 role: match m.role.as_str() {
                     "user" => skilldeck_core::traits::MessageRole::User,
@@ -927,12 +989,13 @@ fn run_agent_loop(
                         skilldeck_core::traits::MessageRole::System => "system",
                     };
                     let msg_id = Uuid::new_v4();
-                    let content = msg.content.clone();
+                    let branch_uuid = branch_id.as_ref().and_then(|id| Uuid::parse_str(id).ok());
                     let mut active = messages::ActiveModel {
                         id: Set(msg_id),
                         conversation_id: Set(conv_uuid),
+                        branch_id: Set(branch_uuid),
                         role: Set(role_str.to_string()),
-                        content: Set(content.clone()),
+                        content: Set(msg.content.clone()),
                         created_at: Set(now),
                         context_items: Set(Some(ContextItems(vec![]))),
                         seen: Set(false),
@@ -968,8 +1031,9 @@ fn run_agent_loop(
 
                     // Extract artifacts for assistant messages
                     if role_str == "assistant" {
-                        let branch_id = None; // FIXME: retrieve from message's branch if any
-                        if let Err(e) = extract_artifacts(msg_id, branch_id, &content, db).await {
+                        if let Err(e) =
+                            extract_artifacts(msg_id, branch_uuid, &msg.content, db).await
+                        {
                             tracing::warn!("Failed to extract artifacts: {}", e);
                         }
                     }

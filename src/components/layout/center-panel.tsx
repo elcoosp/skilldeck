@@ -5,7 +5,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useDebounce } from 'use-debounce'
 import { ArrowDown, CaseSensitive, Regex, Search, X } from 'lucide-react'
-import { useQueryClient } from '@tanstack/react-query'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
@@ -23,7 +22,6 @@ import {
   type ScrollToken,
 } from '@/components/conversation/message-thread'
 import ThreadNavigator from '@/components/conversation/thread-navigator'
-import { PinnedBar } from '@/components/conversation/pinned-bar'
 import { useAgentStream } from '@/hooks/use-agent-stream'
 import { useActiveConversationWorkspaceId } from '@/hooks/use-conversations'
 import { useMessagesWithStream } from '@/hooks/use-messages'
@@ -34,6 +32,8 @@ import { extractHeadings } from '@/lib/markdown-toc'
 import { useAssistantMessageStore } from '@/store/assistant-messages'
 import { commands } from '@/lib/bindings'
 import { getScrollToken, setScrollToken } from '@/lib/scroll-token'
+// NEW: import the bootstrap hook
+import { useConversationBootstrap } from '@/hooks/use-conversation-bootstrap'
 
 // ─── Heading extraction: runs outside React, result is cached by message id ──
 const headingCache = new Map<string, { contentLen: number; hasHeadings: boolean }>()
@@ -79,6 +79,12 @@ export function CenterPanel() {
     const last = messages[messages.length - 1]
     return last?.role === 'assistant' ? last.id : undefined
   })()
+
+  // ─── Bootstrap data: replaces separate calls for queued, draft, branches ───
+  // We keep it even if not all data is used immediately; future refactors can use it.
+  const { data: bootstrap, isLoading: bootstrapLoading } = useConversationBootstrap(activeConversationId)
+  // We'll use bootstrap.queued instead of separate useQueuedMessages
+  const queuedMessages = bootstrap?.queued ?? []
 
   // ─── Headings extraction for assistant messages ───────────────────────────
   const setHeadings = useAssistantMessageStore((s) => s.setHeadings)
@@ -227,7 +233,7 @@ export function CenterPanel() {
     threadRef.current?.scrollToBottom()
     lastSeenCountRef.current = messagesLengthRef.current
     setUnseenJumpCount(0)
-    setShowJumpToLatest(false)
+    setShowJumpToLatest(false)                             // <-- NEW: eagerly hide
     markAllUnseenAsSeen()
     const lastMsg = messages[messages.length - 1]
     if (lastMsg) {
@@ -371,7 +377,6 @@ export function CenterPanel() {
   return (
     <div className="relative flex flex-col h-full">
       {activeConversationId && <BranchNav conversationId={activeConversationId} />}
-      <PinnedBar />
 
       {/* Search bar with toggles */}
       <div className="px-4 py-2 border-b border-border flex items-center gap-2">

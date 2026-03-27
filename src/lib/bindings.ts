@@ -1220,7 +1220,7 @@ export type SearchMessagesRequest = { conversation_id: string; query: string; li
  * Result of a search within a conversation.
  */
 export type SearchMessagesResult = { message_id: string; snippet: string }
-export type SendMessageRequest = { conversation_id: string; content: string; context_items: ContextItem[] | null }
+export type SendMessageRequest = { conversation_id: string; content: string; branch_id: string | null; context_items: ContextItem[] | null }
 /**
  * Severity level of a lint warning.
  */
