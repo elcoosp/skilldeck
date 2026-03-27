@@ -12,6 +12,7 @@ mod artifacts;
 mod commands;
 mod config;
 mod events;
+mod headings; // <-- new
 mod nudge_poller;
 mod platform_client;
 mod skills;
@@ -97,7 +98,7 @@ pub fn run() {
             // messages
             list_messages,
             search_messages,
-            mark_message_seen, // <-- new command
+            mark_message_seen,
             send_message,
             resolve_tool_approval,
             // profiles

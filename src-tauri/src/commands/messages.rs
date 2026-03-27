@@ -398,7 +398,6 @@ pub(crate) async fn send_message_internal(
         .await
         .map_err(|e| e.to_string())?;
     let conv_uuid = Uuid::parse_str(&conversation_id).map_err(|e| e.to_string())?;
-    // Borrow branch_id instead of moving it
     let branch_uuid = branch_id
         .as_ref()
         .map(|id| Uuid::parse_str(id))
@@ -444,7 +443,7 @@ pub(crate) async fn send_message_internal(
     let state_arc = state.clone();
     let conv_id_clone = conversation_id.clone();
     let content_clone = content.clone();
-    let branch_id_clone = branch_id; // now we can use branch_id because we didn't move it
+    let branch_id_clone = branch_id;
     let app_clone = app.clone();
     let context_items_clone = context_items;
 
@@ -1035,6 +1034,27 @@ fn run_agent_loop(
                             extract_artifacts(msg_id, branch_uuid, &msg.content, db).await
                         {
                             tracing::warn!("Failed to extract artifacts: {}", e);
+                        }
+                    }
+
+                    // ** NEW: Store headings for assistant messages **
+                    if role_str == "assistant" {
+                        use skilldeck_models::message_headings::{
+                            ActiveModel as HeadingsActiveModel, HeadingsJson,
+                        };
+                        let headings = crate::headings::extract_headings(&msg.content);
+                        let heading_record = HeadingsActiveModel {
+                            id: Set(Uuid::new_v4()),
+                            message_id: Set(msg_id),
+                            headings: Set(HeadingsJson(headings)),
+                            created_at: Set(now),
+                        };
+                        if let Err(e) = heading_record.insert(db).await {
+                            tracing::warn!(
+                                "Failed to store headings for message {}: {}",
+                                msg_id,
+                                e
+                            );
                         }
                     }
                 }
