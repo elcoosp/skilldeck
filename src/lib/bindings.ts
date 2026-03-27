@@ -5,6 +5,17 @@
 
 
 export const commands = {
+/**
+ * Get conversation bootstrap data (messages, branches, draft, queued, headings).
+ */
+async getConversationBootstrap(conversationId: string) : Promise<Result<ConversationBootstrapData, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_conversation_bootstrap", { conversationId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async pinArtifact(artifactId: string, branchId: string | null, isGlobal: boolean) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("pin_artifact", { artifactId, branchId, isGlobal }) };
@@ -1115,6 +1126,7 @@ export type BookmarkData = { id: string; message_id: string; heading_anchor: str
 export type BranchInfo = { id: string; name: string | null; parent_message_id: string; created_at: string; message_count: string }
 export type ConfigScope = "global" | "workspace"
 export type ContextItem = { type: "skill"; name: string } | { type: "file"; path: string; name: string; size: string | null } | { type: "folder"; path: string; name: string; scope: FolderScope; file_count: string }
+export type ConversationBootstrapData = { messages: MessageData[]; branches: BranchInfo[]; draft: [string, JsonValue[]] | null; queued: QueuedMessage[]; headings: HeadingItem[] }
 /**
  * Lightweight summary used by the sidebar list.
  */

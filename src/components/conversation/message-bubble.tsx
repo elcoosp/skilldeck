@@ -3,7 +3,8 @@
  * search highlighting, and bookmarking.
  */
 
-import rehypeShiki from '@shikijs/rehype'
+import rehypeShikiFromHighlighter from '@shikijs/rehype/core'
+import { getHighlighter } from '@/lib/highlighter'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   AlertCircle,
@@ -25,8 +26,7 @@ import React, { memo, useCallback, useContext, useEffect, useMemo, useRef, useSt
 import { MarkdownHooks } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeSlug from 'rehype-slug'
-import type { Highlighter } from 'shiki'
-import { createHighlighter } from 'shiki'
+import type { HighlighterCore } from 'shiki'
 import { toast } from 'sonner'
 import { ContextChip } from '@/components/chat/context-chip'
 import type { MessageData } from '@/lib/bindings'
@@ -60,18 +60,6 @@ interface MessageBubbleProps {
   searchRegex?: boolean
   onRetry?: () => void
   isBranchParent?: boolean
-}
-
-// ─── Lazy Shiki highlighter singleton ─────────────────────────────────────────
-let highlighterPromise: Promise<Highlighter> | null = null
-const getHighlighter = () => {
-  if (!highlighterPromise) {
-    highlighterPromise = createHighlighter({
-      themes: ['github-light', 'vitesse-dark'],
-      langs: ['javascript', 'typescript', 'python', 'bash', 'json', 'tsx', 'jsx', 'css', 'html'],
-    })
-  }
-  return highlighterPromise
 }
 
 // ─── Stable plugin arrays (module-level, never recreated) ─────────────────────
@@ -480,7 +468,7 @@ const InlineCode = memo(function InlineCode({ children, ...props }: any) {
 // Stable table components (module-level)
 const TableWrapper = memo(({ children, node, ...props }: any) => (
   <div className="overflow-x-auto my-2" {...props}>
-    <table className="border-collapse border border-border text-xs">{children}</table>
+    <table className="border-collapse border border-border text-xs">{children} </table>
   </div>
 ))
 TableWrapper.displayName = 'TableWrapper'
@@ -500,14 +488,20 @@ const Td = memo(({ children, node, ...props }: any) => (
 Td.displayName = 'Td'
 
 // ─── Shared rehype plugins cache keyed by highlighter instance ───────────────
-const rehypePluginsCache = new WeakMap<Highlighter, any[]>()
+const rehypePluginsCache = new WeakMap<HighlighterCore, any[]>()
 
-function getRehypePlugins(highlighter: Highlighter | null) {
+function getRehypePlugins(highlighter: HighlighterCore | null) {
   if (!highlighter) return rehypePluginsBase
   let cached = rehypePluginsCache.get(highlighter)
   if (!cached) {
     cached = [
-      [rehypeShiki, { highlighter, themes: { light: 'vitesse-light', dark: 'vitesse-dark' }, useBackground: false }],
+      [rehypeShikiFromHighlighter, highlighter, {
+        theme: 'github-light',            // You can also use dual themes if needed
+        // themes: { light: 'github-light', dark: 'vitesse-dark' },
+        defaultLanguage: 'text',
+        lazy: false,                      // Crucial: disable on‑demand loading
+        addLanguageClass: true,
+      }],
       ...rehypePluginsBase,
     ]
     rehypePluginsCache.set(highlighter, cached)
@@ -725,7 +719,7 @@ function MessageBubbleInner({
   const [branchModalOpen, setBranchModalOpen] = useState(false)
   const proseRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
-  const [highlighter, setHighlighter] = useState<Highlighter | null>(null)
+  const [highlighter, setHighlighter] = useState<HighlighterCore | null>(null)
 
   const activeConversationId = useConversationStore((s) => s.activeConversationId)
   const scrollContainer = useContext(ScrollContainerContext)
@@ -937,6 +931,43 @@ function MessageBubbleInner({
           toolName={toolName}
           isError={isError}
         />
+      </div>
+    )
+  }
+
+  // Fallback while highlighter is loading – render plain text without highlighting
+  if (!highlighter) {
+    return (
+      <div className="flex gap-3 max-w-full">
+        <div
+          className={cn(
+            'flex-shrink-0 size-7 rounded-full flex items-center justify-center',
+            isUser ? 'bg-primary text-primary-foreground mt-0.5' : 'bg-muted text-foreground mt-1.5'
+          )}
+          aria-hidden
+        >
+          {isUser ? <User className="size-3.5" /> : <Bot className="size-3.5" />}
+        </div>
+        <div
+          className={cn(
+            'flex flex-col min-w-0',
+            isUser ? 'items-end' : 'items-start',
+            isAssistant ? 'w-full max-w-full' : 'max-w-[78%]'
+          )}
+        >
+          <div className={cn(isUser && 'text-right', 'w-full')}>
+            <div
+              className={cn(
+                'relative px-3.5 py-2.5 rounded-xl text-sm leading-relaxed',
+                isUser
+                  ? 'bg-primary text-primary-foreground rounded-tr-sm inline-block'
+                  : 'bg-muted/50 inline-block'
+              )}
+            >
+              <span className="whitespace-pre-wrap break-words">{message.content}</span>
+            </div>
+          </div>
+        </div>
       </div>
     )
   }

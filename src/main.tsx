@@ -6,7 +6,7 @@ import App from './App'
 import { initI18n } from './lib/i18n'
 
 // Initialize i18n (loads 'en' by default)
-initI18n()
+// initI18n()
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

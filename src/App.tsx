@@ -22,6 +22,7 @@ import { useUIPersistentStore } from '@/store/ui-state'   // changed
 import { useUILayoutStore } from '@/store/ui-layout'      // changed
 import { loadLocale, locales } from '@/lib/i18n'
 import { useAttachFilesListener } from './hooks/use-attach-files-listener'
+import { preloadHighlighter } from './lib/highlighter'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -104,7 +105,9 @@ function App() {
   // Splash screen state
   const [showSplash, setShowSplash] = useState(true)
   const [fadeOut, setFadeOut] = useState(false)
-
+  useEffect(() => {
+    preloadHighlighter()
+  }, [])
   // Start fade-out after 2.5 seconds
   useEffect(() => {
     const timer = setTimeout(() => {
