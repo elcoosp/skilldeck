@@ -1,8 +1,14 @@
+use super::{
+    theme::SharedTheme,
+    types::{ArtifactSpec, HtmlMessage, ParseOutput, TocItem},
+};
 use once_cell::sync::Lazy;
 use pulldown_cmark::{CodeBlockKind, Event, HeadingLevel, Options, Parser, Tag, TagEnd};
-use syntect::{html::{ClassStyle, ClassedHTMLGenerator}, parsing::SyntaxSet};
+use syntect::{
+    html::{ClassStyle, ClassedHTMLGenerator},
+    parsing::SyntaxSet,
+};
 use uuid::Uuid;
-use super::{theme::SharedTheme, types::{ArtifactSpec, HtmlMessage, ParseOutput, TocItem}};
 
 static SYNTAX_SET: Lazy<SyntaxSet> = Lazy::new(SyntaxSet::load_defaults_newlines);
 
@@ -11,7 +17,9 @@ pub struct MarkdownPipeline {
 }
 
 impl MarkdownPipeline {
-    pub fn new(theme: SharedTheme) -> Self { Self { theme } }
+    pub fn new(theme: SharedTheme) -> Self {
+        Self { theme }
+    }
 
     pub fn render_final(&self, markdown: &str) -> ParseOutput {
         self.parse_blocks(markdown, 0, 0)
@@ -37,12 +45,7 @@ impl MarkdownPipeline {
         out
     }
 
-    fn parse_blocks(
-        &self,
-        markdown: &str,
-        slot_offset: u32,
-        toc_offset: i32,
-    ) -> ParseOutput {
+    fn parse_blocks(&self, markdown: &str, slot_offset: u32, toc_offset: i32) -> ParseOutput {
         let mut html_buf = String::new();
         let mut code_buf = String::new();
         let mut heading_buf = String::new();
@@ -80,9 +83,9 @@ impl MarkdownPipeline {
                         r#"<div data-slot="code-block" data-slot-id="{slot_id}" \
                             data-language="{lang}" data-artifact-id="{aid}">{inner}</div>"#,
                         slot_id = slot_id,
-                        lang   = html_escape::encode_double_quoted_attribute(&code_lang),
-                        aid    = artifact_id,
-                        inner  = highlighted,
+                        lang = html_escape::encode_double_quoted_attribute(&code_lang),
+                        aid = artifact_id,
+                        inner = highlighted,
                     ));
 
                     // 2. ArtifactSpec – raw code, no HTML
@@ -122,7 +125,7 @@ impl MarkdownPipeline {
                     html_buf.push_str(&format!(
                         r#"<h{l} data-slot="heading" data-slug="{slug}" \
                             data-level="{l}" id="{slug}">{text}</h{l}>"#,
-                        l    = heading_level,
+                        l = heading_level,
                         slug = html_escape::encode_double_quoted_attribute(&slug),
                         text = html_escape::encode_text(&text),
                     ));
@@ -154,20 +157,23 @@ impl MarkdownPipeline {
             .find_syntax_by_token(lang)
             .unwrap_or_else(|| SYNTAX_SET.find_syntax_plain_text());
         self.theme.with_theme(|theme| {
-            let mut gen = ClassedHTMLGenerator::new_with_class_style(
-                syntax, theme, ClassStyle::Spaced,
-            );
+            let mut html_gen =
+                ClassedHTMLGenerator::new_with_class_style(syntax, theme, ClassStyle::Spaced);
             for line in syntect::util::LinesWithEndings::from(code) {
-                let _ = gen.parse_html_for_line_which_includes_newline(line);
+                let _ = html_gen.parse_html_for_line_which_includes_newline(line);
             }
-            gen.finalize()
+            html_gen.finalize()
         })
     }
 }
 
 fn heading_level_to_u8(level: HeadingLevel) -> u8 {
     match level {
-        HeadingLevel::H1 => 1, HeadingLevel::H2 => 2, HeadingLevel::H3 => 3,
-        HeadingLevel::H4 => 4, HeadingLevel::H5 => 5, HeadingLevel::H6 => 6,
+        HeadingLevel::H1 => 1,
+        HeadingLevel::H2 => 2,
+        HeadingLevel::H3 => 3,
+        HeadingLevel::H4 => 4,
+        HeadingLevel::H5 => 5,
+        HeadingLevel::H6 => 6,
     }
 }

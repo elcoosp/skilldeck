@@ -14,7 +14,7 @@ use tauri::{Emitter, State};
 use uuid::Uuid;
 
 use crate::artifacts::storage::store_artifact_content;
-use crate::commands::headings::{HeadingItem, get_conversation_messages_headings}; // <-- new
+use crate::commands::headings::{HeadingItem, get_conversation_messages_headings};
 use crate::commands::queue;
 use crate::{events::AgentEvent, state::AppState};
 use async_trait::async_trait;
@@ -26,6 +26,10 @@ use skilldeck_models::artifacts;
 use skilldeck_models::context_item::{ContextItem, ContextItems, FolderScope};
 use skilldeck_models::conversations::{self, Entity as Conversations};
 use skilldeck_models::messages::{self, Entity as Messages, MessageMetadata};
+
+use crate::markdown;
+use crate::markdown::IncrementalStream;
+use crate::markdown::types::{ArtifactSpec, HtmlMessage, TocItem};
 
 /// Serialisable message returned to the frontend.
 #[derive(Debug, Clone, Serialize, Type)]
@@ -501,58 +505,6 @@ pub(crate) async fn send_message_internal(
 
     Ok(())
 }
-// =============================================================================
-// Artifact extraction helper
-// =============================================================================
-
-async fn extract_artifacts(
-    message_id: Uuid,
-    branch_id: Option<Uuid>,
-    content: &str,
-    db: &sea_orm::DatabaseConnection,
-) -> Result<(), String> {
-    let re = Regex::new(r"```(\w*)\n([\s\S]*?)```").unwrap();
-    for cap in re.captures_iter(content) {
-        let language = cap.get(1).map(|m| m.as_str().to_string());
-        let code = cap
-            .get(2)
-            .map(|m| m.as_str().to_string())
-            .unwrap_or_default();
-
-        let (storage_path, db_content) = match store_artifact_content(&code).await {
-            Ok(Some(path)) => (Some(path.to_string_lossy().to_string()), String::new()),
-            Ok(None) => (None, code),
-            Err(e) => {
-                tracing::warn!("Failed to store artifact content: {}", e);
-                (None, code)
-            }
-        };
-
-        let logical_key = format!(
-            "code_{}_{}",
-            language.as_deref().unwrap_or("text"),
-            message_id
-        );
-        let now = chrono::Utc::now();
-
-        let artifact = artifacts::ActiveModel {
-            id: Set(Uuid::new_v4()),
-            message_id: Set(message_id),
-            branch_id: Set(branch_id),
-            parent_artifact_id: Set(None),
-            logical_key: Set(Some(logical_key)),
-            storage_path: Set(storage_path),
-            r#type: Set("code".to_string()),
-            name: Set(language.clone().unwrap_or_else(|| "code".to_string())),
-            content: Set(db_content),
-            language: Set(language),
-            metadata: Set(None),
-            created_at: Set(now.into()),
-        };
-        artifact.insert(db).await.map_err(|e| e.to_string())?;
-    }
-    Ok(())
-}
 
 // =============================================================================
 // Agent loop runner
@@ -956,42 +908,93 @@ fn run_agent_loop(
             user_message
         };
 
+        // ─── Create incremental streamer for this assistant response ───
+        let mut streamer = IncrementalStream::new(Arc::clone(&state.markdown));
+
         let loop_handle = tokio::spawn(async move { agent.run(enriched_user_message).await });
 
         while let Some(event) = rx.recv().await {
-            let tauri_event = match event {
-                Ok(AgentLoopEvent::Token { delta }) => AgentEvent::Token {
-                    conversation_id: conversation_id.clone(),
-                    delta,
-                },
-                Ok(AgentLoopEvent::Cancelled) => AgentEvent::Cancelled {
-                    conversation_id: conversation_id.clone(),
-                },
-                Ok(AgentLoopEvent::ToolCall { tool_call }) => AgentEvent::ToolCall {
-                    conversation_id: conversation_id.clone(),
-                    tool_call: crate::events::AgentToolCall {
-                        id: tool_call.id.clone(),
-                        name: tool_call.function.name.clone(),
-                        arguments: serde_json::from_str(&tool_call.function.arguments)
-                            .unwrap_or_default(),
-                    },
-                },
+            match event {
+                Ok(AgentLoopEvent::Token { delta }) => {
+                    if let Some(msg) = streamer.push(&delta) {
+                        let new_toc = streamer.drain_new_toc_items();
+                        let new_artifacts = streamer.drain_new_artifact_specs();
+                        let _ = app.emit(
+                            "agent-event",
+                            AgentEvent::StreamUpdate {
+                                conversation_id: conversation_id.clone(),
+                                stable_html: msg.stable_html,
+                                draft_html: msg.draft_html,
+                                slot_count: msg.slot_count,
+                                new_toc_items: new_toc,
+                                new_artifact_specs: new_artifacts,
+                            },
+                        );
+                    }
+                }
+                Ok(AgentLoopEvent::Cancelled) => {
+                    let _ = app.emit(
+                        "agent-event",
+                        AgentEvent::Cancelled {
+                            conversation_id: conversation_id.clone(),
+                        },
+                    );
+                }
+                Ok(AgentLoopEvent::ToolCall { tool_call }) => {
+                    let _ = app.emit(
+                        "agent-event",
+                        AgentEvent::ToolCall {
+                            conversation_id: conversation_id.clone(),
+                            tool_call: crate::events::AgentToolCall {
+                                id: tool_call.id.clone(),
+                                name: tool_call.function.name.clone(),
+                                arguments: serde_json::from_str(&tool_call.function.arguments)
+                                    .unwrap_or_default(),
+                            },
+                        },
+                    );
+                }
                 Ok(AgentLoopEvent::Done {
                     input_tokens,
                     output_tokens,
                     ..
-                }) => AgentEvent::Done {
-                    conversation_id: conversation_id.clone(),
-                    input_tokens,
-                    output_tokens,
-                },
-                Err(e) => AgentEvent::Error {
-                    conversation_id: conversation_id.clone(),
-                    message: e.to_string(),
-                },
-            };
+                }) => {
+                    // Finalize the streamer to get the complete parsed output
+                    let final_parsed = streamer.finalize();
 
-            let _ = app.emit("agent-event", tauri_event);
+                    // Emit final stream update (draft_html = None)
+                    let _ = app.emit(
+                        "agent-event",
+                        AgentEvent::StreamUpdate {
+                            conversation_id: conversation_id.clone(),
+                            stable_html: final_parsed.html_message.stable_html,
+                            draft_html: None,
+                            slot_count: final_parsed.html_message.slot_count,
+                            new_toc_items: final_parsed.toc_items,
+                            new_artifact_specs: final_parsed.artifact_specs,
+                        },
+                    );
+
+                    // Then emit the Done event (frontend uses it to finalise)
+                    let _ = app.emit(
+                        "agent-event",
+                        AgentEvent::Done {
+                            conversation_id: conversation_id.clone(),
+                            input_tokens,
+                            output_tokens,
+                        },
+                    );
+                }
+                Err(e) => {
+                    let _ = app.emit(
+                        "agent-event",
+                        AgentEvent::Error {
+                            conversation_id: conversation_id.clone(),
+                            message: e.to_string(),
+                        },
+                    );
+                }
+            }
         }
 
         let loop_result = loop_handle.await;
@@ -1068,33 +1071,80 @@ fn run_agent_loop(
                         );
                     }
 
-                    // Extract artifacts for assistant messages
+                    // NEW: Single-pass pipeline for assistant messages
                     if role_str == "assistant" {
-                        if let Err(e) =
-                            extract_artifacts(msg_id, branch_uuid, &msg.content, db).await
-                        {
-                            tracing::warn!("Failed to extract artifacts: {}", e);
-                        }
-                    }
+                        // Re-parse the final content to get stable_html, toc, artifacts.
+                        // (This could be avoided if we stored final_parsed from the streamer,
+                        // but it's okay – it's a one-time cost per assistant message.)
+                        let parsed = state.markdown.render_final(&msg.content);
 
-                    // Store headings for assistant messages
-                    if role_str == "assistant" {
+                        // 1. Update stable_html on the message row
+                        messages::Entity::update_many()
+                            .col_expr(
+                                messages::Column::StableHtml,
+                                Expr::value(&parsed.html_message.stable_html),
+                            )
+                            .filter(messages::Column::Id.eq(msg_id))
+                            .exec(db)
+                            .await
+                            .map_err(|e| tracing::warn!("Failed to store stable HTML: {}", e))
+                            .ok();
+
+                        // 2. Insert headings
                         use skilldeck_models::message_headings::{
-                            ActiveModel as HeadingsActiveModel, HeadingsJson,
+                            ActiveModel as HeadingsActiveModel, HeadingsJson, TocItem as DbTocItem,
                         };
-                        let headings = crate::headings::extract_headings(&msg.content);
+                        let db_toc: Vec<DbTocItem> = parsed
+                            .toc_items
+                            .iter()
+                            .map(|t| DbTocItem {
+                                id: t.id.clone(),
+                                toc_index: t.toc_index,
+                                text: t.text.clone(),
+                                level: t.level,
+                            })
+                            .collect();
                         let heading_record = HeadingsActiveModel {
                             id: Set(Uuid::new_v4()),
                             message_id: Set(msg_id),
-                            headings: Set(HeadingsJson(headings)),
+                            headings: Set(HeadingsJson(db_toc)),
                             created_at: Set(now),
                         };
                         if let Err(e) = heading_record.insert(db).await {
-                            tracing::warn!(
-                                "Failed to store headings for message {}: {}",
-                                msg_id,
-                                e
-                            );
+                            tracing::warn!("Failed to store headings for {}: {}", msg_id, e);
+                        }
+
+                        // 3. Insert artifacts
+                        for spec in &parsed.artifact_specs {
+                            let (storage_path, db_content) =
+                                match store_artifact_content(&spec.raw_code).await {
+                                    Ok(Some(path)) => {
+                                        (Some(path.to_string_lossy().to_string()), String::new())
+                                    }
+                                    Ok(None) => (None, spec.raw_code.clone()),
+                                    Err(e) => {
+                                        tracing::warn!("Artifact storage failed: {}", e);
+                                        (None, spec.raw_code.clone())
+                                    }
+                                };
+                            let logical_key = format!("code_{}_{}", spec.language, msg_id);
+                            let artifact = artifacts::ActiveModel {
+                                id: Set(spec.id), // ← pre‑assigned UUID
+                                message_id: Set(msg_id),
+                                branch_id: Set(branch_uuid),
+                                parent_artifact_id: Set(None),
+                                logical_key: Set(Some(logical_key)),
+                                storage_path: Set(storage_path),
+                                r#type: Set("code".to_string()),
+                                name: Set(spec.language.clone()),
+                                content: Set(db_content),
+                                language: Set(Some(spec.language.clone())),
+                                metadata: Set(None),
+                                created_at: Set(now),
+                            };
+                            if let Err(e) = artifact.insert(db).await {
+                                tracing::warn!("Failed to insert artifact {}: {}", spec.id, e);
+                            }
                         }
                     }
                 }

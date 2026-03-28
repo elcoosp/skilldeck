@@ -12,7 +12,7 @@ mod artifacts;
 mod commands;
 mod config;
 mod events;
-mod headings; // <-- already added in chunk 2
+mod headings;
 mod nudge_poller;
 mod platform_client;
 mod skills;

@@ -15,11 +15,11 @@
 //! - [`workflow`]  — Workflow execution engine
 //! - [`workspace`] — Workspace detection and context
 //! - [`events`]    — IPC event types
-
 pub mod agent;
 pub mod db;
 pub mod error;
 pub mod events;
+pub mod markdown;
 pub mod mcp;
 pub mod providers;
 pub mod search;
