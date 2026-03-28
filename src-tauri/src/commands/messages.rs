@@ -910,6 +910,15 @@ fn run_agent_loop(
         let mut streamer = IncrementalStream::new(Arc::clone(&state.markdown));
         let mut final_parsed: Option<ParseOutput> = None;
 
+        // Ordered event relay using std::sync::mpsc – runs in a dedicated thread
+        let (emit_tx, emit_rx) = std::sync::mpsc::channel::<AgentEvent>();
+        let app_emitter = app.clone();
+        std::thread::spawn(move || {
+            while let Ok(event) = emit_rx.recv() {
+                let _ = app_emitter.emit("agent-event", event);
+            }
+        });
+
         let loop_handle = tokio::spawn(async move { agent.run(enriched_user_message).await });
 
         while let Some(event) = rx.recv().await {
@@ -918,44 +927,32 @@ fn run_agent_loop(
                     if let Some(msg) = streamer.push(&delta) {
                         let new_toc = streamer.drain_new_toc_items();
                         let new_artifacts = streamer.drain_new_artifact_specs();
-                        let app_clone = app.clone();
-                        let conv_id = conversation_id.clone();
-                        tokio::spawn(async move {
-                            let _ = app_clone.emit(
-                                "agent-event",
-                                AgentEvent::StreamUpdate {
-                                    conversation_id: conv_id,
-                                    stable_html: msg.stable_html,
-                                    draft_html: msg.draft_html,
-                                    slot_count: msg.slot_count,
-                                    new_toc_items: new_toc,
-                                    new_artifact_specs: new_artifacts,
-                                },
-                            );
+                        // Send into the channel – non-blocking, since it's std::sync::mpsc
+                        let _ = emit_tx.send(AgentEvent::StreamUpdate {
+                            conversation_id: conversation_id.clone(),
+                            stable_html: msg.stable_html,
+                            draft_html: msg.draft_html,
+                            slot_count: msg.slot_count,
+                            new_toc_items: new_toc,
+                            new_artifact_specs: new_artifacts,
                         });
                     }
                 }
                 Ok(AgentLoopEvent::Cancelled) => {
-                    let _ = app.emit(
-                        "agent-event",
-                        AgentEvent::Cancelled {
-                            conversation_id: conversation_id.clone(),
-                        },
-                    );
+                    let _ = emit_tx.send(AgentEvent::Cancelled {
+                        conversation_id: conversation_id.clone(),
+                    });
                 }
                 Ok(AgentLoopEvent::ToolCall { tool_call }) => {
-                    let _ = app.emit(
-                        "agent-event",
-                        AgentEvent::ToolCall {
-                            conversation_id: conversation_id.clone(),
-                            tool_call: crate::events::AgentToolCall {
-                                id: tool_call.id.clone(),
-                                name: tool_call.function.name.clone(),
-                                arguments: serde_json::from_str(&tool_call.function.arguments)
-                                    .unwrap_or_default(),
-                            },
+                    let _ = emit_tx.send(AgentEvent::ToolCall {
+                        conversation_id: conversation_id.clone(),
+                        tool_call: crate::events::AgentToolCall {
+                            id: tool_call.id.clone(),
+                            name: tool_call.function.name.clone(),
+                            arguments: serde_json::from_str(&tool_call.function.arguments)
+                                .unwrap_or_default(),
                         },
-                    );
+                    });
                 }
                 Ok(AgentLoopEvent::Done {
                     input_tokens,
@@ -966,46 +963,35 @@ fn run_agent_loop(
                     let parsed = streamer.finalize();
                     final_parsed = Some(parsed.clone());
 
-                    // Spawn the final stream update
-                    let app_clone = app.clone();
-                    let conv_id = conversation_id.clone();
-                    tokio::spawn(async move {
-                        let _ = app_clone.emit(
-                            "agent-event",
-                            AgentEvent::StreamUpdate {
-                                conversation_id: conv_id,
-                                stable_html: parsed.html_message.stable_html,
-                                draft_html: None,
-                                slot_count: parsed.html_message.slot_count,
-                                new_toc_items: parsed.toc_items,
-                                new_artifact_specs: parsed.artifact_specs,
-                            },
-                        );
+                    // Final StreamUpdate and Done – order preserved by the channel
+                    let _ = emit_tx.send(AgentEvent::StreamUpdate {
+                        conversation_id: conversation_id.clone(),
+                        stable_html: parsed.html_message.stable_html,
+                        draft_html: None,
+                        slot_count: parsed.html_message.slot_count,
+                        new_toc_items: parsed.toc_items,
+                        new_artifact_specs: parsed.artifact_specs,
+                    });
+                    let _ = emit_tx.send(AgentEvent::Done {
+                        conversation_id: conversation_id.clone(),
+                        input_tokens,
+                        output_tokens,
                     });
 
-                    // Then emit the Done event
-                    let _ = app.emit(
-                        "agent-event",
-                        AgentEvent::Done {
-                            conversation_id: conversation_id.clone(),
-                            input_tokens,
-                            output_tokens,
-                        },
-                    );
-
-                    break; // Exit the loop after finalization
+                    break;
                 }
                 Err(e) => {
-                    let _ = app.emit(
-                        "agent-event",
-                        AgentEvent::Error {
-                            conversation_id: conversation_id.clone(),
-                            message: e.to_string(),
-                        },
-                    );
+                    let _ = emit_tx.send(AgentEvent::Error {
+                        conversation_id: conversation_id.clone(),
+                        message: e.to_string(),
+                    });
                 }
             }
         }
+
+        // Drop the sender so the emit thread exits when its receiver is empty
+        drop(emit_tx);
+        // No await on the thread – it runs in the background
 
         let loop_result = loop_handle.await;
 

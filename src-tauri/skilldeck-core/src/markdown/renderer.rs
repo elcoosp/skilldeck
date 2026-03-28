@@ -67,8 +67,7 @@ impl MarkdownPipeline {
 
                     let highlighted = self.highlight(&code_buf, &code_lang);
                     html_buf.push_str(&format!(
-                        r#"<div data-slot="code-block" data-slot-id="{slot_id}" \
-                            data-language="{lang}" data-artifact-id="{aid}">{inner}</div>"#,
+                        r#"<div data-slot="code-block" data-slot-id="{slot_id}" data-language="{lang}" data-artifact-id="{aid}">{inner}</div>"#,
                         slot_id = slot_id,
                         lang = html_escape::encode_double_quoted_attribute(&code_lang),
                         aid = artifact_id,
@@ -107,8 +106,7 @@ impl MarkdownPipeline {
                     });
 
                     html_buf.push_str(&format!(
-                        r#"<h{l} data-slot="heading" data-slug="{slug}" \
-                            data-level="{l}" id="{slug}">{text}</h{l}>"#,
+                        r#"<h{l} data-slot="heading" data-slug="{slug}" data-level="{l}" id="{slug}">{text}</h{l}>"#,
                         l = heading_level,
                         slug = html_escape::encode_double_quoted_attribute(&slug),
                         text = html_escape::encode_text(&text),
@@ -139,12 +137,12 @@ impl MarkdownPipeline {
         let syntax = SYNTAX_SET
             .find_syntax_by_token(lang)
             .unwrap_or_else(|| SYNTAX_SET.find_syntax_plain_text());
-        let mut generator =
+        let mut gen =
             ClassedHTMLGenerator::new_with_class_style(syntax, &SYNTAX_SET, ClassStyle::Spaced);
         for line in syntect::util::LinesWithEndings::from(code) {
-            let _ = generator.parse_html_for_line_which_includes_newline(line);
+            let _ = gen.parse_html_for_line_which_includes_newline(line);
         }
-        generator.finalize()
+        gen.finalize()
     }
 }
 
