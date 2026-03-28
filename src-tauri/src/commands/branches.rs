@@ -141,6 +141,7 @@ pub async fn get_branch_messages(
                 created_at: m.created_at.to_string(),
                 context_items,
                 metadata: m.metadata,
+                stable_html: m.stable_html,
                 input_tokens: None,
                 output_tokens: None,
                 seen: false,
