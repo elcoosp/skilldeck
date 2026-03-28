@@ -47,8 +47,11 @@ export const HtmlRenderer: React.FC<HtmlRendererProps> = ({ message, slots, clas
   }, [slots]);
 
   const pruneRoots = useCallback((container: HTMLElement) => {
+    const stable = stableRef.current;
     for (const [slotId, root] of rootsRef.current) {
-      if (!container.querySelector(`[data-slot-id="${slotId}"]`)) {
+      const inDraft = container.querySelector(`[data-slot-id="${slotId}"]`);
+      const inStable = stable?.querySelector(`[data-slot-id="${slotId}"]`);
+      if (!inDraft && !inStable) {
         root.unmount();
         rootsRef.current.delete(slotId);
       }

@@ -143,7 +143,7 @@ export function useAgentStream(conversationId: string | null) {
             exact: false
           })
           // Clear any old streaming message when a new agent starts
-          setStreamingMessage(null)
+          setStreamingMessage(conversationId, null)
           break
 
         case 'token':
@@ -161,7 +161,7 @@ export function useAgentStream(conversationId: string | null) {
               draftHtml: event.draft_html ?? null,
               slotCount: event.slot_count ?? 0,
             }
-            setStreamingMessage(msg)
+            setStreamingMessage(conversationId, msg)
           }
           break
 
@@ -176,7 +176,7 @@ export function useAgentStream(conversationId: string | null) {
           flushNow() // flush any pending buffer before clearing
           setAgentRunning(conversationId, false)
           clearStreamingText(conversationId)
-          setStreamingMessage(null)
+          setStreamingMessage(conversationId, null)
           clearAllApprovals()
           queryClient.invalidateQueries({
             queryKey: ['messages', conversationId],
@@ -188,8 +188,7 @@ export function useAgentStream(conversationId: string | null) {
           flushNow() // flush any remaining buffer
           setAgentRunning(conversationId, false)
           clearStreamingText(conversationId)
-          // Clear streaming message on done (final message will be persisted)
-          setStreamingMessage(null)
+          // Do NOT clear streamingMessage here; it will be cleared on 'persisted'
           clearAllApprovals()
           queryClient.invalidateQueries({
             queryKey: ['queued-messages', conversationId]
@@ -206,7 +205,7 @@ export function useAgentStream(conversationId: string | null) {
           setAgentRunning(conversationId, false)
           setStreamingError(conversationId, true) // record error
           clearStreamingText(conversationId)
-          setStreamingMessage(null)
+          setStreamingMessage(conversationId, null)
           clearAllApprovals()
           toast.error(
             event.message || 'An error occurred while processing your message'
@@ -230,6 +229,8 @@ export function useAgentStream(conversationId: string | null) {
             queryKey: ['conversations'],
             exact: false
           })
+          // Clear streaming message only after the query will resolve with stable_html
+          setStreamingMessage(conversationId, null)
           // Auto-name: rename if conversation has no title
           autoNameConversation()
           break
@@ -283,7 +284,9 @@ export function useAgentStream(conversationId: string | null) {
   const streamingText = useUIEphemeralStore(
     (s) => s.streamingText[conversationId ?? ''] ?? ''
   )
-  const streamingMessage = useUIEphemeralStore((s) => s.streamingMessage)
+  const streamingMessage = useUIEphemeralStore(
+    (s) => s.streamingMessages[conversationId ?? ''] ?? null
+  )
   const isRunning = useUIEphemeralStore(
     (s) => s.agentRunning[conversationId ?? ''] ?? false
   )

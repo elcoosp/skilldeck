@@ -63,11 +63,13 @@ impl IncrementalStream {
     }
 
     pub fn finalize(mut self) -> ParseOutput {
-        // Force all remaining content into stable
+        // Capture remaining BEFORE updating stable_end
+        let remaining_start = self.stable_end;
+        let remaining = self.buffer[remaining_start..].to_string();
         self.stable_end = self.buffer.len();
-        let remaining = &self.buffer[self.stable_end..];
+
         if !remaining.is_empty() {
-            let chunk = self.pipeline.render_final(remaining);
+            let chunk = self.pipeline.render_final(&remaining);
             self.stable_html.push_str(&chunk.html_message.stable_html);
             self.stable_slot_count += chunk.html_message.slot_count;
             self.stable_toc_items.extend(chunk.toc_items);
@@ -86,7 +88,7 @@ impl IncrementalStream {
 
     fn advance_stable_boundary(&mut self) {
         let search_start = self.stable_end.saturating_sub(1);
-        if let Some(pos) = self.buffer[search_start..].rfind("\n\n") {
+        if let Some(pos) = self.buffer[search_start..].find("\n\n") {
             let new_end = search_start + pos + 2;
             if new_end > self.stable_end {
                 let chunk_md = &self.buffer[self.stable_end..new_end];

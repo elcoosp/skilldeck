@@ -139,12 +139,12 @@ impl MarkdownPipeline {
         let syntax = SYNTAX_SET
             .find_syntax_by_token(lang)
             .unwrap_or_else(|| SYNTAX_SET.find_syntax_plain_text());
-        let mut css_gen =
+        let mut generator =
             ClassedHTMLGenerator::new_with_class_style(syntax, &SYNTAX_SET, ClassStyle::Spaced);
         for line in syntect::util::LinesWithEndings::from(code) {
-            let _ = css_gen.parse_html_for_line_which_includes_newline(line);
+            let _ = generator.parse_html_for_line_which_includes_newline(line);
         }
-        css_gen.finalize()
+        generator.finalize()
     }
 }
 
