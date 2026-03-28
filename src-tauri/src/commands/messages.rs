@@ -918,17 +918,21 @@ fn run_agent_loop(
                     if let Some(msg) = streamer.push(&delta) {
                         let new_toc = streamer.drain_new_toc_items();
                         let new_artifacts = streamer.drain_new_artifact_specs();
-                        let _ = app.emit(
-                            "agent-event",
-                            AgentEvent::StreamUpdate {
-                                conversation_id: conversation_id.clone(),
-                                stable_html: msg.stable_html,
-                                draft_html: msg.draft_html,
-                                slot_count: msg.slot_count,
-                                new_toc_items: new_toc,
-                                new_artifact_specs: new_artifacts,
-                            },
-                        );
+                        let app_clone = app.clone();
+                        let conv_id = conversation_id.clone();
+                        tokio::spawn(async move {
+                            let _ = app_clone.emit(
+                                "agent-event",
+                                AgentEvent::StreamUpdate {
+                                    conversation_id: conv_id,
+                                    stable_html: msg.stable_html,
+                                    draft_html: msg.draft_html,
+                                    slot_count: msg.slot_count,
+                                    new_toc_items: new_toc,
+                                    new_artifact_specs: new_artifacts,
+                                },
+                            );
+                        });
                     }
                 }
                 Ok(AgentLoopEvent::Cancelled) => {
@@ -962,20 +966,24 @@ fn run_agent_loop(
                     let parsed = streamer.finalize();
                     final_parsed = Some(parsed.clone());
 
-                    // Emit final stream update (draft_html = None)
-                    let _ = app.emit(
-                        "agent-event",
-                        AgentEvent::StreamUpdate {
-                            conversation_id: conversation_id.clone(),
-                            stable_html: parsed.html_message.stable_html,
-                            draft_html: None,
-                            slot_count: parsed.html_message.slot_count,
-                            new_toc_items: parsed.toc_items,
-                            new_artifact_specs: parsed.artifact_specs,
-                        },
-                    );
+                    // Spawn the final stream update
+                    let app_clone = app.clone();
+                    let conv_id = conversation_id.clone();
+                    tokio::spawn(async move {
+                        let _ = app_clone.emit(
+                            "agent-event",
+                            AgentEvent::StreamUpdate {
+                                conversation_id: conv_id,
+                                stable_html: parsed.html_message.stable_html,
+                                draft_html: None,
+                                slot_count: parsed.html_message.slot_count,
+                                new_toc_items: parsed.toc_items,
+                                new_artifact_specs: parsed.artifact_specs,
+                            },
+                        );
+                    });
 
-                    // Then emit the Done event (frontend uses it to finalise)
+                    // Then emit the Done event
                     let _ = app.emit(
                         "agent-event",
                         AgentEvent::Done {
