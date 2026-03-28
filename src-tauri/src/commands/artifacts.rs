@@ -336,3 +336,33 @@ pub async fn copy_artifact_to_branch(
 
     Ok(draft_id.to_string())
 }
+
+#[specta]
+#[tauri::command]
+pub async fn get_artifact_content(
+    state: State<'_, Arc<AppState>>,
+    artifact_id: String,
+) -> Result<String, String> {
+    let db = state
+        .registry
+        .db
+        .connection()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let uuid = Uuid::parse_str(&artifact_id).map_err(|e| e.to_string())?;
+    let artifact = Artifacts::find_by_id(uuid)
+        .one(db)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("Artifact {} not found", artifact_id))?;
+
+    // If the content is stored on disk, read it; otherwise use the inline content.
+    if let Some(storage_path) = artifact.storage_path {
+        tokio::fs::read_to_string(storage_path)
+            .await
+            .map_err(|e| e.to_string())
+    } else {
+        Ok(artifact.content)
+    }
+}
