@@ -40,6 +40,7 @@ pub struct MessageData {
     pub input_tokens: Option<i32>,
     pub output_tokens: Option<i32>,
     pub seen: bool,
+    pub stable_html: Option<String>, // <-- new
 }
 
 /// Request for searching messages within a conversation.
@@ -167,6 +168,7 @@ pub async fn list_messages(
                 input_tokens: m.input_tokens,
                 output_tokens: m.output_tokens,
                 seen: m.seen,
+                stable_html: m.stable_html.clone(), // <-- new
             }
         })
         .collect())
@@ -544,7 +546,7 @@ async fn extract_artifacts(
             content: Set(db_content),
             language: Set(language),
             metadata: Set(None),
-            created_at: Set(chrono::Utc::now().fixed_offset()),
+            created_at: Set(now),
         };
         artifact.insert(db).await.map_err(|e| e.to_string())?;
     }
