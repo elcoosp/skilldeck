@@ -65,7 +65,7 @@ export function CenterPanel() {
 
   const queryClient = useQueryClient()
 
-  const { isRunning } = useAgentStream(activeConversationId)
+  const { isRunning, streamingMessage } = useAgentStream(activeConversationId)
   const messages = useMessagesWithStream(activeConversationId, activeBranchId)
 
   const streamingMessageId = (() => {
@@ -406,6 +406,8 @@ export function CenterPanel() {
 
       <div className="relative flex-1 min-h-0">
         <MessageThread
+
+          streamingMessage={streamingMessage}
           ref={threadRef}
           conversationKey={activeKey ?? ''}
           messages={messages}
