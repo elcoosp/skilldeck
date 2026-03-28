@@ -533,6 +533,7 @@ async fn extract_artifacts(
             language.as_deref().unwrap_or("text"),
             message_id
         );
+        let now = chrono::Utc::now();
 
         let artifact = artifacts::ActiveModel {
             id: Set(Uuid::new_v4()),
@@ -546,7 +547,7 @@ async fn extract_artifacts(
             content: Set(db_content),
             language: Set(language),
             metadata: Set(None),
-            created_at: Set(now),
+            created_at: Set(now.into()),
         };
         artifact.insert(db).await.map_err(|e| e.to_string())?;
     }

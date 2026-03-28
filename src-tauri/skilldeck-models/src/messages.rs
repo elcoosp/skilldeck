@@ -51,6 +51,7 @@ pub struct Model {
     pub content: String,
     pub metadata: Option<MessageMetadata>,
     pub context_items: Option<ContextItems>,
+    pub stable_html: Option<String>,
     pub input_tokens: Option<i32>,
     pub output_tokens: Option<i32>,
     pub cache_read_tokens: Option<i32>,
