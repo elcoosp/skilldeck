@@ -2,12 +2,6 @@
 /**
  * useAgentStream — subscribe to Tauri agent-event channel for a given
  * conversation and drive streaming text + running state in the UI store.
- *
- * Implements the rAF-gated rendering loop required by ASR-PERF-001:
- *   Rust ring-buffer → 50 ms debounce → Tauri emit → this hook → rAF → render
- *
- * Also handles auto-naming conversations from the first user message
- * when the 'persisted' event fires, and progressive unlock.
  */
 
 import { useQueryClient } from '@tanstack/react-query'
@@ -20,11 +14,13 @@ import { onAgentEvent } from '@/lib/events'
 import { useToolApprovalStore } from '@/store/tool-approvals'
 import { useUIEphemeralStore } from '@/store/ui-ephemeral'
 import { useUIPersistentStore } from '@/store/ui-state'
+import type { HtmlMessage } from '@/components/html-renderer/html-renderer'
 
 export function useAgentStream(conversationId: string | null) {
   const queryClient = useQueryClient()
   const appendStreamingText = useUIEphemeralStore((s) => s.appendStreamingText)
   const clearStreamingText = useUIEphemeralStore((s) => s.clearStreamingText)
+  const setStreamingMessage = useUIEphemeralStore((s) => s.setStreamingMessage)
   const setAgentRunning = useUIEphemeralStore((s) => s.setAgentRunning)
   const setStreamingError = useUIEphemeralStore((s) => s.setStreamingError)
   const unlockStage = useUIPersistentStore((s) => s.unlockStage)
@@ -46,7 +42,6 @@ export function useAgentStream(conversationId: string | null) {
   const autoNameAttempted = useRef<Set<string>>(new Set())
 
   // Schedule a flush of the pending buffer after a short debounce.
-  // This reduces the number of state updates and GC pressure.
   const scheduleFlush = () => {
     if (flushTimer.current) clearTimeout(flushTimer.current)
     flushTimer.current = setTimeout(() => {
@@ -147,12 +142,26 @@ export function useAgentStream(conversationId: string | null) {
             queryKey: ['messages', conversationId],
             exact: false
           })
+          // Clear any old streaming message when a new agent starts
+          setStreamingMessage(null)
           break
 
         case 'token':
           if (event.delta) {
             pendingBuffer.current += event.delta
             scheduleFlush()
+          }
+          break
+
+        case 'stream_update':
+          // New event type for HTML streaming
+          if (event.stable_html !== undefined) {
+            const msg: HtmlMessage = {
+              stableHtml: event.stable_html,
+              draftHtml: event.draft_html ?? null,
+              slotCount: event.slot_count ?? 0,
+            }
+            setStreamingMessage(msg)
           }
           break
 
@@ -167,6 +176,7 @@ export function useAgentStream(conversationId: string | null) {
           flushNow() // flush any pending buffer before clearing
           setAgentRunning(conversationId, false)
           clearStreamingText(conversationId)
+          setStreamingMessage(null)
           clearAllApprovals()
           queryClient.invalidateQueries({
             queryKey: ['messages', conversationId],
@@ -178,6 +188,8 @@ export function useAgentStream(conversationId: string | null) {
           flushNow() // flush any remaining buffer
           setAgentRunning(conversationId, false)
           clearStreamingText(conversationId)
+          // Clear streaming message on done (final message will be persisted)
+          setStreamingMessage(null)
           clearAllApprovals()
           queryClient.invalidateQueries({
             queryKey: ['queued-messages', conversationId]
@@ -194,6 +206,7 @@ export function useAgentStream(conversationId: string | null) {
           setAgentRunning(conversationId, false)
           setStreamingError(conversationId, true) // record error
           clearStreamingText(conversationId)
+          setStreamingMessage(null)
           clearAllApprovals()
           toast.error(
             event.message || 'An error occurred while processing your message'
@@ -257,6 +270,7 @@ export function useAgentStream(conversationId: string | null) {
     conversationId,
     appendStreamingText,
     clearStreamingText,
+    setStreamingMessage,
     setAgentRunning,
     setStreamingError,
     queryClient,
@@ -269,9 +283,10 @@ export function useAgentStream(conversationId: string | null) {
   const streamingText = useUIEphemeralStore(
     (s) => s.streamingText[conversationId ?? ''] ?? ''
   )
+  const streamingMessage = useUIEphemeralStore((s) => s.streamingMessage)
   const isRunning = useUIEphemeralStore(
     (s) => s.agentRunning[conversationId ?? ''] ?? false
   )
 
-  return { streamingText, isRunning }
+  return { streamingText, streamingMessage, isRunning }
 }

@@ -19,7 +19,6 @@ use crate::commands::queue;
 use crate::{events::AgentEvent, state::AppState};
 use async_trait::async_trait;
 use futures::Future;
-use regex::Regex;
 use skilldeck_core::agent::{AgentLoop, AgentLoopConfig, AgentLoopEvent, all_built_in_tools};
 use skilldeck_core::traits::subagent_spawner::SubagentSpawner;
 use skilldeck_models::artifacts;
@@ -27,9 +26,8 @@ use skilldeck_models::context_item::{ContextItem, ContextItems, FolderScope};
 use skilldeck_models::conversations::{self, Entity as Conversations};
 use skilldeck_models::messages::{self, Entity as Messages, MessageMetadata};
 
-use crate::markdown;
-use crate::markdown::IncrementalStream;
-use crate::markdown::types::{ArtifactSpec, HtmlMessage, TocItem};
+use skilldeck_core::markdown::streaming::IncrementalStream;
+use skilldeck_core::markdown::types::ParseOutput;
 
 /// Serialisable message returned to the frontend.
 #[derive(Debug, Clone, Serialize, Type)]
@@ -910,6 +908,7 @@ fn run_agent_loop(
 
         // ─── Create incremental streamer for this assistant response ───
         let mut streamer = IncrementalStream::new(Arc::clone(&state.markdown));
+        let mut final_parsed: Option<ParseOutput> = None;
 
         let loop_handle = tokio::spawn(async move { agent.run(enriched_user_message).await });
 
@@ -960,18 +959,19 @@ fn run_agent_loop(
                     ..
                 }) => {
                     // Finalize the streamer to get the complete parsed output
-                    let final_parsed = streamer.finalize();
+                    let parsed = streamer.finalize();
+                    final_parsed = Some(parsed.clone());
 
                     // Emit final stream update (draft_html = None)
                     let _ = app.emit(
                         "agent-event",
                         AgentEvent::StreamUpdate {
                             conversation_id: conversation_id.clone(),
-                            stable_html: final_parsed.html_message.stable_html,
+                            stable_html: parsed.html_message.stable_html,
                             draft_html: None,
-                            slot_count: final_parsed.html_message.slot_count,
-                            new_toc_items: final_parsed.toc_items,
-                            new_artifact_specs: final_parsed.artifact_specs,
+                            slot_count: parsed.html_message.slot_count,
+                            new_toc_items: parsed.toc_items,
+                            new_artifact_specs: parsed.artifact_specs,
                         },
                     );
 
@@ -984,6 +984,8 @@ fn run_agent_loop(
                             output_tokens,
                         },
                     );
+
+                    break; // Exit the loop after finalization
                 }
                 Err(e) => {
                     let _ = app.emit(
@@ -1073,10 +1075,12 @@ fn run_agent_loop(
 
                     // NEW: Single-pass pipeline for assistant messages
                     if role_str == "assistant" {
-                        // Re-parse the final content to get stable_html, toc, artifacts.
-                        // (This could be avoided if we stored final_parsed from the streamer,
-                        // but it's okay – it's a one-time cost per assistant message.)
-                        let parsed = state.markdown.render_final(&msg.content);
+                        // Use the captured final_parsed if available, otherwise re-parse
+                        let parsed = if let Some(fp) = &final_parsed {
+                            fp.clone()
+                        } else {
+                            state.markdown.render_final(&msg.content)
+                        };
 
                         // 1. Update stable_html on the message row
                         messages::Entity::update_many()

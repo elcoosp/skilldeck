@@ -5,6 +5,38 @@
 
 
 export const commands = {
+async listBuiltInThemes() : Promise<Result<ThemeInfo[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_built_in_themes") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async getSyntaxCss() : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_syntax_css") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async setBuiltInTheme(themeName: string) : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_built_in_theme", { themeName }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async setThemeFromFile(path: string) : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_theme_from_file", { path }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 /**
  * Get conversation bootstrap data (messages, branches, draft, queued, headings).
  */
@@ -1111,7 +1143,7 @@ export type AddQueuedMessageRequest = { conversation_id: string; content: string
 /**
  * Payload for the `"agent-event"` Tauri channel.
  */
-export type AgentEvent = { type: "cancelled"; conversation_id: string } | { type: "started"; conversation_id: string } | { type: "token"; conversation_id: string; delta: string } | { type: "tool_call"; conversation_id: string; tool_call: AgentToolCall } | { type: "tool_result"; conversation_id: string; tool_call_id: string; result: string } | { type: "done"; conversation_id: string; input_tokens: number; output_tokens: number } | { type: "error"; conversation_id: string; message: string } | { type: "persisted"; conversation_id: string } | { type: "tool_approval_required"; conversation_id: string; tool_call_id: string; tool_name: string; arguments: JsonValue }
+export type AgentEvent = { type: "cancelled"; conversation_id: string } | { type: "started"; conversation_id: string } | { type: "token"; conversation_id: string; delta: string } | { type: "tool_call"; conversation_id: string; tool_call: AgentToolCall } | { type: "tool_result"; conversation_id: string; tool_call_id: string; result: string } | { type: "done"; conversation_id: string; input_tokens: number; output_tokens: number } | { type: "error"; conversation_id: string; message: string } | { type: "persisted"; conversation_id: string } | { type: "tool_approval_required"; conversation_id: string; tool_call_id: string; tool_name: string; arguments: JsonValue } | { type: "stream_update"; conversation_id: string; stable_html: string; draft_html: string | null; slot_count: number; new_toc_items: TocItem[]; new_artifact_specs: ArtifactSpec[] }
 export type AgentToolCall = { id: string; name: string; arguments: JsonValue }
 export type AnalyticsData = { total_conversations: string; total_messages: string; messages_per_day: DailyCount[]; conversations_per_day: DailyCount[]; skills_used: SkillUsage[]; token_usage: TokenTotals }
 /**
@@ -1119,6 +1151,10 @@ export type AnalyticsData = { total_conversations: string; total_messages: strin
  */
 export type ApiKeyStatus = { provider: string; has_key: boolean }
 export type ArtifactData = { id: string; message_id: string; branch_id: string | null; type: string; name: string; content: string; language: string | null; logical_key: string | null; created_at: string }
+/**
+ * One extracted code fence, before syntax highlighting.
+ */
+export type ArtifactSpec = { id: string; language: string; raw_code: string; slot_index: number }
 export type AssembleFolderRequest = { path: string; deep: boolean; max_bytes: string | null }
 export type AssembleFolderResponse = { assembled_content: string; file_count: string }
 export type AutoApproveConfigDto = { auto_approve_reads: boolean; auto_approve_writes: boolean; auto_approve_shell: boolean; auto_approve_http_requests: boolean; auto_approve_selects: boolean; auto_approve_mutations: boolean }
@@ -1253,6 +1289,12 @@ export type SkillEvent = { type: "updated"; source_label: string; skill_name: st
 export type SkillInfo = { name: string; description: string; is_active: boolean; source: string; path: string | null; lint_warnings: LintWarning[]; security_score: number; quality_score: number }
 export type SkillSourceInfo = { id: string; source_type: string; path: string; label: string | null }
 export type SkillUsage = { name: string; count: string }
+export type ThemeInfo = { name: string; display_name: string }
+/**
+ * One heading extracted from markdown.
+ * Matches the shape of skilldeck_models::message_headings::TocItem.
+ */
+export type TocItem = { id: string; toc_index: number; text: string; level: number; slug: string }
 export type TokenTotals = { input_tokens: string; output_tokens: string; total_tokens: string }
 export type UpdatePrefsPayload = { email: string | null; nudge_frequency: string | null; nudge_opt_out: boolean | null; notification_channels: string[] | null; theme_preference: string | null; timezone: string | null; analytics_opt_in: boolean | null }
 export type WorkflowDefinitionResponse = { id: string; name: string; definition: JsonValue; created_at: string; updated_at: string }

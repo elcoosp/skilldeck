@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { HtmlMessage } from '@/components/html-renderer/HtmlRenderer';
 
 interface UIState {
   drafts: Record<string, string>;
@@ -7,6 +8,8 @@ interface UIState {
   streamingText: Record<string, string>;
   appendStreamingText: (conversationId: string, delta: string) => void;
   clearStreamingText: (conversationId: string) => void;
+  streamingMessage: HtmlMessage | null;
+  setStreamingMessage: (message: HtmlMessage | null) => void;
   agentRunning: Record<string, boolean>;
   setAgentRunning: (conversationId: string, running: boolean) => void;
   streamingError: Record<string, boolean>;
@@ -39,6 +42,8 @@ export const useUIEphemeralStore = create<UIState>((set) => ({
       const { [conversationId]: _, ...rest } = state.streamingText;
       return { streamingText: rest };
     }),
+  streamingMessage: null,
+  setStreamingMessage: (message) => set({ streamingMessage: message }),
   agentRunning: {},
   setAgentRunning: (conversationId, running) =>
     set((state) => ({ agentRunning: { ...state.agentRunning, [conversationId]: running } })),

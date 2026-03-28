@@ -25,8 +25,6 @@ impl MarkdownPipeline {
         self.parse_blocks(markdown, 0, 0)
     }
 
-    /// Used by IncrementalStream: renders only the new stable chunk,
-    /// with ID offsets so slot IDs don't collide with earlier blocks.
     pub fn render_split(
         &self,
         stable_markdown: &str,
@@ -39,8 +37,6 @@ impl MarkdownPipeline {
             let next_slot = slot_offset + out.html_message.slot_count;
             let draft_out = self.parse_blocks(draft_markdown, next_slot, -1);
             out.html_message.draft_html = draft_out.html_message.stable_html.into();
-            // draft_html may contain a partial code-block slot; its artifact_spec
-            // is not persisted until the block is complete.
         }
         out
     }
@@ -58,18 +54,10 @@ impl MarkdownPipeline {
         let mut artifact_specs: Vec<ArtifactSpec> = Vec::new();
         let mut slot_count: u32 = 0;
 
-        let flush_html = |buf: &mut String, out: &mut String| {
-            if !buf.is_empty() {
-                out.push_str(buf);
-                buf.clear();
-            }
-        };
-
         for event in Parser::new_ext(markdown, Options::all()) {
             match event {
                 // ── Code block start ────────────────────────────────────────
                 Event::Start(Tag::CodeBlock(CodeBlockKind::Fenced(lang))) => {
-                    flush_html(&mut html_buf, &mut html_buf);
                     code_lang = lang.trim().to_string();
                     in_code = true;
                 }
@@ -77,7 +65,6 @@ impl MarkdownPipeline {
                     let slot_id = slot_offset + slot_count;
                     let artifact_id = Uuid::new_v4();
 
-                    // 1. Highlighted HTML for the slot wrapper
                     let highlighted = self.highlight(&code_buf, &code_lang);
                     html_buf.push_str(&format!(
                         r#"<div data-slot="code-block" data-slot-id="{slot_id}" \
@@ -88,7 +75,6 @@ impl MarkdownPipeline {
                         inner = highlighted,
                     ));
 
-                    // 2. ArtifactSpec – raw code, no HTML
                     artifact_specs.push(ArtifactSpec {
                         id: artifact_id,
                         language: code_lang.clone(),
@@ -104,7 +90,6 @@ impl MarkdownPipeline {
 
                 // ── Heading ─────────────────────────────────────────────────
                 Event::Start(Tag::Heading { level, .. }) => {
-                    flush_html(&mut html_buf, &mut html_buf);
                     heading_level = heading_level_to_u8(level);
                     in_heading = true;
                 }
@@ -121,7 +106,6 @@ impl MarkdownPipeline {
                         slug: slug.clone(),
                     });
 
-                    // Heading slot in HTML (no separate slot_count increment)
                     html_buf.push_str(&format!(
                         r#"<h{l} data-slot="heading" data-slug="{slug}" \
                             data-level="{l}" id="{slug}">{text}</h{l}>"#,
@@ -133,17 +117,16 @@ impl MarkdownPipeline {
                 }
                 Event::Text(t) if in_heading => heading_buf.push_str(&t),
 
-                // ── Everything else: delegate to pulldown-cmark's HTML writer ──
+                // ── Everything else ──
                 event => {
                     pulldown_cmark::html::push_html(&mut html_buf, std::iter::once(event));
                 }
             }
         }
 
-        let stable_html = html_buf;
         ParseOutput {
             html_message: HtmlMessage {
-                stable_html,
+                stable_html: html_buf,
                 draft_html: None,
                 slot_count,
             },
@@ -156,14 +139,12 @@ impl MarkdownPipeline {
         let syntax = SYNTAX_SET
             .find_syntax_by_token(lang)
             .unwrap_or_else(|| SYNTAX_SET.find_syntax_plain_text());
-        self.theme.with_theme(|theme| {
-            let mut html_gen =
-                ClassedHTMLGenerator::new_with_class_style(syntax, theme, ClassStyle::Spaced);
-            for line in syntect::util::LinesWithEndings::from(code) {
-                let _ = html_gen.parse_html_for_line_which_includes_newline(line);
-            }
-            html_gen.finalize()
-        })
+        let mut css_gen =
+            ClassedHTMLGenerator::new_with_class_style(syntax, &SYNTAX_SET, ClassStyle::Spaced);
+        for line in syntect::util::LinesWithEndings::from(code) {
+            let _ = css_gen.parse_html_for_line_which_includes_newline(line);
+        }
+        css_gen.finalize()
     }
 }
 

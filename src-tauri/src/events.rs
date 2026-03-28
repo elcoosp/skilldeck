@@ -51,6 +51,14 @@ pub enum AgentEvent {
         tool_name: String,
         arguments: serde_json::Value,
     },
+    StreamUpdate {
+        conversation_id: String,
+        stable_html: String,
+        draft_html: Option<String>,
+        slot_count: u32,
+        new_toc_items: Vec<skilldeck_core::markdown::types::TocItem>,
+        new_artifact_specs: Vec<skilldeck_core::markdown::types::ArtifactSpec>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]

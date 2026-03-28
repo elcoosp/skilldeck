@@ -1,8 +1,4 @@
 // src/components/settings/preferences-tab.tsx
-/**
- * PreferencesTab — Platform preferences panel inside SettingsOverlay.
- */
-
 import { Bell, Code, Globe, Mail, Maximize2, Palette, Shield } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -22,6 +18,8 @@ import { useProfiles, useUpdateProfile } from '@/hooks/use-profiles'
 import { useSettingsStore } from '@/store/settings'
 import { loadLocale, locales } from '@/lib/i18n'
 import type { UpdatePreferencesPayload } from '@/lib/platform'
+import { commands } from '@/lib/bindings'
+import { open } from '@tauri-apps/plugin-dialog'
 
 export function PreferencesTab() {
   const { query, update, resendVerification } = usePlatformPreferences()
@@ -35,6 +33,7 @@ export function PreferencesTab() {
   )
   const [emailDraft, setEmailDraft] = useState('')
   const [systemPromptDraft, setSystemPromptDraft] = useState('')
+  const [syntaxTheme, setSyntaxTheme] = useState('base16-mocha')
 
   const selectedProfile = profiles.find((p) => p.id === selectedProfileId)
 
@@ -87,6 +86,24 @@ export function PreferencesTab() {
       id: selectedProfile.id,
       system_prompt: systemPromptDraft
     })
+  }
+
+  const handleThemeChange = async (value: string) => {
+    let css: string
+    if (value === 'custom') {
+      const selected = await open({
+        multiple: false,
+        filters: [{ name: 'Theme Files', extensions: ['tmTheme'] }],
+      })
+      if (!selected) return
+      css = await commands.setThemeFromFile(selected as string)
+      setSyntaxTheme('custom')
+    } else {
+      css = await commands.setBuiltInTheme(value)
+      setSyntaxTheme(value)
+    }
+    const style = document.getElementById('syntax-theme')
+    if (style) style.textContent = css
   }
 
   return (
@@ -267,8 +284,8 @@ export function PreferencesTab() {
         })}
       </Section>
 
-      {/* Theme */}
-      <Section icon={<Palette size={14} />} title="Theme">
+      {/* App Theme (UI) */}
+      <Section icon={<Palette size={14} />} title="App Theme">
         <select
           className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
           value={prefs?.theme_preference ?? 'system'}
@@ -282,6 +299,24 @@ export function PreferencesTab() {
           <option value="light">Light</option>
           <option value="dark">Dark</option>
         </select>
+      </Section>
+
+      {/* Syntax Theme (code highlighting) */}
+      <Section icon={<Palette size={14} />} title="Syntax Theme">
+        <p className="text-muted-foreground mb-3">
+          Theme for code blocks in messages.
+        </p>
+        <Select value={syntaxTheme} onValueChange={handleThemeChange}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Select theme" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="base16-mocha">Base16 Mocha</SelectItem>
+            <SelectItem value="solarized-dark">Solarized Dark</SelectItem>
+            <SelectItem value="solarized-light">Solarized Light</SelectItem>
+            <SelectItem value="custom">Custom...</SelectItem>
+          </SelectContent>
+        </Select>
       </Section>
 
       {/* Code Block Max Height */}

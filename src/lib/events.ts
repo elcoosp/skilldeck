@@ -22,11 +22,12 @@ export type AgentEventType =
   | 'done'
   | 'error'
   | 'persisted'
-  | 'tool_approval_required'  // <-- new
+  | 'tool_approval_required'
+  | 'stream_update'   // <-- new
 
 export interface AgentEvent {
   type: AgentEventType
-  conversation_id: UUID
+  conversation_id: string
   delta?: string
   tool_call?: ToolCallInfo
   tool_call_id?: string
@@ -37,8 +38,13 @@ export interface AgentEvent {
   // Fields for tool_approval_required
   tool_name?: string
   arguments?: Record<string, unknown>
+  // Fields for stream_update
+  stable_html?: string
+  draft_html?: string | null
+  slot_count?: number
+  new_toc_items?: any[] // We'll define a proper type later, but for now use any
+  new_artifact_specs?: any[]
 }
-
 export interface ToolCallInfo {
   id: string
   name: string
