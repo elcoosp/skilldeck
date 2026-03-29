@@ -23,14 +23,19 @@ impl MarkdownPipeline {
     }
 
     pub fn render_final(&self, markdown: &str) -> NodeDocument {
-        self.render_blocks(markdown, 0, false)
+        self.render_blocks(markdown, 0, true)
     }
 
-    pub fn render_partial(&self, markdown: &str, next_id: u32, is_draft: bool) -> NodeDocument {
-        self.render_blocks(markdown, next_id, is_draft)
+    pub fn render_partial(
+        &self,
+        markdown: &str,
+        next_id: u32,
+        emit_artifacts: bool,
+    ) -> NodeDocument {
+        self.render_blocks(markdown, next_id, emit_artifacts)
     }
 
-    fn render_blocks(&self, markdown: &str, start_id: u32, is_draft: bool) -> NodeDocument {
+    fn render_blocks(&self, markdown: &str, start_id: u32, emit_artifacts: bool) -> NodeDocument {
         let mut id_counter = start_id;
         let mut nodes = Vec::new();
         let mut toc_items = Vec::new();
@@ -59,29 +64,6 @@ impl MarkdownPipeline {
                 });
             }
         };
-
-        if is_draft && markdown.trim().is_empty() {
-            return NodeDocument {
-                stable_nodes: vec![],
-                draft_nodes: vec![],
-                toc_items: vec![],
-                artifact_specs: vec![],
-            };
-        }
-
-        if is_draft {
-            let id = format!("draft-{}", id_counter);
-            nodes.push(MdNode::Draft {
-                id,
-                raw_markdown: markdown.to_string(),
-            });
-            return NodeDocument {
-                stable_nodes: vec![],
-                draft_nodes: nodes,
-                toc_items: vec![],
-                artifact_specs: vec![],
-            };
-        }
 
         let parser = Parser::new_ext(markdown, Options::all());
 
@@ -114,12 +96,14 @@ impl MarkdownPipeline {
                         highlighted_html: highlighted,
                         artifact_id,
                     });
-                    artifact_specs.push(ArtifactSpec {
-                        id: artifact_id,
-                        language: code_lang.clone(),
-                        raw_code: raw,
-                        slot_index: id_counter - 1,
-                    });
+                    if emit_artifacts {
+                        artifact_specs.push(ArtifactSpec {
+                            id: artifact_id,
+                            language: code_lang.clone(),
+                            raw_code: raw,
+                            slot_index: id_counter - 1,
+                        });
+                    }
                     in_code = false;
                 }
 

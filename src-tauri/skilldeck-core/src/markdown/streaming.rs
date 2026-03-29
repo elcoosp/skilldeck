@@ -83,7 +83,7 @@ impl IncrementalStream {
         if !remaining.is_empty() {
             let chunk = self
                 .pipeline
-                .render_partial(&remaining, self.next_node_id, false);
+                .render_partial(&remaining, self.next_node_id, true);
             let len = chunk.stable_nodes.len();
             self.stable_nodes.extend(chunk.stable_nodes);
             self.stable_toc_items.extend(chunk.toc_items);
@@ -129,7 +129,7 @@ impl IncrementalStream {
         let chunk_md = &self.buffer[from..to];
         let chunk = self
             .pipeline
-            .render_partial(chunk_md, self.next_node_id, false);
+            .render_partial(chunk_md, self.next_node_id, true);
         let len = chunk.stable_nodes.len();
         self.stable_nodes.extend(chunk.stable_nodes);
         self.stable_toc_items.extend(chunk.toc_items);
@@ -143,9 +143,13 @@ impl IncrementalStream {
         if draft_md.trim().is_empty() {
             Vec::new()
         } else {
+            // Parse incomplete markdown exactly like stable content —
+            // pulldown-cmark auto-closes open tags at EOF.
+            // emit_artifacts = false so draft code blocks don't generate
+            // ArtifactSpecs that would conflict with the stable version.
             self.pipeline
-                .render_partial(draft_md, self.next_node_id, true)
-                .draft_nodes
+                .render_partial(draft_md, self.next_node_id, false)
+                .stable_nodes
         }
     }
 }

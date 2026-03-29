@@ -86,15 +86,19 @@ export const MarkdownView = memo(({ document, messageId, className, conversation
           conversationId={conversationId ?? null}
         />
       ))}
-      {document.draft_nodes.map(node => (
-        <NodeRenderer
-          key={node.id}
-          node={node}
-          messageId={messageId}
-          conversationId={conversationId ?? null}
-          isDraft
-        />
-      ))}
+      {document.draft_nodes.length > 0 && (
+        <>
+          {document.draft_nodes.map(node => (
+            <NodeRenderer
+              key={node.id}
+              node={node}
+              messageId={messageId}
+              conversationId={conversationId ?? null}
+            />
+          ))}
+          <span className="inline-block w-0.5 h-4 bg-current animate-pulse align-text-bottom ml-0.5" />
+        </>
+      )}
     </div>
   )
 })
@@ -103,14 +107,13 @@ interface NodeRendererProps {
   node: MdNode
   messageId: string
   conversationId: string | null
-  isDraft?: boolean
 }
 
-function NodeRenderer({ node, messageId, conversationId, isDraft }: NodeRendererProps) {
+function NodeRenderer({ node, messageId, conversationId }: NodeRendererProps) {
   switch (node.type) {
     case 'paragraph':
       return <p dangerouslySetInnerHTML={{ __html: node.html }} />
-    case 'heading':
+    case 'heading': {
       const level = node.level as 1 | 2 | 3 | 4 | 5 | 6
       const HeadingTag = `h${level}` as keyof JSX.IntrinsicElements
       return (
@@ -126,6 +129,7 @@ function NodeRenderer({ node, messageId, conversationId, isDraft }: NodeRenderer
           />
         </div>
       )
+    }
     case 'code_block':
       return (
         <CodeBlock
@@ -134,17 +138,16 @@ function NodeRenderer({ node, messageId, conversationId, isDraft }: NodeRenderer
           highlightedHtml={node.highlighted_html}
         />
       )
-    case 'list':
+    case 'list': {
       const ListTag = node.ordered ? 'ol' : 'ul'
       return <ListTag className="pl-5" dangerouslySetInnerHTML={{ __html: node.html }} />
+    }
     case 'blockquote':
       return <blockquote className="pl-4 border-l-4 border-muted" dangerouslySetInnerHTML={{ __html: node.html }} />
     case 'horizontal_rule':
       return <hr />
     case 'html_block':
       return <div dangerouslySetInnerHTML={{ __html: node.html }} />
-    case 'draft':
-      return <div className="whitespace-pre-wrap break-words">{node.raw_markdown}</div>
     default:
       return null
   }

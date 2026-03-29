@@ -1,3 +1,4 @@
+// src-tauri/skilldeck-core/src/markdown/types.rs
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use uuid::Uuid;
@@ -55,10 +56,6 @@ pub enum MdNode {
     HtmlBlock {
         id: String,
         html: String,
-    },
-    Draft {
-        id: String,
-        raw_markdown: String,
     },
 }
 

@@ -1222,7 +1222,7 @@ export type McpEvent = { type: "server_connected"; name: string } | { type: "ser
 export type McpServerResponse = { id: string; name: string; transport: string; status: string; tools: McpToolResponse[] }
 export type McpToolInfo = { name: string; description: string }
 export type McpToolResponse = { name: string; description: string; input_schema: JsonValue }
-export type MdNode = { type: "paragraph"; id: string; html: string } | { type: "heading"; id: string; level: number; text: string; slug: string; toc_index: number } | { type: "code_block"; id: string; language: string; raw_code: string; highlighted_html: string; artifact_id: string } | { type: "list"; id: string; ordered: boolean; html: string } | { type: "blockquote"; id: string; html: string } | { type: "horizontal_rule"; id: string } | { type: "html_block"; id: string; html: string } | { type: "draft"; id: string; raw_markdown: string }
+export type MdNode = { type: "paragraph"; id: string; html: string } | { type: "heading"; id: string; level: number; text: string; slug: string; toc_index: number } | { type: "code_block"; id: string; language: string; raw_code: string; highlighted_html: string; artifact_id: string } | { type: "list"; id: string; ordered: boolean; html: string } | { type: "blockquote"; id: string; html: string } | { type: "horizontal_rule"; id: string } | { type: "html_block"; id: string; html: string }
 /**
  * Serialisable message returned to the frontend.
  */

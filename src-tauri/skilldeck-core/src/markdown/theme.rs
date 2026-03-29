@@ -1,3 +1,4 @@
+// src-tauri/skilldeck-core/src/markdown/theme.rs
 use super::error::MarkdownError;
 use parking_lot::RwLock;
 use std::sync::Arc;
