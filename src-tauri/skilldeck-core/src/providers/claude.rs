@@ -92,7 +92,7 @@ struct ClaudeEvent {
     content_block: Option<ClaudeContentBlockResponse>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default)]
 struct ClaudeDelta {
     #[serde(default)]
     text: Option<String>,
@@ -118,7 +118,6 @@ struct ClaudeMessageResponse {
     #[allow(dead_code)]
     #[serde(default)]
     stop_reason: Option<String>,
-    #[allow(dead_code)]
     #[serde(default)]
     usage: Option<ClaudeUsage>,
 }
@@ -152,6 +151,21 @@ struct ClaudeUsage {
     cache_read_input_tokens: Option<u32>,
     #[serde(default)]
     cache_creation_input_tokens: Option<u32>,
+}
+
+/// Anthropic error envelope (can appear mid-stream with certain failure modes).
+#[derive(Debug, Deserialize)]
+struct ClaudeErrorEnvelope {
+    #[serde(rename = "type")]
+    envelope_type: String,
+    error: ClaudeErrorDetail,
+}
+
+#[derive(Debug, Deserialize)]
+struct ClaudeErrorDetail {
+    #[serde(rename = "type")]
+    error_type: String,
+    message: String,
 }
 
 // ── Provider ─────────────────────────────────────────────────────────────────
@@ -349,61 +363,122 @@ impl ModelProvider for ClaudeProvider {
 
         let response = retry(backoff, operation).await?;
 
-        let stream =
-            response
-                .bytes_stream()
-                .flat_map(move |result: Result<Bytes, reqwest::Error>| {
-                    let items: Vec<Result<CompletionChunk, CoreError>> = match result {
+        // BUG FIX: Use `scan` to maintain a line buffer across TCP chunks.
+        // Claude's SSE format is the same as OpenAI's — raw TCP chunks,
+        // not logical lines.
+        let stream = response
+            .bytes_stream()
+            .scan(
+                String::new(), // line_buf
+                move |line_buf, result: Result<Bytes, reqwest::Error>| {
+                    let mut items: Vec<Result<CompletionChunk, CoreError>> = Vec::new();
+
+                    match result {
                         Ok(bytes) => {
                             let text = String::from_utf8_lossy(&bytes);
-                            let mut chunks = Vec::new();
+                            debug!(
+                                provider = "claude",
+                                chunk_len = bytes.len(),
+                                raw = %text,
+                                "received SSE chunk"
+                            );
 
-                            for line in text.lines() {
+                            line_buf.push_str(&text);
+
+                            while let Some(newline_pos) = line_buf.find('\n') {
+                                let line =
+                                    line_buf[..newline_pos].trim_end_matches('\r').to_string();
+                                line_buf.drain(..=newline_pos);
+
+                                // Skip empty lines and SSE comments
+                                if line.is_empty() || line.starts_with(':') {
+                                    continue;
+                                }
+
                                 if let Some(data) = line.strip_prefix("data: ") {
                                     if data == "[DONE]" {
                                         continue;
                                     }
-                                    if let Ok(event) = serde_json::from_str::<ClaudeEvent>(data) {
-                                        if let Some(delta) = &event.delta {
-                                            if let Some(text) = &delta.text {
-                                                if !text.is_empty() {
-                                                    chunks.push(Ok(CompletionChunk::Token {
-                                                        content: text.clone(),
+
+                                    // BUG FIX: Check for Anthropic error envelope before parsing
+                                    if let Ok(err_envelope) =
+                                        serde_json::from_str::<ClaudeErrorEnvelope>(data)
+                                    {
+                                        warn!(
+                                            provider = "claude",
+                                            error_type = %err_envelope.error.error_type,
+                                            message = %err_envelope.error.message,
+                                            "SSE error envelope received"
+                                        );
+                                        items.push(Err(CoreError::ModelRequestRejected {
+                                            provider: "claude".to_string(),
+                                            message: format!(
+                                                "[{}] {}",
+                                                err_envelope.error.error_type,
+                                                err_envelope.error.message
+                                            ),
+                                        }));
+                                        continue;
+                                    }
+
+                                    // BUG FIX: Use `match` to log parse failures
+                                    match serde_json::from_str::<ClaudeEvent>(data) {
+                                        Ok(event) => {
+                                            if let Some(delta) = &event.delta {
+                                                if let Some(text) = &delta.text {
+                                                    if !text.is_empty() {
+                                                        items.push(Ok(CompletionChunk::Token {
+                                                            content: text.clone(),
+                                                        }));
+                                                    }
+                                                }
+                                            }
+                                            if event.event_type == "message_stop" {
+                                                let usage = event
+                                                    .message
+                                                    .as_ref()
+                                                    .and_then(|m| m.usage.as_ref())
+                                                    .or(event.usage.as_ref());
+                                                if let Some(usage) = usage {
+                                                    items.push(Ok(CompletionChunk::Done {
+                                                        input_tokens: usage.input_tokens,
+                                                        output_tokens: usage.output_tokens,
+                                                        cache_read_tokens: usage
+                                                            .cache_read_input_tokens
+                                                            .unwrap_or(0),
+                                                        cache_write_tokens: usage
+                                                            .cache_creation_input_tokens
+                                                            .unwrap_or(0),
                                                     }));
                                                 }
                                             }
                                         }
-                                        if event.event_type == "message_stop" {
-                                            let usage = event
-                                                .message
-                                                .as_ref()
-                                                .and_then(|m| m.usage.as_ref())
-                                                .or(event.usage.as_ref());
-                                            if let Some(usage) = usage {
-                                                chunks.push(Ok(CompletionChunk::Done {
-                                                    input_tokens: usage.input_tokens,
-                                                    output_tokens: usage.output_tokens,
-                                                    cache_read_tokens: usage
-                                                        .cache_read_input_tokens
-                                                        .unwrap_or(0),
-                                                    cache_write_tokens: usage
-                                                        .cache_creation_input_tokens
-                                                        .unwrap_or(0),
-                                                }));
-                                            }
+                                        Err(e) => {
+                                            warn!(
+                                                provider = "claude",
+                                                error = %e,
+                                                raw_data = %&data[..data.len().min(200)],
+                                                "SSE event parse failed"
+                                            );
                                         }
                                     }
                                 }
                             }
-                            chunks
                         }
-                        Err(e) => vec![Err(CoreError::ModelConnection {
-                            provider: "claude".to_string(),
-                            message: e.to_string(),
-                        })],
-                    };
-                    futures::stream::iter(items)
-                });
+                        Err(e) => {
+                            items.push(Err(CoreError::ModelConnection {
+                                provider: "claude".to_string(),
+                                message: format!("stream read error: {}", e),
+                            }));
+                        }
+                    }
+
+                    async move { Some(futures::stream::iter(items)) }
+                },
+            )
+            .flat_map(|s| s);
+
+        // NOTE (Bug 4): Same as OpenAI — agent loop must handle stream-end-without-Done.
 
         Ok(Box::pin(stream))
     }

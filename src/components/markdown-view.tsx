@@ -1,11 +1,22 @@
 // src/components/markdown-view.tsx
-import { memo, useCallback } from 'react'
+import { memo, useCallback, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Bookmark } from 'lucide-react'
+import { toast } from 'sonner'
+import { openUrl } from '@tauri-apps/plugin-opener'
 import { NodeDocument, MdNode } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
 import { useBookmarksStore } from '@/store/bookmarks'
 import { CodeBlock } from '@/components/conversation/code-block'
+
+// Inject inline-code hover/cursor styles once (module-level side-effect)
+if (typeof document !== 'undefined' && !document.getElementById('md-inline-code-styles')) {
+  const s = document.createElement('style')
+  s.id = 'md-inline-code-styles'
+  s.textContent =
+    'code[data-inline-code]{cursor:pointer}code[data-inline-code]:hover{background-color:hsl(var(--primary)/.15)}'
+  document.head.appendChild(s)
+}
 
 // ─── Internal HeadingBookmarkButton ─────────────────────────────────────────
 const HeadingBookmarkButton = memo(function HeadingBookmarkButton({
@@ -69,31 +80,67 @@ interface MarkdownViewProps {
   messageId: string
   className?: string
   conversationId?: string | null
+  isStreaming?: boolean
 }
 
-export const MarkdownView = memo(({ document, messageId, className, conversationId }: MarkdownViewProps) => {
+export const MarkdownView = memo(({ document, messageId, className, conversationId, isStreaming = false }: MarkdownViewProps) => {
+  const handleClick = useCallback(
+    async (e: React.MouseEvent<HTMLDivElement>) => {
+      // External links
+      const link = (e.target as HTMLElement).closest('a[data-external-link]')
+      if (link) {
+        e.preventDefault()
+        const href = (link as HTMLAnchorElement).href
+        if (href) openUrl(href)
+        return
+      }
+
+      // Inline code copy
+      const code = (e.target as HTMLElement).closest('code[data-inline-code]')
+      if (code) {
+        const text = code.textContent ?? ''
+        if (text) {
+          await navigator.clipboard.writeText(text)
+          toast.success('Code copied to clipboard')
+        }
+        return
+      }
+    },
+    []
+  )
+
   if (!document) {
     return null
   }
 
   return (
-    <div className={cn('prose prose-sm dark:prose-invert max-w-none break-words', className)}>
+    <div
+      className={cn('prose prose-sm dark:prose-invert max-w-none break-words', className)}
+      onClick={handleClick}
+    >
       {document.stable_nodes.map(node => (
         <NodeRenderer
           key={node.id}
           node={node}
           messageId={messageId}
           conversationId={conversationId ?? null}
+          isStreaming={isStreaming}
         />
       ))}
-      {document.draft_nodes.map(node => (
-        <NodeRenderer
-          key={node.id}
-          node={node}
-          messageId={messageId}
-          conversationId={conversationId ?? null}
-        />
-      ))}
+      {document.draft_nodes.length > 0 && (
+        <>
+          {document.draft_nodes.map(node => (
+            <NodeRenderer
+              key={node.id}
+              node={node}
+              messageId={messageId}
+              conversationId={conversationId ?? null}
+              isStreaming={isStreaming}
+            />
+          ))}
+          <span className="inline-block w-0.5 h-4 bg-current animate-pulse align-text-bottom ml-0.5" />
+        </>
+      )}
     </div>
   )
 })
@@ -102,9 +149,10 @@ interface NodeRendererProps {
   node: MdNode
   messageId: string
   conversationId: string | null
+  isStreaming?: boolean
 }
 
-function NodeRenderer({ node, messageId, conversationId }: NodeRendererProps) {
+function NodeRenderer({ node, messageId, conversationId, isStreaming }: NodeRendererProps) {
   switch (node.type) {
     case 'paragraph':
       return <p dangerouslySetInnerHTML={{ __html: node.html }} />
@@ -131,6 +179,7 @@ function NodeRenderer({ node, messageId, conversationId }: NodeRendererProps) {
           language={node.language}
           artifactId={node.artifact_id}
           highlightedHtml={node.highlighted_html}
+          isStreaming={isStreaming}
         />
       )
     case 'list': {

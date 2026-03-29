@@ -56,12 +56,12 @@ impl MarkdownPipeline {
 
         let flush_html = |buf: &mut String, id_counter: &mut u32, nodes: &mut Vec<MdNode>| {
             if !buf.is_empty() {
+                let raw = std::mem::take(buf);
+                let html = rewrite_links(&raw);
+                let html = rewrite_inline_code(&html);
                 let id = format!("html-{}", *id_counter);
                 *id_counter += 1;
-                nodes.push(MdNode::HtmlBlock {
-                    id,
-                    html: std::mem::take(buf),
-                });
+                nodes.push(MdNode::HtmlBlock { id, html });
             }
         };
 
@@ -146,6 +146,8 @@ impl MarkdownPipeline {
                 }
                 Event::End(TagEnd::List(_)) => {
                     if let Some((ordered, list_html)) = list_stack.pop() {
+                        let list_html = rewrite_links(&list_html);
+                        let list_html = rewrite_inline_code(&list_html);
                         let tag = if ordered { "ol" } else { "ul" };
                         let full_html = format!("<{}>{}</{}>", tag, list_html, tag);
                         let id = format!("list-{}", id_counter);
@@ -228,6 +230,18 @@ impl MarkdownPipeline {
         }
         css_gen.finalize()
     }
+}
+
+/// Tag `<a href=` links with a data attribute so the frontend can intercept
+/// clicks and open them in the system browser instead of the Tauri webview.
+fn rewrite_links(html: &str) -> String {
+    html.replace("<a href=", "<a data-external-link=\"true\" href=")
+}
+
+/// Tag inline `<code>` spans (not inside fenced blocks) so the frontend can
+/// add click-to-copy behaviour via a delegated handler.
+fn rewrite_inline_code(html: &str) -> String {
+    html.replace("<code>", "<code data-inline-code=\"true\">")
 }
 
 fn heading_level_to_u8(level: HeadingLevel) -> u8 {
