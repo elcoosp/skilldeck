@@ -32,9 +32,6 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ language, artifactId, high
     }
   };
 
-  // Floating header logic from the original CodeBlock can be integrated here.
-  // For brevity, we omit the full floating header implementation, but it should be added.
-
   return (
     <div className="my-3 rounded-lg border border-border text-xs font-mono">
       <div className="flex items-center justify-between px-3 py-1.5 border-b border-border bg-muted rounded-t-lg">
@@ -49,6 +46,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ language, artifactId, high
       <div className={cn('overflow-hidden transition-all', collapsed ? 'max-h-0' : 'max-h-96')}>
         <div
           className="overflow-auto thin-scrollbar p-3"
+          style={{ whiteSpace: 'pre' }}
           dangerouslySetInnerHTML={{ __html: highlightedHtml }}
         />
       </div>

@@ -96,6 +96,12 @@ impl MarkdownPipeline {
                 }
                 Event::Text(t) if in_code => code_buf.push_str(&t),
                 Event::End(TagEnd::CodeBlock) => {
+                    // Skip empty code blocks
+                    if code_buf.trim().is_empty() {
+                        in_code = false;
+                        code_lang.clear();
+                        continue;
+                    }
                     let id = format!("cb-{}", id_counter);
                     id_counter += 1;
                     let highlighted = self.highlight(&code_buf, &code_lang);
@@ -119,7 +125,6 @@ impl MarkdownPipeline {
 
                 // ─── Headings ────────────────────────────────────────────────
                 Event::Start(Tag::Heading { level, .. }) => {
-                    // Flush any pending HTML before heading
                     flush_html(&mut html_buf, &mut id_counter, &mut nodes);
                     in_heading = true;
                     heading_level = heading_level_to_u8(level);
@@ -237,7 +242,8 @@ impl MarkdownPipeline {
         for line in syntect::util::LinesWithEndings::from(code) {
             let _ = css_gen.parse_html_for_line_which_includes_newline(line);
         }
-        css_gen.finalize()
+        // Wrap in <pre> to preserve whitespace and newlines
+        format!("<pre>{}</pre>", css_gen.finalize())
     }
 }
 

@@ -46,7 +46,6 @@ impl IncrementalStream {
 
         let draft_nodes = self.compute_draft_nodes();
 
-        // Stable nodes only grow – compare length to detect change
         let stable_changed = self.stable_nodes.len() != prev_stable_len;
         let draft_changed = draft_nodes != prev_draft;
 
@@ -57,7 +56,7 @@ impl IncrementalStream {
         self.last_draft_nodes = draft_nodes.clone();
 
         Some(NodeDocument {
-            stable_nodes: self.stable_nodes.clone(), // still needed for the event payload
+            stable_nodes: self.stable_nodes.clone(),
             draft_nodes,
             toc_items: self.stable_toc_items.clone(),
             artifact_specs: self.stable_artifact_specs.clone(),
@@ -101,21 +100,42 @@ impl IncrementalStream {
 
     fn advance_stable_boundary(&mut self) {
         let search_start = self.stable_end.saturating_sub(1);
-        if let Some(pos) = self.buffer[search_start..].find("\n\n") {
-            let new_end = search_start + pos + 2;
-            if new_end > self.stable_end {
-                let chunk_md = &self.buffer[self.stable_end..new_end];
-                let chunk = self
-                    .pipeline
-                    .render_partial(chunk_md, self.next_node_id, false);
-                let len = chunk.stable_nodes.len();
-                self.stable_nodes.extend(chunk.stable_nodes);
-                self.stable_toc_items.extend(chunk.toc_items);
-                self.stable_artifact_specs.extend(chunk.artifact_specs);
-                self.next_node_id += len as u32;
-                self.stable_end = new_end;
+        let haystack = &self.buffer[search_start..];
+
+        let mut search_offset = 0;
+        while let Some(pos) = haystack[search_offset..].find("\n\n") {
+            let candidate = search_start + search_offset + pos + 2;
+            if candidate <= self.stable_end {
+                search_offset += pos + 1;
+                continue;
             }
+            // Check if this position is inside an open code fence
+            let slice = &self.buffer[self.stable_end..candidate];
+            let fence_count = slice
+                .lines()
+                .filter(|l| l.trim_start().starts_with("```"))
+                .count();
+            if fence_count % 2 == 0 {
+                // Even number of fences = not inside a block, safe to commit
+                self.commit_stable(self.stable_end, candidate);
+                return;
+            }
+            // Odd = inside a fence, keep searching
+            search_offset += pos + 1;
         }
+    }
+
+    fn commit_stable(&mut self, from: usize, to: usize) {
+        let chunk_md = &self.buffer[from..to];
+        let chunk = self
+            .pipeline
+            .render_partial(chunk_md, self.next_node_id, false);
+        let len = chunk.stable_nodes.len();
+        self.stable_nodes.extend(chunk.stable_nodes);
+        self.stable_toc_items.extend(chunk.toc_items);
+        self.stable_artifact_specs.extend(chunk.artifact_specs);
+        self.next_node_id += len as u32;
+        self.stable_end = to;
     }
 
     fn compute_draft_nodes(&self) -> Vec<MdNode> {

@@ -480,6 +480,7 @@ function MessageBubbleInner({
       <MarkdownView
         document={documentToRender}
         messageId={message.id}
+
         className="prose prose-sm dark:prose-invert max-w-none break-words"
         conversationId={activeConversationId}
       />

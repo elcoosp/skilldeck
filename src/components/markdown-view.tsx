@@ -5,6 +5,7 @@ import { Bookmark } from 'lucide-react'
 import { NodeDocument, MdNode } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
 import { useBookmarksStore } from '@/store/bookmarks'
+import { CodeBlock } from '@/components/conversation/code-block'
 
 // ─── Internal HeadingBookmarkButton ─────────────────────────────────────────
 const HeadingBookmarkButton = memo(function HeadingBookmarkButton({
@@ -126,23 +127,16 @@ function NodeRenderer({ node, messageId, conversationId, isDraft }: NodeRenderer
         </div>
       )
     case 'code_block':
-      if (isDraft) {
-        return (
-          <pre className="p-2 bg-muted rounded-md overflow-x-auto font-mono text-sm">
-            <code>{node.raw_code}</code>
-          </pre>
-        )
-      }
       return (
-        <div
-          className="relative group/code font-mono text-sm"
-          dangerouslySetInnerHTML={{ __html: node.highlighted_html }}
+        <CodeBlock
+          language={node.language}
+          artifactId={node.artifact_id}
+          highlightedHtml={node.highlighted_html}
         />
       )
     case 'list':
       const ListTag = node.ordered ? 'ol' : 'ul'
-      // Add left padding to keep bullet points inside container
-      return <ListTag dangerouslySetInnerHTML={{ __html: node.html }} />
+      return <ListTag className="pl-5" dangerouslySetInnerHTML={{ __html: node.html }} />
     case 'blockquote':
       return <blockquote className="pl-4 border-l-4 border-muted" dangerouslySetInnerHTML={{ __html: node.html }} />
     case 'horizontal_rule':
