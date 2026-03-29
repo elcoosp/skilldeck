@@ -1,22 +1,76 @@
 // src/components/markdown-view.tsx
-import { memo } from 'react'
+import { memo, useCallback } from 'react'
+import { motion } from 'framer-motion'
+import { Bookmark } from 'lucide-react'
 import { NodeDocument, MdNode } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
+import { useBookmarksStore } from '@/store/bookmarks'
+
+// ─── Internal HeadingBookmarkButton ─────────────────────────────────────────
+const HeadingBookmarkButton = memo(function HeadingBookmarkButton({
+  messageId,
+  headingAnchor,
+  headingLabel,
+  conversationId,
+}: {
+  messageId: string
+  headingAnchor: string
+  headingLabel: string
+  conversationId: string | null
+}) {
+  const isBookmarked = useBookmarksStore(
+    useCallback(
+      (s) => {
+        if (!conversationId) return false
+        const convBookmarks = s.bookmarks[conversationId]
+        if (!convBookmarks || !Array.isArray(convBookmarks)) return false
+        return convBookmarks.some(
+          (b) => b.message_id === messageId && b.heading_anchor === headingAnchor
+        )
+      },
+      [conversationId, messageId, headingAnchor]
+    )
+  )
+
+  const toggle = useCallback(() => {
+    if (!conversationId) return
+    useBookmarksStore.getState().toggleBookmark(conversationId, messageId, headingAnchor, headingLabel)
+  }, [conversationId, messageId, headingAnchor, headingLabel])
+
+  return (
+    <motion.button
+      type="button"
+      onClick={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        toggle()
+      }}
+      className={cn(
+        'ml-1 inline-flex items-center justify-center p-0.5 rounded hover:bg-muted-foreground/10 transition-opacity',
+        isBookmarked ? 'opacity-100' : 'opacity-0 group-hover/heading:opacity-100'
+      )}
+      aria-label={isBookmarked ? 'Remove heading bookmark' : 'Bookmark this heading'}
+      whileTap={{ scale: 0.9 }}
+      transition={{ duration: 0.1 }}
+    >
+      <Bookmark
+        className={cn(
+          'size-3 transition-colors duration-150',
+          isBookmarked ? 'text-amber-400 fill-amber-400' : 'text-muted-foreground'
+        )}
+      />
+    </motion.button>
+  )
+})
 
 interface MarkdownViewProps {
-  document: NodeDocument | null  // <-- allow null
+  document: NodeDocument | null
   messageId: string
   className?: string
-  headingBookmarkButton: React.ComponentType<{
-    messageId: string
-    headingAnchor: string
-    headingLabel: string
-    conversationId: string | null
-  }>
+  conversationId?: string | null
 }
 
-export const MarkdownView = memo(({ document, messageId, className, headingBookmarkButton: HeadingBookmarkButton }: MarkdownViewProps) => {
-  // Guard against null document (e.g., during streaming before first update)
+export const MarkdownView = memo(({ document, messageId, className, conversationId }: MarkdownViewProps) => {
   if (!document) {
     return null
   }
@@ -28,7 +82,7 @@ export const MarkdownView = memo(({ document, messageId, className, headingBookm
           key={node.id}
           node={node}
           messageId={messageId}
-          HeadingBookmarkButton={HeadingBookmarkButton}
+          conversationId={conversationId ?? null}
         />
       ))}
       {document.draft_nodes.map(node => (
@@ -36,7 +90,7 @@ export const MarkdownView = memo(({ document, messageId, className, headingBookm
           key={node.id}
           node={node}
           messageId={messageId}
-          HeadingBookmarkButton={HeadingBookmarkButton}
+          conversationId={conversationId ?? null}
           isDraft
         />
       ))}
@@ -47,11 +101,11 @@ export const MarkdownView = memo(({ document, messageId, className, headingBookm
 interface NodeRendererProps {
   node: MdNode
   messageId: string
-  HeadingBookmarkButton: React.ComponentType<any>
+  conversationId: string | null
   isDraft?: boolean
 }
 
-function NodeRenderer({ node, messageId, HeadingBookmarkButton, isDraft }: NodeRendererProps) {
+function NodeRenderer({ node, messageId, conversationId, isDraft }: NodeRendererProps) {
   switch (node.type) {
     case 'paragraph':
       return <p dangerouslySetInnerHTML={{ __html: node.html }} />
@@ -59,39 +113,44 @@ function NodeRenderer({ node, messageId, HeadingBookmarkButton, isDraft }: NodeR
       const level = node.level as 1 | 2 | 3 | 4 | 5 | 6
       const HeadingTag = `h${level}` as keyof JSX.IntrinsicElements
       return (
-        <div className="group/heading relative">
-          <HeadingTag id={node.slug} className="scroll-mt-12">
+        <div className="group/heading relative inline-block w-full">
+          <HeadingTag id={node.slug} className="scroll-mt-12 inline">
             {node.text}
           </HeadingTag>
           <HeadingBookmarkButton
             messageId={messageId}
             headingAnchor={node.slug}
             headingLabel={node.text}
-            conversationId={null} // will be passed from context if needed
+            conversationId={conversationId}
           />
         </div>
       )
     case 'code_block':
       if (isDraft) {
-        return <pre className="p-2 bg-muted rounded-md overflow-x-auto"><code>{node.raw_code}</code></pre>
+        return (
+          <pre className="p-2 bg-muted rounded-md overflow-x-auto font-mono text-sm">
+            <code>{node.raw_code}</code>
+          </pre>
+        )
       }
       return (
         <div
-          className="relative group/code"
+          className="relative group/code font-mono text-sm"
           dangerouslySetInnerHTML={{ __html: node.highlighted_html }}
         />
       )
     case 'list':
       const ListTag = node.ordered ? 'ol' : 'ul'
+      // Add left padding to keep bullet points inside container
       return <ListTag dangerouslySetInnerHTML={{ __html: node.html }} />
     case 'blockquote':
-      return <blockquote dangerouslySetInnerHTML={{ __html: node.html }} />
+      return <blockquote className="pl-4 border-l-4 border-muted" dangerouslySetInnerHTML={{ __html: node.html }} />
     case 'horizontal_rule':
       return <hr />
     case 'html_block':
       return <div dangerouslySetInnerHTML={{ __html: node.html }} />
     case 'draft':
-      return <pre className="whitespace-pre-wrap font-mono text-sm">{node.raw_markdown}</pre>
+      return <div className="whitespace-pre-wrap break-words">{node.raw_markdown}</div>
     default:
       return null
   }

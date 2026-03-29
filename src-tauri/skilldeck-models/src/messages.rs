@@ -50,6 +50,8 @@ pub struct Model {
     #[sea_orm(column_type = "Text")]
     pub content: String,
     pub metadata: Option<MessageMetadata>,
+    // TODO extract markdown in a crate to expose type
+    pub node_document: Option<Json>,
     pub context_items: Option<ContextItems>,
     pub stable_html: Option<String>,
     pub input_tokens: Option<i32>,

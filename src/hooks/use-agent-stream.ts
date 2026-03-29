@@ -15,6 +15,19 @@ import { useToolApprovalStore } from '@/store/tool-approvals'
 import { useUIEphemeralStore } from '@/store/ui-ephemeral'
 import { useUIPersistentStore } from '@/store/ui-state'
 
+// TEMPORARY: subscribe to store changes for debugging
+useUIEphemeralStore.subscribe(
+  state => state.streamingMessages,
+  (messages) => {
+    const keys = Object.keys(messages);
+    for (const k of keys) {
+      const doc = messages[k];
+      console.log('[store] streamingMessages[', k, '] stable:', doc?.stable_nodes?.length ?? 'null',
+        'draft:', doc?.draft_nodes?.length ?? 'null');
+    }
+  }
+);
+
 export function useAgentStream(conversationId: string | null) {
   const queryClient = useQueryClient()
   const appendStreamingText = useUIEphemeralStore((s) => s.appendStreamingText)
@@ -139,11 +152,10 @@ export function useAgentStream(conversationId: string | null) {
         case 'started':
           setStreamingError(conversationId, false) // clear any previous error
           setAgentRunning(conversationId, true)
-          // Clear any old streaming message when a new agent starts
+          // REMOVED duplicate invalidateQueries
           setStreamingMessage(conversationId, null)
           break
 
-        // `token` events are no longer sent from Rust; kept for backward compatibility
         case 'token':
           if (event.delta) {
             pendingBuffer.current += event.delta
@@ -152,25 +164,20 @@ export function useAgentStream(conversationId: string | null) {
           break
 
         case 'stream_update': {
-          console.debug(
-            '[stream_update] received — document:',
-            event.document ? 'present' : 'null',
-            'new_toc_items:',
-            event.new_toc_items?.length ?? 0,
-            'new_artifact_specs:',
-            event.new_artifact_specs?.length ?? 0,
-            'timestamp:',
-            Date.now()
+          const doc: NodeDocument = event.document;
+          console.log('[stream_update] doc.stable_nodes:', doc.stable_nodes.length,
+            'draft_nodes:', doc.draft_nodes.length,
+            'first stable type:', doc.stable_nodes[0]?.type ?? 'none',
+            'first draft type:', doc.draft_nodes[0]?.type ?? 'none',
+            'first draft raw_markdown length:',
+            doc.draft_nodes[0]?.type === 'draft' ? (doc.draft_nodes[0] as any).raw_markdown?.length : 'n/a'
           );
-          if (event.document !== undefined) {
-            const doc: NodeDocument = event.document;
-            // Throttle using requestAnimationFrame
-            if (rafRef.current) cancelAnimationFrame(rafRef.current);
-            rafRef.current = requestAnimationFrame(() => {
-              setStreamingMessage(conversationId, doc);
-              rafRef.current = null;
-            });
-          }
+          // Throttle using requestAnimationFrame
+          if (rafRef.current) cancelAnimationFrame(rafRef.current);
+          rafRef.current = requestAnimationFrame(() => {
+            setStreamingMessage(conversationId, doc);
+            rafRef.current = null;
+          });
           break;
         }
 
@@ -182,7 +189,7 @@ export function useAgentStream(conversationId: string | null) {
           break
 
         case 'cancelled':
-          flushNow() // flush any pending buffer before clearing
+          flushNow()
           setAgentRunning(conversationId, false)
           clearStreamingText(conversationId)
           setStreamingMessage(conversationId, null)
@@ -194,25 +201,22 @@ export function useAgentStream(conversationId: string | null) {
           break
 
         case 'done':
-          flushNow() // flush any remaining buffer
+          flushNow()
           setAgentRunning(conversationId, false)
           clearStreamingText(conversationId)
-          // Do NOT clear streamingMessage here; it will be cleared on 'persisted'
           clearAllApprovals()
           queryClient.invalidateQueries({
             queryKey: ['queued-messages', conversationId]
           })
-
-          // ── Progressive unlock: after first message, unlock skills ──
           if (unlockStage === 0) {
             setUnlockStage(1)
           }
           break
 
         case 'error':
-          flushNow() // discard buffer on error
+          flushNow()
           setAgentRunning(conversationId, false)
-          setStreamingError(conversationId, true) // record error
+          setStreamingError(conversationId, true)
           clearStreamingText(conversationId)
           setStreamingMessage(conversationId, null)
           clearAllApprovals()
@@ -238,9 +242,7 @@ export function useAgentStream(conversationId: string | null) {
             queryKey: ['conversations'],
             exact: false
           })
-          // Clear streaming message only after the query will resolve with node_document
           setStreamingMessage(conversationId, null)
-          // Auto-name: rename if conversation has no title
           autoNameConversation()
           break
       }
@@ -266,7 +268,6 @@ export function useAgentStream(conversationId: string | null) {
     })
 
     return () => {
-      // Clean up timers and buffers
       if (flushTimer.current) {
         clearTimeout(flushTimer.current)
         flushTimer.current = null
@@ -300,6 +301,14 @@ export function useAgentStream(conversationId: string | null) {
   const isRunning = useUIEphemeralStore(
     (s) => s.agentRunning[conversationId ?? ''] ?? false
   )
+
+  // Log what is returned to the caller
+  console.log('[useAgentStream] conversationId:', conversationId,
+    'streamingMessage:', streamingMessage ?
+    `stable:${streamingMessage.stable_nodes.length} draft:${streamingMessage.draft_nodes.length}` :
+    'null',
+    'isRunning:', isRunning
+  );
 
   return { streamingText, streamingMessage, isRunning }
 }

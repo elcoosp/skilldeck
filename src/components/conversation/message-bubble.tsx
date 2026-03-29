@@ -1,7 +1,7 @@
 // src/components/conversation/message-bubble.tsx
 /**
  * MessageBubble — displays a single message using typed node tree (MarkdownView)
- * or plain text fallback.
+ * or plain text fallback for user/system messages.
  */
 
 import { AnimatePresence, motion } from 'framer-motion'
@@ -24,7 +24,7 @@ import {
 import React, { memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { ContextChip } from '@/components/chat/context-chip'
-import type { MessageData, NodeDocument } from '@/lib/bindings'
+import type { MessageData, NodeDocument, MdNode } from '@/lib/bindings'
 import { cn, highlightText } from '@/lib/utils'
 import { SubagentCard } from './subagent-card'
 import { ToolResultBubble } from './tool-result-bubble'
@@ -43,7 +43,7 @@ import { save } from '@tauri-apps/plugin-dialog'
 import { writeTextFile } from '@tauri-apps/plugin-fs'
 import { CreateBranchModal } from './create-branch-modal'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { MarkdownView } from '@/components/markdown-view' // new component
+import { MarkdownView } from '@/components/markdown-view'
 
 interface MessageBubbleProps {
   message: MessageData
@@ -54,7 +54,7 @@ interface MessageBubbleProps {
   searchRegex?: boolean
   onRetry?: () => void
   isBranchParent?: boolean
-  streamingMessage?: NodeDocument | null // changed from HtmlMessage
+  streamingMessage?: NodeDocument | null
 }
 
 // ─── Custom loading animation ──────────────────────────────────────────────────
@@ -157,65 +157,7 @@ function extractTextFromChildren(children: React.ReactNode): string {
   return ''
 }
 
-// ─── Heading bookmark button (used by MarkdownView) ───────────────────────────────────────
-// We keep it here for now; it could be moved to its own file later.
-const HeadingBookmarkButton = memo(function HeadingBookmarkButton({
-  messageId,
-  headingAnchor,
-  headingLabel,
-  conversationId,
-}: {
-  messageId: string
-  headingAnchor: string
-  headingLabel: string
-  conversationId: string | null
-}) {
-  const isBookmarked = useBookmarksStore(
-    useCallback(
-      (s) => {
-        if (!conversationId) return false
-        const convBookmarks = s.bookmarks[conversationId]
-        if (!convBookmarks || !Array.isArray(convBookmarks)) return false
-        return convBookmarks.some(
-          (b) => b.message_id === messageId && b.heading_anchor === headingAnchor
-        )
-      },
-      [conversationId, messageId, headingAnchor]
-    )
-  )
-
-  const toggle = useCallback(() => {
-    if (!conversationId) return
-    useBookmarksStore.getState().toggleBookmark(conversationId, messageId, headingAnchor, headingLabel)
-  }, [conversationId, messageId, headingAnchor, headingLabel])
-
-  return (
-    <motion.button
-      type="button"
-      onClick={(e) => {
-        e.preventDefault()
-        e.stopPropagation()
-        toggle()
-      }}
-      className={cn(
-        'ml-1.5 p-0.5 rounded hover:bg-muted-foreground/10 align-middle inline-flex items-center transition-opacity',
-        isBookmarked ? 'opacity-100' : 'opacity-0 group-hover/heading:opacity-100'
-      )}
-      aria-label={isBookmarked ? 'Remove heading bookmark' : 'Bookmark this heading'}
-      whileTap={{ scale: 0.9 }}
-      transition={{ duration: 0.1 }}
-    >
-      <Bookmark
-        className={cn(
-          'size-3 transition-colors duration-150',
-          isBookmarked ? 'text-amber-400 fill-amber-400' : 'text-muted-foreground'
-        )}
-      />
-    </motion.button>
-  )
-})
-
-// ─── CollapsibleContent (unchanged) ───────────────────────────────────────────────────────
+// ─── CollapsibleContent ───────────────────────────────────────────────────────
 export interface CollapsibleHandle {
   collapse: () => void
   expand: () => void
@@ -287,7 +229,29 @@ const CollapsibleContent = React.forwardRef<
   )
 })
 
-// ─── MessageBubble ────────────────────────────────────────────────────────────
+// Helper to convert plain text to a minimal NodeDocument (safe fallback for assistant)
+function textToNodeDocument(content: string): NodeDocument {
+  // Escape HTML to avoid injection
+  const escaped = content.replace(/[&<>]/g, (m) => {
+    if (m === '&') return '&amp;'
+    if (m === '<') return '&lt;'
+    if (m === '>') return '&gt;'
+    return m
+  })
+  const paragraphNode: MdNode = {
+    type: 'paragraph',
+    id: `fallback-p-${Date.now()}`,
+    html: `<p>${escaped}</p>`,
+  }
+  return {
+    stable_nodes: [paragraphNode],
+    draft_nodes: [],
+    toc_items: [],
+    artifact_specs: [],
+  }
+}
+
+// ─── MessageBubbleInner ────────────────────────────────────────────────────────
 function MessageBubbleInner({
   message,
   isStreaming = false,
@@ -411,8 +375,6 @@ function MessageBubbleInner({
     return clearMarks
   }, [searchQuery, searchCaseSensitive, searchRegex, message.content, isUser])
 
-  const showShimmer = (isAssistant || syntheticStreaming) && isStreaming && !message.content
-
   const isQueued = useMemo(() => {
     if (!message.metadata) return false
     try {
@@ -424,7 +386,7 @@ function MessageBubbleInner({
   }, [message.metadata])
 
   const contextItems = message.context_items || []
-  const shouldHighlight = searchQuery && !showShimmer && message.content
+  const shouldHighlight = searchQuery && message.content
 
   const copyMessage = useCallback(async () => {
     await navigator.clipboard.writeText(message.content)
@@ -503,215 +465,159 @@ function MessageBubbleInner({
     )
   }
 
-  // ─── NEW: Use MarkdownView if we have a node_document or streamingMessage ───
-  const nodeDocument = (message as any).node_document as NodeDocument | undefined
-  const hasNodeDoc = isAssistant && nodeDocument !== undefined
+  // ─── ASSISTANT MESSAGES (vertical layout: avatar+header on same row, content below) ───
+  if (isAssistant || syntheticStreaming) {
+    const nodeDocument = (message as any).node_document as NodeDocument | null | undefined
+    const documentToRender = (nodeDocument != null ? nodeDocument : null)
+      ?? streamingMessage
+      ?? (message.content ? textToNodeDocument(message.content) : null)
 
-  if (hasNodeDoc) {
+    const showShimmer = (isAssistant || syntheticStreaming) && isStreaming && !documentToRender
+
+    const contentElement = showShimmer ? (
+      <StreamingLoading />
+    ) : documentToRender ? (
+      <MarkdownView
+        document={documentToRender}
+        messageId={message.id}
+        className="prose prose-sm dark:prose-invert max-w-none break-words"
+        conversationId={activeConversationId}
+      />
+    ) : null
+
+    if (!contentElement && !showShimmer && !documentToRender) return null
+
     return (
       <motion.div
         id={`msg-${message.id}`}
-        className="flex gap-3 max-w-full"
+        className="flex flex-col max-w-full"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.15, ease: 'easeOut' }}
       >
-        {/* Avatar */}
-        <div
-          className={cn(
-            'flex-shrink-0 size-7 rounded-full flex items-center justify-center',
-            isUser
-              ? 'bg-primary text-primary-foreground mt-0.5'
-              : isSystem
-                ? 'bg-destructive/20 text-destructive mt-0.5'
-                : isTool
-                  ? 'bg-muted text-muted-foreground mt-0.5'
-                  : 'bg-muted text-foreground mt-1.5'
-          )}
-          aria-hidden
-        >
-          {isUser ? (
-            <User className="size-3.5" />
-          ) : isSystem ? (
-            <AlertCircle className="size-3.5" />
-          ) : isTool ? (
-            <Wrench className="size-3.5" />
-          ) : (
+        {/* Row 1: Avatar + header (Assistant label, buttons) */}
+        <div className="flex items-start gap-2">
+          <div
+            className={cn(
+              'flex-shrink-0 size-7 rounded-full flex items-center justify-center',
+              'bg-muted text-foreground'
+            )}
+            aria-hidden
+          >
             <Bot className="size-3.5" />
-          )}
-        </div>
+          </div>
 
-        {/* Message container */}
-        <div
-          className={cn(
-            'flex flex-col min-w-0',
-            isUser ? 'items-end' : 'items-start',
-            isAssistant ? 'w-full max-w-full' : 'max-w-[78%]'
-          )}
-        >
-          <div className={cn(isUser && 'text-right', 'w-full')}>
-            <div
-              ref={contentRef}
-              data-message-id={message.id}
-              className={cn(
-                'relative px-3.5 py-2.5 rounded-xl text-sm leading-relaxed transition-colors duration-300',
-                isUser
-                  ? 'bg-primary text-primary-foreground rounded-tr-sm inline-block'
-                  : 'bg-transparent w-full inline-block',
-                isQueued && 'border-l-2 border-amber-400 pl-3'
-              )}
-            >
-              {/* Highlight ring */}
-              <motion.div
-                className={cn(
-                  'absolute inset-0 ring-2 ring-primary/50 pointer-events-none rounded-inherit',
-                  isUser ? 'rounded-xl rounded-tr-sm' : 'rounded-xl'
-                )}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: isHighlighted ? 1 : 0 }}
-                transition={{ duration: 0.5, ease: 'easeOut' }}
-                style={{ willChange: 'opacity' }}
-              />
-
-              {isQueued && (
-                <span className="text-xs bg-primary-foreground/10 text-primary-foreground rounded-full px-2 py-0.5 mb-1 flex items-center gap-1 self-start">
-                  <Clock className="size-3" /> Queued
-                </span>
-              )}
-
-              {contextItems.length > 0 && (
-                <div className="flex flex-wrap gap-1 mb-2">
-                  {contextItems.map((item: any, idx: number) => (
-                    <ContextChip key={item.path || item.name || `item-${idx}`} item={item} readonly />
-                  ))}
-                </div>
-              )}
-
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1 text-muted-foreground">
+              <span className="text-xs font-medium">Assistant</span>
               {canCollapse && (
-                <div className="flex items-center gap-1 mb-1 text-muted-foreground">
-                  <span className="text-xs font-medium">
-                    {isAssistant ? 'Assistant' : isSystem ? 'System' : 'Tool'}
-                  </span>
-                  <motion.button
-                    type="button"
-                    onClick={toggleCollapsed}
-                    className="p-0.5 hover:bg-muted-foreground/20 rounded transition-colors"
-                    aria-label={isCollapsed ? 'Expand message' : 'Collapse message'}
-                    whileTap={{ scale: 0.9 }}
-                  >
-                    <motion.div animate={{ rotate: isCollapsed ? 0 : 90 }} transition={{ duration: 0.2 }}>
-                      {isCollapsed ? <ChevronRight className="size-3.5" /> : <ChevronDown className="size-3.5" />}
-                    </motion.div>
-                  </motion.button>
-
-                  {isAssistant && !isStreaming && !syntheticStreaming && (
-                    <AssistantMessageActions
-                      message={message}
-                      conversationId={activeConversationId}
-                      onCopy={copyMessage}
-                      onDownload={downloadMessage}
-                      onBranch={handleBranch}
-                    />
-                  )}
-
-                  {/* Branch parent indicator */}
-                  {isAssistant && !isStreaming && !syntheticStreaming && isBranchParent && (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="inline-flex items-center gap-1 ml-1 text-muted-foreground">
-                            <GitBranch className="size-3" />
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent side="top">
-                          <p>Branch starts here</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  )}
-                </div>
+                <motion.button
+                  type="button"
+                  onClick={toggleCollapsed}
+                  className="p-0.5 hover:bg-muted-foreground/20 rounded transition-colors"
+                  aria-label={isCollapsed ? 'Expand message' : 'Collapse message'}
+                  whileTap={{ scale: 0.9 }}
+                >
+                  <motion.div animate={{ rotate: isCollapsed ? 0 : 90 }} transition={{ duration: 0.2 }}>
+                    {isCollapsed ? <ChevronRight className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+                  </motion.div>
+                </motion.button>
               )}
-
-              <CollapsibleContent ref={collapsibleRef} initialCollapsed={false} messageId={message.id}>
-                <MarkdownView
-                  document={nodeDocument}
-                  messageId={message.id}
-                  className="prose prose-sm dark:prose-invert max-w-none break-words"
-                  headingBookmarkButton={HeadingBookmarkButton}
+              {isAssistant && !isStreaming && !syntheticStreaming && (
+                <AssistantMessageActions
+                  message={message}
+                  conversationId={activeConversationId}
+                  onCopy={copyMessage}
+                  onDownload={downloadMessage}
+                  onBranch={handleBranch}
                 />
-              </CollapsibleContent>
-
-              {/* User message actions */}
-              {isUser && !isStreaming && !syntheticStreaming && (
-                <div className="absolute -left-8 top-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <DropdownMenu modal={false}>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        type="button"
-                        className="p-0.5 hover:bg-muted-foreground/20 rounded transition-colors"
-                        aria-label="Message options"
-                      >
-                        <MoreHorizontal className="size-3.5" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-32">
-                      <DropdownMenuItem
-                        onClick={copyMessage}
-                        className="cursor-pointer hover:bg-primary/10 hover:text-foreground focus:bg-primary/10 focus:text-foreground"
-                      >
-                        <Copy className="mr-2 h-4 w-4" />
-                        <span>Copy</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={handleBranch}
-                        className="cursor-pointer hover:bg-primary/10 hover:text-foreground focus:bg-primary/10 focus:text-foreground"
-                      >
-                        <GitBranch className="mr-2 h-4 w-4" />
-                        <span>Branch from here</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
+              )}
+              {isAssistant && !isStreaming && !syntheticStreaming && isBranchParent && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="inline-flex items-center gap-1 text-muted-foreground">
+                        <GitBranch className="size-3" />
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">
+                      <p>Branch starts here</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               )}
             </div>
           </div>
+        </div>
 
-          <AnimatePresence>
-            {!isStreaming && !syntheticStreaming && message.content && !collapsedStateRef.current && (
-              <motion.button
-                key="copy-button"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-                onClick={copyMessage}
-                className="mt-1 p-1 text-muted-foreground hover:text-foreground transition-colors bg-transparent border-0 shadow-none"
-                aria-label="Copy message"
-              >
-                {copied ? <Check className="size-3.5 text-green-500" /> : <Copy className="size-3.5" />}
-              </motion.button>
+        {/* Row 2: Message content – aligned with avatar's left edge */}
+        <div className="mt-1">
+          <div
+            ref={contentRef}
+            data-message-id={message.id}
+            className={cn(
+              'relative py-2.5 pr-3.5 text-sm leading-relaxed transition-colors duration-300',
+              'bg-transparent w-full inline-block',
+              isQueued && 'border-l-2 border-amber-400 pl-3'
             )}
-          </AnimatePresence>
+          >
+            {/* Highlight ring */}
+            <motion.div
+              className="absolute inset-0 ring-2 ring-primary/50 pointer-events-none rounded-xl"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: isHighlighted ? 1 : 0 }}
+              transition={{ duration: 0.5, ease: 'easeOut' }}
+              style={{ willChange: 'opacity' }}
+            />
 
-          {isUser && onRetry && (
-            <div className="text-xs text-muted-foreground mt-1 flex justify-end">
+            {isQueued && (
+              <span className="text-xs bg-primary-foreground/10 text-primary-foreground rounded-full px-2 py-0.5 mb-1 flex items-center gap-1 self-start">
+                <Clock className="size-3" /> Queued
+              </span>
+            )}
+
+            {contextItems.length > 0 && (
+              <div className="flex flex-wrap gap-1 mb-2">
+                {contextItems.map((item: any, idx: number) => (
+                  <ContextChip key={item.path || item.name || `item-${idx}`} item={item} readonly />
+                ))}
+              </div>
+            )}
+
+            <CollapsibleContent ref={collapsibleRef} initialCollapsed={false} messageId={message.id}>
+              {contentElement}
+            </CollapsibleContent>
+          </div>
+        </div>
+
+        {/* Copy button – aligned with content */}
+        <AnimatePresence>
+          {!isStreaming && !syntheticStreaming && message.content && !collapsedStateRef.current && (
+            <motion.button
+              key="copy-button"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              onClick={copyMessage}
+              className="mt-1 p-1 text-muted-foreground hover:text-foreground transition-colors bg-transparent border-0 shadow-none self-start"
+              aria-label="Copy message"
+            >
+              {copied ? <Check className="size-3.5 text-green-500" /> : <Copy className="size-3.5" />}
+            </motion.button>
+          )}
+        </AnimatePresence>
+
+        {isAssistant && message.status === 'cancelled' && (
+          <div className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
+            <span className="italic">Cancelled</span>
+            {onRetry && (
               <button type="button" onClick={onRetry} className="text-xs text-primary hover:underline">
                 Retry
               </button>
-            </div>
-          )}
-
-          {isAssistant && message.status === 'cancelled' && (
-            <div className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
-              <span className="italic">Cancelled</span>
-              {onRetry && (
-                <button type="button" onClick={onRetry} className="text-xs text-primary hover:underline">
-                  Retry
-                </button>
-              )}
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
 
         <CreateBranchModal
           open={branchModalOpen}
@@ -723,226 +629,7 @@ function MessageBubbleInner({
     )
   }
 
-  // ─── Streaming case with streamingMessage ───────────────────────────────────
-  if ((isAssistant || syntheticStreaming) && streamingMessage) {
-    return (
-      <motion.div
-        id={`msg-${message.id}`}
-        className="flex gap-3 max-w-full"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.15, ease: 'easeOut' }}
-      >
-        {/* Avatar (same as above) */}
-        <div
-          className={cn(
-            'flex-shrink-0 size-7 rounded-full flex items-center justify-center',
-            isUser
-              ? 'bg-primary text-primary-foreground mt-0.5'
-              : isSystem
-                ? 'bg-destructive/20 text-destructive mt-0.5'
-                : isTool
-                  ? 'bg-muted text-muted-foreground mt-0.5'
-                  : 'bg-muted text-foreground mt-1.5'
-          )}
-          aria-hidden
-        >
-          {isUser ? (
-            <User className="size-3.5" />
-          ) : isSystem ? (
-            <AlertCircle className="size-3.5" />
-          ) : isTool ? (
-            <Wrench className="size-3.5" />
-          ) : (
-            <Bot className="size-3.5" />
-          )}
-        </div>
-
-        {/* Message container */}
-        <div
-          className={cn(
-            'flex flex-col min-w-0',
-            isUser ? 'items-end' : 'items-start',
-            isAssistant ? 'w-full max-w-full' : 'max-w-[78%]'
-          )}
-        >
-          <div className={cn(isUser && 'text-right', 'w-full')}>
-            <div
-              ref={contentRef}
-              data-message-id={message.id}
-              className={cn(
-                'relative px-3.5 py-2.5 rounded-xl text-sm leading-relaxed transition-colors duration-300',
-                isUser
-                  ? 'bg-primary text-primary-foreground rounded-tr-sm inline-block'
-                  : 'bg-transparent w-full inline-block',
-                isQueued && 'border-l-2 border-amber-400 pl-3'
-              )}
-            >
-              {/* Highlight ring (same as above) */}
-              <motion.div
-                className={cn(
-                  'absolute inset-0 ring-2 ring-primary/50 pointer-events-none rounded-inherit',
-                  isUser ? 'rounded-xl rounded-tr-sm' : 'rounded-xl'
-                )}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: isHighlighted ? 1 : 0 }}
-                transition={{ duration: 0.5, ease: 'easeOut' }}
-                style={{ willChange: 'opacity' }}
-              />
-
-              {isQueued && (
-                <span className="text-xs bg-primary-foreground/10 text-primary-foreground rounded-full px-2 py-0.5 mb-1 flex items-center gap-1 self-start">
-                  <Clock className="size-3" /> Queued
-                </span>
-              )}
-
-              {contextItems.length > 0 && (
-                <div className="flex flex-wrap gap-1 mb-2">
-                  {contextItems.map((item: any, idx: number) => (
-                    <ContextChip key={item.path || item.name || `item-${idx}`} item={item} readonly />
-                  ))}
-                </div>
-              )}
-
-              {canCollapse && (
-                <div className="flex items-center gap-1 mb-1 text-muted-foreground">
-                  <span className="text-xs font-medium">
-                    {isAssistant ? 'Assistant' : isSystem ? 'System' : 'Tool'}
-                  </span>
-                  <motion.button
-                    type="button"
-                    onClick={toggleCollapsed}
-                    className="p-0.5 hover:bg-muted-foreground/20 rounded transition-colors"
-                    aria-label={isCollapsed ? 'Expand message' : 'Collapse message'}
-                    whileTap={{ scale: 0.9 }}
-                  >
-                    <motion.div animate={{ rotate: isCollapsed ? 0 : 90 }} transition={{ duration: 0.2 }}>
-                      {isCollapsed ? <ChevronRight className="size-3.5" /> : <ChevronDown className="size-3.5" />}
-                    </motion.div>
-                  </motion.button>
-
-                  {isAssistant && !isStreaming && !syntheticStreaming && (
-                    <AssistantMessageActions
-                      message={message}
-                      conversationId={activeConversationId}
-                      onCopy={copyMessage}
-                      onDownload={downloadMessage}
-                      onBranch={handleBranch}
-                    />
-                  )}
-
-                  {/* Branch parent indicator */}
-                  {isAssistant && !isStreaming && !syntheticStreaming && isBranchParent && (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="inline-flex items-center gap-1 ml-1 text-muted-foreground">
-                            <GitBranch className="size-3" />
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent side="top">
-                          <p>Branch starts here</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  )}
-                </div>
-              )}
-
-              <CollapsibleContent ref={collapsibleRef} initialCollapsed={false} messageId={message.id}>
-                <MarkdownView
-                  document={streamingMessage}
-                  messageId={message.id}
-                  className="prose prose-sm dark:prose-invert max-w-none break-words"
-                  headingBookmarkButton={HeadingBookmarkButton}
-                />
-              </CollapsibleContent>
-
-              {/* User message actions (same as above) */}
-              {isUser && !isStreaming && !syntheticStreaming && (
-                <div className="absolute -left-8 top-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <DropdownMenu modal={false}>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        type="button"
-                        className="p-0.5 hover:bg-muted-foreground/20 rounded transition-colors"
-                        aria-label="Message options"
-                      >
-                        <MoreHorizontal className="size-3.5" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-32">
-                      <DropdownMenuItem
-                        onClick={copyMessage}
-                        className="cursor-pointer hover:bg-primary/10 hover:text-foreground focus:bg-primary/10 focus:text-foreground"
-                      >
-                        <Copy className="mr-2 h-4 w-4" />
-                        <span>Copy</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={handleBranch}
-                        className="cursor-pointer hover:bg-primary/10 hover:text-foreground focus:bg-primary/10 focus:text-foreground"
-                      >
-                        <GitBranch className="mr-2 h-4 w-4" />
-                        <span>Branch from here</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <AnimatePresence>
-            {!isStreaming && !syntheticStreaming && message.content && !collapsedStateRef.current && (
-              <motion.button
-                key="copy-button"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-                onClick={copyMessage}
-                className="mt-1 p-1 text-muted-foreground hover:text-foreground transition-colors bg-transparent border-0 shadow-none"
-                aria-label="Copy message"
-              >
-                {copied ? <Check className="size-3.5 text-green-500" /> : <Copy className="size-3.5" />}
-              </motion.button>
-            )}
-          </AnimatePresence>
-
-          {isUser && onRetry && (
-            <div className="text-xs text-muted-foreground mt-1 flex justify-end">
-              <button type="button" onClick={onRetry} className="text-xs text-primary hover:underline">
-                Retry
-              </button>
-            </div>
-          )}
-
-          {isAssistant && message.status === 'cancelled' && (
-            <div className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
-              <span className="italic">Cancelled</span>
-              {onRetry && (
-                <button type="button" onClick={onRetry} className="text-xs text-primary hover:underline">
-                  Retry
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
-        <CreateBranchModal
-          open={branchModalOpen}
-          onClose={() => setBranchModalOpen(false)}
-          conversationId={activeConversationId!}
-          parentMessageId={message.id}
-        />
-      </motion.div>
-    )
-  }
-
-  // ─── Fallback: plain text for messages without node document (old messages) ──
-  const showPlainText = !(isAssistant && (nodeDocument !== undefined || streamingMessage))
-
+  // ─── USER / SYSTEM MESSAGES (plain text fallback) ──────────────────────────
   return (
     <motion.div
       id={`msg-${message.id}`}
@@ -959,9 +646,7 @@ function MessageBubbleInner({
             ? 'bg-primary text-primary-foreground mt-0.5'
             : isSystem
               ? 'bg-destructive/20 text-destructive mt-0.5'
-              : isTool
-                ? 'bg-muted text-muted-foreground mt-0.5'
-                : 'bg-muted text-foreground mt-1.5'
+              : 'bg-muted text-foreground mt-1.5'
         )}
         aria-hidden
       >
@@ -969,8 +654,6 @@ function MessageBubbleInner({
           <User className="size-3.5" />
         ) : isSystem ? (
           <AlertCircle className="size-3.5" />
-        ) : isTool ? (
-          <Wrench className="size-3.5" />
         ) : (
           <Bot className="size-3.5" />
         )}
@@ -981,7 +664,7 @@ function MessageBubbleInner({
         className={cn(
           'flex flex-col min-w-0',
           isUser ? 'items-end' : 'items-start',
-          isAssistant ? 'w-full max-w-full' : 'max-w-[78%]'
+          'max-w-[78%]'
         )}
       >
         <div className={cn(isUser && 'text-right', 'w-full')}>
@@ -992,13 +675,7 @@ function MessageBubbleInner({
               'relative px-3.5 py-2.5 rounded-xl text-sm leading-relaxed transition-colors duration-300',
               isUser
                 ? 'bg-primary text-primary-foreground rounded-tr-sm inline-block'
-                : isTool
-                  ? 'bg-muted/70 font-mono text-xs w-full rounded-tl-sm inline-block'
-                  : showShimmer
-                    ? 'bg-transparent inline-block'
-                    : isAssistant
-                      ? 'bg-transparent w-full inline-block'
-                      : 'bg-muted/50 inline-block',
+                : 'bg-muted/50 inline-block',
               isQueued && 'border-l-2 border-amber-400 pl-3'
             )}
           >
@@ -1006,7 +683,7 @@ function MessageBubbleInner({
             <motion.div
               className={cn(
                 'absolute inset-0 ring-2 ring-primary/50 pointer-events-none rounded-inherit',
-                isUser ? 'rounded-xl rounded-tr-sm' : isTool ? 'rounded-xl rounded-tl-sm' : 'rounded-xl'
+                isUser ? 'rounded-xl rounded-tr-sm' : 'rounded-xl'
               )}
               initial={{ opacity: 0 }}
               animate={{ opacity: isHighlighted ? 1 : 0 }}
@@ -1031,7 +708,7 @@ function MessageBubbleInner({
             {canCollapse && (
               <div className="flex items-center gap-1 mb-1 text-muted-foreground">
                 <span className="text-xs font-medium">
-                  {isAssistant ? 'Assistant' : isSystem ? 'System' : 'Tool'}
+                  {isUser ? 'User' : 'System'}
                 </span>
                 <motion.button
                   type="button"
@@ -1044,40 +721,11 @@ function MessageBubbleInner({
                     {isCollapsed ? <ChevronRight className="size-3.5" /> : <ChevronDown className="size-3.5" />}
                   </motion.div>
                 </motion.button>
-
-                {isAssistant && !isStreaming && !syntheticStreaming && (
-                  <AssistantMessageActions
-                    message={message}
-                    conversationId={activeConversationId}
-                    onCopy={copyMessage}
-                    onDownload={downloadMessage}
-                    onBranch={handleBranch}
-                  />
-                )}
-
-                {/* Branch parent indicator */}
-                {isAssistant && !isStreaming && !syntheticStreaming && isBranchParent && (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="inline-flex items-center gap-1 ml-1 text-muted-foreground">
-                          <GitBranch className="size-3" />
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent side="top">
-                        <p>Branch starts here</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )}
               </div>
             )}
 
             <CollapsibleContent ref={collapsibleRef} initialCollapsed={false} messageId={message.id}>
-              {showPlainText ? (
-                // Plain text fallback (no markdown)
-                <span className="whitespace-pre-wrap break-words">{message.content}</span>
-              ) : shouldHighlight ? (
+              {shouldHighlight ? (
                 <span
                   className="whitespace-pre-wrap break-words"
                   dangerouslySetInnerHTML={{
@@ -1151,17 +799,6 @@ function MessageBubbleInner({
             </button>
           </div>
         )}
-
-        {isAssistant && message.status === 'cancelled' && (
-          <div className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
-            <span className="italic">Cancelled</span>
-            {onRetry && (
-              <button type="button" onClick={onRetry} className="text-xs text-primary hover:underline">
-                Retry
-              </button>
-            )}
-          </div>
-        )}
       </div>
 
       <CreateBranchModal
@@ -1177,7 +814,7 @@ function MessageBubbleInner({
 export const MessageBubble = memo(
   MessageBubbleInner,
   (prev, next) => {
-    // Always re-render if these change
+    // Re-render only when necessary
     if (prev.isStreaming !== next.isStreaming) return false
     if (prev.isHighlighted !== next.isHighlighted) return false
     if (prev.searchQuery !== next.searchQuery) return false
@@ -1189,11 +826,16 @@ export const MessageBubble = memo(
     if (prev.message.context_items !== next.message.context_items) return false
     if (prev.isBranchParent !== next.isBranchParent) return false
 
-    // During streaming, the outer shell of MessageBubble is stable.
-    // MarkdownView receives streamingMessage directly and handles its own updates.
-    if (next.isStreaming) return true   // skip re-rendering the shell
+    // Synthetic streaming bubble must re-render when document changes
+    const syntheticStreaming = next.message.id === '__streaming__'
+    if (syntheticStreaming) {
+      return prev.streamingMessage === next.streamingMessage
+    }
 
-    // For settled messages, re-render only if content changed
+    // Settled messages: skip re-render during active streaming (they don't change)
+    if (next.isStreaming || prev.isStreaming) return true
+
+    // Otherwise, re-render only if content changed
     return prev.message.content === next.message.content
       && prev.streamingMessage === next.streamingMessage
   }

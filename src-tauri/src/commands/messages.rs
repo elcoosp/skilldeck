@@ -25,7 +25,7 @@ use skilldeck_models::conversations::{self, Entity as Conversations};
 use skilldeck_models::messages::{self, Entity as Messages, MessageMetadata};
 
 use skilldeck_core::markdown::streaming::IncrementalStream;
-use skilldeck_core::markdown::types::NodeDocument; // <-- changed
+use skilldeck_core::markdown::types::NodeDocument;
 
 /// Serialisable message returned to the frontend.
 #[derive(Debug, Clone, Serialize, Type)]
@@ -40,8 +40,8 @@ pub struct MessageData {
     pub input_tokens: Option<i32>,
     pub output_tokens: Option<i32>,
     pub seen: bool,
-    pub stable_html: Option<String>, // <-- kept for compatibility
-    pub node_document: Option<NodeDocument>, // <-- new field
+    pub stable_html: Option<String>,
+    pub node_document: Option<NodeDocument>,
 }
 
 /// Request for searching messages within a conversation.
@@ -117,7 +117,6 @@ pub async fn list_messages(
     let mut query = Messages::find().filter(messages::Column::ConversationId.eq(conv_uuid));
 
     if let Some(branch_uuid) = branch_uuid {
-        // Get the branch record to find its parent message
         use skilldeck_models::conversation_branches::Entity as Branches;
         let branch = Branches::find_by_id(branch_uuid)
             .one(db)
@@ -126,14 +125,12 @@ pub async fn list_messages(
             .ok_or_else(|| format!("Branch {} not found", branch_uuid))?;
         let parent_msg_id = branch.parent_message_id;
 
-        // Get the parent message to get its created_at timestamp
         let parent_msg = Messages::find_by_id(parent_msg_id)
             .one(db)
             .await
             .map_err(|e| e.to_string())?
             .ok_or_else(|| format!("Parent message {} not found", parent_msg_id))?;
 
-        // Query: messages from the branch OR main trunk messages up to the parent message
         use sea_orm::Condition;
         query = query.filter(
             Condition::any()
@@ -158,6 +155,10 @@ pub async fn list_messages(
         .into_iter()
         .map(|m| {
             let context_items = m.context_items.map(|c| c.0);
+            // Deserialize from JSON string
+            let node_document = m
+                .node_document
+                .map(|x| serde_json::from_value::<NodeDocument>(x).unwrap());
             MessageData {
                 id: m.id.to_string(),
                 conversation_id: m.conversation_id.to_string(),
@@ -170,7 +171,7 @@ pub async fn list_messages(
                 output_tokens: m.output_tokens,
                 seen: m.seen,
                 stable_html: m.stable_html.clone(),
-                node_document: None, // TODO: load from a new column
+                node_document,
             }
         })
         .collect())
@@ -519,6 +520,7 @@ pub(crate) async fn send_message_internal(
 
     Ok(())
 }
+
 // =============================================================================
 // Agent loop runner
 // =============================================================================
@@ -734,8 +736,6 @@ fn run_agent_loop(
         let history = history_rows
             .into_iter()
             .filter(|m| {
-                // Include user message we just inserted (id != current_msg_id)
-                // and ensure branch matches
                 if m.id == current_msg_id {
                     return false;
                 }
@@ -942,10 +942,9 @@ fn run_agent_loop(
                     if let Some(doc) = streamer.push(&delta) {
                         let new_toc = streamer.drain_new_toc_items();
                         let new_artifacts = streamer.drain_new_artifact_specs();
-                        // Send into the channel – non-blocking, since it's std::sync::mpsc
                         let _ = emit_tx.send(AgentEvent::StreamUpdate {
                             conversation_id: conversation_id.clone(),
-                            document: doc, // <-- send the NodeDocument
+                            document: doc,
                             new_toc_items: new_toc,
                             new_artifact_specs: new_artifacts,
                         });
@@ -972,11 +971,9 @@ fn run_agent_loop(
                     output_tokens,
                     ..
                 }) => {
-                    // Finalize the streamer to get the complete parsed output
                     let doc = streamer.finalize();
                     final_document = Some(doc.clone());
 
-                    // Final StreamUpdate and Done – order preserved by the channel
                     let _ = emit_tx.send(AgentEvent::StreamUpdate {
                         conversation_id: conversation_id.clone(),
                         document: doc.clone(),
@@ -1000,13 +997,8 @@ fn run_agent_loop(
             }
         }
 
-        // Drop the sender so the emit thread exits when its receiver is empty
         drop(emit_tx);
-        // No await on the thread – it runs in the background
-
         let loop_result = loop_handle.await;
-
-        // Remove cancellation token
         state.agent_cancel_tokens.remove(&conversation_id);
 
         match loop_result {
@@ -1058,11 +1050,10 @@ fn run_agent_loop(
                         active.cache_write_tokens = Set(Some(result.cache_write_tokens as i32));
                     }
 
-                    // Set metadata for tool messages
                     if role_str == "tool" {
                         let meta = MessageMetadata {
                             tool_name: msg.name.clone(),
-                            tool_call_id: None, // will be filled in a future iteration
+                            tool_call_id: None,
                             ..Default::default()
                         };
                         active.metadata = Set(Some(meta));
@@ -1078,28 +1069,28 @@ fn run_agent_loop(
                         );
                     }
 
-                    // NEW: Single-pass pipeline for assistant messages
                     if role_str == "assistant" {
-                        // Use the captured final_document if available, otherwise re-parse
                         let doc = if let Some(fp) = &final_document {
                             fp.clone()
                         } else {
                             state.markdown.render_final(&msg.content)
                         };
 
-                        // 1. Store the node_document as JSON in a new column (not yet added)
-                        // For now, store an empty string in stable_html to avoid schema errors.
+                        // Store as JSON string
+                        let node_document_json = serde_json::to_string(&doc).ok();
+
                         messages::Entity::update_many()
                             .col_expr(messages::Column::StableHtml, Expr::value(""))
+                            .col_expr(
+                                messages::Column::NodeDocument,
+                                Expr::value(node_document_json),
+                            )
                             .filter(messages::Column::Id.eq(msg_id))
                             .exec(db)
                             .await
-                            .map_err(|e| tracing::warn!("Failed to store stable HTML: {}", e))
+                            .map_err(|e| tracing::warn!("Failed to store node document: {}", e))
                             .ok();
 
-                        // TODO: Store doc as JSON in a new node_document column
-
-                        // 2. Insert headings
                         use skilldeck_models::message_headings::{
                             ActiveModel as HeadingsActiveModel, HeadingsJson, TocItem as DbTocItem,
                         };
@@ -1123,7 +1114,6 @@ fn run_agent_loop(
                             tracing::warn!("Failed to store headings for {}: {}", msg_id, e);
                         }
 
-                        // 3. Insert artifacts
                         for spec in &doc.artifact_specs {
                             let (storage_path, db_content) =
                                 match store_artifact_content(&spec.raw_code).await {
@@ -1138,7 +1128,7 @@ fn run_agent_loop(
                                 };
                             let logical_key = format!("code_{}_{}", spec.language, msg_id);
                             let artifact = artifacts::ActiveModel {
-                                id: Set(spec.id), // ← pre‑assigned UUID
+                                id: Set(spec.id),
                                 message_id: Set(msg_id),
                                 branch_id: Set(branch_uuid),
                                 parent_artifact_id: Set(None),

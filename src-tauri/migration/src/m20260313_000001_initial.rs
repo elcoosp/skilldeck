@@ -278,6 +278,7 @@ impl MigrationTrait for Migration {
                     .col(json(Messages::Metadata).null())
                     .col(integer(Messages::InputTokens).null())
                     .col(json(Messages::ContextItems))
+                    .col(json(Messages::NodeDocument).null())
                     .col(integer(Messages::OutputTokens).null())
                     .col(integer(Messages::CacheReadTokens).null())
                     .col(integer(Messages::CacheWriteTokens).null())
@@ -1672,6 +1673,7 @@ enum Messages {
     StableHtml,
     ContextItems,
     ConversationId,
+    NodeDocument,
     ParentId,
     BranchId,
     Seen,
