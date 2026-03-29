@@ -4,6 +4,8 @@
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
+use crate::markdown::types::{ArtifactSpec, NodeDocument, TocItem};
+
 // ── Agent events ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -39,6 +41,12 @@ pub enum AgentEvent {
     },
     Persisted {
         conversation_id: String,
+    },
+    StreamUpdate {
+        conversation_id: String,
+        document: NodeDocument,
+        new_toc_items: Vec<TocItem>,
+        new_artifact_specs: Vec<ArtifactSpec>,
     },
 }
 

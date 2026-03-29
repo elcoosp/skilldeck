@@ -2,18 +2,12 @@
 /**
  * useAgentStream — subscribe to Tauri agent-event channel for a given
  * conversation and drive streaming text + running state in the UI store.
- *
- * Implements the rAF-gated rendering loop required by ASR-PERF-001:
- *   Rust ring-buffer → 50 ms debounce → Tauri emit → this hook → rAF → render
- *
- * Also handles auto-naming conversations from the first user message
- * when the 'persisted' event fires, and progressive unlock.
  */
 
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
 import { toast } from 'sonner'
-import type { MessageData } from '@/lib/bindings'
+import type { MessageData, NodeDocument } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
 import type { AgentEvent as LocalAgentEvent } from '@/lib/events'
 import { onAgentEvent } from '@/lib/events'
@@ -21,10 +15,24 @@ import { useToolApprovalStore } from '@/store/tool-approvals'
 import { useUIEphemeralStore } from '@/store/ui-ephemeral'
 import { useUIPersistentStore } from '@/store/ui-state'
 
+// TEMPORARY: subscribe to store changes for debugging
+useUIEphemeralStore.subscribe(
+  state => state.streamingMessages,
+  (messages) => {
+    const keys = Object.keys(messages);
+    for (const k of keys) {
+      const doc = messages[k];
+      console.log('[store] streamingMessages[', k, '] stable:', doc?.stable_nodes?.length ?? 'null',
+        'draft:', doc?.draft_nodes?.length ?? 'null');
+    }
+  }
+);
+
 export function useAgentStream(conversationId: string | null) {
   const queryClient = useQueryClient()
   const appendStreamingText = useUIEphemeralStore((s) => s.appendStreamingText)
   const clearStreamingText = useUIEphemeralStore((s) => s.clearStreamingText)
+  const setStreamingMessage = useUIEphemeralStore((s) => s.setStreamingMessage)
   const setAgentRunning = useUIEphemeralStore((s) => s.setAgentRunning)
   const setStreamingError = useUIEphemeralStore((s) => s.setStreamingError)
   const unlockStage = useUIPersistentStore((s) => s.unlockStage)
@@ -37,7 +45,9 @@ export function useAgentStream(conversationId: string | null) {
   // Buffer for accumulating tokens between flushes
   const pendingBuffer = useRef('')
   const flushTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const isFlushing = useRef(false)
+
+  // Throttle for streaming message updates
+  const rafRef = useRef<number | null>(null)
 
   // Track listener readiness to avoid race conditions
   const listenerReady = useRef(false)
@@ -46,7 +56,6 @@ export function useAgentStream(conversationId: string | null) {
   const autoNameAttempted = useRef<Set<string>>(new Set())
 
   // Schedule a flush of the pending buffer after a short debounce.
-  // This reduces the number of state updates and GC pressure.
   const scheduleFlush = () => {
     if (flushTimer.current) clearTimeout(flushTimer.current)
     flushTimer.current = setTimeout(() => {
@@ -143,10 +152,8 @@ export function useAgentStream(conversationId: string | null) {
         case 'started':
           setStreamingError(conversationId, false) // clear any previous error
           setAgentRunning(conversationId, true)
-          queryClient.invalidateQueries({
-            queryKey: ['messages', conversationId],
-            exact: false
-          })
+          // REMOVED duplicate invalidateQueries
+          setStreamingMessage(conversationId, null)
           break
 
         case 'token':
@@ -156,6 +163,24 @@ export function useAgentStream(conversationId: string | null) {
           }
           break
 
+        case 'stream_update': {
+          const doc: NodeDocument = event.document;
+          console.log('[stream_update] doc.stable_nodes:', doc.stable_nodes.length,
+            'draft_nodes:', doc.draft_nodes.length,
+            'first stable type:', doc.stable_nodes[0]?.type ?? 'none',
+            'first draft type:', doc.draft_nodes[0]?.type ?? 'none',
+            'first draft raw_markdown length:',
+            doc.draft_nodes[0]?.type === 'draft' ? (doc.draft_nodes[0] as any).raw_markdown?.length : 'n/a'
+          );
+          // Throttle using requestAnimationFrame
+          if (rafRef.current) cancelAnimationFrame(rafRef.current);
+          rafRef.current = requestAnimationFrame(() => {
+            setStreamingMessage(conversationId, doc);
+            rafRef.current = null;
+          });
+          break;
+        }
+
         case 'tool_approval_required':
           addPending(event.tool_call_id, {
             name: event.tool_name,
@@ -164,9 +189,10 @@ export function useAgentStream(conversationId: string | null) {
           break
 
         case 'cancelled':
-          flushNow() // flush any pending buffer before clearing
+          flushNow()
           setAgentRunning(conversationId, false)
           clearStreamingText(conversationId)
+          setStreamingMessage(conversationId, null)
           clearAllApprovals()
           queryClient.invalidateQueries({
             queryKey: ['messages', conversationId],
@@ -175,25 +201,24 @@ export function useAgentStream(conversationId: string | null) {
           break
 
         case 'done':
-          flushNow() // flush any remaining buffer
+          flushNow()
           setAgentRunning(conversationId, false)
           clearStreamingText(conversationId)
           clearAllApprovals()
           queryClient.invalidateQueries({
             queryKey: ['queued-messages', conversationId]
           })
-
-          // ── Progressive unlock: after first message, unlock skills ──
           if (unlockStage === 0) {
             setUnlockStage(1)
           }
           break
 
         case 'error':
-          flushNow() // discard buffer on error
+          flushNow()
           setAgentRunning(conversationId, false)
-          setStreamingError(conversationId, true) // record error
+          setStreamingError(conversationId, true)
           clearStreamingText(conversationId)
+          setStreamingMessage(conversationId, null)
           clearAllApprovals()
           toast.error(
             event.message || 'An error occurred while processing your message'
@@ -217,7 +242,7 @@ export function useAgentStream(conversationId: string | null) {
             queryKey: ['conversations'],
             exact: false
           })
-          // Auto-name: rename if conversation has no title
+          setStreamingMessage(conversationId, null)
           autoNameConversation()
           break
       }
@@ -243,7 +268,6 @@ export function useAgentStream(conversationId: string | null) {
     })
 
     return () => {
-      // Clean up timers and buffers
       if (flushTimer.current) {
         clearTimeout(flushTimer.current)
         flushTimer.current = null
@@ -251,12 +275,14 @@ export function useAgentStream(conversationId: string | null) {
       pendingBuffer.current = ''
       listenerReady.current = false
       eventBuffer.current = []
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
       unlisten?.()
     }
   }, [
     conversationId,
     appendStreamingText,
     clearStreamingText,
+    setStreamingMessage,
     setAgentRunning,
     setStreamingError,
     queryClient,
@@ -269,9 +295,20 @@ export function useAgentStream(conversationId: string | null) {
   const streamingText = useUIEphemeralStore(
     (s) => s.streamingText[conversationId ?? ''] ?? ''
   )
+  const streamingMessage = useUIEphemeralStore(
+    (s) => s.streamingMessages[conversationId ?? ''] ?? null
+  )
   const isRunning = useUIEphemeralStore(
     (s) => s.agentRunning[conversationId ?? ''] ?? false
   )
 
-  return { streamingText, isRunning }
+  // Log what is returned to the caller
+  console.log('[useAgentStream] conversationId:', conversationId,
+    'streamingMessage:', streamingMessage ?
+    `stable:${streamingMessage.stable_nodes.length} draft:${streamingMessage.draft_nodes.length}` :
+    'null',
+    'isRunning:', isRunning
+  );
+
+  return { streamingText, streamingMessage, isRunning }
 }

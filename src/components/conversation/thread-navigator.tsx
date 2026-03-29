@@ -1,6 +1,5 @@
 import { memo, useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import slugify from "slugify"
 import { createPortal } from 'react-dom'
 import { Bookmark, ChevronRight } from 'lucide-react'
 import type { MessageData } from '@/lib/bindings'
@@ -631,7 +630,8 @@ const ThreadNavigator = memo(function ThreadNavigator({
                             >
                               <div className="ml-3 mt-0.5 mb-1.5 border-l-2 border-primary/20 pl-2 space-y-px">
                                 {headings.map(h => {
-                                  const hBookmarked = isHeadingBookmarked(assistantMsgId, slugify(h.text))
+                                  // Use h.slug instead of slugify(h.text)
+                                  const hBookmarked = isHeadingBookmarked(assistantMsgId, h.slug)
                                   const isH1 = h.level === 1
                                   const isH2 = h.level === 2
                                   const isActiveHeading = isActive && h.toc_index === activeHeadingIndex

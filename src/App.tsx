@@ -16,13 +16,13 @@ import { useMcpEvents } from '@/hooks/use-mcp-events'
 import { useSkillEvents } from '@/hooks/use-skill-events'
 import { useSubagentEvents } from '@/hooks/use-subagent-events'
 import { useSettingsStore } from '@/store/settings'
-import type { SettingsTab } from '@/store/ui-overlays'  // changed
-import { useUIOverlaysStore } from '@/store/ui-overlays' // changed
-import { useUIPersistentStore } from '@/store/ui-state'   // changed
-import { useUILayoutStore } from '@/store/ui-layout'      // changed
+import type { SettingsTab } from '@/store/ui-overlays'
+import { useUIOverlaysStore } from '@/store/ui-overlays'
+import { useUIPersistentStore } from '@/store/ui-state'
+import { useUILayoutStore } from '@/store/ui-layout'
 import { loadLocale, locales } from '@/lib/i18n'
 import { useAttachFilesListener } from './hooks/use-attach-files-listener'
-import { preloadHighlighter } from './lib/highlighter'
+import { commands } from '@/lib/bindings'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -68,9 +68,9 @@ function GlobalEventListeners() {
 }
 
 function AppContent() {
-  const onboardingComplete = useUIPersistentStore((s) => s.onboardingComplete)      // changed
-  const globalSearchOpen = useUIOverlaysStore((s) => s.globalSearchOpen)            // changed
-  const setGlobalSearchOpen = useUIOverlaysStore((s) => s.setGlobalSearchOpen)      // changed
+  const onboardingComplete = useUIPersistentStore((s) => s.onboardingComplete)
+  const globalSearchOpen = useUIOverlaysStore((s) => s.globalSearchOpen)
+  const setGlobalSearchOpen = useUIOverlaysStore((s) => s.setGlobalSearchOpen)
 
   // Global custom event listener for opening global search
   useEffect(() => {
@@ -98,16 +98,31 @@ function AppContent() {
 }
 
 function App() {
-  const setSettingsOpen = useUIOverlaysStore((s) => s.setSettingsOpen)     // changed
-  const setSettingsTab = useUIOverlaysStore((s) => s.setSettingsTab)       // changed
-  const setRightTab = useUILayoutStore((s) => s.setRightTab)               // changed
+  const setSettingsOpen = useUIOverlaysStore((s) => s.setSettingsOpen)
+  const setSettingsTab = useUIOverlaysStore((s) => s.setSettingsTab)
+  const setRightTab = useUILayoutStore((s) => s.setRightTab)
 
   // Splash screen state
   const [showSplash, setShowSplash] = useState(true)
   const [fadeOut, setFadeOut] = useState(false)
+
+  // Load syntax theme CSS on mount
   useEffect(() => {
-    preloadHighlighter()
-  }, [])
+    commands.getSyntaxCss().then(css => {
+      const style = document.getElementById('syntax-theme');
+      if (style) {
+        style.textContent = css.data;
+      } else {
+        const s = document.createElement('style');
+        s.id = 'syntax-theme';
+        s.textContent = css.data;
+        document.head.appendChild(s);
+      }
+    }).catch(err => {
+      console.error('Failed to load syntax theme CSS:', err);
+    });
+  }, []);
+
   // Start fade-out after 2.5 seconds
   useEffect(() => {
     const timer = setTimeout(() => {

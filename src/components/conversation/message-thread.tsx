@@ -1,3 +1,4 @@
+// src/components/conversation/message-thread.tsx
 import {
   useVirtualizer,
   elementScroll,
@@ -11,6 +12,7 @@ import { useSendMessage } from '@/hooks/use-messages'
 import { useToolApprovalStore } from '@/store/tool-approvals'
 import { ToolApprovalCard } from './tool-approval-card'
 import { useConversationStore } from '@/store/conversation'
+import type { HtmlMessage } from '@/components/html-renderer/html-renderer'
 
 export interface ScrollToken {
   messageId: string
@@ -44,6 +46,7 @@ interface MessageThreadProps {
   onMessageVisible?: (messageId: string) => void
   /** ID of the message where the branch starts, used to mark branch parent */
   branchParentMessageId?: string | null
+  streamingMessage?: HtmlMessage | null
 }
 
 function distFromBottom(el: HTMLElement): number {
@@ -75,6 +78,7 @@ export const MessageThread = React.forwardRef<
       onScrollSettled,
       onMessageVisible,
       branchParentMessageId,
+      streamingMessage,
     },
     ref
   ) => {
@@ -153,44 +157,51 @@ export const MessageThread = React.forwardRef<
       count: filteredMessages.length,
       getScrollElement: () => scrollRef.current,
       estimateSize: (index) => {
-        const msg = filteredMessagesRef.current[index]
-        if (!msg) return 80
-        const known = measuredSizesRef.current.get(msg.id)
-        if (known) return known
-        return msg.role === 'assistant' ? avgAssistantHeightRef.current : 80
+        const msg = filteredMessagesRef.current[index];
+        if (!msg) return 80;
+        const known = measuredSizesRef.current.get(msg.id);
+        if (known) return known;
+        return msg.role === 'assistant' ? avgAssistantHeightRef.current : 80;
       },
       overscan: 10,
       useAnimationFrameWithResizeObserver: true,
       measureElement: (el) => {
-        const h = el.getBoundingClientRect().height
-        const msgId = (el as HTMLElement).dataset.msgId
+        const h = el.getBoundingClientRect().height;
+        const msgId = (el as HTMLElement).dataset.msgId;
         if (msgId) {
-          const role = (el as HTMLElement).dataset.role ?? 'user'
-          measuredSizesRef.current.set(msgId, h)
-          if (role === 'assistant' && h > 80) updateAvgAssistantHeight(h)
+          const role = (el as HTMLElement).dataset.role ?? 'user';
+          measuredSizesRef.current.set(msgId, h);
+          if (role === 'assistant' && h > 80) updateAvgAssistantHeight(h);
         }
-        return h
+        return h;
       },
       scrollToFn,
       onChange: (instance) => {
-        const items = instance.getVirtualItems()
-        if (items.length === 0) return
-        const el = instance.scrollElement as HTMLElement | null
-        const dist = el ? distFromBottom(el) : 999
-        if (!autoScrollRef.current) return
-        if (streamingRef.current) return
-        if (userScrolledAwayRef.current) return
-        if (!autoScrollReadyRef.current) return
-        if (navigatorActiveRef.current) return
+        console.debug(
+          '[Virtualizer] onChange fired — items:',
+          instance.getVirtualItems().length,
+          'streaming:',
+          !!streamingRef.current,
+          'userScrolledAway:',
+          userScrolledAwayRef.current
+        );
+        const items = instance.getVirtualItems();
+        if (items.length === 0) return;
+        const el = instance.scrollElement as HTMLElement | null;
+        const dist = el ? distFromBottom(el) : 999;
+        if (!autoScrollRef.current) return;
+        if (streamingRef.current) return;
+        if (userScrolledAwayRef.current) return;
+        if (!autoScrollReadyRef.current) return;
+        if (navigatorActiveRef.current) return;
         if (dist === 0) {
-          const lastIdx = filteredMessagesRef.current.length - 1
+          const lastIdx = filteredMessagesRef.current.length - 1;
           if (lastIdx >= 0) {
-            instance.scrollToIndex(lastIdx, { align: 'end', behavior: 'auto' })
+            instance.scrollToIndex(lastIdx, { align: 'end', behavior: 'auto' });
           }
         }
-      }
-    })
-
+      },
+    });
     const virtualizerRef = React.useRef(virtualizer)
     virtualizerRef.current = virtualizer
 
@@ -294,34 +305,41 @@ export const MessageThread = React.forwardRef<
     const lastItemNodeRef = React.useRef<Element | null>(null)
     const streamingRoRef = React.useRef<ResizeObserver | null>(null)
 
-    // ─── Streaming auto-scroll with requestAnimationFrame to avoid layout thrashing ───
+    // ─── FIXED: Streaming auto‑scroll with proper user‑scroll detection ───
+    const prevStreamingIdRef = React.useRef<string | undefined>(undefined)
+
     React.useEffect(() => {
       if (streamingRoRef.current) {
         streamingRoRef.current.disconnect()
         streamingRoRef.current = null
       }
+
+      // Detect if this is a new streaming session
+      const isNewStream = !!streamingMessageId && !prevStreamingIdRef.current
+      prevStreamingIdRef.current = streamingMessageId ?? undefined
+
       if (!streamingMessageId) {
-        userScrolledAwayRef.current = false
+        // Stream ended – do not reset userScrolledAwayRef, leave it as is
         return
       }
-      userScrolledAwayRef.current = false
+
+      if (isNewStream) {
+        // Only reset when a brand new stream starts (first message of a stream)
+        userScrolledAwayRef.current = false
+      }
+
       const el = scrollRef.current
       if (!el) return
 
       const scrollToBottom = () => {
         if (!autoScrollRef.current || userScrolledAwayRef.current) return
-        // Schedule the scroll in the next animation frame to separate read/write phases.
-        requestAnimationFrame(() => {
-          if (!autoScrollRef.current || userScrolledAwayRef.current) return
-          isProgrammaticScrollRef.current = true
-          el.scrollTop = el.scrollHeight
-          requestAnimationFrame(() => {
-            isProgrammaticScrollRef.current = false
-          })
-        })
+        // Mark as programmatic, perform scroll, then clear the flag immediately
+        isProgrammaticScrollRef.current = true
+        el.scrollTop = el.scrollHeight
+        isProgrammaticScrollRef.current = false
       }
 
-      // Trigger an immediate scroll to catch any already-rendered content.
+      // Trigger an immediate scroll to catch any already‑rendered content.
       scrollToBottom()
 
       const ro = new ResizeObserver(scrollToBottom)
@@ -544,7 +562,7 @@ export const MessageThread = React.forwardRef<
       <ScrollContainerContext.Provider value={scrollRef}>
         <AutoScrollContext.Provider value={autoScroll}>
           <div className="relative h-full">
-            <div ref={scrollRef} className="h-full overflow-y-auto thin-scrollbar">
+            <div ref={scrollRef} className="h-full overflow-y-auto thin-scrollbar pl-6">
               {isLoading && (
                 <motion.div
                   className="flex items-center justify-center h-full text-sm text-muted-foreground"
@@ -636,6 +654,7 @@ export const MessageThread = React.forwardRef<
                             searchRegex={searchRegex}
                             onRetry={handleRetry}
                             isBranchParent={isBranchParent}
+                            streamingMessage={streamingMessage}
                           />
                         </div>
                       </div>

@@ -8,24 +8,24 @@ use sea_orm::{
 use sea_query::Expr;
 use serde::{Deserialize, Serialize};
 use specta::{Type, specta};
-use std::pin::Pin;
 use std::sync::Arc;
 use tauri::{Emitter, State};
 use uuid::Uuid;
 
 use crate::artifacts::storage::store_artifact_content;
-use crate::commands::headings::{HeadingItem, get_conversation_messages_headings}; // <-- new
+use crate::commands::headings::{HeadingItem, get_conversation_messages_headings};
 use crate::commands::queue;
 use crate::{events::AgentEvent, state::AppState};
 use async_trait::async_trait;
-use futures::Future;
-use regex::Regex;
 use skilldeck_core::agent::{AgentLoop, AgentLoopConfig, AgentLoopEvent, all_built_in_tools};
 use skilldeck_core::traits::subagent_spawner::SubagentSpawner;
 use skilldeck_models::artifacts;
 use skilldeck_models::context_item::{ContextItem, ContextItems, FolderScope};
 use skilldeck_models::conversations::{self, Entity as Conversations};
 use skilldeck_models::messages::{self, Entity as Messages, MessageMetadata};
+
+use skilldeck_core::markdown::streaming::IncrementalStream;
+use skilldeck_core::markdown::types::NodeDocument;
 
 /// Serialisable message returned to the frontend.
 #[derive(Debug, Clone, Serialize, Type)]
@@ -40,6 +40,8 @@ pub struct MessageData {
     pub input_tokens: Option<i32>,
     pub output_tokens: Option<i32>,
     pub seen: bool,
+    pub stable_html: Option<String>,
+    pub node_document: Option<NodeDocument>,
 }
 
 /// Request for searching messages within a conversation.
@@ -80,7 +82,7 @@ pub struct ConversationBootstrapData {
     pub branches: Vec<crate::commands::branches::BranchInfo>,
     pub draft: Option<(String, Vec<serde_json::Value>)>,
     pub queued: Vec<crate::commands::queue::QueuedMessage>,
-    pub headings: Vec<HeadingItem>, // <-- new
+    pub headings: Vec<HeadingItem>,
 }
 
 #[specta]
@@ -115,7 +117,6 @@ pub async fn list_messages(
     let mut query = Messages::find().filter(messages::Column::ConversationId.eq(conv_uuid));
 
     if let Some(branch_uuid) = branch_uuid {
-        // Get the branch record to find its parent message
         use skilldeck_models::conversation_branches::Entity as Branches;
         let branch = Branches::find_by_id(branch_uuid)
             .one(db)
@@ -124,14 +125,12 @@ pub async fn list_messages(
             .ok_or_else(|| format!("Branch {} not found", branch_uuid))?;
         let parent_msg_id = branch.parent_message_id;
 
-        // Get the parent message to get its created_at timestamp
         let parent_msg = Messages::find_by_id(parent_msg_id)
             .one(db)
             .await
             .map_err(|e| e.to_string())?
             .ok_or_else(|| format!("Parent message {} not found", parent_msg_id))?;
 
-        // Query: messages from the branch OR main trunk messages up to the parent message
         use sea_orm::Condition;
         query = query.filter(
             Condition::any()
@@ -156,6 +155,10 @@ pub async fn list_messages(
         .into_iter()
         .map(|m| {
             let context_items = m.context_items.map(|c| c.0);
+            // Deserialize from JSON string
+            let node_document = m
+                .node_document
+                .map(|x| serde_json::from_value::<NodeDocument>(x).unwrap());
             MessageData {
                 id: m.id.to_string(),
                 conversation_id: m.conversation_id.to_string(),
@@ -167,6 +170,8 @@ pub async fn list_messages(
                 input_tokens: m.input_tokens,
                 output_tokens: m.output_tokens,
                 seen: m.seen,
+                stable_html: m.stable_html.clone(),
+                node_document,
             }
         })
         .collect())
@@ -428,12 +433,7 @@ pub(crate) async fn send_message_internal(
     app: tauri::AppHandle,
     metadata: Option<MessageMetadata>,
 ) -> Result<(), String> {
-    let db = state
-        .registry
-        .db
-        .connection()
-        .await
-        .map_err(|e| e.to_string())?;
+    // Validate IDs synchronously – no DB call
     let conv_uuid = Uuid::parse_str(&conversation_id).map_err(|e| e.to_string())?;
     let branch_uuid = branch_id
         .as_ref()
@@ -443,33 +443,7 @@ pub(crate) async fn send_message_internal(
     let msg_id = Uuid::new_v4();
     let now = chrono::Utc::now().fixed_offset();
 
-    let context_items_model = context_items
-        .clone()
-        .map(ContextItems)
-        .unwrap_or_else(|| ContextItems(vec![]));
-
-    let user_msg = messages::ActiveModel {
-        id: Set(msg_id),
-        conversation_id: Set(conv_uuid),
-        branch_id: Set(branch_uuid),
-        role: Set("user".to_string()),
-        content: Set(content.clone()),
-        metadata: Set(metadata),
-        context_items: Set(Some(context_items_model)),
-        created_at: Set(now),
-        seen: Set(false),
-        status: Set("active".to_string()),
-        ..Default::default()
-    };
-    user_msg.insert(db).await.map_err(|e| e.to_string())?;
-
-    let _ = app.emit(
-        "agent-event",
-        AgentEvent::Persisted {
-            conversation_id: conversation_id.clone(),
-        },
-    );
-
+    // Emit Started FIRST – UI can enter streaming mode immediately
     let _ = app.emit(
         "agent-event",
         AgentEvent::Started {
@@ -477,77 +451,73 @@ pub(crate) async fn send_message_internal(
         },
     );
 
-    let state_arc = state.clone();
-    let conv_id_clone = conversation_id.clone();
-    let content_clone = content.clone();
-    let branch_id_clone = branch_id;
-    let app_clone = app.clone();
-    let context_items_clone = context_items;
-
-    let future: Pin<Box<dyn Future<Output = ()> + Send + 'static>> = Box::pin(async move {
-        run_agent_loop(
-            state_arc,
-            conv_id_clone,
-            content_clone,
-            branch_id_clone,
-            msg_id,
-            context_items_clone,
-            app_clone,
-        )
-    });
-    tokio::spawn(future);
-
-    Ok(())
-}
-// =============================================================================
-// Artifact extraction helper
-// =============================================================================
-
-async fn extract_artifacts(
-    message_id: Uuid,
-    branch_id: Option<Uuid>,
-    content: &str,
-    db: &sea_orm::DatabaseConnection,
-) -> Result<(), String> {
-    let re = Regex::new(r"```(\w*)\n([\s\S]*?)```").unwrap();
-    for cap in re.captures_iter(content) {
-        let language = cap.get(1).map(|m| m.as_str().to_string());
-        let code = cap
-            .get(2)
-            .map(|m| m.as_str().to_string())
-            .unwrap_or_default();
-
-        let (storage_path, db_content) = match store_artifact_content(&code).await {
-            Ok(Some(path)) => (Some(path.to_string_lossy().to_string()), String::new()),
-            Ok(None) => (None, code),
+    // Spawn the heavy work (DB insert + agent loop)
+    tokio::spawn(async move {
+        let db = match state.registry.db.connection().await {
+            Ok(db) => db,
             Err(e) => {
-                tracing::warn!("Failed to store artifact content: {}", e);
-                (None, code)
+                let _ = app.emit(
+                    "agent-event",
+                    AgentEvent::Error {
+                        conversation_id: conversation_id.clone(),
+                        message: format!("Database connection failed: {}", e),
+                    },
+                );
+                return;
             }
         };
 
-        let logical_key = format!(
-            "code_{}_{}",
-            language.as_deref().unwrap_or("text"),
-            message_id
+        // Insert user message
+        let context_items_model = context_items
+            .clone()
+            .map(ContextItems)
+            .unwrap_or_else(|| ContextItems(vec![]));
+
+        let user_msg = messages::ActiveModel {
+            id: Set(msg_id),
+            conversation_id: Set(conv_uuid),
+            branch_id: Set(branch_uuid),
+            role: Set("user".to_string()),
+            content: Set(content.clone()),
+            metadata: Set(metadata),
+            context_items: Set(Some(context_items_model)),
+            created_at: Set(now),
+            seen: Set(false),
+            status: Set("active".to_string()),
+            ..Default::default()
+        };
+
+        if let Err(e) = user_msg.insert(db).await {
+            let _ = app.emit(
+                "agent-event",
+                AgentEvent::Error {
+                    conversation_id: conversation_id.clone(),
+                    message: format!("Failed to save user message: {}", e),
+                },
+            );
+            return;
+        }
+
+        // Emit Persisted after the message is saved – triggers cache refresh
+        let _ = app.emit(
+            "agent-event",
+            AgentEvent::Persisted {
+                conversation_id: conversation_id.clone(),
+            },
         );
 
-        let artifact = artifacts::ActiveModel {
-            id: Set(Uuid::new_v4()),
-            message_id: Set(message_id),
-            branch_id: Set(branch_id),
-            parent_artifact_id: Set(None),
-            logical_key: Set(Some(logical_key)),
-            storage_path: Set(storage_path),
-            r#type: Set("code".to_string()),
-            name: Set(language.clone().unwrap_or_else(|| "code".to_string())),
-            content: Set(db_content),
-            language: Set(language),
-            metadata: Set(None),
-            created_at: Set(chrono::Utc::now().fixed_offset()),
-        };
-        artifact.insert(db).await.map_err(|e| e.to_string())?;
-    }
+        // Finally start the agent loop (not async, no .await)
+        run_agent_loop(
+            state,
+            conversation_id,
+            content,
+            branch_id,
+            msg_id,
+            context_items,
+            app,
+        );
+    });
+
     Ok(())
 }
 
@@ -766,8 +736,6 @@ fn run_agent_loop(
         let history = history_rows
             .into_iter()
             .filter(|m| {
-                // Include user message we just inserted (id != current_msg_id)
-                // and ensure branch matches
                 if m.id == current_msg_id {
                     return false;
                 }
@@ -953,47 +921,84 @@ fn run_agent_loop(
             user_message
         };
 
+        // ─── Create incremental streamer for this assistant response ───
+        let mut streamer = IncrementalStream::new(Arc::clone(&state.markdown));
+        let mut final_document: Option<NodeDocument> = None;
+
+        // Ordered event relay using std::sync::mpsc – runs in a dedicated thread
+        let (emit_tx, emit_rx) = std::sync::mpsc::channel::<AgentEvent>();
+        let app_emitter = app.clone();
+        std::thread::spawn(move || {
+            while let Ok(event) = emit_rx.recv() {
+                let _ = app_emitter.emit("agent-event", event);
+            }
+        });
+
         let loop_handle = tokio::spawn(async move { agent.run(enriched_user_message).await });
 
         while let Some(event) = rx.recv().await {
-            let tauri_event = match event {
-                Ok(AgentLoopEvent::Token { delta }) => AgentEvent::Token {
-                    conversation_id: conversation_id.clone(),
-                    delta,
-                },
-                Ok(AgentLoopEvent::Cancelled) => AgentEvent::Cancelled {
-                    conversation_id: conversation_id.clone(),
-                },
-                Ok(AgentLoopEvent::ToolCall { tool_call }) => AgentEvent::ToolCall {
-                    conversation_id: conversation_id.clone(),
-                    tool_call: crate::events::AgentToolCall {
-                        id: tool_call.id.clone(),
-                        name: tool_call.function.name.clone(),
-                        arguments: serde_json::from_str(&tool_call.function.arguments)
-                            .unwrap_or_default(),
-                    },
-                },
+            match event {
+                Ok(AgentLoopEvent::Token { delta }) => {
+                    if let Some(doc) = streamer.push(&delta) {
+                        let new_toc = streamer.drain_new_toc_items();
+                        let new_artifacts = streamer.drain_new_artifact_specs();
+                        let _ = emit_tx.send(AgentEvent::StreamUpdate {
+                            conversation_id: conversation_id.clone(),
+                            document: doc,
+                            new_toc_items: new_toc,
+                            new_artifact_specs: new_artifacts,
+                        });
+                    }
+                }
+                Ok(AgentLoopEvent::Cancelled) => {
+                    let _ = emit_tx.send(AgentEvent::Cancelled {
+                        conversation_id: conversation_id.clone(),
+                    });
+                }
+                Ok(AgentLoopEvent::ToolCall { tool_call }) => {
+                    let _ = emit_tx.send(AgentEvent::ToolCall {
+                        conversation_id: conversation_id.clone(),
+                        tool_call: crate::events::AgentToolCall {
+                            id: tool_call.id.clone(),
+                            name: tool_call.function.name.clone(),
+                            arguments: serde_json::from_str(&tool_call.function.arguments)
+                                .unwrap_or_default(),
+                        },
+                    });
+                }
                 Ok(AgentLoopEvent::Done {
                     input_tokens,
                     output_tokens,
                     ..
-                }) => AgentEvent::Done {
-                    conversation_id: conversation_id.clone(),
-                    input_tokens,
-                    output_tokens,
-                },
-                Err(e) => AgentEvent::Error {
-                    conversation_id: conversation_id.clone(),
-                    message: e.to_string(),
-                },
-            };
+                }) => {
+                    let doc = streamer.finalize();
+                    final_document = Some(doc.clone());
 
-            let _ = app.emit("agent-event", tauri_event);
+                    let _ = emit_tx.send(AgentEvent::StreamUpdate {
+                        conversation_id: conversation_id.clone(),
+                        document: doc.clone(),
+                        new_toc_items: doc.toc_items.clone(),
+                        new_artifact_specs: doc.artifact_specs.clone(),
+                    });
+                    let _ = emit_tx.send(AgentEvent::Done {
+                        conversation_id: conversation_id.clone(),
+                        input_tokens,
+                        output_tokens,
+                    });
+
+                    break;
+                }
+                Err(e) => {
+                    let _ = emit_tx.send(AgentEvent::Error {
+                        conversation_id: conversation_id.clone(),
+                        message: e.to_string(),
+                    });
+                }
+            }
         }
 
+        drop(emit_tx);
         let loop_result = loop_handle.await;
-
-        // Remove cancellation token
         state.agent_cancel_tokens.remove(&conversation_id);
 
         match loop_result {
@@ -1045,11 +1050,10 @@ fn run_agent_loop(
                         active.cache_write_tokens = Set(Some(result.cache_write_tokens as i32));
                     }
 
-                    // Set metadata for tool messages
                     if role_str == "tool" {
                         let meta = MessageMetadata {
                             tool_name: msg.name.clone(),
-                            tool_call_id: None, // will be filled in a future iteration
+                            tool_call_id: None,
                             ..Default::default()
                         };
                         active.metadata = Set(Some(meta));
@@ -1065,33 +1069,81 @@ fn run_agent_loop(
                         );
                     }
 
-                    // Extract artifacts for assistant messages
                     if role_str == "assistant" {
-                        if let Err(e) =
-                            extract_artifacts(msg_id, branch_uuid, &msg.content, db).await
-                        {
-                            tracing::warn!("Failed to extract artifacts: {}", e);
-                        }
-                    }
-
-                    // Store headings for assistant messages
-                    if role_str == "assistant" {
-                        use skilldeck_models::message_headings::{
-                            ActiveModel as HeadingsActiveModel, HeadingsJson,
+                        let doc = if let Some(fp) = &final_document {
+                            fp.clone()
+                        } else {
+                            state.markdown.render_final(&msg.content)
                         };
-                        let headings = crate::headings::extract_headings(&msg.content);
+
+                        // Store as JSON string
+                        let node_document_json = serde_json::to_string(&doc).ok();
+
+                        messages::Entity::update_many()
+                            .col_expr(messages::Column::StableHtml, Expr::value(""))
+                            .col_expr(
+                                messages::Column::NodeDocument,
+                                Expr::value(node_document_json),
+                            )
+                            .filter(messages::Column::Id.eq(msg_id))
+                            .exec(db)
+                            .await
+                            .map_err(|e| tracing::warn!("Failed to store node document: {}", e))
+                            .ok();
+
+                        use skilldeck_models::message_headings::{
+                            ActiveModel as HeadingsActiveModel, HeadingsJson, TocItem as DbTocItem,
+                        };
+                        let db_toc: Vec<DbTocItem> = doc
+                            .toc_items
+                            .iter()
+                            .map(|t| DbTocItem {
+                                id: t.id.clone(),
+                                toc_index: t.toc_index,
+                                text: t.text.clone(),
+                                level: t.level,
+                            })
+                            .collect();
                         let heading_record = HeadingsActiveModel {
                             id: Set(Uuid::new_v4()),
                             message_id: Set(msg_id),
-                            headings: Set(HeadingsJson(headings)),
+                            headings: Set(HeadingsJson(db_toc)),
                             created_at: Set(now),
                         };
                         if let Err(e) = heading_record.insert(db).await {
-                            tracing::warn!(
-                                "Failed to store headings for message {}: {}",
-                                msg_id,
-                                e
-                            );
+                            tracing::warn!("Failed to store headings for {}: {}", msg_id, e);
+                        }
+
+                        for spec in &doc.artifact_specs {
+                            let (storage_path, db_content) =
+                                match store_artifact_content(&spec.raw_code).await {
+                                    Ok(Some(path)) => {
+                                        (Some(path.to_string_lossy().to_string()), String::new())
+                                    }
+                                    Ok(None) => (None, spec.raw_code.clone()),
+                                    Err(e) => {
+                                        tracing::warn!("Artifact storage failed: {}", e);
+                                        (None, spec.raw_code.clone())
+                                    }
+                                };
+                            let logical_key = format!("code_{}_{}", spec.language, msg_id);
+                            let artifact = artifacts::ActiveModel {
+                                id: Set(spec.id),
+                                message_id: Set(msg_id),
+                                branch_id: Set(branch_uuid),
+                                parent_artifact_id: Set(None),
+                                logical_key: Set(Some(logical_key)),
+                                storage_path: Set(storage_path),
+                                r#type: Set("code".to_string()),
+                                name: Set(spec.language.clone()),
+                                content: Set(db_content),
+                                language: Set(Some(spec.language.clone())),
+                                metadata: Set(None),
+                                created_at: Set(now),
+                            };
+                            if let Err(e) = artifact.insert(db).await {
+                                tracing::warn!("Failed to insert artifact {}: {}", spec.id, e);
+                            }
                         }
                     }
                 }

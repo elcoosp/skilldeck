@@ -12,7 +12,6 @@ mod artifacts;
 mod commands;
 mod config;
 mod events;
-mod headings; // <-- already added in chunk 2
 mod nudge_poller;
 mod platform_client;
 mod skills;
@@ -24,29 +23,10 @@ mod sync;
 pub use subagent_server::SubagentServer;
 
 use commands::{
-    analytics::*,
-    artifacts::*,
-    attachments::*,
-    bookmarks::*,
-    branches::*,
-    conversations::*,
-    drafts::*,
-    export::*,
-    files::*,
-    folders::*,
-    gist::*,
-    headings::*, // <-- new: headings
-    home_dir::*,
-    mcp::*,
-    messages::*,
-    ollama::*,
-    platform::*,
-    profiles::*,
-    queue::*,
-    settings::*,
-    skills::*,
-    workflows::*,
-    workspaces::*,
+    analytics::*, artifacts::*, attachments::*, bookmarks::*, branches::*, conversations::*,
+    drafts::*, export::*, files::*, folders::*, gist::*, headings::*, home_dir::*, mcp::*,
+    messages::*, ollama::*, platform::*, profiles::*, queue::*, settings::*, skills::*, theme::*,
+    workflows::*, workspaces::*,
 };
 use events::{AgentEvent, McpEvent, SkillEvent, WorkflowEvent};
 use state::AppState;
@@ -74,6 +54,10 @@ pub fn run() {
     // Build Tauri Specta builder with all commands and events
     let builder = Builder::<tauri::Wry>::new()
         .commands(collect_commands![
+            list_built_in_themes,
+            get_syntax_css,
+            set_built_in_theme,
+            set_theme_from_file,
             get_conversation_bootstrap,
             pin_artifact,
             unpin_artifact,
