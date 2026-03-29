@@ -226,8 +226,7 @@ impl MarkdownPipeline {
         for line in syntect::util::LinesWithEndings::from(code) {
             let _ = css_gen.parse_html_for_line_which_includes_newline(line);
         }
-        // Wrap in <pre> to preserve whitespace and newlines
-        format!("<pre>{}</pre>", css_gen.finalize())
+        css_gen.finalize()
     }
 }
 

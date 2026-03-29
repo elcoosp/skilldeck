@@ -86,19 +86,14 @@ export const MarkdownView = memo(({ document, messageId, className, conversation
           conversationId={conversationId ?? null}
         />
       ))}
-      {document.draft_nodes.length > 0 && (
-        <>
-          {document.draft_nodes.map(node => (
-            <NodeRenderer
-              key={node.id}
-              node={node}
-              messageId={messageId}
-              conversationId={conversationId ?? null}
-            />
-          ))}
-          <span className="inline-block w-0.5 h-4 bg-current animate-pulse align-text-bottom ml-0.5" />
-        </>
-      )}
+      {document.draft_nodes.map(node => (
+        <NodeRenderer
+          key={node.id}
+          node={node}
+          messageId={messageId}
+          conversationId={conversationId ?? null}
+        />
+      ))}
     </div>
   )
 })

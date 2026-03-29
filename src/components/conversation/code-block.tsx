@@ -1,3 +1,4 @@
+// src/components/conversation/code-block.tsx
 import React, { useState } from 'react';
 import { ChevronRight, Copy, Check, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -43,10 +44,15 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ language, artifactId, high
           {copied ? <Check className="size-3.5 text-green-500" /> : isLoading ? <Loader2 className="size-3.5 animate-spin" /> : <Copy className="size-3.5" />}
         </button>
       </div>
-      <div className={cn('overflow-hidden transition-all', collapsed ? 'max-h-0' : 'max-h-96')}>
-        <div
-          className="overflow-auto thin-scrollbar p-3"
-          style={{ whiteSpace: 'pre' }}
+      <div className={cn('transition-[max-height]', collapsed ? 'max-h-0 overflow-hidden' : 'max-h-96 overflow-visible')}>
+        <pre
+          className="overflow-x-auto thin-scrollbar p-3 m-0 mt-0 mb-0"
+          style={{
+            whiteSpace: 'pre',
+            fontFamily: 'inherit',
+            maxHeight: 'inherit',
+            overflowY: 'auto',
+          }}
           dangerouslySetInnerHTML={{ __html: highlightedHtml }}
         />
       </div>
