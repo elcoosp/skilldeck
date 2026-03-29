@@ -7,14 +7,13 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
 import { toast } from 'sonner'
-import type { MessageData } from '@/lib/bindings'
+import type { MessageData, NodeDocument } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
 import type { AgentEvent as LocalAgentEvent } from '@/lib/events'
 import { onAgentEvent } from '@/lib/events'
 import { useToolApprovalStore } from '@/store/tool-approvals'
 import { useUIEphemeralStore } from '@/store/ui-ephemeral'
 import { useUIPersistentStore } from '@/store/ui-state'
-import type { HtmlMessage } from '@/components/html-renderer/html-renderer'
 
 export function useAgentStream(conversationId: string | null) {
   const queryClient = useQueryClient()
@@ -33,7 +32,9 @@ export function useAgentStream(conversationId: string | null) {
   // Buffer for accumulating tokens between flushes
   const pendingBuffer = useRef('')
   const flushTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const isFlushing = useRef(false)
+
+  // Throttle for streaming message updates
+  const rafRef = useRef<number | null>(null)
 
   // Track listener readiness to avoid race conditions
   const listenerReady = useRef(false)
@@ -138,14 +139,11 @@ export function useAgentStream(conversationId: string | null) {
         case 'started':
           setStreamingError(conversationId, false) // clear any previous error
           setAgentRunning(conversationId, true)
-          queryClient.invalidateQueries({
-            queryKey: ['messages', conversationId],
-            exact: false
-          })
           // Clear any old streaming message when a new agent starts
           setStreamingMessage(conversationId, null)
           break
 
+        // `token` events are no longer sent from Rust; kept for backward compatibility
         case 'token':
           if (event.delta) {
             pendingBuffer.current += event.delta
@@ -153,17 +151,28 @@ export function useAgentStream(conversationId: string | null) {
           }
           break
 
-        case 'stream_update':
-          // New event type for HTML streaming
-          if (event.stable_html !== undefined) {
-            const msg: HtmlMessage = {
-              stableHtml: event.stable_html,
-              draftHtml: event.draft_html ?? null,
-              slotCount: event.slot_count ?? 0,
-            }
-            setStreamingMessage(conversationId, msg)
+        case 'stream_update': {
+          console.debug(
+            '[stream_update] received — document:',
+            event.document ? 'present' : 'null',
+            'new_toc_items:',
+            event.new_toc_items?.length ?? 0,
+            'new_artifact_specs:',
+            event.new_artifact_specs?.length ?? 0,
+            'timestamp:',
+            Date.now()
+          );
+          if (event.document !== undefined) {
+            const doc: NodeDocument = event.document;
+            // Throttle using requestAnimationFrame
+            if (rafRef.current) cancelAnimationFrame(rafRef.current);
+            rafRef.current = requestAnimationFrame(() => {
+              setStreamingMessage(conversationId, doc);
+              rafRef.current = null;
+            });
           }
-          break
+          break;
+        }
 
         case 'tool_approval_required':
           addPending(event.tool_call_id, {
@@ -229,7 +238,7 @@ export function useAgentStream(conversationId: string | null) {
             queryKey: ['conversations'],
             exact: false
           })
-          // Clear streaming message only after the query will resolve with stable_html
+          // Clear streaming message only after the query will resolve with node_document
           setStreamingMessage(conversationId, null)
           // Auto-name: rename if conversation has no title
           autoNameConversation()
@@ -265,6 +274,7 @@ export function useAgentStream(conversationId: string | null) {
       pendingBuffer.current = ''
       listenerReady.current = false
       eventBuffer.current = []
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
       unlisten?.()
     }
   }, [

@@ -4,6 +4,8 @@
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
+use crate::markdown::types::{ArtifactSpec, NodeDocument, TocItem};
+
 // ── Agent events ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -42,11 +44,9 @@ pub enum AgentEvent {
     },
     StreamUpdate {
         conversation_id: String,
-        stable_html: String,
-        draft_html: Option<String>,
-        slot_count: u32,
-        new_toc_items: Vec<crate::markdown::types::TocItem>,
-        new_artifact_specs: Vec<crate::markdown::types::ArtifactSpec>,
+        document: NodeDocument,
+        new_toc_items: Vec<TocItem>,
+        new_artifact_specs: Vec<ArtifactSpec>,
     },
 }
 

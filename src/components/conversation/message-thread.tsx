@@ -1,3 +1,4 @@
+// src/components/conversation/message-thread.tsx
 import {
   useVirtualizer,
   elementScroll,
@@ -11,6 +12,7 @@ import { useSendMessage } from '@/hooks/use-messages'
 import { useToolApprovalStore } from '@/store/tool-approvals'
 import { ToolApprovalCard } from './tool-approval-card'
 import { useConversationStore } from '@/store/conversation'
+import type { HtmlMessage } from '@/components/html-renderer/html-renderer'
 
 export interface ScrollToken {
   messageId: string
@@ -44,6 +46,7 @@ interface MessageThreadProps {
   onMessageVisible?: (messageId: string) => void
   /** ID of the message where the branch starts, used to mark branch parent */
   branchParentMessageId?: string | null
+  streamingMessage?: HtmlMessage | null
 }
 
 function distFromBottom(el: HTMLElement): number {
@@ -75,6 +78,7 @@ export const MessageThread = React.forwardRef<
       onScrollSettled,
       onMessageVisible,
       branchParentMessageId,
+      streamingMessage,
     },
     ref
   ) => {
@@ -153,44 +157,51 @@ export const MessageThread = React.forwardRef<
       count: filteredMessages.length,
       getScrollElement: () => scrollRef.current,
       estimateSize: (index) => {
-        const msg = filteredMessagesRef.current[index]
-        if (!msg) return 80
-        const known = measuredSizesRef.current.get(msg.id)
-        if (known) return known
-        return msg.role === 'assistant' ? avgAssistantHeightRef.current : 80
+        const msg = filteredMessagesRef.current[index];
+        if (!msg) return 80;
+        const known = measuredSizesRef.current.get(msg.id);
+        if (known) return known;
+        return msg.role === 'assistant' ? avgAssistantHeightRef.current : 80;
       },
       overscan: 10,
       useAnimationFrameWithResizeObserver: true,
       measureElement: (el) => {
-        const h = el.getBoundingClientRect().height
-        const msgId = (el as HTMLElement).dataset.msgId
+        const h = el.getBoundingClientRect().height;
+        const msgId = (el as HTMLElement).dataset.msgId;
         if (msgId) {
-          const role = (el as HTMLElement).dataset.role ?? 'user'
-          measuredSizesRef.current.set(msgId, h)
-          if (role === 'assistant' && h > 80) updateAvgAssistantHeight(h)
+          const role = (el as HTMLElement).dataset.role ?? 'user';
+          measuredSizesRef.current.set(msgId, h);
+          if (role === 'assistant' && h > 80) updateAvgAssistantHeight(h);
         }
-        return h
+        return h;
       },
       scrollToFn,
       onChange: (instance) => {
-        const items = instance.getVirtualItems()
-        if (items.length === 0) return
-        const el = instance.scrollElement as HTMLElement | null
-        const dist = el ? distFromBottom(el) : 999
-        if (!autoScrollRef.current) return
-        if (streamingRef.current) return
-        if (userScrolledAwayRef.current) return
-        if (!autoScrollReadyRef.current) return
-        if (navigatorActiveRef.current) return
+        console.debug(
+          '[Virtualizer] onChange fired — items:',
+          instance.getVirtualItems().length,
+          'streaming:',
+          !!streamingRef.current,
+          'userScrolledAway:',
+          userScrolledAwayRef.current
+        );
+        const items = instance.getVirtualItems();
+        if (items.length === 0) return;
+        const el = instance.scrollElement as HTMLElement | null;
+        const dist = el ? distFromBottom(el) : 999;
+        if (!autoScrollRef.current) return;
+        if (streamingRef.current) return;
+        if (userScrolledAwayRef.current) return;
+        if (!autoScrollReadyRef.current) return;
+        if (navigatorActiveRef.current) return;
         if (dist === 0) {
-          const lastIdx = filteredMessagesRef.current.length - 1
+          const lastIdx = filteredMessagesRef.current.length - 1;
           if (lastIdx >= 0) {
-            instance.scrollToIndex(lastIdx, { align: 'end', behavior: 'auto' })
+            instance.scrollToIndex(lastIdx, { align: 'end', behavior: 'auto' });
           }
         }
-      }
-    })
-
+      },
+    });
     const virtualizerRef = React.useRef(virtualizer)
     virtualizerRef.current = virtualizer
 
@@ -643,6 +654,7 @@ export const MessageThread = React.forwardRef<
                             searchRegex={searchRegex}
                             onRetry={handleRetry}
                             isBranchParent={isBranchParent}
+                            streamingMessage={streamingMessage}
                           />
                         </div>
                       </div>

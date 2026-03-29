@@ -141,10 +141,11 @@ pub async fn get_branch_messages(
                 created_at: m.created_at.to_string(),
                 context_items,
                 metadata: m.metadata,
+                input_tokens: m.input_tokens,
+                output_tokens: m.output_tokens,
+                seen: m.seen,
                 stable_html: m.stable_html,
-                input_tokens: None,
-                output_tokens: None,
-                seen: false,
+                node_document: None, // TODO: load from a new column
             }
         })
         .collect())

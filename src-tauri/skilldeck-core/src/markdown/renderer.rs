@@ -1,9 +1,10 @@
+// src-tauri/skilldeck-core/src/markdown/renderer.rs
 use super::{
     theme::SharedTheme,
-    types::{ArtifactSpec, HtmlMessage, ParseOutput, TocItem},
+    types::{ArtifactSpec, MdNode, NodeDocument, TocItem},
 };
 use once_cell::sync::Lazy;
-use pulldown_cmark::{CodeBlockKind, Event, HeadingLevel, Options, Parser, Tag, TagEnd};
+use pulldown_cmark::{CodeBlockKind, Event, HeadingLevel, Options, Parser, Tag, TagEnd, html};
 use syntect::{
     html::{ClassStyle, ClassedHTMLGenerator},
     parsing::SyntaxSet,
@@ -21,113 +22,160 @@ impl MarkdownPipeline {
         Self { theme }
     }
 
-    pub fn render_final(&self, markdown: &str) -> ParseOutput {
-        self.parse_blocks(markdown, 0, 0)
+    pub fn render_final(&self, markdown: &str) -> NodeDocument {
+        self.render_blocks(markdown, 0, false)
     }
 
-    pub fn render_split(
-        &self,
-        stable_markdown: &str,
-        draft_markdown: &str,
-        slot_offset: u32,
-        toc_offset: i32,
-    ) -> ParseOutput {
-        let mut out = self.parse_blocks(stable_markdown, slot_offset, toc_offset);
-        if !draft_markdown.trim().is_empty() {
-            let next_slot = slot_offset + out.html_message.slot_count;
-            let draft_out = self.parse_blocks(draft_markdown, next_slot, -1);
-            out.html_message.draft_html = draft_out.html_message.stable_html.into();
-        }
-        out
+    pub fn render_partial(&self, markdown: &str, next_id: u32, is_draft: bool) -> NodeDocument {
+        self.render_blocks(markdown, next_id, is_draft)
     }
 
-    fn parse_blocks(&self, markdown: &str, slot_offset: u32, toc_offset: i32) -> ParseOutput {
+    fn render_blocks(&self, markdown: &str, start_id: u32, is_draft: bool) -> NodeDocument {
+        let mut id_counter = start_id;
+        let mut nodes = Vec::new();
+        let mut toc_items = Vec::new();
+        let mut artifact_specs = Vec::new();
         let mut html_buf = String::new();
-        let mut code_buf = String::new();
-        let mut heading_buf = String::new();
-        let mut in_code = false;
+
+        let mut in_special = false;
         let mut in_heading = false;
+        let mut heading_level = 1;
+        let mut heading_text = String::new();
+
+        let mut in_code = false;
         let mut code_lang = String::new();
-        let mut heading_level: u8 = 1;
+        let mut code_buf = String::new();
 
-        let mut toc_items: Vec<TocItem> = Vec::new();
-        let mut artifact_specs: Vec<ArtifactSpec> = Vec::new();
-        let mut slot_count: u32 = 0;
+        let flush_html = |buf: &mut String, id_counter: &mut u32, nodes: &mut Vec<MdNode>| {
+            if !buf.is_empty() {
+                let id = format!("html-{}", *id_counter);
+                *id_counter += 1;
+                nodes.push(MdNode::HtmlBlock {
+                    id,
+                    html: std::mem::take(buf),
+                });
+            }
+        };
 
-        for event in Parser::new_ext(markdown, Options::all()) {
+        if is_draft && markdown.trim().is_empty() {
+            return NodeDocument {
+                stable_nodes: vec![],
+                draft_nodes: vec![],
+                toc_items: vec![],
+                artifact_specs: vec![],
+            };
+        }
+
+        if is_draft {
+            let id = format!("draft-{}", id_counter);
+            nodes.push(MdNode::Draft {
+                id,
+                raw_markdown: markdown.to_string(),
+            });
+            return NodeDocument {
+                stable_nodes: vec![],
+                draft_nodes: nodes,
+                toc_items: vec![],
+                artifact_specs: vec![],
+            };
+        }
+
+        let parser = Parser::new_ext(markdown, Options::all());
+
+        for event in parser {
             match event {
-                // ── Code block start ────────────────────────────────────────
                 Event::Start(Tag::CodeBlock(CodeBlockKind::Fenced(lang))) => {
-                    code_lang = lang.trim().to_string();
+                    flush_html(&mut html_buf, &mut id_counter, &mut nodes);
+                    in_special = true;
                     in_code = true;
+                    code_lang = lang.trim().to_string();
+                    code_buf.clear();
                 }
+                Event::Text(t) if in_code => code_buf.push_str(&t),
                 Event::End(TagEnd::CodeBlock) => {
-                    let slot_id = slot_offset + slot_count;
+                    let id = format!("cb-{}", id_counter);
+                    id_counter += 1;
+                    let highlighted = self.highlight(&code_buf, &code_lang);
                     let artifact_id = Uuid::new_v4();
 
-                    let highlighted = self.highlight(&code_buf, &code_lang);
-                    html_buf.push_str(&format!(
-                        r#"<div data-slot="code-block" data-slot-id="{slot_id}" data-language="{lang}" data-artifact-id="{aid}">{inner}</div>"#,
-                        slot_id = slot_id,
-                        lang = html_escape::encode_double_quoted_attribute(&code_lang),
-                        aid = artifact_id,
-                        inner = highlighted,
-                    ));
+                    // FIX: take the raw code once, then clone for the node
+                    let raw = std::mem::take(&mut code_buf);
 
+                    nodes.push(MdNode::CodeBlock {
+                        id,
+                        language: code_lang.clone(),
+                        raw_code: raw.clone(),
+                        highlighted_html: highlighted,
+                        artifact_id,
+                    });
                     artifact_specs.push(ArtifactSpec {
                         id: artifact_id,
                         language: code_lang.clone(),
-                        raw_code: std::mem::take(&mut code_buf),
-                        slot_index: slot_id,
+                        raw_code: raw,
+                        slot_index: id_counter - 1,
                     });
 
-                    slot_count += 1;
-                    code_lang.clear();
                     in_code = false;
+                    in_special = false;
                 }
-                Event::Text(t) if in_code => code_buf.push_str(&t),
 
-                // ── Heading ─────────────────────────────────────────────────
                 Event::Start(Tag::Heading { level, .. }) => {
-                    heading_level = heading_level_to_u8(level);
+                    flush_html(&mut html_buf, &mut id_counter, &mut nodes);
+                    in_special = true;
                     in_heading = true;
+                    heading_level = heading_level_to_u8(level);
+                    heading_text.clear();
                 }
+                Event::Text(t) if in_heading => heading_text.push_str(&t),
                 Event::End(TagEnd::Heading(_)) => {
-                    let toc_index = toc_offset.max(0) as i32 + toc_items.len() as i32;
-                    let text = std::mem::take(&mut heading_buf);
-                    let slug = format!("{}-{}", slug::slugify(&text), toc_index);
-
+                    let text = heading_text.clone();
+                    let slug = slug::slugify(&text);
+                    let id = format!("h-{}-{}", slug, toc_items.len());
+                    let toc_index = toc_items.len() as i32;
                     toc_items.push(TocItem {
-                        id: format!("h-{}-{}", slug, toc_index),
+                        id: id.clone(),
                         toc_index,
                         text: text.clone(),
                         level: heading_level as i32,
                         slug: slug.clone(),
                     });
-
-                    html_buf.push_str(&format!(
-                        r#"<h{l} data-slot="heading" data-slug="{slug}" data-level="{l}" id="{slug}">{text}</h{l}>"#,
-                        l = heading_level,
-                        slug = html_escape::encode_double_quoted_attribute(&slug),
-                        text = html_escape::encode_text(&text),
-                    ));
+                    nodes.push(MdNode::Heading {
+                        id,
+                        level: heading_level,
+                        text,
+                        slug,
+                        toc_index,
+                    });
                     in_heading = false;
+                    in_special = false;
                 }
-                Event::Text(t) if in_heading => heading_buf.push_str(&t),
 
-                // ── Everything else ──
-                event => {
-                    pulldown_cmark::html::push_html(&mut html_buf, std::iter::once(event));
+                Event::Start(Tag::List(_)) => {}
+                Event::End(TagEnd::List(_)) => {}
+
+                Event::Start(Tag::BlockQuote(_)) => {}
+                Event::End(TagEnd::BlockQuote(_)) => {}
+
+                Event::Rule => {
+                    flush_html(&mut html_buf, &mut id_counter, &mut nodes);
+                    let id = format!("hr-{}", id_counter);
+                    id_counter += 1;
+                    nodes.push(MdNode::HorizontalRule { id });
+                }
+
+                _ => {
+                    if !in_special {
+                        html_buf.push_str(&event_to_html(&event));
+                    }
                 }
             }
         }
 
-        ParseOutput {
-            html_message: HtmlMessage {
-                stable_html: html_buf,
-                draft_html: None,
-                slot_count,
-            },
+        flush_html(&mut html_buf, &mut id_counter, &mut nodes);
+
+        NodeDocument {
+            stable_nodes: nodes,
+            draft_nodes: vec![],
             toc_items,
             artifact_specs,
         }
@@ -137,12 +185,12 @@ impl MarkdownPipeline {
         let syntax = SYNTAX_SET
             .find_syntax_by_token(lang)
             .unwrap_or_else(|| SYNTAX_SET.find_syntax_plain_text());
-        let mut gen =
+        let mut css_gen =
             ClassedHTMLGenerator::new_with_class_style(syntax, &SYNTAX_SET, ClassStyle::Spaced);
         for line in syntect::util::LinesWithEndings::from(code) {
-            let _ = gen.parse_html_for_line_which_includes_newline(line);
+            let _ = css_gen.parse_html_for_line_which_includes_newline(line);
         }
-        gen.finalize()
+        css_gen.finalize()
     }
 }
 
@@ -155,4 +203,10 @@ fn heading_level_to_u8(level: HeadingLevel) -> u8 {
         HeadingLevel::H5 => 5,
         HeadingLevel::H6 => 6,
     }
+}
+
+fn event_to_html(event: &Event) -> String {
+    let mut buf = String::new();
+    html::push_html(&mut buf, std::iter::once(event.clone()));
+    buf
 }

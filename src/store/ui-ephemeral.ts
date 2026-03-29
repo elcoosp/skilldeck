@@ -8,7 +8,7 @@ interface UIState {
   streamingText: Record<string, string>;
   appendStreamingText: (conversationId: string, delta: string) => void;
   clearStreamingText: (conversationId: string) => void;
-  streamingMessages: Record<string, HtmlMessage>;
+  streamingMessages: Record<string, HtmlMessage | null>;
   setStreamingMessage: (conversationId: string, message: HtmlMessage | null) => void;
   agentRunning: Record<string, boolean>;
   setAgentRunning: (conversationId: string, running: boolean) => void;

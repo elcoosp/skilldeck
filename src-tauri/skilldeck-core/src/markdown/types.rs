@@ -2,38 +2,70 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 use uuid::Uuid;
 
-/// One extracted code fence, before syntax highlighting.
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, Type, PartialEq)]
 pub struct ArtifactSpec {
-    pub id: Uuid, // pre-assigned, stable
+    pub id: Uuid,
     pub language: String,
-    pub raw_code: String, // plain text — ready for DB/copy
-    pub slot_index: u32,  // position in the block sequence
+    pub raw_code: String,
+    pub slot_index: u32,
 }
 
-/// One heading extracted from markdown.
-/// Matches the shape of skilldeck_models::message_headings::TocItem.
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, Type, PartialEq)]
 pub struct TocItem {
-    pub id: String, // "h-{slug}-{toc_index}"
+    pub id: String,
     pub toc_index: i32,
     pub text: String,
     pub level: i32,
-    pub slug: String, // for HTML id= attribute and bookmark anchors
+    pub slug: String,
 }
 
-/// The complete output of one parse pass.
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct ParseOutput {
-    pub html_message: HtmlMessage,
+#[derive(Debug, Clone, Serialize, Deserialize, Type, PartialEq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum MdNode {
+    Paragraph {
+        id: String,
+        html: String,
+    },
+    Heading {
+        id: String,
+        level: u8,
+        text: String,
+        slug: String,
+        toc_index: i32,
+    },
+    CodeBlock {
+        id: String,
+        language: String,
+        raw_code: String,
+        highlighted_html: String,
+        artifact_id: Uuid,
+    },
+    List {
+        id: String,
+        ordered: bool,
+        html: String,
+    },
+    Blockquote {
+        id: String,
+        html: String,
+    },
+    HorizontalRule {
+        id: String,
+    },
+    HtmlBlock {
+        id: String,
+        html: String,
+    },
+    Draft {
+        id: String,
+        raw_markdown: String,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type, PartialEq)]
+pub struct NodeDocument {
+    pub stable_nodes: Vec<MdNode>,
+    pub draft_nodes: Vec<MdNode>,
     pub toc_items: Vec<TocItem>,
     pub artifact_specs: Vec<ArtifactSpec>,
-}
-
-/// Wire type for Tauri stream-update events and DB storage.
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct HtmlMessage {
-    pub stable_html: String,
-    pub draft_html: Option<String>,
-    pub slot_count: u32,
 }

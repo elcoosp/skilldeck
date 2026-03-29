@@ -406,7 +406,6 @@ export function CenterPanel() {
 
       <div className="relative flex-1 min-h-0">
         <MessageThread
-
           streamingMessage={streamingMessage}
           ref={threadRef}
           conversationKey={activeKey ?? ''}

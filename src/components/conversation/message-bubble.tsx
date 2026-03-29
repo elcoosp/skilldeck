@@ -1,5 +1,7 @@
+// src/components/conversation/message-bubble.tsx
 /**
- * MessageBubble — displays a single message using Rust-generated HTML or plain text fallback.
+ * MessageBubble — displays a single message using typed node tree (MarkdownView)
+ * or plain text fallback.
  */
 
 import { AnimatePresence, motion } from 'framer-motion'
@@ -22,7 +24,7 @@ import {
 import React, { memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { ContextChip } from '@/components/chat/context-chip'
-import type { MessageData } from '@/lib/bindings'
+import type { MessageData, NodeDocument } from '@/lib/bindings'
 import { cn, highlightText } from '@/lib/utils'
 import { SubagentCard } from './subagent-card'
 import { ToolResultBubble } from './tool-result-bubble'
@@ -41,8 +43,7 @@ import { save } from '@tauri-apps/plugin-dialog'
 import { writeTextFile } from '@tauri-apps/plugin-fs'
 import { CreateBranchModal } from './create-branch-modal'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { HtmlRenderer, HtmlMessage } from '@/components/html-renderer/html-renderer'
-import { conversationSlots } from './slot-registry'
+import { MarkdownView } from '@/components/markdown-view' // new component
 
 interface MessageBubbleProps {
   message: MessageData
@@ -53,7 +54,7 @@ interface MessageBubbleProps {
   searchRegex?: boolean
   onRetry?: () => void
   isBranchParent?: boolean
-  streamingMessage?: HtmlMessage | null
+  streamingMessage?: NodeDocument | null // changed from HtmlMessage
 }
 
 // ─── Custom loading animation ──────────────────────────────────────────────────
@@ -156,7 +157,8 @@ function extractTextFromChildren(children: React.ReactNode): string {
   return ''
 }
 
-// ─── Heading bookmark button ──────────────────────────────────────────────────
+// ─── Heading bookmark button (used by MarkdownView) ───────────────────────────────────────
+// We keep it here for now; it could be moved to its own file later.
 const HeadingBookmarkButton = memo(function HeadingBookmarkButton({
   messageId,
   headingAnchor,
@@ -213,7 +215,7 @@ const HeadingBookmarkButton = memo(function HeadingBookmarkButton({
   )
 })
 
-// ─── CollapsibleContent ───────────────────────────────────────────────────────
+// ─── CollapsibleContent (unchanged) ───────────────────────────────────────────────────────
 export interface CollapsibleHandle {
   collapse: () => void
   expand: () => void
@@ -320,20 +322,6 @@ function MessageBubbleInner({
   const handleBranch = useCallback(() => {
     setBranchModalOpen(true)
   }, [])
-
-  const headingIndexRef = useRef(0)
-  const lastMessageIdRef = useRef('')
-  if (lastMessageIdRef.current !== message.id) {
-    lastMessageIdRef.current = message.id
-    headingIndexRef.current = 0
-  }
-  const lastContentLenRef = useRef(0)
-  if (isStreaming) {
-    if (message.content.length < lastContentLenRef.current) {
-      headingIndexRef.current = 0
-    }
-    lastContentLenRef.current = message.content.length
-  }
 
   const isUser = message.role === 'user'
   const isAssistant = message.role === 'assistant'
@@ -515,29 +503,445 @@ function MessageBubbleInner({
     )
   }
 
-  // ─── NEW: Use HtmlRenderer if we have stable_html or streamingMessage ─────
-  if (isAssistant && message.stable_html) {
+  // ─── NEW: Use MarkdownView if we have a node_document or streamingMessage ───
+  const nodeDocument = (message as any).node_document as NodeDocument | undefined
+  const hasNodeDoc = isAssistant && nodeDocument !== undefined
+
+  if (hasNodeDoc) {
     return (
-      <HtmlRenderer
-        message={{ stableHtml: message.stable_html, draftHtml: null, slotCount: 0 }}
-        slots={conversationSlots}
-        className="prose prose-sm dark:prose-invert max-w-none break-words"
-      />
+      <motion.div
+        id={`msg-${message.id}`}
+        className="flex gap-3 max-w-full"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.15, ease: 'easeOut' }}
+      >
+        {/* Avatar */}
+        <div
+          className={cn(
+            'flex-shrink-0 size-7 rounded-full flex items-center justify-center',
+            isUser
+              ? 'bg-primary text-primary-foreground mt-0.5'
+              : isSystem
+                ? 'bg-destructive/20 text-destructive mt-0.5'
+                : isTool
+                  ? 'bg-muted text-muted-foreground mt-0.5'
+                  : 'bg-muted text-foreground mt-1.5'
+          )}
+          aria-hidden
+        >
+          {isUser ? (
+            <User className="size-3.5" />
+          ) : isSystem ? (
+            <AlertCircle className="size-3.5" />
+          ) : isTool ? (
+            <Wrench className="size-3.5" />
+          ) : (
+            <Bot className="size-3.5" />
+          )}
+        </div>
+
+        {/* Message container */}
+        <div
+          className={cn(
+            'flex flex-col min-w-0',
+            isUser ? 'items-end' : 'items-start',
+            isAssistant ? 'w-full max-w-full' : 'max-w-[78%]'
+          )}
+        >
+          <div className={cn(isUser && 'text-right', 'w-full')}>
+            <div
+              ref={contentRef}
+              data-message-id={message.id}
+              className={cn(
+                'relative px-3.5 py-2.5 rounded-xl text-sm leading-relaxed transition-colors duration-300',
+                isUser
+                  ? 'bg-primary text-primary-foreground rounded-tr-sm inline-block'
+                  : 'bg-transparent w-full inline-block',
+                isQueued && 'border-l-2 border-amber-400 pl-3'
+              )}
+            >
+              {/* Highlight ring */}
+              <motion.div
+                className={cn(
+                  'absolute inset-0 ring-2 ring-primary/50 pointer-events-none rounded-inherit',
+                  isUser ? 'rounded-xl rounded-tr-sm' : 'rounded-xl'
+                )}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: isHighlighted ? 1 : 0 }}
+                transition={{ duration: 0.5, ease: 'easeOut' }}
+                style={{ willChange: 'opacity' }}
+              />
+
+              {isQueued && (
+                <span className="text-xs bg-primary-foreground/10 text-primary-foreground rounded-full px-2 py-0.5 mb-1 flex items-center gap-1 self-start">
+                  <Clock className="size-3" /> Queued
+                </span>
+              )}
+
+              {contextItems.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-2">
+                  {contextItems.map((item: any, idx: number) => (
+                    <ContextChip key={item.path || item.name || `item-${idx}`} item={item} readonly />
+                  ))}
+                </div>
+              )}
+
+              {canCollapse && (
+                <div className="flex items-center gap-1 mb-1 text-muted-foreground">
+                  <span className="text-xs font-medium">
+                    {isAssistant ? 'Assistant' : isSystem ? 'System' : 'Tool'}
+                  </span>
+                  <motion.button
+                    type="button"
+                    onClick={toggleCollapsed}
+                    className="p-0.5 hover:bg-muted-foreground/20 rounded transition-colors"
+                    aria-label={isCollapsed ? 'Expand message' : 'Collapse message'}
+                    whileTap={{ scale: 0.9 }}
+                  >
+                    <motion.div animate={{ rotate: isCollapsed ? 0 : 90 }} transition={{ duration: 0.2 }}>
+                      {isCollapsed ? <ChevronRight className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+                    </motion.div>
+                  </motion.button>
+
+                  {isAssistant && !isStreaming && !syntheticStreaming && (
+                    <AssistantMessageActions
+                      message={message}
+                      conversationId={activeConversationId}
+                      onCopy={copyMessage}
+                      onDownload={downloadMessage}
+                      onBranch={handleBranch}
+                    />
+                  )}
+
+                  {/* Branch parent indicator */}
+                  {isAssistant && !isStreaming && !syntheticStreaming && isBranchParent && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="inline-flex items-center gap-1 ml-1 text-muted-foreground">
+                            <GitBranch className="size-3" />
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                          <p>Branch starts here</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                </div>
+              )}
+
+              <CollapsibleContent ref={collapsibleRef} initialCollapsed={false} messageId={message.id}>
+                <MarkdownView
+                  document={nodeDocument}
+                  messageId={message.id}
+                  className="prose prose-sm dark:prose-invert max-w-none break-words"
+                  headingBookmarkButton={HeadingBookmarkButton}
+                />
+              </CollapsibleContent>
+
+              {/* User message actions */}
+              {isUser && !isStreaming && !syntheticStreaming && (
+                <div className="absolute -left-8 top-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <DropdownMenu modal={false}>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        className="p-0.5 hover:bg-muted-foreground/20 rounded transition-colors"
+                        aria-label="Message options"
+                      >
+                        <MoreHorizontal className="size-3.5" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-32">
+                      <DropdownMenuItem
+                        onClick={copyMessage}
+                        className="cursor-pointer hover:bg-primary/10 hover:text-foreground focus:bg-primary/10 focus:text-foreground"
+                      >
+                        <Copy className="mr-2 h-4 w-4" />
+                        <span>Copy</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={handleBranch}
+                        className="cursor-pointer hover:bg-primary/10 hover:text-foreground focus:bg-primary/10 focus:text-foreground"
+                      >
+                        <GitBranch className="mr-2 h-4 w-4" />
+                        <span>Branch from here</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <AnimatePresence>
+            {!isStreaming && !syntheticStreaming && message.content && !collapsedStateRef.current && (
+              <motion.button
+                key="copy-button"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                onClick={copyMessage}
+                className="mt-1 p-1 text-muted-foreground hover:text-foreground transition-colors bg-transparent border-0 shadow-none"
+                aria-label="Copy message"
+              >
+                {copied ? <Check className="size-3.5 text-green-500" /> : <Copy className="size-3.5" />}
+              </motion.button>
+            )}
+          </AnimatePresence>
+
+          {isUser && onRetry && (
+            <div className="text-xs text-muted-foreground mt-1 flex justify-end">
+              <button type="button" onClick={onRetry} className="text-xs text-primary hover:underline">
+                Retry
+              </button>
+            </div>
+          )}
+
+          {isAssistant && message.status === 'cancelled' && (
+            <div className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
+              <span className="italic">Cancelled</span>
+              {onRetry && (
+                <button type="button" onClick={onRetry} className="text-xs text-primary hover:underline">
+                  Retry
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        <CreateBranchModal
+          open={branchModalOpen}
+          onClose={() => setBranchModalOpen(false)}
+          conversationId={activeConversationId!}
+          parentMessageId={message.id}
+        />
+      </motion.div>
     )
   }
 
+  // ─── Streaming case with streamingMessage ───────────────────────────────────
   if ((isAssistant || syntheticStreaming) && streamingMessage) {
     return (
-      <HtmlRenderer
-        message={streamingMessage}
-        slots={conversationSlots}
-        className="prose prose-sm dark:prose-invert max-w-none break-words"
-      />
+      <motion.div
+        id={`msg-${message.id}`}
+        className="flex gap-3 max-w-full"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.15, ease: 'easeOut' }}
+      >
+        {/* Avatar (same as above) */}
+        <div
+          className={cn(
+            'flex-shrink-0 size-7 rounded-full flex items-center justify-center',
+            isUser
+              ? 'bg-primary text-primary-foreground mt-0.5'
+              : isSystem
+                ? 'bg-destructive/20 text-destructive mt-0.5'
+                : isTool
+                  ? 'bg-muted text-muted-foreground mt-0.5'
+                  : 'bg-muted text-foreground mt-1.5'
+          )}
+          aria-hidden
+        >
+          {isUser ? (
+            <User className="size-3.5" />
+          ) : isSystem ? (
+            <AlertCircle className="size-3.5" />
+          ) : isTool ? (
+            <Wrench className="size-3.5" />
+          ) : (
+            <Bot className="size-3.5" />
+          )}
+        </div>
+
+        {/* Message container */}
+        <div
+          className={cn(
+            'flex flex-col min-w-0',
+            isUser ? 'items-end' : 'items-start',
+            isAssistant ? 'w-full max-w-full' : 'max-w-[78%]'
+          )}
+        >
+          <div className={cn(isUser && 'text-right', 'w-full')}>
+            <div
+              ref={contentRef}
+              data-message-id={message.id}
+              className={cn(
+                'relative px-3.5 py-2.5 rounded-xl text-sm leading-relaxed transition-colors duration-300',
+                isUser
+                  ? 'bg-primary text-primary-foreground rounded-tr-sm inline-block'
+                  : 'bg-transparent w-full inline-block',
+                isQueued && 'border-l-2 border-amber-400 pl-3'
+              )}
+            >
+              {/* Highlight ring (same as above) */}
+              <motion.div
+                className={cn(
+                  'absolute inset-0 ring-2 ring-primary/50 pointer-events-none rounded-inherit',
+                  isUser ? 'rounded-xl rounded-tr-sm' : 'rounded-xl'
+                )}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: isHighlighted ? 1 : 0 }}
+                transition={{ duration: 0.5, ease: 'easeOut' }}
+                style={{ willChange: 'opacity' }}
+              />
+
+              {isQueued && (
+                <span className="text-xs bg-primary-foreground/10 text-primary-foreground rounded-full px-2 py-0.5 mb-1 flex items-center gap-1 self-start">
+                  <Clock className="size-3" /> Queued
+                </span>
+              )}
+
+              {contextItems.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-2">
+                  {contextItems.map((item: any, idx: number) => (
+                    <ContextChip key={item.path || item.name || `item-${idx}`} item={item} readonly />
+                  ))}
+                </div>
+              )}
+
+              {canCollapse && (
+                <div className="flex items-center gap-1 mb-1 text-muted-foreground">
+                  <span className="text-xs font-medium">
+                    {isAssistant ? 'Assistant' : isSystem ? 'System' : 'Tool'}
+                  </span>
+                  <motion.button
+                    type="button"
+                    onClick={toggleCollapsed}
+                    className="p-0.5 hover:bg-muted-foreground/20 rounded transition-colors"
+                    aria-label={isCollapsed ? 'Expand message' : 'Collapse message'}
+                    whileTap={{ scale: 0.9 }}
+                  >
+                    <motion.div animate={{ rotate: isCollapsed ? 0 : 90 }} transition={{ duration: 0.2 }}>
+                      {isCollapsed ? <ChevronRight className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+                    </motion.div>
+                  </motion.button>
+
+                  {isAssistant && !isStreaming && !syntheticStreaming && (
+                    <AssistantMessageActions
+                      message={message}
+                      conversationId={activeConversationId}
+                      onCopy={copyMessage}
+                      onDownload={downloadMessage}
+                      onBranch={handleBranch}
+                    />
+                  )}
+
+                  {/* Branch parent indicator */}
+                  {isAssistant && !isStreaming && !syntheticStreaming && isBranchParent && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="inline-flex items-center gap-1 ml-1 text-muted-foreground">
+                            <GitBranch className="size-3" />
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                          <p>Branch starts here</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                </div>
+              )}
+
+              <CollapsibleContent ref={collapsibleRef} initialCollapsed={false} messageId={message.id}>
+                <MarkdownView
+                  document={streamingMessage}
+                  messageId={message.id}
+                  className="prose prose-sm dark:prose-invert max-w-none break-words"
+                  headingBookmarkButton={HeadingBookmarkButton}
+                />
+              </CollapsibleContent>
+
+              {/* User message actions (same as above) */}
+              {isUser && !isStreaming && !syntheticStreaming && (
+                <div className="absolute -left-8 top-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <DropdownMenu modal={false}>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        className="p-0.5 hover:bg-muted-foreground/20 rounded transition-colors"
+                        aria-label="Message options"
+                      >
+                        <MoreHorizontal className="size-3.5" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-32">
+                      <DropdownMenuItem
+                        onClick={copyMessage}
+                        className="cursor-pointer hover:bg-primary/10 hover:text-foreground focus:bg-primary/10 focus:text-foreground"
+                      >
+                        <Copy className="mr-2 h-4 w-4" />
+                        <span>Copy</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={handleBranch}
+                        className="cursor-pointer hover:bg-primary/10 hover:text-foreground focus:bg-primary/10 focus:text-foreground"
+                      >
+                        <GitBranch className="mr-2 h-4 w-4" />
+                        <span>Branch from here</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <AnimatePresence>
+            {!isStreaming && !syntheticStreaming && message.content && !collapsedStateRef.current && (
+              <motion.button
+                key="copy-button"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                onClick={copyMessage}
+                className="mt-1 p-1 text-muted-foreground hover:text-foreground transition-colors bg-transparent border-0 shadow-none"
+                aria-label="Copy message"
+              >
+                {copied ? <Check className="size-3.5 text-green-500" /> : <Copy className="size-3.5" />}
+              </motion.button>
+            )}
+          </AnimatePresence>
+
+          {isUser && onRetry && (
+            <div className="text-xs text-muted-foreground mt-1 flex justify-end">
+              <button type="button" onClick={onRetry} className="text-xs text-primary hover:underline">
+                Retry
+              </button>
+            </div>
+          )}
+
+          {isAssistant && message.status === 'cancelled' && (
+            <div className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
+              <span className="italic">Cancelled</span>
+              {onRetry && (
+                <button type="button" onClick={onRetry} className="text-xs text-primary hover:underline">
+                  Retry
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        <CreateBranchModal
+          open={branchModalOpen}
+          onClose={() => setBranchModalOpen(false)}
+          conversationId={activeConversationId!}
+          parentMessageId={message.id}
+        />
+      </motion.div>
     )
   }
 
-  // ─── Fallback: plain text for messages without stable_html (e.g., old messages) ──
-  const showPlainText = !(isAssistant && message.stable_html) && !(isAssistant && streamingMessage)
+  // ─── Fallback: plain text for messages without node document (old messages) ──
+  const showPlainText = !(isAssistant && (nodeDocument !== undefined || streamingMessage))
 
   return (
     <motion.div
@@ -773,6 +1177,7 @@ function MessageBubbleInner({
 export const MessageBubble = memo(
   MessageBubbleInner,
   (prev, next) => {
+    // Always re-render if these change
     if (prev.isStreaming !== next.isStreaming) return false
     if (prev.isHighlighted !== next.isHighlighted) return false
     if (prev.searchQuery !== next.searchQuery) return false
@@ -782,8 +1187,14 @@ export const MessageBubble = memo(
     if (prev.message.role !== next.message.role) return false
     if (prev.message.metadata !== next.message.metadata) return false
     if (prev.message.context_items !== next.message.context_items) return false
-    if (prev.streamingMessage !== next.streamingMessage) return false
-    if (next.isStreaming) return prev.message.content === next.message.content
+    if (prev.isBranchParent !== next.isBranchParent) return false
+
+    // During streaming, the outer shell of MessageBubble is stable.
+    // MarkdownView receives streamingMessage directly and handles its own updates.
+    if (next.isStreaming) return true   // skip re-rendering the shell
+
+    // For settled messages, re-render only if content changed
     return prev.message.content === next.message.content
+      && prev.streamingMessage === next.streamingMessage
   }
 )

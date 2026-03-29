@@ -1143,7 +1143,7 @@ export type AddQueuedMessageRequest = { conversation_id: string; content: string
 /**
  * Payload for the `"agent-event"` Tauri channel.
  */
-export type AgentEvent = { type: "cancelled"; conversation_id: string } | { type: "started"; conversation_id: string } | { type: "token"; conversation_id: string; delta: string } | { type: "tool_call"; conversation_id: string; tool_call: AgentToolCall } | { type: "tool_result"; conversation_id: string; tool_call_id: string; result: string } | { type: "done"; conversation_id: string; input_tokens: number; output_tokens: number } | { type: "error"; conversation_id: string; message: string } | { type: "persisted"; conversation_id: string } | { type: "tool_approval_required"; conversation_id: string; tool_call_id: string; tool_name: string; arguments: JsonValue } | { type: "stream_update"; conversation_id: string; stable_html: string; draft_html: string | null; slot_count: number; new_toc_items: TocItem[]; new_artifact_specs: ArtifactSpec[] }
+export type AgentEvent = { type: "cancelled"; conversation_id: string } | { type: "started"; conversation_id: string } | { type: "token"; conversation_id: string; delta: string } | { type: "tool_call"; conversation_id: string; tool_call: AgentToolCall } | { type: "tool_result"; conversation_id: string; tool_call_id: string; result: string } | { type: "done"; conversation_id: string; input_tokens: number; output_tokens: number } | { type: "error"; conversation_id: string; message: string } | { type: "persisted"; conversation_id: string } | { type: "tool_approval_required"; conversation_id: string; tool_call_id: string; tool_name: string; arguments: JsonValue } | { type: "stream_update"; conversation_id: string; document: NodeDocument; new_toc_items: TocItem[]; new_artifact_specs: ArtifactSpec[] }
 export type AgentToolCall = { id: string; name: string; arguments: JsonValue }
 export type AnalyticsData = { total_conversations: string; total_messages: string; messages_per_day: DailyCount[]; conversations_per_day: DailyCount[]; skills_used: SkillUsage[]; token_usage: TokenTotals }
 /**
@@ -1151,9 +1151,6 @@ export type AnalyticsData = { total_conversations: string; total_messages: strin
  */
 export type ApiKeyStatus = { provider: string; has_key: boolean }
 export type ArtifactData = { id: string; message_id: string; branch_id: string | null; type: string; name: string; content: string; language: string | null; logical_key: string | null; created_at: string }
-/**
- * One extracted code fence, before syntax highlighting.
- */
 export type ArtifactSpec = { id: string; language: string; raw_code: string; slot_index: number }
 export type AssembleFolderRequest = { path: string; deep: boolean; max_bytes: string | null }
 export type AssembleFolderResponse = { assembled_content: string; file_count: string }
@@ -1225,10 +1222,11 @@ export type McpEvent = { type: "server_connected"; name: string } | { type: "ser
 export type McpServerResponse = { id: string; name: string; transport: string; status: string; tools: McpToolResponse[] }
 export type McpToolInfo = { name: string; description: string }
 export type McpToolResponse = { name: string; description: string; input_schema: JsonValue }
+export type MdNode = { type: "paragraph"; id: string; html: string } | { type: "heading"; id: string; level: number; text: string; slug: string; toc_index: number } | { type: "code_block"; id: string; language: string; raw_code: string; highlighted_html: string; artifact_id: string } | { type: "list"; id: string; ordered: boolean; html: string } | { type: "blockquote"; id: string; html: string } | { type: "horizontal_rule"; id: string } | { type: "html_block"; id: string; html: string } | { type: "draft"; id: string; raw_markdown: string }
 /**
  * Serialisable message returned to the frontend.
  */
-export type MessageData = { id: string; conversation_id: string; role: string; content: string; created_at: string; context_items: ContextItem[] | null; metadata: MessageMetadata | null; input_tokens: number | null; output_tokens: number | null; seen: boolean; stable_html: string | null }
+export type MessageData = { id: string; conversation_id: string; role: string; content: string; created_at: string; context_items: ContextItem[] | null; metadata: MessageMetadata | null; input_tokens: number | null; output_tokens: number | null; seen: boolean; stable_html: string | null; node_document: NodeDocument | null }
 /**
  * Lightweight message representation used by the Markdown gist exporter.
  */
@@ -1255,6 +1253,7 @@ tool_name?: string | null;
  * with the assistant's tool_use block.
  */
 tool_call_id?: string | null }
+export type NodeDocument = { stable_nodes: MdNode[]; draft_nodes: MdNode[]; toc_items: TocItem[]; artifact_specs: ArtifactSpec[] }
 /**
  * A minimal model descriptor returned to the frontend.
  */
@@ -1290,10 +1289,6 @@ export type SkillInfo = { name: string; description: string; is_active: boolean;
 export type SkillSourceInfo = { id: string; source_type: string; path: string; label: string | null }
 export type SkillUsage = { name: string; count: string }
 export type ThemeInfo = { name: string; display_name: string }
-/**
- * One heading extracted from markdown.
- * Matches the shape of skilldeck_models::message_headings::TocItem.
- */
 export type TocItem = { id: string; toc_index: number; text: string; level: number; slug: string }
 export type TokenTotals = { input_tokens: string; output_tokens: string; total_tokens: string }
 export type UpdatePrefsPayload = { email: string | null; nudge_frequency: string | null; nudge_opt_out: boolean | null; notification_channels: string[] | null; theme_preference: string | null; timezone: string | null; analytics_opt_in: boolean | null }

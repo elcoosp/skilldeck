@@ -1,12 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ChevronRight, Copy, Check, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useSlotState } from '@/components/html-renderer/slot-state-store';
 import { useArtifactContent } from '@/hooks/use-artifact-content';
 import { cn } from '@/lib/utils';
 
 interface CodeBlockProps {
-  slotId: string;
   language: string;
   artifactId: string;
   highlightedHtml: string;
@@ -19,8 +17,8 @@ interface CodeBlockState {
 
 const INITIAL_STATE: CodeBlockState = { collapsed: false, copied: false };
 
-export const CodeBlock: React.FC<CodeBlockProps> = ({ slotId, language, artifactId, highlightedHtml }) => {
-  const [state, setState] = useSlotState<CodeBlockState>(slotId, INITIAL_STATE);
+export const CodeBlock: React.FC<CodeBlockProps> = ({ language, artifactId, highlightedHtml }) => {
+  const [state, setState] = useState<CodeBlockState>(INITIAL_STATE);
   const { collapsed, copied } = state;
   const { data: rawCode, isLoading, error } = useArtifactContent(artifactId);
 

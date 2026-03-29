@@ -111,11 +111,11 @@ function App() {
     commands.getSyntaxCss().then(css => {
       const style = document.getElementById('syntax-theme');
       if (style) {
-        style.textContent = css;
+        style.textContent = css.data;
       } else {
         const s = document.createElement('style');
         s.id = 'syntax-theme';
-        s.textContent = css;
+        s.textContent = css.data;
         document.head.appendChild(s);
       }
     }).catch(err => {

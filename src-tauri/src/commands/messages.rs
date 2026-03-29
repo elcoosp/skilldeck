@@ -8,7 +8,6 @@ use sea_orm::{
 use sea_query::Expr;
 use serde::{Deserialize, Serialize};
 use specta::{Type, specta};
-use std::pin::Pin;
 use std::sync::Arc;
 use tauri::{Emitter, State};
 use uuid::Uuid;
@@ -18,7 +17,6 @@ use crate::commands::headings::{HeadingItem, get_conversation_messages_headings}
 use crate::commands::queue;
 use crate::{events::AgentEvent, state::AppState};
 use async_trait::async_trait;
-use futures::Future;
 use skilldeck_core::agent::{AgentLoop, AgentLoopConfig, AgentLoopEvent, all_built_in_tools};
 use skilldeck_core::traits::subagent_spawner::SubagentSpawner;
 use skilldeck_models::artifacts;
@@ -27,7 +25,7 @@ use skilldeck_models::conversations::{self, Entity as Conversations};
 use skilldeck_models::messages::{self, Entity as Messages, MessageMetadata};
 
 use skilldeck_core::markdown::streaming::IncrementalStream;
-use skilldeck_core::markdown::types::ParseOutput;
+use skilldeck_core::markdown::types::NodeDocument; // <-- changed
 
 /// Serialisable message returned to the frontend.
 #[derive(Debug, Clone, Serialize, Type)]
@@ -42,7 +40,8 @@ pub struct MessageData {
     pub input_tokens: Option<i32>,
     pub output_tokens: Option<i32>,
     pub seen: bool,
-    pub stable_html: Option<String>, // <-- new
+    pub stable_html: Option<String>, // <-- kept for compatibility
+    pub node_document: Option<NodeDocument>, // <-- new field
 }
 
 /// Request for searching messages within a conversation.
@@ -83,7 +82,7 @@ pub struct ConversationBootstrapData {
     pub branches: Vec<crate::commands::branches::BranchInfo>,
     pub draft: Option<(String, Vec<serde_json::Value>)>,
     pub queued: Vec<crate::commands::queue::QueuedMessage>,
-    pub headings: Vec<HeadingItem>, // <-- new
+    pub headings: Vec<HeadingItem>,
 }
 
 #[specta]
@@ -170,7 +169,8 @@ pub async fn list_messages(
                 input_tokens: m.input_tokens,
                 output_tokens: m.output_tokens,
                 seen: m.seen,
-                stable_html: m.stable_html.clone(), // <-- new
+                stable_html: m.stable_html.clone(),
+                node_document: None, // TODO: load from a new column
             }
         })
         .collect())
@@ -432,12 +432,7 @@ pub(crate) async fn send_message_internal(
     app: tauri::AppHandle,
     metadata: Option<MessageMetadata>,
 ) -> Result<(), String> {
-    let db = state
-        .registry
-        .db
-        .connection()
-        .await
-        .map_err(|e| e.to_string())?;
+    // Validate IDs synchronously – no DB call
     let conv_uuid = Uuid::parse_str(&conversation_id).map_err(|e| e.to_string())?;
     let branch_uuid = branch_id
         .as_ref()
@@ -447,33 +442,7 @@ pub(crate) async fn send_message_internal(
     let msg_id = Uuid::new_v4();
     let now = chrono::Utc::now().fixed_offset();
 
-    let context_items_model = context_items
-        .clone()
-        .map(ContextItems)
-        .unwrap_or_else(|| ContextItems(vec![]));
-
-    let user_msg = messages::ActiveModel {
-        id: Set(msg_id),
-        conversation_id: Set(conv_uuid),
-        branch_id: Set(branch_uuid),
-        role: Set("user".to_string()),
-        content: Set(content.clone()),
-        metadata: Set(metadata),
-        context_items: Set(Some(context_items_model)),
-        created_at: Set(now),
-        seen: Set(false),
-        status: Set("active".to_string()),
-        ..Default::default()
-    };
-    user_msg.insert(db).await.map_err(|e| e.to_string())?;
-
-    let _ = app.emit(
-        "agent-event",
-        AgentEvent::Persisted {
-            conversation_id: conversation_id.clone(),
-        },
-    );
-
+    // Emit Started FIRST – UI can enter streaming mode immediately
     let _ = app.emit(
         "agent-event",
         AgentEvent::Started {
@@ -481,29 +450,75 @@ pub(crate) async fn send_message_internal(
         },
     );
 
-    let state_arc = state.clone();
-    let conv_id_clone = conversation_id.clone();
-    let content_clone = content.clone();
-    let branch_id_clone = branch_id;
-    let app_clone = app.clone();
-    let context_items_clone = context_items;
+    // Spawn the heavy work (DB insert + agent loop)
+    tokio::spawn(async move {
+        let db = match state.registry.db.connection().await {
+            Ok(db) => db,
+            Err(e) => {
+                let _ = app.emit(
+                    "agent-event",
+                    AgentEvent::Error {
+                        conversation_id: conversation_id.clone(),
+                        message: format!("Database connection failed: {}", e),
+                    },
+                );
+                return;
+            }
+        };
 
-    let future: Pin<Box<dyn Future<Output = ()> + Send + 'static>> = Box::pin(async move {
+        // Insert user message
+        let context_items_model = context_items
+            .clone()
+            .map(ContextItems)
+            .unwrap_or_else(|| ContextItems(vec![]));
+
+        let user_msg = messages::ActiveModel {
+            id: Set(msg_id),
+            conversation_id: Set(conv_uuid),
+            branch_id: Set(branch_uuid),
+            role: Set("user".to_string()),
+            content: Set(content.clone()),
+            metadata: Set(metadata),
+            context_items: Set(Some(context_items_model)),
+            created_at: Set(now),
+            seen: Set(false),
+            status: Set("active".to_string()),
+            ..Default::default()
+        };
+
+        if let Err(e) = user_msg.insert(db).await {
+            let _ = app.emit(
+                "agent-event",
+                AgentEvent::Error {
+                    conversation_id: conversation_id.clone(),
+                    message: format!("Failed to save user message: {}", e),
+                },
+            );
+            return;
+        }
+
+        // Emit Persisted after the message is saved – triggers cache refresh
+        let _ = app.emit(
+            "agent-event",
+            AgentEvent::Persisted {
+                conversation_id: conversation_id.clone(),
+            },
+        );
+
+        // Finally start the agent loop (not async, no .await)
         run_agent_loop(
-            state_arc,
-            conv_id_clone,
-            content_clone,
-            branch_id_clone,
+            state,
+            conversation_id,
+            content,
+            branch_id,
             msg_id,
-            context_items_clone,
-            app_clone,
-        )
+            context_items,
+            app,
+        );
     });
-    tokio::spawn(future);
 
     Ok(())
 }
-
 // =============================================================================
 // Agent loop runner
 // =============================================================================
@@ -908,7 +923,7 @@ fn run_agent_loop(
 
         // ─── Create incremental streamer for this assistant response ───
         let mut streamer = IncrementalStream::new(Arc::clone(&state.markdown));
-        let mut final_parsed: Option<ParseOutput> = None;
+        let mut final_document: Option<NodeDocument> = None;
 
         // Ordered event relay using std::sync::mpsc – runs in a dedicated thread
         let (emit_tx, emit_rx) = std::sync::mpsc::channel::<AgentEvent>();
@@ -924,15 +939,13 @@ fn run_agent_loop(
         while let Some(event) = rx.recv().await {
             match event {
                 Ok(AgentLoopEvent::Token { delta }) => {
-                    if let Some(msg) = streamer.push(&delta) {
+                    if let Some(doc) = streamer.push(&delta) {
                         let new_toc = streamer.drain_new_toc_items();
                         let new_artifacts = streamer.drain_new_artifact_specs();
                         // Send into the channel – non-blocking, since it's std::sync::mpsc
                         let _ = emit_tx.send(AgentEvent::StreamUpdate {
                             conversation_id: conversation_id.clone(),
-                            stable_html: msg.stable_html,
-                            draft_html: msg.draft_html,
-                            slot_count: msg.slot_count,
+                            document: doc, // <-- send the NodeDocument
                             new_toc_items: new_toc,
                             new_artifact_specs: new_artifacts,
                         });
@@ -960,17 +973,15 @@ fn run_agent_loop(
                     ..
                 }) => {
                     // Finalize the streamer to get the complete parsed output
-                    let parsed = streamer.finalize();
-                    final_parsed = Some(parsed.clone());
+                    let doc = streamer.finalize();
+                    final_document = Some(doc.clone());
 
                     // Final StreamUpdate and Done – order preserved by the channel
                     let _ = emit_tx.send(AgentEvent::StreamUpdate {
                         conversation_id: conversation_id.clone(),
-                        stable_html: parsed.html_message.stable_html,
-                        draft_html: None,
-                        slot_count: parsed.html_message.slot_count,
-                        new_toc_items: parsed.toc_items,
-                        new_artifact_specs: parsed.artifact_specs,
+                        document: doc.clone(),
+                        new_toc_items: doc.toc_items.clone(),
+                        new_artifact_specs: doc.artifact_specs.clone(),
                     });
                     let _ = emit_tx.send(AgentEvent::Done {
                         conversation_id: conversation_id.clone(),
@@ -1069,30 +1080,30 @@ fn run_agent_loop(
 
                     // NEW: Single-pass pipeline for assistant messages
                     if role_str == "assistant" {
-                        // Use the captured final_parsed if available, otherwise re-parse
-                        let parsed = if let Some(fp) = &final_parsed {
+                        // Use the captured final_document if available, otherwise re-parse
+                        let doc = if let Some(fp) = &final_document {
                             fp.clone()
                         } else {
                             state.markdown.render_final(&msg.content)
                         };
 
-                        // 1. Update stable_html on the message row
+                        // 1. Store the node_document as JSON in a new column (not yet added)
+                        // For now, store an empty string in stable_html to avoid schema errors.
                         messages::Entity::update_many()
-                            .col_expr(
-                                messages::Column::StableHtml,
-                                Expr::value(&parsed.html_message.stable_html),
-                            )
+                            .col_expr(messages::Column::StableHtml, Expr::value(""))
                             .filter(messages::Column::Id.eq(msg_id))
                             .exec(db)
                             .await
                             .map_err(|e| tracing::warn!("Failed to store stable HTML: {}", e))
                             .ok();
 
+                        // TODO: Store doc as JSON in a new node_document column
+
                         // 2. Insert headings
                         use skilldeck_models::message_headings::{
                             ActiveModel as HeadingsActiveModel, HeadingsJson, TocItem as DbTocItem,
                         };
-                        let db_toc: Vec<DbTocItem> = parsed
+                        let db_toc: Vec<DbTocItem> = doc
                             .toc_items
                             .iter()
                             .map(|t| DbTocItem {
@@ -1113,7 +1124,7 @@ fn run_agent_loop(
                         }
 
                         // 3. Insert artifacts
-                        for spec in &parsed.artifact_specs {
+                        for spec in &doc.artifact_specs {
                             let (storage_path, db_content) =
                                 match store_artifact_content(&spec.raw_code).await {
                                     Ok(Some(path)) => {

@@ -9,9 +9,10 @@ interface HeadingProps {
   level: number;
   slug: string;
   text: string;
+  messageId?: string;
 }
 
-export const Heading: React.FC<HeadingProps> = ({ level, slug, text }) => {
+export const Heading: React.FC<HeadingProps> = ({ level, slug, text, messageId }) => {
   const conversationId = useConversationStore(s => s.activeConversationId);
   const isBookmarked = useBookmarksStore(s =>
     conversationId
@@ -21,7 +22,9 @@ export const Heading: React.FC<HeadingProps> = ({ level, slug, text }) => {
 
   const toggle = () => {
     if (!conversationId) return;
-    useBookmarksStore.getState().toggleBookmark(conversationId, '', slug, text);
+    // Use the passed messageId if available, otherwise fallback to ''
+    const msgId = messageId ?? '';
+    useBookmarksStore.getState().toggleBookmark(conversationId, msgId, slug, text);
   };
 
   const Tag = `h${level}` as keyof React.JSX.IntrinsicElements;
