@@ -2,8 +2,8 @@
 //! Message Tauri commands.
 
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, ConnectionTrait, DbBackend, EntityTrait,
-    QueryFilter, QueryOrder, Statement,
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, ConnectionTrait, DatabaseConnection,
+    DbBackend, EntityTrait, QueryFilter, QueryOrder, Statement,
 };
 use sea_query::Expr;
 use serde::{Deserialize, Serialize};
@@ -42,6 +42,7 @@ pub struct MessageData {
     pub seen: bool,
     pub stable_html: Option<String>,
     pub node_document: Option<NodeDocument>,
+    pub status: String,
 }
 
 /// Request for searching messages within a conversation.
@@ -172,6 +173,7 @@ pub async fn list_messages(
                 seen: m.seen,
                 stable_html: m.stable_html.clone(),
                 node_document,
+                status: m.status,
             }
         })
         .collect())
@@ -519,6 +521,121 @@ pub(crate) async fn send_message_internal(
     });
 
     Ok(())
+}
+
+// =============================================================================
+// Assistant message persistence helper
+// =============================================================================
+
+/// Persist an assistant message with its node document, headings, and artifacts.
+///
+/// Used both on the success path (status = "active") and on error paths
+/// (status = "incomplete") to avoid losing partial streamed content.
+async fn persist_assistant_message(
+    db: &DatabaseConnection,
+    conv_uuid: Uuid,
+    branch_uuid: Option<Uuid>,
+    content: String,
+    status: &str,
+    input_tokens: i32,
+    output_tokens: i32,
+    cache_read_tokens: i32,
+    cache_write_tokens: i32,
+    doc: NodeDocument,
+    now: chrono::DateTime<chrono::FixedOffset>,
+) -> Result<Uuid, String> {
+    let msg_id = Uuid::new_v4();
+
+    // Insert the assistant message row
+    let active = messages::ActiveModel {
+        id: Set(msg_id),
+        conversation_id: Set(conv_uuid),
+        branch_id: Set(branch_uuid),
+        role: Set("assistant".to_string()),
+        content: Set(content),
+        created_at: Set(now),
+        context_items: Set(Some(ContextItems(vec![]))),
+        seen: Set(false),
+        status: Set(status.to_string()),
+        input_tokens: Set(Some(input_tokens)),
+        output_tokens: Set(Some(output_tokens)),
+        cache_read_tokens: Set(Some(cache_read_tokens)),
+        cache_write_tokens: Set(Some(cache_write_tokens)),
+        ..Default::default()
+    };
+
+    active.insert(db).await.map_err(|e| e.to_string())?;
+
+    // Store node document as JSON
+    let node_document_json = serde_json::to_string(&doc)
+        .map_err(|e| format!("Failed to serialize node document: {}", e))?;
+
+    messages::Entity::update_many()
+        .col_expr(messages::Column::StableHtml, Expr::value(""))
+        .col_expr(
+            messages::Column::NodeDocument,
+            Expr::value(node_document_json),
+        )
+        .filter(messages::Column::Id.eq(msg_id))
+        .exec(db)
+        .await
+        .map_err(|e| format!("Failed to store node document: {}", e))?;
+
+    // Store headings
+    use skilldeck_models::message_headings::{
+        ActiveModel as HeadingsActiveModel, HeadingsJson, TocItem as DbTocItem,
+    };
+    let db_toc: Vec<DbTocItem> = doc
+        .toc_items
+        .iter()
+        .map(|t| DbTocItem {
+            id: t.id.clone(),
+            toc_index: t.toc_index,
+            text: t.text.clone(),
+            level: t.level,
+        })
+        .collect();
+    let heading_record = HeadingsActiveModel {
+        id: Set(Uuid::new_v4()),
+        message_id: Set(msg_id),
+        headings: Set(HeadingsJson(db_toc)),
+        created_at: Set(now),
+    };
+    if let Err(e) = heading_record.insert(db).await {
+        tracing::warn!("Failed to store headings for {}: {}", msg_id, e);
+    }
+
+    // Store artifacts
+    for spec in &doc.artifact_specs {
+        let (storage_path, db_content) = match store_artifact_content(&spec.raw_code).await {
+            Ok(Some(path)) => (Some(path.to_string_lossy().to_string()), String::new()),
+            Ok(None) => (None, spec.raw_code.clone()),
+            Err(e) => {
+                tracing::warn!("Artifact storage failed: {}", e);
+                (None, spec.raw_code.clone())
+            }
+        };
+        let logical_key = format!("code_{}_{}", spec.language, msg_id);
+        let artifact = artifacts::ActiveModel {
+            id: Set(spec.id),
+            message_id: Set(msg_id),
+            branch_id: Set(branch_uuid),
+            parent_artifact_id: Set(None),
+            logical_key: Set(Some(logical_key)),
+            storage_path: Set(storage_path),
+            r#type: Set("code".to_string()),
+            name: Set(spec.language.clone()),
+            content: Set(db_content),
+            language: Set(Some(spec.language.clone())),
+            metadata: Set(None),
+            created_at: Set(now),
+        };
+        if let Err(e) = artifact.insert(db).await {
+            tracing::warn!("Failed to insert artifact {}: {}", spec.id, e);
+        }
+    }
+
+    Ok(msg_id)
 }
 
 // =============================================================================
@@ -925,6 +1042,10 @@ fn run_agent_loop(
         let mut streamer = IncrementalStream::new(Arc::clone(&state.markdown));
         let mut final_document: Option<NodeDocument> = None;
 
+        // Track accumulated content for error recovery
+        let mut accumulated_content = String::new();
+        let mut saw_done = false;
+
         // Ordered event relay using std::sync::mpsc – runs in a dedicated thread
         let (emit_tx, emit_rx) = std::sync::mpsc::channel::<AgentEvent>();
         let app_emitter = app.clone();
@@ -939,6 +1060,8 @@ fn run_agent_loop(
         while let Some(event) = rx.recv().await {
             match event {
                 Ok(AgentLoopEvent::Token { delta }) => {
+                    accumulated_content.push_str(&delta);
+
                     if let Some(doc) = streamer.push(&delta) {
                         let new_toc = streamer.drain_new_toc_items();
                         let new_artifacts = streamer.drain_new_artifact_specs();
@@ -971,6 +1094,8 @@ fn run_agent_loop(
                     output_tokens,
                     ..
                 }) => {
+                    saw_done = true;
+
                     let doc = streamer.finalize();
                     final_document = Some(doc.clone());
 
@@ -1029,45 +1154,6 @@ fn run_agent_loop(
                         skilldeck_core::traits::MessageRole::Tool => "tool",
                         skilldeck_core::traits::MessageRole::System => "system",
                     };
-                    let msg_id = Uuid::new_v4();
-                    let branch_uuid = branch_id.as_ref().and_then(|id| Uuid::parse_str(id).ok());
-                    let mut active = messages::ActiveModel {
-                        id: Set(msg_id),
-                        conversation_id: Set(conv_uuid),
-                        branch_id: Set(branch_uuid),
-                        role: Set(role_str.to_string()),
-                        content: Set(msg.content.clone()),
-                        created_at: Set(now),
-                        context_items: Set(Some(ContextItems(vec![]))),
-                        seen: Set(false),
-                        status: Set("active".to_string()),
-                        ..Default::default()
-                    };
-                    if i == messages_len - 1 && role_str == "assistant" {
-                        active.input_tokens = Set(Some(result.input_tokens as i32));
-                        active.output_tokens = Set(Some(result.output_tokens as i32));
-                        active.cache_read_tokens = Set(Some(result.cache_read_tokens as i32));
-                        active.cache_write_tokens = Set(Some(result.cache_write_tokens as i32));
-                    }
-
-                    if role_str == "tool" {
-                        let meta = MessageMetadata {
-                            tool_name: msg.name.clone(),
-                            tool_call_id: None,
-                            ..Default::default()
-                        };
-                        active.metadata = Set(Some(meta));
-                    }
-
-                    if let Err(e) = active.insert(db).await {
-                        let _ = app.emit(
-                            "agent-event",
-                            AgentEvent::Error {
-                                conversation_id: conversation_id.clone(),
-                                message: format!("Failed to persist message: {}", e),
-                            },
-                        );
-                    }
 
                     if role_str == "assistant" {
                         let doc = if let Some(fp) = &final_document {
@@ -1076,74 +1162,85 @@ fn run_agent_loop(
                             state.markdown.render_final(&msg.content)
                         };
 
-                        // Store as JSON string
-                        let node_document_json = serde_json::to_string(&doc).ok();
-
-                        messages::Entity::update_many()
-                            .col_expr(messages::Column::StableHtml, Expr::value(""))
-                            .col_expr(
-                                messages::Column::NodeDocument,
-                                Expr::value(node_document_json),
-                            )
-                            .filter(messages::Column::Id.eq(msg_id))
-                            .exec(db)
-                            .await
-                            .map_err(|e| tracing::warn!("Failed to store node document: {}", e))
-                            .ok();
-
-                        use skilldeck_models::message_headings::{
-                            ActiveModel as HeadingsActiveModel, HeadingsJson, TocItem as DbTocItem,
+                        let is_last = i == messages_len - 1;
+                        let input_tokens = if is_last {
+                            result.input_tokens as i32
+                        } else {
+                            0
                         };
-                        let db_toc: Vec<DbTocItem> = doc
-                            .toc_items
-                            .iter()
-                            .map(|t| DbTocItem {
-                                id: t.id.clone(),
-                                toc_index: t.toc_index,
-                                text: t.text.clone(),
-                                level: t.level,
-                            })
-                            .collect();
-                        let heading_record = HeadingsActiveModel {
-                            id: Set(Uuid::new_v4()),
-                            message_id: Set(msg_id),
-                            headings: Set(HeadingsJson(db_toc)),
+                        let output_tokens = if is_last {
+                            result.output_tokens as i32
+                        } else {
+                            0
+                        };
+                        let cache_read_tokens = if is_last {
+                            result.cache_read_tokens as i32
+                        } else {
+                            0
+                        };
+                        let cache_write_tokens = if is_last {
+                            result.cache_write_tokens as i32
+                        } else {
+                            0
+                        };
+
+                        if let Err(e) = persist_assistant_message(
+                            db,
+                            conv_uuid,
+                            branch_uuid,
+                            msg.content,
+                            "active",
+                            input_tokens,
+                            output_tokens,
+                            cache_read_tokens,
+                            cache_write_tokens,
+                            doc,
+                            now,
+                        )
+                        .await
+                        {
+                            tracing::warn!("Failed to persist assistant message: {}", e);
+                            let _ = app.emit(
+                                "agent-event",
+                                AgentEvent::Error {
+                                    conversation_id: conversation_id.clone(),
+                                    message: format!("Failed to persist assistant message: {}", e),
+                                },
+                            );
+                        }
+                    } else {
+                        // Non-assistant messages (user, tool, system): insert inline
+                        let msg_id = Uuid::new_v4();
+                        let mut active = messages::ActiveModel {
+                            id: Set(msg_id),
+                            conversation_id: Set(conv_uuid),
+                            branch_id: Set(branch_uuid),
+                            role: Set(role_str.to_string()),
+                            content: Set(msg.content.clone()),
                             created_at: Set(now),
+                            context_items: Set(Some(ContextItems(vec![]))),
+                            seen: Set(false),
+                            status: Set("active".to_string()),
+                            ..Default::default()
                         };
-                        if let Err(e) = heading_record.insert(db).await {
-                            tracing::warn!("Failed to store headings for {}: {}", msg_id, e);
+
+                        if role_str == "tool" {
+                            let meta = MessageMetadata {
+                                tool_name: msg.name.clone(),
+                                tool_call_id: None,
+                                ..Default::default()
+                            };
+                            active.metadata = Set(Some(meta));
                         }
 
-                        for spec in &doc.artifact_specs {
-                            let (storage_path, db_content) =
-                                match store_artifact_content(&spec.raw_code).await {
-                                    Ok(Some(path)) => {
-                                        (Some(path.to_string_lossy().to_string()), String::new())
-                                    }
-                                    Ok(None) => (None, spec.raw_code.clone()),
-                                    Err(e) => {
-                                        tracing::warn!("Artifact storage failed: {}", e);
-                                        (None, spec.raw_code.clone())
-                                    }
-                                };
-                            let logical_key = format!("code_{}_{}", spec.language, msg_id);
-                            let artifact = artifacts::ActiveModel {
-                                id: Set(spec.id),
-                                message_id: Set(msg_id),
-                                branch_id: Set(branch_uuid),
-                                parent_artifact_id: Set(None),
-                                logical_key: Set(Some(logical_key)),
-                                storage_path: Set(storage_path),
-                                r#type: Set("code".to_string()),
-                                name: Set(spec.language.clone()),
-                                content: Set(db_content),
-                                language: Set(Some(spec.language.clone())),
-                                metadata: Set(None),
-                                created_at: Set(now),
-                            };
-                            if let Err(e) = artifact.insert(db).await {
-                                tracing::warn!("Failed to insert artifact {}: {}", spec.id, e);
-                            }
+                        if let Err(e) = active.insert(db).await {
+                            let _ = app.emit(
+                                "agent-event",
+                                AgentEvent::Error {
+                                    conversation_id: conversation_id.clone(),
+                                    message: format!("Failed to persist message: {}", e),
+                                },
+                            );
                         }
                     }
                 }
@@ -1173,6 +1270,49 @@ fn run_agent_loop(
                         message: e.to_string(),
                     },
                 );
+
+                if saw_done {
+                    tracing::warn!(
+                        "Agent loop returned error after Done event for conversation {}",
+                        conversation_id
+                    );
+                }
+
+                if !accumulated_content.is_empty() {
+                    if let Ok(db) = state.registry.db.connection().await {
+                        let doc = state.markdown.render_final(&accumulated_content);
+                        match persist_assistant_message(
+                            db,
+                            conv_uuid,
+                            branch_uuid,
+                            accumulated_content,
+                            "incomplete",
+                            0,
+                            0,
+                            0,
+                            0,
+                            doc,
+                            chrono::Utc::now().fixed_offset(),
+                        )
+                        .await
+                        {
+                            Ok(_) => {
+                                let _ = app.emit(
+                                    "agent-event",
+                                    AgentEvent::Persisted {
+                                        conversation_id: conversation_id.clone(),
+                                    },
+                                );
+                            }
+                            Err(persist_err) => {
+                                tracing::warn!(
+                                    "Failed to persist incomplete message: {}",
+                                    persist_err
+                                );
+                            }
+                        }
+                    }
+                }
             }
             Err(e) => {
                 let _ = app.emit(
@@ -1182,6 +1322,42 @@ fn run_agent_loop(
                         message: format!("Agent loop panicked: {}", e),
                     },
                 );
+
+                if !accumulated_content.is_empty() {
+                    if let Ok(db) = state.registry.db.connection().await {
+                        let doc = state.markdown.render_final(&accumulated_content);
+                        match persist_assistant_message(
+                            db,
+                            conv_uuid,
+                            branch_uuid,
+                            accumulated_content,
+                            "incomplete",
+                            0,
+                            0,
+                            0,
+                            0,
+                            doc,
+                            chrono::Utc::now().fixed_offset(),
+                        )
+                        .await
+                        {
+                            Ok(_) => {
+                                let _ = app.emit(
+                                    "agent-event",
+                                    AgentEvent::Persisted {
+                                        conversation_id: conversation_id.clone(),
+                                    },
+                                );
+                            }
+                            Err(persist_err) => {
+                                tracing::warn!(
+                                    "Failed to persist incomplete message: {}",
+                                    persist_err
+                                );
+                            }
+                        }
+                    }
+                }
             }
         }
     });
