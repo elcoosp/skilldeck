@@ -222,9 +222,11 @@ impl MarkdownPipeline {
     }
 
     fn highlight(&self, code: &str, lang: &str) -> String {
-        let syntax = SYNTAX_SET
-            .find_syntax_by_token(lang)
-            .unwrap_or_else(|| SYNTAX_SET.find_syntax_plain_text());
+        let syntax = SYNTAX_SET.find_syntax_by_token(lang).unwrap_or_else(|| {
+            SYNTAX_SET
+                .find_syntax_by_first_line(code)
+                .unwrap_or_else(|| SYNTAX_SET.find_syntax_plain_text())
+        });
         let mut css_gen =
             ClassedHTMLGenerator::new_with_class_style(syntax, &SYNTAX_SET, ClassStyle::Spaced);
         for line in syntect::util::LinesWithEndings::from(code) {

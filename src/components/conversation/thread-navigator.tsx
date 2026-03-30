@@ -626,16 +626,25 @@ const ThreadNavigator = memo(function ThreadNavigator({
                                   const headingNavIdx = headingNavIndexMap.get(`${assistantMsgId}-${h.id}`) ?? -1
                                   const isHFocused = isCardOpen && focusedNavIdx === headingNavIdx
 
+                                  // Explicitly separate color and size logic to prevent inconsistent class merging
+                                  const sizeClass = isH1 ? 'text-xs font-medium' : isH2 ? 'text-xs' : 'text-[11px]'
+                                  const colorClass = isActiveHeading
+                                    ? 'text-primary font-medium'
+                                    : isH1
+                                      ? 'text-muted-foreground'
+                                      : isH2
+                                        ? 'text-muted-foreground/80'
+                                        : 'text-muted-foreground/60'
+
                                   return (
                                     <button
-                                      key={`${assistantMsgId}-${h.id}`} // FIX: unique composite key using h.id
+                                      key={`${assistantMsgId}-${h.id}`}
                                       ref={el => el ? itemRefs.current.set(headingNavIdx, el) : itemRefs.current.delete(headingNavIdx)}
                                       type="button"
                                       tabIndex={-1}
                                       data-heading-idx={h.toc_index}
                                       className={cn(
                                         'flex w-full items-center text-left rounded transition-colors group outline-none py-0.5',
-                                        // FIX: no CSS hover class; only isHFocused controls background
                                         isHFocused && 'bg-muted/60',
                                       )}
                                       style={{ paddingLeft: `${(h.level - 1) * 8 + 6}px` }}
@@ -647,26 +656,30 @@ const ThreadNavigator = memo(function ThreadNavigator({
                                         if (headingNavIdx !== -1) setFocusedNavIdx(headingNavIdx)
                                       }}
                                     >
-                                      <span className={cn(
-                                        'inline-block flex-shrink-0 self-center rounded-full mr-1.5 transition-colors',
-                                        hBookmarked
-                                          ? 'bg-amber-400 w-1 h-1' // FIX: amber dot for bookmarked headings
-                                          : cn(
-                                            isActiveHeading ? 'bg-primary' : 'bg-muted-foreground/20 group-hover:bg-primary/40',
-                                            isH1 ? 'w-1 h-1' : 'w-0.5 h-0.5',
-                                            !isH1 && !isH2 && 'opacity-60',
-                                          ),
-                                      )} />
-                                      <span className={cn(
-                                        'truncate flex-1 transition-colors group-hover:text-foreground',
-                                        isH1 && 'text-xs font-medium text-muted-foreground',
-                                        isH2 && 'text-xs text-muted-foreground/80',
-                                        !isH1 && !isH2 && 'text-[11px] text-muted-foreground/60',
-                                        isActiveHeading && 'text-primary font-medium',
-                                      )}>
+                                      <span
+                                        className={cn(
+                                          'inline-block flex-shrink-0 self-center rounded-full mr-1.5 transition-colors',
+                                          hBookmarked
+                                            // Larger, opaque amber dot for bookmarked headings
+                                            ? 'bg-amber-400 w-1.5 h-1.5'
+                                            // Normal dot sizing and coloring
+                                            : cn(
+                                              isActiveHeading ? 'bg-primary' : 'bg-muted-foreground/20 group-hover:bg-primary/40',
+                                              isH1 ? 'w-1 h-1' : 'w-0.5 h-0.5',
+                                              !isH1 && !isH2 && 'opacity-60',
+                                            ),
+                                        )}
+                                      />
+                                      <span
+                                        className={cn(
+                                          'truncate flex-1 transition-colors',
+                                          !isActiveHeading && 'group-hover:text-foreground',
+                                          sizeClass,
+                                          colorClass,
+                                        )}
+                                      >
                                         {h.text}
                                       </span>
-                                      {/* FIX: no extra bookmark icon */}
                                     </button>
                                   )
                                 })}

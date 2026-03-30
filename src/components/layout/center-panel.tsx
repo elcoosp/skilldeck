@@ -26,14 +26,15 @@ import { useAgentStream } from '@/hooks/use-agent-stream'
 import { useActiveConversationWorkspaceId } from '@/hooks/use-conversations'
 import { useMessagesWithStream } from '@/hooks/use-messages'
 import { useWorkspaces } from '@/hooks/use-workspaces'
-import { useConversationStore } from '@/store/conversation'     // changed
-import { useUIEphemeralStore } from '@/store/ui-ephemeral'      // changed
+import { useConversationStore } from '@/store/conversation'
+import { useUIEphemeralStore } from '@/store/ui-ephemeral'
 import { cn } from '@/lib/utils'
 import { commands } from '@/lib/bindings'
 import { getScrollToken, setScrollToken } from '@/lib/scroll-token'
 import { useConversationBootstrap } from '@/hooks/use-conversation-bootstrap'
 import { useQueryClient } from '@tanstack/react-query'
 import { useBranches } from '@/hooks/use-branches'
+import type { MessageData } from '@/lib/bindings'
 
 export function CenterPanel() {
   // ─── Store selectors (granular) ──────────────────────────────────────────
@@ -67,6 +68,12 @@ export function CenterPanel() {
 
   const { isRunning, streamingMessage } = useAgentStream(activeConversationId)
   const messages = useMessagesWithStream(activeConversationId, activeBranchId)
+
+  // Keep refs in sync for use in stable callbacks
+  const messagesRef = useRef(messages)
+  messagesRef.current = messages
+  const activeConversationIdRef = useRef(activeConversationId)
+  activeConversationIdRef.current = activeConversationId
 
   const streamingMessageId = (() => {
     if (!isRunning) return undefined
@@ -108,8 +115,13 @@ export function CenterPanel() {
   const messagesLengthRef = useRef(realMessageCount)
   messagesLengthRef.current = realMessageCount
 
+  // Track seen message IDs locally for instant UI updates
+  const locallySeenRef = useRef<Set<string>>(new Set())
+
   const unseenCount = useMemo(() => {
-    return messages.filter(m => !m.seen && m.role === 'assistant').length
+    return messages.filter(
+      m => !m.seen && !locallySeenRef.current.has(m.id) && m.role === 'assistant' && m.id !== '__streaming__'
+    ).length
   }, [messages])
 
   const [showJumpToLatest, setShowJumpToLatest] = useState(false)
@@ -121,6 +133,7 @@ export function CenterPanel() {
     lastSeenCountRef.current = messagesLengthRef.current
     setUnseenJumpCount(0)
     setShowJumpToLatest(false)
+    locallySeenRef.current = new Set()
   }, [activeKey])
 
   useEffect(() => {
@@ -142,18 +155,36 @@ export function CenterPanel() {
     }
   }, [scrollToMessageId, messages, setScrollToMessageId])
 
-  const markAllUnseenAsSeen = useCallback(async () => {
-    const unseenIds = messages
-      .filter(m => !m.seen && m.role === 'assistant' && m.id !== '__streaming__')
+  // Mark messages as seen - with optimistic cache update
+  const markMessagesSeenByIds = useCallback((ids: string[]) => {
+    if (ids.length === 0) return
+    const convId = activeConversationIdRef.current
+    if (!convId) return
+
+    const idSet = new Set(ids)
+
+    // Add to local tracking immediately
+    idSet.forEach(id => locallySeenRef.current.add(id))
+
+    // Optimistically update cache
+    queryClient.setQueriesData<MessageData[]>(
+      { queryKey: ['messages', convId] },
+      (old) => old?.map(m => idSet.has(m.id) ? { ...m, seen: true } : m)
+    )
+
+    // Persist to DB (fire and forget)
+    Promise.all(ids.map(id => commands.markMessageSeen(id)))
+      .catch(err => console.error('Failed to mark messages seen:', err))
+  }, [queryClient])
+
+  const markAllUnseenAsSeen = useCallback(() => {
+    const currentMessages = messagesRef.current
+    const unseenIds = currentMessages
+      .filter(m => !m.seen && !locallySeenRef.current.has(m.id) && m.role === 'assistant' && m.id !== '__streaming__')
       .map(m => m.id)
     if (unseenIds.length === 0) return
-    try {
-      await Promise.all(unseenIds.map(id => commands.markMessageSeen(id)))
-      queryClient.invalidateQueries({ queryKey: ['messages', activeConversationId] })
-    } catch (err) {
-      console.error('Failed to mark messages seen:', err)
-    }
-  }, [messages, activeConversationId, queryClient])
+    markMessagesSeenByIds(unseenIds)
+  }, [markMessagesSeenByIds])
 
   const computeShowJump = useCallback(() => {
     const el = threadRef.current?.getScrollElement()
@@ -163,6 +194,8 @@ export function CenterPanel() {
       setShowJumpToLatest(false)
       setUnseenJumpCount(0)
       lastSeenCountRef.current = messagesLengthRef.current
+      // Mark all as seen when content fits in viewport
+      markAllUnseenAsSeen()
       return
     }
 
@@ -293,10 +326,11 @@ export function CenterPanel() {
     }
   }, [messages, handleVisibleUserIndexChange])
 
-  const handleMessageVisible = useCallback(async (messageId: string) => {
-    const res = await commands.markMessageSeen(messageId)
-    if (res.status === 'error') console.error('Failed to mark message seen:', res.error)
-  }, [])
+  // Mark single message as seen with optimistic update
+  const handleMessageVisible = useCallback((messageId: string) => {
+    if (locallySeenRef.current.has(messageId)) return
+    markMessagesSeenByIds([messageId])
+  }, [markMessagesSeenByIds])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
