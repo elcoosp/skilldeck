@@ -207,7 +207,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(({
         document.body,
       )}
 
-      <div ref={containerRef} className="my-3 rounded-lg border border-border text-xs font-mono">
+      <div ref={containerRef} className="my-3 rounded-lg border border-border font-mono text-xs">
         {/* Static header — hidden (visibility:hidden) when floating is active
             so layout is preserved but no double header is shown */}
         <div
@@ -236,9 +236,9 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(({
               ref={preRef}
               className="p-3 m-0 mt-0 mb-0 text-xs leading-relaxed"
               style={{
+                fontSize: 16,
                 whiteSpace: 'pre',
                 fontFamily: 'inherit',
-                color: 'var(--foreground)',
               }}
               dangerouslySetInnerHTML={{ __html: highlightedHtml }}
             />
