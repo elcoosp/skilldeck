@@ -408,3 +408,27 @@ pre[class*="language-"]::-webkit-scrollbar-thumb {
 .prose img {
   min-height: 1.5em;
 }
+
+code[data-inline-code] {
+  cursor: pointer;
+  background-color: var(--muted);
+  padding: 0.15em 0.35em;
+  border-radius: 4px;
+  font-size: 0.875em;
+  font-weight: 500;
+  transition: background-color 150ms ease, color 150ms ease;
+  line-height: 1;
+  box-shadow: none;
+}
+
+/* Prevent backtick pseudo-elements from typography plugins */
+code[data-inline-code]::before,
+code[data-inline-code]::after {
+  content: "" !important;
+  display: none !important;
+}
+
+code[data-inline-code]:hover {
+  background-color: var(--primary);
+  color: var(--primary);
+}
