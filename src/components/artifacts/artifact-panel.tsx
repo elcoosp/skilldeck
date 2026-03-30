@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
 import { commands } from '@/lib/bindings';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { ArtifactItem } from './artifact-item';
 import { Loader2 } from 'lucide-react';
 import { useConversationStore } from '@/store/conversation';
@@ -8,6 +7,7 @@ import { useConversationStore } from '@/store/conversation';
 export function ArtifactPanel() {
   const activeConversationId = useConversationStore((s) => s.activeConversationId);
   const activeBranchId = useConversationStore((s) => s.activeBranchId);
+
   const { data: artifacts, isLoading } = useQuery({
     queryKey: ['artifacts', activeConversationId, activeBranchId],
     queryFn: async () => {
@@ -36,12 +36,17 @@ export function ArtifactPanel() {
   }
 
   return (
-    <ScrollArea className="h-full p-4">
-      <div className="space-y-2">
-        {artifacts.map((artifact) => (
-          <ArtifactItem key={artifact.id} artifact={artifact} />
-        ))}
+    <div className="h-full flex flex-col min-h-0 min-w-0 overflow-hidden">
+      <div
+        className="h-full overflow-y-auto overflow-x-hidden p-4 thin-scrollbar"
+        style={{ scrollbarGutter: 'stable' }}
+      >
+        <div className="space-y-2 w-full min-w-0">
+          {artifacts.map((artifact) => (
+            <ArtifactItem key={artifact.id} artifact={artifact} />
+          ))}
+        </div>
       </div>
-    </ScrollArea>
+    </div>
   );
 }
