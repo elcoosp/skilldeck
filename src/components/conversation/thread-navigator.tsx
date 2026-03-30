@@ -5,7 +5,7 @@ import { Bookmark, ChevronRight } from 'lucide-react'
 import type { MessageData } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
 import { useBookmarksStore } from '@/store/bookmarks'
-import type { HeadingItem } from '@/lib/bindings' // adjust import as needed
+import type { HeadingItem } from '@/lib/bindings'
 import { useConversationStore } from '@/store/conversation'
 
 const VISIBLE_ITEMS = 10
@@ -22,7 +22,7 @@ interface ThreadNavigatorProps {
 
 type NavItem =
   | { kind: 'message'; msgIdx: number; listIdx: number }
-  | { kind: 'heading'; assistantMsgIdx: number; tocIndex: number; parentListIdx: number }
+  | { kind: 'heading'; assistantMsgIdx: number; tocIndex: number; parentListIdx: number; headingId: string }
 
 const ThreadNavigator = memo(function ThreadNavigator({
   messages,
@@ -60,7 +60,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
   const [optimisticActiveIndex, setOptimisticActiveIndex] = useState<number | null>(null)
   const effectiveActiveIndex = optimisticActiveIndex ?? activeIndex
 
-  // ─── Sliding window ───────────────────────────────────────────────────────
+  // Sliding window
   const [windowStart, setWindowStart] = useState(0)
 
   useEffect(() => {
@@ -87,7 +87,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
   const visibleCount = hasMessages ? Math.min(userMessages.length, VISIBLE_ITEMS) : 0
   const containerHeight = visibleCount * DOT_HEIGHT
 
-  // ─── TOC expand state ─────────────────────────────────────────────────────
+  // TOC expand state
   const [expandedTocIdx, setExpandedTocIdx] = useState<number | null>(null)
   const userCollapsedMessages = useRef<Set<number>>(new Set())
 
@@ -97,28 +97,43 @@ const ThreadNavigator = memo(function ThreadNavigator({
     setExpandedTocIdx(expand ? messageIdx : null)
   }, [])
 
-  // ─── Flat nav list ────────────────────────────────────────────────────────
-  const navItems = useMemo<NavItem[]>(() => {
+  // Build flat nav list and a map from heading identifier to its nav index
+  const { navItems, headingNavIndexMap } = useMemo(() => {
     const items: NavItem[] = []
+    const map = new Map<string, number>() // key: `${assistantMsgId}-${heading.id}`
+
     userMessages.forEach(({ idx }, listIdx) => {
+      // Add message item
       items.push({ kind: 'message', msgIdx: idx, listIdx })
+
+      // If expanded, add headings
       if (expandedTocIdx === idx) {
         const assistantMsgId = messages[idx + 1]?.id
         const headings = assistantMsgId ? (headingsByMessage.get(assistantMsgId) ?? []) : []
         headings.forEach(h => {
-          items.push({ kind: 'heading', assistantMsgIdx: idx + 1, tocIndex: h.toc_index, parentListIdx: listIdx })
+          const navIdx = items.length
+          const uniqueKey = `${assistantMsgId}-${h.id}`
+          map.set(uniqueKey, navIdx)
+          items.push({
+            kind: 'heading',
+            assistantMsgIdx: idx + 1,
+            tocIndex: h.toc_index,
+            parentListIdx: listIdx,
+            headingId: h.id,
+          })
         })
       }
     })
-    return items
+
+    return { navItems: items, headingNavIndexMap: map }
   }, [userMessages, expandedTocIdx, messages, headingsByMessage])
 
-  // ─── Keyboard state ───────────────────────────────────────────────────────
+  // Keyboard state
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false)
   const [focusedNavIdx, setFocusedNavIdx] = useState(0)
   const itemRefs = useRef<Map<number, HTMLElement>>(new Map())
 
-  // ─── Hover card ───────────────────────────────────────────────────────────
+  // Hover card
   const [isHovering, setIsHovering] = useState(false)
   const [cardPosition, setCardPosition] = useState<{ top: number; left: number } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -132,7 +147,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
 
   const isCardOpen = isHovering || isKeyboardOpen
 
-  // ─── STABLE REFS — the keyboard handler reads these, never stale ──────────
+  // Stable refs for keyboard handler
   const stateRef = useRef({
     isCardOpen,
     isKeyboardOpen,
@@ -144,7 +159,6 @@ const ThreadNavigator = memo(function ThreadNavigator({
     headingsByMessage,
     messages,
   })
-  // Update every render — O(1), no re-subscription
   stateRef.current = {
     isCardOpen,
     isKeyboardOpen,
@@ -157,7 +171,6 @@ const ThreadNavigator = memo(function ThreadNavigator({
     messages,
   }
 
-  // ─── Card scroll helper ───────────────────────────────────────────────────
   const scrollCardToElement = useCallback((el: HTMLElement) => {
     const container = scrollContainerRef.current
     if (!container) return
@@ -192,7 +205,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
     }
   }, [isCardOpen, cardPosition, effectiveActiveIndex, activeHeadingIndex, scrollCardToElement])
 
-  // ─── Card position ────────────────────────────────────────────────────────
+  // Card position
   useEffect(() => {
     if (!isCardOpen || !containerRef.current || !hasMessages) {
       setCardPosition(null)
@@ -215,7 +228,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
     }
   }, [isCardOpen, hasMessages])
 
-  // ─── Timers cleanup ───────────────────────────────────────────────────────
+  // Timers cleanup
   useEffect(() => () => {
     if (enterTimer.current) clearTimeout(enterTimer.current)
     if (leaveTimer.current) clearTimeout(leaveTimer.current)
@@ -269,7 +282,6 @@ const ThreadNavigator = memo(function ThreadNavigator({
     setIsKeyboardOpen(false)
   }, [])
 
-  // ─── Focus a nav item imperatively ───────────────────────────────────────
   const focusNavItem = useCallback((idx: number) => {
     setFocusedNavIdx(idx)
     requestAnimationFrame(() => {
@@ -281,7 +293,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
     })
   }, [scrollCardToElement])
 
-  // ─── Keyboard handler — registered ONCE, reads state via stateRef ─────────
+  // Keyboard handler (unchanged logic, relies on stateRef)
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement
@@ -289,7 +301,6 @@ const ThreadNavigator = memo(function ThreadNavigator({
 
       const s = stateRef.current
 
-      // ── Card closed ─────────────────────────────────────────────────────
       if (!s.isCardOpen) {
         if (e.key === 'j' || e.key === 'J') {
           e.preventDefault()
@@ -318,7 +329,6 @@ const ThreadNavigator = memo(function ThreadNavigator({
         return
       }
 
-      // ── Card open ───────────────────────────────────────────────────────
       const cur = s.focusedNavIdx
       const total = s.navItems.length
 
@@ -327,35 +337,26 @@ const ThreadNavigator = memo(function ThreadNavigator({
           e.preventDefault()
           closeCard()
           break
-
         case 'ArrowDown':
-        case 'j': {
+        case 'j':
           e.preventDefault()
-          const next = Math.min(total - 1, cur + 1)
-          focusNavItem(next)
+          focusNavItem(Math.min(total - 1, cur + 1))
           break
-        }
-
         case 'ArrowUp':
-        case 'k': {
+        case 'k':
           e.preventDefault()
-          const prev = Math.max(0, cur - 1)
-          focusNavItem(prev)
+          focusNavItem(Math.max(0, cur - 1))
           break
-        }
-
         case 'Home':
           e.preventDefault()
           focusNavItem(0)
           break
-
         case 'End':
           e.preventDefault()
           focusNavItem(total - 1)
           break
-
         case 'Enter':
-        case ' ': {
+        case ' ':
           e.preventDefault()
           const item = s.navItems[cur]
           if (!item) break
@@ -372,43 +373,35 @@ const ThreadNavigator = memo(function ThreadNavigator({
             handleHeadingClickInner(item.assistantMsgIdx, item.tocIndex)
           }
           break
-        }
-
         case 'ArrowRight':
-        case 'l': {
+        case 'l':
           e.preventDefault()
-          const item = s.navItems[cur]
-          if (item?.kind !== 'message') break
-          const assistantMsgId = s.messages[item.msgIdx + 1]?.id
-          const headings = assistantMsgId ? (s.headingsByMessage.get(assistantMsgId) ?? []) : []
-          if (headings.length > 0 && s.expandedTocIdx !== item.msgIdx)
-            handleToggleToc(item.msgIdx, true)
+          const itemRight = s.navItems[cur]
+          if (itemRight?.kind !== 'message') break
+          const assistantMsgIdRight = s.messages[itemRight.msgIdx + 1]?.id
+          const headingsRight = assistantMsgIdRight ? (s.headingsByMessage.get(assistantMsgIdRight) ?? []) : []
+          if (headingsRight.length > 0 && s.expandedTocIdx !== itemRight.msgIdx)
+            handleToggleToc(itemRight.msgIdx, true)
           break
-        }
-
         case 'ArrowLeft':
-        case 'h': {
+        case 'h':
           e.preventDefault()
-          const item = s.navItems[cur]
-          if (item?.kind === 'heading') {
-            handleToggleToc(item.assistantMsgIdx - 1, false)
+          const itemLeft = s.navItems[cur]
+          if (itemLeft?.kind === 'heading') {
+            handleToggleToc(itemLeft.assistantMsgIdx - 1, false)
             const parentNavIdx = s.navItems.findIndex(
-              n => n.kind === 'message' && n.listIdx === item.parentListIdx
+              n => n.kind === 'message' && n.listIdx === itemLeft.parentListIdx
             )
             if (parentNavIdx !== -1) focusNavItem(parentNavIdx)
-          } else if (item?.kind === 'message' && s.expandedTocIdx === item.msgIdx) {
-            handleToggleToc(item.msgIdx, false)
+          } else if (itemLeft?.kind === 'message' && s.expandedTocIdx === itemLeft.msgIdx) {
+            handleToggleToc(itemLeft.msgIdx, false)
           }
           break
-        }
       }
     }
 
     window.addEventListener('keydown', onKeyDown)
-    return () => {
-      window.removeEventListener('keydown', onKeyDown)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
   // Focus current item when card opens via keyboard
@@ -418,7 +411,6 @@ const ThreadNavigator = memo(function ThreadNavigator({
       const el = itemRefs.current.get(focusedNavIdx)
       if (el) { el.focus({ preventScroll: true }); scrollCardToElement(el) }
     })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isKeyboardOpen])
 
   // Close when clicking outside
@@ -434,7 +426,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
     return () => document.removeEventListener('mousedown', onMouseDown)
   }, [isKeyboardOpen])
 
-  // ─── Bookmark helpers ─────────────────────────────────────────────────────
+  // Bookmark helpers
   const assistantHasAnyBookmark = useCallback((assistantMsgId: string | undefined) => {
     if (!assistantMsgId) return false
     return convBookmarks.some(b => b.message_id === assistantMsgId)
@@ -445,10 +437,10 @@ const ThreadNavigator = memo(function ThreadNavigator({
     return convBookmarks.some(b => b.message_id === assistantMsgId && b.heading_anchor === anchor)
   }, [convBookmarks])
 
-  // ─── Render ───────────────────────────────────────────────────────────────
+  // Render
   return (
     <>
-      {/* ── Dot rail ── */}
+      {/* Dot rail */}
       <nav
         ref={containerRef}
         aria-label="Thread navigation"
@@ -516,7 +508,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
         </div>
       </nav>
 
-      {/* ── Hover / keyboard card ── */}
+      {/* Hover / keyboard card */}
       {hasMessages && createPortal(
         <AnimatePresence>
           {isCardOpen && cardPosition && (
@@ -630,41 +622,45 @@ const ThreadNavigator = memo(function ThreadNavigator({
                             >
                               <div className="ml-3 mt-0.5 mb-1.5 border-l-2 border-primary/20 pl-2 space-y-px">
                                 {headings.map(h => {
-                                  // Use h.slug instead of slugify(h.text)
                                   const hBookmarked = isHeadingBookmarked(assistantMsgId, h.slug)
                                   const isH1 = h.level === 1
                                   const isH2 = h.level === 2
                                   const isActiveHeading = isActive && h.toc_index === activeHeadingIndex
 
-                                  const headingNavIdx = navItems.findIndex(
-                                    n =>
-                                      n.kind === 'heading' &&
-                                      n.assistantMsgIdx === assistantMsgIdx &&
-                                      n.tocIndex === h.toc_index
-                                  )
+                                  // Get the unique nav index for this heading from the map
+                                  const headingNavIdx = headingNavIndexMap.get(`${assistantMsgId}-${h.id}`) ?? -1
                                   const isHFocused = isCardOpen && focusedNavIdx === headingNavIdx
 
                                   return (
                                     <button
-                                      key={h.toc_index}
+                                      key={`${assistantMsgId}-${h.id}`} // FIX: unique composite key using h.id
                                       ref={el => el ? itemRefs.current.set(headingNavIdx, el) : itemRefs.current.delete(headingNavIdx)}
                                       type="button"
                                       tabIndex={-1}
                                       data-heading-idx={h.toc_index}
                                       className={cn(
                                         'flex w-full items-center text-left rounded transition-colors group outline-none py-0.5',
-                                        isHFocused ? 'bg-muted/60' : 'hover:bg-muted/60',
+                                        // FIX: no CSS hover class; only isHFocused controls background
+                                        isHFocused && 'bg-muted/60',
                                       )}
                                       style={{ paddingLeft: `${(h.level - 1) * 8 + 6}px` }}
                                       onClick={() => handleHeadingClickInner(assistantMsgIdx, h.toc_index)}
-                                      onMouseEnter={() => setFocusedNavIdx(headingNavIdx)}
-                                      onFocus={() => setFocusedNavIdx(headingNavIdx)}
+                                      onMouseEnter={() => {
+                                        if (headingNavIdx !== -1) setFocusedNavIdx(headingNavIdx)
+                                      }}
+                                      onFocus={() => {
+                                        if (headingNavIdx !== -1) setFocusedNavIdx(headingNavIdx)
+                                      }}
                                     >
                                       <span className={cn(
                                         'inline-block flex-shrink-0 self-center rounded-full mr-1.5 transition-colors',
-                                        isActiveHeading ? 'bg-primary' : 'bg-muted-foreground/20 group-hover:bg-primary/40',
-                                        isH1 ? 'w-1 h-1' : 'w-0.5 h-0.5',
-                                        !isH1 && !isH2 && 'opacity-60',
+                                        hBookmarked
+                                          ? 'bg-amber-400 w-1 h-1' // FIX: amber dot for bookmarked headings
+                                          : cn(
+                                            isActiveHeading ? 'bg-primary' : 'bg-muted-foreground/20 group-hover:bg-primary/40',
+                                            isH1 ? 'w-1 h-1' : 'w-0.5 h-0.5',
+                                            !isH1 && !isH2 && 'opacity-60',
+                                          ),
                                       )} />
                                       <span className={cn(
                                         'truncate flex-1 transition-colors group-hover:text-foreground',
@@ -675,9 +671,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
                                       )}>
                                         {h.text}
                                       </span>
-                                      {hBookmarked && (
-                                        <Bookmark className="size-2.5 text-amber-500 fill-amber-500 ml-1 flex-shrink-0" />
-                                      )}
+                                      {/* FIX: no extra bookmark icon */}
                                     </button>
                                   )
                                 })}
