@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 import { Bookmark, ChevronRight } from 'lucide-react'
 import type { MessageData } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
-import { useBookmarksStore } from '@/store/bookmarks'
+import { useBookmarks } from '@/hooks/use-bookmarks'
 import type { HeadingItem } from '@/lib/bindings'
 import { useConversationStore } from '@/store/conversation'
 
@@ -47,13 +47,8 @@ const ThreadNavigator = memo(function ThreadNavigator({
     return map
   }, [headings])
 
-  const bookmarksMap = useBookmarksStore((s) => s.bookmarks)
   const activeConversationId = useConversationStore((s) => s.activeConversationId)
-
-  const convBookmarks = useMemo(
-    () => (activeConversationId ? (bookmarksMap[activeConversationId] ?? []) : []),
-    [bookmarksMap, activeConversationId]
-  )
+  const { data: convBookmarks = [] } = useBookmarks(activeConversationId)
 
   const hasMessages = userMessages.length > 0
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Bookmark, BookmarkCheck } from 'lucide-react';
-import { useBookmarksStore } from '@/store/bookmarks';
+import { useBookmarks, useToggleBookmark } from '@/hooks/use-bookmarks';
 import { useConversationStore } from '@/store/conversation';
 import { cn } from '@/lib/utils';
 
@@ -14,17 +14,16 @@ interface HeadingProps {
 
 export const Heading: React.FC<HeadingProps> = ({ level, slug, text, messageId }) => {
   const conversationId = useConversationStore(s => s.activeConversationId);
-  const isBookmarked = useBookmarksStore(s =>
-    conversationId
-      ? (s.bookmarks[conversationId] ?? []).some(b => b.heading_anchor === slug)
-      : false,
-  );
+  const { data: bookmarks = [] } = useBookmarks(conversationId);
+  const toggleBookmark = useToggleBookmark(conversationId);
+
+  const isBookmarked = bookmarks.some(b => b.heading_anchor === slug);
 
   const toggle = () => {
     if (!conversationId) return;
     // Use the passed messageId if available, otherwise fallback to ''
     const msgId = messageId ?? '';
-    useBookmarksStore.getState().toggleBookmark(conversationId, msgId, slug, text);
+    toggleBookmark.mutate({ messageId: msgId, headingAnchor: slug, label: text });
   };
 
   const Tag = `h${level}` as keyof React.JSX.IntrinsicElements;

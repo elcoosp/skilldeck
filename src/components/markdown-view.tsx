@@ -1,12 +1,11 @@
-// src/components/markdown-view.tsx
-import { memo, useCallback, useEffect } from 'react'
+import { memo, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { Bookmark } from 'lucide-react'
 import { toast } from 'sonner'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { NodeDocument, MdNode } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
-import { useBookmarksStore } from '@/store/bookmarks'
+import { useBookmarks, useToggleBookmark } from '@/hooks/use-bookmarks'
 import { CodeBlock } from '@/components/conversation/code-block'
 
 // Inject inline-code hover/cursor styles once (module-level side-effect)
@@ -17,7 +16,6 @@ if (typeof document !== 'undefined' && !document.getElementById('md-inline-code-
     'code[data-inline-code]{cursor:pointer}code[data-inline-code]:hover{background-color:hsl(var(--primary)/.15)}'
   document.head.appendChild(s)
 }
-
 
 // ─── Internal HeadingBookmarkButton ─────────────────────────────────────────
 const HeadingBookmarkButton = memo(function HeadingBookmarkButton({
@@ -31,24 +29,17 @@ const HeadingBookmarkButton = memo(function HeadingBookmarkButton({
   headingLabel: string
   conversationId: string | null
 }) {
-  const isBookmarked = useBookmarksStore(
-    useCallback(
-      (s) => {
-        if (!conversationId) return false
-        const convBookmarks = s.bookmarks[conversationId]
-        if (!convBookmarks || !Array.isArray(convBookmarks)) return false
-        return convBookmarks.some(
-          (b) => b.message_id === messageId && b.heading_anchor === headingAnchor
-        )
-      },
-      [conversationId, messageId, headingAnchor]
-    )
+  const { data: bookmarks = [] } = useBookmarks(conversationId)
+  const toggleBookmark = useToggleBookmark(conversationId)
+
+  const isBookmarked = bookmarks.some(
+    (b) => b.message_id === messageId && b.heading_anchor === headingAnchor,
   )
 
-  const toggle = useCallback(() => {
+  const handleToggle = useCallback(() => {
     if (!conversationId) return
-    useBookmarksStore.getState().toggleBookmark(conversationId, messageId, headingAnchor, headingLabel)
-  }, [conversationId, messageId, headingAnchor, headingLabel])
+    toggleBookmark.mutate({ messageId, headingAnchor, label: headingLabel })
+  }, [conversationId, messageId, headingAnchor, headingLabel, toggleBookmark])
 
   return (
     <motion.button
@@ -56,11 +47,11 @@ const HeadingBookmarkButton = memo(function HeadingBookmarkButton({
       onClick={(e) => {
         e.preventDefault()
         e.stopPropagation()
-        toggle()
+        handleToggle()
       }}
       className={cn(
         'ml-1 inline-flex items-center justify-center p-0.5 rounded hover:bg-muted-foreground/10 transition-opacity',
-        isBookmarked ? 'opacity-100' : 'opacity-0 group-hover/heading:opacity-100'
+        isBookmarked ? 'opacity-100' : 'opacity-0 group-hover/heading:opacity-100',
       )}
       aria-label={isBookmarked ? 'Remove heading bookmark' : 'Bookmark this heading'}
       whileTap={{ scale: 0.9 }}
@@ -69,7 +60,7 @@ const HeadingBookmarkButton = memo(function HeadingBookmarkButton({
       <Bookmark
         className={cn(
           'size-3 transition-colors duration-150',
-          isBookmarked ? 'text-amber-400 fill-amber-400' : 'text-muted-foreground'
+          isBookmarked ? 'text-amber-400 fill-amber-400' : 'text-muted-foreground',
         )}
       />
     </motion.button>
@@ -82,20 +73,19 @@ interface MarkdownViewProps {
   className?: string
   conversationId?: string | null
   isStreaming?: boolean
-  scrollContainerRef?: React.RefObject<HTMLElement> // FIX: passed to CodeBlock
+  scrollContainerRef?: React.RefObject<HTMLElement>
 }
 
-export const MarkdownView = memo(({
-  document,
-  messageId,
-  className,
-  conversationId,
-  isStreaming = false,
-  scrollContainerRef,
-}: MarkdownViewProps) => {
-  const handleClick = useCallback(
-    async (e: React.MouseEvent<HTMLDivElement>) => {
-      // External links
+export const MarkdownView = memo(
+  ({
+    document,
+    messageId,
+    className,
+    conversationId,
+    isStreaming = false,
+    scrollContainerRef,
+  }: MarkdownViewProps) => {
+    const handleClick = useCallback(async (e: React.MouseEvent<HTMLDivElement>) => {
       const link = (e.target as HTMLElement).closest('a[data-external-link]')
       if (link) {
         e.preventDefault()
@@ -104,7 +94,6 @@ export const MarkdownView = memo(({
         return
       }
 
-      // Inline code copy
       const code = (e.target as HTMLElement).closest('code[data-inline-code]')
       if (code) {
         const text = code.textContent ?? ''
@@ -114,49 +103,48 @@ export const MarkdownView = memo(({
         }
         return
       }
-    },
-    []
-  )
+    }, [])
 
-  if (!document) {
-    return null
-  }
+    if (!document) {
+      return null
+    }
 
-  return (
-    <div
-      className={cn('prose prose-sm dark:prose-invert max-w-none break-words', className)}
-      onClick={handleClick}
-    >
-      {document.stable_nodes.map(node => (
-        <NodeRenderer
-          key={node.id}
-          node={node}
-          messageId={messageId}
-          conversationId={conversationId ?? null}
-          isStreaming={isStreaming}
-          scrollContainerRef={scrollContainerRef} // FIX: pass down
-        />
-      ))}
-      {document.draft_nodes.map(node => (
-        <NodeRenderer
-          key={node.id}
-          node={node}
-          messageId={messageId}
-          conversationId={conversationId ?? null}
-          isStreaming={isStreaming}
-          scrollContainerRef={scrollContainerRef}
-        />
-      ))}
-    </div>
-  )
-})
+    return (
+      <div
+        className={cn('prose prose-sm dark:prose-invert max-w-none break-words', className)}
+        onClick={handleClick}
+      >
+        {document.stable_nodes.map((node) => (
+          <NodeRenderer
+            key={node.id}
+            node={node}
+            messageId={messageId}
+            conversationId={conversationId ?? null}
+            isStreaming={isStreaming}
+            scrollContainerRef={scrollContainerRef}
+          />
+        ))}
+        {document.draft_nodes.map((node) => (
+          <NodeRenderer
+            key={node.id}
+            node={node}
+            messageId={messageId}
+            conversationId={conversationId ?? null}
+            isStreaming={isStreaming}
+            scrollContainerRef={scrollContainerRef}
+          />
+        ))}
+      </div>
+    )
+  },
+)
 
 interface NodeRendererProps {
   node: MdNode
   messageId: string
   conversationId: string | null
   isStreaming?: boolean
-  scrollContainerRef?: React.RefObject<HTMLElement> // FIX
+  scrollContainerRef?: React.RefObject<HTMLElement>
 }
 
 function NodeRenderer({ node, messageId, conversationId, isStreaming, scrollContainerRef }: NodeRendererProps) {

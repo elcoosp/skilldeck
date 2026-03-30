@@ -1,4 +1,3 @@
-// src/components/conversation/message-bubble.tsx
 /**
  * MessageBubble — displays a single message using typed node tree (MarkdownView)
  * or plain text fallback for user/system messages.
@@ -37,7 +36,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ScrollContainerContext, AutoScrollContext } from './message-thread'
 import { createPortal } from 'react-dom'
-import { useBookmarksStore } from '@/store/bookmarks'
+import { useBookmarks, useToggleBookmark } from '@/hooks/use-bookmarks'
 import { useConversationStore } from '@/store/conversation'
 import { save } from '@tauri-apps/plugin-dialog'
 import { writeTextFile } from '@tauri-apps/plugin-fs'
@@ -81,22 +80,15 @@ const AssistantMessageActions = memo(function AssistantMessageActions({
   onDownload: () => void
   onBranch: () => void
 }) {
-  const selectorFn = useCallback(
-    (s: any) => {
-      if (!conversationId) return false
-      const convBookmarks = s.bookmarks[conversationId]
-      if (!convBookmarks || !Array.isArray(convBookmarks)) return false
-      return convBookmarks.some((b: any) => b.message_id === message.id && !b.heading_anchor)
-    },
-    [conversationId, message.id]
-  )
+  const { data: bookmarks = [] } = useBookmarks(conversationId)
+  const toggleBookmark = useToggleBookmark(conversationId)
 
-  const isBookmarked = useBookmarksStore(selectorFn)
+  const isBookmarked = bookmarks.some((b) => b.message_id === message.id && !b.heading_anchor)
 
   const onBookmark = useCallback(() => {
     if (!conversationId) return
-    useBookmarksStore.getState().toggleBookmark(conversationId, message.id, undefined, 'Message')
-  }, [conversationId, message.id])
+    toggleBookmark.mutate({ messageId: message.id, label: 'Message' })
+  }, [conversationId, message.id, toggleBookmark])
 
   return (
     <DropdownMenu modal={false}>
@@ -270,18 +262,6 @@ function MessageBubbleInner({
 
   const activeConversationId = useConversationStore((s) => s.activeConversationId)
   const scrollContainer = useContext(ScrollContainerContext) // FIX: get scroll root
-
-  const isBookmarked = useBookmarksStore(
-    useCallback(
-      (s) => {
-        if (!activeConversationId) return false
-        const convBookmarks = s.bookmarks[activeConversationId]
-        if (!convBookmarks || !Array.isArray(convBookmarks)) return false
-        return convBookmarks.some((b) => b.message_id === message.id)
-      },
-      [activeConversationId, message.id]
-    )
-  )
 
   const handleBranch = useCallback(() => {
     setBranchModalOpen(true)
