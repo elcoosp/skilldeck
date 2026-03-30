@@ -6,13 +6,12 @@ import {
 } from '@tanstack/react-virtual'
 import { motion } from 'framer-motion'
 import * as React from 'react'
-import type { MessageData } from '@/lib/bindings'
+import type { MessageData, NodeDocument } from '@/lib/bindings'
 import { MessageBubble } from './message-bubble'
 import { useSendMessage } from '@/hooks/use-messages'
 import { useToolApprovalStore } from '@/store/tool-approvals'
 import { ToolApprovalCard } from './tool-approval-card'
 import { useConversationStore } from '@/store/conversation'
-import type { HtmlMessage } from '@/components/html-renderer/html-renderer'
 
 export interface ScrollToken {
   messageId: string
@@ -42,11 +41,9 @@ interface MessageThreadProps {
   autoScroll?: boolean
   onVisibleUserIndexChange?: (index: number) => void
   onScrollSettled?: (token: ScrollToken) => void
-  /** Called when a message becomes visible (50% in view) */
   onMessageVisible?: (messageId: string) => void
-  /** ID of the message where the branch starts, used to mark branch parent */
   branchParentMessageId?: string | null
-  streamingMessage?: HtmlMessage | null
+  streamingMessage?: NodeDocument | null
 }
 
 function distFromBottom(el: HTMLElement): number {
@@ -57,7 +54,74 @@ const globalMeasuredSizes = new Map<string, number>()
 
 export const ScrollContainerContext = React.createContext<React.RefObject<HTMLDivElement | null> | null>(null)
 export const AutoScrollContext = React.createContext<boolean>(true)
+// TOP LEVEL — not inside MessageThread
+interface VirtualRowProps {
+  virtualItem: { index: number; start: number }
+  message: MessageData
+  isThisMessageStreaming: boolean
+  streamingMessage: NodeDocument | null | undefined
+  handleRetry: (() => Promise<void>) | undefined
+  isBranchParent: boolean
+  isHighlighted: boolean
+  searchQuery: string | undefined
+  searchCaseSensitive: boolean
+  searchRegex: boolean
+  // Pass refs as stable objects
+  measureRef: React.RefObject<(node: Element | null) => void>
+  lastItemNodeRef: React.RefObject<Element | null>
+  streamingRoRef: React.RefObject<ResizeObserver | null>
+  isLast: boolean
+}
 
+const VirtualRow = React.memo(({
+  virtualItem, message, isThisMessageStreaming, streamingMessage,
+  handleRetry, isBranchParent, isHighlighted, searchQuery,
+  searchCaseSensitive, searchRegex, isLast,
+  measureRef, lastItemNodeRef, streamingRoRef,
+}: VirtualRowProps) => {
+  return (
+    <div
+      ref={(node) => {
+        measureRef.current?.(node)  // call virtualizer.measureElement
+        if (isLast && node !== lastItemNodeRef.current) {
+          if (lastItemNodeRef.current) streamingRoRef.current?.unobserve(lastItemNodeRef.current)
+            ; (lastItemNodeRef as React.MutableRefObject<Element | null>).current = node
+          if (node) streamingRoRef.current?.observe(node)
+        }
+      }}
+      data-index={virtualItem.index}
+      data-msg-id={message.id}
+      data-role={message.role}
+      style={{
+        position: 'absolute', top: 0, left: 0, width: '100%',
+        transform: `translateY(${virtualItem.start}px)`
+      }}
+    >
+      <div className="px-4 py-1.5">
+        <MessageBubble
+          message={message}
+          isStreaming={isThisMessageStreaming}
+          isHighlighted={isHighlighted}
+          searchQuery={searchQuery}
+          searchCaseSensitive={searchCaseSensitive}
+          searchRegex={searchRegex}
+          onRetry={handleRetry}
+          isBranchParent={isBranchParent}
+          streamingMessage={isThisMessageStreaming ? streamingMessage : undefined}
+        />
+      </div>
+    </div>
+  )
+}, (prev, next) => {
+  if (prev.virtualItem.start !== next.virtualItem.start) return false
+  if (prev.isLast !== next.isLast) return false
+  if (prev.isThisMessageStreaming !== next.isThisMessageStreaming) return false
+  if (next.isThisMessageStreaming && prev.streamingMessage !== next.streamingMessage) return false
+  if (prev.isHighlighted !== next.isHighlighted) return false
+  if (prev.searchQuery !== next.searchQuery) return false
+  if (prev.isBranchParent !== next.isBranchParent) return false
+  return prev.message === next.message
+})
 export const MessageThread = React.forwardRef<
   MessageThreadHandle,
   MessageThreadProps
@@ -84,12 +148,9 @@ export const MessageThread = React.forwardRef<
   ) => {
 
     const scrollRef = React.useRef<HTMLDivElement>(null)
-
-    // Get active conversation ID for sending retry messages
     const activeConversationId = useConversationStore((s) => s.activeConversationId)
     const sendMutation = useSendMessage(activeConversationId!)
 
-    // Add retry ability to user messages whose next assistant message is cancelled
     const messagesWithRetry = React.useMemo(() => {
       return messages.map((msg, idx) => {
         if (msg.role === 'user' && idx + 1 < messages.length) {
@@ -177,14 +238,6 @@ export const MessageThread = React.forwardRef<
       },
       scrollToFn,
       onChange: (instance) => {
-        console.debug(
-          '[Virtualizer] onChange fired — items:',
-          instance.getVirtualItems().length,
-          'streaming:',
-          !!streamingRef.current,
-          'userScrolledAway:',
-          userScrolledAwayRef.current
-        );
         const items = instance.getVirtualItems();
         if (items.length === 0) return;
         const el = instance.scrollElement as HTMLElement | null;
@@ -206,12 +259,7 @@ export const MessageThread = React.forwardRef<
     virtualizerRef.current = virtualizer
 
     const applyScrollTop = React.useCallback(
-      (
-        el: HTMLElement,
-        savedScrollTop: number,
-        onLanded: (actual: number) => void,
-        maxAttempts = 60
-      ) => {
+      (el: HTMLElement, savedScrollTop: number, onLanded: (actual: number) => void, maxAttempts = 60) => {
         let attempts = 0
         const tryApply = () => {
           const maxScroll = el.scrollHeight - el.clientHeight
@@ -221,9 +269,7 @@ export const MessageThread = React.forwardRef<
             el.scrollTop = final
             requestAnimationFrame(() => {
               isProgrammaticScrollRef.current = false
-              requestAnimationFrame(() => {
-                onLanded(el.scrollTop)
-              })
+              requestAnimationFrame(() => { onLanded(el.scrollTop) })
             })
           } else {
             attempts++
@@ -257,7 +303,7 @@ export const MessageThread = React.forwardRef<
         }
         autoScrollReadyRef.current = true
       }
-    })
+    }, [conversationKey, applyScrollTop])
 
     const didMountRef = React.useRef(false)
     React.useLayoutEffect(() => {
@@ -294,8 +340,7 @@ export const MessageThread = React.forwardRef<
     }, [])
 
     React.useLayoutEffect(() => {
-      if (searchQuery.trim())
-        virtualizerRef.current.scrollToOffset(0, { behavior: 'auto' })
+      if (searchQuery.trim()) virtualizerRef.current.scrollToOffset(0, { behavior: 'auto' })
     }, [searchQuery])
 
     React.useEffect(() => {
@@ -305,7 +350,6 @@ export const MessageThread = React.forwardRef<
     const lastItemNodeRef = React.useRef<Element | null>(null)
     const streamingRoRef = React.useRef<ResizeObserver | null>(null)
 
-    // ─── FIXED: Streaming auto‑scroll with proper user‑scroll detection ───
     const prevStreamingIdRef = React.useRef<string | undefined>(undefined)
 
     React.useEffect(() => {
@@ -314,17 +358,12 @@ export const MessageThread = React.forwardRef<
         streamingRoRef.current = null
       }
 
-      // Detect if this is a new streaming session
       const isNewStream = !!streamingMessageId && !prevStreamingIdRef.current
       prevStreamingIdRef.current = streamingMessageId ?? undefined
 
-      if (!streamingMessageId) {
-        // Stream ended – do not reset userScrolledAwayRef, leave it as is
-        return
-      }
+      if (!streamingMessageId) return
 
       if (isNewStream) {
-        // Only reset when a brand new stream starts (first message of a stream)
         userScrolledAwayRef.current = false
       }
 
@@ -333,13 +372,11 @@ export const MessageThread = React.forwardRef<
 
       const scrollToBottom = () => {
         if (!autoScrollRef.current || userScrolledAwayRef.current) return
-        // Mark as programmatic, perform scroll, then clear the flag immediately
         isProgrammaticScrollRef.current = true
         el.scrollTop = el.scrollHeight
         isProgrammaticScrollRef.current = false
       }
 
-      // Trigger an immediate scroll to catch any already‑rendered content.
       scrollToBottom()
 
       const ro = new ResizeObserver(scrollToBottom)
@@ -398,7 +435,6 @@ export const MessageThread = React.forwardRef<
       return () => { clearTimeout(t); el.removeEventListener('scroll', report) }
     }, [filteredMessages, messages, onVisibleUserIndexChange])
 
-    // Intersection Observer for marking messages as seen
     React.useEffect(() => {
       const container = scrollRef.current
       if (!container || !onMessageVisible) return
@@ -420,11 +456,9 @@ export const MessageThread = React.forwardRef<
         { threshold: 0.5, root: container }
       )
 
-      // Observe existing messages
       const elements = container.querySelectorAll('[data-message-id]')
       elements.forEach((el) => observer.observe(el))
 
-      // MutationObserver to handle dynamically added messages
       const mutationObserver = new MutationObserver((mutations) => {
         mutations.forEach((mutation) => {
           mutation.addedNodes.forEach((node) => {
@@ -433,7 +467,6 @@ export const MessageThread = React.forwardRef<
               const messageId = el.getAttribute('data-message-id')
               if (messageId) {
                 observer.observe(el)
-                // Check visibility immediately (might be in view due to auto-scroll)
                 const rect = el.getBoundingClientRect()
                 const containerRect = container.getBoundingClientRect()
                 if (rect.top >= containerRect.top && rect.bottom <= containerRect.bottom) {
@@ -456,7 +489,6 @@ export const MessageThread = React.forwardRef<
       }
     }, [onMessageVisible, scrollRef.current])
 
-    // NEW: Get pending approvals from store
     const pendingApprovals = useToolApprovalStore((s) => s.pending)
     const removePending = useToolApprovalStore((s) => s.removePending)
 
@@ -506,7 +538,6 @@ export const MessageThread = React.forwardRef<
           }
           requestAnimationFrame(poll)
         },
-
         scrollToBottom: () => {
           const el = scrollRef.current
           if (!el) return
@@ -523,7 +554,6 @@ export const MessageThread = React.forwardRef<
             })
           })
         },
-
         getScrollElement: () => scrollRef.current,
         getScrollToken: (): ScrollToken | null => {
           if (navigatorActiveRef.current) return null
@@ -541,10 +571,8 @@ export const MessageThread = React.forwardRef<
           if (!msg) return null
           return { messageId: msg.id, scrollTop }
         },
-
         isScrollingToMessage: () => navigatorActiveRef.current,
         getScrollPosition: () => scrollRef.current?.scrollTop ?? 0,
-
         onScroll: (cb: () => void) => {
           const el = scrollRef.current
           if (!el) return () => { }
@@ -557,7 +585,13 @@ export const MessageThread = React.forwardRef<
 
     const virtualItems = virtualizer.getVirtualItems()
     const lastFilteredIdx = filteredMessages.length - 1
-
+    const measureElementRef = React.useRef((node: Element | null) => {
+      virtualizer.measureElement(node)
+    })
+    // Update it when virtualizer changes (virtualizer is stable from useVirtualizer, so this is fine)
+    React.useEffect(() => {
+      measureElementRef.current = (node) => virtualizer.measureElement(node)
+    })
     return (
       <ScrollContainerContext.Provider value={scrollRef}>
         <AutoScrollContext.Provider value={autoScroll}>
@@ -601,70 +635,37 @@ export const MessageThread = React.forwardRef<
               )}
 
               {!isLoading && filteredMessages.length > 0 && (
-                <div
-                  style={{
-                    height: virtualizer.getTotalSize(),
-                    position: 'relative'
-                  }}
-                >
+                <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
                   {virtualItems.map((virtualItem) => {
                     const message = filteredMessages[virtualItem.index]
+                    const isThisMessageStreaming = message.id === streamingMessageId
                     const isLast = virtualItem.index === lastFilteredIdx
                     const retryAvailable = (message as any).retryAvailable
                     const handleRetry = retryAvailable
                       ? () => sendMutation.mutateAsync({ content: message.content })
                       : undefined
-                    const isBranchParent = branchParentMessageId === message.id
 
                     return (
-                      <div
+                      <VirtualRow
                         key={message.id}
-                        ref={(node) => {
-                          virtualizer.measureElement(node)
-                          if (isLast) {
-                            if (node !== lastItemNodeRef.current) {
-                              if (lastItemNodeRef.current && streamingRoRef.current) {
-                                streamingRoRef.current.unobserve(lastItemNodeRef.current)
-                              }
-                              lastItemNodeRef.current = node
-                              if (node && streamingRoRef.current) {
-                                streamingRoRef.current.observe(node)
-                              }
-                            }
-                          }
-                        }}
-                        data-index={virtualItem.index}
-                        data-msg-id={message.id}
-                        data-role={message.role}
-                        style={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          width: '100%',
-                          transform: `translateY(${virtualItem.start}px)`
-                        }}
-                      >
-                        <div className="px-4 py-1.5">
-                          <MessageBubble
-                            message={message}
-                            isStreaming={message.id === streamingMessageId}
-                            isHighlighted={message.id === highlightedMessageId}
-                            searchQuery={searchQuery.trim() ? searchQuery : undefined}
-                            searchCaseSensitive={searchCaseSensitive}
-                            searchRegex={searchRegex}
-                            onRetry={handleRetry}
-                            isBranchParent={isBranchParent}
-                            streamingMessage={streamingMessage}
-                          />
-                        </div>
-                      </div>
+                        virtualItem={virtualItem}
+                        message={message}
+                        isThisMessageStreaming={isThisMessageStreaming}
+                        streamingMessage={isThisMessageStreaming ? streamingMessage : undefined}
+                        handleRetry={handleRetry}
+                        isBranchParent={branchParentMessageId === message.id}
+                        isHighlighted={message.id === highlightedMessageId}
+                        isLast={isLast}
+                        searchQuery={searchQuery}
+                        searchCaseSensitive={searchCaseSensitive} searchRegex={searchRegex}
+                        measureRef={measureElementRef} lastItemNodeRef={lastItemNodeRef} streamingRoRef={streamingRoRef}
+                      />
                     )
                   })}
                 </div>
               )}
             </div>
 
-            {/* NEW: Render pending tool approvals as an absolute overlay */}
             {pendingApprovals.size > 0 && (
               <div className="absolute bottom-0 left-0 right-0 z-20 px-4 pb-3 flex flex-col gap-2 pointer-events-none">
                 {Array.from(pendingApprovals.entries()).map(([toolCallId, toolCall]) => (

@@ -1,3 +1,4 @@
+// src/components/markdown-view.tsx
 import { memo, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { Bookmark } from 'lucide-react'
@@ -8,17 +9,8 @@ import { cn } from '@/lib/utils'
 import { useBookmarks, useToggleBookmark } from '@/hooks/use-bookmarks'
 import { CodeBlock } from '@/components/conversation/code-block'
 
-// Inject inline-code hover/cursor styles once (module-level side-effect)
-if (typeof document !== 'undefined' && !document.getElementById('md-inline-code-styles')) {
-  const s = document.createElement('style')
-  s.id = 'md-inline-code-styles'
-  s.textContent =
-    'code[data-inline-code]{cursor:pointer}code[data-inline-code]:hover{background-color:hsl(var(--primary)/.15)}'
-  document.head.appendChild(s)
-}
-
 // ─── Internal HeadingBookmarkButton ─────────────────────────────────────────
-const HeadingBookmarkButton = memo(function HeadingBookmarkButton({
+const HeadingBookmarkButton = memo(({
   messageId,
   headingAnchor,
   headingLabel,
@@ -28,7 +20,7 @@ const HeadingBookmarkButton = memo(function HeadingBookmarkButton({
   headingAnchor: string
   headingLabel: string
   conversationId: string | null
-}) {
+}) => {
   const { data: bookmarks = [] } = useBookmarks(conversationId)
   const toggleBookmark = useToggleBookmark(conversationId)
 
@@ -67,6 +59,58 @@ const HeadingBookmarkButton = memo(function HeadingBookmarkButton({
   )
 })
 
+// ─── Split props: stable nodes never receive isStreaming ─────────────────────
+interface StableNodeListProps {
+  nodes: MdNode[]
+  messageId: string
+  conversationId: string | null
+  scrollContainerRef?: React.RefObject<HTMLElement>
+}
+
+interface DraftNodeListProps extends StableNodeListProps {
+  isStreaming?: boolean
+}
+
+// ─── Optimized Node List Components ─────────────────────────────────────────
+const StableNodeList = memo(({
+  nodes, messageId, conversationId, scrollContainerRef
+}: StableNodeListProps) => (
+  <>
+    {nodes.map((node) => (
+      <NodeRenderer
+        key={node.id}
+        node={node}
+        messageId={messageId}
+        conversationId={conversationId}
+        scrollContainerRef={scrollContainerRef}
+      />
+    ))}
+  </>
+), (prev, next) =>
+  prev.nodes === next.nodes &&
+  prev.messageId === next.messageId &&
+  prev.conversationId === next.conversationId &&
+  prev.scrollContainerRef === next.scrollContainerRef
+)
+
+const DraftNodeList = memo(({ nodes, messageId, conversationId, isStreaming, scrollContainerRef }: DraftNodeListProps) => {
+  if (nodes.length === 0) return null
+  return (
+    <>
+      {nodes.map((node) => (
+        <NodeRenderer
+          key={node.id}
+          node={node}
+          messageId={messageId}
+          conversationId={conversationId}
+          isStreaming={isStreaming}
+          scrollContainerRef={scrollContainerRef}
+        />
+      ))}
+    </>
+  )
+})
+
 interface MarkdownViewProps {
   document: NodeDocument | null
   messageId: string
@@ -76,68 +120,71 @@ interface MarkdownViewProps {
   scrollContainerRef?: React.RefObject<HTMLElement>
 }
 
-export const MarkdownView = memo(
-  ({
-    document,
-    messageId,
-    className,
-    conversationId,
-    isStreaming = false,
-    scrollContainerRef,
-  }: MarkdownViewProps) => {
-    const handleClick = useCallback(async (e: React.MouseEvent<HTMLDivElement>) => {
-      const link = (e.target as HTMLElement).closest('a[data-external-link]')
-      if (link) {
-        e.preventDefault()
-        const href = (link as HTMLAnchorElement).href
-        if (href) openUrl(href)
-        return
-      }
-
-      const code = (e.target as HTMLElement).closest('code[data-inline-code]')
-      if (code) {
-        const text = code.textContent ?? ''
-        if (text) {
-          await navigator.clipboard.writeText(text)
-          toast.success('Code copied to clipboard')
-        }
-        return
-      }
-    }, [])
-
-    if (!document) {
-      return null
+export const MarkdownView = memo(({
+  document,
+  messageId,
+  className,
+  conversationId,
+  isStreaming = false,
+  scrollContainerRef,
+}: MarkdownViewProps) => {
+  const handleClick = useCallback(async (e: React.MouseEvent<HTMLDivElement>) => {
+    const link = (e.target as HTMLElement).closest('a[data-external-link]')
+    if (link) {
+      e.preventDefault()
+      const href = (link as HTMLAnchorElement).href
+      if (href) openUrl(href)
+      return
     }
 
-    return (
-      <div
-        className={cn('prose prose-sm dark:prose-invert max-w-none break-words', className)}
-        onClick={handleClick}
-      >
-        {document.stable_nodes.map((node) => (
-          <NodeRenderer
-            key={node.id}
-            node={node}
-            messageId={messageId}
-            conversationId={conversationId ?? null}
-            isStreaming={isStreaming}
-            scrollContainerRef={scrollContainerRef}
-          />
-        ))}
-        {document.draft_nodes.map((node) => (
-          <NodeRenderer
-            key={node.id}
-            node={node}
-            messageId={messageId}
-            conversationId={conversationId ?? null}
-            isStreaming={isStreaming}
-            scrollContainerRef={scrollContainerRef}
-          />
-        ))}
-      </div>
-    )
-  },
-)
+    const code = (e.target as HTMLElement).closest('code[data-inline-code]')
+    if (code) {
+      const text = code.textContent ?? ''
+      if (text) {
+        await navigator.clipboard.writeText(text)
+        toast.success('Code copied to clipboard')
+      }
+      return
+    }
+  }, [])
+
+  if (!document) {
+    return null
+  }
+
+  const convId = conversationId ?? null
+
+  return (
+    <div
+      className={cn('prose prose-sm dark:prose-invert max-w-none break-words', className)}
+      onClick={handleClick}
+    >
+      <StableNodeList
+        nodes={document.stable_nodes}
+        messageId={messageId}
+        conversationId={convId}
+        scrollContainerRef={scrollContainerRef}
+      />
+      <DraftNodeList
+        nodes={document.draft_nodes}
+        messageId={messageId}
+        conversationId={convId}
+        isStreaming={isStreaming}
+        scrollContainerRef={scrollContainerRef}
+      />
+    </div>
+  )
+}, (prev, next) => {
+  // Exact same reference — skip re-render
+  if (prev.document === next.document) return true
+  // Streaming flag changed — must re-render
+  if (prev.isStreaming !== next.isStreaming) return false
+  // Settled message with new document reference — must re-render
+  if (!next.isStreaming) return false
+  // During streaming: only re-render if draft_nodes changed
+  // stable_nodes are protected by StableNodeList's own comparator
+  return prev.document?.draft_nodes === next.document?.draft_nodes
+})
 
 interface NodeRendererProps {
   node: MdNode
@@ -147,7 +194,7 @@ interface NodeRendererProps {
   scrollContainerRef?: React.RefObject<HTMLElement>
 }
 
-function NodeRenderer({ node, messageId, conversationId, isStreaming, scrollContainerRef }: NodeRendererProps) {
+const NodeRenderer = memo(({ node, messageId, conversationId, isStreaming, scrollContainerRef }: NodeRendererProps) => {
   switch (node.type) {
     case 'paragraph':
       return <p dangerouslySetInnerHTML={{ __html: node.html }} />
@@ -191,4 +238,10 @@ function NodeRenderer({ node, messageId, conversationId, isStreaming, scrollCont
     default:
       return null
   }
-}
+}, (prev, next) =>
+  prev.node === next.node &&
+  prev.messageId === next.messageId &&
+  prev.conversationId === next.conversationId &&
+  prev.isStreaming === next.isStreaming &&
+  prev.scrollContainerRef === next.scrollContainerRef
+)

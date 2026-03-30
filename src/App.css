@@ -424,11 +424,10 @@ code[data-inline-code] {
 /* Prevent backtick pseudo-elements from typography plugins */
 code[data-inline-code]::before,
 code[data-inline-code]::after {
-  content: "" !important;
-  display: none !important;
+  content: "";
+  display: none;
 }
 
 code[data-inline-code]:hover {
-  background-color: var(--primary);
-  color: var(--primary);
+  background-color: var(--brand-primary-light);
 }

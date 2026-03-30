@@ -1,8 +1,4 @@
-/**
- * MessageBubble — displays a single message using typed node tree (MarkdownView)
- * or plain text fallback for user/system messages.
- */
-
+// src/components/conversation/message-bubble.tsx
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   AlertCircle,
@@ -17,7 +13,6 @@ import {
   Download,
   MoreHorizontal,
   User,
-  Wrench,
   GitBranch,
 } from 'lucide-react'
 import React, { memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
@@ -35,14 +30,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { ScrollContainerContext, AutoScrollContext } from './message-thread'
-import { createPortal } from 'react-dom'
-import { useBookmarks, useToggleBookmark } from '@/hooks/use-bookmarks'
-import { useConversationStore } from '@/store/conversation'
 import { save } from '@tauri-apps/plugin-dialog'
 import { writeTextFile } from '@tauri-apps/plugin-fs'
 import { CreateBranchModal } from './create-branch-modal'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { MarkdownView } from '@/components/markdown-view'
+import { useBookmarks, useToggleBookmark } from '@/hooks/use-bookmarks'
+import { useConversationStore } from '@/store/conversation'
 
 interface MessageBubbleProps {
   message: MessageData
@@ -56,7 +50,6 @@ interface MessageBubbleProps {
   streamingMessage?: NodeDocument | null
 }
 
-// ─── Custom loading animation ──────────────────────────────────────────────────
 const StreamingLoading = memo(() => (
   <div className="flex items-center gap-1.5 text-muted-foreground">
     <span className="size-1.5 rounded-full bg-current animate-pulse" />
@@ -64,10 +57,8 @@ const StreamingLoading = memo(() => (
     <span className="size-1.5 rounded-full bg-current animate-pulse [animation-delay:0.4s]" />
   </div>
 ))
-StreamingLoading.displayName = 'StreamingLoading'
 
-// ─── Assistant message actions (with branch) ─────────────────────────────────
-const AssistantMessageActions = memo(function AssistantMessageActions({
+const AssistantMessageActions = memo(({
   message,
   conversationId,
   onCopy,
@@ -79,7 +70,7 @@ const AssistantMessageActions = memo(function AssistantMessageActions({
   onCopy: () => void
   onDownload: () => void
   onBranch: () => void
-}) {
+}) => {
   const { data: bookmarks = [] } = useBookmarks(conversationId)
   const toggleBookmark = useToggleBookmark(conversationId)
 
@@ -138,28 +129,11 @@ const AssistantMessageActions = memo(function AssistantMessageActions({
     </DropdownMenu>
   )
 })
-AssistantMessageActions.displayName = 'AssistantMessageActions'
-
-function extractTextFromChildren(children: React.ReactNode): string {
-  if (typeof children === 'string') return children
-  if (Array.isArray(children)) return children.map(extractTextFromChildren).join('')
-  if (React.isValidElement(children)) {
-    return extractTextFromChildren((children.props as any).children)
-  }
-  return ''
-}
-
-// ─── CollapsibleContent ───────────────────────────────────────────────────────
-export interface CollapsibleHandle {
-  collapse: () => void
-  expand: () => void
-  isCollapsed: () => boolean
-}
 
 const CollapsibleContent = React.forwardRef<
   CollapsibleHandle,
   { initialCollapsed?: boolean; messageId: string; children: React.ReactNode }
->(function CollapsibleContent({ initialCollapsed = false, messageId, children }, ref) {
+>(({ initialCollapsed = false, messageId, children }, ref) => {
   const outerRef = useRef<HTMLDivElement>(null)
   const collapsedRef = useRef(initialCollapsed)
 
@@ -221,9 +195,13 @@ const CollapsibleContent = React.forwardRef<
   )
 })
 
-// Helper to convert plain text to a minimal NodeDocument (safe fallback for assistant)
+export interface CollapsibleHandle {
+  collapse: () => void
+  expand: () => void
+  isCollapsed: () => boolean
+}
+
 function textToNodeDocument(content: string): NodeDocument {
-  // Escape HTML to avoid injection
   const escaped = content.replace(/[&<>]/g, (m) => {
     if (m === '&') return '&amp;'
     if (m === '<') return '&lt;'
@@ -243,7 +221,6 @@ function textToNodeDocument(content: string): NodeDocument {
   }
 }
 
-// ─── MessageBubbleInner ────────────────────────────────────────────────────────
 function MessageBubbleInner({
   message,
   isStreaming = false,
@@ -257,11 +234,10 @@ function MessageBubbleInner({
 }: MessageBubbleProps) {
   const [copied, setCopied] = useState(false)
   const [branchModalOpen, setBranchModalOpen] = useState(false)
-  const proseRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
 
   const activeConversationId = useConversationStore((s) => s.activeConversationId)
-  const scrollContainer = useContext(ScrollContainerContext) // FIX: get scroll root
+  const scrollContainer = useContext(ScrollContainerContext)
 
   const handleBranch = useCallback(() => {
     setBranchModalOpen(true)
@@ -273,7 +249,6 @@ function MessageBubbleInner({
   const isSystem = message.role === 'system'
   const syntheticStreaming = message.id === '__streaming__'
 
-  // Search highlighting effect (unchanged)
   useEffect(() => {
     const container = contentRef.current
     if (!container) return
@@ -286,9 +261,7 @@ function MessageBubbleInner({
         try {
           parent.replaceChild(document.createTextNode(mark.textContent ?? ''), mark)
           parent.normalize()
-        } catch {
-          /* node removed */
-        }
+        } catch { /* node removed */ }
       })
     }
 
@@ -347,9 +320,7 @@ function MessageBubbleInner({
       if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)))
       try {
         textNode.parentNode?.replaceChild(frag, textNode)
-      } catch {
-        /* ignore */
-      }
+      } catch { /* ignore */ }
     }
 
     return clearMarks
@@ -412,15 +383,12 @@ function MessageBubbleInner({
   if (isAssistant && !isStreaming && message.content) {
     try {
       subagentData = JSON.parse(message.content)
-    } catch {
-      /* ignore */
-    }
+    } catch { /* ignore */ }
   }
   if (subagentData?.subagentId) {
     return <SubagentCard stepName={subagentData.task || 'Subagent'} status="running" onOpen={() => { }} />
   }
 
-  // ─── TOOL MESSAGE HANDLING ──────────────────────────────────────────────────
   if (isTool) {
     const parseToolContent = (raw: string): { blocks: Array<{ type: string; text: string }>; isError: boolean } => {
       try {
@@ -445,7 +413,6 @@ function MessageBubbleInner({
     )
   }
 
-  // ─── ASSISTANT MESSAGES (vertical layout: avatar+header on same row, content below) ───
   if (isAssistant || syntheticStreaming) {
     const nodeDocument = (message as any).node_document as NodeDocument | null | undefined
     const documentToRender = (nodeDocument != null ? nodeDocument : null)
@@ -463,7 +430,7 @@ function MessageBubbleInner({
         className="prose prose-sm dark:prose-invert max-w-none break-words"
         conversationId={activeConversationId}
         isStreaming={isStreaming || syntheticStreaming}
-        scrollContainerRef={scrollContainer} // FIX: pass scroll container
+        scrollContainerRef={scrollContainer}
       />
     ) : null
 
@@ -477,8 +444,7 @@ function MessageBubbleInner({
         animate={{ opacity: 1 }}
         transition={{ duration: 0.15, ease: 'easeOut' }}
       >
-        {/* Row 1: Avatar + header (Assistant label, buttons) */}
-        <div className="flex items-start gap-2">
+        <div className="flex items-center gap-2">
           <div
             className={cn(
               'flex-shrink-0 size-7 rounded-full flex items-center justify-center',
@@ -532,7 +498,6 @@ function MessageBubbleInner({
           </div>
         </div>
 
-        {/* Row 2: Message content – aligned with avatar's left edge */}
         <div className="mt-1">
           <div
             ref={contentRef}
@@ -543,7 +508,6 @@ function MessageBubbleInner({
               isQueued && 'border-l-2 border-amber-400 pl-3'
             )}
           >
-            {/* Highlight ring */}
             <motion.div
               className="absolute inset-0 ring-2 ring-primary/50 pointer-events-none rounded-xl"
               initial={{ opacity: 0 }}
@@ -572,7 +536,6 @@ function MessageBubbleInner({
           </div>
         </div>
 
-        {/* Copy button – aligned with content */}
         <AnimatePresence>
           {!isStreaming && !syntheticStreaming && message.content && !collapsedStateRef.current && (
             <motion.button
@@ -611,7 +574,6 @@ function MessageBubbleInner({
     )
   }
 
-  // ─── USER / SYSTEM MESSAGES (plain text fallback) ──────────────────────────
   return (
     <motion.div
       id={`msg-${message.id}`}
@@ -620,7 +582,6 @@ function MessageBubbleInner({
       animate={{ opacity: 1 }}
       transition={{ duration: 0.15, ease: 'easeOut' }}
     >
-      {/* Avatar */}
       <div
         className={cn(
           'flex-shrink-0 size-7 rounded-full flex items-center justify-center',
@@ -641,7 +602,6 @@ function MessageBubbleInner({
         )}
       </div>
 
-      {/* Message container */}
       <div
         className={cn(
           'flex flex-col min-w-0',
@@ -661,7 +621,6 @@ function MessageBubbleInner({
               isQueued && 'border-l-2 border-amber-400 pl-3'
             )}
           >
-            {/* Highlight ring */}
             <motion.div
               className={cn(
                 'absolute inset-0 ring-2 ring-primary/50 pointer-events-none rounded-inherit',
@@ -722,7 +681,6 @@ function MessageBubbleInner({
               )}
             </CollapsibleContent>
 
-            {/* User message actions */}
             {isUser && !isStreaming && !syntheticStreaming && (
               <div className="absolute -left-8 top-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <DropdownMenu modal={false}>
@@ -796,7 +754,6 @@ function MessageBubbleInner({
 export const MessageBubble = memo(
   MessageBubbleInner,
   (prev, next) => {
-    // Re-render only when necessary
     if (prev.isStreaming !== next.isStreaming) return false
     if (prev.isHighlighted !== next.isHighlighted) return false
     if (prev.searchQuery !== next.searchQuery) return false
@@ -808,16 +765,13 @@ export const MessageBubble = memo(
     if (prev.message.context_items !== next.message.context_items) return false
     if (prev.isBranchParent !== next.isBranchParent) return false
 
-    // Synthetic streaming bubble must re-render when document changes
     const syntheticStreaming = next.message.id === '__streaming__'
     if (syntheticStreaming) {
       return prev.streamingMessage === next.streamingMessage
     }
 
-    // Settled messages: skip re-render during active streaming (they don't change)
     if (next.isStreaming || prev.isStreaming) return true
 
-    // Otherwise, re-render only if content changed
     return prev.message.content === next.message.content
       && prev.streamingMessage === next.streamingMessage
   }
