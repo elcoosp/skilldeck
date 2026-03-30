@@ -18,6 +18,7 @@ if (typeof document !== 'undefined' && !document.getElementById('md-inline-code-
   document.head.appendChild(s)
 }
 
+
 // ─── Internal HeadingBookmarkButton ─────────────────────────────────────────
 const HeadingBookmarkButton = memo(function HeadingBookmarkButton({
   messageId,
@@ -81,9 +82,17 @@ interface MarkdownViewProps {
   className?: string
   conversationId?: string | null
   isStreaming?: boolean
+  scrollContainerRef?: React.RefObject<HTMLElement> // FIX: passed to CodeBlock
 }
 
-export const MarkdownView = memo(({ document, messageId, className, conversationId, isStreaming = false }: MarkdownViewProps) => {
+export const MarkdownView = memo(({
+  document,
+  messageId,
+  className,
+  conversationId,
+  isStreaming = false,
+  scrollContainerRef,
+}: MarkdownViewProps) => {
   const handleClick = useCallback(
     async (e: React.MouseEvent<HTMLDivElement>) => {
       // External links
@@ -125,22 +134,19 @@ export const MarkdownView = memo(({ document, messageId, className, conversation
           messageId={messageId}
           conversationId={conversationId ?? null}
           isStreaming={isStreaming}
+          scrollContainerRef={scrollContainerRef} // FIX: pass down
         />
       ))}
-      {document.draft_nodes.length > 0 && (
-        <>
-          {document.draft_nodes.map(node => (
-            <NodeRenderer
-              key={node.id}
-              node={node}
-              messageId={messageId}
-              conversationId={conversationId ?? null}
-              isStreaming={isStreaming}
-            />
-          ))}
-          <span className="inline-block w-0.5 h-4 bg-current animate-pulse align-text-bottom ml-0.5" />
-        </>
-      )}
+      {document.draft_nodes.map(node => (
+        <NodeRenderer
+          key={node.id}
+          node={node}
+          messageId={messageId}
+          conversationId={conversationId ?? null}
+          isStreaming={isStreaming}
+          scrollContainerRef={scrollContainerRef}
+        />
+      ))}
     </div>
   )
 })
@@ -150,9 +156,10 @@ interface NodeRendererProps {
   messageId: string
   conversationId: string | null
   isStreaming?: boolean
+  scrollContainerRef?: React.RefObject<HTMLElement> // FIX
 }
 
-function NodeRenderer({ node, messageId, conversationId, isStreaming }: NodeRendererProps) {
+function NodeRenderer({ node, messageId, conversationId, isStreaming, scrollContainerRef }: NodeRendererProps) {
   switch (node.type) {
     case 'paragraph':
       return <p dangerouslySetInnerHTML={{ __html: node.html }} />
@@ -180,6 +187,7 @@ function NodeRenderer({ node, messageId, conversationId, isStreaming }: NodeRend
           artifactId={node.artifact_id}
           highlightedHtml={node.highlighted_html}
           isStreaming={isStreaming}
+          scrollContainerRef={scrollContainerRef}
         />
       )
     case 'list': {

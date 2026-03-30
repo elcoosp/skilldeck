@@ -5,6 +5,14 @@
 
 
 export const commands = {
+async getArtifactContent(artifactId: string) : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_artifact_content", { artifactId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async listBuiltInThemes() : Promise<Result<ThemeInfo[], string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("list_built_in_themes") };

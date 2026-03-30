@@ -58,6 +58,7 @@ impl MarkdownPipeline {
             if !buf.is_empty() {
                 let raw = std::mem::take(buf);
                 let html = rewrite_links(&raw);
+                let html = rewrite_images(&html); // FIX: add lazy load & onerror to images
                 let html = rewrite_inline_code(&html);
                 let id = format!("html-{}", *id_counter);
                 *id_counter += 1;
@@ -147,6 +148,7 @@ impl MarkdownPipeline {
                 Event::End(TagEnd::List(_)) => {
                     if let Some((ordered, list_html)) = list_stack.pop() {
                         let list_html = rewrite_links(&list_html);
+                        let list_html = rewrite_images(&list_html); // FIX
                         let list_html = rewrite_inline_code(&list_html);
                         let tag = if ordered { "ol" } else { "ul" };
                         let full_html = format!("<{}>{}</{}>", tag, list_html, tag);
@@ -236,6 +238,15 @@ impl MarkdownPipeline {
 /// clicks and open them in the system browser instead of the Tauri webview.
 fn rewrite_links(html: &str) -> String {
     html.replace("<a href=", "<a data-external-link=\"true\" href=")
+}
+
+/// FIX: Add lazy loading and onerror fallback to images.
+/// This prevents layout shift when an image fails to load.
+fn rewrite_images(html: &str) -> String {
+    html.replace(
+        "<img ",
+        "<img loading=\"lazy\" onerror=\"this.style.visibility='hidden';this.style.minHeight='1.5em'\" ",
+    )
 }
 
 /// Tag inline `<code>` spans (not inside fenced blocks) so the frontend can

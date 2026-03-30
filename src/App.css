@@ -404,3 +404,7 @@ pre[class*="language-"]::-webkit-scrollbar-thumb {
   background: var(--border);
   border-radius: 2px;
 }
+
+.prose img {
+  min-height: 1.5em;
+}

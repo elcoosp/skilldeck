@@ -1,5 +1,6 @@
 // src/components/conversation/code-block.tsx
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, memo } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronRight, Copy, Check, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useArtifactContent } from '@/hooks/use-artifact-content';
@@ -10,9 +11,16 @@ interface CodeBlockProps {
   artifactId: string;
   highlightedHtml: string;
   isStreaming?: boolean;
+  scrollContainerRef?: React.RefObject<HTMLElement>;
 }
 
-export const CodeBlock: React.FC<CodeBlockProps> = ({ language, artifactId, highlightedHtml, isStreaming = false }) => {
+export const CodeBlock: React.FC<CodeBlockProps> = memo(({
+  language,
+  artifactId,
+  highlightedHtml,
+  isStreaming = false,
+  scrollContainerRef,
+}) => {
   const [collapsed, setCollapsed] = useState(false);
   const [copied, setCopied] = useState(false);
   const { data: rawCode, isLoading } = useArtifactContent(artifactId);
@@ -23,62 +31,118 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ language, artifactId, high
   const scrollableRef = useRef<HTMLDivElement>(null);
   const preRef = useRef<HTMLPreElement>(null);
 
-  const prevHtmlRef = useRef('');
   const isUserScrolledUp = useRef(false);
   const isProgrammaticScroll = useRef(false);
 
-  // ─── Detect user scroll within the code block ──────────────────────────────
+  // ─── Detect user scroll within the code block ────────────────────────────
   useEffect(() => {
     const scrollable = scrollableRef.current;
     if (!scrollable) return;
     const handleScroll = () => {
       if (isProgrammaticScroll.current) return;
-      const atBottom = scrollable.scrollHeight - scrollable.clientHeight - scrollable.scrollTop < 40;
-      isUserScrolledUp.current = !atBottom;
+      const { scrollTop, scrollHeight, clientHeight } = scrollable;
+      isUserScrolledUp.current = Math.abs(scrollHeight - clientHeight - scrollTop) >= 10;
     };
     scrollable.addEventListener('scroll', handleScroll, { passive: true });
     return () => scrollable.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // ─── Auto-scroll to bottom when content changes during streaming ───────────
+  // ─── Auto-scroll via MutationObserver during streaming ───────────────────
   useEffect(() => {
     if (!isStreaming || collapsed) return;
-    if (highlightedHtml === prevHtmlRef.current) return;
-    prevHtmlRef.current = highlightedHtml;
 
     const scrollable = scrollableRef.current;
-    if (!scrollable || isUserScrolledUp.current) return;
+    const pre = preRef.current;
+    if (!scrollable || !pre) return;
 
-    isProgrammaticScroll.current = true;
-    scrollable.scrollTop = scrollable.scrollHeight;
-    requestAnimationFrame(() => {
-      isProgrammaticScroll.current = false;
-    });
-  }, [highlightedHtml, isStreaming, collapsed]);
+    const scrollToBottom = () => {
+      if (isUserScrolledUp.current) return;
+      isProgrammaticScroll.current = true;
+      scrollable.scrollTop = scrollable.scrollHeight;
+      requestAnimationFrame(() => { isProgrammaticScroll.current = false; });
+    };
 
-  // ─── Floating header: show sticky duplicate when the static header leaves the viewport ──
+    const observer = new MutationObserver(scrollToBottom);
+    observer.observe(pre, { childList: true, subtree: true, characterData: true });
+    scrollToBottom();
+
+    return () => observer.disconnect();
+  }, [isStreaming, collapsed]);
+
+  // ─── Floating header: portal + getBoundingClientRect (mirrors CodePre) ───
   useEffect(() => {
+    const root = scrollContainerRef?.current;
+    const container = containerRef.current;
     const header = headerRef.current;
     const floating = floatingRef.current;
-    if (!header || !floating || collapsed) {
-      if (floating) floating.style.display = 'none';
-      return;
-    }
+    const scrollable = scrollableRef.current;
 
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        // Show floating header when the static header scrolls out of the viewport
-        floating.style.display = entry.isIntersecting ? 'none' : 'flex';
-      },
-      {
-        root: null, // Observe against the browser viewport
-        threshold: 0,
+    if (!root || !container || !header || !floating || !scrollable) return;
+
+    const hide = () => {
+      floating.style.opacity = '0';
+      floating.style.pointerEvents = 'none';
+      header.style.visibility = 'visible';
+    };
+
+    const sync = () => {
+      // Only show floating header when content actually overflows
+      const codeOverflows = scrollable.scrollHeight > scrollable.clientHeight;
+      if (collapsed || !codeOverflows) {
+        hide();
+        return;
       }
-    );
 
-    observer.observe(header);
-    return () => observer.disconnect();
-  }, [collapsed]);
+      const rootRect = root.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+
+      // Guard against invisible/unmeasured containers
+      if (rootRect.width === 0 || rootRect.height === 0) {
+        hide();
+        return;
+      }
+
+      const topGone = containerRect.top < rootRect.top;
+      const bottomVisible = containerRect.bottom > rootRect.top + 32;
+
+      if (topGone && bottomVisible) {
+        // Position the portal element to sit at the top of the scroll container,
+        // spanning the exact width of the code block container
+        floating.style.top = `${rootRect.top}px`;
+        floating.style.left = `${containerRect.left}px`;
+        floating.style.width = `${containerRect.width}px`;
+        floating.style.opacity = '1';
+        floating.style.pointerEvents = 'auto';
+        floating.style.borderRadius = '0';
+        floating.style.boxShadow = '0 4px 12px 0 rgb(0 0 0 / 0.15)';
+        header.style.visibility = 'hidden';
+      } else {
+        hide();
+      }
+    };
+
+    let rafId = 0;
+    const syncRaf = () => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(sync);
+    };
+
+    root.addEventListener('scroll', sync, { passive: true });
+
+    const ro = new ResizeObserver(syncRaf);
+    ro.observe(container);
+    ro.observe(scrollable);
+
+    rafId = requestAnimationFrame(sync);
+
+    return () => {
+      root.removeEventListener('scroll', sync);
+      ro.disconnect();
+      cancelAnimationFrame(rafId);
+      // Always restore visibility on cleanup
+      if (header) header.style.visibility = 'visible';
+    };
+  }, [scrollContainerRef, collapsed]);
 
   const toggle = useCallback(() => setCollapsed(c => !c), []);
 
@@ -94,11 +158,22 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ language, artifactId, high
 
   const headerContent = (
     <>
-      <button type="button" onClick={toggle} className="flex items-center gap-1.5">
-        <ChevronRight className={cn('size-3.5 transition-transform', !collapsed && 'rotate-90')} />
+      <button
+        type="button"
+        onClick={toggle}
+        className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
+        aria-label={collapsed ? 'Expand' : 'Collapse'}
+      >
+        <ChevronRight className={cn('size-3.5 transition-transform duration-150', !collapsed && 'rotate-90')} />
         <span>{language || 'code'}</span>
       </button>
-      <button type="button" onClick={copy} disabled={isLoading}>
+      <button
+        type="button"
+        onClick={copy}
+        disabled={isLoading}
+        className="p-1 text-muted-foreground hover:text-foreground transition-colors rounded"
+        aria-label="Copy code"
+      >
         {copied ? (
           <Check className="size-3.5 text-green-500" />
         ) : isLoading ? (
@@ -111,41 +186,71 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ language, artifactId, high
   );
 
   return (
-    <div ref={containerRef} className="my-3 rounded-lg border border-border text-xs font-mono relative">
-      {/* Static header */}
-      <div
-        ref={headerRef}
-        className={cn(
-          'flex items-center justify-between px-3 py-1.5 border-b border-border bg-muted',
-          collapsed ? 'rounded-lg' : 'rounded-t-lg'
-        )}
-      >
-        {headerContent}
-      </div>
-
-      {/* Scrollable code area */}
-      <div
-        ref={scrollableRef}
-        className={cn(
-          'transition-[max-height] thin-scrollbar relative',
-          collapsed ? 'max-h-0 overflow-hidden' : 'max-h-96 overflow-auto'
-        )}
-      >
-        {/* Sticky floating header (hidden by default, shown when static header leaves viewport) */}
+    <>
+      {/* Floating header portal — rendered into document.body so it escapes
+          any overflow:hidden / scroll containers and can be positioned freely */}
+      {createPortal(
         <div
           ref={floatingRef}
-          className="sticky top-0 z-10 flex items-center justify-between px-3 py-1.5 border-b border-border bg-muted/95 backdrop-blur-sm"
-          style={{ display: 'none' }}
+          className="fixed z-50 flex items-center justify-between px-3 py-1.5 border border-border bg-muted text-xs font-mono"
+          style={{
+            opacity: 0,
+            pointerEvents: 'none',
+            // Initial radius matches the code block; overridden to 0 when active
+            borderRadius: 'var(--radius)',
+            boxShadow: '0 0 0 0 transparent',
+            transition: 'border-radius 200ms ease, box-shadow 200ms ease',
+          }}
+        >
+          {headerContent}
+        </div>,
+        document.body,
+      )}
+
+      <div ref={containerRef} className="my-3 rounded-lg border border-border text-xs font-mono">
+        {/* Static header — hidden (visibility:hidden) when floating is active
+            so layout is preserved but no double header is shown */}
+        <div
+          ref={headerRef}
+          className={cn(
+            'flex items-center justify-between px-3 py-1.5 border-b border-border bg-muted',
+            collapsed ? 'rounded-lg' : 'rounded-t-lg',
+          )}
         >
           {headerContent}
         </div>
-        <pre
-          ref={preRef}
-          className="p-3 m-0 mt-0 mb-0 text-xs leading-relaxed"
-          style={{ whiteSpace: 'pre', fontFamily: 'inherit', color: 'var(--foreground)' }}
-          dangerouslySetInnerHTML={{ __html: highlightedHtml }}
-        />
+
+        {/* Collapse wrapper — height transition, no overflow:hidden on scrollable */}
+        <div
+          className="overflow-hidden rounded-b-lg"
+          style={{
+            maxHeight: collapsed ? 0 : 384,
+            transition: 'max-height 0.18s ease',
+          }}
+        >
+          <div
+            ref={scrollableRef}
+            className="overflow-auto max-h-96 thin-scrollbar"
+          >
+            <pre
+              ref={preRef}
+              className="p-3 m-0 mt-0 mb-0 text-xs leading-relaxed"
+              style={{
+                whiteSpace: 'pre',
+                fontFamily: 'inherit',
+                color: 'var(--foreground)',
+              }}
+              dangerouslySetInnerHTML={{ __html: highlightedHtml }}
+            />
+          </div>
+        </div>
       </div>
-    </div>
+    </>
   );
-};
+}, (prev, next) =>
+  prev.highlightedHtml === next.highlightedHtml &&
+  prev.artifactId === next.artifactId &&
+  prev.language === next.language &&
+  prev.isStreaming === next.isStreaming &&
+  prev.scrollContainerRef === next.scrollContainerRef,
+);

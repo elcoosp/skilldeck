@@ -269,7 +269,7 @@ function MessageBubbleInner({
   const contentRef = useRef<HTMLDivElement>(null)
 
   const activeConversationId = useConversationStore((s) => s.activeConversationId)
-  const scrollContainer = useContext(ScrollContainerContext)
+  const scrollContainer = useContext(ScrollContainerContext) // FIX: get scroll root
 
   const isBookmarked = useBookmarksStore(
     useCallback(
@@ -483,6 +483,7 @@ function MessageBubbleInner({
         className="prose prose-sm dark:prose-invert max-w-none break-words"
         conversationId={activeConversationId}
         isStreaming={isStreaming || syntheticStreaming}
+        scrollContainerRef={scrollContainer} // FIX: pass scroll container
       />
     ) : null
 
