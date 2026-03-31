@@ -1,4 +1,3 @@
-// src/hooks/use-messages.ts
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAchievements } from '@/hooks/use-achievements'
 import type { ContextItem, MessageData } from '@/lib/bindings'
@@ -25,7 +24,7 @@ export function useMessages(
   })
 }
 
-export function useSendMessage(conversationId: UUID) {
+export function useSendMessage(conversationId: UUID, branchId: UUID | null = null) {
   const queryClient = useQueryClient()
   const { unlock } = useAchievements()
 
@@ -40,7 +39,8 @@ export function useSendMessage(conversationId: UUID) {
       const res = await commands.sendMessage({
         conversation_id: conversationId,
         content,
-        context_items: contextItems ?? null // convert undefined to null
+        branch_id: branchId,   // <-- added
+        context_items: contextItems ?? null
       })
       if (res.status === 'error') throw new Error(res.error)
       return res.data
@@ -76,7 +76,6 @@ export function useMessagesWithStream(
 ): MessageData[] {
   const { data: messages = [] } = useMessages(conversationId, branchId)
 
-  // Replace three separate selectors with a single useShallow
   const { streamingText, isRunning, hasError } = useUIEphemeralStore(
     useShallow((s) => ({
       streamingText: s.streamingText[conversationId ?? ''] ?? '',
@@ -85,20 +84,14 @@ export function useMessagesWithStream(
     }))
   )
 
-  // If there's a streaming error, don't show the placeholder
-  if (hasError) {
-    return messages
-  }
+  if (hasError) return messages
 
-  // If the agent is not running and we're not expecting a response, just return messages
   const lastMessage = messages[messages.length - 1]
   const expectingResponse = lastMessage?.role === 'user'
 
-  if (!isRunning && !expectingResponse) {
-    return messages
-  }
+  if (!isRunning && !expectingResponse) return messages
 
-  // Add streaming bubble (content may be empty initially)
+  // Add streaming bubble with all required MessageData properties
   const streamBubble: MessageData = {
     id: '__streaming__',
     conversation_id: conversationId!,
@@ -107,9 +100,12 @@ export function useMessagesWithStream(
     created_at: new Date().toISOString(),
     context_items: null,
     metadata: null,
-    seen: false,        // added to match MessageData type
-    input_tokens: null, // added to match MessageData type
-    output_tokens: null // added to match MessageData type
+    seen: false,
+    input_tokens: null,
+    output_tokens: null,
+    stable_html: null,
+    node_document: null,
+    status: 'pending'   // <-- changed from null
   }
 
   return [...messages, streamBubble]

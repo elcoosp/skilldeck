@@ -1,3 +1,4 @@
+// src/components/conversation/thread-navigator.tsx
 import { memo, useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { createPortal } from 'react-dom'
@@ -557,7 +558,13 @@ const ThreadNavigator = memo(function ThreadNavigator({
                       <div key={msg.id} data-message-idx={idx}>
                         <div className="flex items-center gap-0.5 w-full">
                           <button
-                            ref={el => el ? itemRefs.current.set(msgNavIdx, el) : itemRefs.current.delete(msgNavIdx)}
+                            ref={(el) => {
+                              if (el) {
+                                itemRefs.current.set(msgNavIdx, el)
+                              } else {
+                                itemRefs.current.delete(msgNavIdx)
+                              }
+                            }}
                             type="button"
                             tabIndex={-1}
                             className={cn(
@@ -617,7 +624,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
                             >
                               <div className="ml-3 mt-0.5 mb-1.5 border-l-2 border-primary/20 pl-2 space-y-px">
                                 {headings.map(h => {
-                                  const hBookmarked = isHeadingBookmarked(assistantMsgId, h.slug)
+                                  const hBookmarked = isHeadingBookmarked(assistantMsgId, h.id)
                                   const isH1 = h.level === 1
                                   const isH2 = h.level === 2
                                   const isActiveHeading = isActive && h.toc_index === activeHeadingIndex
@@ -639,7 +646,13 @@ const ThreadNavigator = memo(function ThreadNavigator({
                                   return (
                                     <button
                                       key={`${assistantMsgId}-${h.id}`}
-                                      ref={el => el ? itemRefs.current.set(headingNavIdx, el) : itemRefs.current.delete(headingNavIdx)}
+                                      ref={(el) => {
+                                        if (el) {
+                                          itemRefs.current.set(headingNavIdx, el)
+                                        } else {
+                                          itemRefs.current.delete(headingNavIdx)
+                                        }
+                                      }}
                                       type="button"
                                       tabIndex={-1}
                                       data-heading-idx={h.toc_index}

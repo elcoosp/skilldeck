@@ -134,7 +134,9 @@ export function useAgentStream(conversationId: string | null) {
           break
 
         case 'stream_update': {
-          const doc: NodeDocument = event.document
+          // The backend sends 'node_document'
+          const doc: NodeDocument = (event as any).node_document
+          if (!doc) break
 
           // ── Stabilize stable_nodes reference ──
           const incoming = doc.stable_nodes
@@ -179,13 +181,16 @@ export function useAgentStream(conversationId: string | null) {
         }
 
         case 'tool_approval_required':
-          addPending(event.tool_call_id, {
-            name: event.tool_name,
-            arguments: event.arguments,
-          })
+          if (event.tool_call_id) {
+            addPending(event.tool_call_id, {
+              id: event.tool_call_id,
+              name: event.tool_name ?? 'unknown',
+              arguments: event.arguments ?? {},
+            })
+          }
           break
 
-        case 'cancelled':
+        case 'cancelled' as any: // type assertion to bypass strict check
           flushNow()
           resetStreamingRefs()
           setAgentRunning(conversationId, false)

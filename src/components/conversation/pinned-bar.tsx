@@ -1,3 +1,4 @@
+// src/components/conversation/pinned-bar.tsx
 import { useQuery } from '@tanstack/react-query';
 import { commands } from '@/lib/bindings';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -37,7 +38,7 @@ export function PinnedBar() {
   return (
     <div className="border-b border-border bg-muted/30 p-1 flex items-center gap-1 overflow-x-auto">
       <Pin className="size-3 text-muted-foreground ml-2 shrink-0" />
-      <ScrollArea orientation="horizontal" className="flex-1">
+      <ScrollArea className="flex-1">
         <div className="flex gap-1">
           {pins.map(artifact => (
             <ArtifactItem key={artifact.id} artifact={artifact} compact />

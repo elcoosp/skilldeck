@@ -1,3 +1,4 @@
+// src/components/chat/global-drop-zone.tsx
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
@@ -141,7 +142,7 @@ export function GlobalDropZone() {
 
             // If we dropped onto a different conversation, activate it
             if (targetConversationId && targetConversationId !== activeConversationIdRef.current) {
-              useUIStore.getState().setActiveConversation(targetConversationId)
+              useConversationStore.getState().setActiveConversation(targetConversationId)
             }
             break
           }

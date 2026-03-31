@@ -33,7 +33,7 @@ import { getScrollToken, setScrollToken } from '@/lib/scroll-token'
 import { useConversationBootstrap } from '@/hooks/use-conversation-bootstrap'
 import { useQueryClient } from '@tanstack/react-query'
 import { useBranches } from '@/hooks/use-branches'
-import type { MessageData } from '@/lib/bindings'
+import type { MessageData, HeadingItem } from '@/lib/bindings' // <-- use binding type
 
 export function CenterPanel() {
   // ─── Store selectors (granular) ──────────────────────────────────────────
@@ -84,7 +84,7 @@ export function CenterPanel() {
 
   const { data: bootstrap, isLoading: bootstrapLoading } = useConversationBootstrap(activeConversationId)
   const queuedMessages = bootstrap?.queued ?? []
-  const headings = bootstrap?.headings ?? []
+  const headings = bootstrap?.headings ?? [] // now of type HeadingItem[] from bindings
 
   const { data: branches = [] } = useBranches(activeConversationId)
   const currentBranch = branches.find(b => b.id === activeBranchId)

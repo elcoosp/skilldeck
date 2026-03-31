@@ -1,3 +1,4 @@
+// src/components/conversation/message-thread.tsx
 import {
   useVirtualizer,
   elementScroll,
@@ -60,7 +61,7 @@ interface VirtualRowProps {
   message: MessageData
   isThisMessageStreaming: boolean
   streamingMessage: NodeDocument | null | undefined
-  handleRetry: (() => Promise<void>) | undefined
+  handleRetry: (() => Promise<void | null>) | undefined
   isBranchParent: boolean
   isHighlighted: boolean
   searchQuery: string | undefined
@@ -207,11 +208,11 @@ export const MessageThread = React.forwardRef<
 
     const scrollToFn: (
       offset: number,
-      options: { behavior?: ScrollBehavior },
-      instance: Virtualizer<Element, Element>
+      options: { adjustments?: number; behavior?: ScrollBehavior },
+      instance: Virtualizer<HTMLDivElement, Element>
     ) => void = React.useCallback((offset, { behavior }, instance) => {
       isProgrammaticScrollRef.current = true
-      elementScroll(offset, { behavior }, instance)
+      elementScroll(offset, { behavior }, instance as any)
       requestAnimationFrame(() => {
         isProgrammaticScrollRef.current = false
       })

@@ -108,14 +108,19 @@ function App() {
 
   // Load syntax theme CSS on mount
   useEffect(() => {
-    commands.getSyntaxCss().then(css => {
+    commands.getSyntaxCss().then(res => {
+      if (res.status === 'error') {
+        console.error('Failed to load syntax theme CSS:', res.error);
+        return;
+      }
+      const css = res.data;
       const style = document.getElementById('syntax-theme');
       if (style) {
-        style.textContent = css.data;
+        style.textContent = css;
       } else {
         const s = document.createElement('style');
         s.id = 'syntax-theme';
-        s.textContent = css.data;
+        s.textContent = css;
         document.head.appendChild(s);
       }
     }).catch(err => {

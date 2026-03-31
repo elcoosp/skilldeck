@@ -1,4 +1,3 @@
-// src/components/layout/left-panel.tsx
 /**
  * Left panel — conversation list, search, new chat, workspace switcher,
  * and profile filter, now with pinned conversations, folder grouping, and dated collapsible groups.
@@ -8,7 +7,7 @@ import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 import { open } from '@tauri-apps/plugin-dialog'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Collapsible } from 'radix-ui'
-import { ChevronDown, FolderOpen, FolderPlus, Plus, Search, Settings } from 'lucide-react'
+import { ChevronDown, FolderOpen, FolderPlus, Plus, Search, Settings, Folder } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { ConversationItem } from '@/components/conversation/conversation-item'

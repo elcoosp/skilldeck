@@ -1,4 +1,3 @@
-// src/store/bookmarks.ts
 import { create } from 'zustand'
 import { commands, type BookmarkData } from '@/lib/bindings'
 import { toast } from 'sonner'
@@ -92,7 +91,7 @@ export const useBookmarksStore = create<BookmarksState>((set, get) => ({
         // Bookmark was removed – optimistic removal already done
         console.log(`[toggleBookmark] server indicates removal, done`)
         return null
-      } else {
+      } else if (result.status === 'error') {
         // Error response
         console.error(`[toggleBookmark] server error:`, result.error)
         // Revert optimistic removal if the call failed
@@ -102,6 +101,7 @@ export const useBookmarksStore = create<BookmarksState>((set, get) => ({
         toast.error('Failed to update bookmark')
         return null
       }
+      return null
     } catch (error) {
       console.error('[toggleBookmark] failed', error)
       // Revert optimistic removal if the call failed

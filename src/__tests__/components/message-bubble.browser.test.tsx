@@ -1,3 +1,4 @@
+// src/__tests__/components/message-bubble.browser.test.tsx
 import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { MessageBubble } from '@/components/conversation/message-bubble'
@@ -16,6 +17,9 @@ const makeMessage = (overrides: Partial<MessageData> = {}): MessageData => ({
   input_tokens: null,
   output_tokens: null,
   seen: false,
+  stable_html: null,
+  node_document: null,
+  status: 'complete',
   ...overrides
 });
 

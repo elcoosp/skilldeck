@@ -1,4 +1,6 @@
+// src/components/markdown-view.tsx
 import { memo, useCallback } from 'react'
+import type { JSX } from 'react'
 import { motion } from 'framer-motion'
 import { Bookmark } from 'lucide-react'
 import { toast } from 'sonner'
@@ -174,7 +176,7 @@ export const MarkdownView = memo(({
 
   return (
     <div
-      className={cn('prose prose-sm dark:prose-invert max-w-none break-words', className)}
+      className={cn('prose prose prose-sm dark:prose-invert max-w-none break-words', className)}
       onClick={handleClick}
     >
       <StableNodeList

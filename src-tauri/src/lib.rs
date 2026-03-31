@@ -39,18 +39,18 @@ use tauri_specta::{Builder, collect_commands, collect_events};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    #[cfg(not(debug_assertions))]
-    {
-        use tracing_subscriber::{EnvFilter, fmt};
-        fmt()
-            .with_env_filter(
-                EnvFilter::from_default_env()
-                    .add_directive("skilldeck=info".parse().unwrap())
-                    .add_directive("skilldeck_core=info".parse().unwrap())
-                    .add_directive("skilldeck_lint=info".parse().unwrap()),
-            )
-            .init();
-    }
+    // #[cfg(not(debug_assertions))]
+    // {
+    use tracing_subscriber::{EnvFilter, fmt};
+    fmt()
+        .with_env_filter(
+            EnvFilter::from_default_env()
+                .add_directive("skilldeck=info".parse().unwrap())
+                .add_directive("skilldeck_core=info".parse().unwrap())
+                .add_directive("skilldeck_lint=info".parse().unwrap()),
+        )
+        .init();
+    // }
     // Build Tauri Specta builder with all commands and events
     let builder = Builder::<tauri::Wry>::new()
         .commands(collect_commands![
@@ -215,11 +215,11 @@ pub fn run() {
     let mut tauri_builder = tauri::Builder::default();
 
     // Conditionally add the devtools plugin only for debug builds
-    #[cfg(debug_assertions)]
-    {
-        let devtools = tauri_plugin_devtools::init();
-        tauri_builder = tauri_builder.plugin(devtools);
-    }
+    // #[cfg(debug_assertions)]
+    // {
+    //     let devtools = tauri_plugin_devtools::init();
+    //     tauri_builder = tauri_builder.plugin(devtools);
+    // }
 
     tauri_builder
         .plugin(tauri_plugin_fs::init())

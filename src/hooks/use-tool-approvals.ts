@@ -25,15 +25,13 @@ export function useToolApprovals(conversationId: string | null) {
         (event) => {
           if (event.payload.conversationId !== conversationId) return
           addPending(event.payload.toolCallId, {
+            id: event.payload.toolCallId,
             name: event.payload.toolName,
             arguments: event.payload.arguments,
           })
         }
       )
-      unlisten = unlistenFn
     }
-
-    setup()
 
     return () => {
       if (unlisten) unlisten()

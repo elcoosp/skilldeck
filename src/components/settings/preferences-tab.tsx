@@ -1,4 +1,3 @@
-// src/components/settings/preferences-tab.tsx
 import { Bell, Code, Globe, Mail, Maximize2, Palette, Shield } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -20,6 +19,7 @@ import { loadLocale, locales } from '@/lib/i18n'
 import type { UpdatePreferencesPayload } from '@/lib/platform'
 import { commands } from '@/lib/bindings'
 import { open } from '@tauri-apps/plugin-dialog'
+import { toast } from 'sonner'
 
 export function PreferencesTab() {
   const { query, update, resendVerification } = usePlatformPreferences()
@@ -96,10 +96,20 @@ export function PreferencesTab() {
         filters: [{ name: 'Theme Files', extensions: ['tmTheme'] }],
       })
       if (!selected) return
-      css = await commands.setThemeFromFile(selected as string)
+      const result = await commands.setThemeFromFile(selected as string)
+      if (result.status === 'error') {
+        toast.error(result.error)
+        return
+      }
+      css = result.data
       setSyntaxTheme('custom')
     } else {
-      css = await commands.setBuiltInTheme(value)
+      const result = await commands.setBuiltInTheme(value)
+      if (result.status === 'error') {
+        toast.error(result.error)
+        return
+      }
+      css = result.data
       setSyntaxTheme(value)
     }
     const style = document.getElementById('syntax-theme')

@@ -252,7 +252,7 @@ function MessageBubbleInner({
   const contentRef = useRef<HTMLDivElement>(null)
 
   const activeConversationId = useConversationStore((s) => s.activeConversationId)
-  const scrollContainer = useContext(ScrollContainerContext)
+  const scrollContainer = useContext(ScrollContainerContext) as React.RefObject<HTMLElement> | undefined
 
   const handleBranch = useCallback(() => {
     setBranchModalOpen(true)
@@ -782,10 +782,6 @@ export const MessageBubble = memo(
 
     const syntheticStreaming = next.message.id === '__streaming__'
     if (syntheticStreaming) {
-      // Must re-render to pass updated draft_nodes to MarkdownView.
-      // StableNodeList inside MarkdownView is protected by reference equality
-      // on stable_nodes (after useAgentStream Fix 1), so cost is just
-      // shell reconciliation + DraftNodeList diff.
       return prev.streamingMessage === next.streamingMessage
     }
 
