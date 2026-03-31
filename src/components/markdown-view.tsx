@@ -149,14 +149,30 @@ export const MarkdownView = memo(({
   scrollContainerRef,
 }: MarkdownViewProps) => {
   const handleClick = useCallback(async (e: React.MouseEvent<HTMLDivElement>) => {
-    const link = (e.target as HTMLElement).closest('a[data-external-link]')
-    if (link) {
+    const anchor = (e.target as HTMLElement).closest('a')
+    if (anchor) {
       e.preventDefault()
-      const href = (link as HTMLAnchorElement).href
-      if (href) openUrl(href)
+      const href = anchor.getAttribute('href')
+      if (!href) return
+
+      // Internal hash link → scroll into view
+      if (href.startsWith('#')) {
+        const targetId = href.slice(1)
+        if (targetId) {
+          const targetElement = window.document.getElementById(targetId)
+          if (targetElement) {
+            targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          }
+        }
+        return
+      }
+
+      // All other links: open with the system's default handler
+      await openUrl(href)
       return
     }
 
+    // Inline code copy (unchanged)
     const code = (e.target as HTMLElement).closest('code[data-inline-code]')
     if (code) {
       const text = code.textContent ?? ''
@@ -167,7 +183,6 @@ export const MarkdownView = memo(({
       return
     }
   }, [])
-
   if (!document) {
     return null
   }

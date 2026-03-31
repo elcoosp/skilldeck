@@ -1,11 +1,4 @@
-/**
- * useAgentStream — subscribe to Tauri agent-event channel for a given
- * conversation and drive streaming text + running state in the UI store.
- *
- * IMPORTANT: streamingMessage is NOT returned here. MessageThread reads it
- * directly from the store so that token updates don't re-render CenterPanel.
- */
-
+// src/hooks/use-agent-stream.ts
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
@@ -90,30 +83,63 @@ export function useAgentStream(conversationId: string | null) {
       autoNameAttempted.current.add(conversationId)
 
       try {
+        // Ensure fresh data by forcing a refetch
+        await queryClient.refetchQueries({
+          queryKey: ['messages', conversationId],
+          exact: true,
+        })
+        await queryClient.refetchQueries({
+          queryKey: ['conversations'],
+          exact: false,
+        })
+
         const conversationQueries = queryClient.getQueriesData<
           Array<{ id: string; title: string | null }>
         >({ queryKey: ['conversations'] })
         const conversations = conversationQueries.flatMap(([, data]) => data ?? [])
         const currentConvo = conversations.find((c) => c.id === conversationId)
 
-        if (!currentConvo || currentConvo.title) return
+        if (!currentConvo || currentConvo.title) {
+          console.log('Skipping auto-name: conversation already has title or not found')
+          return
+        }
 
         const messages = queryClient.getQueryData<MessageData[]>([
           'messages',
-          conversationId
+          conversationId,
         ])
-        const firstUserMsg = messages?.find((m) => m.role === 'user')
-        if (!firstUserMsg?.content) return
+
+        if (!messages || messages.length === 0) {
+          console.log('Skipping auto-name: no messages found')
+          return
+        }
+
+        const firstUserMsg = messages.find((m) => m.role === 'user')
+        if (!firstUserMsg?.content) {
+          console.log('Skipping auto-name: no user message with content')
+          return
+        }
 
         const raw = firstUserMsg.content.trim().slice(0, 60)
+        if (!raw) {
+          console.log('Skipping auto-name: empty message content')
+          return
+        }
+
         const title = raw.charAt(0).toUpperCase() + raw.slice(1)
+        console.log(`Auto-naming conversation "${conversationId}" with title: "${title}"`)
 
         const res = await commands.renameConversation(conversationId, title)
         if (res.status === 'ok') {
-          queryClient.invalidateQueries({ queryKey: ['conversations'], exact: false })
+          await queryClient.invalidateQueries({ queryKey: ['conversations'], exact: false })
+          console.log('Auto-name succeeded')
+        } else {
+          console.error('Auto-name command failed:', res.error)
         }
       } catch (error) {
         console.error('Failed to auto-name conversation:', error)
+        // Remove from attempted set so it can be retried
+        autoNameAttempted.current.delete(conversationId)
       }
     }
 
@@ -134,11 +160,9 @@ export function useAgentStream(conversationId: string | null) {
           break
 
         case 'stream_update': {
-          // The backend sends 'node_document'
           const doc: NodeDocument = (event as any).node_document
           if (!doc) break
 
-          // ── Stabilize stable_nodes reference ──
           const incoming = doc.stable_nodes
           const prev = prevStableNodesRef.current
           const sameStable =
@@ -148,7 +172,6 @@ export function useAgentStream(conversationId: string | null) {
           const stableNodes = sameStable ? prev : incoming
           if (!sameStable) prevStableNodesRef.current = incoming
 
-          // ── Skip if draft didn't actually change ──
           const prevDoc = prevStableDocRef.current
           const prevDraft = prevDoc?.draft_nodes ?? []
           const nextDraft = doc.draft_nodes
@@ -190,7 +213,7 @@ export function useAgentStream(conversationId: string | null) {
           }
           break
 
-        case 'cancelled' as any: // type assertion to bypass strict check
+        case 'cancelled' as any:
           flushNow()
           resetStreamingRefs()
           setAgentRunning(conversationId, false)
@@ -225,10 +248,24 @@ export function useAgentStream(conversationId: string | null) {
 
         case 'persisted':
           resetStreamingRefs()
-          queryClient.invalidateQueries({ queryKey: ['messages', conversationId], exact: false })
-          queryClient.invalidateQueries({ queryKey: ['conversations'], exact: false })
           setStreamingMessage(conversationId, null)
-          autoNameConversation()
+
+          // Invalidate and wait for completion before auto‑naming
+          Promise.all([
+            queryClient.invalidateQueries({
+              queryKey: ['messages', conversationId],
+              exact: false,
+            }),
+            queryClient.invalidateQueries({
+              queryKey: ['conversations'],
+              exact: false,
+            }),
+          ]).then(() => {
+            // Give React Query a moment to refetch
+            requestAnimationFrame(() => {
+              autoNameConversation()
+            })
+          })
           break
       }
     }

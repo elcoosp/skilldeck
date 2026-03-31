@@ -1,3 +1,4 @@
+// src/components/conversation/message-bubble.tsx
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   AlertCircle,
@@ -518,9 +519,9 @@ function MessageBubbleInner({
             ref={contentRef}
             data-message-id={message.id}
             className={cn(
-              'relative py-2.5 pr-3.5 text-sm leading-relaxed transition-colors duration-300',
+              'relative py-2.5 pr-3.5 pl-3 text-sm leading-relaxed transition-colors duration-300',
               'bg-transparent w-full inline-block',
-              isQueued && 'border-l-2 border-amber-400 pl-3'
+              isQueued && 'border-l-2 border-amber-400'
             )}
           >
             <motion.div

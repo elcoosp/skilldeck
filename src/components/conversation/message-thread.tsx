@@ -13,6 +13,7 @@ import { useToolApprovalStore } from '@/store/tool-approvals'
 import { ToolApprovalCard } from './tool-approval-card'
 import { useConversationStore } from '@/store/conversation'
 import { useUIEphemeralStore } from '@/store/ui-ephemeral'
+import ThreadNavigator from './thread-navigator'
 
 export interface ScrollToken {
   messageId: string
@@ -45,6 +46,7 @@ interface MessageThreadProps {
   onScrollSettled?: (token: ScrollToken) => void
   onMessageVisible?: (messageId: string) => void
   branchParentMessageId?: string | null
+  headings?: any[] // from bootstrap, optional
 }
 
 function distFromBottom(el: HTMLElement): number {
@@ -55,7 +57,7 @@ const globalMeasuredSizes = new Map<string, number>()
 
 export const ScrollContainerContext = React.createContext<React.RefObject<HTMLDivElement | null> | null>(null)
 export const AutoScrollContext = React.createContext<boolean>(true)
-// TOP LEVEL — not inside MessageThread
+
 interface VirtualRowProps {
   virtualItem: { index: number; start: number }
   message: MessageData
@@ -123,6 +125,7 @@ const VirtualRow = React.memo(({
   if (prev.isBranchParent !== next.isBranchParent) return false
   return prev.message === next.message
 })
+
 export const MessageThread = React.forwardRef<
   MessageThreadHandle,
   MessageThreadProps
@@ -144,10 +147,10 @@ export const MessageThread = React.forwardRef<
       onScrollSettled,
       onMessageVisible,
       branchParentMessageId,
+      headings = [],
     },
     ref
   ) => {
-
     // ── Read streamingMessage directly from the store ──────────────────
     // This subscription lives HERE, not in CenterPanel, so token updates
     // only re-render MessageThread (not the entire CenterPanel tree).
@@ -403,6 +406,7 @@ export const MessageThread = React.forwardRef<
     const callbackRef = React.useRef(onVisibleUserIndexChange)
     React.useLayoutEffect(() => { callbackRef.current = onVisibleUserIndexChange })
 
+    // Improved scroll listener – finds the user message closest to the viewport center
     React.useEffect(() => {
       const el = scrollRef.current
       if (!el || !onVisibleUserIndexChange) return
@@ -418,32 +422,58 @@ export const MessageThread = React.forwardRef<
 
       if (userFilteredIndices.length === 0) return
 
+      let rafId: number | null = null
       let lastReported = -1
-      const report = () => {
+
+      const updateActive = () => {
         if (navigatorActiveRef.current) return
+
         const vItems = virtualizerRef.current.getVirtualItems()
         if (vItems.length === 0) return
-        const scrollTop = el.scrollTop
-        let topItem = vItems[0]
-        for (const item of vItems) {
-          if (item.start <= scrollTop) topItem = item
-          else break
-        }
-        let best = userFilteredIndices[0]
+
+        const containerRect = el.getBoundingClientRect()
+        const centerY = containerRect.top + containerRect.height / 2
+
+        let bestUserFilteredIdx = -1
+        let minDistance = Infinity
+
         for (const ui of userFilteredIndices) {
-          if (ui <= topItem.index) best = ui
-          else break
+          const msg = filteredMessages[ui]
+          if (!msg) continue
+          const msgElement = el.querySelector(`[data-msg-id="${msg.id}"]`)
+          if (msgElement) {
+            const rect = msgElement.getBoundingClientRect()
+            const msgCenterY = rect.top + rect.height / 2
+            const distance = Math.abs(msgCenterY - centerY)
+            if (distance < minDistance) {
+              minDistance = distance
+              bestUserFilteredIdx = ui
+            }
+          }
         }
-        const fullIdx = filteredToFull.get(best) ?? -1
-        if (fullIdx !== -1 && fullIdx !== lastReported) {
-          lastReported = fullIdx
-          callbackRef.current?.(fullIdx)
+
+        if (bestUserFilteredIdx !== -1) {
+          const fullIdx = filteredToFull.get(bestUserFilteredIdx) ?? -1
+          if (fullIdx !== -1 && fullIdx !== lastReported) {
+            lastReported = fullIdx
+            callbackRef.current?.(fullIdx)
+          }
         }
       }
 
-      el.addEventListener('scroll', report, { passive: true })
-      const t = setTimeout(report, 50)
-      return () => { clearTimeout(t); el.removeEventListener('scroll', report) }
+      const onScroll = () => {
+        if (rafId !== null) cancelAnimationFrame(rafId)
+        rafId = requestAnimationFrame(updateActive)
+      }
+
+      el.addEventListener('scroll', onScroll, { passive: true })
+      // Run once on mount to set initial active index
+      updateActive()
+
+      return () => {
+        el.removeEventListener('scroll', onScroll)
+        if (rafId !== null) cancelAnimationFrame(rafId)
+      }
     }, [filteredMessages, messages, onVisibleUserIndexChange])
 
     React.useEffect(() => {
@@ -602,6 +632,7 @@ export const MessageThread = React.forwardRef<
     React.useEffect(() => {
       measureElementRef.current = (node) => virtualizer.measureElement(node)
     })
+
     return (
       <ScrollContainerContext.Provider value={scrollRef}>
         <AutoScrollContext.Provider value={autoScroll}>
@@ -690,6 +721,25 @@ export const MessageThread = React.forwardRef<
               </div>
             )}
           </div>
+
+          <ThreadNavigator
+            messages={messages}
+            activeIndex={-1} // This will be updated by CenterPanel via onVisibleUserIndexChange
+            activeHeadingIndex={null}
+            onScrollTo={(idx) => {
+              const targetMsg = messages[idx];
+              if (targetMsg) {
+                const fullIndex = messages.findIndex(m => m.id === targetMsg.id);
+                if (fullIndex !== -1) {
+                  virtualizerRef.current.scrollToIndex(fullIndex, { align: 'start', behavior: 'auto' });
+                }
+              }
+            }}
+            onHeadingClick={(msgIdx, tocIdx) => {
+              // Implement heading click if needed
+            }}
+            headings={headings}
+          />
         </AutoScrollContext.Provider>
       </ScrollContainerContext.Provider>
     )

@@ -479,18 +479,30 @@ impl ModelProvider for OpenAiProvider {
                             }
                         }
                         Err(e) => {
-                            // Distinguish stream read errors from decode errors
-                            // ── LOGGING: Stream error before close ──
+                            // Check if this is a timeout or network error
+                            let is_timeout = e.to_string().contains("timed out") || e.to_string().contains("timeout");
+                            let is_network = e.to_string().contains("connection") || e.to_string().contains("network");
+
                             tracing::error!(
                                 target: "openai::stream",
                                 error = %e,
                                 chunks_received = chunk_count_clone.load(Ordering::Relaxed),
+                                is_timeout = is_timeout,
+                                is_network = is_network,
                                 "Stream read error"
                             );
 
+                            let user_message = if is_timeout {
+                                "Request timed out. The model may be overloaded. Please try again.".to_string()
+                            } else if is_network {
+                                "Network connection lost. Please check your internet connection.".to_string()
+                            } else {
+                                format!("Stream read error: {}. This may be a temporary issue.", e)
+                            };
+
                             items.push(Err(CoreError::ModelConnection {
                                 provider: "openai".to_string(),
-                                message: format!("stream read error: {}", e),
+                                message: user_message,
                             }));
                         }
                     }
