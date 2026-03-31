@@ -7,8 +7,10 @@ use futures::StreamExt;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
-use tracing::{debug, instrument, warn};
+use tracing::{debug, info, instrument, trace, warn};
 
 use crate::{
     CoreError,
@@ -310,6 +312,28 @@ impl ModelProvider for OpenAiProvider {
 
         let response = retry(backoff, operation).await?;
 
+        // ── LOGGING: Log raw HTTP response status + headers before decoding ──
+        tracing::debug!(
+            target: "openai::stream",
+            status = %response.status(),
+            content_type = ?response.headers().get("content-type"),
+            "OpenAI HTTP response received"
+        );
+
+        // ── LOGGING: Stream opened ──
+        info!(
+            target: "openai::stream",
+            model = %request.model_id,
+            "Stream opened"
+        );
+
+        // Counters for stream lifecycle logging
+        let chunk_count = Arc::new(AtomicU64::new(0));
+        let token_count = Arc::new(AtomicU64::new(0));
+        let chunk_count_clone = chunk_count.clone();
+        let token_count_clone = token_count.clone();
+        let model_id_for_log = request.model_id.clone();
+
         // BUG FIX: Use `scan` to maintain a line buffer across TCP chunks.
         // `bytes_stream()` yields raw TCP chunks, not logical SSE lines.
         // A single `data: {...}\n` event can be split across multiple chunks,
@@ -323,6 +347,14 @@ impl ModelProvider for OpenAiProvider {
 
                     match result {
                         Ok(bytes) => {
+                            // ── LOGGING: Log raw bytes before any parsing ──
+                            tracing::trace!(
+                                target: "openai::stream",
+                                raw_bytes_len = bytes.len(),
+                                raw_bytes = ?bytes,
+                                "Raw chunk received"
+                            );
+
                             let text = String::from_utf8_lossy(&bytes);
                             debug!(
                                 provider = "openai",
@@ -346,7 +378,22 @@ impl ModelProvider for OpenAiProvider {
                                 }
 
                                 if let Some(data) = line.strip_prefix("data: ") {
+                                    // ── LOGGING: Log every SSE line before decode ──
+                                    trace!(
+                                        target: "openai::stream",
+                                        line = %data,
+                                        "SSE line received"
+                                    );
+
                                     if data == "[DONE]" {
+                                        // ── LOGGING: Stream closed with [DONE] ──
+                                        info!(
+                                            target: "openai::stream",
+                                            chunks_received = chunk_count_clone.load(Ordering::Relaxed),
+                                            tokens_emitted = token_count_clone.load(Ordering::Relaxed),
+                                            terminated_by = "[DONE]",
+                                            "Stream closed"
+                                        );
                                         continue;
                                     }
 
@@ -376,9 +423,12 @@ impl ModelProvider for OpenAiProvider {
                                     // Previously errors were silently swallowed, making diagnosis impossible.
                                     match serde_json::from_str::<OpenAiChunk>(data) {
                                         Ok(chunk) => {
+                                            chunk_count_clone.fetch_add(1, Ordering::Relaxed);
+
                                             if let Some(choice) = chunk.choices.first() {
                                                 if let Some(content) = &choice.delta.content {
                                                     if !content.is_empty() {
+                                                        token_count_clone.fetch_add(content.len() as u64, Ordering::Relaxed);
                                                         items.push(Ok(CompletionChunk::Token {
                                                             content: content.clone(),
                                                         }));
@@ -416,13 +466,12 @@ impl ModelProvider for OpenAiProvider {
                                             }
                                         }
                                         Err(e) => {
-                                            // Log but don't error — non-JSON lines can occur
-                                            // (heartbeats, partial data from splits we missed, etc.)
-                                            warn!(
-                                                provider = "openai",
+                                            // ── LOGGING: Log raw bytes on decode failure ──
+                                            tracing::error!(
+                                                target: "openai::stream",
+                                                raw_bytes = ?&data[..data.len().min(500)],
                                                 error = %e,
-                                                raw_data = %&data[..data.len().min(200)],
-                                                "SSE chunk parse failed"
+                                                "Stream chunk decode failed"
                                             );
                                         }
                                     }
@@ -431,6 +480,14 @@ impl ModelProvider for OpenAiProvider {
                         }
                         Err(e) => {
                             // Distinguish stream read errors from decode errors
+                            // ── LOGGING: Stream error before close ──
+                            tracing::error!(
+                                target: "openai::stream",
+                                error = %e,
+                                chunks_received = chunk_count_clone.load(Ordering::Relaxed),
+                                "Stream read error"
+                            );
+
                             items.push(Err(CoreError::ModelConnection {
                                 provider: "openai".to_string(),
                                 message: format!("stream read error: {}", e),

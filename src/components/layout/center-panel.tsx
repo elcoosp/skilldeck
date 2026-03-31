@@ -1,4 +1,3 @@
-// src/components/layout/center-panel.tsx
 /**
  * Center panel — virtualized message thread and input bar.
  */
@@ -66,7 +65,9 @@ export function CenterPanel() {
 
   const queryClient = useQueryClient()
 
-  const { isRunning, streamingMessage } = useAgentStream(activeConversationId)
+  // streamingMessage is NOT read here — MessageThread reads it from the store
+  // directly so that token updates never re-render CenterPanel.
+  const { isRunning } = useAgentStream(activeConversationId)
   const messages = useMessagesWithStream(activeConversationId, activeBranchId)
 
   // Keep refs in sync for use in stable callbacks
@@ -440,9 +441,9 @@ export function CenterPanel() {
 
       <div className="relative flex-1 min-h-0">
         <MessageThread
-          streamingMessage={streamingMessage}
           ref={threadRef}
           conversationKey={activeKey ?? ''}
+          conversationId={activeConversationId}
           messages={messages}
           streamingMessageId={streamingMessageId}
           searchQuery={debouncedSearch}

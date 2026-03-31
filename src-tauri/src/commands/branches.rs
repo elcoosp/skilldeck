@@ -150,6 +150,7 @@ pub async fn get_branch_messages(
                 seen: m.seen,
                 stable_html: m.stable_html,
                 node_document,
+                status: m.status,
             }
         })
         .collect())

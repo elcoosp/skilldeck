@@ -1,4 +1,3 @@
-// src/components/conversation/message-bubble.tsx
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   AlertCircle,
@@ -201,7 +200,21 @@ export interface CollapsibleHandle {
   isCollapsed: () => boolean
 }
 
-function textToNodeDocument(content: string): NodeDocument {
+/**
+ * Cached text-to-NodeDocument conversion.
+ *
+ * Previously used `Date.now()` as the node ID, creating a new object
+ * with a new stable_nodes array on every render. Now uses `messageId`
+ * for a stable ID and caches the result so the exact same NodeDocument
+ * reference is returned for the same message across re-renders.
+ */
+const textDocCache = new Map<string, NodeDocument>()
+
+function getTextNodeDocument(messageId: string, content: string): NodeDocument | null {
+  if (!content) return null
+  const cached = textDocCache.get(messageId)
+  if (cached) return cached
+
   const escaped = content.replace(/[&<>]/g, (m) => {
     if (m === '&') return '&amp;'
     if (m === '<') return '&lt;'
@@ -210,15 +223,17 @@ function textToNodeDocument(content: string): NodeDocument {
   })
   const paragraphNode: MdNode = {
     type: 'paragraph',
-    id: `fallback-p-${Date.now()}`,
+    id: `fallback-p-${messageId}`,
     html: `<p>${escaped}</p>`,
   }
-  return {
+  const doc: NodeDocument = {
     stable_nodes: [paragraphNode],
     draft_nodes: [],
     toc_items: [],
     artifact_specs: [],
   }
+  textDocCache.set(messageId, doc)
+  return doc
 }
 
 function MessageBubbleInner({
@@ -417,7 +432,7 @@ function MessageBubbleInner({
     const nodeDocument = (message as any).node_document as NodeDocument | null | undefined
     const documentToRender = (nodeDocument != null ? nodeDocument : null)
       ?? streamingMessage
-      ?? (message.content ? textToNodeDocument(message.content) : null)
+      ?? getTextNodeDocument(message.id, message.content)
 
     const showShimmer = (isAssistant || syntheticStreaming) && isStreaming && !documentToRender
 
@@ -767,6 +782,10 @@ export const MessageBubble = memo(
 
     const syntheticStreaming = next.message.id === '__streaming__'
     if (syntheticStreaming) {
+      // Must re-render to pass updated draft_nodes to MarkdownView.
+      // StableNodeList inside MarkdownView is protected by reference equality
+      // on stable_nodes (after useAgentStream Fix 1), so cost is just
+      // shell reconciliation + DraftNodeList diff.
       return prev.streamingMessage === next.streamingMessage
     }
 

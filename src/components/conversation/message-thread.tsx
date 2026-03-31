@@ -1,4 +1,3 @@
-// src/components/conversation/message-thread.tsx
 import {
   useVirtualizer,
   elementScroll,
@@ -12,6 +11,7 @@ import { useSendMessage } from '@/hooks/use-messages'
 import { useToolApprovalStore } from '@/store/tool-approvals'
 import { ToolApprovalCard } from './tool-approval-card'
 import { useConversationStore } from '@/store/conversation'
+import { useUIEphemeralStore } from '@/store/ui-ephemeral'
 
 export interface ScrollToken {
   messageId: string
@@ -31,6 +31,7 @@ export interface MessageThreadHandle {
 interface MessageThreadProps {
   messages: MessageData[]
   conversationKey: string
+  conversationId: string | null
   streamingMessageId?: string
   isLoading?: boolean
   searchQuery?: string
@@ -43,7 +44,6 @@ interface MessageThreadProps {
   onScrollSettled?: (token: ScrollToken) => void
   onMessageVisible?: (messageId: string) => void
   branchParentMessageId?: string | null
-  streamingMessage?: NodeDocument | null
 }
 
 function distFromBottom(el: HTMLElement): number {
@@ -130,6 +130,7 @@ export const MessageThread = React.forwardRef<
     {
       messages,
       conversationKey,
+      conversationId,
       streamingMessageId,
       isLoading,
       searchQuery = '',
@@ -142,10 +143,19 @@ export const MessageThread = React.forwardRef<
       onScrollSettled,
       onMessageVisible,
       branchParentMessageId,
-      streamingMessage,
     },
     ref
   ) => {
+
+    // ── Read streamingMessage directly from the store ──────────────────
+    // This subscription lives HERE, not in CenterPanel, so token updates
+    // only re-render MessageThread (not the entire CenterPanel tree).
+    const streamingMessage = useUIEphemeralStore(
+      React.useCallback(
+        (s) => s.streamingMessages[conversationId ?? ''] ?? null,
+        [conversationId]
+      )
+    )
 
     const scrollRef = React.useRef<HTMLDivElement>(null)
     const activeConversationId = useConversationStore((s) => s.activeConversationId)
@@ -588,7 +598,6 @@ export const MessageThread = React.forwardRef<
     const measureElementRef = React.useRef((node: Element | null) => {
       virtualizer.measureElement(node)
     })
-    // Update it when virtualizer changes (virtualizer is stable from useVirtualizer, so this is fine)
     React.useEffect(() => {
       measureElementRef.current = (node) => virtualizer.measureElement(node)
     })

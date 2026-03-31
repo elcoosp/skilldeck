@@ -1,4 +1,3 @@
-// src/components/markdown-view.tsx
 import { memo, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { Bookmark } from 'lucide-react'
@@ -28,14 +27,18 @@ const HeadingBookmarkButton = memo(({
     (b) => b.message_id === messageId && b.heading_anchor === headingAnchor,
   )
 
+  // Fix 2: guard against synthetic message IDs that don't exist in the DB
+  const isDisabled = !conversationId || messageId === '__streaming__' || messageId.startsWith('__')
+
   const handleToggle = useCallback(() => {
-    if (!conversationId) return
+    if (isDisabled) return
     toggleBookmark.mutate({ messageId, headingAnchor, label: headingLabel })
-  }, [conversationId, messageId, headingAnchor, headingLabel, toggleBookmark])
+  }, [isDisabled, messageId, headingAnchor, headingLabel, toggleBookmark])
 
   return (
     <motion.button
       type="button"
+      disabled={isDisabled}
       onClick={(e) => {
         e.preventDefault()
         e.stopPropagation()
@@ -44,9 +47,10 @@ const HeadingBookmarkButton = memo(({
       className={cn(
         'ml-1 inline-flex items-center justify-center p-0.5 rounded hover:bg-muted-foreground/10 transition-opacity',
         isBookmarked ? 'opacity-100' : 'opacity-0 group-hover/heading:opacity-100',
+        isDisabled && 'cursor-not-allowed opacity-0 pointer-events-none'
       )}
       aria-label={isBookmarked ? 'Remove heading bookmark' : 'Bookmark this heading'}
-      whileTap={{ scale: 0.9 }}
+      whileTap={{ scale: isDisabled ? 1 : 0.9 }}
       transition={{ duration: 0.1 }}
     >
       <Bookmark
@@ -104,6 +108,7 @@ const DraftNodeList = memo(({ nodes, messageId, conversationId, isStreaming, scr
           messageId={messageId}
           conversationId={conversationId}
           isStreaming={isStreaming}
+          isDraft
           scrollContainerRef={scrollContainerRef}
         />
       ))}
@@ -118,6 +123,19 @@ interface MarkdownViewProps {
   conversationId?: string | null
   isStreaming?: boolean
   scrollContainerRef?: React.RefObject<HTMLElement>
+}
+
+function draftNodesEqual(a: MdNode[], b: MdNode[]): boolean {
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) {
+    if (a[i].id !== b[i].id) return false
+    const an = a[i] as Record<string, unknown>
+    const bn = b[i] as Record<string, unknown>
+    if (an.html !== bn.html) return false
+    if (an.highlighted_html !== bn.highlighted_html) return false
+    if (an.text !== bn.text) return false
+  }
+  return true
 }
 
 export const MarkdownView = memo(({
@@ -175,15 +193,18 @@ export const MarkdownView = memo(({
     </div>
   )
 }, (prev, next) => {
-  // Exact same reference — skip re-render
   if (prev.document === next.document) return true
-  // Streaming flag changed — must re-render
   if (prev.isStreaming !== next.isStreaming) return false
-  // Settled message with new document reference — must re-render
   if (!next.isStreaming) return false
-  // During streaming: only re-render if draft_nodes changed
-  // stable_nodes are protected by StableNodeList's own comparator
-  return prev.document?.draft_nodes === next.document?.draft_nodes
+
+  // stable_nodes: reference equality works because useAgentStream
+  // preserves the array reference when IDs are unchanged.
+  if (prev.document?.stable_nodes !== next.document?.stable_nodes) return false
+
+  // draft_nodes: content comparison (not reference — always new from JSON)
+  const pd = prev.document?.draft_nodes ?? []
+  const nd = next.document?.draft_nodes ?? []
+  return draftNodesEqual(pd, nd)
 })
 
 interface NodeRendererProps {
@@ -191,10 +212,11 @@ interface NodeRendererProps {
   messageId: string
   conversationId: string | null
   isStreaming?: boolean
+  isDraft?: boolean
   scrollContainerRef?: React.RefObject<HTMLElement>
 }
 
-const NodeRenderer = memo(({ node, messageId, conversationId, isStreaming, scrollContainerRef }: NodeRendererProps) => {
+const NodeRenderer = memo(({ node, messageId, conversationId, isStreaming, isDraft, scrollContainerRef }: NodeRendererProps) => {
   switch (node.type) {
     case 'paragraph':
       return <p dangerouslySetInnerHTML={{ __html: node.html }} />
@@ -206,12 +228,15 @@ const NodeRenderer = memo(({ node, messageId, conversationId, isStreaming, scrol
           <HeadingTag id={node.slug} className="scroll-mt-12 inline">
             {node.text}
           </HeadingTag>
-          <HeadingBookmarkButton
-            messageId={messageId}
-            headingAnchor={node.slug}
-            headingLabel={node.text}
-            conversationId={conversationId}
-          />
+          {/* Fix 1: draft headings are not yet persisted — bookmarking is meaningless */}
+          {!isDraft && (
+            <HeadingBookmarkButton
+              messageId={messageId}
+              headingAnchor={node.slug}
+              headingLabel={node.text}
+              conversationId={conversationId}
+            />
+          )}
         </div>
       )
     }
@@ -243,5 +268,6 @@ const NodeRenderer = memo(({ node, messageId, conversationId, isStreaming, scrol
   prev.messageId === next.messageId &&
   prev.conversationId === next.conversationId &&
   prev.isStreaming === next.isStreaming &&
+  prev.isDraft === next.isDraft &&
   prev.scrollContainerRef === next.scrollContainerRef
 )

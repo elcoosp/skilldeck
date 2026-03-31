@@ -682,6 +682,14 @@ async fn resolve_provider_and_model(state: &AppState, conversation_id: &str) -> 
         .get_provider(&profile.model_provider)
         .is_some()
     {
+        // ── LOGGING: Provider resolution success ──
+        tracing::info!(
+            target: "agent::provider",
+            provider_id = %profile.model_provider,
+            model_id = %profile.model_id,
+            conversation_id = %conversation_id,
+            "Resolved provider and model"
+        );
         (profile.model_provider, profile.model_id)
     } else {
         tracing::warn!(
@@ -760,6 +768,14 @@ fn run_agent_loop(
         let provider = match state.registry.get_provider(&provider_id) {
             Some(p) => p,
             None => {
+                // ── LOGGING: Provider lookup failure ──
+                tracing::error!(
+                    target: "agent::provider",
+                    provider_id = %provider_id,
+                    model_id = %model_id,
+                    conversation_id = %conversation_id,
+                    "Provider not registered — check API key and base URL"
+                );
                 let _ = app.emit(
                     "agent-event",
                     AgentEvent::Error {
@@ -1114,6 +1130,15 @@ fn run_agent_loop(
                     break;
                 }
                 Err(e) => {
+                    // ── LOGGING: Full error chain with {:?} not {} ──
+                    tracing::error!(
+                        target: "agent::loop",
+                        error = ?e,
+                        conversation_id = %conversation_id,
+                        accumulated_tokens = accumulated_content.len(),
+                        "Agent loop stream error"
+                    );
+
                     let _ = emit_tx.send(AgentEvent::Error {
                         conversation_id: conversation_id.clone(),
                         message: e.to_string(),
@@ -1263,6 +1288,16 @@ fn run_agent_loop(
                 queue::auto_send_next_queued(state.clone(), conversation_id.clone(), app.clone());
             }
             Ok(Err(e)) => {
+                // ── LOGGING: Full error chain with {:?} not {} ──
+                tracing::error!(
+                    target: "agent::loop",
+                    error = ?e,
+                    conversation_id = %conversation_id,
+                    accumulated_tokens = accumulated_content.len(),
+                    saw_done = saw_done,
+                    "Agent loop returned error after completion"
+                );
+
                 let _ = app.emit(
                     "agent-event",
                     AgentEvent::Error {
@@ -1315,6 +1350,15 @@ fn run_agent_loop(
                 }
             }
             Err(e) => {
+                // ── LOGGING: Full error chain with {:?} not {} ──
+                tracing::error!(
+                    target: "agent::loop",
+                    panic = ?e,
+                    conversation_id = %conversation_id,
+                    accumulated_tokens = accumulated_content.len(),
+                    "Agent loop task panicked"
+                );
+
                 let _ = app.emit(
                     "agent-event",
                     AgentEvent::Error {
