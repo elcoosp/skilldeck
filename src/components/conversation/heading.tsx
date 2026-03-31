@@ -1,8 +1,8 @@
-import React from 'react'
 import { Bookmark, BookmarkCheck } from 'lucide-react'
+import type React from 'react'
 import { useBookmarks, useToggleBookmark } from '@/hooks/use-bookmarks'
-import { useConversationStore } from '@/store/conversation'
 import { cn } from '@/lib/utils'
+import { useConversationStore } from '@/store/conversation'
 
 interface HeadingProps {
   slotId: string // not used, kept for consistency

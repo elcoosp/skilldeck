@@ -6,16 +6,16 @@
 import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 import { open } from '@tauri-apps/plugin-dialog'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Collapsible } from 'radix-ui'
 import {
   ChevronDown,
+  Folder,
   FolderOpen,
   FolderPlus,
   Plus,
   Search,
-  Settings,
-  Folder
+  Settings
 } from 'lucide-react'
+import { Collapsible } from 'radix-ui'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { ConversationItem } from '@/components/conversation/conversation-item'
@@ -41,18 +41,19 @@ import {
   useCreateConversation
 } from '@/hooks/use-conversations'
 import {
-  useFolders,
   useCreateFolder,
+  useFolders,
   useMoveConversationToFolder
 } from '@/hooks/use-folders'
 import { useProfiles } from '@/hooks/use-profiles'
 import { useOpenWorkspace, useWorkspaces } from '@/hooks/use-workspaces'
 import { cn } from '@/lib/utils'
-import { useUIEphemeralStore } from '@/store/ui-ephemeral'
-import { useUIOverlaysStore } from '@/store/ui-overlays'
 import { useConversationStore } from '@/store/conversation'
-import { useWorkspaceStore } from '@/store/workspace'
+import { useUIEphemeralStore } from '@/store/ui-ephemeral'
 import { useUILayoutStore } from '@/store/ui-layout'
+import { useUIOverlaysStore } from '@/store/ui-overlays'
+import { useWorkspaceStore } from '@/store/workspace'
+
 // ----------------------------------------------------------------------
 // Lottie-powered empty state animation with fallback and reduced motion
 // ----------------------------------------------------------------------
@@ -100,7 +101,7 @@ function EmptyStateAnimation({ alt, className }: EmptyStateAnimationProps) {
 // ----------------------------------------------------------------------
 // Helper to group conversations by date
 // ----------------------------------------------------------------------
-import { isToday, isYesterday, subDays, parseISO, isValid } from 'date-fns'
+import { isToday, isValid, isYesterday, parseISO, subDays } from 'date-fns'
 
 function getDateGroupKey(dateStr: string): string {
   // Handles "2026-03-23 15:35:22.009975 +00:00"

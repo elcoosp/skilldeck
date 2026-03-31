@@ -1,6 +1,9 @@
 /**
  * Center panel — virtualized message thread and input bar.
  */
+
+import { useQueryClient } from '@tanstack/react-query'
+import { ArrowDown, CaseSensitive, Regex, Search, X } from 'lucide-react'
 import {
   useCallback,
   useEffect,
@@ -10,16 +13,6 @@ import {
   useState
 } from 'react'
 import { useDebounce } from 'use-debounce'
-import { ArrowDown, CaseSensitive, Regex, Search, X } from 'lucide-react'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { Kbd, KbdGroup } from '@/components/ui/kbd'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger
-} from '@/components/ui/tooltip'
 import { BranchNav } from '@/components/conversation/branch-nav'
 import { MessageInput } from '@/components/conversation/message-input'
 import {
@@ -28,19 +21,27 @@ import {
   type ScrollToken
 } from '@/components/conversation/message-thread'
 import ThreadNavigator from '@/components/conversation/thread-navigator'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Kbd, KbdGroup } from '@/components/ui/kbd'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from '@/components/ui/tooltip'
 import { useAgentStream } from '@/hooks/use-agent-stream'
+import { useBranches } from '@/hooks/use-branches'
+import { useConversationBootstrap } from '@/hooks/use-conversation-bootstrap'
 import { useActiveConversationWorkspaceId } from '@/hooks/use-conversations'
 import { useMessagesWithStream } from '@/hooks/use-messages'
 import { useWorkspaces } from '@/hooks/use-workspaces'
-import { useConversationStore } from '@/store/conversation'
-import { useUIEphemeralStore } from '@/store/ui-ephemeral'
-import { cn } from '@/lib/utils'
+import type { HeadingItem, MessageData } from '@/lib/bindings' // <-- use binding type
 import { commands } from '@/lib/bindings'
 import { getScrollToken, setScrollToken } from '@/lib/scroll-token'
-import { useConversationBootstrap } from '@/hooks/use-conversation-bootstrap'
-import { useQueryClient } from '@tanstack/react-query'
-import { useBranches } from '@/hooks/use-branches'
-import type { MessageData, HeadingItem } from '@/lib/bindings' // <-- use binding type
+import { cn } from '@/lib/utils'
+import { useConversationStore } from '@/store/conversation'
+import { useUIEphemeralStore } from '@/store/ui-ephemeral'
 
 export function CenterPanel() {
   // ─── Store selectors (granular) ──────────────────────────────────────────

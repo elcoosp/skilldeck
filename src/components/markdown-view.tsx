@@ -1,14 +1,15 @@
 // src/components/markdown-view.tsx
-import { memo, useCallback } from 'react'
-import type { JSX } from 'react'
+
+import { openUrl } from '@tauri-apps/plugin-opener'
 import { motion } from 'framer-motion'
 import { Bookmark } from 'lucide-react'
+import type { JSX } from 'react'
+import { memo, useCallback } from 'react'
 import { toast } from 'sonner'
-import { openUrl } from '@tauri-apps/plugin-opener'
-import { NodeDocument, MdNode } from '@/lib/bindings'
-import { cn } from '@/lib/utils'
-import { useBookmarks, useToggleBookmark } from '@/hooks/use-bookmarks'
 import { CodeBlock } from '@/components/conversation/code-block'
+import { useBookmarks, useToggleBookmark } from '@/hooks/use-bookmarks'
+import type { MdNode, NodeDocument } from '@/lib/bindings'
+import { cn } from '@/lib/utils'
 
 // ─── Internal HeadingBookmarkButton ─────────────────────────────────────────
 const HeadingBookmarkButton = memo(

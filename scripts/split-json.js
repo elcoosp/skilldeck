@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 
-import fs from 'fs'
+import fs, { createReadStream, createWriteStream } from 'fs'
 import path from 'path'
-import { createReadStream, createWriteStream } from 'fs'
 import { pipeline } from 'stream/promises'
 
 async function splitFile(inputFile, output1, output2) {

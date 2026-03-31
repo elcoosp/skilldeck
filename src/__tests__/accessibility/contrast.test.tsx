@@ -1,6 +1,7 @@
 // src/__tests__/accessibility/contrast.test.tsx
-import { describe, expect, it } from 'vitest'
+
 import { render } from '@testing-library/react'
+import { describe, expect, it } from 'vitest'
 import { computeContrast, isAccessible } from '@/lib/contrast'
 
 describe('WCAG Contrast', () => {

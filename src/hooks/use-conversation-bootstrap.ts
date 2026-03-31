@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
+import type { QueuedMessage } from '@/hooks/use-queued-messages'
+import type { BranchInfo, HeadingItem, MessageData } from '@/lib/bindings' // <-- import binding types
 import { commands } from '@/lib/bindings'
 import type { UUID } from '@/lib/types'
-import type { MessageData, BranchInfo, HeadingItem } from '@/lib/bindings' // <-- import binding types
-import type { QueuedMessage } from '@/hooks/use-queued-messages'
 
 export interface ConversationBootstrapData {
   messages: MessageData[]

@@ -6,8 +6,8 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import type { RegistrySkillData, SkillInfo } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
-import type { SkillStatus, UnifiedSkill } from '@/types/skills'
 import { useUIPersistentStore } from '@/store/ui-state'
+import type { SkillStatus, UnifiedSkill } from '@/types/skills'
 
 // ── Data fetchers ─────────────────────────────────────────────────────────────
 

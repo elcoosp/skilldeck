@@ -4,9 +4,9 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import type { LintWarning } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
+import { useUIPersistentStore } from '@/store/ui-state'
 import type { UnifiedSkill } from '@/types/skills'
 import { TrustBadge } from './trust-badge'
-import { useUIPersistentStore } from '@/store/ui-state'
 
 interface Props {
   skill: UnifiedSkill

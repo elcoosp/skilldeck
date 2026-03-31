@@ -37,9 +37,9 @@ function luminance(r: number, g: number, b: number): number {
   const rs = r / 255,
     gs = g / 255,
     bs = b / 255
-  const rL = rs <= 0.03928 ? rs / 12.92 : Math.pow((rs + 0.055) / 1.055, 2.4)
-  const gL = gs <= 0.03928 ? gs / 12.92 : Math.pow((gs + 0.055) / 1.055, 2.4)
-  const bL = bs <= 0.03928 ? bs / 12.92 : Math.pow((bs + 0.055) / 1.055, 2.4)
+  const rL = rs <= 0.03928 ? rs / 12.92 : ((rs + 0.055) / 1.055) ** 2.4
+  const gL = gs <= 0.03928 ? gs / 12.92 : ((gs + 0.055) / 1.055) ** 2.4
+  const bL = bs <= 0.03928 ? bs / 12.92 : ((bs + 0.055) / 1.055) ** 2.4
   return 0.2126 * rL + 0.7152 * gL + 0.0722 * bL
 }
 

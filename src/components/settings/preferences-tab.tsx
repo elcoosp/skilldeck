@@ -1,3 +1,4 @@
+import { open } from '@tauri-apps/plugin-dialog'
 import {
   Bell,
   Code,
@@ -8,6 +9,7 @@ import {
   Shield
 } from 'lucide-react'
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -22,12 +24,10 @@ import {
   usePlatformPreferences
 } from '@/hooks/use-platform'
 import { useProfiles, useUpdateProfile } from '@/hooks/use-profiles'
-import { useSettingsStore } from '@/store/settings'
+import { commands } from '@/lib/bindings'
 import { loadLocale, locales } from '@/lib/i18n'
 import type { UpdatePreferencesPayload } from '@/lib/platform'
-import { commands } from '@/lib/bindings'
-import { open } from '@tauri-apps/plugin-dialog'
-import { toast } from 'sonner'
+import { useSettingsStore } from '@/store/settings'
 
 export function PreferencesTab() {
   const { query, update, resendVerification } = usePlatformPreferences()

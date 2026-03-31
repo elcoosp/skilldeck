@@ -1,8 +1,9 @@
 // src/hooks/use-tool-approvals.ts
-import { useEffect } from 'react'
+
 import { listen } from '@tauri-apps/api/event'
-import { useToolApprovalStore } from '@/store/tool-approvals'
+import { useEffect } from 'react'
 import type { ToolCallInfo } from '@/lib/events'
+import { useToolApprovalStore } from '@/store/tool-approvals'
 
 interface ApprovalEventPayload {
   toolCallId: string

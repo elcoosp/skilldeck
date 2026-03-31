@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useState } from 'react'
-import { onAgentEvent, AgentEvent } from '@/lib/events'
+import { type AgentEvent, onAgentEvent } from '@/lib/events'
 import type { UUID } from '@/lib/types'
 
 export interface SessionStats {

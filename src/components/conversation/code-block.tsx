@@ -1,7 +1,9 @@
 // src/components/conversation/code-block.tsx
-import React, { useState, useRef, useEffect, useCallback, memo } from 'react'
+
+import { Check, ChevronRight, Copy, Loader2 } from 'lucide-react'
+import type React from 'react'
+import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ChevronRight, Copy, Check, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useArtifactContent } from '@/hooks/use-artifact-content'
 import { cn } from '@/lib/utils'

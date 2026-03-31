@@ -27,8 +27,8 @@ import {
   useRenameConversation,
   useUnpinConversation
 } from '@/hooks/use-conversations'
-import { commands } from '@/lib/bindings'
 import type { ConversationSummary } from '@/lib/bindings'
+import { commands } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
 
 interface ConversationItemProps {

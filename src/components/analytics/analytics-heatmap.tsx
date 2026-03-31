@@ -1,4 +1,6 @@
 import HeatMap from '@uiw/react-heat-map'
+import { differenceInWeeks } from 'date-fns'
+import { useMemo } from 'react'
 import {
   Tooltip,
   TooltipContent,
@@ -6,8 +8,6 @@ import {
   TooltipTrigger
 } from '@/components/ui/tooltip'
 import type { DailyCount } from '@/hooks/use-analytics'
-import { useMemo } from 'react'
-import { differenceInWeeks } from 'date-fns'
 
 interface AnalyticsHeatmapProps {
   messagesData: DailyCount[]

@@ -1,5 +1,5 @@
-import { NodeDocument } from '@/lib/bindings'
 import { create } from 'zustand'
+import type { NodeDocument } from '@/lib/bindings'
 
 // Placeholder type – replace with actual when available
 

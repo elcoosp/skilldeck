@@ -1,3 +1,6 @@
+import { FileIcon, FolderIcon } from '@react-symbols/icons/utils'
+
+import { sentenceCase } from 'change-case'
 import {
   Check,
   ChevronDown,
@@ -6,12 +9,9 @@ import {
   Terminal,
   Wrench
 } from 'lucide-react'
-
-import { sentenceCase } from 'change-case'
-import { useState, useMemo } from 'react'
-import { FileIcon, FolderIcon } from '@react-symbols/icons/utils'
-import { cn } from '@/lib/utils'
+import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 
 interface ToolResultBubbleProps {
   content: string

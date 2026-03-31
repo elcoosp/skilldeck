@@ -1,7 +1,6 @@
 // src/hooks/use-branches.ts
-import { useQuery } from '@tanstack/react-query'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { commands, CreateBranchRequest } from '@/lib/bindings'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { type CreateBranchRequest, commands } from '@/lib/bindings'
 import type { UUID } from '@/lib/types'
 export function useCreateBranch() {
   const queryClient = useQueryClient()

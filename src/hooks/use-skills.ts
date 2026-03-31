@@ -1,8 +1,12 @@
 // src/hooks/use-skills.ts
 // Mutations and skill-related operations (install, uninstall, sync, diff, disable rule, source management).
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { keepPreviousData } from '@tanstack/react-query'
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient
+} from '@tanstack/react-query'
 import { commands } from '@/lib/bindings'
 
 export function useSyncRegistry() {

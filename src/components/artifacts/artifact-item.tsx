@@ -1,14 +1,13 @@
-import { ArtifactData } from '@/lib/bindings'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { FileCode, FileText, Copy, GitCompare, Pin, PinOff } from 'lucide-react'
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { Copy, FileCode, FileText, GitCompare, Pin, PinOff } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { toast } from 'sonner'
-import { commands } from '@/lib/bindings'
-import { BranchPicker } from './branch-picker'
-import { VersionDiffModal } from './version-diff-modal'
+import { type ArtifactData, commands } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
 import { useConversationStore } from '@/store/conversation'
+import { BranchPicker } from './branch-picker'
+import { VersionDiffModal } from './version-diff-modal'
 
 interface ArtifactItemProps {
   artifact: ArtifactData

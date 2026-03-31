@@ -1,19 +1,19 @@
 // src/components/conversation/message-thread.tsx
 import {
-  useVirtualizer,
   elementScroll,
-  Virtualizer
+  useVirtualizer,
+  type Virtualizer
 } from '@tanstack/react-virtual'
 import { motion } from 'framer-motion'
 import * as React from 'react'
-import type { MessageData, NodeDocument } from '@/lib/bindings'
-import { MessageBubble } from './message-bubble'
 import { useSendMessage } from '@/hooks/use-messages'
-import { useToolApprovalStore } from '@/store/tool-approvals'
-import { ToolApprovalCard } from './tool-approval-card'
+import type { MessageData, NodeDocument } from '@/lib/bindings'
 import { useConversationStore } from '@/store/conversation'
+import { useToolApprovalStore } from '@/store/tool-approvals'
 import { useUIEphemeralStore } from '@/store/ui-ephemeral'
+import { MessageBubble } from './message-bubble'
 import ThreadNavigator from './thread-navigator'
+import { ToolApprovalCard } from './tool-approval-card'
 
 export interface ScrollToken {
   messageId: string

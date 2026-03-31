@@ -2,7 +2,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
-import type { MessageData, NodeDocument, MdNode } from '@/lib/bindings'
+import type { MdNode, MessageData, NodeDocument } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
 import type { AgentEvent as LocalAgentEvent } from '@/lib/events'
 import { onAgentEvent } from '@/lib/events'

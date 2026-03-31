@@ -1,12 +1,12 @@
 // src/components/conversation/thread-navigator.tsx
-import { memo, useMemo, useState, useEffect, useRef, useCallback } from 'react'
+
 import { AnimatePresence, motion } from 'framer-motion'
-import { createPortal } from 'react-dom'
 import { Bookmark, ChevronRight } from 'lucide-react'
-import type { MessageData } from '@/lib/bindings'
-import { cn } from '@/lib/utils'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useBookmarks } from '@/hooks/use-bookmarks'
-import type { HeadingItem } from '@/lib/bindings'
+import type { HeadingItem, MessageData } from '@/lib/bindings'
+import { cn } from '@/lib/utils'
 import { useConversationStore } from '@/store/conversation'
 
 const VISIBLE_ITEMS = 10
@@ -421,7 +421,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
           focusNavItem(total - 1)
           break
         case 'Enter':
-        case ' ':
+        case ' ': {
           e.preventDefault()
           const item = s.navItems[cur]
           if (!item) break
@@ -440,8 +440,9 @@ const ThreadNavigator = memo(function ThreadNavigator({
             handleHeadingClickInner(item.assistantMsgIdx, item.tocIndex)
           }
           break
+        }
         case 'ArrowRight':
-        case 'l':
+        case 'l': {
           e.preventDefault()
           const itemRight = s.navItems[cur]
           if (itemRight?.kind !== 'message') break
@@ -452,8 +453,9 @@ const ThreadNavigator = memo(function ThreadNavigator({
           if (headingsRight.length > 0 && s.expandedTocIdx !== itemRight.msgIdx)
             handleToggleToc(itemRight.msgIdx, true)
           break
+        }
         case 'ArrowLeft':
-        case 'h':
+        case 'h': {
           e.preventDefault()
           const itemLeft = s.navItems[cur]
           if (itemLeft?.kind === 'heading') {
@@ -470,6 +472,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
             handleToggleToc(itemLeft.msgIdx, false)
           }
           break
+        }
       }
     }
 

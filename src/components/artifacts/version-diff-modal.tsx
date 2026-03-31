@@ -1,12 +1,11 @@
+import { useState } from 'react'
+import ReactDiffViewer from 'react-diff-viewer-continued'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle
 } from '@/components/ui/dialog'
-import ReactDiffViewer from 'react-diff-viewer-continued'
-import { ArtifactData } from '@/lib/bindings'
-import { useState } from 'react'
 import {
   Select,
   SelectContent,
@@ -14,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
+import type { ArtifactData } from '@/lib/bindings'
 
 interface VersionDiffModalProps {
   open: boolean

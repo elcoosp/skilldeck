@@ -1,6 +1,6 @@
+import { CheckCircle2 } from 'lucide-react'
 import { useAchievements } from '@/hooks/use-achievements'
 import { ACHIEVEMENTS, type AchievementId } from '@/lib/achievements'
-import { CheckCircle2 } from 'lucide-react'
 
 export function AchievementsTab() {
   const { isUnlocked } = useAchievements()

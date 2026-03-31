@@ -6,9 +6,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { commands } from '@/lib/bindings'
 import type { UUID } from '@/lib/types'
-import { useProfiles } from './use-profiles'
 import { useConversationStore } from '@/store/conversation'
 import { useWorkspaceStore } from '@/store/workspace'
+import { useProfiles } from './use-profiles'
 
 export function useConversations(profileId?: UUID | null) {
   // <-- changed

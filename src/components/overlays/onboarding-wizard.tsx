@@ -9,9 +9,9 @@ import {
   ensurePlatformRegistration,
   updatePlatformPreferences
 } from '@/lib/platform'
-import { useUIPersistentStore } from '@/store/ui-state'
-import { useUILayoutStore } from '@/store/ui-layout'
 import { useConversationStore } from '@/store/conversation'
+import { useUILayoutStore } from '@/store/ui-layout'
+import { useUIPersistentStore } from '@/store/ui-state'
 
 type Step = 'welcome' | 'apikey' | 'platform' | 'done'
 

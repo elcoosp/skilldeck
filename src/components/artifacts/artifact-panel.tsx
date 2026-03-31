@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import { commands } from '@/lib/bindings'
-import { ArtifactItem } from './artifact-item'
 import { Loader2 } from 'lucide-react'
+import { commands } from '@/lib/bindings'
 import { useConversationStore } from '@/store/conversation'
+import { ArtifactItem } from './artifact-item'
 
 export function ArtifactPanel() {
   const activeConversationId = useConversationStore(

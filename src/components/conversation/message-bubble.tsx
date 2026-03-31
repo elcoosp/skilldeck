@@ -1,19 +1,23 @@
 // src/components/conversation/message-bubble.tsx
+
+import { save } from '@tauri-apps/plugin-dialog'
+import { writeTextFile } from '@tauri-apps/plugin-fs'
+import { openUrl } from '@tauri-apps/plugin-opener'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   AlertCircle,
-  Bot,
   Bookmark,
   BookmarkCheck,
+  Bot,
   Check,
   ChevronDown,
   ChevronRight,
   Clock,
   Copy,
   Download,
+  GitBranch,
   MoreHorizontal,
-  User,
-  GitBranch
+  User
 } from 'lucide-react'
 import React, {
   memo,
@@ -26,30 +30,27 @@ import React, {
 } from 'react'
 import { toast } from 'sonner'
 import { ContextChip } from '@/components/chat/context-chip'
-import type { MessageData, NodeDocument, MdNode } from '@/lib/bindings'
-import { cn, highlightText } from '@/lib/utils'
-import { SubagentCard } from './subagent-card'
-import { ToolResultBubble } from './tool-result-bubble'
-import { openUrl } from '@tauri-apps/plugin-opener'
+import { MarkdownView } from '@/components/markdown-view'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
-import { ScrollContainerContext, AutoScrollContext } from './message-thread'
-import { save } from '@tauri-apps/plugin-dialog'
-import { writeTextFile } from '@tauri-apps/plugin-fs'
-import { CreateBranchModal } from './create-branch-modal'
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger
 } from '@/components/ui/tooltip'
-import { MarkdownView } from '@/components/markdown-view'
 import { useBookmarks, useToggleBookmark } from '@/hooks/use-bookmarks'
+import type { MdNode, MessageData, NodeDocument } from '@/lib/bindings'
+import { cn, highlightText } from '@/lib/utils'
 import { useConversationStore } from '@/store/conversation'
+import { CreateBranchModal } from './create-branch-modal'
+import { AutoScrollContext, ScrollContainerContext } from './message-thread'
+import { SubagentCard } from './subagent-card'
+import { ToolResultBubble } from './tool-result-bubble'
 
 interface MessageBubbleProps {
   message: MessageData

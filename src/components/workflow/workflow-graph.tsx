@@ -1,11 +1,11 @@
 // src/components/workflow/workflow-graph.tsx
 import {
-  ReactFlow,
-  Node,
-  Edge,
   Background,
   Controls,
-  MarkerType
+  type Edge,
+  MarkerType,
+  type Node,
+  ReactFlow
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 

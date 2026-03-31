@@ -14,6 +14,15 @@
  */
 
 import { useQuery } from '@tanstack/react-query'
+import { openUrl } from '@tauri-apps/plugin-opener'
+import {
+  endOfMonth,
+  endOfYear,
+  format,
+  isWithinInterval,
+  startOfMonth,
+  startOfYear
+} from 'date-fns'
 import { motion } from 'framer-motion'
 import {
   BarChart2,
@@ -22,18 +31,26 @@ import {
   FileCode,
   GitBranch,
   Layers,
+  Play,
   Plus,
   Trash2,
-  Zap,
-  Play
+  Zap
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { openUrl } from '@tauri-apps/plugin-opener'
-import { UnifiedSkillList } from '@/components/skills/unified-skill-list'
 import { ArtifactPanel } from '@/components/artifacts/artifact-panel'
+import { UnifiedSkillList } from '@/components/skills/unified-skill-list'
 import { BouncingDots } from '@/components/ui/bouncing-dots'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Select,
@@ -47,39 +64,21 @@ import { WorkflowGraph } from '@/components/workflow/workflow-graph'
 import { useAnalytics } from '@/hooks/use-analytics'
 import { useConversations } from '@/hooks/use-conversations'
 import { useProfiles } from '@/hooks/use-profiles'
+import { useSessionStats } from '@/hooks/use-session-stats'
 import {
   useDeleteWorkflowDefinition,
-  useWorkflowDefinitions,
-  useRunWorkflowDefinition
+  useRunWorkflowDefinition,
+  useWorkflowDefinitions
 } from '@/hooks/use-workflow-definitions'
 import { useWorkflowEvents } from '@/hooks/use-workflow-events'
 import { commands } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
-
-import { UIPersistentState, useUIPersistentStore } from '@/store/ui-state'
+import { useConversationStore } from '@/store/conversation'
 import { useUILayoutStore } from '@/store/ui-layout'
 import { useUIOverlaysStore } from '@/store/ui-overlays'
-import { McpTab } from './mcp-tab'
-import { useSessionStats } from '@/hooks/use-session-stats'
+import { type UIPersistentState, useUIPersistentStore } from '@/store/ui-state'
 import { AnalyticsHeatmap } from '../analytics/analytics-heatmap'
-import {
-  Dialog,
-  DialogFooter,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogDescription
-} from '@/components/ui/dialog'
-import {
-  startOfMonth,
-  endOfMonth,
-  format,
-  startOfYear,
-  endOfYear,
-  isWithinInterval
-} from 'date-fns'
-import { useConversationStore } from '@/store/conversation'
+import { McpTab } from './mcp-tab'
 
 // Feature gate selectors remain unchanged
 const selectHasSkillsUnlocked = (state: UIPersistentState) =>

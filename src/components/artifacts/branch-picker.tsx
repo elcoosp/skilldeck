@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { commands, BranchInfo } from '@/lib/bindings'
+import { Loader2 } from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -7,7 +7,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
-import { Loader2 } from 'lucide-react'
+import { type BranchInfo, commands } from '@/lib/bindings'
 
 interface BranchPickerProps {
   conversationId: string

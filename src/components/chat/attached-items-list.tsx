@@ -1,8 +1,8 @@
 import type React from 'react'
 import { useChatContextStore } from '@/store/chat-context-store'
-import { ContextChip } from './context-chip'
-import type { AttachedItem } from '@/types/chat-context'
 import { useConversationStore } from '@/store/conversation'
+import type { AttachedItem } from '@/types/chat-context'
+import { ContextChip } from './context-chip'
 
 // Stable empty array reference to avoid creating new arrays on every selector call
 const EMPTY_ARRAY: AttachedItem[] = []

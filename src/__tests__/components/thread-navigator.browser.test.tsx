@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import ThreadNavigator from '@/components/conversation/thread-navigator'
-import type { MessageData, HeadingItem } from '@/lib/bindings'
+import type { HeadingItem, MessageData } from '@/lib/bindings'
 
 // Mock createPortal to render inline
 vi.mock('react-dom', () => ({

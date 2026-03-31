@@ -7,6 +7,7 @@ import { AlertCircle, RefreshCw, Search } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { useDebounce } from 'use-debounce'
+import { Button } from '@/components/ui/button'
 import {
   Select,
   SelectContent,
@@ -15,16 +16,15 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Button } from '@/components/ui/button'
 import { useUnifiedSkills } from '@/hooks/use-unified-skills'
 import { commands } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
+import { useUIOverlaysStore } from '@/store/ui-overlays'
+import { useUIPersistentStore } from '@/store/ui-state'
 import type { UnifiedSkill } from '@/types/skills'
 import { PlatformStatusBanner } from './platform-status-banner'
 import { SkillDetailPanel } from './skill-detail-panel'
 import { UnifiedSkillCard } from './unified-skill-card'
-import { useUIPersistentStore } from '@/store/ui-state'
-import { useUIOverlaysStore } from '@/store/ui-overlays'
 
 // Responsive column count based on container width
 const BREAKPOINTS = {

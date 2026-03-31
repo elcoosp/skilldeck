@@ -58,19 +58,19 @@ import { useWorkspaces } from '@/hooks/use-workspaces'
 import type { ContextItem, RegistrySkillData } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
 import type { UUID } from '@/lib/types'
-import { cn } from '@/lib/utils'
 import { extractUrls } from '@/lib/url-detection'
+import { cn } from '@/lib/utils'
 import { useChatContextStore } from '@/store/chat-context-store'
+import { useConversationStore } from '@/store/conversation'
 import { useQueueStore } from '@/store/queue'
+import { useUIEphemeralStore } from '@/store/ui-ephemeral'
+import { useWorkspaceStore } from '@/store/workspace'
 import type {
   FileEntry,
   FolderCounts,
   TriggerState
 } from '@/types/chat-context'
 import type { UnifiedSkill } from '@/types/skills'
-import { useWorkspaceStore } from '@/store/workspace'
-import { useUIEphemeralStore } from '@/store/ui-ephemeral'
-import { useConversationStore } from '@/store/conversation'
 
 interface MessageInputProps {
   conversationId: UUID

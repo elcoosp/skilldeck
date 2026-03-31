@@ -1,10 +1,10 @@
 // src/components/conversation/pinned-bar.tsx
 import { useQuery } from '@tanstack/react-query'
-import { commands } from '@/lib/bindings'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Pin } from 'lucide-react'
-import { ArtifactItem } from '../artifacts/artifact-item'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { commands } from '@/lib/bindings'
 import { useConversationStore } from '@/store/conversation'
+import { ArtifactItem } from '../artifacts/artifact-item'
 
 export function PinnedBar() {
   const activeConversationId = useConversationStore(

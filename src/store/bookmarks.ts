@@ -1,6 +1,6 @@
-import { create } from 'zustand'
-import { commands, type BookmarkData } from '@/lib/bindings'
 import { toast } from 'sonner'
+import { create } from 'zustand'
+import { type BookmarkData, commands } from '@/lib/bindings'
 
 interface BookmarksState {
   bookmarks: Record<string, BookmarkData[]> // keyed by conversationId
