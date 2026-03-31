@@ -2,7 +2,6 @@
 
 import { save } from '@tauri-apps/plugin-dialog'
 import { writeTextFile } from '@tauri-apps/plugin-fs'
-import { openUrl } from '@tauri-apps/plugin-opener'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   AlertCircle,
@@ -48,7 +47,7 @@ import type { MdNode, MessageData, NodeDocument } from '@/lib/bindings'
 import { cn, highlightText } from '@/lib/utils'
 import { useConversationStore } from '@/store/conversation'
 import { CreateBranchModal } from './create-branch-modal'
-import { AutoScrollContext, ScrollContainerContext } from './message-thread'
+import { ScrollContainerContext } from './message-thread'
 import { SubagentCard } from './subagent-card'
 import { ToolResultBubble } from './tool-result-bubble'
 
@@ -200,7 +199,7 @@ const CollapsibleContent = React.forwardRef<
       },
       isCollapsed: () => collapsedRef.current
     }),
-    [messageId]
+    [] // remove messageId from deps
   )
 
   return (
@@ -348,8 +347,11 @@ function MessageBubbleInner({
     })
 
     const textNodes: Text[] = []
-    let node: Node | null
-    while ((node = walker.nextNode())) textNodes.push(node as Text)
+    let node = walker.nextNode()
+    while (node) {
+      textNodes.push(node as Text)
+      node = walker.nextNode()
+    }
 
     for (const textNode of textNodes) {
       if (!textNode.parentNode || !document.contains(textNode)) continue
@@ -357,8 +359,8 @@ function MessageBubbleInner({
       regex.lastIndex = 0
       const frag = document.createDocumentFragment()
       let last = 0
-      let match: RegExpExecArray | null
-      while ((match = regex.exec(text)) !== null) {
+      let match = regex.exec(text)
+      while (match !== null) {
         if (match.index > last)
           frag.appendChild(
             document.createTextNode(text.slice(last, match.index))
@@ -373,6 +375,7 @@ function MessageBubbleInner({
         mark.textContent = match[0]
         frag.appendChild(mark)
         last = regex.lastIndex
+        match = regex.exec(text)
       }
       if (last < text.length)
         frag.appendChild(document.createTextNode(text.slice(last)))

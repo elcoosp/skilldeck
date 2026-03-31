@@ -30,7 +30,7 @@ export function GlobalDropZone() {
 
   // Get current context items for the active conversation (to check duplicates)
   const itemsMap = useChatContextStore((s) => s.items)
-  const activeItems = itemsMap[activeConversationId ?? ''] ?? []
+  const _activeItems = itemsMap[activeConversationId ?? ''] ?? []
 
   useEffect(() => {
     activeConversationIdRef.current = activeConversationId

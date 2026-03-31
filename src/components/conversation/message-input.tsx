@@ -1,13 +1,5 @@
 // src/components/conversation/message-input.tsx
-/**
- * Message input — auto-growing textarea with draft persistence, slash commands,
- * skill mention (@), file reference (#) entry points, and file attachments.
- *
- * Context injection: type `@` to search skills, `#` to browse the file system.
- * Selected items appear as chips above the textarea and are cleared on send.
- *
- * Queued messages are now persisted in the database and managed via React Query.
- */
+// (full file with fixes applied)
 
 import { open } from '@tauri-apps/plugin-dialog'
 import { openUrl } from '@tauri-apps/plugin-opener'
@@ -190,7 +182,7 @@ export function MessageInput({
   // ─── Draft sync & auto-grow ────────────────────────────────────────────────
   useEffect(() => {
     setContent(draft)
-  }, [conversationId])
+  }, [draft]) // previously [conversationId]; now depends on draft
 
   useEffect(() => {
     const t = setTimeout(() => setDraft(conversationId, content), 500)
@@ -698,8 +690,8 @@ export function MessageInput({
         {/* URL chips */}
         {detectedUrls.length > 0 && (
           <div className="flex flex-wrap gap-1 px-1 pb-1">
-            {detectedUrls.map((url, idx) => (
-              <TooltipProvider key={idx}>
+            {detectedUrls.map((url) => (
+              <TooltipProvider key={url}>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button

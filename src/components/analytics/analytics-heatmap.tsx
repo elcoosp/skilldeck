@@ -93,7 +93,7 @@ export function AnalyticsHeatmap({
     const count = data.count ?? 0
     const { date } = data
     const tooltipContent = count
-      ? `${date}: ${count} ${count === 1 ? label : label + 's'}`
+      ? `${date}: ${count} ${count === 1 ? label : `${label}s`}`
       : `${date}: no ${label}s`
 
     return (

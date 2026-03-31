@@ -1,5 +1,4 @@
 // src/components/conversation/conversation-item.tsx
-// (full file after modifications)
 
 import { formatDistanceToNow } from 'date-fns'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -64,7 +63,7 @@ export function ConversationItem({
   const [isRenaming, setIsRenaming] = useState(false)
   const [draft, setDraft] = useState(conversation.title ?? '')
   const inputRef = useRef<HTMLInputElement>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLButtonElement>(null)
 
   const [isDragTarget, setIsDragTarget] = useState(false)
   const isDragTargetRef = useRef(false)
@@ -175,7 +174,7 @@ export function ConversationItem({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [isRenaming, cancelRename])
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault()
       if (!isRenaming && !isDeleting) onClick()
@@ -203,10 +202,9 @@ export function ConversationItem({
   })()
 
   return (
-    <div
+    <button
       ref={containerRef}
       data-conversation-id={conversation.id}
-      role="button"
       tabIndex={0}
       onClick={() => !isRenaming && !isDeleting && onClick()}
       onKeyDown={handleKeyDown}
@@ -374,6 +372,6 @@ export function ConversationItem({
           </DropdownMenuContent>
         </DropdownMenu>
       )}
-    </div>
+    </button>
   )
 }

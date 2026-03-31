@@ -64,7 +64,7 @@ interface VirtualRowProps {
   message: MessageData
   isThisMessageStreaming: boolean
   streamingMessage: NodeDocument | null | undefined
-  handleRetry: (() => Promise<void | null>) | undefined
+  handleRetry: (() => Promise<undefined | null>) | undefined
   isBranchParent: boolean
   isHighlighted: boolean
   searchQuery: string | undefined
@@ -101,9 +101,9 @@ const VirtualRow = React.memo(
           if (isLast && node !== lastItemNodeRef.current) {
             if (lastItemNodeRef.current)
               streamingRoRef.current?.unobserve(lastItemNodeRef.current)
-            ;(
-              lastItemNodeRef as React.MutableRefObject<Element | null>
-            ).current = node
+                ; (
+                  lastItemNodeRef as React.MutableRefObject<Element | null>
+                ).current = node
             if (node) streamingRoRef.current?.observe(node)
           }
         }}
@@ -361,7 +361,7 @@ export const MessageThread = React.forwardRef<
         }
         autoScrollReadyRef.current = true
       }
-    }, [conversationKey, applyScrollTop])
+    }, [applyScrollTop])
 
     const didMountRef = React.useRef(false)
     React.useLayoutEffect(() => {
@@ -551,7 +551,9 @@ export const MessageThread = React.forwardRef<
       )
 
       const elements = container.querySelectorAll('[data-message-id]')
-      elements.forEach((el) => observer.observe(el))
+      for (let i = 0; i < elements.length; i++) {
+        observer.observe(elements[i])
+      }
 
       const mutationObserver = new MutationObserver((mutations) => {
         mutations.forEach((mutation) => {
@@ -584,7 +586,7 @@ export const MessageThread = React.forwardRef<
         observer.disconnect()
         mutationObserver.disconnect()
       }
-    }, [onMessageVisible, scrollRef.current])
+    }, [onMessageVisible])
 
     const pendingApprovals = useToolApprovalStore((s) => s.pending)
     const removePending = useToolApprovalStore((s) => s.removePending)
@@ -692,7 +694,7 @@ export const MessageThread = React.forwardRef<
         getScrollPosition: () => scrollRef.current?.scrollTop ?? 0,
         onScroll: (cb: () => void) => {
           const el = scrollRef.current
-          if (!el) return () => {}
+          if (!el) return () => { }
           el.addEventListener('scroll', cb, { passive: true })
           return () => el.removeEventListener('scroll', cb)
         }
@@ -771,7 +773,7 @@ export const MessageThread = React.forwardRef<
                     const retryAvailable = (message as any).retryAvailable
                     const handleRetry = retryAvailable
                       ? () =>
-                          sendMutation.mutateAsync({ content: message.content })
+                        sendMutation.mutateAsync({ content: message.content })
                       : undefined
 
                     return (
@@ -835,7 +837,7 @@ export const MessageThread = React.forwardRef<
                 }
               }
             }}
-            onHeadingClick={(msgIdx, tocIdx) => {
+            onHeadingClick={(_msgIdx, _tocIdx) => {
               // Implement heading click if needed
             }}
             headings={headings}

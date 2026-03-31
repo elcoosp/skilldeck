@@ -179,6 +179,7 @@ export function ArtifactItem({
             {!compact && (
               <>
                 <button
+                  type="button"
                   className="text-muted-foreground hover:text-foreground shrink-0"
                   onClick={() => setShowBranchPicker(!showBranchPicker)}
                   disabled={copying}
@@ -188,6 +189,7 @@ export function ArtifactItem({
                 </button>
                 {versions && versions.length >= 2 && (
                   <button
+                    type="button"
                     className="text-muted-foreground hover:text-foreground shrink-0"
                     onClick={() => setShowDiff(true)}
                     title="Compare versions"
@@ -199,6 +201,7 @@ export function ArtifactItem({
                 {/* Single Pin button with portal dropdown opening on the right */}
                 <div className="relative shrink-0">
                   <button
+                    type="button"
                     ref={pinButtonRef}
                     className={cn(
                       'text-muted-foreground hover:text-foreground transition-colors',
@@ -226,6 +229,7 @@ export function ArtifactItem({
                         }}
                       >
                         <button
+                          type="button"
                           className="w-full text-left px-2 py-1.5 hover:bg-muted/50 flex items-center justify-between transition-colors whitespace-nowrap"
                           onClick={() => {
                             handlePinBranch()
@@ -241,6 +245,7 @@ export function ArtifactItem({
                           )}
                         </button>
                         <button
+                          type="button"
                           className="w-full text-left px-2 py-1.5 hover:bg-muted/50 flex items-center justify-between transition-colors whitespace-nowrap"
                           onClick={() => {
                             handlePinGlobal()
