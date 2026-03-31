@@ -70,10 +70,6 @@ pub async fn list_built_in_themes() -> Result<Vec<ThemeInfo>, String> {
             display_name: "Solarized Light".to_string(),
         },
         ThemeInfo {
-            name: "base16-github".to_string(),
-            display_name: "GitHub".to_string(),
-        },
-        ThemeInfo {
             name: "base16-monokai".to_string(),
             display_name: "Monokai".to_string(),
         },
