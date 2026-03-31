@@ -15,8 +15,7 @@ static SYNTAX_SET: Lazy<SyntaxSet> = Lazy::new(SyntaxSet::load_defaults_newlines
 
 // ADD: compiled regex for link rewriting
 static LINK_RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"<a((?:\s[^>]*)?)\s*href=(["'])(.+?)\2"#).unwrap());
-
+    Lazy::new(|| Regex::new(r#"<a((?:\s[^>]*)?)\s*href="([^"]+)""#).unwrap());
 pub struct MarkdownPipeline {
     theme: SharedTheme,
 }
