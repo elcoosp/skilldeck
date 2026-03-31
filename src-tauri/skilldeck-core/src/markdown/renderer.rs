@@ -1,10 +1,10 @@
-// src-tauri/skilldeck-core/src/markdown/renderer.rs
 use super::{
     theme::SharedTheme,
     types::{ArtifactSpec, MdNode, NodeDocument, TocItem},
 };
 use once_cell::sync::Lazy;
 use pulldown_cmark::{CodeBlockKind, Event, HeadingLevel, Options, Parser, Tag, TagEnd, html};
+use regex::Regex; // ADD: regex dependency
 use syntect::{
     html::{ClassStyle, ClassedHTMLGenerator},
     parsing::SyntaxSet,
@@ -12,6 +12,10 @@ use syntect::{
 use uuid::Uuid;
 
 static SYNTAX_SET: Lazy<SyntaxSet> = Lazy::new(SyntaxSet::load_defaults_newlines);
+
+// ADD: compiled regex for link rewriting
+static LINK_RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r#"<a((?:\s[^>]*)?)\s*href=(["'])(.+?)\2"#).unwrap());
 
 pub struct MarkdownPipeline {
     theme: SharedTheme,
@@ -58,7 +62,7 @@ impl MarkdownPipeline {
             if !buf.is_empty() {
                 let raw = std::mem::take(buf);
                 let html = rewrite_links(&raw);
-                let html = rewrite_images(&html); // FIX: add lazy load & onerror to images
+                let html = rewrite_images(&html);
                 let html = rewrite_inline_code(&html);
                 let id = format!("html-{}", *id_counter);
                 *id_counter += 1;
@@ -79,7 +83,6 @@ impl MarkdownPipeline {
                 }
                 Event::Text(t) if in_code => code_buf.push_str(&t),
                 Event::End(TagEnd::CodeBlock) => {
-                    // Skip empty code blocks
                     if code_buf.trim().is_empty() {
                         in_code = false;
                         code_lang.clear();
@@ -148,7 +151,7 @@ impl MarkdownPipeline {
                 Event::End(TagEnd::List(_)) => {
                     if let Some((ordered, list_html)) = list_stack.pop() {
                         let list_html = rewrite_links(&list_html);
-                        let list_html = rewrite_images(&list_html); // FIX
+                        let list_html = rewrite_images(&list_html);
                         let list_html = rewrite_inline_code(&list_html);
                         let tag = if ordered { "ol" } else { "ul" };
                         let full_html = format!("<{}>{}</{}>", tag, list_html, tag);
@@ -197,20 +200,17 @@ impl MarkdownPipeline {
                 // ─── Everything else (paragraphs, inline HTML, etc.) ────────
                 _ => {
                     if in_list && !list_stack.is_empty() {
-                        // Inside a list – accumulate HTML in the current list buffer
                         let html = event_to_html(&event);
                         if let Some((_, buf)) = list_stack.last_mut() {
                             buf.push_str(&html);
                         }
                     } else if !in_code && !in_heading {
-                        // Not in a special block – push to global HTML buffer
                         html_buf.push_str(&event_to_html(&event));
                     }
                 }
             }
         }
 
-        // Flush any remaining HTML
         flush_html(&mut html_buf, &mut id_counter, &mut nodes);
 
         NodeDocument {
@@ -236,13 +236,32 @@ impl MarkdownPipeline {
     }
 }
 
-/// Tag `<a href=` links with a data attribute so the frontend can intercept
-/// clicks and open them in the system browser instead of the Tauri webview.
+/// Tag `<a href="http://...">` or `<a href="https://...">` links with a data
+/// attribute so the frontend can intercept clicks and open them in the system
+/// browser instead of the Tauri webview.
+///
+/// Anchor links (`#...`), relative paths, and other schemes (mailto:, tel:, etc.)
+/// are left untouched.
 fn rewrite_links(html: &str) -> String {
-    html.replace("<a href=", "<a data-external-link=\"true\" href=")
+    LINK_RE
+        .replace_all(html, |caps: &regex::Captures| {
+            let pre_href_attrs = &caps[1];
+            let quote = &caps[2];
+            let href = &caps[3];
+
+            if href.starts_with("http://") || href.starts_with("https://") {
+                format!(
+                    "<a{} data-external-link=\"true\" href={}{}{}",
+                    pre_href_attrs, quote, href, quote
+                )
+            } else {
+                format!("<a{} href={}{}{}", pre_href_attrs, quote, href, quote)
+            }
+        })
+        .into_owned()
 }
 
-/// FIX: Add lazy loading and onerror fallback to images.
+/// Add lazy loading and onerror fallback to images.
 /// This prevents layout shift when an image fails to load.
 fn rewrite_images(html: &str) -> String {
     html.replace(

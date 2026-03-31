@@ -308,7 +308,7 @@ impl AppState {
 
         // ─── Markdown pipeline ─────────────────────────────────────────────────
         // Load default theme (we can later load from user preferences)
-        let theme = SharedTheme::from_name("base16-ocean.dark").map_err(|e| e.to_string())?;
+        let theme = SharedTheme::from_name("base16-github").map_err(|e| e.to_string())?;
         let markdown = Arc::new(MarkdownPipeline::new(theme.clone()));
 
         let state = Self {

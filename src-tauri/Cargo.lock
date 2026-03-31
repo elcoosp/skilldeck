@@ -8074,6 +8074,7 @@ dependencies = [
  "parking_lot",
  "petgraph",
  "pulldown-cmark",
+ "regex",
  "reqwest 0.13.2",
  "sea-orm",
  "sea-orm-migration",
