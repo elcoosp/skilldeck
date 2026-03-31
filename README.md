@@ -46,8 +46,7 @@ A high‑performance Rust core manages state, streaming, and orchestration. The 
 Create reusable instructions in `SKILL.md` files. SkillDeck automatically resolves priorities:
 1. Workspace (`.skilldeck/skills/`)
 2. Personal (`~/.config/app/skills/`)
-3. Superpowers Compatibility
-4. Marketplace
+3. Marketplace
 
 ### MCP Integration
 Connect to the [Model Context Protocol](https://modelcontextprotocol.io/) ecosystem. Discover local servers, manage supervision, and expose external tools to your agents with secure approval gates.
@@ -172,7 +171,7 @@ We’re building SkillDeck in the open. The table below reflects the actual impl
 | **MCP Registry**            | ✅ Complete   | Server management, tool aggregation, status tracking. |
 | **MCP Supervisor**          | ✅ Complete   | Health checks and exponential backoff with full reconnection logic. |
 | **Skill Loader**            | ✅ Complete   | Parses `SKILL.md` with YAML frontmatter, computes hash. |
-| **Skill Resolver**          | ✅ Complete   | Priority ordering (workspace → personal → superpowers → marketplace) with shadow logging. |
+| **Skill Resolver**          | ✅ Complete   | Priority ordering (workspace → personal → marketplace) with shadow logging. |
 | **Skill Scanner**           | ✅ Complete   | Directory traversal, symlink skipping. |
 | **Skill Watcher**           | ✅ Complete   | Hot‑reload via filesystem events (200ms debounce). |
 | **Workflow Types & Graph**  | ✅ Complete   | DAG definition with petgraph, cycle detection, topological order. |
