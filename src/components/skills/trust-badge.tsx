@@ -70,9 +70,8 @@ export function TrustBadge({
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <span
-          role="button"
-          tabIndex={0}
+        <button
+          type="button"
           onClick={onClick}
           onKeyDown={(e) => {
             if (onClick && (e.key === 'Enter' || e.key === ' ')) {
@@ -86,7 +85,7 @@ export function TrustBadge({
           )}
         >
           {badgeContent}
-        </span>
+        </button>
       </TooltipTrigger>
       <TooltipContent side="top">
         <p className="text-xs max-w-[200px]">{tooltipText}</p>
@@ -102,7 +101,7 @@ export function ScoreDots({ score, max = 5 }: { score: number; max?: number }) {
       className="inline-flex items-center gap-0.5"
       aria-label={`Score ${score} of ${max}`}
     >
-      {Array.from({ length: max }).map((_, i) => (
+      {Array.from({ length: max }).map((i) => (
         <span
           key={i}
           className={cn(

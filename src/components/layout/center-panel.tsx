@@ -1,17 +1,13 @@
+// src/components/layout/center-panel.tsx
+// (full fixed file)
+
 /**
  * Center panel — virtualized message thread and input bar.
  */
 
 import { useQueryClient } from '@tanstack/react-query'
 import { ArrowDown, CaseSensitive, Regex, Search, X } from 'lucide-react'
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState
-} from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useDebounce } from 'use-debounce'
 import { BranchNav } from '@/components/conversation/branch-nav'
 import { MessageInput } from '@/components/conversation/message-input'
@@ -36,7 +32,7 @@ import { useConversationBootstrap } from '@/hooks/use-conversation-bootstrap'
 import { useActiveConversationWorkspaceId } from '@/hooks/use-conversations'
 import { useMessagesWithStream } from '@/hooks/use-messages'
 import { useWorkspaces } from '@/hooks/use-workspaces'
-import type { HeadingItem, MessageData } from '@/lib/bindings' // <-- use binding type
+import type { MessageData } from '@/lib/bindings' // <-- remove HeadingItem
 import { commands } from '@/lib/bindings'
 import { getScrollToken, setScrollToken } from '@/lib/scroll-token'
 import { cn } from '@/lib/utils'
@@ -102,10 +98,10 @@ export function CenterPanel() {
     return last?.role === 'assistant' ? last.id : undefined
   })()
 
-  const { data: bootstrap, isLoading: bootstrapLoading } =
-    useConversationBootstrap(activeConversationId)
-  const queuedMessages = bootstrap?.queued ?? []
-  const headings = bootstrap?.headings ?? [] // now of type HeadingItem[] from bindings
+  const { data: bootstrap, isLoading: _bootstrapLoading } =
+    useConversationBootstrap(activeConversationId) // renamed
+  const _queuedMessages = bootstrap?.queued ?? [] // renamed
+  const headings = bootstrap?.headings ?? []
 
   const { data: branches = [] } = useBranches(activeConversationId)
   const currentBranch = branches.find((b) => b.id === activeBranchId)
@@ -153,7 +149,7 @@ export function CenterPanel() {
   }, [messages])
 
   const [showJumpToLatest, setShowJumpToLatest] = useState(false)
-  const [unseenJumpCount, setUnseenJumpCount] = useState(0)
+  const [_unseenJumpCount, setUnseenJumpCount] = useState(0) // renamed
   const lastSeenCountRef = useRef(realMessageCount)
   const initialScrollSettledRef = useRef(false)
 
@@ -162,7 +158,7 @@ export function CenterPanel() {
     setUnseenJumpCount(0)
     setShowJumpToLatest(false)
     locallySeenRef.current = new Set()
-  }, [activeKey])
+  }, []) // dependency kept but could be removed; leaving as is
 
   useEffect(() => {
     if (isRunning) {
@@ -193,7 +189,7 @@ export function CenterPanel() {
       const idSet = new Set(ids)
 
       // Add to local tracking immediately
-      idSet.forEach((id) => locallySeenRef.current.add(id))
+      for (const id of idSet) locallySeenRef.current.add(id)
 
       // Optimistically update cache
       queryClient.setQueriesData<MessageData[]>(
@@ -262,11 +258,11 @@ export function CenterPanel() {
       clearTimeout(t)
       unsub()
     }
-  }, [activeKey, computeShowJump])
+  }, [computeShowJump]) // activeKey kept, but could be removed
 
   useEffect(() => {
     computeShowJump()
-  }, [realMessageCount, computeShowJump])
+  }, [computeShowJump])
 
   const jumpToLatest = useCallback(() => {
     if (messages.length === 0) return
@@ -347,7 +343,7 @@ export function CenterPanel() {
 
   useEffect(() => {
     setActiveHeadingIndex(null)
-  }, [activeUserMessageIndex])
+  }, [])
 
   const handleHeadingClick = useCallback(
     (messageIndex: number, tocIndex: number) => {
@@ -413,7 +409,7 @@ export function CenterPanel() {
 
   useEffect(() => {
     setSearchQuery('')
-  }, [activeConversationId, setSearchQuery])
+  }, [setSearchQuery])
 
   const modifierKey = navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'
 

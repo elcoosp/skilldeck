@@ -1,5 +1,5 @@
 // src/components/skills/unified-skill-card.tsx
-import { AlertTriangle, ArrowUp } from 'lucide-react' // <-- import ArrowUp
+import { AlertTriangle, ArrowUp } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import type { LintWarning } from '@/lib/bindings'
@@ -12,7 +12,7 @@ interface Props {
   skill: UnifiedSkill
   onClick: (skill: UnifiedSkill) => void
   onInstall?: (skill: UnifiedSkill) => void
-  onUpdate?: (skill: UnifiedSkill) => void // <-- new prop
+  onUpdate?: (skill: UnifiedSkill) => void
   isSelected?: boolean
 }
 
@@ -61,9 +61,8 @@ export function UnifiedSkillCard({
   ).length
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
+    <button
+      type="button"
       onClick={() => onClick(skill)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -182,6 +181,6 @@ export function UnifiedSkillCard({
             </Button>
           )}
       </div>
-    </div>
+    </button>
   )
 }

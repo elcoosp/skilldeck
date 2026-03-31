@@ -1,11 +1,10 @@
 @import "tailwindcss";
-@import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@plugin "@tailwindcss/typography";
 @import "@fontsource/poppins";
-/* This loads Poppins font */
-
+@plugin "@tailwindcss/typography";
 @custom-variant dark (&:is(.dark *));
+
+/* This loads Poppins font */
 
 :root {
   /* Font & base styles – now using Poppins as the primary brand font */

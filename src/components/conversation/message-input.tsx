@@ -1,5 +1,5 @@
 // src/components/conversation/message-input.tsx
-// (full file with fixes applied)
+// (full file with the useLayoutEffect dependency fixed)
 
 import { open } from '@tauri-apps/plugin-dialog'
 import { openUrl } from '@tauri-apps/plugin-opener'
@@ -177,12 +177,12 @@ export function MessageInput({
     const newHeight = Math.min(el.scrollHeight, MAX_HEIGHT)
     el.style.height = `${newHeight}px`
     setContentHeight(newHeight)
-  }, [content])
+  }) // No dependency array – runs after every render, which is correct
 
   // ─── Draft sync & auto-grow ────────────────────────────────────────────────
   useEffect(() => {
     setContent(draft)
-  }, [draft]) // previously [conversationId]; now depends on draft
+  }, [draft])
 
   useEffect(() => {
     const t = setTimeout(() => setDraft(conversationId, content), 500)

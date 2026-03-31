@@ -1,3 +1,4 @@
+// src/components/layout/left-panel.tsx
 /**
  * Left panel — conversation list, search, new chat, workspace switcher,
  * and profile filter, now with pinned conversations, folder grouping, and dated collapsible groups.
@@ -129,7 +130,7 @@ export function LeftPanel() {
   const setSearchQuery = useUIEphemeralStore((s) => s.setSearchQuery)
   const setSettingsOpen = useUIOverlaysStore((s) => s.setSettingsOpen)
   const setSettingsTab = useUIOverlaysStore((s) => s.setSettingsTab)
-  const setGlobalSearchOpen = useUIOverlaysStore((s) => s.setGlobalSearchOpen)
+  const _setGlobalSearchOpen = useUIOverlaysStore((s) => s.setGlobalSearchOpen)
   const activeConversationId = useConversationStore(
     (s) => s.activeConversationId
   )
@@ -162,7 +163,7 @@ export function LeftPanel() {
 
   // UI state for collapsed date groups
   const collapsedDateGroups = useUILayoutStore((s) => s.collapsedDateGroups)
-  const toggleDateGroup = useUILayoutStore((s) => s.toggleDateGroup)
+  const _toggleDateGroup = useUILayoutStore((s) => s.toggleDateGroup)
   const setDateGroupCollapsed = useUILayoutStore((s) => s.setDateGroupCollapsed)
 
   // New folder creation modal state (simple prompt)
@@ -278,7 +279,7 @@ export function LeftPanel() {
     }
   }
 
-  const handleMoveToFolder = async (
+  const _handleMoveToFolder = async (
     conversationId: string,
     folderId: string | null
   ) => {

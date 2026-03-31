@@ -14,15 +14,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query'
-import { openUrl } from '@tauri-apps/plugin-opener'
-import {
-  endOfMonth,
-  endOfYear,
-  format,
-  isWithinInterval,
-  startOfMonth,
-  startOfYear
-} from 'date-fns'
+import { endOfMonth, isWithinInterval, startOfMonth } from 'date-fns'
 import { motion } from 'framer-motion'
 import {
   BarChart2,
@@ -36,7 +28,7 @@ import {
   Trash2,
   Zap
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { ArtifactPanel } from '@/components/artifacts/artifact-panel'
 import { UnifiedSkillList } from '@/components/skills/unified-skill-list'
@@ -74,8 +66,6 @@ import { useWorkflowEvents } from '@/hooks/use-workflow-events'
 import { commands } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
 import { useConversationStore } from '@/store/conversation'
-import { useUILayoutStore } from '@/store/ui-layout'
-import { useUIOverlaysStore } from '@/store/ui-overlays'
 import { type UIPersistentState, useUIPersistentStore } from '@/store/ui-state'
 import { AnalyticsHeatmap } from '../analytics/analytics-heatmap'
 import { McpTab } from './mcp-tab'
@@ -106,7 +96,7 @@ export function RightPanel() {
   const activeConversationId = useConversationStore(
     (s) => s.activeConversationId
   )
-  const unlockStage = useUIPersistentStore((s) => s.unlockStage)
+  const _unlockStage = useUIPersistentStore((s) => s.unlockStage)
   const hasSkillsUnlocked = useUIPersistentStore(selectHasSkillsUnlocked)
   const hasWorkflowsUnlocked = useUIPersistentStore(selectHasWorkflowsUnlocked)
 
@@ -632,7 +622,7 @@ function AnalyticsTab() {
       ...analytics.conversations_per_day
     ]
       .map((d) => new Date(d.date))
-      .filter((d) => !isNaN(d.getTime()))
+      .filter((d) => !Number.isNaN(d.getTime()))
     if (allDates.length === 0) return startOfMonth(new Date())
     const minDate = new Date(Math.min(...allDates.map((d) => d.getTime())))
     return startOfMonth(minDate)
@@ -645,7 +635,7 @@ function AnalyticsTab() {
       ...analytics.conversations_per_day
     ]
       .map((d) => new Date(d.date))
-      .filter((d) => !isNaN(d.getTime()))
+      .filter((d) => !Number.isNaN(d.getTime()))
     if (allDates.length === 0) return endOfMonth(new Date())
     const maxDate = new Date(Math.max(...allDates.map((d) => d.getTime())))
     return endOfMonth(maxDate)

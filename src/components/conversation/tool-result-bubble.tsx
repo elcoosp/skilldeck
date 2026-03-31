@@ -1,5 +1,6 @@
-import { FileIcon, FolderIcon } from '@react-symbols/icons/utils'
+// src/components/conversation/tool-result-bubble.tsx
 
+import { FileIcon, FolderIcon } from '@react-symbols/icons/utils'
 import { sentenceCase } from 'change-case'
 import {
   Check,
@@ -58,9 +59,9 @@ function FileTreeRenderer({ text }: { text: string }) {
 
   return (
     <div className="font-mono text-xs space-y-0.5">
-      {entries.map((e, i) => (
+      {entries.map((e) => (
         <div
-          key={i}
+          key={`${e.name}-${e.depth}`}
           className="flex items-center gap-1.5"
           style={{ paddingLeft: e.depth * 12 }}
         >
@@ -117,6 +118,7 @@ function JSONRenderer({ text }: { text: string }) {
       </pre>
       {lines.length > 20 && (
         <button
+          type="button"
           onClick={() => setExpanded((v) => !v)}
           className="text-xs text-primary mt-1 hover:underline"
         >

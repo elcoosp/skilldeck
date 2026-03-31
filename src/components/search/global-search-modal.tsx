@@ -1,3 +1,5 @@
+// src/components/search/global-search-modal.tsx
+
 import { useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
@@ -8,7 +10,7 @@ import {
   Search,
   X
 } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useDebounce } from 'use-debounce'
 import { Button } from '@/components/ui/button'
@@ -45,6 +47,15 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
   )
   const setScrollToMessageId = useConversationStore(
     (s) => s.setScrollToMessageId
+  )
+
+  const handleSelectResult = useCallback(
+    (result: GlobalSearchResult) => {
+      setActiveConversation(result.conversation_id)
+      setScrollToMessageId(result.message_id)
+      onClose()
+    },
+    [setActiveConversation, setScrollToMessageId, onClose]
   )
 
   const { data: results = [], isLoading } = useQuery({
@@ -129,13 +140,7 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [open, results, selectedIndex])
-
-  const handleSelectResult = (result: GlobalSearchResult) => {
-    setActiveConversation(result.conversation_id)
-    setScrollToMessageId(result.message_id)
-    onClose()
-  }
+  }, [open, results, selectedIndex, handleSelectResult])
 
   if (!open) return null
 

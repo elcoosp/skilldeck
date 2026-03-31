@@ -331,7 +331,6 @@ export function useAgentStream(conversationId: string | null) {
     queryClient,
     unlockStage,
     setUnlockStage,
-    appendStreamingText,
     clearStreamingText,
     setStreamingMessage,
     setAgentRunning,

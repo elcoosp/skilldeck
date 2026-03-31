@@ -1,5 +1,4 @@
 // src/components/conversation/conversation-item.tsx
-
 import { formatDistanceToNow } from 'date-fns'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
@@ -63,7 +62,7 @@ export function ConversationItem({
   const [isRenaming, setIsRenaming] = useState(false)
   const [draft, setDraft] = useState(conversation.title ?? '')
   const inputRef = useRef<HTMLInputElement>(null)
-  const containerRef = useRef<HTMLButtonElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   const [isDragTarget, setIsDragTarget] = useState(false)
   const isDragTargetRef = useRef(false)
@@ -73,13 +72,13 @@ export function ConversationItem({
   const pinMutation = usePinConversation()
   const unpinMutation = useUnpinConversation()
 
-  // Mount guard to prevent re‑animation on re‑renders (e.g., panel resize)
+  // Mount guard to prevent re-animation on re-renders (e.g., panel resize)
   const hasMounted = useRef(false)
   useEffect(() => {
     hasMounted.current = true
   }, [])
 
-  // ── Listen to the custom drag‑drop event from GlobalDropZone ──────────────
+  // ── Listen to the custom drag-drop event from GlobalDropZone ──────────────
   useEffect(() => {
     const onDragDrop = (e: Event) => {
       const { type, paths, targetConversationId } = (
@@ -174,7 +173,7 @@ export function ConversationItem({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [isRenaming, cancelRename])
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault()
       if (!isRenaming && !isDeleting) onClick()
@@ -202,7 +201,9 @@ export function ConversationItem({
   })()
 
   return (
-    <button
+    // biome-ignore lint/a11y/useSemanticElements:ok
+    <div
+      role="button"
       ref={containerRef}
       data-conversation-id={conversation.id}
       tabIndex={0}
@@ -372,6 +373,6 @@ export function ConversationItem({
           </DropdownMenuContent>
         </DropdownMenu>
       )}
-    </button>
+    </div>
   )
 }

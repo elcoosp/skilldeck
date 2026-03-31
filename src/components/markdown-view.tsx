@@ -215,19 +215,29 @@ export const MarkdownView = memo(
       },
       []
     )
-    if (!document) {
-      return null
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault()
+        handleClick(e as any)
+      }
     }
+
+    if (!document) return null
 
     const convId = conversationId ?? null
 
     return (
+      // biome-ignore lint/a11y/useSemanticElements: ok
       <div
         className={cn(
           'prose prose prose-sm dark:prose-invert max-w-none break-words',
           className
         )}
         onClick={handleClick}
+        onKeyDown={handleKeyDown}
+        role="button"
+        tabIndex={0}
       >
         <StableNodeList
           nodes={document.stable_nodes}

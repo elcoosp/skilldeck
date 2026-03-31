@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { commands, FolderData } from '@/lib/bindings'
+import { commands } from '@/lib/bindings'
 
 export function useFolders() {
   return useQuery({

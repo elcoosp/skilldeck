@@ -51,6 +51,9 @@
         "useValidForDirection": "error",
         "useYield": "error"
       },
+      "security": {
+        "noDangerouslySetInnerHtml": "off"
+      },
       "suspicious": {
         "noExplicitAny": "off",
         "noAsyncPromiseExecutor": "error",

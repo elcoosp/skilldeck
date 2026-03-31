@@ -1,4 +1,5 @@
 // src/components/conversation/thread-navigator.tsx
+// (full file with fixed dependencies)
 
 import { AnimatePresence, motion } from 'framer-motion'
 import { Bookmark, ChevronRight } from 'lucide-react'
@@ -344,7 +345,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
     [scrollCardToElement]
   )
 
-  // Keyboard handler (unchanged logic, relies on stateRef)
+  // Keyboard handler (unchanged logic, now with correct dependencies)
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement
@@ -478,7 +479,13 @@ const ThreadNavigator = memo(function ThreadNavigator({
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [])
+  }, [
+    handleClick,
+    closeCard,
+    handleToggleToc,
+    focusNavItem,
+    handleHeadingClickInner
+  ])
 
   // Focus current item when card opens via keyboard
   useEffect(() => {
@@ -490,7 +497,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
         scrollCardToElement(el)
       }
     })
-  }, [isKeyboardOpen])
+  }, [isKeyboardOpen, focusedNavIdx, scrollCardToElement])
 
   // Close when clicking outside
   useEffect(() => {

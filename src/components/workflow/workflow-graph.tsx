@@ -18,7 +18,7 @@ export function WorkflowGraph({
   definition,
   stepStatuses
 }: WorkflowGraphProps) {
-  if (!definition || !definition.steps) return null
+  if (!definition?.steps) return null
 
   const nodes: Node[] = definition.steps.map((step: any, idx: number) => ({
     id: step.id,

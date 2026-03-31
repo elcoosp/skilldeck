@@ -150,7 +150,7 @@ const AssistantMessageActions = memo(
 const CollapsibleContent = React.forwardRef<
   CollapsibleHandle,
   { initialCollapsed?: boolean; messageId: string; children: React.ReactNode }
->(({ initialCollapsed = false, messageId, children }, ref) => {
+>(({ initialCollapsed = false, children }, ref) => {
   const outerRef = useRef<HTMLDivElement>(null)
   const collapsedRef = useRef(initialCollapsed)
 
@@ -199,7 +199,7 @@ const CollapsibleContent = React.forwardRef<
       },
       isCollapsed: () => collapsedRef.current
     }),
-    [] // remove messageId from deps
+    []
   )
 
   return (
@@ -222,14 +222,6 @@ export interface CollapsibleHandle {
   isCollapsed: () => boolean
 }
 
-/**
- * Cached text-to-NodeDocument conversion.
- *
- * Previously used `Date.now()` as the node ID, creating a new object
- * with a new stable_nodes array on every render. Now uses `messageId`
- * for a stable ID and caches the result so the exact same NodeDocument
- * reference is returned for the same message across re-renders.
- */
 const textDocCache = new Map<string, NodeDocument>()
 
 function getTextNodeDocument(

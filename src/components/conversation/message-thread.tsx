@@ -1,4 +1,6 @@
 // src/components/conversation/message-thread.tsx
+// (full file with fixes applied)
+
 import {
   elementScroll,
   useVirtualizer,
@@ -46,7 +48,7 @@ interface MessageThreadProps {
   onScrollSettled?: (token: ScrollToken) => void
   onMessageVisible?: (messageId: string) => void
   branchParentMessageId?: string | null
-  headings?: any[] // from bootstrap, optional
+  headings?: any[]
 }
 
 function distFromBottom(el: HTMLElement): number {
@@ -70,7 +72,6 @@ interface VirtualRowProps {
   searchQuery: string | undefined
   searchCaseSensitive: boolean
   searchRegex: boolean
-  // Pass refs as stable objects
   measureRef: React.RefObject<(node: Element | null) => void>
   lastItemNodeRef: React.RefObject<Element | null>
   streamingRoRef: React.RefObject<ResizeObserver | null>
@@ -101,9 +102,9 @@ const VirtualRow = React.memo(
           if (isLast && node !== lastItemNodeRef.current) {
             if (lastItemNodeRef.current)
               streamingRoRef.current?.unobserve(lastItemNodeRef.current)
-                ; (
-                  lastItemNodeRef as React.MutableRefObject<Element | null>
-                ).current = node
+            ;(
+              lastItemNodeRef as React.MutableRefObject<Element | null>
+            ).current = node
             if (node) streamingRoRef.current?.observe(node)
           }
         }}
@@ -179,8 +180,6 @@ export const MessageThread = React.forwardRef<
     ref
   ) => {
     // ── Read streamingMessage directly from the store ──────────────────
-    // This subscription lives HERE, not in CenterPanel, so token updates
-    // only re-render MessageThread (not the entire CenterPanel tree).
     const streamingMessage = useUIEphemeralStore(
       React.useCallback(
         (s) => s.streamingMessages[conversationId ?? ''] ?? null,
@@ -537,7 +536,7 @@ export const MessageThread = React.forwardRef<
 
       const observer = new IntersectionObserver(
         (entries) => {
-          entries.forEach((entry) => {
+          for (const entry of entries) {
             if (entry.isIntersecting) {
               const messageId = entry.target.getAttribute('data-message-id')
               if (messageId && !seenMessages.has(messageId)) {
@@ -545,19 +544,19 @@ export const MessageThread = React.forwardRef<
                 onMessageVisible(messageId)
               }
             }
-          })
+          }
         },
         { threshold: 0.5, root: container }
       )
 
       const elements = container.querySelectorAll('[data-message-id]')
-      for (let i = 0; i < elements.length; i++) {
-        observer.observe(elements[i])
+      for (const el of elements) {
+        observer.observe(el)
       }
 
       const mutationObserver = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-          mutation.addedNodes.forEach((node) => {
+        for (const mutation of mutations) {
+          for (const node of mutation.addedNodes) {
             if (node.nodeType === Node.ELEMENT_NODE) {
               const el = node as Element
               const messageId = el.getAttribute('data-message-id')
@@ -576,8 +575,8 @@ export const MessageThread = React.forwardRef<
                 }
               }
             }
-          })
-        })
+          }
+        }
       })
 
       mutationObserver.observe(container, { childList: true, subtree: true })
@@ -694,7 +693,7 @@ export const MessageThread = React.forwardRef<
         getScrollPosition: () => scrollRef.current?.scrollTop ?? 0,
         onScroll: (cb: () => void) => {
           const el = scrollRef.current
-          if (!el) return () => { }
+          if (!el) return () => {}
           el.addEventListener('scroll', cb, { passive: true })
           return () => el.removeEventListener('scroll', cb)
         }
@@ -773,7 +772,7 @@ export const MessageThread = React.forwardRef<
                     const retryAvailable = (message as any).retryAvailable
                     const handleRetry = retryAvailable
                       ? () =>
-                        sendMutation.mutateAsync({ content: message.content })
+                          sendMutation.mutateAsync({ content: message.content })
                       : undefined
 
                     return (
