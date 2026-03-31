@@ -6,10 +6,10 @@ import type { QueuedMessage } from '@/hooks/use-queued-messages'
 
 export interface ConversationBootstrapData {
   messages: MessageData[]
-  branches: BranchInfo[]   // use binding type
+  branches: BranchInfo[] // use binding type
   draft: [string, any[]] | null
   queued: QueuedMessage[]
-  headings: HeadingItem[]   // use binding type
+  headings: HeadingItem[] // use binding type
 }
 
 export function useConversationBootstrap(conversationId: UUID | null) {
@@ -22,6 +22,6 @@ export function useConversationBootstrap(conversationId: UUID | null) {
       throw new Error(res.error)
     },
     enabled: !!conversationId,
-    staleTime: 5000,
+    staleTime: 5000
   })
 }

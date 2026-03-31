@@ -23,7 +23,9 @@ import { useConversationStore } from '@/store/conversation'
 export function CommandPalette() {
   const open = useUIOverlaysStore((s) => s.commandPaletteOpen)
   const setOpen = useUIOverlaysStore((s) => s.setCommandPaletteOpen)
-  const setActiveConversation = useConversationStore((s) => s.setActiveConversation)
+  const setActiveConversation = useConversationStore(
+    (s) => s.setActiveConversation
+  )
   const setSettingsOpen = useUIOverlaysStore((s) => s.setSettingsOpen)
 
   const { data: conversations = [] } = useConversations()

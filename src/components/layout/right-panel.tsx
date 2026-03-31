@@ -62,15 +62,30 @@ import { useUIOverlaysStore } from '@/store/ui-overlays'
 import { McpTab } from './mcp-tab'
 import { useSessionStats } from '@/hooks/use-session-stats'
 import { AnalyticsHeatmap } from '../analytics/analytics-heatmap'
-import { Dialog, DialogFooter, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog'
-import { startOfMonth, endOfMonth, format, startOfYear, endOfYear, isWithinInterval } from 'date-fns'
+import {
+  Dialog,
+  DialogFooter,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogDescription
+} from '@/components/ui/dialog'
+import {
+  startOfMonth,
+  endOfMonth,
+  format,
+  startOfYear,
+  endOfYear,
+  isWithinInterval
+} from 'date-fns'
 import { useConversationStore } from '@/store/conversation'
 
-
-
 // Feature gate selectors remain unchanged
-const selectHasSkillsUnlocked = (state: UIPersistentState) => state.unlockStage >= 1
-const selectHasWorkflowsUnlocked = (state: UIPersistentState) => state.unlockStage >= 3
+const selectHasSkillsUnlocked = (state: UIPersistentState) =>
+  state.unlockStage >= 1
+const selectHasWorkflowsUnlocked = (state: UIPersistentState) =>
+  state.unlockStage >= 3
 
 type Tab = 'session' | 'skills' | 'mcp' | 'workflow' | 'analytics' | 'artifacts'
 
@@ -79,23 +94,25 @@ const TABS: {
   label: string
   Icon: React.FC<{ className?: string }>
 }[] = [
-    { id: 'session', label: 'Session', Icon: Cpu },
-    { id: 'skills', label: 'Skills', Icon: Layers },
-    { id: 'mcp', label: 'MCP', Icon: Zap },
-    { id: 'workflow', label: 'Workflow', Icon: GitBranch },
-    { id: 'analytics', label: 'Analytics', Icon: BarChart2 },
-    { id: 'artifacts', label: 'Artifacts', Icon: FileCode }
-  ]
+  { id: 'session', label: 'Session', Icon: Cpu },
+  { id: 'skills', label: 'Skills', Icon: Layers },
+  { id: 'mcp', label: 'MCP', Icon: Zap },
+  { id: 'workflow', label: 'Workflow', Icon: GitBranch },
+  { id: 'analytics', label: 'Analytics', Icon: BarChart2 },
+  { id: 'artifacts', label: 'Artifacts', Icon: FileCode }
+]
 
 export function RightPanel() {
   const [activeTab, setActiveTab] = useState<Tab>('session')
-  const activeConversationId = useConversationStore((s) => s.activeConversationId)
+  const activeConversationId = useConversationStore(
+    (s) => s.activeConversationId
+  )
   const unlockStage = useUIPersistentStore((s) => s.unlockStage)
   const hasSkillsUnlocked = useUIPersistentStore(selectHasSkillsUnlocked)
   const hasWorkflowsUnlocked = useUIPersistentStore(selectHasWorkflowsUnlocked)
 
   // Filter tabs based on unlock stage
-  const visibleTabs = TABS.filter(tab => {
+  const visibleTabs = TABS.filter((tab) => {
     if (tab.id === 'skills') return hasSkillsUnlocked
     if (tab.id === 'workflow') return hasWorkflowsUnlocked
     // artifacts is always visible after stage 1 (skills unlocked)
@@ -309,11 +326,15 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div className="rounded border border-border p-2">
             <span className="text-muted-foreground">Input</span>
-            <div className="font-mono text-base">{inputTokens.toLocaleString()}</div>
+            <div className="font-mono text-base">
+              {inputTokens.toLocaleString()}
+            </div>
           </div>
           <div className="rounded border border-border p-2">
             <span className="text-muted-foreground">Output</span>
-            <div className="font-mono text-base">{outputTokens.toLocaleString()}</div>
+            <div className="font-mono text-base">
+              {outputTokens.toLocaleString()}
+            </div>
           </div>
         </div>
       </section>
@@ -584,38 +605,50 @@ function AnalyticsTab() {
   // Filter messages and conversations to current month for compact view
   const currentMonthMessages = useMemo(() => {
     if (!analytics) return []
-    return analytics.messages_per_day.filter(item => {
+    return analytics.messages_per_day.filter((item) => {
       const date = new Date(item.date)
-      return isWithinInterval(date, { start: currentMonthStart, end: currentMonthEnd })
+      return isWithinInterval(date, {
+        start: currentMonthStart,
+        end: currentMonthEnd
+      })
     })
   }, [analytics, currentMonthStart, currentMonthEnd])
 
   const currentMonthConversations = useMemo(() => {
     if (!analytics) return []
-    return analytics.conversations_per_day.filter(item => {
+    return analytics.conversations_per_day.filter((item) => {
       const date = new Date(item.date)
-      return isWithinInterval(date, { start: currentMonthStart, end: currentMonthEnd })
+      return isWithinInterval(date, {
+        start: currentMonthStart,
+        end: currentMonthEnd
+      })
     })
   }, [analytics, currentMonthStart, currentMonthEnd])
 
   // For full year, use all data (no filtering)
   const fullYearStart = useMemo(() => {
     if (!analytics) return startOfMonth(new Date())
-    const allDates = [...analytics.messages_per_day, ...analytics.conversations_per_day]
-      .map(d => new Date(d.date))
-      .filter(d => !isNaN(d.getTime()))
+    const allDates = [
+      ...analytics.messages_per_day,
+      ...analytics.conversations_per_day
+    ]
+      .map((d) => new Date(d.date))
+      .filter((d) => !isNaN(d.getTime()))
     if (allDates.length === 0) return startOfMonth(new Date())
-    const minDate = new Date(Math.min(...allDates.map(d => d.getTime())))
+    const minDate = new Date(Math.min(...allDates.map((d) => d.getTime())))
     return startOfMonth(minDate)
   }, [analytics])
 
   const fullYearEnd = useMemo(() => {
     if (!analytics) return endOfMonth(new Date())
-    const allDates = [...analytics.messages_per_day, ...analytics.conversations_per_day]
-      .map(d => new Date(d.date))
-      .filter(d => !isNaN(d.getTime()))
+    const allDates = [
+      ...analytics.messages_per_day,
+      ...analytics.conversations_per_day
+    ]
+      .map((d) => new Date(d.date))
+      .filter((d) => !isNaN(d.getTime()))
     if (allDates.length === 0) return endOfMonth(new Date())
-    const maxDate = new Date(Math.max(...allDates.map(d => d.getTime())))
+    const maxDate = new Date(Math.max(...allDates.map((d) => d.getTime())))
     return endOfMonth(maxDate)
   }, [analytics])
 
@@ -682,17 +715,24 @@ function AnalyticsTab() {
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
             Activity (current month)
           </h3>
-          <Dialog open={fullYearDialogOpen} onOpenChange={setFullYearDialogOpen}>
+          <Dialog
+            open={fullYearDialogOpen}
+            onOpenChange={setFullYearDialogOpen}
+          >
             <DialogTrigger asChild>
               <Button variant="ghost" size="sm" className="text-xs h-6 px-2">
                 View full year
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-6xl w-[95vw]" style={{ maxHeight: '90vh', overflowY: 'auto' }}>
+            <DialogContent
+              className="max-w-6xl w-[95vw]"
+              style={{ maxHeight: '90vh', overflowY: 'auto' }}
+            >
               <DialogHeader>
                 <DialogTitle>Activity heatmap – full year</DialogTitle>
                 <DialogDescription>
-                  Daily activity from the earliest recorded data to the most recent.
+                  Daily activity from the earliest recorded data to the most
+                  recent.
                 </DialogDescription>
               </DialogHeader>
               <div className="py-4 overflow-x-auto">
@@ -705,7 +745,9 @@ function AnalyticsTab() {
                 />
               </div>
               <DialogFooter>
-                <Button onClick={() => setFullYearDialogOpen(false)}>Close</Button>
+                <Button onClick={() => setFullYearDialogOpen(false)}>
+                  Close
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>

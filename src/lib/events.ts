@@ -23,7 +23,7 @@ export type AgentEventType =
   | 'error'
   | 'persisted'
   | 'tool_approval_required'
-  | 'stream_update'   // <-- new
+  | 'stream_update' // <-- new
 
 export interface AgentEvent {
   type: AgentEventType

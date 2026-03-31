@@ -16,7 +16,7 @@ describe('WCAG Contrast', () => {
       { bg: '--muted', fg: '--muted-foreground' },
       { bg: '--card', fg: '--card-foreground' },
       { bg: '--popover', fg: '--popover-foreground' },
-      { bg: '--accent', fg: '--accent-foreground' },
+      { bg: '--accent', fg: '--accent-foreground' }
     ]
     for (const pair of pairs) {
       const bg = style.getPropertyValue(pair.bg).trim()

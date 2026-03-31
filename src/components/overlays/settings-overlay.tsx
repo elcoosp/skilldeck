@@ -45,7 +45,6 @@ import { cn } from '@/lib/utils'
 import { useSettingsStore } from '@/store/settings'
 import { useUIOverlaysStore } from '@/store/ui-overlays'
 
-
 export function SettingsOverlay() {
   const settingsTab = useUIOverlaysStore((s) => s.settingsTab)
   const setSettingsTab = useUIOverlaysStore((s) => s.setSettingsTab)
@@ -551,27 +550,27 @@ const APPROVAL_FIELDS: Array<{
   label: string
   description: string
 }> = [
-    {
-      key: 'autoApproveReads',
-      label: 'Auto-approve file reads',
-      description: 'Skip the approval dialog for read-only filesystem tools'
-    },
-    {
-      key: 'autoApproveWrites',
-      label: 'Auto-approve file writes',
-      description: 'Skip approval for file creation and modification'
-    },
-    {
-      key: 'autoApproveShell',
-      label: 'Auto-approve shell commands',
-      description: 'Never require approval for shell execution (⚠ dangerous)'
-    },
-    {
-      key: 'autoApproveHttpRequests',
-      label: 'Auto-approve HTTP requests',
-      description: 'Skip approval for outbound HTTP tool calls'
-    }
-  ]
+  {
+    key: 'autoApproveReads',
+    label: 'Auto-approve file reads',
+    description: 'Skip the approval dialog for read-only filesystem tools'
+  },
+  {
+    key: 'autoApproveWrites',
+    label: 'Auto-approve file writes',
+    description: 'Skip approval for file creation and modification'
+  },
+  {
+    key: 'autoApproveShell',
+    label: 'Auto-approve shell commands',
+    description: 'Never require approval for shell execution (⚠ dangerous)'
+  },
+  {
+    key: 'autoApproveHttpRequests',
+    label: 'Auto-approve HTTP requests',
+    description: 'Skip approval for outbound HTTP tool calls'
+  }
+]
 
 function ApprovalsTab() {
   const toolApprovals = useSettingsStore((s) => s.toolApprovals)

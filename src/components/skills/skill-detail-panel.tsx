@@ -44,7 +44,9 @@ interface Props {
 
 export function SkillDetailPanel({ skill, onClose }: Props) {
   const qc = useQueryClient()
-  const platformFeaturesEnabled = useUIPersistentStore((s) => s.platformFeaturesEnabled)
+  const platformFeaturesEnabled = useUIPersistentStore(
+    (s) => s.platformFeaturesEnabled
+  )
   const lintSectionRef = useRef<HTMLDivElement>(null)
 
   const [actionError, setActionError] = useState<string | null>(null)
@@ -229,7 +231,10 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
     if (!skill.localData?.path) return
     setLoadingContent(true)
     try {
-      const res = await commands.getInstalledSkillContent(skill.name, 'personal')
+      const res = await commands.getInstalledSkillContent(
+        skill.name,
+        'personal'
+      )
       if (res.status === 'ok' && res.data) {
         setSkillContent(res.data)
         setShowShareModal(true)

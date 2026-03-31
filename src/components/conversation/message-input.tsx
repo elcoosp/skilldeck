@@ -12,8 +12,22 @@
 import { open } from '@tauri-apps/plugin-dialog'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { AtSign, Globe, Hash, Paperclip, Send, Square, Timer } from 'lucide-react'
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import {
+  AtSign,
+  Globe,
+  Hash,
+  Paperclip,
+  Send,
+  Square,
+  Timer
+} from 'lucide-react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState
+} from 'react'
 import { toast } from 'sonner'
 import { useDebouncedCallback } from 'use-debounce'
 
@@ -102,8 +116,12 @@ export function MessageInput({
   const draft = useUIEphemeralStore((s) => s.drafts[conversationId] ?? '')
   const setDraft = useUIEphemeralStore((s) => s.setDraft)
   const clearDraft = useUIEphemeralStore((s) => s.clearDraft)
-  const isRunning = useUIEphemeralStore((s) => s.agentRunning[conversationId] ?? false)
-  const setActiveConversation = useConversationStore((s) => s.setActiveConversation)
+  const isRunning = useUIEphemeralStore(
+    (s) => s.agentRunning[conversationId] ?? false
+  )
+  const setActiveConversation = useConversationStore(
+    (s) => s.setActiveConversation
+  )
   const setAgentRunning = useUIEphemeralStore((s) => s.setAgentRunning)
 
   const [content, setContent] = useState(draft)
@@ -195,17 +213,21 @@ export function MessageInput({
   // ─── Draft persistence: load from DB on mount ────────────────────────────────
   useEffect(() => {
     if (!conversationId) return
-    commands.getConversationDraft(conversationId).then((res) => {
-      if (res.status === 'ok' && res.data) {
-        const [text, items] = res.data
-        setContent(text)
-        items.forEach((item: any) => {
-          if (item.type === 'file') addFile(conversationId, item.data)
-          else if (item.type === 'folder') addFolder(conversationId, item.data)
-          else if (item.type === 'skill') addSkill(conversationId, item.data)
-        })
-      }
-    }).catch((err) => console.error('Failed to load draft:', err))
+    commands
+      .getConversationDraft(conversationId)
+      .then((res) => {
+        if (res.status === 'ok' && res.data) {
+          const [text, items] = res.data
+          setContent(text)
+          items.forEach((item: any) => {
+            if (item.type === 'file') addFile(conversationId, item.data)
+            else if (item.type === 'folder')
+              addFolder(conversationId, item.data)
+            else if (item.type === 'skill') addSkill(conversationId, item.data)
+          })
+        }
+      })
+      .catch((err) => console.error('Failed to load draft:', err))
   }, [conversationId, addFile, addFolder, addSkill])
 
   // ─── Debounced save draft to DB ─────────────────────────────────────────────
@@ -213,9 +235,11 @@ export function MessageInput({
     (text: string, items: any[]) => {
       if (!conversationId) return
       const itemsJson = items.map((item) => item.data)
-      commands.upsertConversationDraft(conversationId, text, itemsJson).catch((err) => {
-        console.error('Failed to save draft:', err)
-      })
+      commands
+        .upsertConversationDraft(conversationId, text, itemsJson)
+        .catch((err) => {
+          console.error('Failed to save draft:', err)
+        })
     },
     500
   )

@@ -1,31 +1,52 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import ReactDiffViewer from 'react-diff-viewer-continued';
-import { ArtifactData } from '@/lib/bindings';
-import { useState } from 'react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
+import ReactDiffViewer from 'react-diff-viewer-continued'
+import { ArtifactData } from '@/lib/bindings'
+import { useState } from 'react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
 
 interface VersionDiffModalProps {
-  open: boolean;
-  onClose: () => void;
-  versions: ArtifactData[];
+  open: boolean
+  onClose: () => void
+  versions: ArtifactData[]
 }
 
-export function VersionDiffModal({ open, onClose, versions }: VersionDiffModalProps) {
-  const [leftVersionId, setLeftVersionId] = useState<string>(versions[0]?.id || '');
-  const [rightVersionId, setRightVersionId] = useState<string>(versions[1]?.id || '');
+export function VersionDiffModal({
+  open,
+  onClose,
+  versions
+}: VersionDiffModalProps) {
+  const [leftVersionId, setLeftVersionId] = useState<string>(
+    versions[0]?.id || ''
+  )
+  const [rightVersionId, setRightVersionId] = useState<string>(
+    versions[1]?.id || ''
+  )
 
-  const left = versions.find(v => v.id === leftVersionId);
-  const right = versions.find(v => v.id === rightVersionId);
+  const left = versions.find((v) => v.id === leftVersionId)
+  const right = versions.find((v) => v.id === rightVersionId)
 
-  if (versions.length === 0) return null;
+  if (versions.length === 0) return null
 
-  const isDark = document.documentElement.classList.contains('dark');
+  const isDark = document.documentElement.classList.contains('dark')
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       {/* CHANGED: max-w-[95vw] for huge width, h-[90vh] for height, overflow-hidden to prevent outer scroll */}
-      <DialogContent style={{ maxWidth: '95vw', width: '95vw' }} className="max-w-[95vw] h-[90vh] flex flex-col gap-4 overflow-hidden p-0">
-
+      <DialogContent
+        style={{ maxWidth: '95vw', width: '95vw' }}
+        className="max-w-[95vw] h-[90vh] flex flex-col gap-4 overflow-hidden p-0"
+      >
         {/* CHANGED: Added padding and shrink-0 so header doesn't collapse */}
         <div className="px-6 pt-6 shrink-0">
           <DialogHeader>
@@ -39,7 +60,7 @@ export function VersionDiffModal({ open, onClose, versions }: VersionDiffModalPr
               <SelectValue placeholder="Select left version" />
             </SelectTrigger>
             <SelectContent>
-              {versions.map(v => (
+              {versions.map((v) => (
                 <SelectItem key={v.id} value={v.id}>
                   {v.name} ({new Date(v.created_at).toLocaleString()})
                 </SelectItem>
@@ -51,7 +72,7 @@ export function VersionDiffModal({ open, onClose, versions }: VersionDiffModalPr
               <SelectValue placeholder="Select right version" />
             </SelectTrigger>
             <SelectContent>
-              {versions.map(v => (
+              {versions.map((v) => (
                 <SelectItem key={v.id} value={v.id}>
                   {v.name} ({new Date(v.created_at).toLocaleString()})
                 </SelectItem>
@@ -72,11 +93,12 @@ export function VersionDiffModal({ open, onClose, versions }: VersionDiffModalPr
               showDiffOnly={false}
             />
           ) : (
-            <p className="text-muted-foreground text-sm">Select two versions to compare</p>
+            <p className="text-muted-foreground text-sm">
+              Select two versions to compare
+            </p>
           )}
         </div>
-
       </DialogContent>
     </Dialog>
-  );
+  )
 }

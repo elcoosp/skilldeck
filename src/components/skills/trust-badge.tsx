@@ -80,7 +80,10 @@ export function TrustBadge({
               onClick()
             }
           }}
-          className={cn('cursor-pointer inline-flex items-center gap-1', className)}
+          className={cn(
+            'cursor-pointer inline-flex items-center gap-1',
+            className
+          )}
         >
           {badgeContent}
         </span>

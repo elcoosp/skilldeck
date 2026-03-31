@@ -23,5 +23,5 @@ export const useToolApprovalStore = create<ToolApprovalState>((set) => ({
       next.delete(toolCallId)
       return { pending: next }
     }),
-  clearAll: () => set({ pending: new Map() }),
+  clearAll: () => set({ pending: new Map() })
 }))

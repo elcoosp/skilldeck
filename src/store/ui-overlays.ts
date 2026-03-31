@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import { create } from 'zustand'
 
 export type SettingsTab =
   | 'apikeys'
@@ -10,17 +10,17 @@ export type SettingsTab =
   | 'platform'
   | 'lint'
   | 'sources'
-  | 'achievements';
+  | 'achievements'
 
 interface UIOverlaysState {
-  settingsOpen: boolean;
-  setSettingsOpen: (open: boolean) => void;
-  commandPaletteOpen: boolean;
-  setCommandPaletteOpen: (open: boolean) => void;
-  globalSearchOpen: boolean;
-  setGlobalSearchOpen: (open: boolean) => void;
-  settingsTab: SettingsTab;
-  setSettingsTab: (tab: SettingsTab) => void;
+  settingsOpen: boolean
+  setSettingsOpen: (open: boolean) => void
+  commandPaletteOpen: boolean
+  setCommandPaletteOpen: (open: boolean) => void
+  globalSearchOpen: boolean
+  setGlobalSearchOpen: (open: boolean) => void
+  settingsTab: SettingsTab
+  setSettingsTab: (tab: SettingsTab) => void
 }
 
 export const useUIOverlaysStore = create<UIOverlaysState>((set) => ({
@@ -31,5 +31,5 @@ export const useUIOverlaysStore = create<UIOverlaysState>((set) => ({
   globalSearchOpen: false,
   setGlobalSearchOpen: (open) => set({ globalSearchOpen: open }),
   settingsTab: 'apikeys',
-  setSettingsTab: (tab) => set({ settingsTab: tab }),
-}));
+  setSettingsTab: (tab) => set({ settingsTab: tab })
+}))

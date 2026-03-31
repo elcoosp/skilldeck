@@ -7,7 +7,15 @@ import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 import { open } from '@tauri-apps/plugin-dialog'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Collapsible } from 'radix-ui'
-import { ChevronDown, FolderOpen, FolderPlus, Plus, Search, Settings, Folder } from 'lucide-react'
+import {
+  ChevronDown,
+  FolderOpen,
+  FolderPlus,
+  Plus,
+  Search,
+  Settings,
+  Folder
+} from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { ConversationItem } from '@/components/conversation/conversation-item'
@@ -32,7 +40,11 @@ import {
   useConversations,
   useCreateConversation
 } from '@/hooks/use-conversations'
-import { useFolders, useCreateFolder, useMoveConversationToFolder } from '@/hooks/use-folders'
+import {
+  useFolders,
+  useCreateFolder,
+  useMoveConversationToFolder
+} from '@/hooks/use-folders'
 import { useProfiles } from '@/hooks/use-profiles'
 import { useOpenWorkspace, useWorkspaces } from '@/hooks/use-workspaces'
 import { cn } from '@/lib/utils'
@@ -94,8 +106,8 @@ function getDateGroupKey(dateStr: string): string {
   // Handles "2026-03-23 15:35:22.009975 +00:00"
   // date-fns parseISO requires a T separator and no space before offset
   const normalized = dateStr
-    .replace(' ', 'T')           // first space only: date/time separator
-    .replace(' +', '+')          // remove space before timezone offset
+    .replace(' ', 'T') // first space only: date/time separator
+    .replace(' +', '+') // remove space before timezone offset
     .replace(' -', '-')
 
   const date = parseISO(normalized)
@@ -117,8 +129,12 @@ export function LeftPanel() {
   const setSettingsOpen = useUIOverlaysStore((s) => s.setSettingsOpen)
   const setSettingsTab = useUIOverlaysStore((s) => s.setSettingsTab)
   const setGlobalSearchOpen = useUIOverlaysStore((s) => s.setGlobalSearchOpen)
-  const activeConversationId = useConversationStore((s) => s.activeConversationId)
-  const setActiveConversation = useConversationStore((s) => s.setActiveConversation)
+  const activeConversationId = useConversationStore(
+    (s) => s.activeConversationId
+  )
+  const setActiveConversation = useConversationStore(
+    (s) => s.setActiveConversation
+  )
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId)
   const setActiveWorkspace = useWorkspaceStore((s) => s.setActiveWorkspace)
 
@@ -261,7 +277,10 @@ export function LeftPanel() {
     }
   }
 
-  const handleMoveToFolder = async (conversationId: string, folderId: string | null) => {
+  const handleMoveToFolder = async (
+    conversationId: string,
+    folderId: string | null
+  ) => {
     try {
       await moveConversationToFolder.mutateAsync({ conversationId, folderId })
       toast.success(folderId ? 'Moved to folder' : 'Removed from folder')
@@ -509,7 +528,8 @@ export function LeftPanel() {
                   )}
 
                   {folders.map((folder) => {
-                    const folderConvs = conversationsByFolder.get(folder.id) ?? []
+                    const folderConvs =
+                      conversationsByFolder.get(folder.id) ?? []
                     if (folderConvs.length === 0) return null
                     return (
                       <Collapsible.Root key={folder.id} defaultOpen>

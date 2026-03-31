@@ -11,7 +11,10 @@ interface UIState {
   appendStreamingText: (conversationId: string, delta: string) => void
   clearStreamingText: (conversationId: string) => void
   streamingMessages: Record<string, NodeDocument | null>
-  setStreamingMessage: (conversationId: string, message: NodeDocument | null) => void
+  setStreamingMessage: (
+    conversationId: string,
+    message: NodeDocument | null
+  ) => void
   agentRunning: Record<string, boolean>
   setAgentRunning: (conversationId: string, running: boolean) => void
   streamingError: Record<string, boolean>
@@ -25,7 +28,9 @@ interface UIState {
 export const useUIEphemeralStore = create<UIState>((set) => ({
   drafts: {},
   setDraft: (conversationId, content) =>
-    set((state) => ({ drafts: { ...state.drafts, [conversationId]: content } })),
+    set((state) => ({
+      drafts: { ...state.drafts, [conversationId]: content }
+    })),
   clearDraft: (conversationId) =>
     set((state) => {
       const { [conversationId]: _, ...rest } = state.drafts
@@ -36,8 +41,8 @@ export const useUIEphemeralStore = create<UIState>((set) => ({
     set((state) => ({
       streamingText: {
         ...state.streamingText,
-        [conversationId]: (state.streamingText[conversationId] ?? '') + delta,
-      },
+        [conversationId]: (state.streamingText[conversationId] ?? '') + delta
+      }
     })),
   clearStreamingText: (conversationId) =>
     set((state) => {
@@ -51,16 +56,25 @@ export const useUIEphemeralStore = create<UIState>((set) => ({
         const { [conversationId]: _, ...rest } = state.streamingMessages
         return { streamingMessages: rest }
       }
-      return { streamingMessages: { ...state.streamingMessages, [conversationId]: message } }
+      return {
+        streamingMessages: {
+          ...state.streamingMessages,
+          [conversationId]: message
+        }
+      }
     }),
   agentRunning: {},
   setAgentRunning: (conversationId, running) =>
-    set((state) => ({ agentRunning: { ...state.agentRunning, [conversationId]: running } })),
+    set((state) => ({
+      agentRunning: { ...state.agentRunning, [conversationId]: running }
+    })),
   streamingError: {},
   setStreamingError: (conversationId, error) =>
-    set((state) => ({ streamingError: { ...state.streamingError, [conversationId]: error } })),
+    set((state) => ({
+      streamingError: { ...state.streamingError, [conversationId]: error }
+    })),
   searchQuery: '',
   setSearchQuery: (query) => set({ searchQuery: query }),
   conversationSearchQuery: '',
-  setConversationSearchQuery: (query) => set({ conversationSearchQuery: query }),
+  setConversationSearchQuery: (query) => set({ conversationSearchQuery: query })
 }))

@@ -1,16 +1,24 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 
 interface UILayoutState {
-  panelSizesPx: { left: number; right: number };
-  setPanelSizesPx: (sizes: { left: number; right: number }) => void;
-  leftTab: 'conversations' | 'skills' | 'community';
-  setLeftTab: (tab: 'conversations' | 'skills' | 'community') => void;
-  rightTab: 'session' | 'skills' | 'mcp' | 'workflow' | 'analytics' | 'artifacts';
-  setRightTab: (tab: 'session' | 'skills' | 'mcp' | 'workflow' | 'analytics') => void;
-  collapsedDateGroups: Record<string, boolean>;
-  toggleDateGroup: (key: string) => void;
-  setDateGroupCollapsed: (key: string, collapsed: boolean) => void;
+  panelSizesPx: { left: number; right: number }
+  setPanelSizesPx: (sizes: { left: number; right: number }) => void
+  leftTab: 'conversations' | 'skills' | 'community'
+  setLeftTab: (tab: 'conversations' | 'skills' | 'community') => void
+  rightTab:
+    | 'session'
+    | 'skills'
+    | 'mcp'
+    | 'workflow'
+    | 'analytics'
+    | 'artifacts'
+  setRightTab: (
+    tab: 'session' | 'skills' | 'mcp' | 'workflow' | 'analytics'
+  ) => void
+  collapsedDateGroups: Record<string, boolean>
+  toggleDateGroup: (key: string) => void
+  setDateGroupCollapsed: (key: string, collapsed: boolean) => void
 }
 
 export const useUILayoutStore = create<UILayoutState>()(
@@ -27,24 +35,24 @@ export const useUILayoutStore = create<UILayoutState>()(
         set((state) => ({
           collapsedDateGroups: {
             ...state.collapsedDateGroups,
-            [key]: !state.collapsedDateGroups[key],
-          },
+            [key]: !state.collapsedDateGroups[key]
+          }
         })),
       setDateGroupCollapsed: (key, collapsed) =>
         set((state) => ({
           collapsedDateGroups: {
             ...state.collapsedDateGroups,
-            [key]: collapsed,
-          },
-        })),
+            [key]: collapsed
+          }
+        }))
     }),
     {
       name: 'skilldeck-ui-layout',
       partialize: (state) => ({
         leftTab: state.leftTab,
         rightTab: state.rightTab,
-        collapsedDateGroups: state.collapsedDateGroups,
-      }),
+        collapsedDateGroups: state.collapsedDateGroups
+      })
     }
   )
-);
+)

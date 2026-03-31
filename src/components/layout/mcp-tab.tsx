@@ -38,13 +38,13 @@ export interface CatalogEntry {
   url?: string
   docsUrl: string
   category:
-  | 'filesystem'
-  | 'web'
-  | 'data'
-  | 'dev'
-  | 'productivity'
-  | 'cloud'
-  | 'observability'
+    | 'filesystem'
+    | 'web'
+    | 'data'
+    | 'dev'
+    | 'productivity'
+    | 'cloud'
+    | 'observability'
   tags: string[]
 }
 
@@ -503,7 +503,7 @@ export function McpTab() {
         const homeRes = await commands.getHomeDir()
         workspacePath = homeRes.status === 'ok' ? homeRes.data : ''
       }
-      resolvedArgs = entry.args?.map(arg =>
+      resolvedArgs = entry.args?.map((arg) =>
         arg === '__WORKSPACE__' ? workspacePath : arg
       )
     }

@@ -157,11 +157,18 @@ export function useRemoveSkillSource() {
 }
 
 // Added category parameter
-export function useRegistrySkills(search?: string, category?: string, enabled?: boolean) {
+export function useRegistrySkills(
+  search?: string,
+  category?: string,
+  enabled?: boolean
+) {
   return useQuery({
     queryKey: ['registry_skills', search ?? null, category ?? null],
     queryFn: async () => {
-      const res = await commands.fetchRegistrySkills(category ?? null, search ?? null)
+      const res = await commands.fetchRegistrySkills(
+        category ?? null,
+        search ?? null
+      )
       if (res.status === 'ok') return res.data
       throw new Error(res.error)
     },

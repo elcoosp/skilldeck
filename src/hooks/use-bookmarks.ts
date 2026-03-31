@@ -11,7 +11,7 @@ export function useBookmarks(conversationId: string | null) {
       throw new Error(res.error)
     },
     enabled: !!conversationId,
-    staleTime: 10_000,
+    staleTime: 10_000
   })
 }
 
@@ -21,7 +21,7 @@ export function useToggleBookmark(conversationId: string | null) {
     mutationFn: async ({
       messageId,
       headingAnchor,
-      label,
+      label
     }: {
       messageId: string
       headingAnchor?: string | null
@@ -32,15 +32,17 @@ export function useToggleBookmark(conversationId: string | null) {
         conversationId,
         messageId,
         headingAnchor ?? null,
-        label ?? null,
+        label ?? null
       )
       if (res.status === 'error') throw new Error(res.error)
       return res.data
     },
     onSuccess: () => {
       if (conversationId) {
-        queryClient.invalidateQueries({ queryKey: ['bookmarks', conversationId] })
+        queryClient.invalidateQueries({
+          queryKey: ['bookmarks', conversationId]
+        })
       }
-    },
+    }
   })
 }

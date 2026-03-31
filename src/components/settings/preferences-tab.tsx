@@ -1,4 +1,12 @@
-import { Bell, Code, Globe, Mail, Maximize2, Palette, Shield } from 'lucide-react'
+import {
+  Bell,
+  Code,
+  Globe,
+  Mail,
+  Maximize2,
+  Palette,
+  Shield
+} from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -93,7 +101,7 @@ export function PreferencesTab() {
     if (value === 'custom') {
       const selected = await open({
         multiple: false,
-        filters: [{ name: 'Theme Files', extensions: ['tmTheme'] }],
+        filters: [{ name: 'Theme Files', extensions: ['tmTheme'] }]
       })
       if (!selected) return
       const result = await commands.setThemeFromFile(selected as string)
@@ -165,8 +173,8 @@ export function PreferencesTab() {
       {/* Local mode hint */}
       {defaultProvider === 'ollama' && (
         <div className="rounded-md bg-primary/5 p-3 text-xs text-muted-foreground border border-primary/20">
-          <span className="font-medium">🦙 Local mode</span> – Using Ollama on your machine.
-          No API key required. Change provider in Profiles.
+          <span className="font-medium">🦙 Local mode</span> – Using Ollama on
+          your machine. No API key required. Change provider in Profiles.
         </div>
       )}
 
@@ -332,7 +340,8 @@ export function PreferencesTab() {
       {/* Code Block Max Height */}
       <Section icon={<Maximize2 size={14} />} title="Code Block Max Height">
         <p className="text-muted-foreground mb-3">
-          Maximum height of code blocks in messages. Scroll inside long code blocks.
+          Maximum height of code blocks in messages. Scroll inside long code
+          blocks.
         </p>
         <Select
           value={String(codeBlockMaxHeight)}
@@ -363,7 +372,9 @@ export function PreferencesTab() {
           className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
         >
           {Object.entries(locales).map(([code, label]) => (
-            <option key={code} value={code}>{label}</option>
+            <option key={code} value={code}>
+              {label}
+            </option>
           ))}
         </select>
         <p className="text-xs text-muted-foreground mt-1">

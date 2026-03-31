@@ -31,7 +31,7 @@ export function useRunWorkflowDefinition() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workflow-definitions'] })
-    },
+    }
   })
 }
 export function useSaveWorkflowDefinition() {

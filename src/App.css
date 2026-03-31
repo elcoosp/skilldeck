@@ -239,7 +239,6 @@
   border-radius: 4px;
 }
 
-
 .message-highlight {
   animation: highlight-flash 600ms ease-out forwards;
 }
@@ -418,7 +417,9 @@ code[data-inline-code] {
   border-radius: 4px;
   font-size: 0.875em;
   font-weight: 500;
-  transition: background-color 150ms ease, color 150ms ease;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
   line-height: 1;
   box-shadow: none;
 }

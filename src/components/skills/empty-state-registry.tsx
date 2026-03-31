@@ -7,7 +7,10 @@ interface EmptyStateRegistryProps {
   isSyncing?: boolean
 }
 
-export function EmptyStateRegistry({ onSync, isSyncing }: EmptyStateRegistryProps) {
+export function EmptyStateRegistry({
+  onSync,
+  isSyncing
+}: EmptyStateRegistryProps) {
   return (
     <div className="flex flex-col items-center justify-center h-full text-center p-8">
       <img
@@ -20,7 +23,9 @@ export function EmptyStateRegistry({ onSync, isSyncing }: EmptyStateRegistryProp
         Try syncing with the platform or check your connection.
       </p>
       <Button size="sm" onClick={onSync} disabled={isSyncing}>
-        <RefreshCw className={`size-3.5 mr-1.5 ${isSyncing ? 'animate-spin' : ''}`} />
+        <RefreshCw
+          className={`size-3.5 mr-1.5 ${isSyncing ? 'animate-spin' : ''}`}
+        />
         Sync now
       </Button>
     </div>

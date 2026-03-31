@@ -83,8 +83,9 @@ export function ConversationItem({
   // ── Listen to the custom drag‑drop event from GlobalDropZone ──────────────
   useEffect(() => {
     const onDragDrop = (e: Event) => {
-      const { type, paths, targetConversationId } =
-        (e as CustomEvent<SkilldeckDragDropDetail>).detail
+      const { type, paths, targetConversationId } = (
+        e as CustomEvent<SkilldeckDragDropDetail>
+      ).detail
 
       const isOver = targetConversationId === conversation.id
 
@@ -218,7 +219,7 @@ export function ConversationItem({
         isDeleting && 'pointer-events-none opacity-50',
         isDragTarget && 'ring-2 ring-inset ring-primary',
         isDragTarget && isActive && 'bg-primary/20',
-        isDragTarget && !isActive && 'bg-primary/5 text-foreground',
+        isDragTarget && !isActive && 'bg-primary/5 text-foreground'
       )}
     >
       <div className="flex-1 min-w-0 relative z-10">
@@ -278,7 +279,9 @@ export function ConversationItem({
                 : 'opacity-0 group-hover:opacity-50'
             )}
             onClick={togglePin}
-            aria-label={conversation.pinned ? 'Unpin conversation' : 'Pin conversation'}
+            aria-label={
+              conversation.pinned ? 'Unpin conversation' : 'Pin conversation'
+            }
           >
             {conversation.pinned ? (
               <Pin className="size-3 fill-primary" />
@@ -312,7 +315,9 @@ export function ConversationItem({
                 'text-[10px] px-1 py-0',
                 profileDeleted && 'text-muted-foreground border-dashed'
               )}
-              title={profileDeleted ? 'This profile has been deleted' : undefined}
+              title={
+                profileDeleted ? 'This profile has been deleted' : undefined
+              }
             >
               {profileName}
               {profileDeleted && <span className="ml-0.5">(deleted)</span>}

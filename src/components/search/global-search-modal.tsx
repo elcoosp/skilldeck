@@ -40,8 +40,12 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
   const modalRef = useRef<HTMLDivElement>(null)
   const [selectedIndex, setSelectedIndex] = useState(0)
 
-  const setActiveConversation = useConversationStore((s) => s.setActiveConversation)
-  const setScrollToMessageId = useConversationStore((s) => s.setScrollToMessageId)
+  const setActiveConversation = useConversationStore(
+    (s) => s.setActiveConversation
+  )
+  const setScrollToMessageId = useConversationStore(
+    (s) => s.setScrollToMessageId
+  )
 
   const { data: results = [], isLoading } = useQuery({
     queryKey: ['global-search', debouncedQuery],
@@ -59,13 +63,15 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
         // these fields, we use a type assertion. Replace with proper mapping once the
         // real global search API is defined.
         const data = res.data as any[]
-        return data.map((item): GlobalSearchResult => ({
-          message_id: item.message_id || item.id,
-          conversation_id: item.conversation_id || item.conversationId,
-          conversation_title: item.conversation_title || item.title || null,
-          created_at: item.created_at || item.timestamp,
-          message_snippet: item.message_snippet || item.snippet || ''
-        }))
+        return data.map(
+          (item): GlobalSearchResult => ({
+            message_id: item.message_id || item.id,
+            conversation_id: item.conversation_id || item.conversationId,
+            conversation_title: item.conversation_title || item.title || null,
+            created_at: item.created_at || item.timestamp,
+            message_snippet: item.message_snippet || item.snippet || ''
+          })
+        )
       }
       throw new Error(res.error)
     },
@@ -192,7 +198,9 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
                 exit={{ opacity: 0 }}
                 className="py-12 text-center text-sm text-muted-foreground"
               >
-                {query ? 'No results found.' : 'Type to search across all conversations.'}
+                {query
+                  ? 'No results found.'
+                  : 'Type to search across all conversations.'}
               </motion.div>
             ) : (
               <motion.div
@@ -227,7 +235,9 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
                         </div>
                         <p
                           className="text-sm leading-relaxed line-clamp-2"
-                          dangerouslySetInnerHTML={{ __html: result.message_snippet }}
+                          dangerouslySetInnerHTML={{
+                            __html: result.message_snippet
+                          }}
                         />
                       </div>
                       <ChevronRight className="size-4 text-muted-foreground shrink-0" />

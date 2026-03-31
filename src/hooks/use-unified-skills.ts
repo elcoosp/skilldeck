@@ -54,7 +54,9 @@ export interface UseUnifiedSkillsOptions {
 
 export function useUnifiedSkills(options: UseUnifiedSkillsOptions = {}) {
   const { search } = options
-  const platformFeaturesEnabled = useUIPersistentStore((s) => s.platformFeaturesEnabled)
+  const platformFeaturesEnabled = useUIPersistentStore(
+    (s) => s.platformFeaturesEnabled
+  )
 
   const {
     data: localSkills = [],
@@ -115,10 +117,10 @@ export function useUnifiedSkills(options: UseUnifiedSkillsOptions = {}) {
     const filtered =
       search && registrySkills.length === 0
         ? Array.from(map.values()).filter(
-          (s) =>
-            s.name.toLowerCase().includes(search.toLowerCase()) ||
-            s.description.toLowerCase().includes(search.toLowerCase())
-        )
+            (s) =>
+              s.name.toLowerCase().includes(search.toLowerCase()) ||
+              s.description.toLowerCase().includes(search.toLowerCase())
+          )
         : Array.from(map.values())
 
     // 4. Sort: installed/local first, then update_available, then available;

@@ -3,7 +3,7 @@ import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
-  TooltipTrigger,
+  TooltipTrigger
 } from '@/components/ui/tooltip'
 import type { DailyCount } from '@/hooks/use-analytics'
 import { useMemo } from 'react'
@@ -25,13 +25,13 @@ export function AnalyticsHeatmap({
   conversationsData,
   startDate,
   endDate,
-  compact = false,
+  compact = false
 }: AnalyticsHeatmapProps) {
   // Format for heatmap library: expects 'YYYY/MM/DD' strings
   const formatForHeatmap = (data: DailyCount[]) => {
-    return data.map(item => ({
+    return data.map((item) => ({
       date: item.date.replace(/-/g, '/'),
-      count: item.count,
+      count: item.count
     }))
   }
 
@@ -44,7 +44,7 @@ export function AnalyticsHeatmap({
     '#d48462',
     '#c2533a',
     '#ad001d',
-    '#6c0012',
+    '#6c0012'
   ]
 
   // Calculate width based on date range
@@ -64,14 +64,27 @@ export function AnalyticsHeatmap({
     space: 2,
     panelColors,
     weekLabels: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
-    monthLabels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-    style: { backgroundColor: 'transparent' },
+    monthLabels: [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ],
+    style: { backgroundColor: 'transparent' }
   }
 
   const RectWithTooltip = ({
     props,
     data,
-    label,
+    label
   }: {
     props: React.SVGProps<SVGRectElement>
     data: any
@@ -132,7 +145,11 @@ export function AnalyticsHeatmap({
               startDate={startDate}
               endDate={endDate}
               rectRender={(props, data) => (
-                <RectWithTooltip props={props} data={data} label="conversation" />
+                <RectWithTooltip
+                  props={props}
+                  data={data}
+                  label="conversation"
+                />
               )}
             />
           </div>

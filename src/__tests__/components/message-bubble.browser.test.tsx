@@ -21,7 +21,7 @@ const makeMessage = (overrides: Partial<MessageData> = {}): MessageData => ({
   node_document: null,
   status: 'complete',
   ...overrides
-});
+})
 
 // ── Styling ───────────────────────────────────────────────────────────────────
 

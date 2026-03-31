@@ -77,9 +77,15 @@ function AppContent() {
     const handleOpenGlobalSearch = () => {
       setGlobalSearchOpen(true)
     }
-    window.addEventListener('skilldeck:open-global-search', handleOpenGlobalSearch)
+    window.addEventListener(
+      'skilldeck:open-global-search',
+      handleOpenGlobalSearch
+    )
     return () =>
-      window.removeEventListener('skilldeck:open-global-search', handleOpenGlobalSearch)
+      window.removeEventListener(
+        'skilldeck:open-global-search',
+        handleOpenGlobalSearch
+      )
   }, [setGlobalSearchOpen])
 
   return (
@@ -108,25 +114,28 @@ function App() {
 
   // Load syntax theme CSS on mount
   useEffect(() => {
-    commands.getSyntaxCss().then(res => {
-      if (res.status === 'error') {
-        console.error('Failed to load syntax theme CSS:', res.error);
-        return;
-      }
-      const css = res.data;
-      const style = document.getElementById('syntax-theme');
-      if (style) {
-        style.textContent = css;
-      } else {
-        const s = document.createElement('style');
-        s.id = 'syntax-theme';
-        s.textContent = css;
-        document.head.appendChild(s);
-      }
-    }).catch(err => {
-      console.error('Failed to load syntax theme CSS:', err);
-    });
-  }, []);
+    commands
+      .getSyntaxCss()
+      .then((res) => {
+        if (res.status === 'error') {
+          console.error('Failed to load syntax theme CSS:', res.error)
+          return
+        }
+        const css = res.data
+        const style = document.getElementById('syntax-theme')
+        if (style) {
+          style.textContent = css
+        } else {
+          const s = document.createElement('style')
+          s.id = 'syntax-theme'
+          s.textContent = css
+          document.head.appendChild(s)
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load syntax theme CSS:', err)
+      })
+  }, [])
 
   // Start fade-out after 2.5 seconds
   useEffect(() => {
@@ -186,8 +195,9 @@ function App() {
         <AppContent />
         {showSplash && (
           <div
-            className={`fixed inset-0 z-50 transition-opacity duration-500 ${fadeOut ? 'opacity-0' : 'opacity-100'
-              }`}
+            className={`fixed inset-0 z-50 transition-opacity duration-500 ${
+              fadeOut ? 'opacity-0' : 'opacity-100'
+            }`}
             onTransitionEnd={handleTransitionEnd}
           >
             <SplashScreen />

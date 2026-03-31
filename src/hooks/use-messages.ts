@@ -24,7 +24,10 @@ export function useMessages(
   })
 }
 
-export function useSendMessage(conversationId: UUID, branchId: UUID | null = null) {
+export function useSendMessage(
+  conversationId: UUID,
+  branchId: UUID | null = null
+) {
   const queryClient = useQueryClient()
   const { unlock } = useAchievements()
 
@@ -39,7 +42,7 @@ export function useSendMessage(conversationId: UUID, branchId: UUID | null = nul
       const res = await commands.sendMessage({
         conversation_id: conversationId,
         content,
-        branch_id: branchId,   // <-- added
+        branch_id: branchId, // <-- added
         context_items: contextItems ?? null
       })
       if (res.status === 'error') throw new Error(res.error)
@@ -80,7 +83,7 @@ export function useMessagesWithStream(
     useShallow((s) => ({
       streamingText: s.streamingText[conversationId ?? ''] ?? '',
       isRunning: s.agentRunning[conversationId ?? ''] ?? false,
-      hasError: s.streamingError[conversationId ?? ''] ?? false,
+      hasError: s.streamingError[conversationId ?? ''] ?? false
     }))
   )
 
@@ -105,7 +108,7 @@ export function useMessagesWithStream(
     output_tokens: null,
     stable_html: null,
     node_document: null,
-    status: 'pending'   // <-- changed from null
+    status: 'pending' // <-- changed from null
   }
 
   return [...messages, streamBubble]

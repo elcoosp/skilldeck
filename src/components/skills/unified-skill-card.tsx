@@ -40,7 +40,9 @@ export function UnifiedSkillCard({
   onUpdate,
   isSelected
 }: Props) {
-  const platformFeaturesEnabled = useUIPersistentStore((s) => s.platformFeaturesEnabled)
+  const platformFeaturesEnabled = useUIPersistentStore(
+    (s) => s.platformFeaturesEnabled
+  )
   const hasRegistryData = !!skill.registryData
 
   // Use local data if available, fallback to registry data
@@ -98,9 +100,9 @@ export function UnifiedSkillCard({
             className={cn(
               'shrink-0 text-[10px] px-1.5 py-0',
               skill.status === 'installed' &&
-              'bg-primary/10 text-primary border-primary/20',
+                'bg-primary/10 text-primary border-primary/20',
               skill.status === 'local_only' &&
-              'bg-secondary text-secondary-foreground'
+                'bg-secondary text-secondary-foreground'
             )}
           >
             {STATUS_LABEL[skill.status]}
@@ -149,17 +151,19 @@ export function UnifiedSkillCard({
 
       {/* Action buttons */}
       <div className="absolute bottom-3 right-3 flex gap-1">
-        {skill.status === 'available' && platformFeaturesEnabled && onInstall && (
-          <Button
-            size="xs"
-            onClick={(e) => {
-              e.stopPropagation()
-              onInstall(skill)
-            }}
-          >
-            Install
-          </Button>
-        )}
+        {skill.status === 'available' &&
+          platformFeaturesEnabled &&
+          onInstall && (
+            <Button
+              size="xs"
+              onClick={(e) => {
+                e.stopPropagation()
+                onInstall(skill)
+              }}
+            >
+              Install
+            </Button>
+          )}
 
         {skill.status === 'update_available' &&
           platformFeaturesEnabled &&

@@ -40,10 +40,12 @@ export function useAnalytics() {
             date: d.date,
             count: Number(d.count)
           })),
-          conversations_per_day: (data.conversations_per_day || []).map((d) => ({
-            date: d.date,
-            count: Number(d.count)
-          })),
+          conversations_per_day: (data.conversations_per_day || []).map(
+            (d) => ({
+              date: d.date,
+              count: Number(d.count)
+            })
+          ),
           skills_used: data.skills_used.map((s) => ({
             name: s.name,
             count: Number(s.count)

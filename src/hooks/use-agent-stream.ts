@@ -86,27 +86,31 @@ export function useAgentStream(conversationId: string | null) {
         // Ensure fresh data by forcing a refetch
         await queryClient.refetchQueries({
           queryKey: ['messages', conversationId],
-          exact: true,
+          exact: true
         })
         await queryClient.refetchQueries({
           queryKey: ['conversations'],
-          exact: false,
+          exact: false
         })
 
         const conversationQueries = queryClient.getQueriesData<
           Array<{ id: string; title: string | null }>
         >({ queryKey: ['conversations'] })
-        const conversations = conversationQueries.flatMap(([, data]) => data ?? [])
+        const conversations = conversationQueries.flatMap(
+          ([, data]) => data ?? []
+        )
         const currentConvo = conversations.find((c) => c.id === conversationId)
 
         if (!currentConvo || currentConvo.title) {
-          console.log('Skipping auto-name: conversation already has title or not found')
+          console.log(
+            'Skipping auto-name: conversation already has title or not found'
+          )
           return
         }
 
         const messages = queryClient.getQueryData<MessageData[]>([
           'messages',
-          conversationId,
+          conversationId
         ])
 
         if (!messages || messages.length === 0) {
@@ -127,11 +131,16 @@ export function useAgentStream(conversationId: string | null) {
         }
 
         const title = raw.charAt(0).toUpperCase() + raw.slice(1)
-        console.log(`Auto-naming conversation "${conversationId}" with title: "${title}"`)
+        console.log(
+          `Auto-naming conversation "${conversationId}" with title: "${title}"`
+        )
 
         const res = await commands.renameConversation(conversationId, title)
         if (res.status === 'ok') {
-          await queryClient.invalidateQueries({ queryKey: ['conversations'], exact: false })
+          await queryClient.invalidateQueries({
+            queryKey: ['conversations'],
+            exact: false
+          })
           console.log('Auto-name succeeded')
         } else {
           console.error('Auto-name command failed:', res.error)
@@ -178,10 +187,16 @@ export function useAgentStream(conversationId: string | null) {
           let sameDraft = prevDraft.length === nextDraft.length
           if (sameDraft) {
             for (let i = 0; i < nextDraft.length; i++) {
-              if (prevDraft[i].id !== nextDraft[i].id) { sameDraft = false; break }
+              if (prevDraft[i].id !== nextDraft[i].id) {
+                sameDraft = false
+                break
+              }
               const pn = prevDraft[i] as Record<string, unknown>
               const nn = nextDraft[i] as Record<string, unknown>
-              if (pn.html !== nn.html) { sameDraft = false; break }
+              if (pn.html !== nn.html) {
+                sameDraft = false
+                break
+              }
             }
           }
 
@@ -191,7 +206,7 @@ export function useAgentStream(conversationId: string | null) {
             stable_nodes: stableNodes,
             draft_nodes: doc.draft_nodes,
             toc_items: doc.toc_items,
-            artifact_specs: doc.artifact_specs,
+            artifact_specs: doc.artifact_specs
           }
           prevStableDocRef.current = stabilizedDoc
 
@@ -208,7 +223,7 @@ export function useAgentStream(conversationId: string | null) {
             addPending(event.tool_call_id, {
               id: event.tool_call_id,
               name: event.tool_name ?? 'unknown',
-              arguments: event.arguments ?? {},
+              arguments: event.arguments ?? {}
             })
           }
           break
@@ -220,7 +235,10 @@ export function useAgentStream(conversationId: string | null) {
           clearStreamingText(conversationId)
           setStreamingMessage(conversationId, null)
           clearAllApprovals()
-          queryClient.invalidateQueries({ queryKey: ['messages', conversationId], exact: false })
+          queryClient.invalidateQueries({
+            queryKey: ['messages', conversationId],
+            exact: false
+          })
           break
 
         case 'done':
@@ -229,7 +247,9 @@ export function useAgentStream(conversationId: string | null) {
           setAgentRunning(conversationId, false)
           clearStreamingText(conversationId)
           clearAllApprovals()
-          queryClient.invalidateQueries({ queryKey: ['queued-messages', conversationId] })
+          queryClient.invalidateQueries({
+            queryKey: ['queued-messages', conversationId]
+          })
           if (unlockStage === 0) setUnlockStage(1)
           break
 
@@ -241,9 +261,17 @@ export function useAgentStream(conversationId: string | null) {
           clearStreamingText(conversationId)
           setStreamingMessage(conversationId, null)
           clearAllApprovals()
-          toast.error(event.message || 'An error occurred while processing your message')
-          queryClient.invalidateQueries({ queryKey: ['messages', conversationId], exact: false })
-          queryClient.invalidateQueries({ queryKey: ['conversations'], exact: false })
+          toast.error(
+            event.message || 'An error occurred while processing your message'
+          )
+          queryClient.invalidateQueries({
+            queryKey: ['messages', conversationId],
+            exact: false
+          })
+          queryClient.invalidateQueries({
+            queryKey: ['conversations'],
+            exact: false
+          })
           break
 
         case 'persisted':
@@ -254,12 +282,12 @@ export function useAgentStream(conversationId: string | null) {
           Promise.all([
             queryClient.invalidateQueries({
               queryKey: ['messages', conversationId],
-              exact: false,
+              exact: false
             }),
             queryClient.invalidateQueries({
               queryKey: ['conversations'],
-              exact: false,
-            }),
+              exact: false
+            })
           ]).then(() => {
             // Give React Query a moment to refetch
             requestAnimationFrame(() => {
@@ -312,7 +340,7 @@ export function useAgentStream(conversationId: string | null) {
     clearAllApprovals,
     resetStreamingRefs,
     scheduleFlush,
-    flushNow,
+    flushNow
   ])
 
   // ── Do NOT return streamingMessage ──

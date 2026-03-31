@@ -7,7 +7,7 @@ vi.mock('@tauri-apps/api/core', () => ({
 
 // ── Mock @tauri-apps/api/event (listen / emit) ────────────────────────────────
 vi.mock('@tauri-apps/api/event', () => ({
-  listen: vi.fn().mockResolvedValue(() => { }),
+  listen: vi.fn().mockResolvedValue(() => {}),
   emit: vi.fn().mockResolvedValue(undefined)
 }))
 

@@ -27,7 +27,7 @@ export function useToolApprovals(conversationId: string | null) {
           addPending(event.payload.toolCallId, {
             id: event.payload.toolCallId,
             name: event.payload.toolName,
-            arguments: event.payload.arguments,
+            arguments: event.payload.arguments
           })
         }
       )

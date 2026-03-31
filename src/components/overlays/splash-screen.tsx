@@ -1,4 +1,4 @@
-import React from 'react';
+import React from 'react'
 
 export const SplashScreen: React.FC = () => {
   return (
@@ -24,5 +24,5 @@ export const SplashScreen: React.FC = () => {
         <div className="absolute bottom-0 left-0 h-1 bg-[#FF8A4C] animate-fill-progress" />
       </div>
     </div>
-  );
-};
+  )
+}

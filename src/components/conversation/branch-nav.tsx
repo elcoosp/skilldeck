@@ -31,7 +31,8 @@ export function BranchNav({ conversationId }: BranchNavProps) {
 
   // Arrow availability
   const prevEnabled = !isOnMain && currentBranchIndex > 1
-  const nextEnabled = (isOnMain && total > 0) || (!isOnMain && currentBranchIndex < total)
+  const nextEnabled =
+    (isOnMain && total > 0) || (!isOnMain && currentBranchIndex < total)
 
   const handlePrev = () => {
     if (isOnMain) return
@@ -54,7 +55,9 @@ export function BranchNav({ conversationId }: BranchNavProps) {
     }
   }
 
-  const currentBranch = !isOnMain ? branches.find((b) => b.id === activeBranchId) : null
+  const currentBranch = !isOnMain
+    ? branches.find((b) => b.id === activeBranchId)
+    : null
 
   return (
     <div className="flex items-center gap-2 px-4 py-1.5 text-xs text-muted-foreground bg-muted/40">
@@ -63,7 +66,9 @@ export function BranchNav({ conversationId }: BranchNavProps) {
         <>
           <Home className="size-3.5 shrink-0" />
           <span className="font-medium">Main</span>
-          {total > 0 && <span className="text-muted-foreground/60">({total})</span>}
+          {total > 0 && (
+            <span className="text-muted-foreground/60">({total})</span>
+          )}
         </>
       ) : (
         <>

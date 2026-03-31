@@ -1,7 +1,14 @@
 /**
  * Center panel — virtualized message thread and input bar.
  */
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react'
 import { useDebounce } from 'use-debounce'
 import { ArrowDown, CaseSensitive, Regex, Search, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
@@ -11,14 +18,14 @@ import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
-  TooltipTrigger,
+  TooltipTrigger
 } from '@/components/ui/tooltip'
 import { BranchNav } from '@/components/conversation/branch-nav'
 import { MessageInput } from '@/components/conversation/message-input'
 import {
   MessageThread,
   type MessageThreadHandle,
-  type ScrollToken,
+  type ScrollToken
 } from '@/components/conversation/message-thread'
 import ThreadNavigator from '@/components/conversation/thread-navigator'
 import { useAgentStream } from '@/hooks/use-agent-stream'
@@ -37,12 +44,18 @@ import type { MessageData, HeadingItem } from '@/lib/bindings' // <-- use bindin
 
 export function CenterPanel() {
   // ─── Store selectors (granular) ──────────────────────────────────────────
-  const activeConversationId = useConversationStore((s) => s.activeConversationId)
+  const activeConversationId = useConversationStore(
+    (s) => s.activeConversationId
+  )
   const activeBranchId = useConversationStore((s) => s.activeBranchId)
   const scrollToMessageId = useConversationStore((s) => s.scrollToMessageId)
-  const setScrollToMessageId = useConversationStore((s) => s.setScrollToMessageId)
+  const setScrollToMessageId = useConversationStore(
+    (s) => s.setScrollToMessageId
+  )
   const searchQuery = useUIEphemeralStore((s) => s.conversationSearchQuery)
-  const setSearchQuery = useUIEphemeralStore((s) => s.setConversationSearchQuery)
+  const setSearchQuery = useUIEphemeralStore(
+    (s) => s.setConversationSearchQuery
+  )
 
   const workspaceId = useActiveConversationWorkspaceId()
   const { data: workspaces = [] } = useWorkspaces()
@@ -58,9 +71,15 @@ export function CenterPanel() {
 
   const threadRef = useRef<MessageThreadHandle>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
-  const [activeUserMessageIndex, setActiveUserMessageIndex] = useState<number | undefined>(undefined)
-  const [activeHeadingIndex, setActiveHeadingIndex] = useState<number | null>(null)
-  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
+  const [activeUserMessageIndex, setActiveUserMessageIndex] = useState<
+    number | undefined
+  >(undefined)
+  const [activeHeadingIndex, setActiveHeadingIndex] = useState<number | null>(
+    null
+  )
+  const [highlightedMessageId, setHighlightedMessageId] = useState<
+    string | null
+  >(null)
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const queryClient = useQueryClient()
@@ -82,12 +101,13 @@ export function CenterPanel() {
     return last?.role === 'assistant' ? last.id : undefined
   })()
 
-  const { data: bootstrap, isLoading: bootstrapLoading } = useConversationBootstrap(activeConversationId)
+  const { data: bootstrap, isLoading: bootstrapLoading } =
+    useConversationBootstrap(activeConversationId)
   const queuedMessages = bootstrap?.queued ?? []
   const headings = bootstrap?.headings ?? [] // now of type HeadingItem[] from bindings
 
   const { data: branches = [] } = useBranches(activeConversationId)
-  const currentBranch = branches.find(b => b.id === activeBranchId)
+  const currentBranch = branches.find((b) => b.id === activeBranchId)
   const branchParentMessageId = currentBranch?.parent_message_id ?? null
 
   const activeKey = activeConversationId
@@ -112,7 +132,9 @@ export function CenterPanel() {
     return cached
   })()
 
-  const realMessageCount = messages.filter(m => m.id !== '__streaming__').length
+  const realMessageCount = messages.filter(
+    (m) => m.id !== '__streaming__'
+  ).length
   const messagesLengthRef = useRef(realMessageCount)
   messagesLengthRef.current = realMessageCount
 
@@ -121,7 +143,11 @@ export function CenterPanel() {
 
   const unseenCount = useMemo(() => {
     return messages.filter(
-      m => !m.seen && !locallySeenRef.current.has(m.id) && m.role === 'assistant' && m.id !== '__streaming__'
+      (m) =>
+        !m.seen &&
+        !locallySeenRef.current.has(m.id) &&
+        m.role === 'assistant' &&
+        m.id !== '__streaming__'
     ).length
   }, [messages])
 
@@ -146,9 +172,9 @@ export function CenterPanel() {
 
   useEffect(() => {
     if (!scrollToMessageId || !messages.length) return
-    const targetMessage = messages.find(m => m.id === scrollToMessageId)
+    const targetMessage = messages.find((m) => m.id === scrollToMessageId)
     if (targetMessage) {
-      const fullIndex = messages.findIndex(m => m.id === scrollToMessageId)
+      const fullIndex = messages.findIndex((m) => m.id === scrollToMessageId)
       threadRef.current?.scrollToMessage(fullIndex)
       setHighlightedMessageId(scrollToMessageId)
       setTimeout(() => setHighlightedMessageId(null), 800)
@@ -157,32 +183,42 @@ export function CenterPanel() {
   }, [scrollToMessageId, messages, setScrollToMessageId])
 
   // Mark messages as seen - with optimistic cache update
-  const markMessagesSeenByIds = useCallback((ids: string[]) => {
-    if (ids.length === 0) return
-    const convId = activeConversationIdRef.current
-    if (!convId) return
+  const markMessagesSeenByIds = useCallback(
+    (ids: string[]) => {
+      if (ids.length === 0) return
+      const convId = activeConversationIdRef.current
+      if (!convId) return
 
-    const idSet = new Set(ids)
+      const idSet = new Set(ids)
 
-    // Add to local tracking immediately
-    idSet.forEach(id => locallySeenRef.current.add(id))
+      // Add to local tracking immediately
+      idSet.forEach((id) => locallySeenRef.current.add(id))
 
-    // Optimistically update cache
-    queryClient.setQueriesData<MessageData[]>(
-      { queryKey: ['messages', convId] },
-      (old) => old?.map(m => idSet.has(m.id) ? { ...m, seen: true } : m)
-    )
+      // Optimistically update cache
+      queryClient.setQueriesData<MessageData[]>(
+        { queryKey: ['messages', convId] },
+        (old) => old?.map((m) => (idSet.has(m.id) ? { ...m, seen: true } : m))
+      )
 
-    // Persist to DB (fire and forget)
-    Promise.all(ids.map(id => commands.markMessageSeen(id)))
-      .catch(err => console.error('Failed to mark messages seen:', err))
-  }, [queryClient])
+      // Persist to DB (fire and forget)
+      Promise.all(ids.map((id) => commands.markMessageSeen(id))).catch((err) =>
+        console.error('Failed to mark messages seen:', err)
+      )
+    },
+    [queryClient]
+  )
 
   const markAllUnseenAsSeen = useCallback(() => {
     const currentMessages = messagesRef.current
     const unseenIds = currentMessages
-      .filter(m => !m.seen && !locallySeenRef.current.has(m.id) && m.role === 'assistant' && m.id !== '__streaming__')
-      .map(m => m.id)
+      .filter(
+        (m) =>
+          !m.seen &&
+          !locallySeenRef.current.has(m.id) &&
+          m.role === 'assistant' &&
+          m.id !== '__streaming__'
+      )
+      .map((m) => m.id)
     if (unseenIds.length === 0) return
     markMessagesSeenByIds(unseenIds)
   }, [markMessagesSeenByIds])
@@ -207,22 +243,29 @@ export function CenterPanel() {
       setUnseenJumpCount(0)
       markAllUnseenAsSeen()
     } else {
-      setUnseenJumpCount(Math.max(0, messagesLengthRef.current - lastSeenCountRef.current))
+      setUnseenJumpCount(
+        Math.max(0, messagesLengthRef.current - lastSeenCountRef.current)
+      )
     }
   }, [markAllUnseenAsSeen])
 
   useEffect(() => {
-    let unsub = () => { }
+    let unsub = () => {}
     const t = setTimeout(() => {
       const thread = threadRef.current
       if (!thread) return
       unsub = thread.onScroll(computeShowJump)
       if (initialScrollSettledRef.current) computeShowJump()
     }, 50)
-    return () => { clearTimeout(t); unsub() }
+    return () => {
+      clearTimeout(t)
+      unsub()
+    }
   }, [activeKey, computeShowJump])
 
-  useEffect(() => { computeShowJump() }, [realMessageCount, computeShowJump])
+  useEffect(() => {
+    computeShowJump()
+  }, [realMessageCount, computeShowJump])
 
   const jumpToLatest = useCallback(() => {
     if (messages.length === 0) return
@@ -235,7 +278,10 @@ export function CenterPanel() {
     if (lastMsg) {
       setHighlightedMessageId(lastMsg.id)
       if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current)
-      highlightTimeoutRef.current = setTimeout(() => setHighlightedMessageId(null), 800)
+      highlightTimeoutRef.current = setTimeout(
+        () => setHighlightedMessageId(null),
+        800
+      )
     }
   }, [messages, markAllUnseenAsSeen])
 
@@ -252,14 +298,20 @@ export function CenterPanel() {
     setActiveUserMessageIndex(index)
   }, [])
 
-  const handleNavigatorScrollTo = useCallback((index: number) => {
-    const targetMessage = messages[index]
-    if (!targetMessage) return
-    if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current)
-    setHighlightedMessageId(targetMessage.id)
-    highlightTimeoutRef.current = setTimeout(() => setHighlightedMessageId(null), 800)
-    threadRef.current?.scrollToMessage(index)
-  }, [messages])
+  const handleNavigatorScrollTo = useCallback(
+    (index: number) => {
+      const targetMessage = messages[index]
+      if (!targetMessage) return
+      if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current)
+      setHighlightedMessageId(targetMessage.id)
+      highlightTimeoutRef.current = setTimeout(
+        () => setHighlightedMessageId(null),
+        800
+      )
+      threadRef.current?.scrollToMessage(index)
+    },
+    [messages]
+  )
 
   useEffect(() => {
     const unsub = threadRef.current?.onScroll(() => {
@@ -269,10 +321,14 @@ export function CenterPanel() {
       const assistantMsgId = messages[activeUserMessageIndex + 1]?.id
       if (!assistantMsgId) return
 
-      const bubble = scrollContainer.querySelector(`[data-msg-id="${assistantMsgId}"]`)
+      const bubble = scrollContainer.querySelector(
+        `[data-msg-id="${assistantMsgId}"]`
+      )
       if (!bubble) return
 
-      const headingEls = Array.from(bubble.querySelectorAll('h1,h2,h3,h4,h5,h6'))
+      const headingEls = Array.from(
+        bubble.querySelectorAll('h1,h2,h3,h4,h5,h6')
+      )
       if (!headingEls.length) return
 
       const containerTop = scrollContainer.getBoundingClientRect().top
@@ -283,7 +339,7 @@ export function CenterPanel() {
           activeIdx = i
         }
       }
-      setActiveHeadingIndex(prev => (prev === activeIdx ? prev : activeIdx))
+      setActiveHeadingIndex((prev) => (prev === activeIdx ? prev : activeIdx))
     })
     return () => unsub?.()
   }, [activeUserMessageIndex, messages])
@@ -292,46 +348,56 @@ export function CenterPanel() {
     setActiveHeadingIndex(null)
   }, [activeUserMessageIndex])
 
-  const handleHeadingClick = useCallback((messageIndex: number, tocIndex: number) => {
-    const targetMsgId = messages[messageIndex]?.id
-    const scrollContainer = threadRef.current?.getScrollElement()
-    const userMsgIndex = messageIndex - 1
-    const userMsg = messages[userMsgIndex]
+  const handleHeadingClick = useCallback(
+    (messageIndex: number, tocIndex: number) => {
+      const targetMsgId = messages[messageIndex]?.id
+      const scrollContainer = threadRef.current?.getScrollElement()
+      const userMsgIndex = messageIndex - 1
+      const userMsg = messages[userMsgIndex]
 
-    const scrollToHeading = () => {
-      requestAnimationFrame(() => {
-        const container = threadRef.current?.getScrollElement()
-        const bubble = container?.querySelector(`[data-msg-id="${targetMsgId}"]`)
-        if (!bubble || !container) return
-        const headingEls = bubble.querySelectorAll('h1,h2,h3,h4,h5,h6')
-        const target = headingEls[tocIndex]
-        if (!target) return
+      const scrollToHeading = () => {
+        requestAnimationFrame(() => {
+          const container = threadRef.current?.getScrollElement()
+          const bubble = container?.querySelector(
+            `[data-msg-id="${targetMsgId}"]`
+          )
+          if (!bubble || !container) return
+          const headingEls = bubble.querySelectorAll('h1,h2,h3,h4,h5,h6')
+          const target = headingEls[tocIndex]
+          if (!target) return
 
-        const targetRect = (target as HTMLElement).getBoundingClientRect()
-        if (targetRect.top === 0 && targetRect.bottom === 0) return
+          const targetRect = (target as HTMLElement).getBoundingClientRect()
+          if (targetRect.top === 0 && targetRect.bottom === 0) return
 
-        const elTop = targetRect.top
-        const containerTop = container.getBoundingClientRect().top
-        container.scrollTop += elTop - containerTop - 16
+          const elTop = targetRect.top
+          const containerTop = container.getBoundingClientRect().top
+          container.scrollTop += elTop - containerTop - 16
 
-        if (userMsg) handleVisibleUserIndexChange(userMsgIndex)
-      })
-    }
+          if (userMsg) handleVisibleUserIndexChange(userMsgIndex)
+        })
+      }
 
-    const bubbleAlreadyRendered = !!scrollContainer?.querySelector(`[data-msg-id="${targetMsgId}"]`)
+      const bubbleAlreadyRendered = !!scrollContainer?.querySelector(
+        `[data-msg-id="${targetMsgId}"]`
+      )
 
-    if (bubbleAlreadyRendered) {
-      scrollToHeading()
-    } else {
-      threadRef.current?.scrollToMessage(messageIndex, scrollToHeading)
-    }
-  }, [messages, handleVisibleUserIndexChange])
+      if (bubbleAlreadyRendered) {
+        scrollToHeading()
+      } else {
+        threadRef.current?.scrollToMessage(messageIndex, scrollToHeading)
+      }
+    },
+    [messages, handleVisibleUserIndexChange]
+  )
 
   // Mark single message as seen with optimistic update
-  const handleMessageVisible = useCallback((messageId: string) => {
-    if (locallySeenRef.current.has(messageId)) return
-    markMessagesSeenByIds([messageId])
-  }, [markMessagesSeenByIds])
+  const handleMessageVisible = useCallback(
+    (messageId: string) => {
+      if (locallySeenRef.current.has(messageId)) return
+      markMessagesSeenByIds([messageId])
+    },
+    [markMessagesSeenByIds]
+  )
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -366,7 +432,9 @@ export function CenterPanel() {
 
   return (
     <div className="relative flex flex-col h-full">
-      {activeConversationId && <BranchNav conversationId={activeConversationId} />}
+      {activeConversationId && (
+        <BranchNav conversationId={activeConversationId} />
+      )}
 
       <div className="px-4 py-2 border-b border-border flex items-center gap-2">
         <div className="relative flex-1">
@@ -386,10 +454,10 @@ export function CenterPanel() {
                     type="button"
                     onClick={() => setSearchCaseSensitive(!searchCaseSensitive)}
                     className={cn(
-                      "p-0.5 rounded transition-colors",
+                      'p-0.5 rounded transition-colors',
                       searchCaseSensitive
-                        ? "text-primary bg-primary/10"
-                        : "text-muted-foreground hover:text-foreground"
+                        ? 'text-primary bg-primary/10'
+                        : 'text-muted-foreground hover:text-foreground'
                     )}
                   >
                     <CaseSensitive className="size-3.5" />
@@ -406,10 +474,10 @@ export function CenterPanel() {
                     type="button"
                     onClick={() => setSearchRegex(!searchRegex)}
                     className={cn(
-                      "p-0.5 rounded transition-colors",
+                      'p-0.5 rounded transition-colors',
                       searchRegex
-                        ? "text-primary bg-primary/10"
-                        : "text-muted-foreground hover:text-foreground"
+                        ? 'text-primary bg-primary/10'
+                        : 'text-muted-foreground hover:text-foreground'
                     )}
                   >
                     <Regex className="size-3.5" />
@@ -419,12 +487,18 @@ export function CenterPanel() {
               </Tooltip>
             </TooltipProvider>
             <KbdGroup className="hidden sm:flex ml-1">
-              <Kbd>{modifierKey}</Kbd><Kbd>F</Kbd>
+              <Kbd>{modifierKey}</Kbd>
+              <Kbd>F</Kbd>
             </KbdGroup>
           </div>
         </div>
         {searchQuery && (
-          <Button variant="ghost" size="icon-sm" onClick={() => setSearchQuery('')} aria-label="Clear search">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => setSearchQuery('')}
+            aria-label="Clear search"
+          >
             <X className="size-3.5" />
           </Button>
         )}
@@ -491,7 +565,10 @@ export function CenterPanel() {
       </div>
 
       <div className="shrink-0 border-t border-border">
-        <MessageInput conversationId={activeConversationId} workspaceRoot={workspaceRoot} />
+        <MessageInput
+          conversationId={activeConversationId}
+          workspaceRoot={workspaceRoot}
+        />
       </div>
     </div>
   )

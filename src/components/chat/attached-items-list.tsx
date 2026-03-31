@@ -8,7 +8,9 @@ import { useConversationStore } from '@/store/conversation'
 const EMPTY_ARRAY: AttachedItem[] = []
 
 export const AttachedItemsList: React.FC = () => {
-  const activeConversationId = useConversationStore((s) => s.activeConversationId)
+  const activeConversationId = useConversationStore(
+    (s) => s.activeConversationId
+  )
   const items = useChatContextStore(
     (s) => s.items[activeConversationId ?? ''] ?? EMPTY_ARRAY
   )
