@@ -148,7 +148,6 @@ pub async fn get_branch_messages(
                 input_tokens: m.input_tokens,
                 output_tokens: m.output_tokens,
                 seen: m.seen,
-                stable_html: m.stable_html,
                 node_document,
                 status: m.status,
             }

@@ -60,7 +60,7 @@ import { WorkflowEditor } from '@/components/workflow/workflow-editor'
 import { WorkflowGraph } from '@/components/workflow/workflow-graph'
 import { useAnalytics } from '@/hooks/use-analytics'
 import { useConversations } from '@/hooks/use-conversations'
-import { useProfiles } from '@/hooks/use-profiles'
+import { useProfiles, useProviderReady } from '@/hooks/use-profiles'
 import { useSessionStats } from '@/hooks/use-session-stats'
 import {
   useDeleteWorkflowDefinition,
@@ -88,13 +88,13 @@ const TABS: {
   label: string
   Icon: React.FC<{ className?: string }>
 }[] = [
-  { id: 'session', label: 'Session', Icon: Cpu },
-  { id: 'skills', label: 'Skills', Icon: Layers },
-  { id: 'mcp', label: 'MCP', Icon: Zap },
-  { id: 'workflow', label: 'Workflow', Icon: GitBranch },
-  { id: 'analytics', label: 'Analytics', Icon: BarChart2 },
-  { id: 'artifacts', label: 'Artifacts', Icon: FileCode }
-]
+    { id: 'session', label: 'Session', Icon: Cpu },
+    { id: 'skills', label: 'Skills', Icon: Layers },
+    { id: 'mcp', label: 'MCP', Icon: Zap },
+    { id: 'workflow', label: 'Workflow', Icon: GitBranch },
+    { id: 'analytics', label: 'Analytics', Icon: BarChart2 },
+    { id: 'artifacts', label: 'Artifacts', Icon: FileCode }
+  ]
 
 export function RightPanel() {
   const [activeTab, setActiveTab] = useState<Tab>('session')
@@ -173,7 +173,7 @@ export function RightPanel() {
   )
 }
 
-// ── Session tab ───────────────────────────────────────────────────────────────
+// ── Session tab (updated with provider readiness) ───────────────────────────────────────────────
 
 function useAvailableModels(provider: string) {
   return useQuery({
@@ -221,7 +221,7 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
 
   if (!conversationId) {
     return (
-      <div className="p-4  text-sm text-muted-foreground">
+      <div className="p-4 text-sm text-muted-foreground">
         No active conversation.
       </div>
     )
@@ -268,12 +268,11 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
     )
   }
 
+  // Provider readiness
+  const { data: readiness, isLoading: readinessLoading } = useProviderReady(profile.id)
   const hasKeyForProvider = (p: string) =>
     keyStatuses.find((k) => k.provider === p)?.has_key ?? false
-  const effectiveProvider = hasKeyForProvider(profile.model_provider)
-    ? profile.model_provider
-    : 'ollama'
-  const isUsingFallback = effectiveProvider !== profile.model_provider
+  const hasKey = hasKeyForProvider(profile.model_provider)
 
   return (
     <div className="p-4 space-y-4">
@@ -294,20 +293,22 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
         <div className="space-y-1">
           <span className="text-xs text-muted-foreground">Provider</span>
           <div className="text-xs font-medium px-2 py-1 rounded bg-muted/50 flex items-center gap-1.5">
-            {effectiveProvider}
-            {isUsingFallback && (
-              <span
-                className="text-[10px] text-amber-500 font-normal"
-                title={`No API key found for ${profile.model_provider}. Using local Ollama instead.`}
-              >
-                (fallback)
+            {profile.model_provider}
+            {!hasKey && !readinessLoading && readiness?.status.status !== 'ready' && (
+              <span className="text-[10px] text-amber-500 font-normal">
+                (not configured)
               </span>
             )}
           </div>
+          {!readinessLoading && readiness?.status.status === 'not_ready' && (
+            <div className="mt-1 text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/20 p-2 rounded">
+              {readiness.status.reason} {readiness.status.fix_action}
+            </div>
+          )}
         </div>
 
         <ModelSelector
-          provider={effectiveProvider}
+          provider={profile.model_provider}
           currentModelId={profile.model_id}
         />
       </section>
@@ -371,7 +372,7 @@ function ModelSelector({
   )
 }
 
-// ── Workflow tab ──────────────────────────────────────────────────────────────
+// ── Workflow tab (unchanged) ──────────────────────────────────────────────────────────────
 
 function WorkflowTab() {
   const { progress } = useWorkflowEvents()
@@ -588,7 +589,7 @@ function WorkflowTab() {
   )
 }
 
-// ── Analytics tab ─────────────────────────────────────────────────────────────
+// ── Analytics tab (unchanged) ─────────────────────────────────────────────────────────────
 function AnalyticsTab() {
   const { data: analytics, isLoading, error } = useAnalytics()
   const [fullYearDialogOpen, setFullYearDialogOpen] = useState(false)

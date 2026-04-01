@@ -40,7 +40,6 @@ pub struct MessageData {
     pub input_tokens: Option<i32>,
     pub output_tokens: Option<i32>,
     pub seen: bool,
-    pub stable_html: Option<String>,
     pub node_document: Option<NodeDocument>,
     pub status: String,
 }
@@ -171,7 +170,6 @@ pub async fn list_messages(
                 input_tokens: m.input_tokens,
                 output_tokens: m.output_tokens,
                 seen: m.seen,
-                stable_html: m.stable_html.clone(),
                 node_document,
                 status: m.status,
             }

@@ -17,7 +17,6 @@ const makeMessage = (overrides: Partial<MessageData> = {}): MessageData => ({
   input_tokens: null,
   output_tokens: null,
   seen: false,
-  stable_html: null,
   node_document: null,
   status: 'complete',
   ...overrides

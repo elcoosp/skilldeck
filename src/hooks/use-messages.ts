@@ -106,7 +106,6 @@ export function useMessagesWithStream(
     seen: false,
     input_tokens: null,
     output_tokens: null,
-    stable_html: null,
     node_document: null,
     status: 'pending' // <-- changed from null
   }

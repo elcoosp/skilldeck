@@ -1723,33 +1723,33 @@ export type AgentEvent =
   | { type: 'token'; conversation_id: string; delta: string }
   | { type: 'tool_call'; conversation_id: string; tool_call: AgentToolCall }
   | {
-      type: 'tool_result'
-      conversation_id: string
-      tool_call_id: string
-      result: string
-    }
+    type: 'tool_result'
+    conversation_id: string
+    tool_call_id: string
+    result: string
+  }
   | {
-      type: 'done'
-      conversation_id: string
-      input_tokens: number
-      output_tokens: number
-    }
+    type: 'done'
+    conversation_id: string
+    input_tokens: number
+    output_tokens: number
+  }
   | { type: 'error'; conversation_id: string; message: string }
   | { type: 'persisted'; conversation_id: string }
   | {
-      type: 'tool_approval_required'
-      conversation_id: string
-      tool_call_id: string
-      tool_name: string
-      arguments: JsonValue
-    }
+    type: 'tool_approval_required'
+    conversation_id: string
+    tool_call_id: string
+    tool_name: string
+    arguments: JsonValue
+  }
   | {
-      type: 'stream_update'
-      conversation_id: string
-      document: NodeDocument
-      new_toc_items: TocItem[]
-      new_artifact_specs: ArtifactSpec[]
-    }
+    type: 'stream_update'
+    conversation_id: string
+    document: NodeDocument
+    new_toc_items: TocItem[]
+    new_artifact_specs: ArtifactSpec[]
+  }
 export type AgentToolCall = { id: string; name: string; arguments: JsonValue }
 export type AnalyticsData = {
   total_conversations: string
@@ -1816,12 +1816,12 @@ export type ContextItem =
   | { type: 'skill'; name: string }
   | { type: 'file'; path: string; name: string; size: string | null }
   | {
-      type: 'folder'
-      path: string
-      name: string
-      scope: FolderScope
-      file_count: string
-    }
+    type: 'folder'
+    path: string
+    name: string
+    scope: FolderScope
+    file_count: string
+  }
 export type ConversationBootstrapData = {
   messages: MessageData[]
   branches: BranchInfo[]
@@ -1964,21 +1964,21 @@ export type McpToolResponse = {
 export type MdNode =
   | { type: 'paragraph'; id: string; html: string }
   | {
-      type: 'heading'
-      id: string
-      level: number
-      text: string
-      slug: string
-      toc_index: number
-    }
+    type: 'heading'
+    id: string
+    level: number
+    text: string
+    slug: string
+    toc_index: number
+  }
   | {
-      type: 'code_block'
-      id: string
-      language: string
-      raw_code: string
-      highlighted_html: string
-      artifact_id: string
-    }
+    type: 'code_block'
+    id: string
+    language: string
+    raw_code: string
+    highlighted_html: string
+    artifact_id: string
+  }
   | { type: 'list'; id: string; ordered: boolean; html: string }
   | { type: 'blockquote'; id: string; html: string }
   | { type: 'horizontal_rule'; id: string }
@@ -1997,7 +1997,6 @@ export type MessageData = {
   input_tokens: number | null
   output_tokens: number | null
   seen: boolean
-  stable_html: string | null
   node_document: NodeDocument | null
   status: string
 }
@@ -2193,11 +2192,11 @@ export type WorkflowEvent =
   | { type: 'started'; id: string }
   | { type: 'step_started'; workflow_id: string; step_id: string }
   | {
-      type: 'step_completed'
-      workflow_id: string
-      step_id: string
-      result: string | null
-    }
+    type: 'step_completed'
+    workflow_id: string
+    step_id: string
+    result: string | null
+  }
   | { type: 'step_failed'; workflow_id: string; step_id: string; error: string }
   | { type: 'completed'; id: string }
   | { type: 'failed'; id: string; message: string }
@@ -2225,8 +2224,8 @@ type __EventObj__<T> = {
     cb: TAURI_API_EVENT.EventCallback<T>
   ) => ReturnType<typeof TAURI_API_EVENT.once<T>>
   emit: null extends T
-    ? (payload?: T) => ReturnType<typeof TAURI_API_EVENT.emit>
-    : (payload: T) => ReturnType<typeof TAURI_API_EVENT.emit>
+  ? (payload?: T) => ReturnType<typeof TAURI_API_EVENT.emit>
+  : (payload: T) => ReturnType<typeof TAURI_API_EVENT.emit>
 }
 
 export type Result<T, E> =
@@ -2239,13 +2238,13 @@ function __makeEvents__<T extends Record<string, any>>(
   return new Proxy(
     {} as unknown as {
       [K in keyof T]: __EventObj__<T[K]> &
-        ((handle: __WebviewWindow__) => __EventObj__<T[K]>)
+      ((handle: __WebviewWindow__) => __EventObj__<T[K]>)
     },
     {
       get: (_, event) => {
         const name = mappings[event as keyof T]
 
-        return new Proxy((() => {}) as any, {
+        return new Proxy((() => { }) as any, {
           apply: (_, __, [window]: [__WebviewWindow__]) => ({
             listen: (arg: any) => window.listen(name, arg),
             once: (arg: any) => window.once(name, arg),

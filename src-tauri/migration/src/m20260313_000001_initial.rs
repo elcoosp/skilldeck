@@ -1468,28 +1468,12 @@ impl MigrationTrait for Migration {
             .await?;
 
         // =====================================================================
-        // SEED DATA USING ACTIVE MODEL
+        // SEED DATA USING ACTIVE MODEL (default profile REMOVED)
         // =====================================================================
 
         let db = manager.get_connection();
 
-        // 1. Default profile
-        let default_profile = profiles::ActiveModel {
-            id: Set(Uuid::nil()),
-            name: Set("Default".to_owned()),
-            description: Set(None),
-            model_provider: Set("claude".to_owned()),
-            model_id: Set("claude-sonnet-4-5".to_owned()),
-            model_params: Set(None),
-            system_prompt: Set(None),
-            is_default: Set(true),
-            created_at: Set(Utc::now().into()),
-            updated_at: Set(Utc::now().into()),
-            deleted_at: Set(None),
-        };
-        default_profile.insert(db).await?;
-
-        // 2. Skill source directories
+        // 1. Skill source directories
         let source_dirs = [
             ("workspace", ".skilldeck/skills", 1_i32),
             ("personal", "~/.skilldeck/skills", 2),
@@ -1510,7 +1494,7 @@ impl MigrationTrait for Migration {
             source_dir.insert(db).await?;
         }
 
-        // 3. Model pricing
+        // 2. Model pricing
         let pricing = [
             (
                 "claude",
@@ -1602,7 +1586,7 @@ impl MigrationTrait for Migration {
 }
 
 // =============================================================================
-// Table / Column DeriveIden enums
+// Table / Column DeriveIden enums (unchanged)
 // =============================================================================
 
 #[derive(DeriveIden)]
