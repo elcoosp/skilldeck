@@ -1,18 +1,18 @@
 // src/components/skills/unified-skill-card.tsx
-import { AlertTriangle, ArrowUp } from 'lucide-react' // <-- import ArrowUp
+import { AlertTriangle, ArrowUp } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import type { LintWarning } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
+import { useUIPersistentStore } from '@/store/ui-state'
 import type { UnifiedSkill } from '@/types/skills'
 import { TrustBadge } from './trust-badge'
-import { useUIPersistentStore } from '@/store/ui-state'
 
 interface Props {
   skill: UnifiedSkill
   onClick: (skill: UnifiedSkill) => void
   onInstall?: (skill: UnifiedSkill) => void
-  onUpdate?: (skill: UnifiedSkill) => void // <-- new prop
+  onUpdate?: (skill: UnifiedSkill) => void
   isSelected?: boolean
 }
 
@@ -40,7 +40,9 @@ export function UnifiedSkillCard({
   onUpdate,
   isSelected
 }: Props) {
-  const platformFeaturesEnabled = useUIPersistentStore((s) => s.platformFeaturesEnabled)
+  const platformFeaturesEnabled = useUIPersistentStore(
+    (s) => s.platformFeaturesEnabled
+  )
   const hasRegistryData = !!skill.registryData
 
   // Use local data if available, fallback to registry data
@@ -58,17 +60,20 @@ export function UnifiedSkillCard({
     (w) => w.severity === 'warning'
   ).length
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      onClick(skill)
+    }
+  }
+
   return (
+    // biome-ignore lint/a11y/useSemanticElements: ok
     <div
       role="button"
       tabIndex={0}
       onClick={() => onClick(skill)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          onClick(skill)
-        }
-      }}
+      onKeyDown={handleKeyDown}
       className={cn(
         'group relative w-full text-left p-4 border rounded-lg cursor-pointer',
         'transition-all duration-150 hover:border-primary/50 hover:shadow-sm',
@@ -98,9 +103,9 @@ export function UnifiedSkillCard({
             className={cn(
               'shrink-0 text-[10px] px-1.5 py-0',
               skill.status === 'installed' &&
-              'bg-primary/10 text-primary border-primary/20',
+                'bg-primary/10 text-primary border-primary/20',
               skill.status === 'local_only' &&
-              'bg-secondary text-secondary-foreground'
+                'bg-secondary text-secondary-foreground'
             )}
           >
             {STATUS_LABEL[skill.status]}
@@ -149,17 +154,19 @@ export function UnifiedSkillCard({
 
       {/* Action buttons */}
       <div className="absolute bottom-3 right-3 flex gap-1">
-        {skill.status === 'available' && platformFeaturesEnabled && onInstall && (
-          <Button
-            size="xs"
-            onClick={(e) => {
-              e.stopPropagation()
-              onInstall(skill)
-            }}
-          >
-            Install
-          </Button>
-        )}
+        {skill.status === 'available' &&
+          platformFeaturesEnabled &&
+          onInstall && (
+            <Button
+              size="xs"
+              onClick={(e) => {
+                e.stopPropagation()
+                onInstall(skill)
+              }}
+            >
+              Install
+            </Button>
+          )}
 
         {skill.status === 'update_available' &&
           platformFeaturesEnabled &&

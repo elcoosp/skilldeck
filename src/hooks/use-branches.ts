@@ -1,20 +1,19 @@
 // src/hooks/use-branches.ts
-import { useQuery } from '@tanstack/react-query'
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { commands, CreateBranchRequest } from '@/lib/bindings';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { type CreateBranchRequest, commands } from '@/lib/bindings'
 import type { UUID } from '@/lib/types'
 export function useCreateBranch() {
-  const queryClient = useQueryClient();
+  const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (req: CreateBranchRequest) => {
-      const res = await commands.createBranch(req);
-      if (res.status === 'error') throw new Error(res.error);
-      return res.data;
+      const res = await commands.createBranch(req)
+      if (res.status === 'error') throw new Error(res.error)
+      return res.data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['branches'] });
-    },
-  });
+      queryClient.invalidateQueries({ queryKey: ['branches'] })
+    }
+  })
 }
 export interface BranchInfo {
   id: UUID

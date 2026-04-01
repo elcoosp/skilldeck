@@ -9,11 +9,11 @@ import {
   AlertTriangle,
   Download,
   ExternalLink,
+  Loader2,
   RefreshCw,
-  Trash2,
-  X,
   Share2,
-  Loader2
+  Trash2,
+  X
 } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { toast } from 'sonner'
@@ -27,6 +27,8 @@ import {
 import { useDisableRule } from '@/hooks/use-skills'
 import type { LintWarning } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
+import { DOCS_LINT_URL } from '@/lib/config'
+import { useUIPersistentStore } from '@/store/ui-state'
 import type { UnifiedSkill } from '@/types/skills'
 import { BlockedSkillAlert } from './blocked-skill-alert'
 import { ConflictResolver } from './conflict-resolver'
@@ -34,8 +36,6 @@ import { InstallDialog } from './install-dialog'
 import { LintWarningPanel } from './lint-warning-panel'
 import { ShareSkillModal } from './share-skill-modal'
 import { TrustBadge } from './trust-badge'
-import { DOCS_LINT_URL } from '@/lib/config'
-import { useUIPersistentStore } from '@/store/ui-state'
 
 interface Props {
   skill: UnifiedSkill
@@ -44,7 +44,9 @@ interface Props {
 
 export function SkillDetailPanel({ skill, onClose }: Props) {
   const qc = useQueryClient()
-  const platformFeaturesEnabled = useUIPersistentStore((s) => s.platformFeaturesEnabled)
+  const platformFeaturesEnabled = useUIPersistentStore(
+    (s) => s.platformFeaturesEnabled
+  )
   const lintSectionRef = useRef<HTMLDivElement>(null)
 
   const [actionError, setActionError] = useState<string | null>(null)
@@ -229,7 +231,10 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
     if (!skill.localData?.path) return
     setLoadingContent(true)
     try {
-      const res = await commands.getInstalledSkillContent(skill.name, 'personal')
+      const res = await commands.getInstalledSkillContent(
+        skill.name,
+        'personal'
+      )
       if (res.status === 'ok' && res.data) {
         setSkillContent(res.data)
         setShowShareModal(true)

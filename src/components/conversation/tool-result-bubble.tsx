@@ -1,17 +1,18 @@
+// src/components/conversation/tool-result-bubble.tsx
+
+import { FileIcon, FolderIcon } from '@react-symbols/icons/utils'
+import { sentenceCase } from 'change-case'
 import {
   Check,
   ChevronDown,
   ChevronRight,
   Copy,
   Terminal,
-  Wrench,
+  Wrench
 } from 'lucide-react'
-
-import { sentenceCase } from 'change-case'
-import { useState, useMemo } from 'react'
-import { FileIcon, FolderIcon } from '@react-symbols/icons/utils'
-import { cn } from '@/lib/utils'
+import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 
 interface ToolResultBubbleProps {
   content: string
@@ -22,40 +23,68 @@ interface ToolResultBubbleProps {
 // Detect content type for rendering
 function detectContentType(text: string): 'filetree' | 'json' | 'text' {
   const lines = text.trim().split('\n')
-  const treeLines = lines.filter(l => l.startsWith('[FILE]') || l.startsWith('[DIR]'))
-  if (treeLines.length > 0 && treeLines.length >= lines.length * 0.5) return 'filetree'
+  const treeLines = lines.filter(
+    (l) => l.startsWith('[FILE]') || l.startsWith('[DIR]')
+  )
+  if (treeLines.length > 0 && treeLines.length >= lines.length * 0.5)
+    return 'filetree'
 
   const trimmed = text.trim()
-  if ((trimmed.startsWith('{') || trimmed.startsWith('['))) {
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
     try {
       JSON.parse(trimmed)
       return 'json'
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
   return 'text'
 }
 
 // File tree renderer
 function FileTreeRenderer({ text }: { text: string }) {
-  const entries = text.trim().split('\n').map(line => {
-    const isDir = line.startsWith('[DIR]')
-    const name = line.replace(/^\[(FILE|DIR)\]\s*/, '')
-    const depth = (name.match(/\//g) || []).length
-    return {
-      isDir,
-      name: name.split('/').pop() ?? name,
-      depth,
-    }
-  })
+  const entries = text
+    .trim()
+    .split('\n')
+    .map((line) => {
+      const isDir = line.startsWith('[DIR]')
+      const name = line.replace(/^\[(FILE|DIR)\]\s*/, '')
+      const depth = (name.match(/\//g) || []).length
+      return {
+        isDir,
+        name: name.split('/').pop() ?? name,
+        depth
+      }
+    })
 
   return (
     <div className="font-mono text-xs space-y-0.5">
-      {entries.map((e, i) => (
-        <div key={i} className="flex items-center gap-1.5" style={{ paddingLeft: e.depth * 12 }}>
-          {e.isDir
-            ? <FolderIcon folderName={e.name} width={12} height={12} className="shrink-0" />
-            : <FileIcon fileName={e.name} width={12} height={12} className="shrink-0" />}
-          <span className={e.isDir ? 'text-foreground font-medium' : 'text-muted-foreground'}>
+      {entries.map((e) => (
+        <div
+          key={`${e.name}-${e.depth}`}
+          className="flex items-center gap-1.5"
+          style={{ paddingLeft: e.depth * 12 }}
+        >
+          {e.isDir ? (
+            <FolderIcon
+              folderName={e.name}
+              width={12}
+              height={12}
+              className="shrink-0"
+            />
+          ) : (
+            <FileIcon
+              fileName={e.name}
+              width={12}
+              height={12}
+              className="shrink-0"
+            />
+          )}
+          <span
+            className={
+              e.isDir ? 'text-foreground font-medium' : 'text-muted-foreground'
+            }
+          >
             {e.name}
           </span>
         </div>
@@ -71,7 +100,11 @@ function JSONRenderer({ text }: { text: string }) {
   try {
     parsed = JSON.parse(text)
   } catch {
-    return <pre className="text-xs text-muted-foreground whitespace-pre-wrap break-all">{text}</pre>
+    return (
+      <pre className="text-xs text-muted-foreground whitespace-pre-wrap break-all">
+        {text}
+      </pre>
+    )
   }
 
   const lines = JSON.stringify(parsed, null, 2).split('\n')
@@ -85,7 +118,8 @@ function JSONRenderer({ text }: { text: string }) {
       </pre>
       {lines.length > 20 && (
         <button
-          onClick={() => setExpanded(v => !v)}
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
           className="text-xs text-primary mt-1 hover:underline"
         >
           {expanded ? 'Show less' : `Show ${lines.length - 20} more lines`}
@@ -104,7 +138,11 @@ function TextRenderer({ text }: { text: string }) {
   )
 }
 
-export function ToolResultBubble({ content, toolName, isError = false }: ToolResultBubbleProps) {
+export function ToolResultBubble({
+  content,
+  toolName,
+  isError = false
+}: ToolResultBubbleProps) {
   const [collapsed, setCollapsed] = useState(true)
   const [copied, setCopied] = useState(false)
 
@@ -117,19 +155,41 @@ export function ToolResultBubble({ content, toolName, isError = false }: ToolRes
     toast.success('Result copied to clipboard')
   }
 
-  const toggleCollapsed = () => setCollapsed(prev => !prev)
+  const toggleCollapsed = () => setCollapsed((prev) => !prev)
 
   // Icon based on tool name
   const getToolIcon = () => {
-    if (!toolName) return <Wrench className="size-3 shrink-0 text-muted-foreground" />
+    if (!toolName)
+      return <Wrench className="size-3 shrink-0 text-muted-foreground" />
     const name = toolName.toLowerCase()
-    if (name.includes('run') || name.includes('shell') || name.includes('terminal')) return <Terminal className="size-3 shrink-0 text-muted-foreground" />
-    if (name.includes('file')) return <FileIcon fileName={toolName} width={12} height={12} className="shrink-0 text-muted-foreground" />
-    if (name.includes('dir')) return <FolderIcon folderName={toolName} width={12} height={12} className="shrink-0 text-muted-foreground" />
+    if (
+      name.includes('run') ||
+      name.includes('shell') ||
+      name.includes('terminal')
+    )
+      return <Terminal className="size-3 shrink-0 text-muted-foreground" />
+    if (name.includes('file'))
+      return (
+        <FileIcon
+          fileName={toolName}
+          width={12}
+          height={12}
+          className="shrink-0 text-muted-foreground"
+        />
+      )
+    if (name.includes('dir'))
+      return (
+        <FolderIcon
+          folderName={toolName}
+          width={12}
+          height={12}
+          className="shrink-0 text-muted-foreground"
+        />
+      )
     return <Wrench className="size-3 shrink-0 text-muted-foreground" />
   }
 
-  const displayName = toolName ? sentenceCase(toolName) : 'Tool result';
+  const displayName = toolName ? sentenceCase(toolName) : 'Tool result'
 
   return (
     <div
@@ -163,7 +223,11 @@ export function ToolResultBubble({ content, toolName, isError = false }: ToolRes
             className="p-1 text-muted-foreground hover:text-foreground transition-colors rounded"
             aria-label="Copy result"
           >
-            {copied ? <Check className="size-3.5 text-green-500" /> : <Copy className="size-3.5" />}
+            {copied ? (
+              <Check className="size-3.5 text-green-500" />
+            ) : (
+              <Copy className="size-3.5" />
+            )}
           </button>
           {/* Collapse/expand toggle */}
           <button

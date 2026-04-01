@@ -7,6 +7,7 @@ import { AlertCircle, RefreshCw, Search } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { useDebounce } from 'use-debounce'
+import { Button } from '@/components/ui/button'
 import {
   Select,
   SelectContent,
@@ -15,16 +16,15 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Button } from '@/components/ui/button'
 import { useUnifiedSkills } from '@/hooks/use-unified-skills'
 import { commands } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
+import { useUIOverlaysStore } from '@/store/ui-overlays'
+import { useUIPersistentStore } from '@/store/ui-state'
 import type { UnifiedSkill } from '@/types/skills'
 import { PlatformStatusBanner } from './platform-status-banner'
 import { SkillDetailPanel } from './skill-detail-panel'
 import { UnifiedSkillCard } from './unified-skill-card'
-import { useUIPersistentStore } from '@/store/ui-state'
-import { useUIOverlaysStore } from '@/store/ui-overlays'
 
 // Responsive column count based on container width
 const BREAKPOINTS = {
@@ -92,7 +92,10 @@ export function UnifiedSkillList() {
   const filteredSkillsByTab = useMemo(() => {
     if (activeTab === 'local') {
       return unifiedSkills.filter(
-        (s) => s.status === 'local_only' || s.status === 'installed' || s.status === 'update_available'
+        (s) =>
+          s.status === 'local_only' ||
+          s.status === 'installed' ||
+          s.status === 'update_available'
       )
     } else {
       return unifiedSkills.filter((s) => s.status === 'available')
@@ -102,12 +105,14 @@ export function UnifiedSkillList() {
   // Apply category filter (only meaningful for registry skills)
   const filteredSkills = useMemo(() => {
     if (category === 'all') return filteredSkillsByTab
-    return filteredSkillsByTab.filter((s) => s.registryData?.category === category)
+    return filteredSkillsByTab.filter(
+      (s) => s.registryData?.category === category
+    )
   }, [filteredSkillsByTab, category])
 
   // Update lastSynced whenever registry data appears or after a successful sync
   useEffect(() => {
-    if (!registryError && unifiedSkills.some(s => s.registryData)) {
+    if (!registryError && unifiedSkills.some((s) => s.registryData)) {
       setLastSynced(new Date())
       setRegistrationNeeded(false)
     }
@@ -118,7 +123,7 @@ export function UnifiedSkillList() {
     .filter((s) => (s.localData?.lint_warnings?.length ?? 0) > 0).length
 
   const updateAvailableCount = useMemo(() => {
-    return unifiedSkills.filter(s => s.status === 'update_available').length
+    return unifiedSkills.filter((s) => s.status === 'update_available').length
   }, [unifiedSkills])
 
   const categories = useMemo(() => {
@@ -192,7 +197,9 @@ export function UnifiedSkillList() {
 
   const batchUpdateMutation = useMutation({
     mutationFn: async () => {
-      const updateSkills = unifiedSkills.filter(s => s.status === 'update_available')
+      const updateSkills = unifiedSkills.filter(
+        (s) => s.status === 'update_available'
+      )
       if (updateSkills.length === 0) return { successCount: 0, failCount: 0 }
 
       setIsBatchUpdating(true)
@@ -236,7 +243,9 @@ export function UnifiedSkillList() {
     }
   })
 
-  const platformFeaturesEnabled = useUIPersistentStore((s) => s.platformFeaturesEnabled)
+  const platformFeaturesEnabled = useUIPersistentStore(
+    (s) => s.platformFeaturesEnabled
+  )
   const setSettingsTab = useUIOverlaysStore((s) => s.setSettingsTab)
   const setSettingsOpen = useUIOverlaysStore((s) => s.setSettingsOpen)
 
@@ -357,7 +366,9 @@ export function UnifiedSkillList() {
               type="button"
               onClick={() => handleSync()}
               disabled={!platformFeaturesEnabled || syncMutation.isPending}
-              title={!platformFeaturesEnabled ? 'Enable platform to sync' : 'Refresh'}
+              title={
+                !platformFeaturesEnabled ? 'Enable platform to sync' : 'Refresh'
+              }
               className={cn(
                 'p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40',
                 syncMutation.isPending && 'animate-spin'
@@ -369,13 +380,20 @@ export function UnifiedSkillList() {
         </div>
 
         {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="flex flex-col flex-1 min-h-0">
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => setActiveTab(v as any)}
+          className="flex flex-col flex-1 min-h-0"
+        >
           <TabsList className="mx-3 w-fit">
             <TabsTrigger value="local">Local</TabsTrigger>
             <TabsTrigger value="registry">Registry</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="local" className="flex-1 min-h-0 overflow-hidden flex flex-col">
+          <TabsContent
+            value="local"
+            className="flex-1 min-h-0 overflow-hidden flex flex-col"
+          >
             <div className="px-3 pb-3 flex gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
@@ -410,7 +428,10 @@ export function UnifiedSkillList() {
             {renderContent()}
           </TabsContent>
 
-          <TabsContent value="registry" className="flex-1 min-h-0 overflow-hidden flex flex-col">
+          <TabsContent
+            value="registry"
+            className="flex-1 min-h-0 overflow-hidden flex flex-col"
+          >
             <div className="mb-2">
               {!platformFeaturesEnabled && (
                 <PlatformStatusBanner
@@ -566,9 +587,7 @@ export function UnifiedSkillList() {
                       skill={skill}
                       isSelected={resolvedSelected?.id === skill.id}
                       onClick={(s) =>
-                        setSelected((prev) =>
-                          prev?.id === s.id ? null : s
-                        )
+                        setSelected((prev) => (prev?.id === s.id ? null : s))
                       }
                       onInstall={
                         platformFeaturesEnabled ? handleInstall : undefined
@@ -725,7 +744,9 @@ function EmptyState({
         Sync with the platform to discover new skills.
       </p>
       <Button size="sm" onClick={onSync} disabled={isSyncing}>
-        <RefreshCw className={`size-3.5 mr-1.5 ${isSyncing ? 'animate-spin' : ''}`} />
+        <RefreshCw
+          className={`size-3.5 mr-1.5 ${isSyncing ? 'animate-spin' : ''}`}
+        />
         Sync now
       </Button>
     </div>

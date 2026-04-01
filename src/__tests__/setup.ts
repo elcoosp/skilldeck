@@ -1,12 +1,4 @@
-/**
- * Global test setup.
- *
- * Mocks the Tauri IPC bridge so component and hook tests run in Node/happy-dom
- * without a running Tauri process.
- */
-
 import { afterAll, beforeAll, vi } from 'vitest'
-import '@testing-library/jest-dom'
 
 // ── Mock @tauri-apps/api/core (invoke) ────────────────────────────────────────
 vi.mock('@tauri-apps/api/core', () => ({

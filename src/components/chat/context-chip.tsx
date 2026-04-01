@@ -71,8 +71,8 @@ export const ContextChip: React.FC<ContextChipProps> = ({
       className={cn(
         'flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium group relative transition-all cursor-default',
         hasWarnings &&
-        !hasError &&
-        'bg-yellow-100 border-yellow-500 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+          !hasError &&
+          'bg-yellow-100 border-yellow-500 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
       )}
     >
       {isLoading ? (

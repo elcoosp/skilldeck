@@ -12,7 +12,6 @@ mod artifacts;
 mod commands;
 mod config;
 mod events;
-mod headings; // <-- already added in chunk 2
 mod nudge_poller;
 mod platform_client;
 mod skills;
@@ -24,29 +23,10 @@ mod sync;
 pub use subagent_server::SubagentServer;
 
 use commands::{
-    analytics::*,
-    artifacts::*,
-    attachments::*,
-    bookmarks::*,
-    branches::*,
-    conversations::*,
-    drafts::*,
-    export::*,
-    files::*,
-    folders::*,
-    gist::*,
-    headings::*, // <-- new: headings
-    home_dir::*,
-    mcp::*,
-    messages::*,
-    ollama::*,
-    platform::*,
-    profiles::*,
-    queue::*,
-    settings::*,
-    skills::*,
-    workflows::*,
-    workspaces::*,
+    analytics::*, artifacts::*, attachments::*, bookmarks::*, branches::*, conversations::*,
+    drafts::*, export::*, files::*, folders::*, gist::*, headings::*, home_dir::*, mcp::*,
+    messages::*, ollama::*, platform::*, profiles::*, queue::*, settings::*, skills::*, theme::*,
+    workflows::*, workspaces::*,
 };
 use events::{AgentEvent, McpEvent, SkillEvent, WorkflowEvent};
 use state::AppState;
@@ -59,21 +39,26 @@ use tauri_specta::{Builder, collect_commands, collect_events};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    #[cfg(not(debug_assertions))]
-    {
-        use tracing_subscriber::{EnvFilter, fmt};
-        fmt()
-            .with_env_filter(
-                EnvFilter::from_default_env()
-                    .add_directive("skilldeck=info".parse().unwrap())
-                    .add_directive("skilldeck_core=info".parse().unwrap())
-                    .add_directive("skilldeck_lint=info".parse().unwrap()),
-            )
-            .init();
-    }
+    // #[cfg(not(debug_assertions))]
+    // {
+    use tracing_subscriber::{EnvFilter, fmt};
+    fmt()
+        .with_env_filter(
+            EnvFilter::from_default_env()
+                .add_directive("skilldeck=info".parse().unwrap())
+                .add_directive("skilldeck_core=info".parse().unwrap())
+                .add_directive("skilldeck_lint=info".parse().unwrap()),
+        )
+        .init();
+    // }
     // Build Tauri Specta builder with all commands and events
     let builder = Builder::<tauri::Wry>::new()
         .commands(collect_commands![
+            get_artifact_content,
+            list_built_in_themes,
+            get_syntax_css,
+            set_built_in_theme,
+            set_theme_from_file,
             get_conversation_bootstrap,
             pin_artifact,
             unpin_artifact,
@@ -230,11 +215,11 @@ pub fn run() {
     let mut tauri_builder = tauri::Builder::default();
 
     // Conditionally add the devtools plugin only for debug builds
-    #[cfg(debug_assertions)]
-    {
-        let devtools = tauri_plugin_devtools::init();
-        tauri_builder = tauri_builder.plugin(devtools);
-    }
+    // #[cfg(debug_assertions)]
+    // {
+    //     let devtools = tauri_plugin_devtools::init();
+    //     tauri_builder = tauri_builder.plugin(devtools);
+    // }
 
     tauri_builder
         .plugin(tauri_plugin_fs::init())

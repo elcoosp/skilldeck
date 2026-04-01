@@ -1,12 +1,13 @@
-import { memo, useMemo, useState, useEffect, useRef, useCallback } from 'react'
+// src/components/conversation/thread-navigator.tsx
+// (full file with fixed dependencies)
+
 import { AnimatePresence, motion } from 'framer-motion'
-import slugify from "slugify"
-import { createPortal } from 'react-dom'
 import { Bookmark, ChevronRight } from 'lucide-react'
-import type { MessageData } from '@/lib/bindings'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { useBookmarks } from '@/hooks/use-bookmarks'
+import type { HeadingItem, MessageData } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
-import { useBookmarksStore } from '@/store/bookmarks'
-import type { HeadingItem } from '@/lib/bindings' // adjust import as needed
 import { useConversationStore } from '@/store/conversation'
 
 const VISIBLE_ITEMS = 10
@@ -23,7 +24,13 @@ interface ThreadNavigatorProps {
 
 type NavItem =
   | { kind: 'message'; msgIdx: number; listIdx: number }
-  | { kind: 'heading'; assistantMsgIdx: number; tocIndex: number; parentListIdx: number }
+  | {
+      kind: 'heading'
+      assistantMsgIdx: number
+      tocIndex: number
+      parentListIdx: number
+      headingId: string
+    }
 
 const ThreadNavigator = memo(function ThreadNavigator({
   messages,
@@ -31,10 +38,13 @@ const ThreadNavigator = memo(function ThreadNavigator({
   activeHeadingIndex = null,
   onScrollTo,
   onHeadingClick,
-  headings,
+  headings
 }: ThreadNavigatorProps) {
   const userMessages = useMemo(
-    () => messages.map((msg, idx) => ({ msg, idx })).filter(({ msg }) => msg.role === 'user'),
+    () =>
+      messages
+        .map((msg, idx) => ({ msg, idx }))
+        .filter(({ msg }) => msg.role === 'user'),
     [messages]
   )
 
@@ -48,32 +58,39 @@ const ThreadNavigator = memo(function ThreadNavigator({
     return map
   }, [headings])
 
-  const bookmarksMap = useBookmarksStore((s) => s.bookmarks)
-  const activeConversationId = useConversationStore((s) => s.activeConversationId)
-
-  const convBookmarks = useMemo(
-    () => (activeConversationId ? (bookmarksMap[activeConversationId] ?? []) : []),
-    [bookmarksMap, activeConversationId]
+  const activeConversationId = useConversationStore(
+    (s) => s.activeConversationId
   )
+  const { data: convBookmarks = [] } = useBookmarks(activeConversationId)
 
   const hasMessages = userMessages.length > 0
 
-  const [optimisticActiveIndex, setOptimisticActiveIndex] = useState<number | null>(null)
+  const [optimisticActiveIndex, setOptimisticActiveIndex] = useState<
+    number | null
+  >(null)
   const effectiveActiveIndex = optimisticActiveIndex ?? activeIndex
 
-  // ─── Sliding window ───────────────────────────────────────────────────────
+  // Sliding window
   const [windowStart, setWindowStart] = useState(0)
 
   useEffect(() => {
     if (!hasMessages) return
     const total = userMessages.length
-    if (total <= VISIBLE_ITEMS) { setWindowStart(0); return }
-    const currentIdx = userMessages.findIndex(u => u.idx === effectiveActiveIndex)
+    if (total <= VISIBLE_ITEMS) {
+      setWindowStart(0)
+      return
+    }
+    const currentIdx = userMessages.findIndex(
+      (u) => u.idx === effectiveActiveIndex
+    )
     if (currentIdx === -1) return
-    const isOutside = currentIdx < windowStart || currentIdx >= windowStart + VISIBLE_ITEMS
+    const isOutside =
+      currentIdx < windowStart || currentIdx >= windowStart + VISIBLE_ITEMS
     if (isOutside) {
       const half = Math.floor(VISIBLE_ITEMS / 2)
-      setWindowStart(Math.max(0, Math.min(total - VISIBLE_ITEMS, currentIdx - half)))
+      setWindowStart(
+        Math.max(0, Math.min(total - VISIBLE_ITEMS, currentIdx - half))
+      )
     }
   }, [effectiveActiveIndex, userMessages, windowStart, hasMessages])
 
@@ -81,14 +98,16 @@ const ThreadNavigator = memo(function ThreadNavigator({
     if (!hasMessages) return
     const total = userMessages.length
     if (total <= VISIBLE_ITEMS) setWindowStart(0)
-    else setWindowStart(prev => Math.min(prev, total - VISIBLE_ITEMS))
+    else setWindowStart((prev) => Math.min(prev, total - VISIBLE_ITEMS))
   }, [userMessages.length, hasMessages])
 
   const translateY = -windowStart * DOT_HEIGHT
-  const visibleCount = hasMessages ? Math.min(userMessages.length, VISIBLE_ITEMS) : 0
+  const visibleCount = hasMessages
+    ? Math.min(userMessages.length, VISIBLE_ITEMS)
+    : 0
   const containerHeight = visibleCount * DOT_HEIGHT
 
-  // ─── TOC expand state ─────────────────────────────────────────────────────
+  // TOC expand state
   const [expandedTocIdx, setExpandedTocIdx] = useState<number | null>(null)
   const userCollapsedMessages = useRef<Set<number>>(new Set())
 
@@ -98,30 +117,50 @@ const ThreadNavigator = memo(function ThreadNavigator({
     setExpandedTocIdx(expand ? messageIdx : null)
   }, [])
 
-  // ─── Flat nav list ────────────────────────────────────────────────────────
-  const navItems = useMemo<NavItem[]>(() => {
+  // Build flat nav list and a map from heading identifier to its nav index
+  const { navItems, headingNavIndexMap } = useMemo(() => {
     const items: NavItem[] = []
+    const map = new Map<string, number>() // key: `${assistantMsgId}-${heading.id}`
+
     userMessages.forEach(({ idx }, listIdx) => {
+      // Add message item
       items.push({ kind: 'message', msgIdx: idx, listIdx })
+
+      // If expanded, add headings
       if (expandedTocIdx === idx) {
         const assistantMsgId = messages[idx + 1]?.id
-        const headings = assistantMsgId ? (headingsByMessage.get(assistantMsgId) ?? []) : []
-        headings.forEach(h => {
-          items.push({ kind: 'heading', assistantMsgIdx: idx + 1, tocIndex: h.toc_index, parentListIdx: listIdx })
+        const headings = assistantMsgId
+          ? (headingsByMessage.get(assistantMsgId) ?? [])
+          : []
+        headings.forEach((h) => {
+          const navIdx = items.length
+          const uniqueKey = `${assistantMsgId}-${h.id}`
+          map.set(uniqueKey, navIdx)
+          items.push({
+            kind: 'heading',
+            assistantMsgIdx: idx + 1,
+            tocIndex: h.toc_index,
+            parentListIdx: listIdx,
+            headingId: h.id
+          })
         })
       }
     })
-    return items
+
+    return { navItems: items, headingNavIndexMap: map }
   }, [userMessages, expandedTocIdx, messages, headingsByMessage])
 
-  // ─── Keyboard state ───────────────────────────────────────────────────────
+  // Keyboard state
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false)
   const [focusedNavIdx, setFocusedNavIdx] = useState(0)
   const itemRefs = useRef<Map<number, HTMLElement>>(new Map())
 
-  // ─── Hover card ───────────────────────────────────────────────────────────
+  // Hover card
   const [isHovering, setIsHovering] = useState(false)
-  const [cardPosition, setCardPosition] = useState<{ top: number; left: number } | null>(null)
+  const [cardPosition, setCardPosition] = useState<{
+    top: number
+    left: number
+  } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const cardRef = useRef<HTMLDivElement>(null)
   const enterTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -133,7 +172,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
 
   const isCardOpen = isHovering || isKeyboardOpen
 
-  // ─── STABLE REFS — the keyboard handler reads these, never stale ──────────
+  // Stable refs for keyboard handler
   const stateRef = useRef({
     isCardOpen,
     isKeyboardOpen,
@@ -143,9 +182,8 @@ const ThreadNavigator = memo(function ThreadNavigator({
     userMessages,
     expandedTocIdx,
     headingsByMessage,
-    messages,
+    messages
   })
-  // Update every render — O(1), no re-subscription
   stateRef.current = {
     isCardOpen,
     isKeyboardOpen,
@@ -155,18 +193,18 @@ const ThreadNavigator = memo(function ThreadNavigator({
     userMessages,
     expandedTocIdx,
     headingsByMessage,
-    messages,
+    messages
   }
 
-  // ─── Card scroll helper ───────────────────────────────────────────────────
   const scrollCardToElement = useCallback((el: HTMLElement) => {
     const container = scrollContainerRef.current
     if (!container) return
     const cr = container.getBoundingClientRect()
     const er = el.getBoundingClientRect()
     container.scrollTo({
-      top: container.scrollTop + er.top - cr.top - cr.height / 2 + er.height / 2,
-      behavior: 'auto',
+      top:
+        container.scrollTop + er.top - cr.top - cr.height / 2 + er.height / 2,
+      behavior: 'auto'
     })
   }, [])
 
@@ -183,7 +221,10 @@ const ThreadNavigator = memo(function ThreadNavigator({
       const el = scrollContainerRef.current.querySelector(
         `[data-heading-idx="${activeHeadingIndex}"]`
       ) as HTMLElement | null
-      if (el) { scrollCardToElement(el); return }
+      if (el) {
+        scrollCardToElement(el)
+        return
+      }
     }
     if (effectiveActiveIndex !== -1) {
       const el = scrollContainerRef.current.querySelector(
@@ -191,9 +232,15 @@ const ThreadNavigator = memo(function ThreadNavigator({
       ) as HTMLElement | null
       if (el) scrollCardToElement(el)
     }
-  }, [isCardOpen, cardPosition, effectiveActiveIndex, activeHeadingIndex, scrollCardToElement])
+  }, [
+    isCardOpen,
+    cardPosition,
+    effectiveActiveIndex,
+    activeHeadingIndex,
+    scrollCardToElement
+  ])
 
-  // ─── Card position ────────────────────────────────────────────────────────
+  // Card position
   useEffect(() => {
     if (!isCardOpen || !containerRef.current || !hasMessages) {
       setCardPosition(null)
@@ -204,7 +251,8 @@ const ThreadNavigator = memo(function ThreadNavigator({
       const rect = containerRef.current.getBoundingClientRect()
       const cardWidth = 264
       let left = rect.left
-      if (left > window.innerWidth - cardWidth - 16) left = window.innerWidth - cardWidth - 16
+      if (left > window.innerWidth - cardWidth - 16)
+        left = window.innerWidth - cardWidth - 16
       setCardPosition({ top: rect.top + rect.height / 2, left })
     }
     update()
@@ -216,11 +264,14 @@ const ThreadNavigator = memo(function ThreadNavigator({
     }
   }, [isCardOpen, hasMessages])
 
-  // ─── Timers cleanup ───────────────────────────────────────────────────────
-  useEffect(() => () => {
-    if (enterTimer.current) clearTimeout(enterTimer.current)
-    if (leaveTimer.current) clearTimeout(leaveTimer.current)
-  }, [])
+  // Timers cleanup
+  useEffect(
+    () => () => {
+      if (enterTimer.current) clearTimeout(enterTimer.current)
+      if (leaveTimer.current) clearTimeout(leaveTimer.current)
+    },
+    []
+  )
 
   const isDismissingRef = useRef(false)
 
@@ -236,80 +287,105 @@ const ThreadNavigator = memo(function ThreadNavigator({
     leaveTimer.current = setTimeout(() => setIsHovering(false), 300)
   }
 
-  const handleClick = useCallback((idx: number) => {
-    setOptimisticActiveIndex(idx)
-    onScrollTo(idx)
-  }, [onScrollTo])
+  const handleClick = useCallback(
+    (idx: number) => {
+      setOptimisticActiveIndex(idx)
+      onScrollTo(idx)
+    },
+    [onScrollTo]
+  )
 
   useEffect(() => {
     if (optimisticActiveIndex !== null && activeIndex === optimisticActiveIndex)
       setOptimisticActiveIndex(null)
   }, [activeIndex, optimisticActiveIndex])
 
-  const handleHeadingClickInner = useCallback((assistantMsgIdx: number, tocIndex: number) => {
-    const messageIdx = assistantMsgIdx - 1
-    if (stateRef.current.expandedTocIdx !== messageIdx) {
-      userCollapsedMessages.current.delete(messageIdx)
-      setExpandedTocIdx(messageIdx)
-    }
-    onHeadingClick(assistantMsgIdx, tocIndex)
-    if (enterTimer.current) clearTimeout(enterTimer.current)
-    if (leaveTimer.current) clearTimeout(leaveTimer.current)
-    isDismissingRef.current = true
-    setTimeout(() => { isDismissingRef.current = false }, 400)
-    setIsHovering(false)
-    setIsKeyboardOpen(false)
-  }, [onHeadingClick])
+  const handleHeadingClickInner = useCallback(
+    (assistantMsgIdx: number, tocIndex: number) => {
+      const messageIdx = assistantMsgIdx - 1
+      if (stateRef.current.expandedTocIdx !== messageIdx) {
+        userCollapsedMessages.current.delete(messageIdx)
+        setExpandedTocIdx(messageIdx)
+      }
+      onHeadingClick(assistantMsgIdx, tocIndex)
+      if (enterTimer.current) clearTimeout(enterTimer.current)
+      if (leaveTimer.current) clearTimeout(leaveTimer.current)
+      isDismissingRef.current = true
+      setTimeout(() => {
+        isDismissingRef.current = false
+      }, 400)
+      setIsHovering(false)
+      setIsKeyboardOpen(false)
+    },
+    [onHeadingClick]
+  )
 
   const closeCard = useCallback(() => {
     if (enterTimer.current) clearTimeout(enterTimer.current)
     if (leaveTimer.current) clearTimeout(leaveTimer.current)
     isDismissingRef.current = true
-    setTimeout(() => { isDismissingRef.current = false }, 400)
+    setTimeout(() => {
+      isDismissingRef.current = false
+    }, 400)
     setIsHovering(false)
     setIsKeyboardOpen(false)
   }, [])
 
-  // ─── Focus a nav item imperatively ───────────────────────────────────────
-  const focusNavItem = useCallback((idx: number) => {
-    setFocusedNavIdx(idx)
-    requestAnimationFrame(() => {
-      const el = itemRefs.current.get(idx)
-      if (el) {
-        el.focus({ preventScroll: true })
-        scrollCardToElement(el)
-      }
-    })
-  }, [scrollCardToElement])
+  const focusNavItem = useCallback(
+    (idx: number) => {
+      setFocusedNavIdx(idx)
+      requestAnimationFrame(() => {
+        const el = itemRefs.current.get(idx)
+        if (el) {
+          el.focus({ preventScroll: true })
+          scrollCardToElement(el)
+        }
+      })
+    },
+    [scrollCardToElement]
+  )
 
-  // ─── Keyboard handler — registered ONCE, reads state via stateRef ─────────
+  // Keyboard handler (unchanged logic, now with correct dependencies)
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
+      )
+        return
 
       const s = stateRef.current
 
-      // ── Card closed ─────────────────────────────────────────────────────
       if (!s.isCardOpen) {
         if (e.key === 'j' || e.key === 'J') {
           e.preventDefault()
-          const cur = s.userMessages.findIndex(u => u.idx === s.effectiveActiveIndex)
+          const cur = s.userMessages.findIndex(
+            (u) => u.idx === s.effectiveActiveIndex
+          )
           const next = Math.min(s.userMessages.length - 1, cur + 1)
           if (next !== cur) handleClick(s.userMessages[next].idx)
           return
         }
         if (e.key === 'k' || e.key === 'K') {
           e.preventDefault()
-          const cur = s.userMessages.findIndex(u => u.idx === s.effectiveActiveIndex)
+          const cur = s.userMessages.findIndex(
+            (u) => u.idx === s.effectiveActiveIndex
+          )
           const prev = Math.max(0, cur - 1)
           if (prev !== cur) handleClick(s.userMessages[prev].idx)
           return
         }
         if (e.key === '?') {
           e.preventDefault()
-          const activeListIdx = Math.max(0, s.userMessages.findIndex(u => u.idx === s.effectiveActiveIndex))
-          const navIdx = s.navItems.findIndex(n => n.kind === 'message' && n.listIdx === activeListIdx)
+          const activeListIdx = Math.max(
+            0,
+            s.userMessages.findIndex((u) => u.idx === s.effectiveActiveIndex)
+          )
+          const navIdx = s.navItems.findIndex(
+            (n) => n.kind === 'message' && n.listIdx === activeListIdx
+          )
           const startIdx = Math.max(0, navIdx)
           if (enterTimer.current) clearTimeout(enterTimer.current)
           if (leaveTimer.current) clearTimeout(leaveTimer.current)
@@ -319,7 +395,6 @@ const ThreadNavigator = memo(function ThreadNavigator({
         return
       }
 
-      // ── Card open ───────────────────────────────────────────────────────
       const cur = s.focusedNavIdx
       const total = s.navItems.length
 
@@ -328,33 +403,24 @@ const ThreadNavigator = memo(function ThreadNavigator({
           e.preventDefault()
           closeCard()
           break
-
         case 'ArrowDown':
-        case 'j': {
+        case 'j':
           e.preventDefault()
-          const next = Math.min(total - 1, cur + 1)
-          focusNavItem(next)
+          focusNavItem(Math.min(total - 1, cur + 1))
           break
-        }
-
         case 'ArrowUp':
-        case 'k': {
+        case 'k':
           e.preventDefault()
-          const prev = Math.max(0, cur - 1)
-          focusNavItem(prev)
+          focusNavItem(Math.max(0, cur - 1))
           break
-        }
-
         case 'Home':
           e.preventDefault()
           focusNavItem(0)
           break
-
         case 'End':
           e.preventDefault()
           focusNavItem(total - 1)
           break
-
         case 'Enter':
         case ' ': {
           e.preventDefault()
@@ -362,7 +428,9 @@ const ThreadNavigator = memo(function ThreadNavigator({
           if (!item) break
           if (item.kind === 'message') {
             const assistantMsgId = s.messages[item.msgIdx + 1]?.id
-            const headings = assistantMsgId ? (s.headingsByMessage.get(assistantMsgId) ?? []) : []
+            const headings = assistantMsgId
+              ? (s.headingsByMessage.get(assistantMsgId) ?? [])
+              : []
             if (headings.length > 0 && s.expandedTocIdx !== item.msgIdx) {
               handleToggleToc(item.msgIdx, true)
             } else {
@@ -374,31 +442,35 @@ const ThreadNavigator = memo(function ThreadNavigator({
           }
           break
         }
-
         case 'ArrowRight':
         case 'l': {
           e.preventDefault()
-          const item = s.navItems[cur]
-          if (item?.kind !== 'message') break
-          const assistantMsgId = s.messages[item.msgIdx + 1]?.id
-          const headings = assistantMsgId ? (s.headingsByMessage.get(assistantMsgId) ?? []) : []
-          if (headings.length > 0 && s.expandedTocIdx !== item.msgIdx)
-            handleToggleToc(item.msgIdx, true)
+          const itemRight = s.navItems[cur]
+          if (itemRight?.kind !== 'message') break
+          const assistantMsgIdRight = s.messages[itemRight.msgIdx + 1]?.id
+          const headingsRight = assistantMsgIdRight
+            ? (s.headingsByMessage.get(assistantMsgIdRight) ?? [])
+            : []
+          if (headingsRight.length > 0 && s.expandedTocIdx !== itemRight.msgIdx)
+            handleToggleToc(itemRight.msgIdx, true)
           break
         }
-
         case 'ArrowLeft':
         case 'h': {
           e.preventDefault()
-          const item = s.navItems[cur]
-          if (item?.kind === 'heading') {
-            handleToggleToc(item.assistantMsgIdx - 1, false)
+          const itemLeft = s.navItems[cur]
+          if (itemLeft?.kind === 'heading') {
+            handleToggleToc(itemLeft.assistantMsgIdx - 1, false)
             const parentNavIdx = s.navItems.findIndex(
-              n => n.kind === 'message' && n.listIdx === item.parentListIdx
+              (n) =>
+                n.kind === 'message' && n.listIdx === itemLeft.parentListIdx
             )
             if (parentNavIdx !== -1) focusNavItem(parentNavIdx)
-          } else if (item?.kind === 'message' && s.expandedTocIdx === item.msgIdx) {
-            handleToggleToc(item.msgIdx, false)
+          } else if (
+            itemLeft?.kind === 'message' &&
+            s.expandedTocIdx === itemLeft.msgIdx
+          ) {
+            handleToggleToc(itemLeft.msgIdx, false)
           }
           break
         }
@@ -406,50 +478,66 @@ const ThreadNavigator = memo(function ThreadNavigator({
     }
 
     window.addEventListener('keydown', onKeyDown)
-    return () => {
-      window.removeEventListener('keydown', onKeyDown)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [
+    handleClick,
+    closeCard,
+    handleToggleToc,
+    focusNavItem,
+    handleHeadingClickInner
+  ])
 
   // Focus current item when card opens via keyboard
   useEffect(() => {
     if (!isKeyboardOpen) return
     requestAnimationFrame(() => {
       const el = itemRefs.current.get(focusedNavIdx)
-      if (el) { el.focus({ preventScroll: true }); scrollCardToElement(el) }
+      if (el) {
+        el.focus({ preventScroll: true })
+        scrollCardToElement(el)
+      }
     })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isKeyboardOpen])
+  }, [isKeyboardOpen, focusedNavIdx, scrollCardToElement])
 
   // Close when clicking outside
   useEffect(() => {
     if (!isKeyboardOpen) return
     const onMouseDown = (e: MouseEvent) => {
       if (
-        cardRef.current && !cardRef.current.contains(e.target as Node) &&
-        containerRef.current && !containerRef.current.contains(e.target as Node)
-      ) setIsKeyboardOpen(false)
+        cardRef.current &&
+        !cardRef.current.contains(e.target as Node) &&
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      )
+        setIsKeyboardOpen(false)
     }
     document.addEventListener('mousedown', onMouseDown)
     return () => document.removeEventListener('mousedown', onMouseDown)
   }, [isKeyboardOpen])
 
-  // ─── Bookmark helpers ─────────────────────────────────────────────────────
-  const assistantHasAnyBookmark = useCallback((assistantMsgId: string | undefined) => {
-    if (!assistantMsgId) return false
-    return convBookmarks.some(b => b.message_id === assistantMsgId)
-  }, [convBookmarks])
+  // Bookmark helpers
+  const assistantHasAnyBookmark = useCallback(
+    (assistantMsgId: string | undefined) => {
+      if (!assistantMsgId) return false
+      return convBookmarks.some((b) => b.message_id === assistantMsgId)
+    },
+    [convBookmarks]
+  )
 
-  const isHeadingBookmarked = useCallback((assistantMsgId: string | undefined, anchor: string) => {
-    if (!assistantMsgId) return false
-    return convBookmarks.some(b => b.message_id === assistantMsgId && b.heading_anchor === anchor)
-  }, [convBookmarks])
+  const isHeadingBookmarked = useCallback(
+    (assistantMsgId: string | undefined, anchor: string) => {
+      if (!assistantMsgId) return false
+      return convBookmarks.some(
+        (b) => b.message_id === assistantMsgId && b.heading_anchor === anchor
+      )
+    },
+    [convBookmarks]
+  )
 
-  // ─── Render ───────────────────────────────────────────────────────────────
+  // Render
   return (
     <>
-      {/* ── Dot rail ── */}
+      {/* Dot rail */}
       <nav
         ref={containerRef}
         aria-label="Thread navigation"
@@ -461,7 +549,10 @@ const ThreadNavigator = memo(function ThreadNavigator({
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
-        <div className="relative overflow-hidden pr-1 pt-1 pb-1" style={{ height: `${containerHeight}px` }}>
+        <div
+          className="relative overflow-hidden pr-1 pt-1 pb-1"
+          style={{ height: `${containerHeight}px` }}
+        >
           <motion.div
             className="flex flex-col gap-1"
             animate={{ y: translateY }}
@@ -469,7 +560,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
           >
             {userMessages.map(({ msg, idx }) => {
               const isActive = idx === effectiveActiveIndex
-              const overallIndex = userMessages.findIndex(u => u.idx === idx)
+              const overallIndex = userMessages.findIndex((u) => u.idx === idx)
               const assistantMsgId = messages[idx + 1]?.id
               const hasBookmarks = assistantHasAnyBookmark(assistantMsgId)
 
@@ -492,9 +583,13 @@ const ThreadNavigator = memo(function ThreadNavigator({
                       animate={{
                         scaleX: isActive ? 1 : 0.6,
                         scaleY: isActive ? 1.5 : 1,
-                        opacity: isActive ? 1 : 0.5,
+                        opacity: isActive ? 1 : 0.5
                       }}
-                      transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                      transition={{
+                        type: 'spring',
+                        stiffness: 500,
+                        damping: 35
+                      }}
                     />
                   </div>
                   <AnimatePresence mode="wait">
@@ -517,184 +612,279 @@ const ThreadNavigator = memo(function ThreadNavigator({
         </div>
       </nav>
 
-      {/* ── Hover / keyboard card ── */}
-      {hasMessages && createPortal(
-        <AnimatePresence>
-          {isCardOpen && cardPosition && (
-            <motion.div
-              ref={cardRef}
-              initial={{ opacity: 0, x: -5, y: '-50%' }}
-              animate={{ opacity: 1, x: 0, y: '-50%' }}
-              exit={{ opacity: 0, x: -5, y: '-50%' }}
-              transition={{ duration: 0.15 }}
-              className="fixed z-50 w-64 p-2 bg-popover rounded-lg border shadow-md flex flex-col"
-              style={{
-                top: cardPosition.top,
-                left: cardPosition.left,
-                transform: 'translateY(-50%)',
-                maxHeight: 'min(380px, 70vh)',
-              }}
-              onMouseEnter={() => {
-                if (stateRef.current.isKeyboardOpen) return
-                if (leaveTimer.current) clearTimeout(leaveTimer.current)
-              }}
-              onMouseLeave={handleMouseLeave}
-            >
-              {isKeyboardOpen && (
-                <div className="flex items-center px-1 pb-1.5 mb-1 border-b border-border/50">
-                  <span className="text-[10px] text-muted-foreground/50 font-mono leading-none">
-                    ↑↓ move · ↵ jump · → expand · Esc close
-                  </span>
-                </div>
-              )}
+      {/* Hover / keyboard card */}
+      {hasMessages &&
+        createPortal(
+          <AnimatePresence>
+            {isCardOpen && cardPosition && (
+              <motion.div
+                ref={cardRef}
+                initial={{ opacity: 0, x: -5, y: '-50%' }}
+                animate={{ opacity: 1, x: 0, y: '-50%' }}
+                exit={{ opacity: 0, x: -5, y: '-50%' }}
+                transition={{ duration: 0.15 }}
+                className="fixed z-50 w-64 p-2 bg-popover rounded-lg border shadow-md flex flex-col"
+                style={{
+                  top: cardPosition.top,
+                  left: cardPosition.left,
+                  transform: 'translateY(-50%)',
+                  maxHeight: 'min(380px, 70vh)'
+                }}
+                onMouseEnter={() => {
+                  if (stateRef.current.isKeyboardOpen) return
+                  if (leaveTimer.current) clearTimeout(leaveTimer.current)
+                }}
+                onMouseLeave={handleMouseLeave}
+              >
+                {isKeyboardOpen && (
+                  <div className="flex items-center px-1 pb-1.5 mb-1 border-b border-border/50">
+                    <span className="text-[10px] text-muted-foreground/50 font-mono leading-none">
+                      ↑↓ move · ↵ jump · → expand · Esc close
+                    </span>
+                  </div>
+                )}
 
-              <div ref={scrollContainerRef} className="overflow-y-auto thin-scrollbar flex-1 min-h-0">
-                <div className="space-y-0.5 pr-1">
-                  {userMessages.map(({ msg, idx }, listIdx) => {
-                    const isActive = idx === effectiveActiveIndex
-                    const assistantMsgIdx = idx + 1
-                    const assistantMsgId = messages[assistantMsgIdx]?.id
-                    const headings = assistantMsgId ? (headingsByMessage.get(assistantMsgId) ?? []) : []
-                    const hasHeadings = headings.length > 0
-                    const isExpanded = expandedTocIdx === idx
-                    const hasAnyBookmark = assistantHasAnyBookmark(assistantMsgId)
-                    const msgLevelBookmark = assistantMsgId
-                      ? convBookmarks.some(b => b.message_id === assistantMsgId && !b.heading_anchor)
-                      : false
+                <div
+                  ref={scrollContainerRef}
+                  className="overflow-y-auto thin-scrollbar flex-1 min-h-0"
+                >
+                  <div className="space-y-0.5 pr-1">
+                    {userMessages.map(({ msg, idx }, listIdx) => {
+                      const isActive = idx === effectiveActiveIndex
+                      const assistantMsgIdx = idx + 1
+                      const assistantMsgId = messages[assistantMsgIdx]?.id
+                      const headings = assistantMsgId
+                        ? (headingsByMessage.get(assistantMsgId) ?? [])
+                        : []
+                      const hasHeadings = headings.length > 0
+                      const isExpanded = expandedTocIdx === idx
+                      const hasAnyBookmark =
+                        assistantHasAnyBookmark(assistantMsgId)
+                      const msgLevelBookmark = assistantMsgId
+                        ? convBookmarks.some(
+                            (b) =>
+                              b.message_id === assistantMsgId &&
+                              !b.heading_anchor
+                          )
+                        : false
 
-                    const msgNavIdx = navItems.findIndex(
-                      n => n.kind === 'message' && n.listIdx === listIdx
-                    )
-                    const isFocused = isCardOpen && focusedNavIdx === msgNavIdx
+                      const msgNavIdx = navItems.findIndex(
+                        (n) => n.kind === 'message' && n.listIdx === listIdx
+                      )
+                      const isFocused =
+                        isCardOpen && focusedNavIdx === msgNavIdx
 
-                    return (
-                      <div key={msg.id} data-message-idx={idx}>
-                        <div className="flex items-center gap-0.5 w-full">
-                          <button
-                            ref={el => el ? itemRefs.current.set(msgNavIdx, el) : itemRefs.current.delete(msgNavIdx)}
-                            type="button"
-                            tabIndex={-1}
-                            className={cn(
-                              'group flex items-center gap-2 flex-1 text-left px-1.5 py-1 rounded transition-colors min-w-0 outline-none',
-                              isFocused ? 'bg-muted/60' : 'hover:bg-muted/40',
-                            )}
-                            onClick={() => { handleClick(idx); closeCard() }}
-                            onMouseEnter={() => setFocusedNavIdx(msgNavIdx)}
-                            onFocus={() => setFocusedNavIdx(msgNavIdx)}
-                          >
-                            <div className="w-3 h-3 flex items-center justify-center flex-shrink-0">
-                              <div className={cn(
-                                'h-[2px] rounded-full transition-all duration-150',
-                                isActive ? 'w-3 bg-primary' : 'w-2 bg-muted-foreground/30 group-hover:bg-primary/60'
-                              )} />
-                            </div>
-                            <p className={cn(
-                              'text-xs truncate flex-1 transition-colors duration-150',
-                              isActive ? 'text-foreground font-medium' : 'text-muted-foreground group-hover:text-foreground'
-                            )}>
-                              {msg.content}
-                            </p>
-                            {hasAnyBookmark && (
-                              <Bookmark className={cn(
-                                'flex-shrink-0 transition-colors',
-                                msgLevelBookmark
-                                  ? 'size-3 text-amber-500 fill-amber-500'
-                                  : 'size-2.5 text-amber-400/80 fill-amber-400/30'
-                              )} />
-                            )}
-                          </button>
-
-                          {hasHeadings && (
+                      return (
+                        <div key={msg.id} data-message-idx={idx}>
+                          <div className="flex items-center gap-0.5 w-full">
                             <button
+                              ref={(el) => {
+                                if (el) {
+                                  itemRefs.current.set(msgNavIdx, el)
+                                } else {
+                                  itemRefs.current.delete(msgNavIdx)
+                                }
+                              }}
                               type="button"
                               tabIndex={-1}
-                              className="flex-shrink-0 p-1 rounded transition-colors outline-none text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                              onClick={() => handleToggleToc(idx, !isExpanded)}
-                              aria-label={isExpanded ? 'Collapse headings' : 'Expand headings'}
-                              aria-expanded={isExpanded}
+                              className={cn(
+                                'group flex items-center gap-2 flex-1 text-left px-1.5 py-1 rounded transition-colors min-w-0 outline-none',
+                                isFocused ? 'bg-muted/60' : 'hover:bg-muted/40'
+                              )}
+                              onClick={() => {
+                                handleClick(idx)
+                                closeCard()
+                              }}
+                              onMouseEnter={() => setFocusedNavIdx(msgNavIdx)}
+                              onFocus={() => setFocusedNavIdx(msgNavIdx)}
                             >
-                              <motion.div animate={{ rotate: isExpanded ? 90 : 0 }} transition={{ duration: 0.15 }}>
-                                <ChevronRight className="size-3" />
-                              </motion.div>
-                            </button>
-                          )}
-                        </div>
-
-                        <AnimatePresence initial={false}>
-                          {isExpanded && hasHeadings && (
-                            <motion.div
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: 'auto', opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              transition={{ duration: 0.15 }}
-                              className="overflow-hidden"
-                            >
-                              <div className="ml-3 mt-0.5 mb-1.5 border-l-2 border-primary/20 pl-2 space-y-px">
-                                {headings.map(h => {
-                                  const hBookmarked = isHeadingBookmarked(assistantMsgId, slugify(h.text))
-                                  const isH1 = h.level === 1
-                                  const isH2 = h.level === 2
-                                  const isActiveHeading = isActive && h.toc_index === activeHeadingIndex
-
-                                  const headingNavIdx = navItems.findIndex(
-                                    n =>
-                                      n.kind === 'heading' &&
-                                      n.assistantMsgIdx === assistantMsgIdx &&
-                                      n.tocIndex === h.toc_index
-                                  )
-                                  const isHFocused = isCardOpen && focusedNavIdx === headingNavIdx
-
-                                  return (
-                                    <button
-                                      key={h.toc_index}
-                                      ref={el => el ? itemRefs.current.set(headingNavIdx, el) : itemRefs.current.delete(headingNavIdx)}
-                                      type="button"
-                                      tabIndex={-1}
-                                      data-heading-idx={h.toc_index}
-                                      className={cn(
-                                        'flex w-full items-center text-left rounded transition-colors group outline-none py-0.5',
-                                        isHFocused ? 'bg-muted/60' : 'hover:bg-muted/60',
-                                      )}
-                                      style={{ paddingLeft: `${(h.level - 1) * 8 + 6}px` }}
-                                      onClick={() => handleHeadingClickInner(assistantMsgIdx, h.toc_index)}
-                                      onMouseEnter={() => setFocusedNavIdx(headingNavIdx)}
-                                      onFocus={() => setFocusedNavIdx(headingNavIdx)}
-                                    >
-                                      <span className={cn(
-                                        'inline-block flex-shrink-0 self-center rounded-full mr-1.5 transition-colors',
-                                        isActiveHeading ? 'bg-primary' : 'bg-muted-foreground/20 group-hover:bg-primary/40',
-                                        isH1 ? 'w-1 h-1' : 'w-0.5 h-0.5',
-                                        !isH1 && !isH2 && 'opacity-60',
-                                      )} />
-                                      <span className={cn(
-                                        'truncate flex-1 transition-colors group-hover:text-foreground',
-                                        isH1 && 'text-xs font-medium text-muted-foreground',
-                                        isH2 && 'text-xs text-muted-foreground/80',
-                                        !isH1 && !isH2 && 'text-[11px] text-muted-foreground/60',
-                                        isActiveHeading && 'text-primary font-medium',
-                                      )}>
-                                        {h.text}
-                                      </span>
-                                      {hBookmarked && (
-                                        <Bookmark className="size-2.5 text-amber-500 fill-amber-500 ml-1 flex-shrink-0" />
-                                      )}
-                                    </button>
-                                  )
-                                })}
+                              <div className="w-3 h-3 flex items-center justify-center flex-shrink-0">
+                                <div
+                                  className={cn(
+                                    'h-[2px] rounded-full transition-all duration-150',
+                                    isActive
+                                      ? 'w-3 bg-primary'
+                                      : 'w-2 bg-muted-foreground/30 group-hover:bg-primary/60'
+                                  )}
+                                />
                               </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-                    )
-                  })}
+                              <p
+                                className={cn(
+                                  'text-xs truncate flex-1 transition-colors duration-150',
+                                  isActive
+                                    ? 'text-foreground font-medium'
+                                    : 'text-muted-foreground group-hover:text-foreground'
+                                )}
+                              >
+                                {msg.content}
+                              </p>
+                              {hasAnyBookmark && (
+                                <Bookmark
+                                  className={cn(
+                                    'flex-shrink-0 transition-colors',
+                                    msgLevelBookmark
+                                      ? 'size-3 text-amber-500 fill-amber-500'
+                                      : 'size-2.5 text-amber-400/80 fill-amber-400/30'
+                                  )}
+                                />
+                              )}
+                            </button>
+
+                            {hasHeadings && (
+                              <button
+                                type="button"
+                                tabIndex={-1}
+                                className="flex-shrink-0 p-1 rounded transition-colors outline-none text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                                onClick={() =>
+                                  handleToggleToc(idx, !isExpanded)
+                                }
+                                aria-label={
+                                  isExpanded
+                                    ? 'Collapse headings'
+                                    : 'Expand headings'
+                                }
+                                aria-expanded={isExpanded}
+                              >
+                                <motion.div
+                                  animate={{ rotate: isExpanded ? 90 : 0 }}
+                                  transition={{ duration: 0.15 }}
+                                >
+                                  <ChevronRight className="size-3" />
+                                </motion.div>
+                              </button>
+                            )}
+                          </div>
+
+                          <AnimatePresence initial={false}>
+                            {isExpanded && hasHeadings && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.15 }}
+                                className="overflow-hidden"
+                              >
+                                <div className="ml-3 mt-0.5 mb-1.5 border-l-2 border-primary/20 pl-2 space-y-px">
+                                  {headings.map((h) => {
+                                    const hBookmarked = isHeadingBookmarked(
+                                      assistantMsgId,
+                                      h.id
+                                    )
+                                    const isH1 = h.level === 1
+                                    const isH2 = h.level === 2
+                                    const isActiveHeading =
+                                      isActive &&
+                                      h.toc_index === activeHeadingIndex
+
+                                    // Get the unique nav index for this heading from the map
+                                    const headingNavIdx =
+                                      headingNavIndexMap.get(
+                                        `${assistantMsgId}-${h.id}`
+                                      ) ?? -1
+                                    const isHFocused =
+                                      isCardOpen &&
+                                      focusedNavIdx === headingNavIdx
+
+                                    // Explicitly separate color and size logic to prevent inconsistent class merging
+                                    const sizeClass = isH1
+                                      ? 'text-xs font-medium'
+                                      : isH2
+                                        ? 'text-xs'
+                                        : 'text-[11px]'
+                                    const colorClass = isActiveHeading
+                                      ? 'text-primary font-medium'
+                                      : isH1
+                                        ? 'text-muted-foreground'
+                                        : isH2
+                                          ? 'text-muted-foreground/80'
+                                          : 'text-muted-foreground/60'
+
+                                    return (
+                                      <button
+                                        key={`${assistantMsgId}-${h.id}`}
+                                        ref={(el) => {
+                                          if (el) {
+                                            itemRefs.current.set(
+                                              headingNavIdx,
+                                              el
+                                            )
+                                          } else {
+                                            itemRefs.current.delete(
+                                              headingNavIdx
+                                            )
+                                          }
+                                        }}
+                                        type="button"
+                                        tabIndex={-1}
+                                        data-heading-idx={h.toc_index}
+                                        className={cn(
+                                          'flex w-full items-center text-left rounded transition-colors group outline-none py-0.5',
+                                          isHFocused && 'bg-muted/60'
+                                        )}
+                                        style={{
+                                          paddingLeft: `${(h.level - 1) * 8 + 6}px`
+                                        }}
+                                        onClick={() =>
+                                          handleHeadingClickInner(
+                                            assistantMsgIdx,
+                                            h.toc_index
+                                          )
+                                        }
+                                        onMouseEnter={() => {
+                                          if (headingNavIdx !== -1)
+                                            setFocusedNavIdx(headingNavIdx)
+                                        }}
+                                        onFocus={() => {
+                                          if (headingNavIdx !== -1)
+                                            setFocusedNavIdx(headingNavIdx)
+                                        }}
+                                      >
+                                        <span
+                                          className={cn(
+                                            'inline-block flex-shrink-0 self-center rounded-full mr-1.5 transition-colors',
+                                            hBookmarked
+                                              ? // Larger, opaque amber dot for bookmarked headings
+                                                'bg-amber-400 w-1.5 h-1.5'
+                                              : // Normal dot sizing and coloring
+                                                cn(
+                                                  isActiveHeading
+                                                    ? 'bg-primary'
+                                                    : 'bg-muted-foreground/20 group-hover:bg-primary/40',
+                                                  isH1
+                                                    ? 'w-1 h-1'
+                                                    : 'w-0.5 h-0.5',
+                                                  !isH1 && !isH2 && 'opacity-60'
+                                                )
+                                          )}
+                                        />
+                                        <span
+                                          className={cn(
+                                            'truncate flex-1 transition-colors',
+                                            !isActiveHeading &&
+                                              'group-hover:text-foreground',
+                                            sizeClass,
+                                            colorClass
+                                          )}
+                                        >
+                                          {h.text}
+                                        </span>
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>,
-        document.body
-      )}
+              </motion.div>
+            )}
+          </AnimatePresence>,
+          document.body
+        )}
     </>
   )
 })

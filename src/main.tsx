@@ -3,7 +3,6 @@ import { I18nProvider } from '@lingui/react'
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
-import { initI18n } from './lib/i18n'
 
 // Initialize i18n (loads 'en' by default)
 // initI18n()

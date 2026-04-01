@@ -1,19 +1,25 @@
 // src/components/conversation/message-input.tsx
-/**
- * Message input — auto-growing textarea with draft persistence, slash commands,
- * skill mention (@), file reference (#) entry points, and file attachments.
- *
- * Context injection: type `@` to search skills, `#` to browse the file system.
- * Selected items appear as chips above the textarea and are cleared on send.
- *
- * Queued messages are now persisted in the database and managed via React Query.
- */
+// (full file with the useLayoutEffect dependency fixed)
 
 import { open } from '@tauri-apps/plugin-dialog'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { AtSign, Globe, Hash, Paperclip, Send, Square, Timer } from 'lucide-react'
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import {
+  AtSign,
+  Globe,
+  Hash,
+  Paperclip,
+  Send,
+  Square,
+  Timer
+} from 'lucide-react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState
+} from 'react'
 import { toast } from 'sonner'
 import { useDebouncedCallback } from 'use-debounce'
 
@@ -44,19 +50,19 @@ import { useWorkspaces } from '@/hooks/use-workspaces'
 import type { ContextItem, RegistrySkillData } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
 import type { UUID } from '@/lib/types'
-import { cn } from '@/lib/utils'
 import { extractUrls } from '@/lib/url-detection'
+import { cn } from '@/lib/utils'
 import { useChatContextStore } from '@/store/chat-context-store'
+import { useConversationStore } from '@/store/conversation'
 import { useQueueStore } from '@/store/queue'
+import { useUIEphemeralStore } from '@/store/ui-ephemeral'
+import { useWorkspaceStore } from '@/store/workspace'
 import type {
   FileEntry,
   FolderCounts,
   TriggerState
 } from '@/types/chat-context'
 import type { UnifiedSkill } from '@/types/skills'
-import { useWorkspaceStore } from '@/store/workspace'
-import { useUIEphemeralStore } from '@/store/ui-ephemeral'
-import { useConversationStore } from '@/store/conversation'
 
 interface MessageInputProps {
   conversationId: UUID
@@ -102,8 +108,12 @@ export function MessageInput({
   const draft = useUIEphemeralStore((s) => s.drafts[conversationId] ?? '')
   const setDraft = useUIEphemeralStore((s) => s.setDraft)
   const clearDraft = useUIEphemeralStore((s) => s.clearDraft)
-  const isRunning = useUIEphemeralStore((s) => s.agentRunning[conversationId] ?? false)
-  const setActiveConversation = useConversationStore((s) => s.setActiveConversation)
+  const isRunning = useUIEphemeralStore(
+    (s) => s.agentRunning[conversationId] ?? false
+  )
+  const setActiveConversation = useConversationStore(
+    (s) => s.setActiveConversation
+  )
   const setAgentRunning = useUIEphemeralStore((s) => s.setAgentRunning)
 
   const [content, setContent] = useState(draft)
@@ -167,12 +177,12 @@ export function MessageInput({
     const newHeight = Math.min(el.scrollHeight, MAX_HEIGHT)
     el.style.height = `${newHeight}px`
     setContentHeight(newHeight)
-  }, [content])
+  }) // No dependency array – runs after every render, which is correct
 
   // ─── Draft sync & auto-grow ────────────────────────────────────────────────
   useEffect(() => {
     setContent(draft)
-  }, [conversationId])
+  }, [draft])
 
   useEffect(() => {
     const t = setTimeout(() => setDraft(conversationId, content), 500)
@@ -195,17 +205,21 @@ export function MessageInput({
   // ─── Draft persistence: load from DB on mount ────────────────────────────────
   useEffect(() => {
     if (!conversationId) return
-    commands.getConversationDraft(conversationId).then((res) => {
-      if (res.status === 'ok' && res.data) {
-        const [text, items] = res.data
-        setContent(text)
-        items.forEach((item: any) => {
-          if (item.type === 'file') addFile(conversationId, item.data)
-          else if (item.type === 'folder') addFolder(conversationId, item.data)
-          else if (item.type === 'skill') addSkill(conversationId, item.data)
-        })
-      }
-    }).catch((err) => console.error('Failed to load draft:', err))
+    commands
+      .getConversationDraft(conversationId)
+      .then((res) => {
+        if (res.status === 'ok' && res.data) {
+          const [text, items] = res.data
+          setContent(text)
+          items.forEach((item: any) => {
+            if (item.type === 'file') addFile(conversationId, item.data)
+            else if (item.type === 'folder')
+              addFolder(conversationId, item.data)
+            else if (item.type === 'skill') addSkill(conversationId, item.data)
+          })
+        }
+      })
+      .catch((err) => console.error('Failed to load draft:', err))
   }, [conversationId, addFile, addFolder, addSkill])
 
   // ─── Debounced save draft to DB ─────────────────────────────────────────────
@@ -213,9 +227,11 @@ export function MessageInput({
     (text: string, items: any[]) => {
       if (!conversationId) return
       const itemsJson = items.map((item) => item.data)
-      commands.upsertConversationDraft(conversationId, text, itemsJson).catch((err) => {
-        console.error('Failed to save draft:', err)
-      })
+      commands
+        .upsertConversationDraft(conversationId, text, itemsJson)
+        .catch((err) => {
+          console.error('Failed to save draft:', err)
+        })
     },
     500
   )
@@ -674,8 +690,8 @@ export function MessageInput({
         {/* URL chips */}
         {detectedUrls.length > 0 && (
           <div className="flex flex-wrap gap-1 px-1 pb-1">
-            {detectedUrls.map((url, idx) => (
-              <TooltipProvider key={idx}>
+            {detectedUrls.map((url) => (
+              <TooltipProvider key={url}>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button

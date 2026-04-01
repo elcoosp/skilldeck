@@ -1,31 +1,45 @@
-import { useQuery } from '@tanstack/react-query';
-import { commands, BranchInfo } from '@/lib/bindings';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query'
+import { Loader2 } from 'lucide-react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
+import { type BranchInfo, commands } from '@/lib/bindings'
 
 interface BranchPickerProps {
-  conversationId: string;
-  onSelect: (branchId: string) => void;
-  disabled?: boolean;
+  conversationId: string
+  onSelect: (branchId: string) => void
+  disabled?: boolean
 }
 
-export function BranchPicker({ conversationId, onSelect, disabled }: BranchPickerProps) {
+export function BranchPicker({
+  conversationId,
+  onSelect,
+  disabled
+}: BranchPickerProps) {
   const { data: branches, isLoading } = useQuery({
     queryKey: ['branches', conversationId],
     queryFn: async () => {
-      const res = await commands.listBranches(conversationId);
-      if (res.status === 'ok') return res.data;
-      throw new Error(res.error);
+      const res = await commands.listBranches(conversationId)
+      if (res.status === 'ok') return res.data
+      throw new Error(res.error)
     },
-    enabled: !!conversationId,
-  });
+    enabled: !!conversationId
+  })
 
   if (isLoading) {
-    return <Loader2 className="size-4 animate-spin" />;
+    return <Loader2 className="size-4 animate-spin" />
   }
 
   if (!branches || branches.length === 0) {
-    return <span className="text-xs text-muted-foreground">No branches available</span>;
+    return (
+      <span className="text-xs text-muted-foreground">
+        No branches available
+      </span>
+    )
   }
 
   return (
@@ -41,5 +55,5 @@ export function BranchPicker({ conversationId, onSelect, disabled }: BranchPicke
         ))}
       </SelectContent>
     </Select>
-  );
+  )
 }

@@ -72,7 +72,7 @@ The SkillDeck documentation site lives in the `skilldeck-user-docs/` folder and 
 2. If you've added code that should be tested, add tests.
 3. If you've changed APIs, update the documentation.
 4. Ensure the test suite passes.
-5. Make sure your code lints (Rustfmt, Clippy, ESLint, Prettier).
+5. Make sure your code lints (Rustfmt, Clippy, Biome).
 6. Issue that pull request!
 
 ## Development Setup
@@ -114,7 +114,7 @@ This will start the Rust backend and the Vite dev server, and open the Tauri win
 ### Coding Style
 
 - **Rust**: We use `rustfmt` and `clippy`. Run `cargo fmt` and `cargo clippy` before committing.
-- **TypeScript/React**: We use ESLint and Prettier. Run `pnpm lint` and `pnpm format`.
+- **TypeScript/React**: We use Biome. Run `pnpm lint` and `pnpm format`.
 
 ### Project Structure
 

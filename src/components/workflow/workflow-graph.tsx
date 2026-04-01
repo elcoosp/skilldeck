@@ -1,5 +1,12 @@
 // src/components/workflow/workflow-graph.tsx
-import { ReactFlow, Node, Edge, Background, Controls, MarkerType } from '@xyflow/react'
+import {
+  Background,
+  Controls,
+  type Edge,
+  MarkerType,
+  type Node,
+  ReactFlow
+} from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 
 interface WorkflowGraphProps {
@@ -7,8 +14,11 @@ interface WorkflowGraphProps {
   stepStatuses: Record<string, string>
 }
 
-export function WorkflowGraph({ definition, stepStatuses }: WorkflowGraphProps) {
-  if (!definition || !definition.steps) return null
+export function WorkflowGraph({
+  definition,
+  stepStatuses
+}: WorkflowGraphProps) {
+  if (!definition?.steps) return null
 
   const nodes: Node[] = definition.steps.map((step: any, idx: number) => ({
     id: step.id,

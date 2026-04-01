@@ -1,40 +1,46 @@
-import { Pin, PinOff } from 'lucide-react';
-import { useState } from 'react';
-import { commands } from '@/lib/bindings';
-import { toast } from 'sonner';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query'
+import { Pin, PinOff } from 'lucide-react'
+import { useState } from 'react'
+import { toast } from 'sonner'
+import { commands } from '@/lib/bindings'
 
 interface PinIconProps {
-  artifactId: string;
-  branchId: string | null;
-  isGlobal: boolean;
-  pinned: boolean;
-  onPinChange?: () => void;
+  artifactId: string
+  branchId: string | null
+  isGlobal: boolean
+  pinned: boolean
+  onPinChange?: () => void
 }
 
-export function PinIcon({ artifactId, branchId, isGlobal, pinned, onPinChange }: PinIconProps) {
-  const [loading, setLoading] = useState(false);
-  const qc = useQueryClient();
+export function PinIcon({
+  artifactId,
+  branchId,
+  isGlobal,
+  pinned,
+  onPinChange
+}: PinIconProps) {
+  const [loading, setLoading] = useState(false)
+  const qc = useQueryClient()
 
   const togglePin = async () => {
-    setLoading(true);
+    setLoading(true)
     try {
       if (pinned) {
-        await commands.unpinArtifact(artifactId, branchId);
-        toast.success('Unpinned');
+        await commands.unpinArtifact(artifactId, branchId)
+        toast.success('Unpinned')
       } else {
-        await commands.pinArtifact(artifactId, branchId, isGlobal);
-        toast.success('Pinned');
+        await commands.pinArtifact(artifactId, branchId, isGlobal)
+        toast.success('Pinned')
       }
-      qc.invalidateQueries({ queryKey: ['pinned-artifacts'] });
-      qc.invalidateQueries({ queryKey: ['global-pins'] });
-      onPinChange?.();
+      qc.invalidateQueries({ queryKey: ['pinned-artifacts'] })
+      qc.invalidateQueries({ queryKey: ['global-pins'] })
+      onPinChange?.()
     } catch (err) {
-      toast.error(String(err));
+      toast.error(String(err))
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   return (
     <button
@@ -44,7 +50,11 @@ export function PinIcon({ artifactId, branchId, isGlobal, pinned, onPinChange }:
       className="text-muted-foreground hover:text-foreground"
       title={pinned ? 'Unpin' : 'Pin'}
     >
-      {pinned ? <Pin className="size-3 fill-current" /> : <PinOff className="size-3" />}
+      {pinned ? (
+        <Pin className="size-3 fill-current" />
+      ) : (
+        <PinOff className="size-3" />
+      )}
     </button>
-  );
+  )
 }

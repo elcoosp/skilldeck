@@ -1,10 +1,15 @@
-// src/components/settings/preferences-tab.tsx
-/**
- * PreferencesTab — Platform preferences panel inside SettingsOverlay.
- */
-
-import { Bell, Code, Globe, Mail, Maximize2, Palette, Shield } from 'lucide-react'
+import { open } from '@tauri-apps/plugin-dialog'
+import {
+  Bell,
+  Code,
+  Globe,
+  Mail,
+  Maximize2,
+  Palette,
+  Shield
+} from 'lucide-react'
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -19,9 +24,10 @@ import {
   usePlatformPreferences
 } from '@/hooks/use-platform'
 import { useProfiles, useUpdateProfile } from '@/hooks/use-profiles'
-import { useSettingsStore } from '@/store/settings'
+import { commands } from '@/lib/bindings'
 import { loadLocale, locales } from '@/lib/i18n'
 import type { UpdatePreferencesPayload } from '@/lib/platform'
+import { useSettingsStore } from '@/store/settings'
 
 export function PreferencesTab() {
   const { query, update, resendVerification } = usePlatformPreferences()
@@ -35,6 +41,7 @@ export function PreferencesTab() {
   )
   const [emailDraft, setEmailDraft] = useState('')
   const [systemPromptDraft, setSystemPromptDraft] = useState('')
+  const [syntaxTheme, setSyntaxTheme] = useState('base16-mocha')
 
   const selectedProfile = profiles.find((p) => p.id === selectedProfileId)
 
@@ -89,6 +96,34 @@ export function PreferencesTab() {
     })
   }
 
+  const handleThemeChange = async (value: string) => {
+    let css: string
+    if (value === 'custom') {
+      const selected = await open({
+        multiple: false,
+        filters: [{ name: 'Theme Files', extensions: ['tmTheme'] }]
+      })
+      if (!selected) return
+      const result = await commands.setThemeFromFile(selected as string)
+      if (result.status === 'error') {
+        toast.error(result.error)
+        return
+      }
+      css = result.data
+      setSyntaxTheme('custom')
+    } else {
+      const result = await commands.setBuiltInTheme(value)
+      if (result.status === 'error') {
+        toast.error(result.error)
+        return
+      }
+      css = result.data
+      setSyntaxTheme(value)
+    }
+    const style = document.getElementById('syntax-theme')
+    if (style) style.textContent = css
+  }
+
   return (
     <div className="space-y-6 text-sm">
       {/* Profile selector */}
@@ -138,8 +173,8 @@ export function PreferencesTab() {
       {/* Local mode hint */}
       {defaultProvider === 'ollama' && (
         <div className="rounded-md bg-primary/5 p-3 text-xs text-muted-foreground border border-primary/20">
-          <span className="font-medium">🦙 Local mode</span> – Using Ollama on your machine.
-          No API key required. Change provider in Profiles.
+          <span className="font-medium">🦙 Local mode</span> – Using Ollama on
+          your machine. No API key required. Change provider in Profiles.
         </div>
       )}
 
@@ -267,8 +302,8 @@ export function PreferencesTab() {
         })}
       </Section>
 
-      {/* Theme */}
-      <Section icon={<Palette size={14} />} title="Theme">
+      {/* App Theme (UI) */}
+      <Section icon={<Palette size={14} />} title="App Theme">
         <select
           className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
           value={prefs?.theme_preference ?? 'system'}
@@ -284,10 +319,29 @@ export function PreferencesTab() {
         </select>
       </Section>
 
+      {/* Syntax Theme (code highlighting) */}
+      <Section icon={<Palette size={14} />} title="Syntax Theme">
+        <p className="text-muted-foreground mb-3">
+          Theme for code blocks in messages.
+        </p>
+        <Select value={syntaxTheme} onValueChange={handleThemeChange}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Select theme" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="base16-mocha">Base16 Mocha</SelectItem>
+            <SelectItem value="solarized-dark">Solarized Dark</SelectItem>
+            <SelectItem value="solarized-light">Solarized Light</SelectItem>
+            <SelectItem value="custom">Custom...</SelectItem>
+          </SelectContent>
+        </Select>
+      </Section>
+
       {/* Code Block Max Height */}
       <Section icon={<Maximize2 size={14} />} title="Code Block Max Height">
         <p className="text-muted-foreground mb-3">
-          Maximum height of code blocks in messages. Scroll inside long code blocks.
+          Maximum height of code blocks in messages. Scroll inside long code
+          blocks.
         </p>
         <Select
           value={String(codeBlockMaxHeight)}
@@ -318,7 +372,9 @@ export function PreferencesTab() {
           className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
         >
           {Object.entries(locales).map(([code, label]) => (
-            <option key={code} value={code}>{label}</option>
+            <option key={code} value={code}>
+              {label}
+            </option>
           ))}
         </select>
         <p className="text-xs text-muted-foreground mt-1">

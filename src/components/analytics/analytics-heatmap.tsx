@@ -3,20 +3,17 @@ import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
-  TooltipTrigger,
+  TooltipTrigger
 } from '@/components/ui/tooltip'
 import type { DailyCount } from '@/hooks/use-analytics'
-import { useMemo } from 'react'
+import { useMemo, useEffect } from 'react'
 import { differenceInWeeks } from 'date-fns'
 
 interface AnalyticsHeatmapProps {
   messagesData: DailyCount[]
   conversationsData: DailyCount[]
-  /** Start date for the heatmap */
   startDate: Date
-  /** End date for the heatmap */
   endDate: Date
-  /** If true, display compact (no overflow‑x) */
   compact?: boolean
 }
 
@@ -25,37 +22,37 @@ export function AnalyticsHeatmap({
   conversationsData,
   startDate,
   endDate,
-  compact = false,
+  compact = false
 }: AnalyticsHeatmapProps) {
-  // Format for heatmap library: expects 'YYYY/MM/DD' strings
-  const formatForHeatmap = (data: DailyCount[]) => {
-    return data.map(item => ({
+  // Convert dates to YYYY/MM/DD format required by the library
+  const formatForHeatmap = (data: DailyCount[]) =>
+    data.map((item) => ({
       date: item.date.replace(/-/g, '/'),
-      count: item.count,
+      count: item.count
     }))
-  }
 
   const messagesHeatmapData = formatForHeatmap(messagesData)
   const conversationsHeatmapData = formatForHeatmap(conversationsData)
 
-  const panelColors = [
-    'var(--muted)',
-    '#e4b293',
-    '#d48462',
-    '#c2533a',
-    '#ad001d',
-    '#6c0012',
-  ]
+  // Explicit color thresholds – zero = neutral gray, positive counts = greens
+  const panelColors = {
+    0: '#ebedf0', // no data
+    1: '#9be9a4', // 1–3
+    4: '#40c463', // 4–9
+    10: '#30a14e', // 10–24
+    25: '#216e39', // 25–49
+    50: '#0e4429' // 50+
+  }
 
-  // Calculate width based on date range
+  // Compute width for each heatmap based on the date range (weeks)
   const width = useMemo(() => {
-    if (!compact) {
-      // For full year, width is fixed large enough to fit 52 weeks
-      return 880
-    }
     const weeks = Math.max(1, differenceInWeeks(endDate, startDate) + 1)
-    const computedWidth = (12 + 2) * weeks + 40
-    return Math.min(computedWidth, 680)
+    const computedWidth = (12 + 2) * weeks + 40 // rectSize=12, space=2
+    if (compact) {
+      return Math.min(computedWidth, 680) // cap for compact view
+    }
+    // Full‑year mode: allow larger width (e.g., up to 1200px)
+    return Math.min(computedWidth, 1200)
   }, [compact, startDate, endDate])
 
   const commonProps = {
@@ -64,14 +61,27 @@ export function AnalyticsHeatmap({
     space: 2,
     panelColors,
     weekLabels: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
-    monthLabels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-    style: { backgroundColor: 'transparent' },
+    monthLabels: [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ],
+    style: { backgroundColor: 'transparent' }
   }
 
   const RectWithTooltip = ({
     props,
     data,
-    label,
+    label
   }: {
     props: React.SVGProps<SVGRectElement>
     data: any
@@ -100,44 +110,55 @@ export function AnalyticsHeatmap({
     )
   }
 
-  return (
+  // Render a single heatmap block
+  const HeatmapBlock = ({
+    label,
+    data
+  }: {
+    label: string
+    data: Array<{ date: string; count: number }>
+  }) => (
+    <div className="space-y-2">
+      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">
+        {label}
+      </h3>
+      <div className={compact ? '' : 'overflow-x-auto'}>
+        <div style={{ minWidth: compact ? 'auto' : `${width}px` }}>
+          <HeatMap
+            {...commonProps}
+            value={data}
+            startDate={startDate}
+            endDate={endDate}
+            rectRender={(props, data) => (
+              <RectWithTooltip
+                props={props}
+                data={data}
+                label={label.toLowerCase().replace(/ per day/i, '')}
+              />
+            )}
+          />
+        </div>
+      </div>
+    </div>
+  )
+
+  return compact ? (
+    // Compact mode: flex row, wrap, center horizontally
+    <div className="flex flex-wrap justify-center gap-6">
+      <HeatmapBlock label="Messages per day" data={messagesHeatmapData} />
+      <HeatmapBlock
+        label="Conversations per day"
+        data={conversationsHeatmapData}
+      />
+    </div>
+  ) : (
+    // Full‑year mode: stacked
     <div className="space-y-6">
-      <div>
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-          Messages per day
-        </h3>
-        <div className={compact ? '' : 'overflow-x-auto'}>
-          <div style={{ minWidth: compact ? 'auto' : `${width}px` }}>
-            <HeatMap
-              {...commonProps}
-              value={messagesHeatmapData}
-              startDate={startDate}
-              endDate={endDate}
-              rectRender={(props, data) => (
-                <RectWithTooltip props={props} data={data} label="message" />
-              )}
-            />
-          </div>
-        </div>
-      </div>
-      <div>
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-          Conversations per day
-        </h3>
-        <div className={compact ? '' : 'overflow-x-auto'}>
-          <div style={{ minWidth: compact ? 'auto' : `${width}px` }}>
-            <HeatMap
-              {...commonProps}
-              value={conversationsHeatmapData}
-              startDate={startDate}
-              endDate={endDate}
-              rectRender={(props, data) => (
-                <RectWithTooltip props={props} data={data} label="conversation" />
-              )}
-            />
-          </div>
-        </div>
-      </div>
+      <HeatmapBlock label="Messages per day" data={messagesHeatmapData} />
+      <HeatmapBlock
+        label="Conversations per day"
+        data={conversationsHeatmapData}
+      />
     </div>
   )
 }

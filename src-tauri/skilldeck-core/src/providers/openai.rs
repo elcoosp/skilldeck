@@ -7,8 +7,10 @@ use futures::StreamExt;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
-use tracing::{instrument, warn};
+use tracing::{debug, info, instrument, trace, warn};
 
 use crate::{
     CoreError,
@@ -72,6 +74,7 @@ struct OpenAiRequest {
 
 #[derive(Debug, Deserialize)]
 struct OpenAiChunk {
+    #[serde(default)]
     choices: Vec<OpenAiChoice>,
     #[serde(default)]
     usage: Option<OpenAiUsage>,
@@ -79,12 +82,14 @@ struct OpenAiChunk {
 
 #[derive(Debug, Deserialize)]
 struct OpenAiChoice {
+    #[serde(default)]
     delta: OpenAiDelta,
     #[allow(dead_code)]
+    #[serde(default)]
     finish_reason: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default)]
 struct OpenAiDelta {
     #[serde(default)]
     content: Option<String>,
@@ -104,6 +109,19 @@ struct OpenAiUsage {
 struct OpenAiUsageDetails {
     #[serde(default)]
     cached_tokens: u32,
+}
+
+/// Error envelope that some OpenAI-compatible APIs send mid-stream with 200 status.
+#[derive(Debug, Deserialize)]
+struct OpenAiErrorEnvelope {
+    error: OpenAiErrorDetail,
+}
+
+#[derive(Debug, Deserialize)]
+struct OpenAiErrorDetail {
+    message: String,
+    #[serde(default)]
+    code: Option<String>,
 }
 
 // ── Provider ─────────────────────────────────────────────────────────────────
@@ -294,70 +312,213 @@ impl ModelProvider for OpenAiProvider {
 
         let response = retry(backoff, operation).await?;
 
-        let stream =
-            response
-                .bytes_stream()
-                .flat_map(move |result: Result<Bytes, reqwest::Error>| {
-                    let items: Vec<Result<CompletionChunk, CoreError>> = match result {
+        // ── LOGGING: Log raw HTTP response status + headers before decoding ──
+        tracing::debug!(
+            target: "openai::stream",
+            status = %response.status(),
+            content_type = ?response.headers().get("content-type"),
+            "OpenAI HTTP response received"
+        );
+
+        // ── LOGGING: Stream opened ──
+        info!(
+            target: "openai::stream",
+            model = %request.model_id,
+            "Stream opened"
+        );
+
+        // Counters for stream lifecycle logging
+        let chunk_count = Arc::new(AtomicU64::new(0));
+        let token_count = Arc::new(AtomicU64::new(0));
+        let chunk_count_clone = chunk_count.clone();
+        let token_count_clone = token_count.clone();
+        let model_id_for_log = request.model_id.clone();
+
+        // BUG FIX: Use `scan` to maintain a line buffer across TCP chunks.
+        // `bytes_stream()` yields raw TCP chunks, not logical SSE lines.
+        // A single `data: {...}\n` event can be split across multiple chunks,
+        // and a single chunk can contain multiple events.
+        let stream = response
+            .bytes_stream()
+            .scan(
+                String::new(), // line_buf: accumulates partial lines across chunks
+                move |line_buf, result: Result<Bytes, reqwest::Error>| {
+                    let mut items: Vec<Result<CompletionChunk, CoreError>> = Vec::new();
+
+                    match result {
                         Ok(bytes) => {
+                            // ── LOGGING: Log raw bytes before any parsing ──
+                            tracing::trace!(
+                                target: "openai::stream",
+                                raw_bytes_len = bytes.len(),
+                                raw_bytes = ?bytes,
+                                "Raw chunk received"
+                            );
+
                             let text = String::from_utf8_lossy(&bytes);
-                            let mut chunks = Vec::new();
-                            for line in text.lines() {
+                            debug!(
+                                provider = "openai",
+                                chunk_len = bytes.len(),
+                                raw = %text,
+                                "received SSE chunk"
+                            );
+
+                            // Append to buffer — may complete a line that was split
+                            line_buf.push_str(&text);
+
+                            // Process all complete lines (terminated by \n)
+                            while let Some(newline_pos) = line_buf.find('\n') {
+                                let line =
+                                    line_buf[..newline_pos].trim_end_matches('\r').to_string();
+                                line_buf.drain(..=newline_pos);
+
+                                // Skip empty lines and SSE comment lines (e.g., `: keep-alive`)
+                                if line.is_empty() || line.starts_with(':') {
+                                    continue;
+                                }
+
                                 if let Some(data) = line.strip_prefix("data: ") {
+                                    // ── LOGGING: Log every SSE line before decode ──
+                                    trace!(
+                                        target: "openai::stream",
+                                        line = %data,
+                                        "SSE line received"
+                                    );
+
                                     if data == "[DONE]" {
+                                        // ── LOGGING: Stream closed with [DONE] ──
+                                        info!(
+                                            target: "openai::stream",
+                                            chunks_received = chunk_count_clone.load(Ordering::Relaxed),
+                                            tokens_emitted = token_count_clone.load(Ordering::Relaxed),
+                                            terminated_by = "[DONE]",
+                                            "Stream closed"
+                                        );
                                         continue;
                                     }
-                                    if let Ok(chunk) = serde_json::from_str::<OpenAiChunk>(data) {
-                                        if let Some(choice) = chunk.choices.first() {
-                                            if let Some(content) = &choice.delta.content {
-                                                if !content.is_empty() {
-                                                    chunks.push(Ok(CompletionChunk::Token {
-                                                        content: content.clone(),
-                                                    }));
+
+                                    // BUG FIX: Check for inline error envelope before parsing as chunk.
+                                    // Some OpenAI-compatible APIs send error objects mid-stream with
+                                    // a 200 status code (rate limits, content filters, etc.).
+                                    if let Ok(err_envelope) =
+                                        serde_json::from_str::<OpenAiErrorEnvelope>(data)
+                                    {
+                                        warn!(
+                                            provider = "openai",
+                                            message = %err_envelope.error.message,
+                                            code = ?err_envelope.error.code,
+                                            "SSE error envelope received"
+                                        );
+                                        items.push(Err(CoreError::ModelRequestRejected {
+                                            provider: "openai".to_string(),
+                                            message: format!(
+                                                "{} (code: {:?})",
+                                                err_envelope.error.message, err_envelope.error.code
+                                            ),
+                                        }));
+                                        continue;
+                                    }
+
+                                    // BUG FIX: Use `match` instead of `if let Ok` to log parse failures.
+                                    // Previously errors were silently swallowed, making diagnosis impossible.
+                                    match serde_json::from_str::<OpenAiChunk>(data) {
+                                        Ok(chunk) => {
+                                            chunk_count_clone.fetch_add(1, Ordering::Relaxed);
+
+                                            if let Some(choice) = chunk.choices.first() {
+                                                if let Some(content) = &choice.delta.content {
+                                                    if !content.is_empty() {
+                                                        token_count_clone.fetch_add(content.len() as u64, Ordering::Relaxed);
+                                                        items.push(Ok(CompletionChunk::Token {
+                                                            content: content.clone(),
+                                                        }));
+                                                    }
+                                                }
+                                                if let Some(tool_calls) = &choice.delta.tool_calls {
+                                                    if let Some(tc) = tool_calls.first() {
+                                                        items.push(Ok(CompletionChunk::ToolCall {
+                                                            tool_call: ToolCall {
+                                                                id: tc.id.clone(),
+                                                                r#type: tc.r#type.clone(),
+                                                                function: FunctionCall {
+                                                                    name: tc.function.name.clone(),
+                                                                    arguments: tc
+                                                                        .function
+                                                                        .arguments
+                                                                        .clone(),
+                                                                },
+                                                            },
+                                                        }));
+                                                    }
                                                 }
                                             }
-                                            if let Some(tool_calls) = &choice.delta.tool_calls {
-                                                if let Some(tc) = tool_calls.first() {
-                                                    chunks.push(Ok(CompletionChunk::ToolCall {
-                                                        tool_call: ToolCall {
-                                                            id: tc.id.clone(),
-                                                            r#type: tc.r#type.clone(),
-                                                            function: FunctionCall {
-                                                                name: tc.function.name.clone(),
-                                                                arguments: tc
-                                                                    .function
-                                                                    .arguments
-                                                                    .clone(),
-                                                            },
-                                                        },
-                                                    }));
-                                                }
+                                            if let Some(usage) = &chunk.usage {
+                                                items.push(Ok(CompletionChunk::Done {
+                                                    input_tokens: usage.prompt_tokens,
+                                                    output_tokens: usage.completion_tokens,
+                                                    cache_read_tokens: usage
+                                                        .prompt_tokens_details
+                                                        .as_ref()
+                                                        .map(|d| d.cached_tokens)
+                                                        .unwrap_or(0),
+                                                    cache_write_tokens: 0,
+                                                }));
                                             }
                                         }
-                                        if let Some(usage) = &chunk.usage {
-                                            chunks.push(Ok(CompletionChunk::Done {
-                                                input_tokens: usage.prompt_tokens,
-                                                output_tokens: usage.completion_tokens,
-                                                cache_read_tokens: usage
-                                                    .prompt_tokens_details
-                                                    .as_ref()
-                                                    .map(|d| d.cached_tokens)
-                                                    .unwrap_or(0),
-                                                cache_write_tokens: 0,
-                                            }));
+                                        Err(e) => {
+                                            // ── LOGGING: Log raw bytes on decode failure ──
+                                            tracing::error!(
+                                                target: "openai::stream",
+                                                raw_bytes = ?&data[..data.len().min(500)],
+                                                error = %e,
+                                                "Stream chunk decode failed"
+                                            );
                                         }
                                     }
                                 }
                             }
-                            chunks
                         }
-                        Err(e) => vec![Err(CoreError::ModelConnection {
-                            provider: "openai".to_string(),
-                            message: e.to_string(),
-                        })],
-                    };
-                    futures::stream::iter(items)
-                });
+                        Err(e) => {
+                            // Check if this is a timeout or network error
+                            let is_timeout = e.to_string().contains("timed out") || e.to_string().contains("timeout");
+                            let is_network = e.to_string().contains("connection") || e.to_string().contains("network");
+
+                            tracing::error!(
+                                target: "openai::stream",
+                                error = %e,
+                                chunks_received = chunk_count_clone.load(Ordering::Relaxed),
+                                is_timeout = is_timeout,
+                                is_network = is_network,
+                                "Stream read error"
+                            );
+
+                            let user_message = if is_timeout {
+                                "Request timed out. The model may be overloaded. Please try again.".to_string()
+                            } else if is_network {
+                                "Network connection lost. Please check your internet connection.".to_string()
+                            } else {
+                                format!("Stream read error: {}. This may be a temporary issue.", e)
+                            };
+
+                            items.push(Err(CoreError::ModelConnection {
+                                provider: "openai".to_string(),
+                                message: user_message,
+                            }));
+                        }
+                    }
+
+                    async move { Some(futures::stream::iter(items)) }
+                },
+            )
+            .flat_map(|s| s);
+
+        // NOTE (Bug 4): The Done chunk may never be emitted if:
+        // - The connection drops before the final usage chunk
+        // - The model hits max_tokens and the API ends without usage
+        // - include_usage is not supported by the endpoint
+        //
+        // The agent loop consuming this stream MUST handle stream-end-without-Done
+        // by treating clean stream termination as an implicit Done with zeroed tokens.
 
         Ok(Box::pin(stream))
     }

@@ -17,15 +17,14 @@ import {
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { useActiveConversationWorkspaceId } from '@/hooks/use-conversations'
+import { useWorkspaces } from '@/hooks/use-workspaces'
 import type { AddMcpServerPayload, McpServerResponse } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
-
 import { CatalogCard } from './catalog-card'
 import { CustomServerForm } from './custom-server-form'
 import { LiveServerCard } from './live-server-card'
-import { useActiveConversationWorkspaceId } from '@/hooks/use-conversations'
-import { useWorkspaces } from '@/hooks/use-workspaces'
 
 // Export types needed by child components
 export interface CatalogEntry {
@@ -38,13 +37,13 @@ export interface CatalogEntry {
   url?: string
   docsUrl: string
   category:
-  | 'filesystem'
-  | 'web'
-  | 'data'
-  | 'dev'
-  | 'productivity'
-  | 'cloud'
-  | 'observability'
+    | 'filesystem'
+    | 'web'
+    | 'data'
+    | 'dev'
+    | 'productivity'
+    | 'cloud'
+    | 'observability'
   tags: string[]
 }
 
@@ -503,7 +502,7 @@ export function McpTab() {
         const homeRes = await commands.getHomeDir()
         workspacePath = homeRes.status === 'ok' ? homeRes.data : ''
       }
-      resolvedArgs = entry.args?.map(arg =>
+      resolvedArgs = entry.args?.map((arg) =>
         arg === '__WORKSPACE__' ? workspacePath : arg
       )
     }

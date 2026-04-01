@@ -14,6 +14,12 @@
  */
 
 import { useQuery } from '@tanstack/react-query'
+import {
+  endOfMonth,
+  isWithinInterval,
+  startOfMonth,
+  differenceInWeeks
+} from 'date-fns'
 import { motion } from 'framer-motion'
 import {
   BarChart2,
@@ -22,18 +28,26 @@ import {
   FileCode,
   GitBranch,
   Layers,
+  Play,
   Plus,
   Trash2,
-  Zap,
-  Play
+  Zap
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { openUrl } from '@tauri-apps/plugin-opener'
-import { UnifiedSkillList } from '@/components/skills/unified-skill-list'
 import { ArtifactPanel } from '@/components/artifacts/artifact-panel'
+import { UnifiedSkillList } from '@/components/skills/unified-skill-list'
 import { BouncingDots } from '@/components/ui/bouncing-dots'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Select,
@@ -47,30 +61,25 @@ import { WorkflowGraph } from '@/components/workflow/workflow-graph'
 import { useAnalytics } from '@/hooks/use-analytics'
 import { useConversations } from '@/hooks/use-conversations'
 import { useProfiles } from '@/hooks/use-profiles'
+import { useSessionStats } from '@/hooks/use-session-stats'
 import {
   useDeleteWorkflowDefinition,
-  useWorkflowDefinitions,
-  useRunWorkflowDefinition
+  useRunWorkflowDefinition,
+  useWorkflowDefinitions
 } from '@/hooks/use-workflow-definitions'
 import { useWorkflowEvents } from '@/hooks/use-workflow-events'
 import { commands } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
-
-import { UIPersistentState, useUIPersistentStore } from '@/store/ui-state'
-import { useUILayoutStore } from '@/store/ui-layout'
-import { useUIOverlaysStore } from '@/store/ui-overlays'
-import { McpTab } from './mcp-tab'
-import { useSessionStats } from '@/hooks/use-session-stats'
-import { AnalyticsHeatmap } from '../analytics/analytics-heatmap'
-import { Dialog, DialogFooter, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog'
-import { startOfMonth, endOfMonth, format, startOfYear, endOfYear, isWithinInterval } from 'date-fns'
 import { useConversationStore } from '@/store/conversation'
-
-
+import { type UIPersistentState, useUIPersistentStore } from '@/store/ui-state'
+import { AnalyticsHeatmap } from '../analytics/analytics-heatmap'
+import { McpTab } from './mcp-tab'
 
 // Feature gate selectors remain unchanged
-const selectHasSkillsUnlocked = (state: UIPersistentState) => state.unlockStage >= 1
-const selectHasWorkflowsUnlocked = (state: UIPersistentState) => state.unlockStage >= 3
+const selectHasSkillsUnlocked = (state: UIPersistentState) =>
+  state.unlockStage >= 1
+const selectHasWorkflowsUnlocked = (state: UIPersistentState) =>
+  state.unlockStage >= 3
 
 type Tab = 'session' | 'skills' | 'mcp' | 'workflow' | 'analytics' | 'artifacts'
 
@@ -79,23 +88,25 @@ const TABS: {
   label: string
   Icon: React.FC<{ className?: string }>
 }[] = [
-    { id: 'session', label: 'Session', Icon: Cpu },
-    { id: 'skills', label: 'Skills', Icon: Layers },
-    { id: 'mcp', label: 'MCP', Icon: Zap },
-    { id: 'workflow', label: 'Workflow', Icon: GitBranch },
-    { id: 'analytics', label: 'Analytics', Icon: BarChart2 },
-    { id: 'artifacts', label: 'Artifacts', Icon: FileCode }
-  ]
+  { id: 'session', label: 'Session', Icon: Cpu },
+  { id: 'skills', label: 'Skills', Icon: Layers },
+  { id: 'mcp', label: 'MCP', Icon: Zap },
+  { id: 'workflow', label: 'Workflow', Icon: GitBranch },
+  { id: 'analytics', label: 'Analytics', Icon: BarChart2 },
+  { id: 'artifacts', label: 'Artifacts', Icon: FileCode }
+]
 
 export function RightPanel() {
   const [activeTab, setActiveTab] = useState<Tab>('session')
-  const activeConversationId = useConversationStore((s) => s.activeConversationId)
-  const unlockStage = useUIPersistentStore((s) => s.unlockStage)
+  const activeConversationId = useConversationStore(
+    (s) => s.activeConversationId
+  )
+  const _unlockStage = useUIPersistentStore((s) => s.unlockStage)
   const hasSkillsUnlocked = useUIPersistentStore(selectHasSkillsUnlocked)
   const hasWorkflowsUnlocked = useUIPersistentStore(selectHasWorkflowsUnlocked)
 
   // Filter tabs based on unlock stage
-  const visibleTabs = TABS.filter(tab => {
+  const visibleTabs = TABS.filter((tab) => {
     if (tab.id === 'skills') return hasSkillsUnlocked
     if (tab.id === 'workflow') return hasWorkflowsUnlocked
     // artifacts is always visible after stage 1 (skills unlocked)
@@ -309,11 +320,15 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div className="rounded border border-border p-2">
             <span className="text-muted-foreground">Input</span>
-            <div className="font-mono text-base">{inputTokens.toLocaleString()}</div>
+            <div className="font-mono text-base">
+              {inputTokens.toLocaleString()}
+            </div>
           </div>
           <div className="rounded border border-border p-2">
             <span className="text-muted-foreground">Output</span>
-            <div className="font-mono text-base">{outputTokens.toLocaleString()}</div>
+            <div className="font-mono text-base">
+              {outputTokens.toLocaleString()}
+            </div>
           </div>
         </div>
       </section>
@@ -581,43 +596,62 @@ function AnalyticsTab() {
   const currentMonthStart = useMemo(() => startOfMonth(new Date()), [])
   const currentMonthEnd = useMemo(() => endOfMonth(new Date()), [])
 
-  // Filter messages and conversations to current month for compact view
+  // Filter to current month for compact view
   const currentMonthMessages = useMemo(() => {
     if (!analytics) return []
-    return analytics.messages_per_day.filter(item => {
+    return analytics.messages_per_day.filter((item) => {
       const date = new Date(item.date)
-      return isWithinInterval(date, { start: currentMonthStart, end: currentMonthEnd })
+      return isWithinInterval(date, {
+        start: currentMonthStart,
+        end: currentMonthEnd
+      })
     })
   }, [analytics, currentMonthStart, currentMonthEnd])
 
   const currentMonthConversations = useMemo(() => {
     if (!analytics) return []
-    return analytics.conversations_per_day.filter(item => {
+    return analytics.conversations_per_day.filter((item) => {
       const date = new Date(item.date)
-      return isWithinInterval(date, { start: currentMonthStart, end: currentMonthEnd })
+      return isWithinInterval(date, {
+        start: currentMonthStart,
+        end: currentMonthEnd
+      })
     })
   }, [analytics, currentMonthStart, currentMonthEnd])
 
-  // For full year, use all data (no filtering)
+  // Full year range: from start of the year of the earliest date to end of the year of the latest date
   const fullYearStart = useMemo(() => {
     if (!analytics) return startOfMonth(new Date())
-    const allDates = [...analytics.messages_per_day, ...analytics.conversations_per_day]
-      .map(d => new Date(d.date))
-      .filter(d => !isNaN(d.getTime()))
+    const allDates = [
+      ...analytics.messages_per_day,
+      ...analytics.conversations_per_day
+    ]
+      .map((d) => new Date(d.date))
+      .filter((d) => !Number.isNaN(d.getTime()))
     if (allDates.length === 0) return startOfMonth(new Date())
-    const minDate = new Date(Math.min(...allDates.map(d => d.getTime())))
-    return startOfMonth(minDate)
+    const minDate = new Date(Math.min(...allDates.map((d) => d.getTime())))
+    return new Date(minDate.getFullYear(), 0, 1)
   }, [analytics])
 
   const fullYearEnd = useMemo(() => {
     if (!analytics) return endOfMonth(new Date())
-    const allDates = [...analytics.messages_per_day, ...analytics.conversations_per_day]
-      .map(d => new Date(d.date))
-      .filter(d => !isNaN(d.getTime()))
+    const allDates = [
+      ...analytics.messages_per_day,
+      ...analytics.conversations_per_day
+    ]
+      .map((d) => new Date(d.date))
+      .filter((d) => !Number.isNaN(d.getTime()))
     if (allDates.length === 0) return endOfMonth(new Date())
-    const maxDate = new Date(Math.max(...allDates.map(d => d.getTime())))
-    return endOfMonth(maxDate)
+    const maxDate = new Date(Math.max(...allDates.map((d) => d.getTime())))
+    return new Date(maxDate.getFullYear(), 11, 31)
   }, [analytics])
+
+  // Compute the width needed for the full‑year heatmap (same as in AnalyticsHeatmap)
+  const fullYearWidth = useMemo(() => {
+    const weeks = Math.max(1, differenceInWeeks(fullYearEnd, fullYearStart) + 1)
+    const computedWidth = (12 + 2) * weeks + 40 // rectSize=12, space=2
+    return Math.min(computedWidth, 1200) // cap at 1200px
+  }, [fullYearStart, fullYearEnd])
 
   if (isLoading) {
     return (
@@ -682,20 +716,32 @@ function AnalyticsTab() {
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
             Activity (current month)
           </h3>
-          <Dialog open={fullYearDialogOpen} onOpenChange={setFullYearDialogOpen}>
+          <Dialog
+            open={fullYearDialogOpen}
+            onOpenChange={setFullYearDialogOpen}
+          >
             <DialogTrigger asChild>
               <Button variant="ghost" size="sm" className="text-xs h-6 px-2">
                 View full year
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-6xl w-[95vw]" style={{ maxHeight: '90vh', overflowY: 'auto' }}>
+            <DialogContent
+              className="w-auto max-w-[98vw]"
+              style={{
+                width: `${Math.min(fullYearWidth + 80, window.innerWidth - 40)}px`,
+                maxWidth: '98vw',
+                maxHeight: '90vh',
+                overflowY: 'auto'
+              }}
+            >
               <DialogHeader>
                 <DialogTitle>Activity heatmap – full year</DialogTitle>
                 <DialogDescription>
-                  Daily activity from the earliest recorded data to the most recent.
+                  Daily activity from the start of the year of the earliest data
+                  to the end of the year of the latest data.
                 </DialogDescription>
               </DialogHeader>
-              <div className="py-4 overflow-x-auto">
+              <div className="py-4">
                 <AnalyticsHeatmap
                   messagesData={analytics.messages_per_day}
                   conversationsData={analytics.conversations_per_day}
@@ -705,7 +751,9 @@ function AnalyticsTab() {
                 />
               </div>
               <DialogFooter>
-                <Button onClick={() => setFullYearDialogOpen(false)}>Close</Button>
+                <Button onClick={() => setFullYearDialogOpen(false)}>
+                  Close
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>

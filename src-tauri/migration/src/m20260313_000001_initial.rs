@@ -272,11 +272,13 @@ impl MigrationTrait for Migration {
                     .col(uuid(Messages::ParentId).null())
                     .col(boolean(Messages::Seen).not_null())
                     .col(uuid(Messages::BranchId).null())
+                    .col(text(Messages::StableHtml).null())
                     .col(string(Messages::Role).not_null())
                     .col(text(Messages::Content).not_null())
                     .col(json(Messages::Metadata).null())
                     .col(integer(Messages::InputTokens).null())
                     .col(json(Messages::ContextItems))
+                    .col(json(Messages::NodeDocument).null())
                     .col(integer(Messages::OutputTokens).null())
                     .col(integer(Messages::CacheReadTokens).null())
                     .col(integer(Messages::CacheWriteTokens).null())
@@ -1668,8 +1670,10 @@ enum Conversations {
 enum Messages {
     Table,
     Id,
+    StableHtml,
     ContextItems,
     ConversationId,
+    NodeDocument,
     ParentId,
     BranchId,
     Seen,

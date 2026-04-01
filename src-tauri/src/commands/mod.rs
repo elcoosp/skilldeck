@@ -21,5 +21,6 @@ pub mod profiles;
 pub mod queue;
 pub mod settings;
 pub mod skills;
+pub mod theme;
 pub mod workflows;
 pub mod workspaces;

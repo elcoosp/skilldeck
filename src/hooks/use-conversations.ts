@@ -6,9 +6,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { commands } from '@/lib/bindings'
 import type { UUID } from '@/lib/types'
-import { useProfiles } from './use-profiles'
 import { useConversationStore } from '@/store/conversation'
 import { useWorkspaceStore } from '@/store/workspace'
+import { useProfiles } from './use-profiles'
 
 export function useConversations(profileId?: UUID | null) {
   // <-- changed
@@ -32,7 +32,9 @@ export function useConversations(profileId?: UUID | null) {
 
 export function useCreateConversation(profileId?: UUID) {
   const queryClient = useQueryClient()
-  const setActiveConversation = useConversationStore((s) => s.setActiveConversation)
+  const setActiveConversation = useConversationStore(
+    (s) => s.setActiveConversation
+  )
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId)
 
   return useMutation({
@@ -67,8 +69,12 @@ export function useCreateConversation(profileId?: UUID) {
 
 export function useDeleteConversation() {
   const queryClient = useQueryClient()
-  const activeConversationId = useConversationStore((s) => s.activeConversationId)
-  const setActiveConversation = useConversationStore((s) => s.setActiveConversation)
+  const activeConversationId = useConversationStore(
+    (s) => s.activeConversationId
+  )
+  const setActiveConversation = useConversationStore(
+    (s) => s.setActiveConversation
+  )
 
   return useMutation({
     mutationFn: async (id: UUID) => {
@@ -190,7 +196,9 @@ export function useUnpinConversation() {
  */
 export function useActiveConversationWorkspaceId(): string | null {
   const queryClient = useQueryClient()
-  const activeConversationId = useConversationStore((s) => s.activeConversationId)
+  const activeConversationId = useConversationStore(
+    (s) => s.activeConversationId
+  )
   const { data: profiles } = useProfiles()
   const defaultProfile = profiles?.find((p) => p.is_default) ?? profiles?.[0]
 

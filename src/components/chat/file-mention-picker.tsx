@@ -1,12 +1,7 @@
 // src/components/chat/file-mention-picker.tsx
 
-import {
-  CheckCircle,
-  ChevronLeft,
-  Loader2,
-  XCircle
-} from 'lucide-react'
 import { FileIcon, FolderIcon } from '@react-symbols/icons/utils'
+import { CheckCircle, ChevronLeft, Loader2, XCircle } from 'lucide-react'
 import type React from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -272,13 +267,19 @@ export const FileMentionPicker: React.FC<FileMentionPickerProps> = ({
                       file.name === '..' ? (
                         <ChevronLeft className="w-4 h-4" />
                       ) : (
-                        <FolderIcon folderName={file.name} width={16} height={16} />
+                        <FolderIcon
+                          folderName={file.name}
+                          width={16}
+                          height={16}
+                        />
                       )
                     ) : (
                       <FileIcon fileName={file.name} width={16} height={16} />
                     )}
                   </span>
-                  <span className="font-medium truncate flex-1">{file.name}</span>
+                  <span className="font-medium truncate flex-1">
+                    {file.name}
+                  </span>
                   <span
                     className={cn(
                       'text-xs tabular-nums shrink-0',

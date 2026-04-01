@@ -1,5 +1,5 @@
 // src/components/skills/share-skill-modal.tsx
-import { SiGithub } from '@icons-pack/react-simple-icons';
+import { SiGithub } from '@icons-pack/react-simple-icons'
 import { ExternalLink, Share2, X } from 'lucide-react'
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -67,7 +67,7 @@ export function ShareSkillModal({ skillName, contentMd, onClose }: Props) {
       setResult(gist)
       setStep('done')
       sendActivityEvent('skill_shared', { skill_name: skillName }).catch(
-        () => { }
+        () => {}
       )
     } finally {
       setSaving(false)

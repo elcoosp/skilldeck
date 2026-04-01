@@ -1,11 +1,10 @@
 @import "tailwindcss";
-@import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@plugin "@tailwindcss/typography";
 @import "@fontsource/poppins";
-/* This loads Poppins font */
-
+@plugin "@tailwindcss/typography";
 @custom-variant dark (&:is(.dark *));
+
+/* This loads Poppins font */
 
 :root {
   /* Font & base styles – now using Poppins as the primary brand font */
@@ -68,7 +67,8 @@
   --sidebar-accent-foreground: var(--brand-neutral-900);
   --sidebar-border: var(--brand-neutral-300);
   --sidebar-ring: var(--brand-primary-light);
-
+  --inline-code-hover-bg: rgba(59, 130, 246, 0.1);
+  --inline-code-hover-color: #1e40af;
   /* Sonner toast custom colors */
   --normal-bg: #ffffff;
   --normal-border: #e2e8f0;
@@ -132,7 +132,8 @@
   --sidebar-accent-foreground: var(--brand-neutral-100);
   --sidebar-border: var(--brand-neutral-700);
   --sidebar-ring: var(--brand-primary-light);
-
+  --inline-code-hover-bg: rgba(59, 130, 246, 0.2);
+  --inline-code-hover-color: #60a5fa;
   /* Sonner toast custom colors – dark mode */
   --normal-bg: #1e293b;
   --normal-border: #334155;
@@ -236,7 +237,6 @@
   background-color: var(--border);
   border-radius: 4px;
 }
-
 
 .message-highlight {
   animation: highlight-flash 600ms ease-out forwards;
@@ -403,4 +403,34 @@ pre[class*="language-"]::-webkit-scrollbar {
 pre[class*="language-"]::-webkit-scrollbar-thumb {
   background: var(--border);
   border-radius: 2px;
+}
+
+.prose img {
+  min-height: 1.5em;
+}
+
+code[data-inline-code] {
+  cursor: pointer;
+  background-color: var(--muted);
+  padding: 0.15em 0.35em;
+  border-radius: 4px;
+  font-size: 0.875em;
+  font-weight: 500;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+  line-height: 1;
+  box-shadow: none;
+}
+
+/* Prevent backtick pseudo-elements from typography plugins */
+code[data-inline-code]::before,
+code[data-inline-code]::after {
+  content: "";
+  display: none;
+}
+
+code[data-inline-code]:hover {
+  background-color: var(--inline-code-hover-bg);
+  color: var(--inline-code-hover-color);
 }

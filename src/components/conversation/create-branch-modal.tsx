@@ -1,43 +1,56 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { useCreateBranch } from '@/hooks/use-branches';
-import { toast } from 'sonner';
-import { useQueryClient } from '@tanstack/react-query';
-import { useConversationStore } from '@/store/conversation';
+import { useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
+import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { useCreateBranch } from '@/hooks/use-branches'
+import { useConversationStore } from '@/store/conversation'
 
 interface CreateBranchModalProps {
-  open: boolean;
-  onClose: () => void;
-  conversationId: string;
-  parentMessageId: string;
+  open: boolean
+  onClose: () => void
+  conversationId: string
+  parentMessageId: string
 }
 
-export function CreateBranchModal({ open, onClose, conversationId, parentMessageId }: CreateBranchModalProps) {
-  const [name, setName] = useState('');
-  const createBranch = useCreateBranch();
-  const setActiveBranch = useConversationStore((s) => s.setActiveBranch);
-  const setActiveConversation = useConversationStore((s) => s.setActiveConversation);
+export function CreateBranchModal({
+  open,
+  onClose,
+  conversationId,
+  parentMessageId
+}: CreateBranchModalProps) {
+  const [name, setName] = useState('')
+  const createBranch = useCreateBranch()
+  const setActiveBranch = useConversationStore((s) => s.setActiveBranch)
+  const setActiveConversation = useConversationStore(
+    (s) => s.setActiveConversation
+  )
 
-  const queryClient = useQueryClient();
+  const queryClient = useQueryClient()
   const handleCreate = async () => {
     try {
       const branchId = await createBranch.mutateAsync({
         conversation_id: conversationId,
         parent_message_id: parentMessageId,
-        name: name.trim() || null,
-      });
-      toast.success('Branch created');
+        name: name.trim() || null
+      })
+      toast.success('Branch created')
       // Invalidate the specific branch query for this conversation
-      queryClient.invalidateQueries({ queryKey: ['branches', conversationId] });
-      setActiveBranch(branchId);
-      setActiveConversation(conversationId);
-      onClose();
+      queryClient.invalidateQueries({ queryKey: ['branches', conversationId] })
+      setActiveBranch(branchId)
+      setActiveConversation(conversationId)
+      onClose()
     } catch (err) {
-      toast.error(`Failed to create branch: ${err}`);
+      toast.error(`Failed to create branch: ${err}`)
     }
-  };
+  }
 
   return (
     <Dialog open={open} onOpenChange={(open) => !open && onClose()}>
@@ -66,5 +79,5 @@ export function CreateBranchModal({ open, onClose, conversationId, parentMessage
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

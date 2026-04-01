@@ -9,20 +9,20 @@ import { useEffect, useState } from 'react'
 import './App.css'
 import { AppShell } from '@/components/layout/app-shell'
 import { OnboardingWizard } from '@/components/overlays/onboarding-wizard'
-import { GlobalSearchModal } from '@/components/search/global-search-modal'
 import { SplashScreen } from '@/components/overlays/splash-screen'
+import { GlobalSearchModal } from '@/components/search/global-search-modal'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { useMcpEvents } from '@/hooks/use-mcp-events'
 import { useSkillEvents } from '@/hooks/use-skill-events'
 import { useSubagentEvents } from '@/hooks/use-subagent-events'
+import { commands } from '@/lib/bindings'
+import { loadLocale, type locales } from '@/lib/i18n'
 import { useSettingsStore } from '@/store/settings'
-import type { SettingsTab } from '@/store/ui-overlays'  // changed
-import { useUIOverlaysStore } from '@/store/ui-overlays' // changed
-import { useUIPersistentStore } from '@/store/ui-state'   // changed
-import { useUILayoutStore } from '@/store/ui-layout'      // changed
-import { loadLocale, locales } from '@/lib/i18n'
+import { useUILayoutStore } from '@/store/ui-layout'
+import type { SettingsTab } from '@/store/ui-overlays'
+import { useUIOverlaysStore } from '@/store/ui-overlays'
+import { useUIPersistentStore } from '@/store/ui-state'
 import { useAttachFilesListener } from './hooks/use-attach-files-listener'
-import { preloadHighlighter } from './lib/highlighter'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -68,18 +68,24 @@ function GlobalEventListeners() {
 }
 
 function AppContent() {
-  const onboardingComplete = useUIPersistentStore((s) => s.onboardingComplete)      // changed
-  const globalSearchOpen = useUIOverlaysStore((s) => s.globalSearchOpen)            // changed
-  const setGlobalSearchOpen = useUIOverlaysStore((s) => s.setGlobalSearchOpen)      // changed
+  const onboardingComplete = useUIPersistentStore((s) => s.onboardingComplete)
+  const globalSearchOpen = useUIOverlaysStore((s) => s.globalSearchOpen)
+  const setGlobalSearchOpen = useUIOverlaysStore((s) => s.setGlobalSearchOpen)
 
   // Global custom event listener for opening global search
   useEffect(() => {
     const handleOpenGlobalSearch = () => {
       setGlobalSearchOpen(true)
     }
-    window.addEventListener('skilldeck:open-global-search', handleOpenGlobalSearch)
+    window.addEventListener(
+      'skilldeck:open-global-search',
+      handleOpenGlobalSearch
+    )
     return () =>
-      window.removeEventListener('skilldeck:open-global-search', handleOpenGlobalSearch)
+      window.removeEventListener(
+        'skilldeck:open-global-search',
+        handleOpenGlobalSearch
+      )
   }, [setGlobalSearchOpen])
 
   return (
@@ -98,16 +104,39 @@ function AppContent() {
 }
 
 function App() {
-  const setSettingsOpen = useUIOverlaysStore((s) => s.setSettingsOpen)     // changed
-  const setSettingsTab = useUIOverlaysStore((s) => s.setSettingsTab)       // changed
-  const setRightTab = useUILayoutStore((s) => s.setRightTab)               // changed
+  const setSettingsOpen = useUIOverlaysStore((s) => s.setSettingsOpen)
+  const setSettingsTab = useUIOverlaysStore((s) => s.setSettingsTab)
+  const setRightTab = useUILayoutStore((s) => s.setRightTab)
 
   // Splash screen state
   const [showSplash, setShowSplash] = useState(true)
   const [fadeOut, setFadeOut] = useState(false)
+
+  // Load syntax theme CSS on mount
   useEffect(() => {
-    preloadHighlighter()
+    commands
+      .getSyntaxCss()
+      .then((res) => {
+        if (res.status === 'error') {
+          console.error('Failed to load syntax theme CSS:', res.error)
+          return
+        }
+        const css = res.data
+        const style = document.getElementById('syntax-theme')
+        if (style) {
+          style.textContent = css
+        } else {
+          const s = document.createElement('style')
+          s.id = 'syntax-theme'
+          s.textContent = css
+          document.head.appendChild(s)
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load syntax theme CSS:', err)
+      })
   }, [])
+
   // Start fade-out after 2.5 seconds
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -166,8 +195,9 @@ function App() {
         <AppContent />
         {showSplash && (
           <div
-            className={`fixed inset-0 z-50 transition-opacity duration-500 ${fadeOut ? 'opacity-0' : 'opacity-100'
-              }`}
+            className={`fixed inset-0 z-50 transition-opacity duration-500 ${
+              fadeOut ? 'opacity-0' : 'opacity-100'
+            }`}
             onTransitionEnd={handleTransitionEnd}
           >
             <SplashScreen />

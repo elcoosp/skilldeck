@@ -1,18 +1,18 @@
 // src/components/layout/app-shell.tsx
-import { useEffect, useRef, useState, useCallback } from 'react'
-import { Group, Panel, Separator, type Layout } from 'react-resizable-panels'
-import { Toaster } from 'sonner'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
+import { Group, type Layout, Panel, Separator } from 'react-resizable-panels'
+import { Toaster } from 'sonner'
+import { GlobalDropZone } from '@/components/chat/global-drop-zone'
 import { CommandPalette } from '@/components/overlays/command-palette'
 import { LaunchNotificationBanner } from '@/components/overlays/launch-notification'
 import { SettingsOverlay } from '@/components/overlays/settings-overlay'
 import { useNudgeListener, usePlatformRegistration } from '@/hooks/use-platform'
+import { useUILayoutStore } from '@/store/ui-layout'
+import { useUIOverlaysStore } from '@/store/ui-overlays'
 import { CenterPanel } from './center-panel'
 import { LeftPanel } from './left-panel'
 import { RightPanel } from './right-panel'
-import { GlobalDropZone } from '@/components/chat/global-drop-zone'
-import { useUIOverlaysStore } from '@/store/ui-overlays'
-import { useUILayoutStore } from '@/store/ui-layout'
 
 const LAYOUT_STORAGE_KEY = 'skilldeck-panel-layout'
 
@@ -24,7 +24,7 @@ const PANEL_RIGHT = 'right'
 const DEFAULT_LAYOUT: Layout = {
   [PANEL_LEFT]: 20,
   [PANEL_CENTER]: 60,
-  [PANEL_RIGHT]: 20,
+  [PANEL_RIGHT]: 20
 }
 
 export function AppShell() {
@@ -40,14 +40,14 @@ export function AppShell() {
           return {
             [PANEL_LEFT]: parsed[0],
             [PANEL_CENTER]: parsed[1],
-            [PANEL_RIGHT]: parsed[2],
+            [PANEL_RIGHT]: parsed[2]
           }
         }
         if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
           return parsed as Layout
         }
       }
-    } catch { }
+    } catch {}
     return DEFAULT_LAYOUT
   })
 
@@ -58,7 +58,7 @@ export function AppShell() {
     const right = panels[2] as HTMLDivElement
     setPanelSizesPx({
       left: left?.clientWidth ?? 0,
-      right: right?.clientWidth ?? 0,
+      right: right?.clientWidth ?? 0
     })
   }, [setPanelSizesPx])
 
@@ -67,24 +67,29 @@ export function AppShell() {
 
   // ⚠️ Use onLayoutChanged (fires once on pointer release) instead of
   // onLayoutChange (fires on every pointer move). This eliminates lag.
-  const handleLayoutChanged = useCallback((newLayout: Layout) => {
-    setLayout(newLayout)
+  const handleLayoutChanged = useCallback(
+    (newLayout: Layout) => {
+      setLayout(newLayout)
 
-    // Derive pixel sizes from percentages – no DOM read needed
-    const totalWidth = window.innerWidth
-    setPanelSizesPx({
-      left: Math.round(((newLayout[PANEL_LEFT] ?? 20) / 100) * totalWidth),
-      right: Math.round(((newLayout[PANEL_RIGHT] ?? 20) / 100) * totalWidth),
-    })
+      // Derive pixel sizes from percentages – no DOM read needed
+      const totalWidth = window.innerWidth
+      setPanelSizesPx({
+        left: Math.round(((newLayout[PANEL_LEFT] ?? 20) / 100) * totalWidth),
+        right: Math.round(((newLayout[PANEL_RIGHT] ?? 20) / 100) * totalWidth)
+      })
 
-    // Debounce the write just in case
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
-    saveTimerRef.current = setTimeout(() => {
-      localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(newLayout))
-    }, 300)
-  }, [setPanelSizesPx])
+      // Debounce the write just in case
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+      saveTimerRef.current = setTimeout(() => {
+        localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(newLayout))
+      }, 300)
+    },
+    [setPanelSizesPx]
+  )
 
-  const setCommandPaletteOpen = useUIOverlaysStore((s) => s.setCommandPaletteOpen)
+  const setCommandPaletteOpen = useUIOverlaysStore(
+    (s) => s.setCommandPaletteOpen
+  )
   const setSettingsOpen = useUIOverlaysStore((s) => s.setSettingsOpen)
   const setGlobalSearchOpen = useUIOverlaysStore((s) => s.setGlobalSearchOpen)
   const settingsOpen = useUIOverlaysStore((s) => s.settingsOpen)
@@ -138,8 +143,8 @@ export function AppShell() {
         >
           <Panel
             id={PANEL_LEFT}
-            minSize={"15%"}
-            maxSize={"30%"}
+            minSize={'15%'}
+            maxSize={'30%'}
             className="border-r border-border"
           >
             <LeftPanel />
@@ -155,8 +160,8 @@ export function AppShell() {
 
           <Panel
             id={PANEL_RIGHT}
-            minSize={"18%"}
-            maxSize={"35%"}
+            minSize={'18%'}
+            maxSize={'35%'}
             className="border-l border-border"
           >
             <RightPanel />

@@ -7,8 +7,16 @@
 import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 import { open } from '@tauri-apps/plugin-dialog'
 import { AnimatePresence, motion } from 'framer-motion'
+import {
+  ChevronDown,
+  Folder,
+  FolderOpen,
+  FolderPlus,
+  Plus,
+  Search,
+  Settings
+} from 'lucide-react'
 import { Collapsible } from 'radix-ui'
-import { ChevronDown, FolderOpen, FolderPlus, Plus, Search, Settings } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { ConversationItem } from '@/components/conversation/conversation-item'
@@ -33,15 +41,20 @@ import {
   useConversations,
   useCreateConversation
 } from '@/hooks/use-conversations'
-import { useFolders, useCreateFolder, useMoveConversationToFolder } from '@/hooks/use-folders'
+import {
+  useCreateFolder,
+  useFolders,
+  useMoveConversationToFolder
+} from '@/hooks/use-folders'
 import { useProfiles } from '@/hooks/use-profiles'
 import { useOpenWorkspace, useWorkspaces } from '@/hooks/use-workspaces'
 import { cn } from '@/lib/utils'
-import { useUIEphemeralStore } from '@/store/ui-ephemeral'
-import { useUIOverlaysStore } from '@/store/ui-overlays'
 import { useConversationStore } from '@/store/conversation'
-import { useWorkspaceStore } from '@/store/workspace'
+import { useUIEphemeralStore } from '@/store/ui-ephemeral'
 import { useUILayoutStore } from '@/store/ui-layout'
+import { useUIOverlaysStore } from '@/store/ui-overlays'
+import { useWorkspaceStore } from '@/store/workspace'
+
 // ----------------------------------------------------------------------
 // Lottie-powered empty state animation with fallback and reduced motion
 // ----------------------------------------------------------------------
@@ -89,14 +102,14 @@ function EmptyStateAnimation({ alt, className }: EmptyStateAnimationProps) {
 // ----------------------------------------------------------------------
 // Helper to group conversations by date
 // ----------------------------------------------------------------------
-import { isToday, isYesterday, subDays, parseISO, isValid } from 'date-fns'
+import { isToday, isValid, isYesterday, parseISO, subDays } from 'date-fns'
 
 function getDateGroupKey(dateStr: string): string {
   // Handles "2026-03-23 15:35:22.009975 +00:00"
   // date-fns parseISO requires a T separator and no space before offset
   const normalized = dateStr
-    .replace(' ', 'T')           // first space only: date/time separator
-    .replace(' +', '+')          // remove space before timezone offset
+    .replace(' ', 'T') // first space only: date/time separator
+    .replace(' +', '+') // remove space before timezone offset
     .replace(' -', '-')
 
   const date = parseISO(normalized)
@@ -117,9 +130,13 @@ export function LeftPanel() {
   const setSearchQuery = useUIEphemeralStore((s) => s.setSearchQuery)
   const setSettingsOpen = useUIOverlaysStore((s) => s.setSettingsOpen)
   const setSettingsTab = useUIOverlaysStore((s) => s.setSettingsTab)
-  const setGlobalSearchOpen = useUIOverlaysStore((s) => s.setGlobalSearchOpen)
-  const activeConversationId = useConversationStore((s) => s.activeConversationId)
-  const setActiveConversation = useConversationStore((s) => s.setActiveConversation)
+  const _setGlobalSearchOpen = useUIOverlaysStore((s) => s.setGlobalSearchOpen)
+  const activeConversationId = useConversationStore(
+    (s) => s.activeConversationId
+  )
+  const setActiveConversation = useConversationStore(
+    (s) => s.setActiveConversation
+  )
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId)
   const setActiveWorkspace = useWorkspaceStore((s) => s.setActiveWorkspace)
 
@@ -146,7 +163,7 @@ export function LeftPanel() {
 
   // UI state for collapsed date groups
   const collapsedDateGroups = useUILayoutStore((s) => s.collapsedDateGroups)
-  const toggleDateGroup = useUILayoutStore((s) => s.toggleDateGroup)
+  const _toggleDateGroup = useUILayoutStore((s) => s.toggleDateGroup)
   const setDateGroupCollapsed = useUILayoutStore((s) => s.setDateGroupCollapsed)
 
   // New folder creation modal state (simple prompt)
@@ -262,7 +279,10 @@ export function LeftPanel() {
     }
   }
 
-  const handleMoveToFolder = async (conversationId: string, folderId: string | null) => {
+  const _handleMoveToFolder = async (
+    conversationId: string,
+    folderId: string | null
+  ) => {
     try {
       await moveConversationToFolder.mutateAsync({ conversationId, folderId })
       toast.success(folderId ? 'Moved to folder' : 'Removed from folder')
@@ -510,7 +530,8 @@ export function LeftPanel() {
                   )}
 
                   {folders.map((folder) => {
-                    const folderConvs = conversationsByFolder.get(folder.id) ?? []
+                    const folderConvs =
+                      conversationsByFolder.get(folder.id) ?? []
                     if (folderConvs.length === 0) return null
                     return (
                       <Collapsible.Root key={folder.id} defaultOpen>

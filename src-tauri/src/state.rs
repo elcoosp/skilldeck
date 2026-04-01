@@ -31,10 +31,13 @@ use adk_rust::server::a2a::A2aClient;
 
 // Import the SkillEventEmitter trait
 use skilldeck_core::traits::SkillEventEmitter;
-use skilldeck_core::traits::ToolApprovalEmitter; // <-- new
+use skilldeck_core::traits::ToolApprovalEmitter;
 
 // Import core event types
 use skilldeck_core::events::McpEvent as CoreMcpEvent;
+
+// NEW: Import markdown pipeline
+use skilldeck_core::markdown::{renderer::MarkdownPipeline, theme::SharedTheme};
 
 const KEYRING_SERVICE: &str = "skilldeck";
 
@@ -151,6 +154,10 @@ pub struct AppState {
     pub global_auto_approve: Arc<RwLock<AutoApproveConfig>>,
     /// Subagent session manager.
     pub subagent_manager: Arc<tokio::sync::Mutex<SubagentManager>>,
+    /// Shared theme for syntax highlighting (live-swappable).
+    pub theme: SharedTheme,
+    /// Markdown pipeline (uses the same theme).
+    pub markdown: Arc<MarkdownPipeline>,
 }
 
 impl AppState {
@@ -220,9 +227,10 @@ impl AppState {
         };
 
         // Create the approval gate with the emitter
-        let approval_gate = Arc::new(skilldeck_core::agent::ApprovalGate::new(
-            Some(Arc::new(tool_approval_emitter) as Arc<dyn ToolApprovalEmitter>),
-        ));
+        let approval_gate = Arc::new(skilldeck_core::agent::ApprovalGate::new(Some(Arc::new(
+            tool_approval_emitter,
+        )
+            as Arc<dyn ToolApprovalEmitter>)));
 
         // ── Start MCP supervisor with event emitter ────────────────────────────
         let app_handle = app.clone();
@@ -298,6 +306,11 @@ impl AppState {
         let subagent_clients = Arc::new(DashMap::new());
         let subagent_results = Arc::new(DashMap::new());
 
+        // ─── Markdown pipeline ─────────────────────────────────────────────────
+        // Load default theme (we can later load from user preferences)
+        let theme = SharedTheme::from_name("base16-ocean.dark").map_err(|e| e.to_string())?;
+        let markdown = Arc::new(MarkdownPipeline::new(theme.clone()));
+
         let state = Self {
             registry: Arc::clone(&registry),
             approval_gate,
@@ -316,6 +329,8 @@ impl AppState {
             auto_send_paused,
             global_auto_approve: Arc::new(RwLock::new(AutoApproveConfig::default())),
             subagent_manager: Arc::new(tokio::sync::Mutex::new(SubagentManager::new())),
+            theme,    // <-- new
+            markdown, // <-- new
         };
 
         state.ensure_default_profile().await;
@@ -450,7 +465,7 @@ impl AppState {
             .into_iter()
             .next()
             .map(|m| m.id)
-            .unwrap_or_else(|| "glm-5:cloud".to_string()); // changed from llama3.2:latest
+            .unwrap_or_else(|| "glm-5:cloud".to_string());
 
         let now = chrono::Utc::now().fixed_offset();
         let id = uuid::Uuid::new_v4();

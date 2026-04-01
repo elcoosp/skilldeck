@@ -4,6 +4,7 @@
 //! All event names use kebab-case and match the listeners in `src/lib/events.ts`.
 
 use serde::{Deserialize, Serialize};
+use skilldeck_core::markdown::types::{ArtifactSpec, NodeDocument, TocItem};
 use specta::Type;
 use tauri_specta::Event;
 
@@ -50,6 +51,12 @@ pub enum AgentEvent {
         tool_call_id: String,
         tool_name: String,
         arguments: serde_json::Value,
+    },
+    StreamUpdate {
+        conversation_id: String,
+        document: NodeDocument,
+        new_toc_items: Vec<TocItem>,
+        new_artifact_specs: Vec<ArtifactSpec>,
     },
 }
 

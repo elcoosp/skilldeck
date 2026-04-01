@@ -1,9 +1,10 @@
+// src/components/chat/global-drop-zone.tsx
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { commands } from '@/lib/bindings'
-import { useChatContextStore } from '@/store/chat-context-store'
 import { cn } from '@/lib/utils'
+import { useChatContextStore } from '@/store/chat-context-store'
 import { useConversationStore } from '@/store/conversation'
 import { useUILayoutStore } from '@/store/ui-layout'
 
@@ -14,7 +15,9 @@ type DragDropPayload =
   | { type: 'leave' }
 
 export function GlobalDropZone() {
-  const activeConversationId = useConversationStore((s) => s.activeConversationId)
+  const activeConversationId = useConversationStore(
+    (s) => s.activeConversationId
+  )
   const leftPx = useUILayoutStore((s) => s.panelSizesPx?.left ?? 0)
   const rightPx = useUILayoutStore((s) => s.panelSizesPx?.right ?? 0)
 
@@ -27,7 +30,7 @@ export function GlobalDropZone() {
 
   // Get current context items for the active conversation (to check duplicates)
   const itemsMap = useChatContextStore((s) => s.items)
-  const activeItems = itemsMap[activeConversationId ?? ''] ?? []
+  const _activeItems = itemsMap[activeConversationId ?? ''] ?? []
 
   useEffect(() => {
     activeConversationIdRef.current = activeConversationId
@@ -52,7 +55,9 @@ export function GlobalDropZone() {
           const { x, y } = payload.position
           const hit = document.elementFromPoint(x, y)
           targetConversationId =
-            hit?.closest('[data-conversation-id]')?.getAttribute('data-conversation-id') ?? null
+            hit
+              ?.closest('[data-conversation-id]')
+              ?.getAttribute('data-conversation-id') ?? null
 
           console.log(`[GlobalDropZone] ${payload.type}`, {
             physX: x,
@@ -64,9 +69,9 @@ export function GlobalDropZone() {
               tag: hit?.tagName,
               id: hit?.id,
               class: hit?.className,
-              dataConvId: hit?.getAttribute('data-conversation-id'),
+              dataConvId: hit?.getAttribute('data-conversation-id')
             },
-            targetConversationId,
+            targetConversationId
           })
         } else {
           console.log(`[GlobalDropZone] ${payload.type} (no position)`)
@@ -78,9 +83,10 @@ export function GlobalDropZone() {
             detail: {
               type: payload.type,
               paths: 'paths' in payload ? payload.paths : [],
-              position: 'position' in payload ? payload.position : { x: -1, y: -1 },
-              targetConversationId,
-            },
+              position:
+                'position' in payload ? payload.position : { x: -1, y: -1 },
+              targetConversationId
+            }
           })
         )
 
@@ -96,7 +102,9 @@ export function GlobalDropZone() {
 
           case 'drop': {
             setIsDragging(false)
-            const paths = payload.paths?.length ? payload.paths : pendingPathsRef.current
+            const paths = payload.paths?.length
+              ? payload.paths
+              : pendingPathsRef.current
             pendingPathsRef.current = []
 
             if (!paths.length || !payload.position) return
@@ -108,7 +116,8 @@ export function GlobalDropZone() {
             if (dropX <= leftWidth || dropX >= rightPanelStart) return
 
             // Use the target conversation if we found one, otherwise fall back to active
-            const targetId = targetConversationId ?? activeConversationIdRef.current
+            const targetId =
+              targetConversationId ?? activeConversationIdRef.current
             if (!targetId) {
               toast.error('No conversation target found')
               return
@@ -140,8 +149,13 @@ export function GlobalDropZone() {
               .catch(() => toast.error('Failed to attach files'))
 
             // If we dropped onto a different conversation, activate it
-            if (targetConversationId && targetConversationId !== activeConversationIdRef.current) {
-              useUIStore.getState().setActiveConversation(targetConversationId)
+            if (
+              targetConversationId &&
+              targetConversationId !== activeConversationIdRef.current
+            ) {
+              useConversationStore
+                .getState()
+                .setActiveConversation(targetConversationId)
             }
             break
           }
@@ -170,7 +184,7 @@ export function GlobalDropZone() {
       )}
       style={{
         left: `${leftPx}px`,
-        right: 0,
+        right: 0
       }}
     >
       <div className="absolute inset-0 bg-background/60 backdrop-blur-sm border-2 border-dashed border-primary/50 rounded-lg flex items-center justify-center">

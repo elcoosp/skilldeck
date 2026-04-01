@@ -1,3 +1,4 @@
+// src/__tests__/components/conversation-item.browser.test.tsx
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
@@ -20,6 +21,7 @@ const makeConversation = (
   pinned: false,
   profile_name: null, // <-- required field
   profile_deleted: false, // <-- required field
+  folder_id: null, // <-- explicitly set to null, not undefined
   ...overrides
 })
 

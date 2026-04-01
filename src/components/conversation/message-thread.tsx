@@ -1,16 +1,21 @@
+// src/components/conversation/message-thread.tsx
+// (full file with fixes applied)
+
 import {
-  useVirtualizer,
   elementScroll,
-  Virtualizer
+  useVirtualizer,
+  type Virtualizer
 } from '@tanstack/react-virtual'
 import { motion } from 'framer-motion'
 import * as React from 'react'
-import type { MessageData } from '@/lib/bindings'
-import { MessageBubble } from './message-bubble'
 import { useSendMessage } from '@/hooks/use-messages'
-import { useToolApprovalStore } from '@/store/tool-approvals'
-import { ToolApprovalCard } from './tool-approval-card'
+import type { MessageData, NodeDocument } from '@/lib/bindings'
 import { useConversationStore } from '@/store/conversation'
+import { useToolApprovalStore } from '@/store/tool-approvals'
+import { useUIEphemeralStore } from '@/store/ui-ephemeral'
+import { MessageBubble } from './message-bubble'
+import ThreadNavigator from './thread-navigator'
+import { ToolApprovalCard } from './tool-approval-card'
 
 export interface ScrollToken {
   messageId: string
@@ -30,6 +35,7 @@ export interface MessageThreadHandle {
 interface MessageThreadProps {
   messages: MessageData[]
   conversationKey: string
+  conversationId: string | null
   streamingMessageId?: string
   isLoading?: boolean
   searchQuery?: string
@@ -40,10 +46,9 @@ interface MessageThreadProps {
   autoScroll?: boolean
   onVisibleUserIndexChange?: (index: number) => void
   onScrollSettled?: (token: ScrollToken) => void
-  /** Called when a message becomes visible (50% in view) */
   onMessageVisible?: (messageId: string) => void
-  /** ID of the message where the branch starts, used to mark branch parent */
   branchParentMessageId?: string | null
+  headings?: any[]
 }
 
 function distFromBottom(el: HTMLElement): number {
@@ -52,8 +57,102 @@ function distFromBottom(el: HTMLElement): number {
 
 const globalMeasuredSizes = new Map<string, number>()
 
-export const ScrollContainerContext = React.createContext<React.RefObject<HTMLDivElement | null> | null>(null)
+export const ScrollContainerContext =
+  React.createContext<React.RefObject<HTMLDivElement | null> | null>(null)
 export const AutoScrollContext = React.createContext<boolean>(true)
+
+interface VirtualRowProps {
+  virtualItem: { index: number; start: number }
+  message: MessageData
+  isThisMessageStreaming: boolean
+  streamingMessage: NodeDocument | null | undefined
+  handleRetry: (() => Promise<undefined | null>) | undefined
+  isBranchParent: boolean
+  isHighlighted: boolean
+  searchQuery: string | undefined
+  searchCaseSensitive: boolean
+  searchRegex: boolean
+  measureRef: React.RefObject<(node: Element | null) => void>
+  lastItemNodeRef: React.RefObject<Element | null>
+  streamingRoRef: React.RefObject<ResizeObserver | null>
+  isLast: boolean
+}
+
+const VirtualRow = React.memo(
+  ({
+    virtualItem,
+    message,
+    isThisMessageStreaming,
+    streamingMessage,
+    handleRetry,
+    isBranchParent,
+    isHighlighted,
+    searchQuery,
+    searchCaseSensitive,
+    searchRegex,
+    isLast,
+    measureRef,
+    lastItemNodeRef,
+    streamingRoRef
+  }: VirtualRowProps) => {
+    return (
+      <div
+        ref={(node) => {
+          measureRef.current?.(node) // call virtualizer.measureElement
+          if (isLast && node !== lastItemNodeRef.current) {
+            if (lastItemNodeRef.current)
+              streamingRoRef.current?.unobserve(lastItemNodeRef.current)
+            ;(
+              lastItemNodeRef as React.MutableRefObject<Element | null>
+            ).current = node
+            if (node) streamingRoRef.current?.observe(node)
+          }
+        }}
+        data-index={virtualItem.index}
+        data-msg-id={message.id}
+        data-role={message.role}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          transform: `translateY(${virtualItem.start}px)`
+        }}
+      >
+        <div className="px-4 py-1.5">
+          <MessageBubble
+            message={message}
+            isStreaming={isThisMessageStreaming}
+            isHighlighted={isHighlighted}
+            searchQuery={searchQuery}
+            searchCaseSensitive={searchCaseSensitive}
+            searchRegex={searchRegex}
+            onRetry={handleRetry}
+            isBranchParent={isBranchParent}
+            streamingMessage={
+              isThisMessageStreaming ? streamingMessage : undefined
+            }
+          />
+        </div>
+      </div>
+    )
+  },
+  (prev, next) => {
+    if (prev.virtualItem.start !== next.virtualItem.start) return false
+    if (prev.isLast !== next.isLast) return false
+    if (prev.isThisMessageStreaming !== next.isThisMessageStreaming)
+      return false
+    if (
+      next.isThisMessageStreaming &&
+      prev.streamingMessage !== next.streamingMessage
+    )
+      return false
+    if (prev.isHighlighted !== next.isHighlighted) return false
+    if (prev.searchQuery !== next.searchQuery) return false
+    if (prev.isBranchParent !== next.isBranchParent) return false
+    return prev.message === next.message
+  }
+)
 
 export const MessageThread = React.forwardRef<
   MessageThreadHandle,
@@ -63,6 +162,7 @@ export const MessageThread = React.forwardRef<
     {
       messages,
       conversationKey,
+      conversationId,
       streamingMessageId,
       isLoading,
       searchQuery = '',
@@ -75,17 +175,24 @@ export const MessageThread = React.forwardRef<
       onScrollSettled,
       onMessageVisible,
       branchParentMessageId,
+      headings = []
     },
     ref
   ) => {
+    // ── Read streamingMessage directly from the store ──────────────────
+    const streamingMessage = useUIEphemeralStore(
+      React.useCallback(
+        (s) => s.streamingMessages[conversationId ?? ''] ?? null,
+        [conversationId]
+      )
+    )
 
     const scrollRef = React.useRef<HTMLDivElement>(null)
-
-    // Get active conversation ID for sending retry messages
-    const activeConversationId = useConversationStore((s) => s.activeConversationId)
+    const activeConversationId = useConversationStore(
+      (s) => s.activeConversationId
+    )
     const sendMutation = useSendMessage(activeConversationId!)
 
-    // Add retry ability to user messages whose next assistant message is cancelled
     const messagesWithRetry = React.useMemo(() => {
       return messages.map((msg, idx) => {
         if (msg.role === 'user' && idx + 1 < messages.length) {
@@ -101,7 +208,9 @@ export const MessageThread = React.forwardRef<
     const filteredMessages = React.useMemo(() => {
       if (!searchQuery.trim()) return messagesWithRetry
       const q = searchQuery.toLowerCase()
-      return messagesWithRetry.filter((m) => m.content.toLowerCase().includes(q))
+      return messagesWithRetry.filter((m) =>
+        m.content.toLowerCase().includes(q)
+      )
     }, [messagesWithRetry, searchQuery])
 
     const filteredMessagesRef = React.useRef(filteredMessages)
@@ -132,11 +241,11 @@ export const MessageThread = React.forwardRef<
 
     const scrollToFn: (
       offset: number,
-      options: { behavior?: ScrollBehavior },
-      instance: Virtualizer<Element, Element>
+      options: { adjustments?: number; behavior?: ScrollBehavior },
+      instance: Virtualizer<HTMLDivElement, Element>
     ) => void = React.useCallback((offset, { behavior }, instance) => {
       isProgrammaticScrollRef.current = true
-      elementScroll(offset, { behavior }, instance)
+      elementScroll(offset, { behavior }, instance as any)
       requestAnimationFrame(() => {
         isProgrammaticScrollRef.current = false
       })
@@ -190,7 +299,6 @@ export const MessageThread = React.forwardRef<
         }
       }
     })
-
     const virtualizerRef = React.useRef(virtualizer)
     virtualizerRef.current = virtualizer
 
@@ -236,17 +344,23 @@ export const MessageThread = React.forwardRef<
       if (token?.scrollTop) {
         applyScrollTop(el, token.scrollTop, (actual) => {
           if (onScrollSettledRef.current && token.messageId) {
-            onScrollSettledRef.current({ messageId: token.messageId, scrollTop: actual })
+            onScrollSettledRef.current({
+              messageId: token.messageId,
+              scrollTop: actual
+            })
           }
         })
       } else {
         const lastIdx = filteredMessagesRef.current.length - 1
         if (lastIdx >= 0) {
-          virtualizerRef.current.scrollToIndex(lastIdx, { align: 'end', behavior: 'auto' })
+          virtualizerRef.current.scrollToIndex(lastIdx, {
+            align: 'end',
+            behavior: 'auto'
+          })
         }
         autoScrollReadyRef.current = true
       }
-    })
+    }, [applyScrollTop])
 
     const didMountRef = React.useRef(false)
     React.useLayoutEffect(() => {
@@ -258,13 +372,19 @@ export const MessageThread = React.forwardRef<
       if (token?.scrollTop) {
         applyScrollTop(el, token.scrollTop, (actual) => {
           if (onScrollSettledRef.current && token.messageId) {
-            onScrollSettledRef.current({ messageId: token.messageId, scrollTop: actual })
+            onScrollSettledRef.current({
+              messageId: token.messageId,
+              scrollTop: actual
+            })
           }
         })
       } else {
         const lastIdx = filteredMessagesRef.current.length - 1
         if (lastIdx >= 0) {
-          virtualizerRef.current.scrollToIndex(lastIdx, { align: 'end', behavior: 'auto' })
+          virtualizerRef.current.scrollToIndex(lastIdx, {
+            align: 'end',
+            behavior: 'auto'
+          })
         }
         autoScrollReadyRef.current = true
       }
@@ -294,34 +414,33 @@ export const MessageThread = React.forwardRef<
     const lastItemNodeRef = React.useRef<Element | null>(null)
     const streamingRoRef = React.useRef<ResizeObserver | null>(null)
 
-    // ─── Streaming auto-scroll with requestAnimationFrame to avoid layout thrashing ───
+    const prevStreamingIdRef = React.useRef<string | undefined>(undefined)
+
     React.useEffect(() => {
       if (streamingRoRef.current) {
         streamingRoRef.current.disconnect()
         streamingRoRef.current = null
       }
-      if (!streamingMessageId) {
+
+      const isNewStream = !!streamingMessageId && !prevStreamingIdRef.current
+      prevStreamingIdRef.current = streamingMessageId ?? undefined
+
+      if (!streamingMessageId) return
+
+      if (isNewStream) {
         userScrolledAwayRef.current = false
-        return
       }
-      userScrolledAwayRef.current = false
+
       const el = scrollRef.current
       if (!el) return
 
       const scrollToBottom = () => {
         if (!autoScrollRef.current || userScrolledAwayRef.current) return
-        // Schedule the scroll in the next animation frame to separate read/write phases.
-        requestAnimationFrame(() => {
-          if (!autoScrollRef.current || userScrolledAwayRef.current) return
-          isProgrammaticScrollRef.current = true
-          el.scrollTop = el.scrollHeight
-          requestAnimationFrame(() => {
-            isProgrammaticScrollRef.current = false
-          })
-        })
+        isProgrammaticScrollRef.current = true
+        el.scrollTop = el.scrollHeight
+        isProgrammaticScrollRef.current = false
       }
 
-      // Trigger an immediate scroll to catch any already-rendered content.
       scrollToBottom()
 
       const ro = new ResizeObserver(scrollToBottom)
@@ -335,8 +454,11 @@ export const MessageThread = React.forwardRef<
     }, [streamingMessageId])
 
     const callbackRef = React.useRef(onVisibleUserIndexChange)
-    React.useLayoutEffect(() => { callbackRef.current = onVisibleUserIndexChange })
+    React.useLayoutEffect(() => {
+      callbackRef.current = onVisibleUserIndexChange
+    })
 
+    // Improved scroll listener – finds the user message closest to the viewport center
     React.useEffect(() => {
       const el = scrollRef.current
       if (!el || !onVisibleUserIndexChange) return
@@ -352,35 +474,60 @@ export const MessageThread = React.forwardRef<
 
       if (userFilteredIndices.length === 0) return
 
+      let rafId: number | null = null
       let lastReported = -1
-      const report = () => {
+
+      const updateActive = () => {
         if (navigatorActiveRef.current) return
+
         const vItems = virtualizerRef.current.getVirtualItems()
         if (vItems.length === 0) return
-        const scrollTop = el.scrollTop
-        let topItem = vItems[0]
-        for (const item of vItems) {
-          if (item.start <= scrollTop) topItem = item
-          else break
-        }
-        let best = userFilteredIndices[0]
+
+        const containerRect = el.getBoundingClientRect()
+        const centerY = containerRect.top + containerRect.height / 2
+
+        let bestUserFilteredIdx = -1
+        let minDistance = Infinity
+
         for (const ui of userFilteredIndices) {
-          if (ui <= topItem.index) best = ui
-          else break
+          const msg = filteredMessages[ui]
+          if (!msg) continue
+          const msgElement = el.querySelector(`[data-msg-id="${msg.id}"]`)
+          if (msgElement) {
+            const rect = msgElement.getBoundingClientRect()
+            const msgCenterY = rect.top + rect.height / 2
+            const distance = Math.abs(msgCenterY - centerY)
+            if (distance < minDistance) {
+              minDistance = distance
+              bestUserFilteredIdx = ui
+            }
+          }
         }
-        const fullIdx = filteredToFull.get(best) ?? -1
-        if (fullIdx !== -1 && fullIdx !== lastReported) {
-          lastReported = fullIdx
-          callbackRef.current?.(fullIdx)
+
+        if (bestUserFilteredIdx !== -1) {
+          const fullIdx = filteredToFull.get(bestUserFilteredIdx) ?? -1
+          if (fullIdx !== -1 && fullIdx !== lastReported) {
+            lastReported = fullIdx
+            callbackRef.current?.(fullIdx)
+          }
         }
       }
 
-      el.addEventListener('scroll', report, { passive: true })
-      const t = setTimeout(report, 50)
-      return () => { clearTimeout(t); el.removeEventListener('scroll', report) }
+      const onScroll = () => {
+        if (rafId !== null) cancelAnimationFrame(rafId)
+        rafId = requestAnimationFrame(updateActive)
+      }
+
+      el.addEventListener('scroll', onScroll, { passive: true })
+      // Run once on mount to set initial active index
+      updateActive()
+
+      return () => {
+        el.removeEventListener('scroll', onScroll)
+        if (rafId !== null) cancelAnimationFrame(rafId)
+      }
     }, [filteredMessages, messages, onVisibleUserIndexChange])
 
-    // Intersection Observer for marking messages as seen
     React.useEffect(() => {
       const container = scrollRef.current
       if (!container || !onMessageVisible) return
@@ -389,7 +536,7 @@ export const MessageThread = React.forwardRef<
 
       const observer = new IntersectionObserver(
         (entries) => {
-          entries.forEach((entry) => {
+          for (const entry of entries) {
             if (entry.isIntersecting) {
               const messageId = entry.target.getAttribute('data-message-id')
               if (messageId && !seenMessages.has(messageId)) {
@@ -397,28 +544,30 @@ export const MessageThread = React.forwardRef<
                 onMessageVisible(messageId)
               }
             }
-          })
+          }
         },
         { threshold: 0.5, root: container }
       )
 
-      // Observe existing messages
       const elements = container.querySelectorAll('[data-message-id]')
-      elements.forEach((el) => observer.observe(el))
+      for (const el of elements) {
+        observer.observe(el)
+      }
 
-      // MutationObserver to handle dynamically added messages
       const mutationObserver = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-          mutation.addedNodes.forEach((node) => {
+        for (const mutation of mutations) {
+          for (const node of mutation.addedNodes) {
             if (node.nodeType === Node.ELEMENT_NODE) {
               const el = node as Element
               const messageId = el.getAttribute('data-message-id')
               if (messageId) {
                 observer.observe(el)
-                // Check visibility immediately (might be in view due to auto-scroll)
                 const rect = el.getBoundingClientRect()
                 const containerRect = container.getBoundingClientRect()
-                if (rect.top >= containerRect.top && rect.bottom <= containerRect.bottom) {
+                if (
+                  rect.top >= containerRect.top &&
+                  rect.bottom <= containerRect.bottom
+                ) {
                   if (!seenMessages.has(messageId)) {
                     seenMessages.add(messageId)
                     onMessageVisible(messageId)
@@ -426,8 +575,8 @@ export const MessageThread = React.forwardRef<
                 }
               }
             }
-          })
-        })
+          }
+        }
       })
 
       mutationObserver.observe(container, { childList: true, subtree: true })
@@ -436,9 +585,8 @@ export const MessageThread = React.forwardRef<
         observer.disconnect()
         mutationObserver.disconnect()
       }
-    }, [onMessageVisible, scrollRef.current])
+    }, [onMessageVisible])
 
-    // NEW: Get pending approvals from store
     const pendingApprovals = useToolApprovalStore((s) => s.pending)
     const removePending = useToolApprovalStore((s) => s.removePending)
 
@@ -450,10 +598,15 @@ export const MessageThread = React.forwardRef<
           if (!el) return
           const targetId = messages[fullIndex]?.id
           if (!targetId) return
-          const fi = filteredMessagesRef.current.findIndex((m) => m.id === targetId)
+          const fi = filteredMessagesRef.current.findIndex(
+            (m) => m.id === targetId
+          )
           if (fi === -1) return
           navigatorActiveRef.current = true
-          virtualizerRef.current.scrollToIndex(fi, { align: 'start', behavior: 'auto' })
+          virtualizerRef.current.scrollToIndex(fi, {
+            align: 'start',
+            behavior: 'auto'
+          })
           let lastStart = -1
           let stableTicks = 0
           const poll = () => {
@@ -461,7 +614,10 @@ export const MessageThread = React.forwardRef<
             const vItems = virtualizerRef.current.getVirtualItems()
             const targetItem = vItems.find((it) => it.index === fi)
             if (!targetItem) {
-              virtualizerRef.current.scrollToIndex(fi, { align: 'start', behavior: 'auto' })
+              virtualizerRef.current.scrollToIndex(fi, {
+                align: 'start',
+                behavior: 'auto'
+              })
               requestAnimationFrame(poll)
               return
             }
@@ -477,35 +633,45 @@ export const MessageThread = React.forwardRef<
                 isProgrammaticScrollRef.current = false
                 if (onScrollSettledRef.current) {
                   const msg = filteredMessagesRef.current[fi]
-                  if (msg) onScrollSettledRef.current({ messageId: msg.id, scrollTop: start })
+                  if (msg)
+                    onScrollSettledRef.current({
+                      messageId: msg.id,
+                      scrollTop: start
+                    })
                 }
                 onComplete?.()
               })
             } else {
-              virtualizerRef.current.scrollToIndex(fi, { align: 'start', behavior: 'auto' })
+              virtualizerRef.current.scrollToIndex(fi, {
+                align: 'start',
+                behavior: 'auto'
+              })
               requestAnimationFrame(poll)
             }
           }
           requestAnimationFrame(poll)
         },
-
         scrollToBottom: () => {
           const el = scrollRef.current
           if (!el) return
           const lastIdx = filteredMessagesRef.current.length - 1
           if (lastIdx < 0) return
-          virtualizerRef.current.scrollToIndex(lastIdx, { align: 'end', behavior: 'auto' })
+          virtualizerRef.current.scrollToIndex(lastIdx, {
+            align: 'end',
+            behavior: 'auto'
+          })
           requestAnimationFrame(() => {
             requestAnimationFrame(() => {
               if (scrollRef.current) {
                 isProgrammaticScrollRef.current = true
                 scrollRef.current.scrollTop = scrollRef.current.scrollHeight
-                requestAnimationFrame(() => { isProgrammaticScrollRef.current = false })
+                requestAnimationFrame(() => {
+                  isProgrammaticScrollRef.current = false
+                })
               }
             })
           })
         },
-
         getScrollElement: () => scrollRef.current,
         getScrollToken: (): ScrollToken | null => {
           if (navigatorActiveRef.current) return null
@@ -523,13 +689,11 @@ export const MessageThread = React.forwardRef<
           if (!msg) return null
           return { messageId: msg.id, scrollTop }
         },
-
         isScrollingToMessage: () => navigatorActiveRef.current,
         getScrollPosition: () => scrollRef.current?.scrollTop ?? 0,
-
         onScroll: (cb: () => void) => {
           const el = scrollRef.current
-          if (!el) return () => { }
+          if (!el) return () => {}
           el.addEventListener('scroll', cb, { passive: true })
           return () => el.removeEventListener('scroll', cb)
         }
@@ -539,12 +703,21 @@ export const MessageThread = React.forwardRef<
 
     const virtualItems = virtualizer.getVirtualItems()
     const lastFilteredIdx = filteredMessages.length - 1
+    const measureElementRef = React.useRef((node: Element | null) => {
+      virtualizer.measureElement(node)
+    })
+    React.useEffect(() => {
+      measureElementRef.current = (node) => virtualizer.measureElement(node)
+    })
 
     return (
       <ScrollContainerContext.Provider value={scrollRef}>
         <AutoScrollContext.Provider value={autoScroll}>
           <div className="relative h-full">
-            <div ref={scrollRef} className="h-full overflow-y-auto thin-scrollbar">
+            <div
+              ref={scrollRef}
+              className="h-full overflow-y-auto thin-scrollbar pl-6"
+            >
               {isLoading && (
                 <motion.div
                   className="flex items-center justify-center h-full text-sm text-muted-foreground"
@@ -572,7 +745,9 @@ export const MessageThread = React.forwardRef<
                     className="w-48 h-48 mb-4 opacity-90"
                   />
                   <h3 className="text-lg font-semibold text-foreground mb-1">
-                    {searchQuery ? 'No matching messages' : 'This conversation is empty'}
+                    {searchQuery
+                      ? 'No matching messages'
+                      : 'This conversation is empty'}
                   </h3>
                   <p className="text-sm text-muted-foreground max-w-xs">
                     {searchQuery
@@ -591,75 +766,81 @@ export const MessageThread = React.forwardRef<
                 >
                   {virtualItems.map((virtualItem) => {
                     const message = filteredMessages[virtualItem.index]
+                    const isThisMessageStreaming =
+                      message.id === streamingMessageId
                     const isLast = virtualItem.index === lastFilteredIdx
                     const retryAvailable = (message as any).retryAvailable
                     const handleRetry = retryAvailable
-                      ? () => sendMutation.mutateAsync({ content: message.content })
+                      ? () =>
+                          sendMutation.mutateAsync({ content: message.content })
                       : undefined
-                    const isBranchParent = branchParentMessageId === message.id
 
                     return (
-                      <div
+                      <VirtualRow
                         key={message.id}
-                        ref={(node) => {
-                          virtualizer.measureElement(node)
-                          if (isLast) {
-                            if (node !== lastItemNodeRef.current) {
-                              if (lastItemNodeRef.current && streamingRoRef.current) {
-                                streamingRoRef.current.unobserve(lastItemNodeRef.current)
-                              }
-                              lastItemNodeRef.current = node
-                              if (node && streamingRoRef.current) {
-                                streamingRoRef.current.observe(node)
-                              }
-                            }
-                          }
-                        }}
-                        data-index={virtualItem.index}
-                        data-msg-id={message.id}
-                        data-role={message.role}
-                        style={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          width: '100%',
-                          transform: `translateY(${virtualItem.start}px)`
-                        }}
-                      >
-                        <div className="px-4 py-1.5">
-                          <MessageBubble
-                            message={message}
-                            isStreaming={message.id === streamingMessageId}
-                            isHighlighted={message.id === highlightedMessageId}
-                            searchQuery={searchQuery.trim() ? searchQuery : undefined}
-                            searchCaseSensitive={searchCaseSensitive}
-                            searchRegex={searchRegex}
-                            onRetry={handleRetry}
-                            isBranchParent={isBranchParent}
-                          />
-                        </div>
-                      </div>
+                        virtualItem={virtualItem}
+                        message={message}
+                        isThisMessageStreaming={isThisMessageStreaming}
+                        streamingMessage={
+                          isThisMessageStreaming ? streamingMessage : undefined
+                        }
+                        handleRetry={handleRetry}
+                        isBranchParent={branchParentMessageId === message.id}
+                        isHighlighted={message.id === highlightedMessageId}
+                        isLast={isLast}
+                        searchQuery={searchQuery}
+                        searchCaseSensitive={searchCaseSensitive}
+                        searchRegex={searchRegex}
+                        measureRef={measureElementRef}
+                        lastItemNodeRef={lastItemNodeRef}
+                        streamingRoRef={streamingRoRef}
+                      />
                     )
                   })}
                 </div>
               )}
             </div>
 
-            {/* NEW: Render pending tool approvals as an absolute overlay */}
             {pendingApprovals.size > 0 && (
               <div className="absolute bottom-0 left-0 right-0 z-20 px-4 pb-3 flex flex-col gap-2 pointer-events-none">
-                {Array.from(pendingApprovals.entries()).map(([toolCallId, toolCall]) => (
-                  <div key={toolCallId} className="pointer-events-auto">
-                    <ToolApprovalCard
-                      toolCallId={toolCallId}
-                      toolCall={toolCall}
-                      onResolved={() => removePending(toolCallId)}
-                    />
-                  </div>
-                ))}
+                {Array.from(pendingApprovals.entries()).map(
+                  ([toolCallId, toolCall]) => (
+                    <div key={toolCallId} className="pointer-events-auto">
+                      <ToolApprovalCard
+                        toolCallId={toolCallId}
+                        toolCall={toolCall}
+                        onResolved={() => removePending(toolCallId)}
+                      />
+                    </div>
+                  )
+                )}
               </div>
             )}
           </div>
+
+          <ThreadNavigator
+            messages={messages}
+            activeIndex={-1} // This will be updated by CenterPanel via onVisibleUserIndexChange
+            activeHeadingIndex={null}
+            onScrollTo={(idx) => {
+              const targetMsg = messages[idx]
+              if (targetMsg) {
+                const fullIndex = messages.findIndex(
+                  (m) => m.id === targetMsg.id
+                )
+                if (fullIndex !== -1) {
+                  virtualizerRef.current.scrollToIndex(fullIndex, {
+                    align: 'start',
+                    behavior: 'auto'
+                  })
+                }
+              }
+            }}
+            onHeadingClick={(_msgIdx, _tocIdx) => {
+              // Implement heading click if needed
+            }}
+            headings={headings}
+          />
         </AutoScrollContext.Provider>
       </ScrollContainerContext.Provider>
     )

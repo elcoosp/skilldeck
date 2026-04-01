@@ -13,7 +13,7 @@ export function getScrollToken(key: string): ScrollToken | null {
       memoryCache.set(key, token)
       return token
     }
-  } catch { }
+  } catch {}
   return null
 }
 
@@ -21,12 +21,12 @@ export function setScrollToken(key: string, token: ScrollToken) {
   memoryCache.set(key, token)
   try {
     sessionStorage.setItem(`scroll:${key}`, JSON.stringify(token))
-  } catch { }
+  } catch {}
 }
 
 export function clearScrollToken(key: string) {
   memoryCache.delete(key)
   try {
     sessionStorage.removeItem(`scroll:${key}`)
-  } catch { }
+  } catch {}
 }

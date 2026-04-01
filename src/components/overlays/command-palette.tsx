@@ -17,13 +17,15 @@ import {
 } from '@/hooks/use-conversations'
 import { useProfiles } from '@/hooks/use-profiles'
 import { useUnifiedSkills } from '@/hooks/use-unified-skills' // changed
-import { useUIOverlaysStore } from '@/store/ui-overlays'
 import { useConversationStore } from '@/store/conversation'
+import { useUIOverlaysStore } from '@/store/ui-overlays'
 
 export function CommandPalette() {
   const open = useUIOverlaysStore((s) => s.commandPaletteOpen)
   const setOpen = useUIOverlaysStore((s) => s.setCommandPaletteOpen)
-  const setActiveConversation = useConversationStore((s) => s.setActiveConversation)
+  const setActiveConversation = useConversationStore(
+    (s) => s.setActiveConversation
+  )
   const setSettingsOpen = useUIOverlaysStore((s) => s.setSettingsOpen)
 
   const { data: conversations = [] } = useConversations()
