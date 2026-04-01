@@ -136,7 +136,7 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
-        // registry_skills cache (new)
+        // registry_skills cache
         manager
             .create_table(
                 Table::create()
@@ -190,7 +190,7 @@ impl MigrationTrait for Migration {
                             .default(Expr::current_timestamp()),
                     )
                     .col(timestamp_with_time_zone(Conversations::ArchivedAt).null())
-                    .col(boolean(Conversations::Pinned).not_null().default(false)) // <-- added
+                    .col(boolean(Conversations::Pinned).not_null().default(false))
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_conversations_profile_id")
@@ -730,37 +730,6 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .default(Expr::current_timestamp()),
                     )
-                    .to_owned(),
-            )
-            .await?;
-
-        // registry_skills cache (new)
-        manager
-            .create_table(
-                Table::create()
-                    .table(RegistrySkills::Table)
-                    .if_not_exists()
-                    .col(uuid(RegistrySkills::Id).primary_key())
-                    .col(string(RegistrySkills::RegistryId).not_null().unique_key())
-                    .col(string(RegistrySkills::Name).not_null())
-                    .col(text(RegistrySkills::Description).not_null())
-                    .col(string(RegistrySkills::Source).not_null())
-                    .col(string(RegistrySkills::SourceUrl).null())
-                    .col(string(RegistrySkills::Version).null())
-                    .col(string(RegistrySkills::Author).null())
-                    .col(string(RegistrySkills::License).null())
-                    .col(json_binary(RegistrySkills::Tags).null())
-                    .col(string(RegistrySkills::Category).null())
-                    .col(json_binary(RegistrySkills::LintWarnings).null())
-                    .col(integer(RegistrySkills::SecurityScore).not_null().default(5))
-                    .col(integer(RegistrySkills::QualityScore).not_null().default(5))
-                    .col(
-                        string(RegistrySkills::MetadataSource)
-                            .not_null()
-                            .default("author"),
-                    )
-                    .col(text(RegistrySkills::Content).not_null())
-                    .col(timestamp_with_time_zone(RegistrySkills::SyncedAt).not_null())
                     .to_owned(),
             )
             .await?;
@@ -1468,7 +1437,7 @@ impl MigrationTrait for Migration {
             .await?;
 
         // =====================================================================
-        // SEED DATA USING ACTIVE MODEL (default profile REMOVED)
+        // SEED DATA USING ACTIVE MODEL
         // =====================================================================
 
         let db = manager.get_connection();
@@ -1495,7 +1464,11 @@ impl MigrationTrait for Migration {
         }
 
         // 2. Model pricing
+        // Note: Pricing values are stored as integer cents per 1M tokens to avoid floating point issues.
+        // e.g., 300 represents $3.00 per 1M tokens.
         let pricing = [
+            // Claude 3.5 Sonnet (Input: $3.00, Output: $15.00)
+            // Cache: $0.30 Read (10%) / $3.75 Write (125%)
             (
                 "claude",
                 "claude-sonnet-4-5",
@@ -1504,9 +1477,21 @@ impl MigrationTrait for Migration {
                 30_i64,
                 375_i64,
             ),
+            // Claude 3 Opus (Input: $15.00, Output: $75.00)
             ("claude", "claude-opus-4", 1500, 7500, 150, 1875),
+            // Claude 3.5 Haiku (Input: $1.00, Output: $5.00)
+            ("claude", "claude-haiku-3-5", 100, 500, 10, 125),
+            // OpenAI GPT-4o (Input: $2.50, Output: $10.00)
+            // Cache: 50% Read
             ("openai", "gpt-4o", 250, 1000, 125, 250),
+            // OpenAI GPT-4o Mini (Input: $0.15, Output: $0.60)
+            // Cache: 50% Read
             ("openai", "gpt-4o-mini", 15, 60, 8, 15),
+            // OpenAI o1-preview (Reasoning: Input: $15.00, Output: $60.00)
+            // Cache: N/A
+            ("openai", "o1-preview", 15000, 60000, 0, 0),
+            // DeepSeek V3 (Input: $0.14, Output: $0.28)
+            ("deepseek", "deepseek-v3", 14, 28, 0, 0),
         ];
 
         for (i, (provider, model, input_c, output_c, cache_r, cache_w)) in
@@ -1551,6 +1536,7 @@ impl MigrationTrait for Migration {
             "folders",
             "templates",
             "artifacts",
+            "pinned_artifacts",
             "workflow_steps",
             "subagent_sessions",
             "workflow_definitions",
@@ -1566,10 +1552,11 @@ impl MigrationTrait for Migration {
             "profile_skills",
             "profile_mcps",
             "queued_messages",
-            "conversation_drafts", // new table
+            "conversation_drafts",
             "tool_call_events",
             "conversation_branches",
             "messages",
+            "message_headings",
             "conversations",
             "user_preferences",
             "workspaces",
@@ -1586,7 +1573,7 @@ impl MigrationTrait for Migration {
 }
 
 // =============================================================================
-// Table / Column DeriveIden enums (unchanged)
+// Table / Column DeriveIden enums
 // =============================================================================
 
 #[derive(DeriveIden)]
@@ -1647,7 +1634,7 @@ enum Conversations {
     CreatedAt,
     UpdatedAt,
     ArchivedAt,
-    Pinned, // <-- added
+    Pinned,
 }
 
 #[derive(DeriveIden)]
@@ -1668,7 +1655,7 @@ enum Messages {
     OutputTokens,
     CacheReadTokens,
     CacheWriteTokens,
-    Status, // <-- added
+    Status,
     CreatedAt,
 }
 
@@ -2102,6 +2089,7 @@ pub enum ModelPricing {
     CacheWriteCostPer1kTokens,
     ValidFrom,
 }
+
 #[derive(Iden)]
 enum PinnedArtifacts {
     Table,
@@ -2112,6 +2100,7 @@ enum PinnedArtifacts {
     IsGlobal,
     CreatedAt,
 }
+
 impl Iden for ModelPricing {
     fn unquoted(&self) -> &str {
         match self {
@@ -2127,6 +2116,7 @@ impl Iden for ModelPricing {
         }
     }
 }
+
 #[derive(Iden)]
 enum MessageHeadings {
     Table,

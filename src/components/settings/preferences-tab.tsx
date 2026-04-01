@@ -25,11 +25,9 @@ import {
   isPlatformNotConfigured,
   usePlatformPreferences
 } from '@/hooks/use-platform'
-import {
-  useProfiles,
-  useProviderReady,
-  useUpdateProfile
-} from '@/hooks/use-profiles'
+import { useProfiles, useUpdateProfile } from '@/hooks/use-profiles'
+import { useProviderReady } from '@/hooks/use-provider-ready'
+
 import { commands } from '@/lib/bindings'
 import { loadLocale, locales } from '@/lib/i18n'
 import type { UpdatePreferencesPayload } from '@/lib/platform'
@@ -182,7 +180,7 @@ export function PreferencesTab() {
             <div className="mt-3">
               {readiness.status.status === 'ready' ? (
                 <Badge
-                  variant="success"
+                  variant="outline"
                   className="bg-green-500/15 text-green-600 dark:text-green-400 border-green-500/20"
                 >
                   ✓ Provider ready

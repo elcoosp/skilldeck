@@ -55,7 +55,7 @@ function useAvailableModels(provider: string) {
     queryFn: async () => {
       if (provider === 'ollama') {
         const res = await commands.listOllamaModels()
-        if (res.status === 'ok') return res.data.map(m => m.id)
+        if (res.status === 'ok') return res.data.map((m) => m.id)
         return []
       }
       if (provider === 'claude') {
@@ -67,7 +67,7 @@ function useAvailableModels(provider: string) {
       }
       return []
     },
-    staleTime: 60_000,
+    staleTime: 60_000
   })
 }
 
@@ -322,7 +322,8 @@ function ProfilesTab() {
   const deletedProfiles = allProfiles.filter((p) => p.deleted_at)
 
   // Fetch available models for the selected provider
-  const { data: models = [], isLoading: modelsLoading } = useAvailableModels(newProvider)
+  const { data: models = [], isLoading: modelsLoading } =
+    useAvailableModels(newProvider)
 
   const createMut = useMutation({
     mutationFn: async () => {
@@ -572,27 +573,27 @@ const APPROVAL_FIELDS: Array<{
   label: string
   description: string
 }> = [
-    {
-      key: 'autoApproveReads',
-      label: 'Auto-approve file reads',
-      description: 'Skip the approval dialog for read-only filesystem tools'
-    },
-    {
-      key: 'autoApproveWrites',
-      label: 'Auto-approve file writes',
-      description: 'Skip approval for file creation and modification'
-    },
-    {
-      key: 'autoApproveShell',
-      label: 'Auto-approve shell commands',
-      description: 'Never require approval for shell execution (⚠ dangerous)'
-    },
-    {
-      key: 'autoApproveHttpRequests',
-      label: 'Auto-approve HTTP requests',
-      description: 'Skip approval for outbound HTTP tool calls'
-    }
-  ]
+  {
+    key: 'autoApproveReads',
+    label: 'Auto-approve file reads',
+    description: 'Skip the approval dialog for read-only filesystem tools'
+  },
+  {
+    key: 'autoApproveWrites',
+    label: 'Auto-approve file writes',
+    description: 'Skip approval for file creation and modification'
+  },
+  {
+    key: 'autoApproveShell',
+    label: 'Auto-approve shell commands',
+    description: 'Never require approval for shell execution (⚠ dangerous)'
+  },
+  {
+    key: 'autoApproveHttpRequests',
+    label: 'Auto-approve HTTP requests',
+    description: 'Skip approval for outbound HTTP tool calls'
+  }
+]
 
 function ApprovalsTab() {
   const toolApprovals = useSettingsStore((s) => s.toolApprovals)

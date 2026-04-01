@@ -569,7 +569,6 @@ async fn persist_assistant_message(
         .map_err(|e| format!("Failed to serialize node document: {}", e))?;
 
     messages::Entity::update_many()
-        .col_expr(messages::Column::StableHtml, Expr::value(""))
         .col_expr(
             messages::Column::NodeDocument,
             Expr::value(node_document_json),
@@ -1073,6 +1072,19 @@ fn run_agent_loop(
 
         while let Some(event) = rx.recv().await {
             match event {
+                Ok(AgentLoopEvent::ProviderNotReady { reason, fix_action }) => {
+                    tracing::warn!(
+                        target: "agent::provider",
+                        reason = %reason,
+                        fix_action = %fix_action,
+                        conversation_id = %conversation_id,
+                        "Provider not ready"
+                    );
+                    let _ = emit_tx.send(AgentEvent::Error {
+                        conversation_id: conversation_id.clone(),
+                        message: format!("{}\nSuggested fix: {}", reason, fix_action),
+                    });
+                }
                 Ok(AgentLoopEvent::Token { delta }) => {
                     accumulated_content.push_str(&delta);
 

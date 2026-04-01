@@ -1,13 +1,13 @@
 //! Provider readiness Tauri command.
 
 use crate::state::AppState;
+use sea_orm::EntityTrait;
 use serde::Serialize;
+use skilldeck_core::traits::model_provider::ProviderReadyStatus as CoreProviderReadyStatus;
 use specta::{Type, specta};
 use std::sync::Arc;
 use tauri::State;
 use uuid::Uuid;
-
-use skilldeck_core::traits::model_provider::ProviderReadyStatus as CoreProviderReadyStatus;
 
 #[derive(Debug, Clone, Serialize, Type)]
 pub struct ProviderReadyInfo {

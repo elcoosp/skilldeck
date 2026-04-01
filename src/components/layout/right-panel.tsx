@@ -60,7 +60,8 @@ import { WorkflowEditor } from '@/components/workflow/workflow-editor'
 import { WorkflowGraph } from '@/components/workflow/workflow-graph'
 import { useAnalytics } from '@/hooks/use-analytics'
 import { useConversations } from '@/hooks/use-conversations'
-import { useProfiles, useProviderReady } from '@/hooks/use-profiles'
+import { useProfiles } from '@/hooks/use-profiles'
+import { useProviderReady } from '@/hooks/use-provider-ready'
 import { useSessionStats } from '@/hooks/use-session-stats'
 import {
   useDeleteWorkflowDefinition,
@@ -218,7 +219,13 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
 
   // ── Token counter ──
   const { inputTokens, outputTokens } = useSessionStats(conversationId)
+  const conversation = conversations?.find((c) => c.id === conversationId)
 
+  const profile = profiles?.find((p) => p.id === conversation?.profile_id)
+  // Provider readiness
+  const { data: readiness, isLoading: readinessLoading } = useProviderReady(
+    profile?.id
+  )
   if (!conversationId) {
     return (
       <div className="p-4 text-sm text-muted-foreground">
@@ -236,7 +243,6 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
     )
   }
 
-  const conversation = conversations?.find((c) => c.id === conversationId)
 
   if (!conversation) {
     return (
@@ -254,7 +260,6 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
     )
   }
 
-  const profile = profiles?.find((p) => p.id === conversation.profile_id)
   if (!profile) {
     return (
       <div className="p-4 space-y-3">
@@ -268,8 +273,6 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
     )
   }
 
-  // Provider readiness
-  const { data: readiness, isLoading: readinessLoading } = useProviderReady(profile.id)
   const hasKeyForProvider = (p: string) =>
     keyStatuses.find((k) => k.provider === p)?.has_key ?? false
   const hasKey = hasKeyForProvider(profile.model_provider)
@@ -294,11 +297,13 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
           <span className="text-xs text-muted-foreground">Provider</span>
           <div className="text-xs font-medium px-2 py-1 rounded bg-muted/50 flex items-center gap-1.5">
             {profile.model_provider}
-            {!hasKey && !readinessLoading && readiness?.status.status !== 'ready' && (
-              <span className="text-[10px] text-amber-500 font-normal">
-                (not configured)
-              </span>
-            )}
+            {!hasKey &&
+              !readinessLoading &&
+              readiness?.status.status !== 'ready' && (
+                <span className="text-[10px] text-amber-500 font-normal">
+                  (not configured)
+                </span>
+              )}
           </div>
           {!readinessLoading && readiness?.status.status === 'not_ready' && (
             <div className="mt-1 text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/20 p-2 rounded">
