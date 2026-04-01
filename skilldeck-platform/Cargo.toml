@@ -50,7 +50,7 @@ argon2 = {version="0.6.0-rc.7", features=["password-hash"]}
 rand = "0.10.0"
 
 # Email
-resend-rs = "0.21.1"
+resend-rs = "0.22.0"
 
 # Scheduler
 tokio-cron-scheduler = "0.15.1"
