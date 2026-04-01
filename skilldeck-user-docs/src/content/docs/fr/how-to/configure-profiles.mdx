@@ -1,0 +1,107 @@
+---
+title: "Comment configurer des profils"
+description: Configurez et gérez des profils pour connecter SkillDeck à différents fournisseurs de modèles IA.
+sidebar:
+  order: 4
+---
+
+import Nudge from '../../../../components/mdx/Nudge.astro';
+import Checkpoint from '../../../../components/mdx/Checkpoint.astro';
+import Feedback from '../../../../components/mdx/Feedback.astro';
+
+Les profils dans SkillDeck définissent quel fournisseur de modèle IA (par ex., Ollama, Claude, OpenAI) et quel modèle spécifique utiliser pour vos conversations. Vous pouvez avoir plusieurs profils et basculer facilement entre eux.
+
+<Nudge type="tip" title="Ce que vous allez apprendre">
+  Comment créer, configurer et basculer entre des profils pour différents fournisseurs d'IA.
+</Nudge>
+
+## Prérequis
+
+- SkillDeck installé et en cours d'exécution
+- Clés API pour les fournisseurs que vous souhaitez utiliser (Claude, OpenAI) ou une installation locale d'Ollama
+
+## Étape 1 : Ouvrez les paramètres
+
+1. Cliquez sur l'icône **Paramètres** (engrenage) dans la barre latérale gauche.
+2. Accédez à l'onglet **Profils**.
+
+## Étape 2 : Créez un nouveau profil
+
+Cliquez sur le bouton **Nouveau profil**. Un formulaire apparaîtra avec les champs suivants :
+
+- **Nom du profil** – un nom convivial (ex. « Claude Sonnet », « Ollama local »)
+- **Fournisseur du modèle** – sélectionnez dans la liste déroulante (Ollama, Claude, OpenAI)
+- **ID du modèle** – l'identifiant spécifique du modèle (ex. `claude-sonnet-4-5`, `gpt-4o`, `llama3.2`)
+
+<Nudge type="tip" title="Trouver les ID de modèle">
+  - Pour Ollama, exécutez `ollama list` dans votre terminal pour voir les modèles installés.
+  - Pour Claude/OpenAI, consultez leur documentation pour les ID de modèle disponibles.
+</Nudge>
+
+## Étape 3 : Remplissez les détails spécifiques au fournisseur
+
+### Pour Ollama (local)
+
+- **Fournisseur :** Ollama
+- **ID du modèle :** par ex., `llama3.2`, `mistral`, `codellama` (doit déjà être téléchargé)
+
+Aucune clé API n'est nécessaire – Ollama fonctionne localement.
+
+### Pour Claude (Anthropic)
+
+- **Fournisseur :** Claude
+- **ID du modèle :** par ex., `claude-sonnet-4-5`, `claude-opus-4`
+- Vous aurez besoin d'une clé API depuis la [console Anthropic](https://console.anthropic.com/)
+
+### Pour OpenAI
+
+- **Fournisseur :** OpenAI
+- **ID du modèle :** par ex., `gpt-4o`, `gpt-4-turbo`
+- Vous aurez besoin d'une clé API depuis la [plateforme OpenAI](https://platform.openai.com/)
+
+<Checkpoint question="Avez‑vous rempli tous les champs requis ?" onYes="Super ! Enregistrez maintenant le profil." onNo="Vérifiez le fournisseur et l'ID du modèle." />
+
+## Étape 4 : Enregistrez le profil
+
+Cliquez sur **Créer** (ou **Enregistrer**). Le nouveau profil apparaîtra dans votre liste de profils.
+
+## Étape 5 : Ajoutez des clés API (si nécessaire)
+
+Si vous avez créé un profil Claude ou OpenAI, vous devrez ajouter la clé API :
+
+1. Allez dans l'onglet **Clés API** des paramètres.
+2. Trouvez votre fournisseur (ex. Claude) et collez votre clé.
+3. Cliquez sur **Enregistrer**. La clé est stockée de manière sécurisée dans votre trousseau système.
+
+<Nudge type="warning" title="Sécurité">
+  Les clés API ne sont jamais stockées dans la base de données – elles résident dans votre trousseau système (Trousseau macOS, Gestionnaire d'identifiants Windows ou libsecret sous Linux).
+</Nudge>
+
+## Étape 6 : Définissez un profil par défaut
+
+1. Dans la liste des profils, trouvez le profil que vous voulez comme défaut.
+2. Cliquez sur l'icône **étoile** à côté. Ce profil sera utilisé pour les nouvelles conversations, sauf si vous le remplacez.
+
+## Étape 7 : Basculez de profil dans une conversation
+
+Vous pouvez changer le profil pour une conversation existante :
+
+1. Ouvrez la conversation.
+2. Dans la barre latérale droite, recherchez le sélecteur de profil (généralement près du haut de l'onglet Session).
+3. Choisissez un autre profil dans la liste déroulante. Le prochain message utilisera le nouveau fournisseur.
+
+<Checkpoint question="Pouvez‑vous basculer de profil dans une conversation ?" onYes="Parfait ! Vous êtes prêt à utiliser différents modèles." onNo="Assurez‑vous que le profil est correctement configuré et que la clé API (si nécessaire) est enregistrée." />
+
+## Dépannage
+
+- **Le profil n'apparaît pas** – vérifiez que vous avez créé au moins un profil.
+- **Le modèle ne répond pas** – vérifiez la clé API et que l'ID du modèle est correct.
+- **Ollama ne fonctionne pas** – assurez‑vous qu'Ollama est en cours d'exécution (`ollama serve`) et que vous avez téléchargé le modèle.
+
+## Prochaines étapes
+
+- [Utiliser des espaces de travail](/fr/how-to/use-workspaces) pour donner un contexte de projet à l'agent.
+- [Installer une compétence](/fr/how-to/install-a-skill) pour étendre les capacités.
+- [Explorer les flux de travail](/fr/tutorials/create-a-workflow/sequential) pour des tâches en plusieurs étapes.
+
+<Feedback />

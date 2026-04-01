@@ -1,0 +1,80 @@
+---
+title: "How to Add a Custom SSE MCP Server"
+description: Connect to a remote MCP server using the SSE (Server‑Sent Events) transport.
+sidebar:
+  order: 3
+---
+
+import Nudge from '../../../../../components/mdx/Nudge.astro';
+import Checkpoint from '../../../../../components/mdx/Checkpoint.astro';
+import Feedback from '../../../../../components/mdx/Feedback.astro';
+
+SSE (Server‑Sent Events) transport allows SkillDeck to communicate with an MCP server running on a remote machine or as a separate HTTP service. This is useful for connecting to cloud‑hosted tools, databases, or custom microservices that expose an MCP‑compatible API.
+
+<Nudge type="tip" title="What you'll learn">
+  How to configure and add any SSE‑based MCP server to SkillDeck.
+</Nudge>
+
+## Prerequisites
+
+- SkillDeck installed and running
+- The server's SSE endpoint URL (e.g., `http://localhost:8080/sse` or `https://api.example.com/mcp`)
+- Any required authentication headers or environment variables
+
+## Step 1: Open the MCP Tab
+
+1. In the right sidebar, click the **MCP** tab (plug icon).
+2. Click **Add Custom Server**.
+
+## Step 2: Fill in the Server Details
+
+A form will appear with the following fields:
+
+- **Name** – a friendly name (e.g., "Remote Database Server")
+- **Transport** – select **sse**
+- **URL** – the full SSE endpoint (e.g., `http://localhost:3000/sse`)
+- **Environment** – optional JSON object of environment variables (some servers may need API keys or tokens passed as headers – if so, include them here, e.g., `{ "AUTHORIZATION": "Bearer your-token" }`)
+
+<Nudge type="warning" title="Network accessibility">
+  The URL must be reachable from the machine running SkillDeck. If it's a local server, ensure it's running and the port is correct.
+</Nudge>
+
+## Step 3: Example – A Local SSE Server
+
+Suppose you have a custom MCP server written in Python that exposes an SSE endpoint at `http://localhost:5000/sse`. You would configure:
+
+- **Name:** `My Python Server`
+- **Transport:** `sse`
+- **URL:** `http://localhost:5000/sse`
+- **Environment:** (optional) `{}`
+
+## Step 4: Save and Connect
+
+1. After filling in the details, click **Add Server**.
+2. SkillDeck will attempt to establish an SSE connection. You should see its status change to **connected** (green) or **error** (red) with a message.
+
+<Checkpoint question="Is the server showing as 'connected'?" onYes="Perfect! Your custom SSE server is now available to the agent." onNo="Check that the URL is correct and that the server is running. Also verify network connectivity (firewalls, etc.)." />
+
+## Step 5: Test the Server
+
+To verify it works, try a conversation that uses one of its tools. For example, if the server provides a `weather` tool, you could ask:
+
+```
+What's the weather in Paris?
+```
+
+The agent should invoke the tool and return results.
+
+## Troubleshooting
+
+- **Connection refused** – ensure the server is running and the URL is correct.
+- **CORS issues** – some servers may need CORS headers; check server logs.
+- **Authentication failures** – if the server requires headers, add them as environment variables (SkillDeck passes them as headers automatically for SSE).
+- **Slow connection** – if the server takes time to start, try increasing timeout (not currently configurable, but you can retry).
+
+## Next Steps
+
+- [Explore more MCP servers](/en/market-insights/mcp-ecosystem/ecosystem-directory) from the community.
+- [Build your own MCP server](/en/tutorials/build-custom-mcp) to expose custom tools.
+
+<Feedback />

@@ -1,0 +1,99 @@
+---
+title: "Comment utiliser les espaces de travail"
+description: Donnez un contexte de projet à l'agent en ouvrant un espace de travail, permettant l'accès aux fichiers et dossiers.
+sidebar:
+  order: 5
+---
+
+import Nudge from '../../../../components/mdx/Nudge.astro';
+import Checkpoint from '../../../../components/mdx/Checkpoint.astro';
+import Feedback from '../../../../components/mdx/Feedback.astro';
+
+Les espaces de travail dans SkillDeck permettent de fournir à l'agent un **contexte de projet** – votre base de code, vos fichiers de configuration et votre documentation. Lorsqu'un espace de travail est ouvert, l'agent peut accéder aux fichiers et dossiers que vous attachez explicitement, ce qui le rend beaucoup plus efficace pour des tâches comme la revue de code, la refactorisation et la génération de documentation.
+
+<Nudge type="tip" title="Ce que vous allez apprendre">
+  Comment ouvrir un espace de travail, attacher des fichiers/dossiers à une conversation et laisser l'agent utiliser le contexte de votre projet.
+</Nudge>
+
+## Prérequis
+
+- SkillDeck installé et en cours d'exécution
+- Un dossier de projet sur votre machine locale (par ex., un dépôt Git)
+
+## Étape 1 : Ouvrez un espace de travail
+
+1. Dans la barre latérale gauche, cliquez sur le sélecteur d'espace de travail en bas (il peut afficher « Aucun espace de travail »).
+2. Sélectionnez **Ouvrir un autre espace de travail** (ou une option similaire).
+3. Dans la boîte de dialogue de fichiers, accédez à votre dossier de projet et sélectionnez‑le.
+4. Cliquez sur **Ouvrir**.
+
+SkillDeck analysera le dossier et détectera le type de projet (par ex., Rust, Node, Python). Le nom de l'espace de travail apparaîtra dans le sélecteur.
+
+<Checkpoint question="Le nom de votre espace de travail apparaît‑il dans le sélecteur ?" onYes="Super ! Votre espace de travail est maintenant actif." onNo="Essayez de rouvrir le dossier ou vérifiez qu'il s'agit bien d'un répertoire valide." />
+
+## Étape 2 : Commencez une conversation
+
+Allez dans l'onglet **Conversation** et créez une nouvelle conversation ou utilisez une conversation existante. L'espace de travail que vous avez ouvert est désormais associé à cette conversation (vous verrez son nom dans la barre supérieure).
+
+## Étape 3 : Attachez des fichiers ou dossiers
+
+Il existe deux façons de donner à l'agent l'accès aux fichiers de votre espace de travail :
+
+### Option A : Tapez `#` pour ouvrir le sélecteur de fichiers
+
+1. Dans la zone de saisie du message, tapez `#` – un sélecteur de fichiers apparaîtra affichant les fichiers et dossiers de votre espace de travail.
+2. Parcourez ou recherchez le fichier dont vous avez besoin.
+3. Cliquez sur un fichier pour l'attacher. Il apparaîtra sous forme de puce au‑dessus de la saisie.
+
+### Option B : Utilisez le bouton de la barre d'outils
+
+1. Cliquez sur le bouton **# Fichier** dans la barre d'outils sous la saisie.
+2. Le même sélecteur de fichiers s'ouvrira – sélectionnez un fichier à attacher.
+
+<Checkpoint question="Pouvez‑vous attacher un fichier en utilisant `#` ?" onYes="Parfait ! L'agent peut maintenant voir ce fichier." onNo="Assurez‑vous d'avoir un espace de travail ouvert et que le sélecteur de fichiers apparaisse." />
+
+## Étape 4 : Attachez un dossier entier
+
+Vous pouvez également attacher un dossier, ce qui permet à l'agent d'accéder à plusieurs fichiers à la fois.
+
+1. Tapez `#` pour ouvrir le sélecteur de fichiers.
+2. Accédez à un dossier et cliquez sur l'entrée **`.`** (qui représente le dossier courant). Une fenêtre modale apparaîtra demandant la profondeur d'analyse :
+   - **Enfants directs uniquement** – seulement les fichiers immédiatement à l'intérieur du dossier.
+   - **Tous les fichiers imbriqués** – inclure récursivement les fichiers dans les sous‑dossiers.
+3. Choisissez votre préférence et confirmez.
+
+Le dossier apparaîtra sous forme de puce. Lorsque vous enverrez votre message, SkillDeck rassemblera le contenu de tous ces fichiers (dans la limite de taille) et les inclura dans le contexte.
+
+<Nudge type="tip" title="Portée du dossier">
+  Utilisez « Enfants directs uniquement » pour un contexte peu profond (par ex., un dossier de configuration). Utilisez « Tous les fichiers imbriqués » pour un contexte profond comme une arborescence source entière – soyez conscient de la limite de jetons.
+</Nudge>
+
+## Étape 5 : Posez des questions à l'agent
+
+Maintenant que vous avez attaché des fichiers ou dossiers, demandez quelque chose qui nécessite une connaissance du projet. Par exemple :
+
+- « Peux‑tu revoir cette fonction dans `src/main.py` ? »
+- « Que dit le `README.md` sur l'installation ? »
+- « Résume le code dans le dossier `utils`. »
+
+L'agent utilisera le contexte attaché pour répondre avec précision.
+
+<Checkpoint question="L'agent a‑t‑il correctement référencé vos fichiers attachés ?" onYes="Génial ! Les espaces de travail fonctionnent." onNo="Assurez‑vous que les fichiers sont attachés sous forme de puces avant d'envoyer. L'agent ne peut voir que ce que vous avez attaché." />
+
+## Comment fonctionne le contexte de l'espace de travail
+
+Lorsque vous attachez un fichier ou un dossier, SkillDeck :
+
+- Lit le(s) fichier(s) sur votre disque local.
+- Insère leur contenu dans le contexte de la conversation (avec des marqueurs clairs pour que l'agent sache d'où provient chaque fichier).
+- L'agent dispose alors de ces informations pour le tour en cours.
+
+Il s'agit d'une injection unique – si vous avez besoin que l'agent accède à nouveau aux fichiers dans un tour ultérieur, vous devrez les rattacher (ou les inclure dans votre message). Les espaces de travail fournissent simplement la **source** des pièces jointes ; ils ne rendent pas le contexte persistant entre les tours.
+
+## Prochaines étapes
+
+- [Installer une compétence](/fr/how-to/install-a-skill) qui peut analyser votre code.
+- [Ajouter un serveur MCP](/fr/how-to/add-mcp-server/filesystem-server) pour une intégration de fichiers encore plus poussée.
+- [Partager une compétence via Gist](/fr/how-to/share-skill-gist) avec votre équipe.
+
+<Feedback />

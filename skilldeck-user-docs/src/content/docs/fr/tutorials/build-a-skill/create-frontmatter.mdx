@@ -1,0 +1,99 @@
+---
+title: "Tutorial: Create Frontmatter for a Skill"
+description: Learn the required and optional frontmatter fields for a SkillDeck skill, with examples.
+sidebar:
+  order: 1
+---
+
+import Nudge from '../../../../../components/mdx/Nudge.astro';
+import Checkpoint from '../../../../../components/mdx/Checkpoint.astro';
+import Feedback from '../../../../../components/mdx/Feedback.astro';
+
+Every SkillDeck skill is defined by a `SKILL.md` file. The file begins with YAML frontmatter – a block of metadata between `---` lines. This frontmatter tells SkillDeck the skill’s name, description, and other important information.
+
+<Nudge type="tip" title="What you'll build">
+  By the end of this tutorial, you'll have a valid `SKILL.md` file ready to be filled with instructions.
+</Nudge>
+
+## Step 1: Create a Directory for Your Skill
+
+First, create a new folder for your skill inside your personal skill directory:
+
+```bash
+# Personal skills are stored in ~/.agents/skills/
+mkdir -p ~/.agents/skills/my-awesome-skill
+cd ~/.agents/skills/my-awesome-skill
+```
+
+<Checkpoint question="Did you create the folder and navigate into it?" onYes="Great! Now create the SKILL.md file." onNo="Check the path – make sure the directory exists." />
+
+## Step 2: Open SKILL.md in an Editor
+
+Create and open `SKILL.md` in your favorite text editor:
+
+```bash
+touch SKILL.md
+code SKILL.md   # or use vim, nano, etc.
+```
+
+## Step 3: Add Basic Frontmatter
+
+Copy the following into `SKILL.md`. This is the minimum required frontmatter.
+
+```yaml
+---
+name: my-awesome-skill
+description: "A short description of what this skill does (at least 20 characters)"
+---
+```
+
+<Nudge type="warning" title="Naming rules">
+  The `name` must be lowercase kebab‑case (letters, numbers, and hyphens only). It should match the directory name.
+</Nudge>
+
+## Step 4: Validate Your Frontmatter
+
+SkillDeck includes a linter that checks your skill for errors. Run it from your skill directory:
+
+```bash
+skilldeck-lint .
+```
+
+You should see output indicating no errors. If there are errors, fix them (e.g., description too short, invalid characters).
+
+<Checkpoint question="Did the linter pass without errors?" onYes="Perfect! Your frontmatter is valid." onNo="Read the error messages and correct your frontmatter." />
+
+## Step 5: Optional Fields
+
+You can add more fields to provide additional context:
+
+```yaml
+---
+name: my-awesome-skill
+description: "A short description of what this skill does (at least 20 characters)"
+license: MIT
+version: "1.0.0"
+author: "Your Name"
+compatibility: ["claude-sonnet-4-5", "gpt-4o"]
+allowed_tools: ["read_file", "write_file"]
+---
+```
+
+- `license` – SPDX identifier (e.g., MIT, Apache‑2.0)
+- `version` – semantic version string
+- `author` – your name or GitHub handle
+- `compatibility` – list of model IDs this skill works with
+- `allowed_tools` – tools the skill may invoke (important for security)
+
+## Step 6: Re‑lint to Check Optional Fields
+
+Run `skilldeck-lint .` again. It will warn about any suspicious patterns but shouldn’t error on optional fields alone.
+
+## Next Steps
+
+Your skill now has a valid frontmatter. In the next tutorial, you'll add the instructions that tell the agent what to do.
+
+- [Write Instructions for Your Skill](/en/tutorials/build-a-skill/write-instructions)
+
+
+<Feedback />

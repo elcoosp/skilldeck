@@ -1,0 +1,99 @@
+---
+title: "Comment configurer les clés API"
+description: Ajoutez des clés API pour Claude et OpenAI afin d'utiliser des modèles cloud, ou utilisez Ollama localement sans clés.
+sidebar:
+  order: 6
+---
+
+import Nudge from '../../../../components/mdx/Nudge.astro';
+import Checkpoint from '../../../../components/mdx/Checkpoint.astro';
+import Feedback from '../../../../components/mdx/Feedback.astro';
+
+Pour utiliser des fournisseurs d'IA cloud comme **Claude (Anthropic)** ou **OpenAI**, vous devez ajouter une clé API. Cette clé est stockée de manière sécurisée dans le trousseau de votre système d'exploitation et n'est jamais touchée par la base de données de SkillDeck. Si vous préférez rester entièrement local, vous pouvez utiliser **Ollama** sans aucune clé API.
+
+<Nudge type="tip" title="Ce que vous allez apprendre">
+  Comment obtenir et stocker de manière sécurisée les clés API pour Claude et OpenAI, et comment vérifier qu'elles fonctionnent.
+</Nudge>
+
+## Prérequis
+
+- SkillDeck installé et en cours d'exécution
+- Un compte auprès du fournisseur que vous souhaitez utiliser (Anthropic ou OpenAI)
+
+## Étape 1 : Ouvrez les paramètres
+
+1. Cliquez sur l'icône **Paramètres** (engrenage) dans la barre latérale gauche.
+2. Accédez à l'onglet **Clés API**.
+
+## Étape 2 : Obtenez votre clé API
+
+### Pour Claude (Anthropic)
+
+1. Allez sur la [console Anthropic](https://console.anthropic.com/).
+2. Connectez‑vous et accédez à **Clés API**.
+3. Cliquez sur **Créer une clé**, donnez‑lui un nom (par ex., « SkillDeck ») et copiez la clé générée.
+
+<Nudge type="warning" title="La clé commence par sk‑ant">
+  Les clés API Claude commencent toujours par `sk-ant-`. Si ce n'est pas le cas, vérifiez que vous êtes au bon endroit.
+</Nudge>
+
+### Pour OpenAI
+
+1. Allez sur la [plateforme OpenAI](https://platform.openai.com/).
+2. Accédez à **Clés API** sous votre profil.
+3. Cliquez sur **Créer une nouvelle clé secrète**, copiez‑la immédiatement.
+
+<Nudge type="warning" title="La clé commence par sk‑">
+  Les clés OpenAI commencent généralement par `sk-`. Traitez cette clé comme un mot de passe – ne la partagez jamais et ne la commitez pas dans un contrôle de version.
+</Nudge>
+
+### Pour Ollama (pas de clé nécessaire)
+
+Si vous utilisez Ollama, vous n'avez pas besoin de clé API. Assurez‑vous simplement qu'Ollama est installé et en cours d'exécution localement. SkillDeck le détectera automatiquement.
+
+<Checkpoint question="Avez‑vous copié votre clé API ?" onYes="Super ! Ajoutons‑la à SkillDeck." onNo="Faites une pause ici et générez une clé depuis la console du fournisseur." />
+
+## Étape 3 : Ajoutez la clé dans SkillDeck
+
+1. Dans l'onglet **Clés API**, trouvez le fournisseur que vous configurez (Claude ou OpenAI).
+2. Cliquez sur le bouton **Ajouter** ou **Modifier** à côté.
+3. Collez votre clé dans le champ de saisie. Vous pouvez basculer la visibilité pour la vérifier.
+4. Cliquez sur **Enregistrer**.
+
+La clé est maintenant stockée dans votre trousseau système. Vous pouvez vérifier qu'elle est enregistrée en recherchant un badge « Clé stockée » à côté du fournisseur.
+
+<Nudge type="tip" title="Stockage des clés">
+  SkillDeck utilise le trousseau de votre système d'exploitation (Trousseau macOS, Gestionnaire d'identifiants Windows ou libsecret sous Linux). Les clés ne sont jamais écrites dans la base de données SQLite.
+</Nudge>
+
+## Étape 4 : Testez la connexion (optionnel mais recommandé)
+
+Après l'enregistrement, vous pouvez tester que la clé fonctionne :
+
+1. Allez dans l'onglet **Profils** et créez un profil utilisant ce fournisseur (si vous ne l'avez pas déjà fait).
+2. Commencez une nouvelle conversation avec ce profil.
+3. Envoyez un simple message comme « Bonjour, fonctionnes‑tu ? ».
+
+Si vous obtenez une réponse, votre clé est correctement configurée.
+
+<Checkpoint question="Avez‑vous reçu une réponse du modèle ?" onYes="Parfait ! Votre clé API fonctionne." onNo="Vérifiez que vous avez sélectionné le bon profil et que la clé a été collée correctement." />
+
+## Étape 5 : Gérez plusieurs clés
+
+Vous ne pouvez avoir qu'une seule clé active par fournisseur à la fois. Si vous devez basculer vers une autre clé (par ex., une clé d'équipe vs une clé personnelle), remplacez simplement la clé existante en collant une nouvelle clé et en enregistrant. L'ancienne clé sera écrasée.
+
+## Dépannage
+
+- **Erreur de clé invalide** – vérifiez que vous avez copié toute la clé, y compris les préfixes.
+- **Clé non enregistrée** – assurez‑vous que le trousseau de votre système est déverrouillé et accessible.
+- **Fournisseur non affiché** – seuls Claude, OpenAI et Ollama sont pris en charge nativement. D'autres fournisseurs pourront être ajoutés à l'avenir.
+
+## Prochaines étapes
+
+Maintenant que vos clés API sont configurées, vous pouvez :
+
+- [Créer des profils](/fr/how-to/configure-profiles) pour utiliser ces clés avec différents modèles.
+- [Installer une compétence](/fr/how-to/install-a-skill) pour étendre les capacités de l'agent.
+- [Utiliser des espaces de travail](/fr/how-to/use-workspaces) pour donner un contexte de projet à l'agent.
+
+<Feedback />

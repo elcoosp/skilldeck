@@ -1,0 +1,64 @@
+---
+title: Résolution des compétences
+description: Comment SkillDeck résout les noms de compétences lorsque plusieurs sources fournissent la même compétence.
+sidebar:
+  order: 2
+---
+
+import Feedback from '../../../../components/mdx/Feedback.astro';
+
+Lorsqu'un même nom de compétence existe à plusieurs endroits (par exemple, espace de travail, dossier personnel et registre), SkillDeck utilise un **ordre de priorité** pour décider quelle version est active. Cela garantit que vous pouvez remplacer les compétences de la communauté par vos propres versions personnalisées.
+
+## Ordre de priorité (du plus élevé au plus bas)
+
+1. **Espace de travail** – `./.skilldeck/skills/`
+2. **Personnel** – `~/.agents/skills/`
+3. **Registre** – compétences mises en cache depuis la plateforme SkillDeck
+
+Les compétences provenant de sources de priorité plus élevée **masquent** (cachent) celles des sources de priorité inférieure. Si vous avez `code-review` dans votre espace de travail et aussi dans le registre, la version de l'espace de travail est utilisée.
+
+## Pourquoi c'est important
+
+- **Remplacements locaux** : vous pouvez modifier une compétence communautaire pour l'adapter aux besoins de votre équipe et la placer dans votre espace de travail – elle prendra le pas.
+- **Comportement cohérent** : les compétences sont résolues de manière déterministe ; vous savez toujours quelle version sera exécutée.
+- **Valeurs par défaut sûres** : si aucune version locale n'existe, le registre fournit une solution de repli.
+
+## Comment fonctionne la résolution
+
+Lorsque l'agent doit charger une compétence (par exemple, lorsque vous mentionnez `@code-review`), le résolveur :
+
+1. Recherche dans le répertoire **de l'espace de travail** (si un espace de travail est ouvert).
+2. Si introuvable, vérifie le répertoire **personnel**.
+3. Enfin, utilise le **cache du registre**.
+
+La première correspondance est utilisée. Si aucune correspondance n'est trouvée, l'agent signale que la compétence n'existe pas.
+
+## Masquage et visibilité
+
+Dans l'onglet Compétences, vous verrez à la fois les compétences locales et celles du registre, mais seule la version de priorité la plus élevée sera marquée comme **active**. Les versions de priorité inférieure sont toujours visibles mais peuvent être atténuées ou accompagnées d'une note indiquant qu'elles sont masquées.
+
+## Exemple
+
+Supposons que vous ayez :
+
+- **Espace de travail** : `code-review` (version modifiée)
+- **Personnel** : `code-review` (ancienne version)
+- **Registre** : `code-review` (original)
+
+La version de l'espace de travail l'emporte. Si vous supprimez la version de l'espace de travail, la version personnelle devient active. Si vous supprimez également celle‑ci, la version du registre est utilisée.
+
+## Résoudre les conflits
+
+Si vous avez accidentellement des versions conflictuelles, vous pouvez :
+
+- Supprimer la version indésirable de son répertoire.
+- Renommer l'une des compétences (si ce sont en fait des compétences différentes).
+- Utiliser l'onglet Compétences pour basculer la version active (pas encore implémenté).
+
+## En relation
+
+- [Explication des espaces de travail](/fr/explanation/workspaces)
+- [Installer une compétence](/fr/how-to/install-a-skill)
+- [Référence du format des compétences](/fr/reference/skill-format)
+
+<Feedback />

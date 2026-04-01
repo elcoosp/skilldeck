@@ -1,0 +1,133 @@
+---
+title: "From Chat to Autonomous Systems: The Evolution of AI Interaction"
+description: How agentic workflows are transforming AI from a conversational tool into an autonomous executor.
+order: 21
+---
+
+import Feedback from '../../../../../components/mdx/Feedback.astro';
+
+The era of the "chatty" chatbot has officially come to an end. We've moved beyond the novelty of generative prose into the high-stakes world of agentic workflows [citation:10]. In 2026, AI is stepping out of dashboards and into the driver's seat—making decisions, triggering workflows, and reshaping how work actually gets done.
+
+## The Shift: From "Ask AI" to "Do AI"
+
+For years, AI assistants lived behind glass: useful, impressive, but ultimately passive. They could answer questions, generate text, and summarize documents, but they couldn't act on your behalf.
+
+That boundary has shattered. The shift from **chat-based AI** to **agentic systems** represents a fundamental change in how we interact with software. Instead of asking a bot for answers, we now set goals and watch a network of specialized agents plan, execute, and report back—across email, docs, calendars, and enterprise tools [citation:4].
+
+### What Makes This Moment Different?
+
+The difference comes down to this: chat-based AI waits for instructions; agentic AI executes actions.
+
+| Aspect | Chat-Based AI | Agentic AI |
+|--------|---------------|------------|
+| **Interaction Model** | Question → Answer | Goal → Execution |
+| **State** | Stateless (per conversation) | Stateful (across sessions) |
+| **Tool Use** | Describes what it would do | Actually performs actions |
+| **Workflow** | Single turn | Multi-step orchestration |
+| **Human Role** | Operator | Supervisor/approver |
+
+## The Three Stages of AI Evolution
+
+### Stage 1: Conversational AI (2022–2024)
+Early LLMs excelled at generating human-like text but remained confined to the chat window. They could tell you how to do something but couldn't do it for you.
+
+### Stage 2: Tool-Using AI (2024–2025)
+Models gained the ability to call functions and APIs, but each interaction remained isolated. Tools were invoked one at a time, with no memory of past actions [citation:8].
+
+### Stage 3: Agentic AI (2026–Present)
+Today's AI systems can plan, execute multi-step workflows, maintain context across sessions, learn from feedback, and adapt to changing circumstances. They don't just suggest actions—they take them [citation:1][citation:7].
+
+## What Makes a System "Agentic"?
+
+According to industry research, agentic AI is increasingly defined by systems that can:
+
+- **Plan** – Decompose complex goals into executable steps
+- **Decide** – Choose between alternative approaches based on context
+- **Act** – Execute workflows across multiple tools and systems
+- **Remember** – Maintain state and learn from past interactions
+- **Escalate** – Know when to hand off to a human for approval [citation:4][citation:7]
+
+Critically, this doesn't mean full autonomy. The most successful agentic systems operate within **clear constraints** and **human oversight**. Only 4% of teams allow agents to act without any human approval—most adopt graduated trust models where low-risk actions are automated and higher-risk decisions require human oversight [citation:7].
+
+## Real-World Agentic Systems in Production
+
+### Palo Alto Networks: Automated Customer Intelligence
+
+Palo Alto Networks developed an AI agent to autonomously generate comprehensive customer documents that previously took days to create manually. The system:
+
+- Retrieves customer metadata from Salesforce
+- Queries internal knowledge bases across multiple systems
+- Synthesizes information into structured documents
+- Processes 140+ questions in parallel using Vertex AI Agent Engine
+- Achieved dramatic time savings while maintaining quality and consistency [citation:3]
+
+The key architectural insight: they shifted from passing all questions to the agent at once to using an orchestrator that maintains state and processes questions one by one. This compartmentalization dramatically improved stability [citation:3].
+
+### IBM's Regulate.AI: Multi-Agent Regulatory Authoring
+
+IBM collaborated with global pharmaceutical organizations to develop Regulate.AI, a multi-agent authoring tool for regulatory documents. The system:
+
+- Supports both pattern-based and template-based generation
+- Maintains dependency awareness across document sections
+- Provides role-based experiences for administrators, composers, writers, and reviewers
+- Integrates with enterprise platforms like Veeva Vault
+- Potential to reduce regulatory writing time by 50–60% [citation:9]
+
+### GitHub's Multi-Agent Engineering Patterns
+
+Through work on agentic experiences across GitHub Copilot and internal automations, GitHub has identified three critical patterns for reliable multi-agent systems:
+
+1. **Typed schemas** – Machine-checkable data contracts that prevent format drift
+2. **Action schemas** – Explicit sets of allowed actions that agents must return
+3. **MCP enforcement** – Model Context Protocol as the validation layer [citation:8]
+
+As the GitHub Blog notes: "Multi-agent systems work when structure is explicit. Treat agents like code, not chat interfaces" [citation:8].
+
+## The Infrastructure Shift: Building the Nervous System
+
+If 2025 was about the brain (the LLM), 2026 is about the nervous system. You cannot bolt a self-correcting, multi-step agent onto legacy infrastructure and expect it to function [citation:5].
+
+Industry analysts identify three non-negotiable pillars for agentic infrastructure:
+
+### 1. Semantic Telemetry
+Traditional logging is designed for humans—dashboards with red and green lights. AI agents need logs they can parse and understand. Semantic telemetry enriches system logs with natural language context that an LLM can use to self-diagnose [citation:5].
+
+### 2. Asynchronous, Event-Driven APIs
+Most enterprise APIs are built on request-response loops. Agentic workflows, however, are non-linear. An agent might start a task, encounter a permission hurdle, pivot to a different data source, and then circle back. This requires asynchronous, event-driven architectures where agents can subscribe to events rather than polling for responses [citation:5][citation:10].
+
+### 3. Context-Rich Metadata
+Clean data isn't enough—agents need context. An agent doesn't just need to know that a customer's balance is $5,000; it needs to know whether this is a high-value customer, whether the balance is overdue, and whether there was a recent support ticket related to this amount. Investing in semantic tagging and data catalogs is essential [citation:5].
+
+## The Rise of the "Silent Executive"
+
+The most powerful executive in the enterprise no longer speaks. In 2026, AI has crossed a psychological and operational threshold from something leaders interact with to something that acts alongside them [citation:10].
+
+What makes this moment different is **context**. Through Model Context Protocol (MCP) and similar approaches, agents now bridge static enterprise data with live operational signals. They understand intent, constraints, and risk in motion, allowing them to initiate actions across systems rather than merely advising humans what to do next [citation:10].
+
+## Practical Implementation with SkillDeck
+
+SkillDeck is designed for this agentic era. You can build systems that:
+
+- **Orchestrate multi-step workflows** using sequential, parallel, or evaluator-optimizer patterns
+- **Give agents access to tools** via MCP servers (filesystem, GitHub, databases, etc.)
+- **Maintain state** across conversation turns and agent sessions
+- **Combine local and cloud models** in hybrid workflows
+- **Keep humans in the loop** with approval gates for sensitive operations
+
+## Key Takeaways
+
+| Insight | Implication |
+|---------|-------------|
+| Agentic AI is already in production | 67% of teams are building or shipping agentic workflows today [citation:7] |
+| Full autonomy remains rare | Only 4% allow agents to act without human approval [citation:7] |
+| Speed matters more than cost | 69% adopt agentic AI for speed, not cost savings [citation:7] |
+| Infrastructure is the bottleneck | Legacy request-response systems are incompatible with agentic workflows [citation:5] |
+| Context is the differentiator | MCP-style frameworks bridge static data with live signals [citation:10] |
+
+## Next Steps
+
+- [Explore workflow patterns and anti-patterns](/en/market-insights/agentic-workflows/patterns-and-anti-patterns)
+- [Read the case study: Automating documentation generation](/en/market-insights/agentic-workflows/case-study-doc-generation)
+- [Build your first workflow in SkillDeck](/en/tutorials/create-a-workflow/sequential)
+
+<Feedback />

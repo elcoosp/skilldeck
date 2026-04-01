@@ -1,0 +1,74 @@
+---
+title: Modèle de sécurité
+description: Comment SkillDeck protège vos données – architecture locale, stockage des clés et permissions.
+sidebar:
+  order: 6
+---
+
+import Feedback from '../../../../components/mdx/Feedback.astro';
+
+SkillDeck est conçu avec un modèle de sécurité **local en priorité**. Vos données restent sur votre machine et nous n'y avons jamais accès, sauf si vous choisissez explicitement de les partager (par exemple via les fonctionnalités de la plateforme).
+
+## Principes fondamentaux
+
+1. **Pas de cloud par défaut** – Tout fonctionne localement. Aucune donnée n'est envoyée à nos serveurs, sauf si vous activez les fonctionnalités de la plateforme.
+2. **Clés dans le trousseau** – Les clés API pour Claude, OpenAI et GitHub sont stockées dans le trousseau de votre système d'exploitation, jamais dans la base de données.
+3. **Permissions minimales** – Les compétences et les serveurs MCP s'exécutent avec les mêmes privilèges que votre compte utilisateur, et vous contrôlez ce à quoi ils peuvent accéder.
+4. **Transparence** – Vous pouvez inspecter exactement quelles données sont envoyées et où.
+
+## Stockage des données
+
+| Type de données | Emplacement de stockage | Remarques |
+|-----------------|------------------------|-----------|
+| Conversations | SQLite locale | Chiffrées au repos (par défaut SQLite). |
+| Profils | SQLite locale | Sélections de modèles, pas de clés. |
+| Compétences | Système de fichiers | Fichiers en texte brut ; vous contrôlez l'accès. |
+| Clés API | Trousseau du système | Trousseau macOS, Gestionnaire d'identification Windows, libsecret (Linux). |
+| Préférences de la plateforme | SQLite locale | E‑mail, paramètres de nudges, etc. |
+| ID utilisateur de la plateforme | SQLite locale + trousseau | ID stocké localement ; clé pour l'API stockée dans le trousseau. |
+
+## Sécurité des clés API
+
+Lorsque vous ajoutez une clé API dans Paramètres :
+
+1. Elle est validée pour le format (vérification de base).
+2. Elle est stockée dans le trousseau de votre système d'exploitation via le plugin Tauri `keyring`.
+3. Elle est récupérée du trousseau uniquement lorsque nécessaire (par exemple, lors d'une requête au modèle).
+
+Les clés ne sont **jamais** écrites dans la base de données ou sur le disque en texte brut.
+
+## Sécurité des compétences et des serveurs MCP
+
+Les compétences sont des fichiers markdown qui vivent sur votre système de fichiers. Elles peuvent contenir des instructions, mais ne peuvent pas exécuter de code arbitraire. Cependant, une compétence pourrait demander à l'agent d'appeler un outil qui exécute du code (par exemple, un outil shell). C'est pourquoi nous avons :
+
+- **Linting** : les compétences sont vérifiées pour détecter des motifs dangereux (ex : `rm -rf /`).
+- **Badges de confiance** : les compétences du registre sont notées pour la sécurité et la qualité.
+- **Portes d'approbation** : certains outils nécessitent une approbation explicite de l'utilisateur avant de s'exécuter (configurable dans Paramètres).
+
+Les serveurs MCP sont des processus séparés qui s'exécutent avec vos privilèges utilisateur. Vous êtes responsable de l'audit des serveurs que vous ajoutez.
+
+## Sécurité réseau
+
+- Tous les appels API aux modèles sont des requêtes HTTPS sortantes. Vos requêtes vont directement au fournisseur (Anthropic, OpenAI, etc.).
+- La synchronisation avec la plateforme (si activée) utilise TLS 1.3.
+- Les serveurs MCP communiquent via stdio local ou localhost SSE – aucun port réseau entrant n'est ouvert.
+
+## Audit et journaux
+
+SkillDeck ne collecte pas de journaux par défaut. Vous pouvez activer une journalisation verbeuse pour le débogage (utile lors du signalement de problèmes), mais les journaux restent sur votre machine.
+
+## Conformité
+
+Parce que SkillDeck conserve les données localement, il peut être utilisé dans des environnements soumis à des exigences de conformité strictes :
+
+- **HIPAA** : les données des patients ne quittent jamais vos locaux.
+- **RGPD** : vous restez le responsable du traitement ; nous n'avons aucun accès.
+- **SOC2** : votre infrastructure, votre conformité.
+
+## En relation
+
+- [Configurer les clés API](/fr/how-to/set-up-api-keys)
+- [Configurer les règles de lint](/fr/how-to/configure-lint-rules)
+- [Référence de configuration des serveurs MCP](/fr/reference/mcp-server-config)
+
+<Feedback />

@@ -1,0 +1,94 @@
+---
+title: "Comment activer les fonctionnalités de la plateforme"
+description: Connectez‑vous à la plateforme SkillDeck pour débloquer les rappels, les parrainages et la découverte de compétences communautaires.
+sidebar:
+  order: 9
+---
+
+import Nudge from '../../../../components/mdx/Nudge.astro';
+import Checkpoint from '../../../../components/mdx/Checkpoint.astro';
+import Feedback from '../../../../components/mdx/Feedback.astro';
+
+La plateforme SkillDeck est un service optionnel qui ajoute des fonctionnalités communautaires à votre installation locale. En l'activant, vous pouvez parcourir le registre des compétences, recevoir des rappels utiles et gagner des récompenses de parrainage.
+
+<Nudge type="tip" title="Ce que vous allez apprendre">
+  Comment connecter votre SkillDeck local à la plateforme et gérer vos préférences.
+</Nudge>
+
+## Prérequis
+
+- SkillDeck installé et en cours d'exécution
+- (Optionnel) Une adresse e‑mail pour les notifications
+
+## Étape 1 : Ouvrez les paramètres de la plateforme
+
+1. Cliquez sur l'icône **Paramètres** (engrenage) dans la barre latérale gauche.
+2. Accédez à l'onglet **Plateforme**.
+
+## Étape 2 : Activez la synchronisation avec la plateforme
+
+1. Basculez l'interrupteur **Activer la synchronisation avec la plateforme** sur ON.
+2. L'URL par défaut de la plateforme est `https://platform.skilldeck.dev`. Si vous utilisez une instance auto‑hébergée, remplacez‑la par votre URL personnalisée.
+3. Cliquez sur **Enregistrer les paramètres**.
+
+SkillDeck tentera maintenant d'enregistrer votre installation auprès de la plateforme.
+
+<Checkpoint question="Avez‑vous vu un message de succès ?" onYes="Super ! Votre installation est maintenant connectée." onNo="Vérifiez votre connexion Internet et réessayez. Si vous utilisez une URL personnalisée, assurez‑vous qu'elle est correcte." />
+
+## Étape 3 : (Optionnel) Ajoutez votre e‑mail
+
+Ajouter votre e‑mail vous permet de recevoir des notifications de rappel et des récompenses de parrainage.
+
+1. Dans le même onglet **Plateforme**, trouvez la section **E‑mail**.
+2. Saisissez votre adresse e‑mail et cliquez sur **Enregistrer**.
+3. Vous recevrez un e‑mail de vérification – cliquez sur le lien pour confirmer.
+
+<Nudge type="tip" title="Confidentialité">
+  Votre e‑mail est stocké de manière sécurisée et utilisé uniquement pour les communications de la plateforme. Vous pouvez vous désinscrire à tout moment.
+</Nudge>
+
+<Checkpoint question="Avez‑vous vérifié votre e‑mail ?" onYes="Parfait ! Vous recevrez désormais des rappels et pourrez participer aux parrainages." onNo="Vérifiez votre dossier spam et cliquez sur le lien de vérification." />
+
+## Étape 4 : Ajustez la fréquence des rappels
+
+Les rappels sont des conseils utiles et des rappels délivrés via des toasts dans l'application ou par e‑mail (si vous avez ajouté un e‑mail). Vous pouvez contrôler leur fréquence :
+
+- **Quotidienne** – un rappel chaque jour (peut être fréquent)
+- **Hebdomadaire** – un rappel par semaine
+- **Important uniquement** – uniquement lorsqu'il y a des informations critiques (ex. mises à jour de sécurité)
+
+Choisissez votre préférence dans la liste déroulante **Fréquence des rappels**.
+
+## Étape 5 : Explorez le registre des compétences
+
+Avec la synchronisation de la plateforme activée, l'onglet **Compétences** affiche désormais les compétences communautaires du registre. Vous pouvez parcourir, rechercher et les installer comme des compétences locales.
+
+<Checkpoint question="Pouvez‑vous voir les compétences communautaires dans l'onglet Compétences ?" onYes="Génial ! Vous faites maintenant partie de l'écosystème SkillDeck." onNo="Essayez d'actualiser l'onglet Compétences ou de redémarrer SkillDeck." />
+
+## Programme de parrainage
+
+Lorsque vous parrainez d'autres développeurs pour SkillDeck, vous pouvez gagner des récompenses. Pour commencer :
+
+1. Dans l'onglet **Plateforme**, cliquez sur le sous‑onglet **Parrainage** (ou allez dans **Paramètres → Parrainez et gagnez**).
+2. Cliquez sur **Créer mon lien de parrainage**.
+3. Partagez votre lien unique avec vos collègues.
+
+Vous verrez des statistiques sur les inscriptions, les conversions et les récompenses gagnées.
+
+## Désactiver les fonctionnalités de la plateforme
+
+Si vous souhaitez revenir à une configuration entièrement locale :
+
+1. Allez dans **Paramètres → Plateforme**.
+2. Basculez l'interrupteur **Activer la synchronisation avec la plateforme** sur OFF.
+3. Cliquez sur **Enregistrer les paramètres**.
+
+Vos données locales (conversations, compétences, profils) restent inchangées. Seules les futures interactions avec la plateforme cessent.
+
+## Prochaines étapes
+
+- [Parcourir et installer des compétences communautaires](/fr/how-to/install-a-skill)
+- [Vérifier vos statistiques de parrainage](/fr/community/referrals)
+- [En savoir plus sur les rappels](/fr/explanation/platform-features#nudges)
+
+<Feedback />

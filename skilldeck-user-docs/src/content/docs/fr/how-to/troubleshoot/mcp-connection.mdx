@@ -1,0 +1,138 @@
+---
+title: "Troubleshoot MCP Connection Issues"
+description: Common problems when connecting MCP servers and how to fix them.
+sidebar:
+  order: 1
+---
+
+import Nudge from '../../../../../components/mdx/Nudge.astro';
+import Checkpoint from '../../../../../components/mdx/Checkpoint.astro';
+import Feedback from '../../../../../components/mdx/Feedback.astro';
+
+MCP servers are powerful, but sometimes they fail to connect. This guide covers the most common connection issues and how to resolve them.
+
+<Nudge type="tip" title="Before you start">
+  Make sure you have a basic understanding of [adding an MCP server](/en/how-to/add-mcp-server/filesystem-server).
+</Nudge>
+
+## Issue: Server Status Shows "Disconnected" or "Error"
+
+### Possible Cause 1: Command Not Found
+
+If you added a stdio server (like `npx`), the command might not be in your system's PATH.
+
+**Solution:**
+
+1. Open a terminal and run the command manually to see if it works:
+   ```bash
+   npx -y @modelcontextprotocol/server-filesystem /path/to/folder
+   ```
+2. If you get "command not found", install the required tool (e.g., Node.js for `npx`).
+3. In SkillDeck, edit the server and use the **absolute path** to the executable. For example:
+   - **macOS/Linux:** `/usr/local/bin/npx`
+   - **Windows:** `C:\Program Files\nodejs\npx.cmd`
+
+### Possible Cause 2: Incorrect Arguments
+
+The arguments passed to the command might be malformed or missing required values.
+
+**Solution:**
+
+- Double‑check the arguments in your server configuration.
+- For the filesystem server, you must provide at least one directory path.
+- Ensure paths are absolute and exist on your system.
+
+### Possible Cause 3: Port Already in Use (SSE servers)
+
+For SSE servers, the port might be occupied by another process.
+
+**Solution:**
+
+- Change the port number in the server's configuration.
+- Or stop the other process using that port.
+
+<Checkpoint question="Did you check the command and arguments?" onYes="If the server still fails, proceed to the next section." onNo="Review your server configuration and try again." />
+
+## Issue: Server Connects but Tools Don't Appear
+
+### Possible Cause: Initialization Failed
+
+The server connected but didn't complete the initialization handshake.
+
+**Solution:**
+
+1. Look at the server's logs (if available). In SkillDeck, you may see an error message in the server details.
+2. Run the server manually in a terminal to see its output:
+   ```bash
+   npx -y @modelcontextprotocol/server-filesystem /path/to/folder
+   ```
+3. Check for any error messages during startup.
+
+### Possible Cause: Incompatible MCP Version
+
+Some servers may use an older or newer version of the MCP protocol.
+
+**Solution:**
+
+- Ensure you're using the latest version of the server.
+- Check the server's documentation for any version requirements.
+
+## Issue: Server Works but Tools Fail When Called
+
+### Possible Cause: Permission Issues
+
+The server may not have permission to access files or resources.
+
+**Solution:**
+
+- For filesystem servers, ensure the user running SkillDeck has read/write access to the directories.
+- For network servers, check firewall settings.
+
+### Possible Cause: Environment Variables Missing
+
+Some servers require environment variables (e.g., API keys).
+
+**Solution:**
+
+- Add the required variables in the server's **Environment** field (as a JSON object). For example:
+  ```json
+  { "GITHUB_TOKEN": "ghp_abc123" }
+  ```
+
+## Issue: Server Frequently Disconnects
+
+### Possible Cause: Server Process Crashes
+
+The server might be crashing due to bugs or resource limits.
+
+**Solution:**
+
+- Run the server manually and observe if it crashes.
+- Check system resources (memory, CPU).
+- Look for error messages in the server's output.
+
+### Possible Cause: Network Instability (SSE)
+
+For remote SSE servers, network interruptions can cause disconnections.
+
+**Solution:**
+
+- Ensure a stable network connection.
+- Consider using a local server if possible.
+
+## General Troubleshooting Steps
+
+1. **Restart SkillDeck** – sometimes a fresh start clears transient issues.
+2. **Check the server logs** – in SkillDeck, hover over the server status for details.
+3. **Test the server independently** – run the same command in a terminal.
+4. **Verify the server configuration** – especially paths and arguments.
+5. **Look for known issues** – check the server's GitHub repository.
+
+<Checkpoint question="Did one of these solutions resolve your issue?" onYes="Great! Your MCP server should now work." onNo="If you're still stuck, seek help in our [Discord community](/en/community)." />
+
+## Next Steps
+
+- [Troubleshoot skill not found](/en/how-to/troubleshoot/skill-not-found)
+- [Troubleshoot agent not responding](/en/how-to/troubleshoot/agent-not-responding)
+
+<Feedback />
