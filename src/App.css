@@ -1,8 +1,6 @@
 @import "tailwindcss";
 @import "shadcn/tailwind.css";
 @import "@fontsource/poppins";
-@import 'jheat.js/dist/heat.js.css'
-@import "./heatmap.css"
 @plugin "@tailwindcss/typography";
 @custom-variant dark (&:is(.dark *));
 
