@@ -56,9 +56,6 @@ importers:
       '@tauri-apps/plugin-opener':
         specifier: ~2
         version: 2.5.3
-      '@uiw/react-heat-map':
-        specifier: ^2.3.3
-        version: 2.3.3(@babel/runtime@7.29.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@xyflow/react':
         specifier: ^12.10.1
         version: 12.10.2(@types/react@19.2.14)(immer@11.1.4)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -83,6 +80,9 @@ importers:
       fuse.js:
         specifier: ^7.1.0
         version: 7.1.0
+      jheat.js:
+        specifier: ^5.1.0
+        version: 5.1.0
       lucide-react:
         specifier: ^1.0.0
         version: 1.7.0(react@19.2.4)
@@ -2814,13 +2814,6 @@ packages:
     resolution: {integrity: sha512-/iZM6FnM4tnx9csuTxspMW4BOSegshwX5oBDznJ7S4WggL7Vczz5d2W11ecc4vRrQMQHXRSxzrCsyG5EsPPTbA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-  '@uiw/react-heat-map@2.3.3':
-    resolution: {integrity: sha512-PMQ2v7am2yWCXNJcNz6OpbJmb3m6zNxf8NaRvPdCiRtF1NU58JJoGfkmEgXSjopNuu5eg8sBYX/VPC1Of8C0QQ==}
-    peerDependencies:
-      '@babel/runtime': '>=7.10.0'
-      react: '>=16.9.0'
-      react-dom: '>=16.9.0'
-
   '@ungap/structured-clone@1.3.0':
     resolution: {integrity: sha512-WmoN8qaIAo7WTYWbAZuG8PYEhn5fkz7dZrqTBZ7dtt//lL2Gwms1IcnQ5yHqjDfX8Ft5j4YzDM23f87zBfDe9g==}
 
@@ -4105,6 +4098,9 @@ packages:
   jest-validate@29.7.0:
     resolution: {integrity: sha512-ZB7wHqaRGVw/9hST/OuFUReG7M8vKeq0/J2egIGLdvjHCmYqGARhzXmtgi+gVeZ5uXFF219aOc3Ls2yLg27tkw==}
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
+
+  jheat.js@5.1.0:
+    resolution: {integrity: sha512-Zr7cZ1PZui+SPRypYiD1PifJwt7a9J0yfMaV7CvutKMsZy5tu+kd+AIUxxPrMeZoWrPSTohQxJmDs78IAJLBZQ==}
 
   jiti@2.6.1:
     resolution: {integrity: sha512-ekilCSN1jwRvIbgeg/57YFh8qQDNbwDb9xT/qu2DAHbFFZUicIl4ygVaAvzveMhMVr3LnpSKTNnwt8PoOfmKhQ==}
@@ -8117,12 +8113,6 @@ snapshots:
 
   '@typescript-eslint/types@8.57.2': {}
 
-  '@uiw/react-heat-map@2.3.3(@babel/runtime@7.29.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
-    dependencies:
-      '@babel/runtime': 7.29.2
-      react: 19.2.4
-      react-dom: 19.2.4(react@19.2.4)
-
   '@ungap/structured-clone@1.3.0': {}
 
   '@vitejs/plugin-react-swc@4.3.0(vite@8.0.3(@types/node@25.5.0)(esbuild@0.27.3)(jiti@2.6.1)(yaml@2.8.2))':
@@ -9496,6 +9486,8 @@ snapshots:
       jest-get-type: 29.6.3
       leven: 3.1.0
       pretty-format: 29.7.0
+
+  jheat.js@5.1.0: {}
 
   jiti@2.6.1: {}
 

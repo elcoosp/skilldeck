@@ -1,0 +1,211 @@
+/**
+ * heat.js CSS integration file
+ *
+ * Import this file alongside the heat.js base CSS to apply theme-aware overrides
+ * that integrate with your application's design system (e.g. shadcn/ui variables).
+ *
+ * Usage in your layout or page:
+ *   import 'jheat.js/dist/heat.js.css'   // base heat.js styles
+ *   import '@/styles/heatmap.css'          // these overrides
+ */
+
+/* --------------------------------------------------------------------------
+ * CSS Custom Properties — heat.js exposes many CSS variables you can override.
+ * These map the library's default theme to your application's design tokens.
+ * -------------------------------------------------------------------------- */
+
+:root {
+  /*
+   * Core heat.js theming variables.
+   * Adjust these to match your app's color palette.
+   * heat.js uses a dark theme by default.
+   */
+
+  /* Container & borders */
+  --heat-js-container-background-color: transparent;
+  --heat-js-container-border-color: hsl(var(--border));
+  --heat-js-border-size: 1px;
+  --heat-js-border-radius: 6px;
+
+  /* Spacing */
+  --heat-js-spacing: 4px;
+  --heat-js-y-label-spacing: 6px;
+
+  /* Day size (controls individual cell dimensions in map/line views) */
+  --heat-js-day-size: 12px;
+
+  /* Scrollbar */
+  --heat-js-scroll-bar-size: 6px;
+  --heat-js-scroll-bar-border-radius: 3px;
+  --heat-js-scroll-bar-thumb-color: hsl(var(--muted-foreground) / 0.3);
+
+  /* Colors */
+  --heat-js-color-white: hsl(var(--foreground));
+  --heat-js-color-gray: hsl(var(--muted-foreground));
+  --heat-js-color-light-gray: hsl(var(--muted));
+  --heat-js-color-default-dynamic: hsl(var(--primary));
+
+  /* Text */
+  --heat-js-text-font-weight-medium: 500;
+  --heat-js-text-bold-weight: 700;
+  --heat-js-text-font-size: 12px;
+  --heat-js-text-small-font-size: 10px;
+
+  /* Title */
+  --heat-js-title-bold-weight: 700;
+  --heat-js-title-font-size: 14px;
+
+  /* Transitions */
+  --heat-js-transition: color 150ms ease, background-color 150ms ease;
+
+  /* Button styling */
+  --heat-js-button-background-color: transparent;
+  --heat-js-button-border-color: transparent;
+  --heat-js-button-text-color: hsl(var(--muted-foreground));
+  --heat-js-button-background-color-hover: hsl(var(--accent));
+  --heat-js-button-text-color-hover: hsl(var(--accent-foreground));
+  --heat-js-button-background-color-active: hsl(var(--accent));
+  --heat-js-button-text-color-active: hsl(var(--accent-foreground));
+  --heat-js-button-color-disabled: hsl(var(--muted-foreground) / 0.4);
+  --heat-js-button-color-yes: hsl(var(--primary));
+  --heat-js-button-color-yes-border: hsl(var(--primary) / 0.8);
+  --heat-js-button-color-yes-active: hsl(var(--primary) / 0.6);
+  --heat-js-button-color-no: hsl(var(--destructive));
+  --heat-js-button-color-no-border: hsl(var(--destructive) / 0.8);
+  --heat-js-button-color-no-active: hsl(var(--destructive) / 0.6);
+  --heat-js-button-icon-size: 14px;
+  --heat-js-button-icon-width: 24px;
+  --heat-js-button-height: 24px;
+
+  /* Line width for line view */
+  --heat-js-day-line-width: 2px;
+
+  /* Chart view line width */
+  --heat-js-day-chart-width: 2px;
+
+  /* Checkbox checked color */
+  --heat-js-checkbox-background-color-checked: hsl(var(--primary));
+
+  /* Years current color */
+  --heat-js-years-current-color: hsl(var(--primary));
+
+  /* View-specific background/border colors */
+  --heat-js-view-days-background-color: hsl(var(--accent) / 0.1);
+  --heat-js-view-days-border-color: hsl(var(--border));
+  --heat-js-view-months-background-color: hsl(var(--accent) / 0.1);
+  --heat-js-view-months-border-color: hsl(var(--border));
+}
+
+/* --------------------------------------------------------------------------
+ * Layout overrides — ensure the heatmap container works well in your app.
+ * -------------------------------------------------------------------------- */
+
+.heatmap-container {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.heatmap-container [data-heat-js] {
+  min-height: 200px;
+}
+
+/* --------------------------------------------------------------------------
+ * Tooltip override — make heat.js tooltips match shadcn/ui style.
+ * heat.js uses its own built-in tooltip system; this styles it to blend in.
+ * -------------------------------------------------------------------------- */
+
+.heatmap-container .heat-js-tooltip {
+  background-color: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--heat-js-border-radius);
+  padding: 6px 10px;
+  font-size: var(--heat-js-text-small-font-size);
+  box-shadow: 0 4px 12px hsl(var(--foreground) / 0.1);
+  z-index: 1000;
+  pointer-events: none;
+}
+
+/* --------------------------------------------------------------------------
+ * Day cell hover — add smooth transition on map/line view cells.
+ * -------------------------------------------------------------------------- */
+
+.heatmap-container .heat-js-map-day,
+.heatmap-container .heat-js-line-day {
+  transition: var(--heat-js-transition);
+  cursor: pointer;
+}
+
+.heatmap-container .heat-js-map-day:hover,
+.heatmap-container .heat-js-line-day:hover {
+  stroke: hsl(var(--primary));
+  stroke-width: 2px;
+}
+
+/* --------------------------------------------------------------------------
+ * Active side-menu button highlight.
+ * -------------------------------------------------------------------------- */
+
+.heatmap-container .heat-js-side-menu button.active {
+  color: hsl(var(--primary));
+}
+
+/* --------------------------------------------------------------------------
+ * Color range guide — style the legend checkboxes.
+ * -------------------------------------------------------------------------- */
+
+.heatmap-container .heat-js-guide-type input[type='checkbox'] {
+  accent-color: hsl(var(--primary));
+}
+
+/* --------------------------------------------------------------------------
+ * Zoom controls.
+ * -------------------------------------------------------------------------- */
+
+.heatmap-container .zooming {
+  background-color: hsl(var(--card));
+  border-color: hsl(var(--border));
+}
+
+.heatmap-container .zooming button {
+  color: hsl(var(--muted-foreground));
+}
+
+.heatmap-container .zooming button:hover {
+  color: hsl(var(--foreground));
+}
+
+.heatmap-container .zooming span.zoom-level {
+  color: hsl(var(--foreground));
+}
+
+/* --------------------------------------------------------------------------
+ * Year selector dropdown.
+ * -------------------------------------------------------------------------- */
+
+.heatmap-container .heat-js-title-year-select {
+  background-color: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
+  border-color: hsl(var(--border));
+}
+
+/* --------------------------------------------------------------------------
+ * Holiday styling override.
+ * -------------------------------------------------------------------------- */
+
+.heatmap-container .heat-js-holiday {
+  outline: 2px solid hsl(var(--primary) / 0.5);
+  outline-offset: -1px;
+}
+
+/* --------------------------------------------------------------------------
+ * Dark mode adjustments (heat.js is dark by default, but when your app uses
+ * a dark theme, ensure contrast is sufficient).
+ * -------------------------------------------------------------------------- */
+
+.dark .heatmap-container,
+[data-theme='dark'] .heatmap-container {
+  --heat-js-container-border-color: hsl(var(--border));
+  --heat-js-scroll-bar-thumb-color: hsl(var(--muted-foreground) / 0.3);
+}

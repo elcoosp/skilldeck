@@ -60,16 +60,20 @@ export function UnifiedSkillCard({
     (w) => w.severity === 'warning'
   ).length
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      onClick(skill)
+    }
+  }
+
   return (
-    <button
-      type="button"
+    // biome-ignore lint/a11y/useSemanticElements: ok
+    <div
+      role="button"
+      tabIndex={0}
       onClick={() => onClick(skill)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          onClick(skill)
-        }
-      }}
+      onKeyDown={handleKeyDown}
       className={cn(
         'group relative w-full text-left p-4 border rounded-lg cursor-pointer',
         'transition-all duration-150 hover:border-primary/50 hover:shadow-sm',
@@ -99,9 +103,9 @@ export function UnifiedSkillCard({
             className={cn(
               'shrink-0 text-[10px] px-1.5 py-0',
               skill.status === 'installed' &&
-                'bg-primary/10 text-primary border-primary/20',
+              'bg-primary/10 text-primary border-primary/20',
               skill.status === 'local_only' &&
-                'bg-secondary text-secondary-foreground'
+              'bg-secondary text-secondary-foreground'
             )}
           >
             {STATUS_LABEL[skill.status]}
@@ -181,6 +185,6 @@ export function UnifiedSkillCard({
             </Button>
           )}
       </div>
-    </button>
+    </div>
   )
 }
