@@ -1,0 +1,127 @@
+---
+title: "Troubleshoot Skill Not Found"
+description: Common reasons why skills don't appear and how to fix them.
+sidebar:
+  order: 2
+---
+
+import Nudge from '../../../../../components/mdx/Nudge.astro';
+import Checkpoint from '../../../../../components/mdx/Checkpoint.astro';
+import Feedback from '../../../../../components/mdx/Feedback.astro';
+
+Sometimes a skill you expect to see isn't listed in the Skills tab, or when you try to invoke it with `@`, nothing happens. This guide covers the most common causes and how to resolve them.
+
+<Nudge type="tip" title="Before you start">
+  Make sure you understand the difference between [local and registry skills](/en/explanation/skill-resolution).
+</Nudge>
+
+## Issue: Skill Not Appearing in the Skills Tab
+
+### Possible Cause 1: Skill Not Installed
+
+If you're looking for a skill from the registry, you need to install it first.
+
+**Solution:**
+
+- Go to the **Skills** tab and search for the skill.
+- If it's available, click **Install**.
+- If it's not there, try syncing the registry: click the refresh icon in the Skills tab header.
+
+### Possible Cause 2: Skill Installed in Wrong Location
+
+Skills can be installed in **Personal** (`~/.agents/skills/`) or **Workspace** (`./.skilldeck/skills/`). If you're in a different workspace (or none), the skill won't appear.
+
+**Solution:**
+
+- Check which workspace is active (see the workspace switcher in the left panel).
+- If the skill is in a workspace, make sure that workspace is open.
+- If you want the skill available everywhere, reinstall it in **Personal**.
+
+### Possible Cause 3: Skill Directory Name Mismatch
+
+The skill's folder name must exactly match the `name` field in its `SKILL.md` frontmatter. If they differ, SkillDeck may not load it.
+
+**Solution:**
+
+- Open your skill directory (e.g., `~/.agents/skills/my-skill`).
+- Check the `name` in `SKILL.md`. It should be lowercase kebab‑case.
+- Rename the folder if necessary, or edit the frontmatter to match.
+
+<Checkpoint question="Did you check the installation location and folder name?" onYes="If the skill still doesn't appear, proceed." onNo="Fix any mismatches and restart SkillDeck." />
+
+## Issue: Skill Appears but Can't Be Invoked with `@`
+
+### Possible Cause 1: Skill Not Active
+
+Skills can be disabled in the Skills tab. If a skill is disabled, it won't appear in the command palette.
+
+**Solution:**
+
+- In the **Skills** tab, find your skill.
+- If it has a "Disabled" badge or toggle, enable it.
+
+### Possible Cause 2: Typo in Skill Name
+
+When typing `@skillname`, you must use the exact skill name (case‑insensitive, but hyphens matter).
+
+**Solution:**
+
+- Check the skill's name in the Skills tab.
+- Try typing just `@` and see if the skill appears in the dropdown. If not, you may have a typo.
+
+### Possible Cause 3: Skill Not Loaded After Installation
+
+SkillDeck scans for skills on startup. If you installed a skill while SkillDeck was running, it may not have been detected.
+
+**Solution:**
+
+- **Restart SkillDeck** – this forces a full rescan.
+- Alternatively, in the **Skills** tab, click the refresh icon to trigger a rescan.
+
+<Checkpoint question="Did you restart SkillDeck or refresh the Skills tab?" onYes="Try invoking the skill again with `@`." onNo="Do that now and test." />
+
+## Issue: Skill Found in Registry but Installation Fails
+
+### Possible Cause 1: Network Issues
+
+The registry may be unreachable, or GitHub Gist import may fail due to connectivity.
+
+**Solution:**
+
+- Check your internet connection.
+- Try accessing the registry URL directly in your browser (if known).
+- If using a Gist URL, ensure it's public and accessible.
+
+### Possible Cause 2: Disk Permission Issues
+
+SkillDeck may not have write permission to the target installation directory.
+
+**Solution:**
+
+- Ensure you have write access to `~/.agents/skills/` (personal) or `./.skilldeck/skills/` (workspace).
+- On Linux, check folder permissions.
+
+### Possible Cause 3: Name Conflict
+
+A skill with the same name already exists in the target location.
+
+**Solution:**
+
+- During installation, you'll be prompted to overwrite or cancel. Choose **Overwrite** if you want to replace it.
+- If you don't want to overwrite, rename the existing skill folder or install to a different location.
+
+## General Troubleshooting Steps
+
+1. **Restart SkillDeck** – resolves many transient issues.
+2. **Check the skill directory** – ensure `SKILL.md` exists and has valid frontmatter.
+3. **Run the linter** – `skilldeck-lint ~/.agents/skills/your-skill` to catch errors.
+4. **Verify skill resolution** – if you have multiple skills with the same name, the [resolution order](/en/explanation/skill-resolution) (workspace > personal > registry) determines which one is active.
+
+<Checkpoint question="Did one of these solutions resolve your issue?" onYes="Great! Your skill should now work." onNo="If you're still stuck, ask for help in our [Discord community](/en/community)." />
+
+## Next Steps
+
+- [Troubleshoot agent not responding](/en/how-to/troubleshoot/agent-not-responding)
+- [Learn about skill resolution priority](/en/explanation/skill-resolution)
+
+<Feedback />

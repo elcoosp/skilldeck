@@ -1,0 +1,202 @@
+---
+title: "Workflow Patterns and Anti‑Patterns"
+description: Best practices for designing reliable, maintainable agentic workflows.
+order: 22
+---
+
+import Feedback from '../../../../../components/mdx/Feedback.astro';
+
+Building agentic workflows is more art than science – but certain patterns have emerged as reliable, while others lead to fragility. This guide distills lessons from production systems into actionable advice.
+
+## The Three Core Workflow Patterns
+
+SkillDeck supports three fundamental workflow patterns, each suited to different problem domains.
+
+### 1. Sequential Workflows
+
+**Use when:** Steps must happen in order, and each step depends on the previous one.
+
+```
+[Step 1] → [Step 2] → [Step 3] → [Done]
+```
+
+**Example:** Document processing pipeline:
+1. Extract text from PDF
+2. Summarize content
+3. Translate summary
+4. Save to database
+
+**Implementation:** Dependencies array ensures order; data flows via `{{stepX.output}}` .
+
+### 2. Parallel Workflows
+
+**Use when:** Independent tasks can run simultaneously to save time.
+
+```
+      → [Step 2a] ↘
+[Step 1] → [Step 2b] → [Step 3]
+      → [Step 2c] ↗
+```
+
+**Example:** Multi‑file code review:
+1. Retrieve three files
+2. Review each in parallel
+3. Combine reviews into one report
+
+**Implementation:** No dependencies between parallel steps; they execute concurrently .
+
+### 3. Evaluator‑Optimizer Workflows
+
+**Use when:** Output quality can be improved through iterative refinement.
+
+```
+[Generator] → [Evaluator] → (if FAIL) → back to [Generator]
+               ↓
+             (if PASS) → [Done]
+```
+
+**Example:** Story writing assistant:
+1. Generate a story
+2. Evaluate for coherence, grammar, engagement
+3. If evaluation fails, regenerate with feedback
+
+**Implementation:** The generator and evaluator run in a loop until the evaluator passes or max iterations reached .
+
+## Proven Patterns from Production
+
+### The Orchestrator‑Workers Pattern
+
+A central orchestrator decomposes a complex task and delegates subtasks to specialized workers. This pattern is used by Palo Alto Networks for customer intelligence automation:
+
+- **Orchestrator** maintains overall state and tracks progress
+- **Workers** handle specific questions or data sources
+- Workers run in parallel, reporting back to the orchestrator
+- Results are synthesized into a final output
+
+This compartmentalization dramatically improves stability compared to passing all questions to a single agent .
+
+### The Reflect‑and‑Refine Pattern
+
+Agents don't always get things right the first time. The reflect‑and‑refine pattern gives them a chance to improve:
+
+1. Generate initial output
+2. Ask the agent to reflect on its own output
+3. Generate a refined version incorporating reflection
+
+This pattern has been shown to improve code quality by 40% in GitHub's internal experiments .
+
+### The Human‑in‑the‑Loop Pattern
+
+For high‑stakes operations, never give the agent full autonomy. Instead:
+
+1. Agent proposes action and explains reasoning
+2. Human approves, rejects, or modifies the proposal
+3. Agent executes only after approval
+
+Only 4% of production agentic systems allow full autonomy; most use graduated trust models .
+
+## Critical Anti‑Patterns to Avoid
+
+### The Monolithic Agent Anti‑Pattern
+
+**What it looks like:** One agent tries to do everything – answer questions, call tools, maintain state, make decisions.
+
+**Why it fails:** Context windows overflow, tool calls conflict, state becomes impossible to track. The agent gets confused about which part of the task it's working on.
+
+**Fix:** Break responsibilities into specialized agents with clear handoffs. Use an orchestrator to coordinate.
+
+### The "Just Add Another Tool" Anti‑Pattern
+
+**What it looks like:** Every new capability is added as another tool to the same agent.
+
+**Why it fails:** Agents struggle to choose among dozens of tools. Tool descriptions get truncated. The agent spends more time deciding which tool to use than actually using them.
+
+**Fix:** Group related tools into servers. Use the evaluator‑optimizer pattern to let agents reflect on tool choice .
+
+### The Stateless Workflow Anti‑Pattern
+
+**What it looks like:** Each workflow run starts from scratch, with no memory of past runs.
+
+**Why it fails:** Agents can't learn from mistakes. If a workflow failed yesterday, it will fail the same way today.
+
+**Fix:** Maintain workflow state in a durable store. Log outcomes and use them to refine prompts or adjust parameters .
+
+### The "Set and Forget" Anti‑Pattern
+
+**What it looks like:** Build a workflow, deploy it, and never revisit it.
+
+**Why it fails:** Underlying models change. APIs evolve. User needs shift. Workflows degrade silently.
+
+**Fix:** Monitor workflow performance, log failures, and establish a regular review cadence. Use A/B testing to compare versions .
+
+## Design Principles for Reliable Workflows
+
+### 1. **Explicit Handoffs**
+Every time control passes from one agent to another, make it explicit. Use structured outputs (typed schemas) so the receiving agent knows exactly what to expect .
+
+### 2. **Idempotent Operations**
+Design steps so they can be safely retried. If a step fails midway, rerunning it shouldn't cause duplication or corruption.
+
+### 3. **Gradual Autonomy**
+Start with human approval for every step. As the workflow proves reliable, reduce oversight. Never jump straight to full autonomy.
+
+### 4. **Observability by Design**
+Log every decision, every tool call, every error. Make logs machine‑readable (semantic telemetry) so agents can self‑diagnose .
+
+### 5. **Version Everything**
+Treat workflows like code. Version your definitions, track changes, and roll back when something breaks.
+
+## Example: A Well‑Designed Workflow
+
+Here's a documentation generator that follows these principles:
+
+```json
+{
+  "name": "Documentation Generator",
+  "pattern": "parallel",
+  "steps": [
+    {
+      "id": "scanner",
+      "name": "Scan codebase",
+      "skill": "code-scanner",
+      "prompt": "Scan the repository and identify all public APIs"
+    },
+    {
+      "id": "summarizer_1",
+      "name": "Summarize module A",
+      "prompt": "Generate documentation for: {{file_a}}"
+    },
+    {
+      "id": "summarizer_2",
+      "name": "Summarize module B",
+      "prompt": "Generate documentation for: {{file_b}}"
+    },
+    {
+      "id": "combiner",
+      "name": "Combine and format",
+      "prompt": "Combine these summaries into a single markdown document:\n\n{{summarizer_1.output}}\n\n{{summarizer_2.output}}"
+    }
+  ],
+  "dependencies": [
+    { "from": "scanner", "to": "summarizer_1" },
+    { "from": "scanner", "to": "summarizer_2" },
+    { "from": "summarizer_1", "to": "combiner" },
+    { "from": "summarizer_2", "to": "combiner" }
+  ]
+}
+```
+
+This design:
+- Uses a dedicated scanner agent
+- Runs summarization in parallel
+- Has explicit handoffs
+- Is idempotent (scanning twice is safe)
+- Logs everything by default
+
+## Next Steps
+
+- [Read the case study: Automating documentation generation](/en/market-insights/agentic-workflows/case-study-doc-generation)
+- [Build your first workflow in SkillDeck](/en/tutorials/create-a-workflow/sequential)
+- [Explore the MCP ecosystem for more tools](/en/market-insights/mcp-ecosystem/ecosystem-directory)
+
+<Feedback />

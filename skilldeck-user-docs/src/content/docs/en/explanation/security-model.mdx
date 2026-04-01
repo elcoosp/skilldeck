@@ -1,0 +1,74 @@
+---
+title: Security Model
+description: How SkillDeck protects your data – local‑first architecture, key storage, and permissions.
+sidebar:
+  order: 6
+---
+
+import Feedback from '../../../../components/mdx/Feedback.astro';
+
+SkillDeck is designed with a **local‑first** security model. Your data stays on your machine, and we never have access to it unless you explicitly choose to share (e.g., via platform features).
+
+## Core Principles
+
+1. **No cloud by default** – Everything runs locally. No data is sent to our servers unless you enable platform features.
+2. **Keys in the keychain** – API keys for Claude, OpenAI, and GitHub are stored in your OS keychain, never in the database.
+3. **Minimal permissions** – Skills and MCP servers run with the same privileges as your user account, and you control what they can access.
+4. **Transparency** – You can inspect exactly what data is being sent and where.
+
+## Data Storage
+
+| Data Type | Storage Location | Notes |
+|-----------|------------------|-------|
+| Conversations | Local SQLite | Encrypted at rest (SQLite default). |
+| Profiles | Local SQLite | Model selections, no keys. |
+| Skills | Filesystem | Plain text files; you control access. |
+| API Keys | OS keychain | macOS Keychain, Windows Credential Manager, libsecret (Linux). |
+| Platform Preferences | Local SQLite | Email, nudge settings, etc. |
+| Platform User ID | Local SQLite + Keychain | ID stored locally; key for API stored in keychain. |
+
+## API Key Security
+
+When you add an API key in Settings, it is:
+
+1. Validated for format (basic check).
+2. Stored in your OS keychain via the Tauri `keyring` plugin.
+3. Retrieved from the keychain only when needed (e.g., when making a model request).
+
+Keys are **never** written to the database or to disk in plain text.
+
+## Skill and MCP Security
+
+Skills are markdown files that live on your filesystem. They can contain instructions, but they cannot execute arbitrary code. However, a skill could instruct the agent to call a tool that does execute code (e.g., a shell tool). That's why we have:
+
+- **Linting**: Skills are checked for dangerous patterns (e.g., `rm -rf /`).
+- **Trust badges**: Registry skills are scored for security and quality.
+- **Approval gates**: Some tools require explicit user approval before running (configurable in Settings).
+
+MCP servers are separate processes that run with your user privileges. You are responsible for vetting the servers you add.
+
+## Network Security
+
+- All model API calls are outbound HTTPS. Your requests go directly to the provider (Anthropic, OpenAI, etc.).
+- Platform sync (if enabled) uses TLS 1.3.
+- MCP servers communicate over local stdio or localhost SSE – no inbound network ports are opened.
+
+## Auditing and Logs
+
+SkillDeck does not collect logs by default. You can enable verbose logging for debugging (useful when reporting issues), but logs stay on your machine.
+
+## Compliance
+
+Because SkillDeck keeps data local, it can be used in environments with strict compliance requirements:
+
+- **HIPAA**: Patient data never leaves your premises.
+- **GDPR**: You remain the data controller; we have no access.
+- **SOC2**: Your infrastructure, your compliance.
+
+## Related
+
+- [Set Up API Keys](/en/how-to/set-up-api-keys)
+- [Configure Lint Rules](/en/how-to/configure-lint-rules)
+- [MCP Server Configuration Reference](/en/reference/mcp-server-config)
+
+<Feedback />
