@@ -21,7 +21,7 @@ use crate::{
     agent::tool_dispatcher::ToolDispatcher,
     traits::{
         ChatMessage, CompletionChunk, CompletionRequest, MessageRole, ModelParams, ModelProvider,
-        ToolCall, ToolDefinition,
+        ProviderReadyStatus, ToolCall, ToolDefinition,
     },
 };
 
@@ -42,6 +42,10 @@ pub enum AgentLoopEvent {
         cache_write_tokens: u32,
     },
     Cancelled,
+    ProviderNotReady {
+        reason: String,
+        fix_action: String,
+    },
 }
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -174,6 +178,23 @@ impl AgentLoop {
     #[instrument(skip(self), fields(model = %self.model_id))]
     pub async fn run(mut self, user_message: String) -> Result<AgentRunResult, CoreError> {
         info!("Agent loop starting");
+
+        // ── Provider readiness check ─────────────────────────────────────────
+        match self.provider.is_ready(&self.model_id).await {
+            ProviderReadyStatus::Ready => {}
+            ProviderReadyStatus::NotReady { reason, fix_action } => {
+                send_event!(
+                    self,
+                    AgentLoopEvent::ProviderNotReady {
+                        reason: reason.clone(),
+                        fix_action: fix_action.clone(),
+                    }
+                );
+                return Err(CoreError::Internal {
+                    message: format!("Provider not ready: {}", reason),
+                });
+            }
+        }
 
         self.messages.push(ChatMessage {
             role: MessageRole::User,
