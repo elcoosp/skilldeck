@@ -14,7 +14,12 @@
  */
 
 import { useQuery } from '@tanstack/react-query'
-import { endOfMonth, isWithinInterval, startOfMonth, differenceInWeeks } from 'date-fns'
+import {
+  endOfMonth,
+  isWithinInterval,
+  startOfMonth,
+  differenceInWeeks
+} from 'date-fns'
 import { motion } from 'framer-motion'
 import {
   BarChart2,
@@ -83,13 +88,13 @@ const TABS: {
   label: string
   Icon: React.FC<{ className?: string }>
 }[] = [
-    { id: 'session', label: 'Session', Icon: Cpu },
-    { id: 'skills', label: 'Skills', Icon: Layers },
-    { id: 'mcp', label: 'MCP', Icon: Zap },
-    { id: 'workflow', label: 'Workflow', Icon: GitBranch },
-    { id: 'analytics', label: 'Analytics', Icon: BarChart2 },
-    { id: 'artifacts', label: 'Artifacts', Icon: FileCode }
-  ]
+  { id: 'session', label: 'Session', Icon: Cpu },
+  { id: 'skills', label: 'Skills', Icon: Layers },
+  { id: 'mcp', label: 'MCP', Icon: Zap },
+  { id: 'workflow', label: 'Workflow', Icon: GitBranch },
+  { id: 'analytics', label: 'Analytics', Icon: BarChart2 },
+  { id: 'artifacts', label: 'Artifacts', Icon: FileCode }
+]
 
 export function RightPanel() {
   const [activeTab, setActiveTab] = useState<Tab>('session')
@@ -585,75 +590,75 @@ function WorkflowTab() {
 
 // ── Analytics tab ─────────────────────────────────────────────────────────────
 function AnalyticsTab() {
-  const { data: analytics, isLoading, error } = useAnalytics();
-  const [fullYearDialogOpen, setFullYearDialogOpen] = useState(false);
+  const { data: analytics, isLoading, error } = useAnalytics()
+  const [fullYearDialogOpen, setFullYearDialogOpen] = useState(false)
 
-  const currentMonthStart = useMemo(() => startOfMonth(new Date()), []);
-  const currentMonthEnd = useMemo(() => endOfMonth(new Date()), []);
+  const currentMonthStart = useMemo(() => startOfMonth(new Date()), [])
+  const currentMonthEnd = useMemo(() => endOfMonth(new Date()), [])
 
   // Filter to current month for compact view
   const currentMonthMessages = useMemo(() => {
-    if (!analytics) return [];
+    if (!analytics) return []
     return analytics.messages_per_day.filter((item) => {
-      const date = new Date(item.date);
+      const date = new Date(item.date)
       return isWithinInterval(date, {
         start: currentMonthStart,
-        end: currentMonthEnd,
-      });
-    });
-  }, [analytics, currentMonthStart, currentMonthEnd]);
+        end: currentMonthEnd
+      })
+    })
+  }, [analytics, currentMonthStart, currentMonthEnd])
 
   const currentMonthConversations = useMemo(() => {
-    if (!analytics) return [];
+    if (!analytics) return []
     return analytics.conversations_per_day.filter((item) => {
-      const date = new Date(item.date);
+      const date = new Date(item.date)
       return isWithinInterval(date, {
         start: currentMonthStart,
-        end: currentMonthEnd,
-      });
-    });
-  }, [analytics, currentMonthStart, currentMonthEnd]);
+        end: currentMonthEnd
+      })
+    })
+  }, [analytics, currentMonthStart, currentMonthEnd])
 
   // Full year range: from start of the year of the earliest date to end of the year of the latest date
   const fullYearStart = useMemo(() => {
-    if (!analytics) return startOfMonth(new Date());
+    if (!analytics) return startOfMonth(new Date())
     const allDates = [
       ...analytics.messages_per_day,
-      ...analytics.conversations_per_day,
+      ...analytics.conversations_per_day
     ]
       .map((d) => new Date(d.date))
-      .filter((d) => !Number.isNaN(d.getTime()));
-    if (allDates.length === 0) return startOfMonth(new Date());
-    const minDate = new Date(Math.min(...allDates.map((d) => d.getTime())));
-    return new Date(minDate.getFullYear(), 0, 1);
-  }, [analytics]);
+      .filter((d) => !Number.isNaN(d.getTime()))
+    if (allDates.length === 0) return startOfMonth(new Date())
+    const minDate = new Date(Math.min(...allDates.map((d) => d.getTime())))
+    return new Date(minDate.getFullYear(), 0, 1)
+  }, [analytics])
 
   const fullYearEnd = useMemo(() => {
-    if (!analytics) return endOfMonth(new Date());
+    if (!analytics) return endOfMonth(new Date())
     const allDates = [
       ...analytics.messages_per_day,
-      ...analytics.conversations_per_day,
+      ...analytics.conversations_per_day
     ]
       .map((d) => new Date(d.date))
-      .filter((d) => !Number.isNaN(d.getTime()));
-    if (allDates.length === 0) return endOfMonth(new Date());
-    const maxDate = new Date(Math.max(...allDates.map((d) => d.getTime())));
-    return new Date(maxDate.getFullYear(), 11, 31);
-  }, [analytics]);
+      .filter((d) => !Number.isNaN(d.getTime()))
+    if (allDates.length === 0) return endOfMonth(new Date())
+    const maxDate = new Date(Math.max(...allDates.map((d) => d.getTime())))
+    return new Date(maxDate.getFullYear(), 11, 31)
+  }, [analytics])
 
   // Compute the width needed for the full‑year heatmap (same as in AnalyticsHeatmap)
   const fullYearWidth = useMemo(() => {
-    const weeks = Math.max(1, differenceInWeeks(fullYearEnd, fullYearStart) + 1);
-    const computedWidth = (12 + 2) * weeks + 40; // rectSize=12, space=2
-    return Math.min(computedWidth, 1200); // cap at 1200px
-  }, [fullYearStart, fullYearEnd]);
+    const weeks = Math.max(1, differenceInWeeks(fullYearEnd, fullYearStart) + 1)
+    const computedWidth = (12 + 2) * weeks + 40 // rectSize=12, space=2
+    return Math.min(computedWidth, 1200) // cap at 1200px
+  }, [fullYearStart, fullYearEnd])
 
   if (isLoading) {
     return (
       <div className="p-8 flex justify-center">
         <BouncingDots />
       </div>
-    );
+    )
   }
 
   if (error || !analytics) {
@@ -661,7 +666,7 @@ function AnalyticsTab() {
       <div className="p-4 text-sm text-destructive">
         Failed to load analytics: {String(error)}
       </div>
-    );
+    )
   }
 
   return (
@@ -726,7 +731,7 @@ function AnalyticsTab() {
                 width: `${Math.min(fullYearWidth + 80, window.innerWidth - 40)}px`,
                 maxWidth: '98vw',
                 maxHeight: '90vh',
-                overflowY: 'auto',
+                overflowY: 'auto'
               }}
             >
               <DialogHeader>
@@ -779,5 +784,5 @@ function AnalyticsTab() {
         </div>
       )}
     </div>
-  );
+  )
 }

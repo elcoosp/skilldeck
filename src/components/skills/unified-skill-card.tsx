@@ -103,9 +103,9 @@ export function UnifiedSkillCard({
             className={cn(
               'shrink-0 text-[10px] px-1.5 py-0',
               skill.status === 'installed' &&
-              'bg-primary/10 text-primary border-primary/20',
+                'bg-primary/10 text-primary border-primary/20',
               skill.status === 'local_only' &&
-              'bg-secondary text-secondary-foreground'
+                'bg-secondary text-secondary-foreground'
             )}
           >
             {STATUS_LABEL[skill.status]}
