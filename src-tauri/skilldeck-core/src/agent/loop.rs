@@ -19,12 +19,12 @@ use crate::{
     CoreError,
     agent::load_skill_result::{LoadSkillResult, SkillContentFormat},
     agent::tool_dispatcher::ToolDispatcher,
+    traits::model_provider::ProviderReadyStatus,
     traits::{
         ChatMessage, CompletionChunk, CompletionRequest, MessageRole, ModelParams, ModelProvider,
-        ProviderReadyStatus, ToolCall, ToolDefinition,
+        ToolCall, ToolDefinition,
     },
 };
-
 // ── Internal event type (loop → caller) ──────────────────────────────────────
 
 #[derive(Debug, Clone)]

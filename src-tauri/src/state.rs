@@ -440,7 +440,8 @@ impl AppState {
 
     async fn ensure_default_profile(&self) {
         use sea_orm::{ActiveModelTrait, ActiveValue::Set, EntityTrait};
-        use skilldeck_models::profiles;
+        use skilldeck_core::providers::ollama::OllamaStatus;
+        use skilldeck_models::profiles; // <-- added
 
         let db = match self.registry.db.connection().await {
             Ok(db) => db,
@@ -457,11 +458,11 @@ impl AppState {
             .unwrap_or(0);
 
         if count > 0 {
-            return; // already has profiles
+            return;
         }
 
         match OllamaProvider::check_ollama_status().await {
-            OllamaProvider::OllamaStatus::Available(models) => {
+            OllamaStatus::Available(models) => {
                 let first = models.into_iter().next().unwrap();
                 let now = chrono::Utc::now().fixed_offset();
                 let id = uuid::Uuid::new_v4();
@@ -485,16 +486,13 @@ impl AppState {
                     Err(e) => warn!("Failed to seed default profile: {}", e),
                 }
             }
-            OllamaProvider::OllamaStatus::NotInstalled
-            | OllamaProvider::OllamaStatus::NotRunning
-            | OllamaProvider::OllamaStatus::NoModels => {
+            OllamaStatus::NotInstalled | OllamaStatus::NotRunning | OllamaStatus::NoModels => {
                 // No profile created; emit event that setup is needed
                 info!("No working Ollama found; profile setup needed.");
                 let _ = self.app_handle.emit("skilldeck:setup-needed", ());
             }
         }
     }
-
     /// Actual spawn logic (called from the SpawnerWithContext in messages.rs).
     pub async fn do_spawn_subagent(
         &self,

@@ -7,8 +7,21 @@
 use crate::{
     CoreError,
     providers::openai::OpenAiProvider,
-    traits::{CompletionRequest, CompletionStream, ModelCapabilities, ModelInfo, ModelProvider, ProviderReadyStatus},
+    traits::model_provider::ProviderReadyStatus,
+    traits::{CompletionRequest, CompletionStream, ModelCapabilities, ModelInfo, ModelProvider},
 };
+
+// ── OllamaStatus enum (moved to module scope) ────────────────────────────────
+
+#[derive(Debug, Clone)]
+pub enum OllamaStatus {
+    Available(Vec<ModelInfo>),
+    NotInstalled,
+    NotRunning,
+    NoModels,
+}
+
+// ── OllamaProvider implementation ────────────────────────────────────────────
 
 pub struct OllamaProvider {
     inner: OpenAiProvider,
@@ -61,16 +74,8 @@ impl OllamaProvider {
     }
 
     // =====================================================================
-    // New: OllamaStatus and check_ollama_status
+    // Ollama status detection
     // =====================================================================
-
-    #[derive(Debug, Clone)]
-    pub enum OllamaStatus {
-        Available(Vec<ModelInfo>),
-        NotInstalled,
-        NotRunning,
-        NoModels,
-    }
 
     pub async fn check_ollama_status() -> OllamaStatus {
         // Check if binary exists
