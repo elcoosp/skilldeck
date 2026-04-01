@@ -52,12 +52,8 @@ impl MigrationTrait for Migration {
                     .col(string(Profiles::Name).not_null())
                     .col(string(Profiles::Description).null())
                     .col(string(Profiles::SystemPrompt).null())
-                    .col(string(Profiles::ModelProvider).not_null().default("claude"))
-                    .col(
-                        string(Profiles::ModelId)
-                            .not_null()
-                            .default("claude-sonnet-4-5"),
-                    )
+                    .col(string(Profiles::ModelProvider).not_null())
+                    .col(string(Profiles::ModelId).not_null())
                     .col(json(Profiles::ModelParams).null())
                     .col(boolean(Profiles::IsDefault).not_null().default(false))
                     .col(
@@ -1449,14 +1445,13 @@ impl MigrationTrait for Migration {
             ("marketplace", "~/.skilldeck/marketplace", 3),
         ];
 
-        for (idx, (source_type, path, priority)) in source_dirs.iter().enumerate() {
-            let id = Uuid::parse_str(&format!("00000000-0000-0000-0000-00000000000{}", idx + 1))
-                .unwrap();
+        for (source_type, path, priority) in source_dirs {
+            let id = Uuid::new_v4();
             let source_dir = skill_source_dirs::ActiveModel {
                 id: Set(id),
-                source_type: Set((*source_type).to_owned()),
-                path: Set((*path).to_owned()),
-                priority: Set(*priority),
+                source_type: Set(source_type.to_owned()),
+                path: Set(path.to_owned()),
+                priority: Set(priority),
                 enabled: Set(true),
                 created_at: Set(Utc::now().into()),
             };
@@ -1467,51 +1462,47 @@ impl MigrationTrait for Migration {
         // Note: Pricing values are stored as integer cents per 1M tokens to avoid floating point issues.
         // e.g., 300 represents $3.00 per 1M tokens.
         let pricing = [
-            // Claude 3.5 Sonnet (Input: $3.00, Output: $15.00)
-            // Cache: $0.30 Read (10%) / $3.75 Write (125%)
-            (
-                "claude",
-                "claude-sonnet-4-5",
-                300_i64,
-                1500_i64,
-                30_i64,
-                375_i64,
-            ),
-            // Claude 3 Opus (Input: $15.00, Output: $75.00)
-            ("claude", "claude-opus-4", 1500, 7500, 150, 1875),
-            // Claude 3.5 Haiku (Input: $1.00, Output: $5.00)
-            ("claude", "claude-haiku-3-5", 100, 500, 10, 125),
-            // OpenAI GPT-4o (Input: $2.50, Output: $10.00)
-            // Cache: 50% Read
-            ("openai", "gpt-4o", 250, 1000, 125, 250),
-            // OpenAI GPT-4o Mini (Input: $0.15, Output: $0.60)
-            // Cache: 50% Read
-            ("openai", "gpt-4o-mini", 15, 60, 8, 15),
-            // OpenAI o1-preview (Reasoning: Input: $15.00, Output: $60.00)
-            // Cache: N/A
-            ("openai", "o1-preview", 15000, 60000, 0, 0),
-            // DeepSeek V3 (Input: $0.14, Output: $0.28)
-            ("deepseek", "deepseek-v3", 14, 28, 0, 0),
+            // Claude (Anthropic)
+            ("claude", "claude-opus-4.6", 500, 2500, 50, 625),
+            ("claude", "claude-sonnet-4.6", 300, 1500, 30, 375),
+            ("claude", "claude-haiku-4.5", 100, 500, 10, 125),
+            // OpenAI
+            ("openai", "gpt-4.1", 200, 800, 100, 200),
+            ("openai", "gpt-4.1-mini", 40, 160, 20, 40),
+            ("openai", "gpt-4.1-nano", 20, 80, 10, 20),
+            ("openai", "o1", 1500, 6000, 0, 0),
+            ("openai", "o3", 200, 800, 0, 0),
+            ("openai", "o4-mini", 110, 440, 0, 0),
+            // Google Gemini
+            ("google", "gemini-2.5-pro", 125, 1000, 63, 500),
+            ("google", "gemini-2.5-flash", 30, 250, 15, 125),
+            // DeepSeek (MIT licensed)
+            ("deepseek", "deepseek-v3.2", 28, 42, 14, 21),
+            ("deepseek", "deepseek-r1", 55, 219, 0, 0),
+            // Other open-source models
+            ("zhipu", "glm-5", 100, 320, 0, 0),
+            ("moonshot", "kimi-k2.5", 60, 250, 0, 0),
+            ("minimax", "minimax-m2.5", 30, 120, 0, 0),
+            ("meta", "llama-4-scout", 11, 34, 0, 0),
+            ("meta", "llama-4-maverick", 20, 60, 0, 0),
+            ("mistral", "mistral-large-3", 50, 150, 0, 0),
+            ("mistral", "mistral-small-3.2", 6, 18, 0, 0),
         ];
 
-        for (i, (provider, model, input_c, output_c, cache_r, cache_w)) in
-            pricing.iter().enumerate()
-        {
-            let id =
-                Uuid::parse_str(&format!("10000000-0000-0000-0000-00000000000{}", i + 1)).unwrap();
+        for (provider, model, input_c, output_c, cache_r, cache_w) in pricing {
+            let id = Uuid::new_v4();
             let pricing = model_pricing::ActiveModel {
                 id: Set(id),
-                model_provider: Set((*provider).to_owned()),
-                model_id: Set((*model).to_owned()),
-                input_cost_per_1k_tokens: Set(*input_c),
-                output_cost_per_1k_tokens: Set(*output_c),
-                cache_read_cost_per_1k_tokens: Set(Some(*cache_r)),
-                cache_write_cost_per_1k_tokens: Set(Some(*cache_w)),
+                model_provider: Set(provider.to_owned()),
+                model_id: Set(model.to_owned()),
+                input_cost_per_1k_tokens: Set(input_c),
+                output_cost_per_1k_tokens: Set(output_c),
+                cache_read_cost_per_1k_tokens: Set(Some(cache_r)),
+                cache_write_cost_per_1k_tokens: Set(Some(cache_w)),
                 valid_from: Set(Utc::now().into()),
             };
             pricing.insert(db).await?;
         }
-
         Ok(())
     }
 
