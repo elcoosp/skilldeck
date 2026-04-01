@@ -18,6 +18,7 @@ pub mod messages;
 pub mod ollama;
 pub mod platform;
 pub mod profiles;
+pub mod provider_ready;
 pub mod queue;
 pub mod settings;
 pub mod skills;

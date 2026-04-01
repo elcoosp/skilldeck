@@ -58,6 +58,11 @@ pub enum AgentEvent {
         new_toc_items: Vec<TocItem>,
         new_artifact_specs: Vec<ArtifactSpec>,
     },
+    ProviderNotReady {
+        conversation_id: String,
+        reason: String,
+        fix_action: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
