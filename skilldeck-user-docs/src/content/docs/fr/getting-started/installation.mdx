@@ -1,6 +1,6 @@
 ---
 title: Installation
-description: Apprenez à installer SkillDeck sur votre système et préparez‑vous à créer vos premiers flux de travail IA.
+description: Learn how to install SkillDeck on your system and get ready to build your first AI workflows.
 sidebar:
   order: 1
 ---
@@ -8,58 +8,77 @@ import Nudge from '../../../../components/mdx/Nudge.astro';
 import Checkpoint from '../../../../components/mdx/Checkpoint.astro';
 import Feedback from '../../../../components/mdx/Feedback.astro';
 
-Bienvenue sur SkillDeck ! Ce guide vous guidera à travers l'installation de SkillDeck sur votre machine afin que vous puissiez commencer à orchestrer des flux de travail IA localement.
+Welcome to SkillDeck! This guide will walk you through installing SkillDeck on your machine so you can start orchestrating AI workflows locally.
 
-<Nudge type="tip" title="Avant de commencer">
-  Assurez‑vous que votre système répond aux [exigences minimales](#exigences-système).
+<Nudge type="tip" title="Before you begin">
+  Make sure your system meets the [minimum requirements](#system-requirements).
 </Nudge>
 
-## Exigences système
+## System Requirements
 
-SkillDeck fonctionne sur Windows, macOS et Linux. Vous aurez besoin de :
+SkillDeck runs on Windows, macOS, and Linux. You'll need:
 
-- **Système d'exploitation** :
-  - Windows 10 ou ultérieur
-  - macOS 12 (Monterey) ou ultérieur
-  - Linux (Ubuntu 20.04+, Fedora 38+, ou équivalent)
-- **Matériel** :
-  - 4 Go de RAM minimum (8 Go recommandés)
-  - 500 Mo d'espace disque libre
-- **Logiciel** :
-  - Pour les modèles IA locaux (facultatif) : [Ollama](https://ollama.com) installé et en cours d'exécution
+- **Operating System**:
+  - Windows 10 or later
+  - macOS 12 (Monterey) or later
+  - Linux (Ubuntu 20.04+, Fedora 38+, or equivalent)
+- **Hardware**:
+  - 4 GB RAM minimum (8 GB recommended)
+  - 500 MB free disk space
+- **Software**:
+  - For local AI models (optional): [Ollama](https://ollama.com) installed and running
 
-## Télécharger SkillDeck
+## Download SkillDeck
 
-1. Visitez la [page de téléchargement officielle](https://skilldeck.dev/download).
-2. Choisissez l'installateur pour votre système d'exploitation.
-   - Windows : `SkillDeck-Setup-x64.exe`
-   - macOS : `SkillDeck-x64.dmg` (Intel) ou `SkillDeck-arm64.dmg` (Apple Silicon)
-   - Linux : `skilldeck-x86_64.AppImage`
-3. Enregistrez le fichier sur votre ordinateur.
+1. Visit the [official downloads page](https://skilldeck.dev/download).
+2. Choose the installer for your operating system.
+   - Windows: `SkillDeck-Setup-x64.exe`
+   - macOS: `SkillDeck-x64.dmg` (Intel) or `SkillDeck-arm64.dmg` (Apple Silicon)
+   - Linux: `skilldeck-x86_64.AppImage`
+3. Save the file to your computer.
 
-<Checkpoint question="Avez‑vous téléchargé le bon installateur pour votre système d'exploitation ?" />
+<Checkpoint question="Have you downloaded the correct installer for your OS?" />
 
-## Étapes d'installation
+## Installation Steps
 
 ### Windows
 
-1. Double‑cliquez sur le fichier `.exe` téléchargé.
-2. Si un avertissement de sécurité apparaît, cliquez sur **Plus d'infos** puis **Exécuter quand même**.
-3. Suivez les instructions de l'installateur (choisissez l'emplacement d'installation, créez des raccourcis).
-4. Cliquez sur **Terminer** pour lancer SkillDeck.
+1. Double‑click the downloaded `.exe` file.
+2. If a security warning appears, click **More info** then **Run anyway**.
+3. Follow the installer prompts (choose installation location, create shortcuts).
+4. Click **Finish** to launch SkillDeck.
 
 ### macOS
 
-1. Ouvrez le fichier `.dmg` téléchargé.
-2. Faites glisser l'application **SkillDeck** dans le dossier **Applications**.
-3. Ouvrez **Applications** et double‑cliquez sur **SkillDeck**.
-   - La première fois que vous l'ouvrez, vous pouvez voir un avertissement indiquant que l'application provient d'un développeur non identifié.
-     Allez dans **Réglages système > Confidentialité et sécurité** et cliquez sur **Ouvrir quand même**.
-4. Confirmez que vous souhaitez ouvrir l'application.
+1. Open the downloaded `.dmg` file.
+2. Drag the **SkillDeck** app into the **Applications** folder.
+3. Open **Applications** and double‑click **SkillDeck**.
+   - The first time you open it, you may see a warning that the app is from an unidentified developer.
+     Go to **System Settings > Privacy & Security** and click **Open Anyway**.
+4. Confirm that you want to open the app.
 
 ### Linux
 
-1. Ouvrez un terminal dans le dossier contenant le fichier `.AppImage` téléchargé.
-2. Rendez le fichier exécutable :
+1. Open a terminal in the folder containing the downloaded `.AppImage` file.
+2. Make the file executable:
    ```bash
    chmod +x skilldeck-x86_64.AppImage
+   ```
+3. Run the AppImage:
+   ```bash
+   ./skilldeck-x86_64.AppImage
+   ```
+4. (Optional) Move the AppImage to a directory in your `PATH` for easier access.
+
+<Checkpoint question="Did SkillDeck launch successfully after installation?" onYes="Great! Now you're ready to create your first conversation." onNo="Check the [troubleshooting guide](/en/troubleshooting/installation) for common issues." />
+
+## Next Steps
+
+Now that SkillDeck is installed, you can:
+
+- [Start your first conversation](/en/getting-started/first-conversation)
+- [Install your first skill](/en/getting-started/first-skill)
+- [Learn about core concepts](/en/explanation/agent-loop)
+
+
+<Feedback />
