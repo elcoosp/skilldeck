@@ -23,7 +23,7 @@ import {
   Trophy,
   X
 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { AchievementsTab } from '@/components/settings/achievements-tab'
 import { LintConfig } from '@/components/settings/lint-config'
@@ -79,24 +79,41 @@ export function SettingsOverlay() {
   const settingsTab = useUIOverlaysStore((s) => s.settingsTab)
   const setSettingsTab = useUIOverlaysStore((s) => s.setSettingsTab)
   const setSettingsOpen = useUIOverlaysStore((s) => s.setSettingsOpen)
+  const dialogRef = useRef<HTMLDivElement>(null)
+
+  // Global Escape key listener
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSettingsOpen(false)
+      }
+    }
+    window.addEventListener('keydown', handleGlobalKeyDown)
+    // Focus the dialog when opened
+    dialogRef.current?.focus()
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKeyDown)
+    }
+  }, [setSettingsOpen])
+
+  const handleBackdropClick = () => setSettingsOpen(false)
 
   return (
-    <button
-      className="fixed inset-0 z-100 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 cursor-default"
-      onClick={() => setSettingsOpen(false)}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') {
-          setSettingsOpen(false)
-        }
-      }}
-      type="button"
+    <div
+      className="fixed inset-0 z-100 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={handleBackdropClick}
+      role="presentation"
     >
       <div
+        ref={dialogRef}
         onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') setSettingsOpen(false)
+        }}
         role="dialog"
         aria-label="Settings"
-        className="w-full max-w-2xl h-[520px] rounded-xl border border-border bg-background shadow-2xl flex overflow-hidden"
+        tabIndex={-1}
+        className="w-full max-w-2xl h-[520px] rounded-xl border border-border bg-background shadow-2xl flex overflow-hidden focus:outline-none"
       >
         {/* Sidebar */}
         <nav className="w-44 shrink-0 border-r border-border bg-muted/30 p-2 flex flex-col gap-0.5">
@@ -159,7 +176,7 @@ export function SettingsOverlay() {
           {settingsTab === 'achievements' && <AchievementsTab />}
         </div>
       </div>
-    </button>
+    </div>
   )
 }
 
@@ -573,27 +590,27 @@ const APPROVAL_FIELDS: Array<{
   label: string
   description: string
 }> = [
-  {
-    key: 'autoApproveReads',
-    label: 'Auto-approve file reads',
-    description: 'Skip the approval dialog for read-only filesystem tools'
-  },
-  {
-    key: 'autoApproveWrites',
-    label: 'Auto-approve file writes',
-    description: 'Skip approval for file creation and modification'
-  },
-  {
-    key: 'autoApproveShell',
-    label: 'Auto-approve shell commands',
-    description: 'Never require approval for shell execution (⚠ dangerous)'
-  },
-  {
-    key: 'autoApproveHttpRequests',
-    label: 'Auto-approve HTTP requests',
-    description: 'Skip approval for outbound HTTP tool calls'
-  }
-]
+    {
+      key: 'autoApproveReads',
+      label: 'Auto-approve file reads',
+      description: 'Skip the approval dialog for read-only filesystem tools'
+    },
+    {
+      key: 'autoApproveWrites',
+      label: 'Auto-approve file writes',
+      description: 'Skip approval for file creation and modification'
+    },
+    {
+      key: 'autoApproveShell',
+      label: 'Auto-approve shell commands',
+      description: 'Never require approval for shell execution (⚠ dangerous)'
+    },
+    {
+      key: 'autoApproveHttpRequests',
+      label: 'Auto-approve HTTP requests',
+      description: 'Skip approval for outbound HTTP tool calls'
+    }
+  ]
 
 function ApprovalsTab() {
   const toolApprovals = useSettingsStore((s) => s.toolApprovals)
