@@ -123,7 +123,7 @@ export function AnalyticsHeatmap({
         {label}
       </h3>
       <div className={compact ? '' : 'overflow-x-auto'}>
-        <div style={{ minWidth: compact ? 'auto' : `${width}px` }}>
+        <div style={{ minWidth: compact ? 'auto' : `${width}px` }} className="flex justify-center" >
           <HeatMap
             {...commonProps}
             value={data}
