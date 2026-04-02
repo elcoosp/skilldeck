@@ -3,6 +3,7 @@
 use async_trait::async_trait;
 use futures::Stream;
 use serde::{Deserialize, Serialize};
+use specta::Type;
 use std::pin::Pin;
 
 use crate::CoreError;
@@ -148,6 +149,17 @@ pub struct ModelCapabilities {
     pub prompt_caching: bool,
 }
 
+// =============================================================================
+// New: ProviderReadyStatus
+// =============================================================================
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum ProviderReadyStatus {
+    Ready,
+    NotReady { reason: String, fix_action: String },
+}
+
 #[async_trait]
 pub trait ModelProvider: Send + Sync {
     fn id(&self) -> &str;
@@ -208,6 +220,11 @@ pub trait ModelProvider: Send + Sync {
             model: String::new(),
             finish_reason,
         })
+    }
+
+    /// Check if the provider is ready to serve the given model.
+    async fn is_ready(&self, _model_id: &str) -> ProviderReadyStatus {
+        ProviderReadyStatus::Ready
     }
 }
 

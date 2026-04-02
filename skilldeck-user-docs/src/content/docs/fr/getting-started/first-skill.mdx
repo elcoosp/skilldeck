@@ -1,0 +1,76 @@
+---
+title: First Skill
+description: Discover, install, and use your first SkillDeck skill to extend the agent's capabilities.
+sidebar:
+  order: 3
+---
+
+import Nudge from '../../../../components/mdx/Nudge.astro';
+import Checkpoint from '../../../../components/mdx/Checkpoint.astro';
+import Feedback from '../../../../components/mdx/Feedback.astro';
+
+Skills are the building blocks of SkillDeck. They give the agent specialized knowledge and tools to help you with specific tasks—like reviewing code, generating documentation, or summarizing conversations.
+
+<Nudge type="tip" title="In this guide">
+  You'll install a code review skill and use it to analyze a piece of code.
+</Nudge>
+
+## Step 1: Open the Skills Tab
+
+1. In the right sidebar, click the **Skills** tab (the icon with two overlapping squares).
+2. You'll see the **Unified Skill List** – a marketplace that shows both local skills and those available from the SkillDeck registry.
+
+## Step 2: Find a Skill
+
+Use the search bar at the top of the Skills tab. Type `code review` and press Enter.
+
+You should see a skill named something like **"Code Review"** (or a similar name). It will have a badge indicating it's "Available" for installation.
+
+<Checkpoint question="Do you see the Code Review skill in the list?" onYes="Great! Move to Step 3." onNo="Make sure the platform features are enabled in Settings → Platform, or try a different search term like 'review'." />
+
+## Step 3: Install the Skill
+
+1. Click on the **Code Review** skill card. A detail panel will open on the right.
+2. Review the skill's description, author, tags, and any lint warnings.
+3. Click the **Install Skill** button.
+4. A dialog will ask where to install it. Choose **Personal** (for your user account) or **Workspace** (if you have a workspace open). For this guide, select **Personal**.
+5. Click **Install Copy**.
+
+<Checkpoint question="Did the skill install without errors?" onYes="Excellent! It will now appear in your list of installed skills." onNo="Check the error message – it might be a conflict if you already have a skill with the same name." />
+
+## Step 4: Use the Skill in a Conversation
+
+1. Go back to the **Conversation** tab (the first icon in the right sidebar).
+2. In the chat input, type the skill's name preceded by `@`. For example:
+   ```
+   @code-review
+   ```
+   As you type, a command palette will appear showing matching skills.
+3. Select the **Code Review** skill from the list. You'll see it appear as a chip above the input.
+4. Now type a message asking the agent to review some code. For example:
+   ```
+   Can you review this Python function?
+
+   def add(a, b):
+       return a + b
+   ```
+5. Press Enter to send.
+
+The agent will use the skill's instructions to analyze your code and provide feedback.
+
+<Checkpoint question="Did you receive a code review response?" onYes="Awesome! You've successfully used your first skill." onNo="Make sure you included the `@code-review` mention and that the skill chip appeared." />
+
+## How Skills Work
+
+When you mention a skill with `@`, SkillDeck injects the skill's content (its instructions, examples, and rules) into the agent's context. The agent then follows those instructions to perform the task. This keeps your skills version‑controlled and reusable across conversations.
+
+## Next Steps
+
+Now you know the basics of skills:
+
+- [Build your own skill](/en/tutorials/build-a-skill/create-frontmatter) to automate custom tasks.
+- [Learn about MCP servers](/en/explanation/mcp-supervisor) to give the agent access to external tools.
+- [Explore the full skill registry](/en/how-to/install-a-skill) to find more capabilities.
+
+
+<Feedback />

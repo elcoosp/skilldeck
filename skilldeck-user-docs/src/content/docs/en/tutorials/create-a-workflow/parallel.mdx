@@ -1,0 +1,125 @@
+---
+title: "Tutorial: Build a Parallel Workflow"
+description: Learn how to create a parallel workflow that runs multiple independent steps concurrently.
+sidebar:
+  order: 2
+---
+
+import Nudge from '../../../../../components/mdx/Nudge.astro';
+import Checkpoint from '../../../../../components/mdx/Checkpoint.astro';
+import Feedback from '../../../../../components/mdx/Feedback.astro';
+
+Parallel workflows let you run multiple independent steps at the same time, dramatically speeding up tasks like analyzing multiple files or fetching data from different sources. In this tutorial, you'll build a workflow that analyzes two different files in parallel and then combines the results.
+
+<Nudge type="tip" title="What you'll build">
+  A workflow that reviews two code files simultaneously and then produces a combined report.
+</Nudge>
+
+## Prerequisites
+
+- SkillDeck installed and running
+- Completion of the [Sequential Workflow tutorial](/en/tutorials/create-a-workflow/sequential) (recommended)
+- Two text files (e.g., `file1.py` and `file2.py`) with some sample code, or you can use the examples below
+
+## Step 1: Open the Workflow Editor
+
+1. In the right sidebar, click the **Workflow** tab.
+2. Click **New Workflow** (or edit an existing one).
+
+## Step 2: Understand Parallel Execution
+
+In a parallel workflow:
+
+- Steps that don't depend on each other run at the same time.
+- Dependencies still apply: if step B depends on step A, step A must finish before B starts.
+- All parallel steps must complete before any dependent steps begin.
+
+## Step 3: Create a Parallel Workflow
+
+Copy the following JSON into the editor. This workflow reviews two files in parallel, then combines the reviews:
+
+```json
+{
+  "name": "Parallel Code Review",
+  "pattern": "parallel",
+  "steps": [
+    {
+      "id": "review1",
+      "name": "Review File 1",
+      "prompt": "Review this Python code for style and bugs:\n\n{{file1}}"
+    },
+    {
+      "id": "review2",
+      "name": "Review File 2",
+      "prompt": "Review this Python code for style and bugs:\n\n{{file2}}"
+    },
+    {
+      "id": "combine",
+      "name": "Combine Reviews",
+      "prompt": "Combine the following two code reviews into a single report with a summary and bullet points:\n\nReview 1:\n{{review1.output}}\n\nReview 2:\n{{review2.output}}"
+    }
+  ],
+  "dependencies": [
+    { "from": "review1", "to": "combine" },
+    { "from": "review2", "to": "combine" }
+  ]
+}
+```
+
+Note:
+- `review1` and `review2` have no dependencies – they will run in parallel.
+- `combine` depends on both, so it waits for both to finish.
+- Input placeholders `{{file1}}` and `{{file2}}` expect file contents when you run the workflow.
+
+<Checkpoint question="Did you paste the JSON without errors?" onYes="Great! Let's save it." onNo="Check for missing commas or quotes, and ensure pattern is 'parallel'." />
+
+## Step 4: Save the Workflow
+
+1. Click **Save** and give it a name (e.g., "Parallel Code Review").
+2. It should now appear in your saved workflows list.
+
+## Step 5: Run the Workflow
+
+1. Click **Run** on your new workflow.
+2. When prompted, provide the contents of two code files. For example:
+
+   **File 1 (file1.py)**:
+   ```python
+   def add(a, b):
+       return a + b
+   ```
+
+   **File 2 (file2.py)**:
+   ```python
+   def subtract(a, b):
+       return a - b
+   ```
+
+3. Click **Start**.
+
+## Step 6: Observe Parallel Execution
+
+Watch the progress:
+
+- Both `review1` and `review2` will start at the same time.
+- Once both are complete, `combine` will run.
+- You'll see the final combined report.
+
+<Checkpoint question="Did both reviews run in parallel and combine successfully?" onYes="Excellent! You've mastered parallel workflows." onNo="Check the dependency definitions – ensure `from` and `to` match step IDs exactly." />
+
+## When to Use Parallel Workflows
+
+Parallel workflows are ideal for:
+
+- Analyzing multiple files independently.
+- Fetching data from multiple APIs concurrently.
+- Running independent simulations or tests.
+- Any task where steps don't depend on each other.
+
+## Next Steps
+
+Now you know both sequential and parallel patterns. Next, explore the evaluator‑optimizer pattern for iterative refinement:
+
+- [Evaluator‑Optimizer Workflow](/en/tutorials/create-a-workflow/evaluator-optimizer)
+
+<Feedback />

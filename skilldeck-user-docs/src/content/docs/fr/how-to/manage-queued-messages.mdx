@@ -1,0 +1,88 @@
+---
+title: "Comment gérer les messages en file d'attente"
+description: Utilisez la file d'attente de messages pour rédiger, réorganiser et envoyer des messages lorsque l'agent est occupé.
+sidebar:
+  order: 13
+---
+
+import Nudge from '../../../../components/mdx/Nudge.astro';
+import Checkpoint from '../../../../components/mdx/Checkpoint.astro';
+import Feedback from '../../../../components/mdx/Feedback.astro';
+
+Lorsque l'agent traite un message, vous pouvez continuer à en taper de nouveaux. Ils seront placés dans une file d'attente et envoyés automatiquement une fois que l'agent sera libre. Vous pouvez également modifier, réorganiser ou supprimer les messages en file d'attente.
+
+<Nudge type="tip" title="Ce que vous allez apprendre">
+  Comment utiliser efficacement la file d'attente des messages, y compris l'édition, la réorganisation et la fusion des messages.
+</Nudge>
+
+## Comment fonctionne la mise en file d'attente
+
+- Pendant que l'agent est en cours d'exécution, tout message que vous envoyez est ajouté à une file d'attente au lieu d'être traité immédiatement.
+- La file d'attente apparaît au‑dessus de la zone de saisie, affichant tous les messages en attente.
+- Les messages sont envoyés dans l'ordre (FIFO) dès que l'agent a terminé le message en cours.
+
+## Étape 1 : Envoyez un message pendant que l'agent est occupé
+
+1. Commencez une conversation et envoyez un message qui prendra du temps (par exemple, une invocation de compétence complexe).
+2. Pendant que l'agent tape, tapez un autre message et appuyez sur Entrée.
+3. Vous verrez une nouvelle section apparaître au‑dessus de la saisie : **En file d'attente** avec un nombre et votre message listé.
+
+## Étape 2 : Visualisez les messages en file d'attente
+
+La file d'attente affiche chaque message avec :
+
+- Un numéro de position (1, 2, 3…)
+- Un aperçu du contenu
+- L'heure à laquelle il a été mis en file d'attente
+
+## Étape 3 : Modifiez un message en file d'attente
+
+1. Passez la souris sur un message en file d'attente et cliquez sur l'icône **crayon**.
+2. Le message s'étend dans un éditeur. Apportez vos modifications.
+3. Cliquez sur **Enregistrer** pour le mettre à jour, ou sur **Annuler** pour ignorer les modifications.
+
+## Étape 4 : Réorganisez les messages
+
+1. Passez la souris sur un message en file d'attente et faites glisser l'icône **grip** (six points) sur la gauche.
+2. Faites‑le glisser vers le haut ou vers le bas pour changer sa position dans la file.
+3. Les numéros seront mis à jour pour refléter le nouvel ordre.
+
+## Étape 5 : Supprimez un message
+
+Cliquez sur l'icône **poubelle** à côté de n'importe quel message en file d'attente pour le supprimer. Il sera définitivement effacé.
+
+## Étape 6 : Sélectionnez plusieurs messages (opérations par lots)
+
+1. Cliquez sur le bouton **Sélectionner** dans l'en‑tête de la file d'attente.
+2. Des cases à cocher apparaissent à côté de chaque message. Sélectionnez ceux sur lesquels vous souhaitez agir.
+3. Utilisez la barre d'outils en bas pour :
+   - **Supprimer** tous les messages sélectionnés
+   - **Fusionner** les messages sélectionnés en un seul (combine leur contenu)
+
+## Étape 7 : Fusionnez des messages
+
+La fusion combine plusieurs messages en file d'attente en un seul message, séparés par `---`. C'est utile lorsque vous souhaitez combiner des pensées liées.
+
+1. Sélectionnez au moins deux messages.
+2. Cliquez sur **Fusionner**.
+3. Un nouveau message apparaît avec le contenu combiné. Les messages d'origine sont supprimés.
+
+<Checkpoint question="Avez‑vous réussi à fusionner deux messages ?" onYes="Super ! La file d'attente est un outil puissant." onNo="Assurez‑vous d'avoir sélectionné au moins deux messages." />
+
+## Étape 8 : Annulez la sélection
+
+Lorsque vous avez terminé les opérations par lots, cliquez sur **Annuler** dans l'en‑tête de la file d'attente pour revenir à la vue normale.
+
+## Comportement d'envoi automatique
+
+- La file d'attente se traite automatiquement lorsque l'agent est inactif.
+- Si vous modifiez un message, réorganisez ou si le mode sélection est actif, l'envoi automatique est **suspendu** jusqu'à ce que vous ayez terminé.
+- Vous pouvez également déclencher l'envoi manuellement en cliquant sur le bouton **Envoyer** (qui affichera « Mettre en file d'attente » si l'agent est occupé).
+
+## Prochaines étapes
+
+- [Utiliser la palette de commandes](/fr/how-to/use-command-palette)
+- [Installer une compétence](/fr/how-to/install-a-skill)
+- [Configurer des profils](/fr/how-to/configure-profiles)
+
+<Feedback />

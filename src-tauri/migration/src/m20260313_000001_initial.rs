@@ -52,12 +52,8 @@ impl MigrationTrait for Migration {
                     .col(string(Profiles::Name).not_null())
                     .col(string(Profiles::Description).null())
                     .col(string(Profiles::SystemPrompt).null())
-                    .col(string(Profiles::ModelProvider).not_null().default("claude"))
-                    .col(
-                        string(Profiles::ModelId)
-                            .not_null()
-                            .default("claude-sonnet-4-5"),
-                    )
+                    .col(string(Profiles::ModelProvider).not_null())
+                    .col(string(Profiles::ModelId).not_null())
                     .col(json(Profiles::ModelParams).null())
                     .col(boolean(Profiles::IsDefault).not_null().default(false))
                     .col(
@@ -136,7 +132,7 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
-        // registry_skills cache (new)
+        // registry_skills cache
         manager
             .create_table(
                 Table::create()
@@ -190,7 +186,7 @@ impl MigrationTrait for Migration {
                             .default(Expr::current_timestamp()),
                     )
                     .col(timestamp_with_time_zone(Conversations::ArchivedAt).null())
-                    .col(boolean(Conversations::Pinned).not_null().default(false)) // <-- added
+                    .col(boolean(Conversations::Pinned).not_null().default(false))
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_conversations_profile_id")
@@ -730,37 +726,6 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .default(Expr::current_timestamp()),
                     )
-                    .to_owned(),
-            )
-            .await?;
-
-        // registry_skills cache (new)
-        manager
-            .create_table(
-                Table::create()
-                    .table(RegistrySkills::Table)
-                    .if_not_exists()
-                    .col(uuid(RegistrySkills::Id).primary_key())
-                    .col(string(RegistrySkills::RegistryId).not_null().unique_key())
-                    .col(string(RegistrySkills::Name).not_null())
-                    .col(text(RegistrySkills::Description).not_null())
-                    .col(string(RegistrySkills::Source).not_null())
-                    .col(string(RegistrySkills::SourceUrl).null())
-                    .col(string(RegistrySkills::Version).null())
-                    .col(string(RegistrySkills::Author).null())
-                    .col(string(RegistrySkills::License).null())
-                    .col(json_binary(RegistrySkills::Tags).null())
-                    .col(string(RegistrySkills::Category).null())
-                    .col(json_binary(RegistrySkills::LintWarnings).null())
-                    .col(integer(RegistrySkills::SecurityScore).not_null().default(5))
-                    .col(integer(RegistrySkills::QualityScore).not_null().default(5))
-                    .col(
-                        string(RegistrySkills::MetadataSource)
-                            .not_null()
-                            .default("author"),
-                    )
-                    .col(text(RegistrySkills::Content).not_null())
-                    .col(timestamp_with_time_zone(RegistrySkills::SyncedAt).not_null())
                     .to_owned(),
             )
             .await?;
@@ -1473,76 +1438,71 @@ impl MigrationTrait for Migration {
 
         let db = manager.get_connection();
 
-        // 1. Default profile
-        let default_profile = profiles::ActiveModel {
-            id: Set(Uuid::nil()),
-            name: Set("Default".to_owned()),
-            description: Set(None),
-            model_provider: Set("claude".to_owned()),
-            model_id: Set("claude-sonnet-4-5".to_owned()),
-            model_params: Set(None),
-            system_prompt: Set(None),
-            is_default: Set(true),
-            created_at: Set(Utc::now().into()),
-            updated_at: Set(Utc::now().into()),
-            deleted_at: Set(None),
-        };
-        default_profile.insert(db).await?;
-
-        // 2. Skill source directories
+        // 1. Skill source directories
         let source_dirs = [
             ("workspace", ".skilldeck/skills", 1_i32),
             ("personal", "~/.skilldeck/skills", 2),
             ("marketplace", "~/.skilldeck/marketplace", 3),
         ];
 
-        for (idx, (source_type, path, priority)) in source_dirs.iter().enumerate() {
-            let id = Uuid::parse_str(&format!("00000000-0000-0000-0000-00000000000{}", idx + 1))
-                .unwrap();
+        for (source_type, path, priority) in source_dirs {
+            let id = Uuid::new_v4();
             let source_dir = skill_source_dirs::ActiveModel {
                 id: Set(id),
-                source_type: Set((*source_type).to_owned()),
-                path: Set((*path).to_owned()),
-                priority: Set(*priority),
+                source_type: Set(source_type.to_owned()),
+                path: Set(path.to_owned()),
+                priority: Set(priority),
                 enabled: Set(true),
                 created_at: Set(Utc::now().into()),
             };
             source_dir.insert(db).await?;
         }
 
-        // 3. Model pricing
+        // 2. Model pricing
+        // Note: Pricing values are stored as integer cents per 1M tokens to avoid floating point issues.
+        // e.g., 300 represents $3.00 per 1M tokens.
         let pricing = [
-            (
-                "claude",
-                "claude-sonnet-4-5",
-                300_i64,
-                1500_i64,
-                30_i64,
-                375_i64,
-            ),
-            ("claude", "claude-opus-4", 1500, 7500, 150, 1875),
-            ("openai", "gpt-4o", 250, 1000, 125, 250),
-            ("openai", "gpt-4o-mini", 15, 60, 8, 15),
+            // Claude (Anthropic)
+            ("claude", "claude-opus-4.6", 500, 2500, 50, 625),
+            ("claude", "claude-sonnet-4.6", 300, 1500, 30, 375),
+            ("claude", "claude-haiku-4.5", 100, 500, 10, 125),
+            // OpenAI
+            ("openai", "gpt-4.1", 200, 800, 100, 200),
+            ("openai", "gpt-4.1-mini", 40, 160, 20, 40),
+            ("openai", "gpt-4.1-nano", 20, 80, 10, 20),
+            ("openai", "o1", 1500, 6000, 0, 0),
+            ("openai", "o3", 200, 800, 0, 0),
+            ("openai", "o4-mini", 110, 440, 0, 0),
+            // Google Gemini
+            ("google", "gemini-2.5-pro", 125, 1000, 63, 500),
+            ("google", "gemini-2.5-flash", 30, 250, 15, 125),
+            // DeepSeek (MIT licensed)
+            ("deepseek", "deepseek-v3.2", 28, 42, 14, 21),
+            ("deepseek", "deepseek-r1", 55, 219, 0, 0),
+            // Other open-source models
+            ("zhipu", "glm-5", 100, 320, 0, 0),
+            ("moonshot", "kimi-k2.5", 60, 250, 0, 0),
+            ("minimax", "minimax-m2.5", 30, 120, 0, 0),
+            ("meta", "llama-4-scout", 11, 34, 0, 0),
+            ("meta", "llama-4-maverick", 20, 60, 0, 0),
+            ("mistral", "mistral-large-3", 50, 150, 0, 0),
+            ("mistral", "mistral-small-3.2", 6, 18, 0, 0),
         ];
 
-        for (i, (provider, model, input_c, output_c, cache_r, cache_w)) in
-            pricing.iter().enumerate()
-        {
-            let id =
-                Uuid::parse_str(&format!("10000000-0000-0000-0000-00000000000{}", i + 1)).unwrap();
+        for (provider, model, input_c, output_c, cache_r, cache_w) in pricing {
+            let id = Uuid::new_v4();
             let pricing = model_pricing::ActiveModel {
                 id: Set(id),
-                model_provider: Set((*provider).to_owned()),
-                model_id: Set((*model).to_owned()),
-                input_cost_per_1k_tokens: Set(*input_c),
-                output_cost_per_1k_tokens: Set(*output_c),
-                cache_read_cost_per_1k_tokens: Set(Some(*cache_r)),
-                cache_write_cost_per_1k_tokens: Set(Some(*cache_w)),
+                model_provider: Set(provider.to_owned()),
+                model_id: Set(model.to_owned()),
+                input_cost_per_1k_tokens: Set(input_c),
+                output_cost_per_1k_tokens: Set(output_c),
+                cache_read_cost_per_1k_tokens: Set(Some(cache_r)),
+                cache_write_cost_per_1k_tokens: Set(Some(cache_w)),
                 valid_from: Set(Utc::now().into()),
             };
             pricing.insert(db).await?;
         }
-
         Ok(())
     }
 
@@ -1567,6 +1527,7 @@ impl MigrationTrait for Migration {
             "folders",
             "templates",
             "artifacts",
+            "pinned_artifacts",
             "workflow_steps",
             "subagent_sessions",
             "workflow_definitions",
@@ -1582,10 +1543,11 @@ impl MigrationTrait for Migration {
             "profile_skills",
             "profile_mcps",
             "queued_messages",
-            "conversation_drafts", // new table
+            "conversation_drafts",
             "tool_call_events",
             "conversation_branches",
             "messages",
+            "message_headings",
             "conversations",
             "user_preferences",
             "workspaces",
@@ -1663,7 +1625,7 @@ enum Conversations {
     CreatedAt,
     UpdatedAt,
     ArchivedAt,
-    Pinned, // <-- added
+    Pinned,
 }
 
 #[derive(DeriveIden)]
@@ -1684,7 +1646,7 @@ enum Messages {
     OutputTokens,
     CacheReadTokens,
     CacheWriteTokens,
-    Status, // <-- added
+    Status,
     CreatedAt,
 }
 
@@ -2118,6 +2080,7 @@ pub enum ModelPricing {
     CacheWriteCostPer1kTokens,
     ValidFrom,
 }
+
 #[derive(Iden)]
 enum PinnedArtifacts {
     Table,
@@ -2128,6 +2091,7 @@ enum PinnedArtifacts {
     IsGlobal,
     CreatedAt,
 }
+
 impl Iden for ModelPricing {
     fn unquoted(&self) -> &str {
         match self {
@@ -2143,6 +2107,7 @@ impl Iden for ModelPricing {
         }
     }
 }
+
 #[derive(Iden)]
 enum MessageHeadings {
     Table,

@@ -39,13 +39,13 @@ impl Llm for LlmAdapter {
 
         // Convert ADK request to skilldeck‑core CompletionRequest.
         let completion_req = convert_request(request, model_id)
-            .map_err(|e| AdkError::Model(format!("request conversion failed: {e}")))?;
+            .map_err(|e| AdkError::model(format!("request conversion failed: {e}")))?;
 
         // Obtain the raw stream from the provider.
         let raw_stream = provider
             .complete(completion_req)
             .await
-            .map_err(|e| AdkError::Model(format!("provider error: {e}")))?;
+            .map_err(|e| AdkError::model(format!("provider error: {e}")))?;
 
         // Map each chunk from skilldeck‑core to ADK LlmResponse.
         let mapped_stream = raw_stream.map(|chunk_result| match chunk_result {
@@ -107,7 +107,7 @@ impl Llm for LlmAdapter {
                     })
                 }
             },
-            Err(e) => Err(AdkError::Model(format!("stream error: {e}"))),
+            Err(e) => Err(AdkError::model(format!("stream error: {e}"))),
         });
 
         Ok(Box::pin(mapped_stream))

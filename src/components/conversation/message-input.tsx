@@ -5,6 +5,7 @@ import { open } from '@tauri-apps/plugin-dialog'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
+  AlertTriangle,
   AtSign,
   Globe,
   Hash,
@@ -22,7 +23,6 @@ import {
 } from 'react'
 import { toast } from 'sonner'
 import { useDebouncedCallback } from 'use-debounce'
-
 import { AttachedItemsList } from '@/components/chat/attached-items-list'
 import { ChatCommandPalette } from '@/components/chat/chat-command-palette'
 import { ContextChip } from '@/components/chat/context-chip'
@@ -41,6 +41,7 @@ import {
 import { useCreateConversation } from '@/hooks/use-conversations'
 import { useSendMessage } from '@/hooks/use-messages'
 import { useProfiles } from '@/hooks/use-profiles'
+import { useProviderReady } from '@/hooks/use-provider-ready'
 import {
   useAddQueuedMessage,
   useQueuedMessages
@@ -100,9 +101,13 @@ export function MessageInput({
   const activeWorkspace = workspaces?.find((w) => w.id === activeWorkspaceId)
   const effectiveWorkspaceRoot = workspaceRoot ?? activeWorkspace?.path
 
-  // ── Profiles (for auto‑create) ──────────────────────────────────────────
-  const { data: profiles = [] } = useProfiles()
-  const defaultProfile = profiles.find((p) => p.is_default) ?? profiles[0]
+  // ── Profiles & provider readiness ──────────────────────────────────────────
+  const { data: profiles } = useProfiles()
+  const activeProfile = profiles?.find((p) => p.is_default) ?? profiles?.[0]
+  const { data: readiness, isLoading: readinessLoading } = useProviderReady(
+    activeProfile?.id
+  )
+  const defaultProfile = profiles?.find((p) => p.is_default) ?? profiles?.[0]
 
   // ── Draft / UI store ──────────────────────────────────────────────────────
   const draft = useUIEphemeralStore((s) => s.drafts[conversationId] ?? '')
@@ -543,6 +548,12 @@ export function MessageInput({
   // ── Submit / Queue ────────────────────────────────────────────────────────
 
   const submit = useCallback(async () => {
+    // Provider readiness guard
+    if (readiness?.status.status !== 'ready') {
+      toast.error(readiness?.status.reason ?? 'Provider not ready')
+      return
+    }
+
     let finalContent = content.trim()
 
     for (const file of selectedFiles) {
@@ -553,7 +564,8 @@ export function MessageInput({
 
     let finalConversationId = conversationId
     if (!finalConversationId) {
-      const defaultProfile = profiles.find((p) => p.is_default) ?? profiles[0]
+      const defaultProfile =
+        profiles?.find((p) => p.is_default) ?? profiles?.[0]
       if (!defaultProfile) {
         toast.error('No profile available to create conversation')
         return
@@ -623,7 +635,8 @@ export function MessageInput({
     clearItems,
     currentItems,
     sendMutation,
-    onRequestScrollToBottom
+    onRequestScrollToBottom,
+    readiness
   ])
 
   return (
@@ -635,6 +648,21 @@ export function MessageInput({
             messages={queuedMessages}
           />
           {queueExpanded && <QueueList conversationId={conversationId} />}
+        </div>
+      )}
+
+      {/* Provider readiness banner */}
+      {!readinessLoading && readiness?.status.status === 'not_ready' && (
+        <div className="mb-2 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-2 text-sm">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+            <span className="font-medium text-amber-800 dark:text-amber-300">
+              Provider Not Ready
+            </span>
+          </div>
+          <p className="text-amber-700 dark:text-amber-400 text-xs mt-0.5">
+            {readiness.status.reason} {readiness.status.fix_action}
+          </p>
         </div>
       )}
 
@@ -755,7 +783,8 @@ export function MessageInput({
                     disabled={
                       (!content.trim() && selectedFiles.length === 0) ||
                       sendMutation.isPending ||
-                      isSending
+                      isSending ||
+                      readiness?.status.status !== 'ready'
                     }
                     aria-label="Send"
                   >

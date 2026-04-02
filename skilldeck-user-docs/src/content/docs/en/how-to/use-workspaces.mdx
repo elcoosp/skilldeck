@@ -1,0 +1,99 @@
+---
+title: "How to Use Workspaces"
+description: Give the agent project context by opening a workspace, enabling file and folder awareness.
+sidebar:
+  order: 5
+---
+
+import Nudge from '../../../../components/mdx/Nudge.astro';
+import Checkpoint from '../../../../components/mdx/Checkpoint.astro';
+import Feedback from '../../../../components/mdx/Feedback.astro';
+
+Workspaces in SkillDeck let you provide the agent with **project context** – your codebase, configuration files, and documentation. When a workspace is open, the agent can access files and folders you explicitly attach, making it much more effective at tasks like code review, refactoring, and documentation.
+
+<Nudge type="tip" title="What you'll learn">
+  How to open a workspace, attach files/folders to a conversation, and let the agent use your project's context.
+</Nudge>
+
+## Prerequisites
+
+- SkillDeck installed and running
+- A project folder on your local machine (e.g., a Git repository)
+
+## Step 1: Open a Workspace
+
+1. In the left sidebar, click the workspace switcher at the bottom (it might show "No workspace").
+2. Select **Open another workspace** (or a similar option).
+3. In the file dialog, navigate to your project folder and select it.
+4. Click **Open**.
+
+SkillDeck will scan the folder and detect the project type (e.g., Rust, Node, Python). The workspace name will appear in the switcher.
+
+<Checkpoint question="Does your workspace name appear in the switcher?" onYes="Great! Your workspace is now active." onNo="Try reopening the folder or check that it's a valid directory." />
+
+## Step 2: Start a Conversation
+
+Go to the **Conversation** tab and either create a new conversation or use an existing one. The workspace you opened is now associated with this conversation (you'll see its name in the top bar).
+
+## Step 3: Attach Files or Folders
+
+There are two ways to give the agent access to files from your workspace:
+
+### Option A: Type `#` to open the file picker
+
+1. In the message input, type `#` – a file picker will appear showing files and folders from your workspace.
+2. Browse or search for the file you need.
+3. Click on a file to attach it. It will appear as a chip above the input.
+
+### Option B: Use the toolbar button
+
+1. Click the **# File** button in the toolbar below the input.
+2. The same file picker will open – select a file to attach.
+
+<Checkpoint question="Can you attach a file using `#`?" onYes="Perfect! Now the agent can see that file." onNo="Make sure you have a workspace open and that the file picker appears." />
+
+## Step 4: Attach an Entire Folder
+
+You can also attach a folder, which lets the agent access multiple files at once.
+
+1. Type `#` to open the file picker.
+2. Navigate to a folder and click on the **`.`** entry (which represents the current folder). A modal will appear asking how deeply to scan:
+   - **Direct children only** – only files immediately inside the folder.
+   - **All nested files** – recursively include files in subfolders.
+3. Choose your preference and confirm.
+
+The folder will appear as a chip. When you send your message, SkillDeck will assemble the contents of all those files (up to a size limit) and include them in the context.
+
+<Nudge type="tip" title="Folder scope">
+  Use "Direct children only" for shallow context (e.g., a config folder). Use "All nested files" for deep context like an entire source tree – be mindful of the token limit.
+</Nudge>
+
+## Step 5: Ask the Agent Questions
+
+Now that you've attached files or folders, ask the agent something that requires project knowledge. For example:
+
+- "Can you review this function in `src/main.py`?"
+- "What does the `README.md` say about installation?"
+- "Summarize the code in the `utils` folder."
+
+The agent will use the attached context to answer accurately.
+
+<Checkpoint question="Did the agent correctly reference your attached files?" onYes="Awesome! Workspaces are working." onNo="Make sure the files are attached as chips before sending. The agent can only see what you've attached." />
+
+## How Workspace Context Works
+
+When you attach a file or folder, SkillDeck:
+
+- Reads the file(s) from your local disk.
+- Inlines their content into the conversation context (with clear markers so the agent knows where each file came from).
+- The agent then has that information available for the current turn.
+
+This is a one‑time injection – if you need the agent to access the files again in a later turn, you'll need to re‑attach them (or include them in your message again). Workspaces simply provide the **source** for attachments; they don't automatically persist context across turns.
+
+## Next Steps
+
+- [Install a skill](/en/how-to/install-a-skill) that can analyze your code.
+- [Add an MCP server](/en/how-to/add-mcp-server/filesystem-server) for even deeper file integration.
+- [Share a skill via Gist](/en/how-to/share-skill-gist) with your team.
+
+<Feedback />

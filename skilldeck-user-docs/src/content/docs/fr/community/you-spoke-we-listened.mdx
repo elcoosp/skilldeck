@@ -1,0 +1,76 @@
+---
+title: "Vous avez parlé, nous avons écouté : mises à jour mensuelles de la documentation"
+description: Un résumé régulier des commentaires des utilisateurs et des améliorations apportées.
+sidebar:
+  order: 7
+---
+
+import Feedback from '../../../../components/mdx/Feedback.astro';
+
+Chaque mois, nous publions un résumé des commentaires reçus et des modifications apportées à la documentation. C'est notre façon de boucler la boucle – vous montrer que votre voix compte et que nous travaillons constamment à nous améliorer.
+
+## Dernière mise à jour : mars 2026
+
+### Thèmes principaux ce mois‑ci
+
+| Thème | Nombre de commentaires | Action entreprise |
+|-------|------------------------|-------------------|
+| Dépannage des connexions MCP | 12 | Création d’un nouveau [guide de dépannage MCP](/fr/how-to/troubleshoot/mcp-connection) |
+| Confusion lors de l'installation des compétences | 8 | Ajout d’une vidéo étape par étape au [guide d'installation d'une compétence](/fr/how-to/install-a-skill) |
+| Contexte de l'espace de travail peu clair | 5 | Réécriture du [guide des espaces de travail](/fr/how-to/use-workspaces) avec plus d'exemples |
+| Fautes de frappe / petits correctifs | 15 | Corrigés sur place (sans suivi) |
+
+### Principales améliorations ce mois‑ci
+
+| Changement | Demandé par | Lien |
+|------------|-------------|------|
+| Ajout de Python Code Reviewer à la vitrine | @coder-alex | [Voir la compétence](/fr/community/skill-showcase#mars-2026-python-code-reviewer) |
+| Clarification de la configuration de la clé API pour Claude | @ai-newbie | [Guide mis à jour](/fr/how-to/set-up-api-keys) |
+| Correction des liens cassés dans la section de référence | @helpful-user | – |
+
+### Sur quoi nous travaillons ensuite
+
+- **Meilleure découverte des serveurs MCP** – nous prévoyons une nouvelle page listant tous les serveurs compatibles.
+- **Tutoriels vidéo** – nous expérimentons de courtes vidéos explicatives.
+- **Progression de la traduction française** – maintenant à 40% de couverture.
+
+---
+
+## Mises à jour précédentes
+
+- [Février 2026](/fr/community/you-spoke-we-listened-feb-2026) *(à venir)*
+- [Janvier 2026](/fr/community/you-spoke-we-listened-jan-2026) *(à venir)*
+
+---
+
+## Comment utiliser ce modèle
+
+Si vous êtes un mainteneur créant une nouvelle mise à jour mensuelle, copiez le modèle suivant et remplissez les détails.
+
+```markdown
+---
+title: "Vous avez parlé, nous avons écouté : [Mois] [Année] – Mises à jour de la documentation"
+description: Un résumé des commentaires des utilisateurs et des améliorations apportées ce mois‑ci.
+---
+
+## Thèmes principaux ce mois‑ci
+
+| Thème | Nombre de commentaires | Action entreprise |
+|-------|------------------------|-------------------|
+| [Thème 1] | [Nombre] | [Action] |
+| [Thème 2] | [Nombre] | [Action] |
+| [Thème 3] | [Nombre] | [Action] |
+
+## Principales améliorations ce mois‑ci
+
+| Changement | Demandé par | Lien |
+|------------|-------------|------|
+| [Description du changement] | @utilisateur | [Lien] |
+
+## Sur quoi nous travaillons ensuite
+
+- [Élément 1]
+- [Élément 2]
+- [Élément 3]
+-
+<Feedback />

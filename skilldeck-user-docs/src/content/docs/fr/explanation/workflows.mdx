@@ -1,0 +1,31 @@
+---
+title: Flux de travail
+description: Présentation du moteur de flux de travail de SkillDeck – modèles, exécution et cas d'utilisation.
+sidebar:
+  order: 4
+---
+
+import Feedback from '../../../../components/mdx/Feedback.astro';
+
+Les flux de travail vous permettent d'automatiser des tâches en plusieurs étapes en enchaînant des compétences, des prompts et des outils. SkillDeck prend en charge trois modèles de flux de travail principaux, chacun adapté à différents domaines de problèmes.
+
+## Définition d'un flux de travail
+
+Un flux de travail est défini comme un objet JSON avec ces champs :
+
+```json
+{
+  "name": "Nom du flux de travail",
+  "pattern": "sequential | parallel | evaluator_optimizer",
+  "steps": [
+    {
+      "id": "step1",
+      "name": "Nom de l'étape",
+      "skill": "nom-de-compétence-facultatif",
+      "prompt": "Instruction pour l'agent"
+    }
+  ],
+  "dependencies": [
+    { "from": "step1", "to": "step2" }
+  ]
+}

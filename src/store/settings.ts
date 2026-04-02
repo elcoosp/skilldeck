@@ -78,7 +78,7 @@ export const useSettingsStore = create<SettingsState>()(
         set({ notificationsEnabled: enabled }),
 
       // Default model
-      defaultModelId: 'glm-5:cloud',
+      defaultModelId: '', // <-- changed from 'glm-5:cloud'
       defaultProvider: 'ollama',
       setDefaultModelId: (id) => set({ defaultModelId: id }),
       setDefaultProvider: (provider) => set({ defaultProvider: provider }),

@@ -22,7 +22,6 @@ describe('ThreadNavigator', () => {
       input_tokens: null,
       output_tokens: null,
       seen: false,
-      stable_html: null,
       node_document: null,
       status: 'complete'
     },
@@ -37,7 +36,6 @@ describe('ThreadNavigator', () => {
       input_tokens: null,
       output_tokens: null,
       seen: false,
-      stable_html: null,
       node_document: null,
       status: 'complete'
     },
@@ -52,7 +50,6 @@ describe('ThreadNavigator', () => {
       input_tokens: null,
       output_tokens: null,
       seen: false,
-      stable_html: null,
       node_document: null,
       status: 'complete'
     },
@@ -67,7 +64,6 @@ describe('ThreadNavigator', () => {
       input_tokens: null,
       output_tokens: null,
       seen: false,
-      stable_html: null,
       node_document: null,
       status: 'complete'
     },
@@ -82,7 +78,6 @@ describe('ThreadNavigator', () => {
       input_tokens: null,
       output_tokens: null,
       seen: false,
-      stable_html: null,
       node_document: null,
       status: 'complete'
     }

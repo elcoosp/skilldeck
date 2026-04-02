@@ -103,10 +103,10 @@ export function ScoreDots({ score, max = 5 }: { score: number; max?: number }) {
     >
       {Array.from({ length: max }).map((i) => (
         <span
-          key={i}
+          key={i as number}
           className={cn(
             'inline-block size-1.5 rounded-full',
-            i < score ? 'bg-primary' : 'bg-muted-foreground/30'
+            (i as number) < score ? 'bg-primary' : 'bg-muted-foreground/30'
           )}
         />
       ))}

@@ -53,7 +53,6 @@ pub struct Model {
     // TODO extract markdown in a crate to expose type
     pub node_document: Option<Json>,
     pub context_items: Option<ContextItems>,
-    pub stable_html: Option<String>,
     pub input_tokens: Option<i32>,
     pub output_tokens: Option<i32>,
     pub cache_read_tokens: Option<i32>,

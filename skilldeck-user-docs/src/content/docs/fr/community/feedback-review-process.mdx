@@ -1,0 +1,81 @@
+---
+title: "Processus hebdomadaire d'examen des commentaires"
+description: Comment l'équipe SkillDeck examine et agit sur les commentaires des utilisateurs pour améliorer continuellement la documentation.
+sidebar:
+  order: 6
+---
+
+import Feedback from '../../../../components/mdx/Feedback.astro';
+
+Nous croyons qu'une bonne documentation n'est jamais finie – elle évolue avec les besoins des utilisateurs. C'est pourquoi nous avons un processus structuré d'examen des commentaires chaque semaine. Cette page explique comment nous le faisons et comment vous pouvez voir l'impact de vos contributions.
+
+## Pourquoi nous faisons cela
+
+- **Améliorations pilotées par les utilisateurs** : les commentaires nous disent ce qui fonctionne et ce qui est confus.
+- **Itération rapide** : des examens hebdomadaires signifient que les problèmes sont traités rapidement.
+- **Transparence** : vous pouvez voir sur quoi nous travaillons et ce qui a été corrigé.
+
+## Le processus
+
+### 1. Collecte des commentaires
+
+Les commentaires proviennent de plusieurs sources :
+
+- **Boutons "Cette page vous a‑t‑elle été utile ?"** sur chaque page (avec commentaires facultatifs)
+- **Issues GitHub** étiquetées `documentation`
+- **Messages Discord** dans le canal `#docs-feedback`
+- **Entretiens utilisateurs** et tests d'utilisabilité (trimestriels)
+
+Tous les commentaires sont regroupés dans un tableau de bord privé (usage interne uniquement).
+
+### 2. Réunion d'examen hebdomadaire
+
+Chaque **lundi à 15h UTC**, l'équipe de documentation (et tout contributeur intéressé) se réunit pour examiner les commentaires de la semaine écoulée. L'ordre du jour :
+
+- **Nouveaux commentaires** – qu'ont dit les utilisateurs ?
+- **Thèmes principaux** – y a‑t‑il des problèmes récurrents ?
+- **Éléments prioritaires** – quels problèmes devons‑nous résoudre en premier ?
+- **Attributions** – qui travaille sur quoi ?
+
+Les notes de la réunion sont publiées dans les [discussions GitHub](https://github.com/elcoosp/skilldeck/discussions/categories/docs-feedback) pour plus de transparence.
+
+### 3. Tri et priorisation
+
+Nous utilisons un système de priorité simple :
+
+| Priorité | Critères | Délai de résolution cible |
+|----------|----------|---------------------------|
+| **P0 (Critique)** | Liens cassés, erreurs factuelles, problèmes de sécurité | Dans les 24 heures |
+| **P1 (Élevée)** | Explications confuses, contenu clé manquant | Dans la semaine |
+| **P2 (Moyenne)** | Fautes de frappe, améliorations de style, exemples supplémentaires | Dans les 2 semaines |
+| **P3 (Basse)** | Améliorations agréables, idées futures | Backlog |
+
+### 4. Passer à l'action
+
+Selon le problème, nous pouvons :
+
+- Le corriger immédiatement (petits changements)
+- Créer une issue GitHub pour les tâches plus importantes
+- L'ajouter à la feuille de route de la documentation
+- Répondre à l'utilisateur avec une mise à jour
+
+### 5. Boucler la boucle
+
+Lorsqu'un commentaire est résolu, nous :
+
+- Mettons à jour l'issue/commentaire d'origine avec un lien vers la correction
+- Si l'utilisateur a fourni des coordonnées, nous le notifions directement
+- Ajoutons une note dans la prochaine mise à jour « Vous avez parlé, nous avons écouté »
+
+## Mises à jour mensuelles « Vous avez parlé, nous avons écouté »
+
+À la fin de chaque mois, nous publions un résumé des commentaires reçus et des modifications apportées. Cela permet à la communauté de voir l'impact de ses contributions. [Lire la dernière mise à jour →](/fr/community/you-spoke-we-listened)
+
+## Comment vous pouvez participer
+
+- **Soumettez des commentaires** en utilisant les boutons sur n'importe quelle page.
+- **Participez à la revue hebdomadaire** – tous sont les bienvenus ! Contactez‑nous sur Discord pour le lien de la réunion.
+- **Étiquetez les issues** avec `documentation` pour les porter à notre attention.
+- **Contribuez des corrections** – si vous voyez un problème, vous pouvez soumettre une PR directement.
+
+<Feedback />

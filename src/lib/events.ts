@@ -39,7 +39,6 @@ export interface AgentEvent {
   tool_name?: string
   arguments?: Record<string, unknown>
   // Fields for stream_update
-  stable_html?: string
   draft_html?: string | null
   slot_count?: number
   new_toc_items?: any[] // We'll define a proper type later, but for now use any

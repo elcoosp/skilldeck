@@ -45,12 +45,41 @@ import { cn } from '@/lib/utils'
 import { useSettingsStore } from '@/store/settings'
 import { useUIOverlaysStore } from '@/store/ui-overlays'
 
+// ============================================================================
+// Dynamic model list hook
+// ============================================================================
+
+function useAvailableModels(provider: string) {
+  return useQuery({
+    queryKey: ['available-models', provider],
+    queryFn: async () => {
+      if (provider === 'ollama') {
+        const res = await commands.listOllamaModels()
+        if (res.status === 'ok') return res.data.map((m) => m.id)
+        return []
+      }
+      if (provider === 'claude') {
+        // For now, use a static list; can be expanded later when API available
+        return ['claude-sonnet-4-5', 'claude-opus-4', 'claude-3-5-sonnet']
+      }
+      if (provider === 'openai') {
+        return ['gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo']
+      }
+      return []
+    },
+    staleTime: 60_000
+  })
+}
+
+// ============================================================================
+// SettingsOverlay component
+// ============================================================================
+
 export function SettingsOverlay() {
   const settingsTab = useUIOverlaysStore((s) => s.settingsTab)
   const setSettingsTab = useUIOverlaysStore((s) => s.setSettingsTab)
   const setSettingsOpen = useUIOverlaysStore((s) => s.setSettingsOpen)
 
-  // Outer element is a div to avoid nested button HTML (fixed)
   return (
     <button
       className="fixed inset-0 z-100 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 cursor-default"
@@ -134,7 +163,9 @@ export function SettingsOverlay() {
   )
 }
 
-// ── API Keys tab ──────────────────────────────────────────────────────────────
+// ============================================================================
+// API Keys tab (unchanged)
+// ============================================================================
 
 const PROVIDERS = [
   { id: 'claude', label: 'Anthropic (Claude)', placeholder: 'sk-ant-…' },
@@ -273,7 +304,9 @@ function ApiKeysTab() {
   )
 }
 
-// ── Profiles tab ──────────────────────────────────────────────────────────────
+// ============================================================================
+// Profiles tab (with dynamic model lists)
+// ============================================================================
 
 function ProfilesTab() {
   const qc = useQueryClient()
@@ -288,22 +321,16 @@ function ProfilesTab() {
   const activeProfiles = allProfiles.filter((p) => !p.deleted_at)
   const deletedProfiles = allProfiles.filter((p) => p.deleted_at)
 
-  // FIX: Store only model IDs (strings) to avoid cache shape collision with useAvailableModels
-  const { data: ollamaModels = [] } = useQuery<string[]>({
-    queryKey: ['available-models', 'ollama'],
-    queryFn: async () => {
-      const res = await commands.listOllamaModels()
-      if (res.status === 'ok') return res.data.map((m) => m.id) // map to strings
-      throw new Error(res.error)
-    }
-  })
+  // Fetch available models for the selected provider
+  const { data: models = [], isLoading: modelsLoading } =
+    useAvailableModels(newProvider)
 
   const createMut = useMutation({
     mutationFn: async () => {
       const res = await commands.createProfile(
         newName.trim(),
         newProvider,
-        newModel.trim() || defaultModel(),
+        newModel.trim() || (models[0] ?? ''),
         newSystemPrompt.trim() || null
       )
       if (res.status === 'error') throw new Error(res.error)
@@ -331,14 +358,7 @@ function ProfilesTab() {
     { id: 'openai', label: 'OpenAI' }
   ]
 
-  function defaultModel() {
-    if (newProvider === 'ollama') return ollamaModels[0] ?? 'glm-5:cloud'
-    if (newProvider === 'claude') return 'claude-sonnet-4-5'
-    if (newProvider === 'openai') return 'gpt-4o'
-    return ''
-  }
-
-  const getProviderName = (provider: string | { id: string; name: string }) => {
+  function getProviderName(provider: string | { id: string; name: string }) {
     if (typeof provider === 'string') {
       const found = PROVIDER_OPTIONS.find((p) => p.id === provider)
       return found ? found.label : provider
@@ -387,11 +407,12 @@ function ProfilesTab() {
           </select>
           {newProvider === 'ollama' ? (
             <select
-              value={newModel || defaultModel()}
+              value={newModel || (models[0] ?? '')}
               onChange={(e) => setNewModel(e.target.value)}
               className="w-full h-7 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+              disabled={modelsLoading}
             >
-              {ollamaModels.map((id) => (
+              {models.map((id) => (
                 <option key={id} value={id}>
                   {id}
                 </option>
@@ -399,7 +420,7 @@ function ProfilesTab() {
             </select>
           ) : (
             <input
-              placeholder={`Model ID (e.g. ${defaultModel()})`}
+              placeholder={`Model ID (e.g. ${models[0] ?? 'claude-sonnet-4-5'})`}
               value={newModel}
               onChange={(e) => setNewModel(e.target.value)}
               className="w-full h-7 rounded-md border border-input bg-background px-2.5 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
@@ -543,7 +564,9 @@ function ProfilesTab() {
   )
 }
 
-// ── Tool Approvals tab ────────────────────────────────────────────────────────
+// ============================================================================
+// Tool Approvals tab (unchanged)
+// ============================================================================
 
 const APPROVAL_FIELDS: Array<{
   key: keyof ReturnType<typeof useSettingsStore.getState>['toolApprovals']
@@ -638,7 +661,9 @@ function ApprovalsTab() {
   )
 }
 
-// ── Appearance tab ────────────────────────────────────────────────────────────
+// ============================================================================
+// Appearance tab (unchanged)
+// ============================================================================
 
 function AppearanceTab() {
   const theme = useSettingsStore((s) => s.theme)

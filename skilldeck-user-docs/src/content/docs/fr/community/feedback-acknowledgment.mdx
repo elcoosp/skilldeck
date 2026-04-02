@@ -1,0 +1,78 @@
+---
+title: "Système d'accusé de réception des commentaires"
+description: Comment nous accusons réception et répondons aux commentaires des utilisateurs pour boucler la boucle.
+sidebar:
+  order: 8
+---
+
+import Feedback from '../../../../components/mdx/Feedback.astro';
+
+Lorsque vous prenez le temps de nous faire part de vos commentaires, vous méritez de savoir que nous vous avons entendu – et ce que nous en faisons. Cette page explique notre système d'accusé de réception des commentaires et comment nous vous tenons informé.
+
+## Comment ça fonctionne
+
+### 1. Vous soumettez un commentaire
+
+Vous pouvez soumettre un commentaire de plusieurs façons :
+
+- Cliquez sur les boutons **"Cette page vous a‑t‑elle été utile ?"** en bas de chaque page de documentation (commentaire facultatif).
+- Ouvrez une **issue GitHub** avec le label `documentation`.
+- Partagez vos commentaires dans le canal **#docs-feedback** sur Discord.
+- Participez à des **entretiens utilisateurs** ou à des **tests d'utilisabilité** (occasionnels).
+
+### 2. Nous accusons réception
+
+- **Accusé de réception immédiat** : lorsque vous soumettez un commentaire via le site de documentation, vous verrez un message de confirmation et recevrez un identifiant de référence (par ex., `FEED-2026-1234`). Vous pouvez utiliser cet identifiant pour suivre l'avancement.
+- **Issues GitHub** : vous recevrez un commentaire automatique confirmant la réception et un label sera attribué.
+- **Discord** : un bot ou un humain réagira à votre message dans les 24 heures.
+
+### 3. Nous trions et agissons
+
+Votre commentaire entre dans notre processus d'examen hebdomadaire (voir [Revue hebdomadaire des commentaires](/fr/community/feedback-review-process)). Nous le catégorisons, le priorisons et l'attribuons à un membre de l'équipe.
+
+### 4. Nous vous tenons informé
+
+Lorsqu'il y a des progrès, nous vous notifions :
+
+- **Si vous avez fourni des coordonnées** (e‑mail ou Discord), nous envoyons un message direct.
+- **Les issues GitHub** sont mises à jour avec des commentaires.
+- **Les mises à jour mensuelles « Vous avez parlé, nous avons écouté »** résument tous les changements (voir [dernière mise à jour](/fr/community/you-spoke-we-listened)).
+
+### 5. Nous bouclons la boucle
+
+Lorsque votre commentaire est traité (par exemple, un changement de documentation est fusionné), nous :
+
+- Postons une mise à jour finale avec un lien vers le changement.
+- Marquons l'issue GitHub comme fermée.
+- Envoyons une notification finale (si des coordonnées ont été fournies).
+
+## À quoi vous attendre
+
+| Type de commentaire | Accusé de réception | Mise à jour de la résolution |
+|---------------------|---------------------|------------------------------|
+| Rapport de bug (faute de frappe, lien cassé) | Immédiat (automatique) | Lorsque la correction est fusionnée |
+| Suggestion de contenu | Dans la semaine (après examen) | Lorsque la décision est prise (implémentée ou différée) |
+| Demande de fonctionnalité | Dans les 2 semaines (après tri) | Lorsque la feuille de route est mise à jour |
+| Commentaire général | Accusé de réception, pas de mise à jour | N/A |
+
+## Suivre votre commentaire
+
+Si vous avez un identifiant de référence, vous pouvez vérifier l'état en :
+
+- Visitant le [Tableau de bord des commentaires](https://feedback.skilldeck.dev) (outil interne, pas encore public)
+- Répondant à l'e‑mail d'accusé de réception ou au message Discord
+- Mentionnant l'identifiant dans une nouvelle issue GitHub
+
+Nous travaillons sur un tableau de bord public où vous pourrez voir tous les commentaires et leur état.
+
+## Pourquoi nous faisons cela
+
+Nous croyons que les commentaires sont un cadeau. En accusant réception et en agissant, nous :
+
+- Bâtissons la confiance avec notre communauté
+- Améliorons continuellement la documentation
+- Montrons que chaque voix compte
+
+Merci de nous aider à rendre SkillDeck meilleur !
+
+<Feedback />

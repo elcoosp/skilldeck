@@ -1,0 +1,99 @@
+---
+title: "How to Export Conversations"
+description: Save your conversations as Markdown or JSON files for sharing, backup, or analysis.
+sidebar:
+  order: 10
+---
+
+import Nudge from '../../../../components/mdx/Nudge.astro';
+import Checkpoint from '../../../../components/mdx/Checkpoint.astro';
+import Feedback from '../../../../components/mdx/Feedback.astro';
+
+Exporting a conversation lets you save it as a file that you can share, archive, or process with other tools. SkillDeck supports two export formats: **Markdown** (human‑readable) and **JSON** (machine‑readable).
+
+<Nudge type="tip" title="What you'll learn">
+  How to export a single conversation to a file on your local machine.
+</Nudge>
+
+## Prerequisites
+
+- SkillDeck installed and running
+- At least one conversation with messages
+
+## Step 1: Open the Conversation
+
+1. In the left sidebar, select the conversation you want to export.
+2. Make sure it's the active conversation (it should be highlighted).
+
+## Step 2: Open the Export Dialog
+
+1. Click the **more options** menu (three dots) next to the conversation title or in the conversation header.
+2. Select **Export** from the dropdown.
+3. A dialog will appear asking you to choose the export format and location.
+
+## Step 3: Choose Export Format
+
+### Markdown (Recommended)
+
+The Markdown export creates a file with:
+
+- A header containing the conversation title and export date.
+- Each message with a role label (**You**, **Assistant**, **Tool**).
+- Messages separated by horizontal rules.
+
+This format is great for reading, printing, or sharing in documentation.
+
+### JSON
+
+The JSON export includes structured data:
+
+- Conversation metadata (id, title, created_at)
+- Array of messages with role, content, and timestamp
+
+This format is useful for programmatic analysis or importing into other tools.
+
+## Step 4: Select Save Location
+
+1. Click **Choose Location** (or **Browse**).
+2. Navigate to the folder where you want to save the file.
+3. Enter a filename (e.g., `my-conversation.md` or `data.json`).
+4. Click **Save**.
+
+## Step 5: Confirm Export
+
+After you confirm, SkillDeck will write the file to disk. You'll see a success notification.
+
+<Checkpoint question="Did you receive a success message?" onYes="Great! Your conversation has been exported." onNo="Check that you have write permission to the destination folder and try again." />
+
+## Viewing the Exported File
+
+Open the file in any text editor or Markdown viewer to see the content.
+
+**Example Markdown output:**
+
+```markdown
+---
+title: "Project Discussion"
+date: 2026-03-18
+---
+
+# Project Discussion
+
+### **You**
+
+What's the status of the API integration?
+
+---
+
+### **Assistant**
+
+The API integration is complete and ready for testing. I've added the new endpoints to the documentation.
+```
+
+## Next Steps
+
+- [Import a conversation](/en/how-to/import-conversations) (coming soon)
+- [Share a skill via Gist](/en/how-to/share-skill-gist)
+- [Use workspaces](/en/how-to/use-workspaces)
+
+<Feedback />

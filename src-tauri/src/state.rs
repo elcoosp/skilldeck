@@ -440,7 +440,8 @@ impl AppState {
 
     async fn ensure_default_profile(&self) {
         use sea_orm::{ActiveModelTrait, ActiveValue::Set, EntityTrait};
-        use skilldeck_models::profiles;
+        use skilldeck_core::providers::ollama::OllamaStatus;
+        use skilldeck_models::profiles; // <-- added
 
         let db = match self.registry.db.connection().await {
             Ok(db) => db,
@@ -460,36 +461,38 @@ impl AppState {
             return;
         }
 
-        let model_id = OllamaProvider::fetch_installed_models()
-            .await
-            .into_iter()
-            .next()
-            .map(|m| m.id)
-            .unwrap_or_else(|| "glm-5:cloud".to_string());
+        match OllamaProvider::check_ollama_status().await {
+            OllamaStatus::Available(models) => {
+                let first = models.into_iter().next().unwrap();
+                let now = chrono::Utc::now().fixed_offset();
+                let id = uuid::Uuid::new_v4();
 
-        let now = chrono::Utc::now().fixed_offset();
-        let id = uuid::Uuid::new_v4();
+                let profile = profiles::ActiveModel {
+                    id: Set(id),
+                    name: Set("Local (Ollama)".to_string()),
+                    description: Set(Some(
+                        "Default local profile — no API key required".to_string(),
+                    )),
+                    model_provider: Set("ollama".to_string()),
+                    model_id: Set(first.id.clone()),
+                    is_default: Set(true),
+                    created_at: Set(now),
+                    updated_at: Set(now),
+                    ..Default::default()
+                };
 
-        let profile = profiles::ActiveModel {
-            id: Set(id),
-            name: Set("Local (Ollama)".to_string()),
-            description: Set(Some(
-                "Default local profile — no API key required".to_string(),
-            )),
-            model_provider: Set("ollama".to_string()),
-            model_id: Set(model_id.clone()),
-            is_default: Set(true),
-            created_at: Set(now),
-            updated_at: Set(now),
-            ..Default::default()
-        };
-
-        match profile.insert(db).await {
-            Ok(_) => info!("Seeded default Ollama profile (model: {})", model_id),
-            Err(e) => warn!("Failed to seed default profile: {}", e),
+                match profile.insert(db).await {
+                    Ok(_) => info!("Seeded default Ollama profile with model: {}", first.id),
+                    Err(e) => warn!("Failed to seed default profile: {}", e),
+                }
+            }
+            OllamaStatus::NotInstalled | OllamaStatus::NotRunning | OllamaStatus::NoModels => {
+                // No profile created; emit event that setup is needed
+                info!("No working Ollama found; profile setup needed.");
+                let _ = self.app_handle.emit("skilldeck:setup-needed", ());
+            }
         }
     }
-
     /// Actual spawn logic (called from the SpawnerWithContext in messages.rs).
     pub async fn do_spawn_subagent(
         &self,

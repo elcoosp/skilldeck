@@ -1,0 +1,57 @@
+---
+title: MCP Supervisor
+description: How SkillDeck manages MCP server processes – automatic restarts, error handling, and supervision.
+sidebar:
+  order: 3
+---
+
+import Feedback from '../../../../components/mdx/Feedback.astro';
+
+MCP servers are external processes that provide tools to the agent. To ensure reliability, SkillDeck runs a **supervisor** that monitors each server and automatically restarts it if it crashes.
+
+## Supervisor Responsibilities
+
+- **Start servers** when SkillDeck launches (for servers configured as `enabled`).
+- **Monitor** for unexpected exits.
+- **Restart** failed servers with exponential backoff.
+- **Limit** restart attempts to avoid infinite loops.
+- **Report** status changes via the MCP tab in the UI.
+
+## Restart Policy
+
+When a server crashes, the supervisor follows this policy:
+
+| Attempt | Delay |
+|---------|-------|
+| 1 | 1 second |
+| 2 | 2 seconds |
+| 3 | 4 seconds |
+| 4 | 8 seconds |
+| 5+ | 10 seconds (max) |
+
+After **10 consecutive failures**, the server is marked as **failed** and will not be restarted automatically. You can manually retry by clicking the connect button in the MCP tab.
+
+## Configuration
+
+The supervisor is built‑in and cannot be configured directly. However, you can control whether a server is enabled by toggling it in the MCP tab (or by setting `status = "enabled"` in the database).
+
+## Why a Supervisor?
+
+MCP servers can crash for many reasons:
+- The underlying command is missing or misconfigured.
+- The server hits a bug and panics.
+- System resources are exhausted.
+
+Without supervision, you'd have to manually restart servers every time they fail. The supervisor keeps your agent working smoothly.
+
+## Error Reporting
+
+When a server fails, the supervisor logs the error and updates the server's status in the UI. You can see the last error message by hovering over the status indicator in the MCP tab.
+
+## Related
+
+- [Add an MCP Server](/en/how-to/add-mcp-server/filesystem-server)
+- [Troubleshoot MCP Connection Issues](/en/how-to/troubleshoot/mcp-connection)
+- [MCP Server Configuration Reference](/en/reference/mcp-server-config)
+
+<Feedback />

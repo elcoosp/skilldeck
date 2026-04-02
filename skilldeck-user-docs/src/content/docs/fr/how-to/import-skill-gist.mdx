@@ -1,0 +1,83 @@
+---
+title: "Comment importer une compétence depuis un Gist"
+description: Installez une compétence partagée par la communauté directement à partir d'une URL GitHub Gist.
+sidebar:
+  order: 11
+---
+
+import Nudge from '../../../../components/mdx/Nudge.astro';
+import Checkpoint from '../../../../components/mdx/Checkpoint.astro';
+import Feedback from '../../../../components/mdx/Feedback.astro';
+
+De nombreux développeurs partagent leurs compétences personnalisées sous forme de Gists GitHub. Avec SkillDeck, vous pouvez importer ces compétences directement à partir d'une URL Gist et les utiliser immédiatement.
+
+<Nudge type="tip" title="Ce que vous allez apprendre">
+  Comment prendre n'importe quel Gist public contenant un fichier `SKILL.md` et l'installer en tant que compétence locale.
+</Nudge>
+
+## Prérequis
+
+- SkillDeck installé et en cours d'exécution
+- Une URL Gist (par ex., `https://gist.github.com/utilisateur/123abc`)
+- (Optionnel) Un jeton d'accès personnel GitHub si vous souhaitez importer des Gists privés (voir [Partager une compétence via Gist](/fr/how-to/share-skill-gist) pour la configuration du jeton)
+
+## Étape 1 : Trouvez un Gist
+
+Vous pouvez trouver des Gists partagés dans la communauté SkillDeck, sur GitHub ou d'autres sources. Le Gist doit contenir un fichier nommé `SKILL.md` avec un en‑tête et des instructions valides.
+
+## Étape 2 : Ouvrez la boîte de dialogue d'import
+
+1. Dans la barre latérale droite, cliquez sur l'onglet **Compétences**.
+2. Recherchez le bouton **Importer depuis Gist** – il peut s'agir d'une icône « + » ou d'un bouton dédié près de la barre de recherche.
+3. Cliquez‑dessus pour ouvrir la boîte de dialogue d'import.
+
+## Étape 3 : Collez l'URL du Gist
+
+1. Dans la boîte de dialogue, collez l'URL complète du Gist (par ex., `https://gist.github.com/utilisateur/123abc`).
+2. Si le Gist est privé, assurez‑vous d'avoir un jeton GitHub stocké dans SkillDeck (voir le [guide Partager une compétence](/fr/how-to/share-skill-gist) pour les instructions).
+3. Cliquez sur **Récupérer** ou **Suivant**.
+
+SkillDeck récupère le Gist et vérifie la présence d'un fichier `SKILL.md`. S'il en trouve un, il affichera le nom et la description de la compétence pour confirmation.
+
+<Checkpoint question="SkillDeck a‑t‑il récupéré avec succès les détails de la compétence ?" onYes="Super ! Passez à l'installation." onNo="Vérifiez que l'URL est correcte et que le Gist est public (ou que votre jeton a l'accès)." />
+
+## Étape 4 : Choisissez l'emplacement d'installation
+
+Vous serez invité à choisir l'emplacement d'installation :
+
+- **Personnel** – enregistre dans `~/.agents/skills/` (disponible pour toutes vos conversations).
+- **Espace de travail** – enregistre dans `./.skilldeck/skills/` à l'intérieur de votre espace de travail actuel (uniquement disponible lorsque cet espace de travail est ouvert).
+
+Sélectionnez l'emplacement de votre choix.
+
+## Étape 5 : Installez la compétence
+
+Cliquez sur **Installer**. SkillDeck téléchargera le Gist et créera un nouveau dossier de compétence avec le fichier `SKILL.md`.
+
+Si une compétence portant le même nom existe déjà à cet emplacement, vous serez invité à la remplacer ou à annuler.
+
+<Checkpoint question="La compétence s'est‑elle installée sans erreur ?" onYes="Excellent ! La compétence apparaît maintenant dans votre liste de compétences locales." onNo="Vérifiez le message d'erreur – il peut s'agir d'un conflit de nom ou d'un `SKILL.md` invalide." />
+
+## Étape 6 : Vérifiez la compétence
+
+1. Dans l'onglet **Compétences**, trouvez la compétence nouvellement importée sous **Local**.
+2. Cliquez dessus pour voir ses détails (description, avertissements de lint, etc.).
+3. S'il y a des avertissements de lint, vous pouvez décider de faire confiance à la compétence ou de les corriger.
+
+## Étape 7 : Utilisez la compétence
+
+Allez dans l'onglet **Conversation**, tapez `@` suivi du nom de la compétence et testez‑la.
+
+## Dépannage
+
+- **Gist non trouvé** – vérifiez que l'URL est correcte et que le Gist est public.
+- **Pas de SKILL.md dans le Gist** – le Gist doit contenir un fichier nommé exactement `SKILL.md`.
+- **En‑tête invalide** – la compétence peut avoir des erreurs ; vérifiez les avertissements de lint après l'import.
+
+## Prochaines étapes
+
+- [Partagez votre propre compétence sous forme de Gist](/fr/how-to/share-skill-gist)
+- [Installez une compétence depuis le registre](/fr/how-to/install-a-skill)
+- [Explorez le registre des compétences](/fr/market-insights/skill-ecosystem)
+
+<Feedback />

@@ -1,0 +1,138 @@
+---
+title: Lint Configuration Reference
+description: Configure skill linting behavior with `skilldeck-lint.toml`.
+sidebar:
+  order: 3
+---
+import Feedback from '../../../../components/mdx/Feedback.astro';
+
+
+SkillDeck includes a powerful linter that checks your skills for errors, security risks, and quality issues. You can customize its behavior by creating a configuration file.
+
+## Configuration File Locations
+
+Lint settings can be defined in two places (workspace settings override global ones):
+
+| Scope   | Path                                                                 |
+|---------|----------------------------------------------------------------------|
+| Global  | `~/.config/skilldeck/skilldeck-lint.toml`                           |
+| Workspace | `./.skilldeck/skilldeck-lint.toml` (relative to your workspace root) |
+
+If no configuration file exists, the linter uses the built‑in defaults (all rules enabled with appropriate severity).
+
+## File Format
+
+The configuration uses [TOML](https://toml.io/). It has three optional sections:
+
+```toml
+[defaults]
+severity = "warning"
+
+[rules]
+# Override severity for specific rules
+# "rule-id" = "severity"
+
+[rule_params]
+# Rule‑specific parameters
+# "rule-id" = { param = value }
+```
+
+## Defaults Section
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `severity` | string | `"warning"` | Default severity for rules not listed in the `[rules]` section. Valid values: `off`, `info`, `warning`, `error`. |
+
+## Rules Section
+
+Here you can override the severity of individual rules. Use the rule ID as the key and one of `off`, `info`, `warning`, or `error` as the value.
+
+**Example:**
+```toml
+[rules]
+"fm-name-format" = "error"
+"sec-dangerous-tools" = "error"
+"fm-license-present" = "off"
+```
+
+## Rule Parameters Section
+
+Some rules accept additional parameters. The available parameters are rule‑specific.
+
+**Example:**
+```toml
+[rule_params]
+"struct-skill-md-size" = { max_bytes = 51200 }  # 50 KB max
+```
+
+## Available Rules
+
+The linter includes rules in the following categories:
+
+### Frontmatter Rules
+| Rule ID | Description | Default Severity |
+|---------|-------------|------------------|
+| `fm-metadata-keys` | Checks that required frontmatter keys (`name`, `description`) are present. | `error` |
+| `fm-name-format` | Ensures skill name is lowercase kebab‑case and matches directory name. | `error` |
+| `fm-description-length` | Description must be at least 20 characters. | `warning` |
+| `fm-description-content` | Warns about placeholder descriptions (e.g., "TODO"). | `info` |
+| `fm-license-present` | Encourages adding a license. | `info` |
+| `fm-license-format` | Verifies license is a valid SPDX identifier. | `info` |
+| `fm-compatibility-length` | Suggests adding a compatibility list if missing. | `info` |
+| `fm-allowed-tools` | Suggests declaring allowed tools. | `info` |
+
+### Structure Rules
+| Rule ID | Description | Default Severity |
+|---------|-------------|------------------|
+| `struct-skill-md-exists` | Checks that `SKILL.md` exists. | `error` |
+| `struct-skill-md-size` | Warns if `SKILL.md` exceeds 100 KB. | `warning` |
+| `struct-references-exist` | Validates that referenced files actually exist. | `warning` |
+| `struct-references-depth` | Warns if directory nesting is too deep. | `info` |
+
+### Security Rules
+| Rule ID | Description | Default Severity |
+|---------|-------------|------------------|
+| `sec-dangerous-tools` | Detects dangerous shell commands (e.g., `rm -rf /`). | `error` |
+| `sec-allowed-tools-mismatch` | Flags tools used but not declared in `allowed_tools`. | `warning` |
+
+### Quality Rules
+| Rule ID | Description | Default Severity |
+|---------|-------------|------------------|
+| `quality-content-clarity` | Warns if skill body is very short. | `warning` |
+| `quality-content-examples` | Suggests adding usage examples. | `info` |
+| `quality-content-steps` | Suggests adding numbered steps. | `info` |
+| `quality-progressive-disclosure` | Encourages using headings for long content. | `info` |
+| `quality-dependencies` | Suggests listing dependencies if installation commands are mentioned. | `info` |
+| `quality-platform` | Warns about hard‑coded Windows paths. | `info` |
+| `quality-freshness` | Encourages adding a version or last‑updated date. | `info` |
+
+## Full Example
+
+```toml
+[defaults]
+severity = "warning"
+
+[rules]
+# Make security rules errors
+"sec-dangerous-tools" = "error"
+"sec-allowed-tools-mismatch" = "error"
+
+# Disable the description length rule (maybe you prefer short descriptions)
+"fm-description-length" = "off"
+
+[rules.params]
+"struct-skill-md-size" = { max_bytes = 256000 }  # Allow larger skills
+```
+
+## Notes
+
+- Rule IDs are case‑sensitive and must match exactly.
+- Unknown rule IDs are silently ignored (check the linter's output for warnings).
+- Changes take effect the next time you run `skilldeck-lint`.
+
+## Next Steps
+
+- [Error codes reference](/en/reference/error-codes)
+- [SKILL.md format (external)](/en/reference/skill-format)
+
+<Feedback />

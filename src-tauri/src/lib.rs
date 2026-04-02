@@ -25,8 +25,8 @@ pub use subagent_server::SubagentServer;
 use commands::{
     analytics::*, artifacts::*, attachments::*, bookmarks::*, branches::*, conversations::*,
     drafts::*, export::*, files::*, folders::*, gist::*, headings::*, home_dir::*, mcp::*,
-    messages::*, ollama::*, platform::*, profiles::*, queue::*, settings::*, skills::*, theme::*,
-    workflows::*, workspaces::*,
+    messages::*, ollama::*, platform::*, profiles::*, provider_ready::*, queue::*, settings::*,
+    skills::*, theme::*, workflows::*, workspaces::*,
 };
 use events::{AgentEvent, McpEvent, SkillEvent, WorkflowEvent};
 use state::AppState;
@@ -54,6 +54,7 @@ pub fn run() {
     // Build Tauri Specta builder with all commands and events
     let builder = Builder::<tauri::Wry>::new()
         .commands(collect_commands![
+            check_provider_ready,
             get_artifact_content,
             list_built_in_themes,
             get_syntax_css,

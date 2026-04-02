@@ -1,5 +1,6 @@
 import { open } from '@tauri-apps/plugin-dialog'
 import {
+  AlertTriangle,
   Bell,
   Code,
   Globe,
@@ -10,6 +11,7 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -24,6 +26,8 @@ import {
   usePlatformPreferences
 } from '@/hooks/use-platform'
 import { useProfiles, useUpdateProfile } from '@/hooks/use-profiles'
+import { useProviderReady } from '@/hooks/use-provider-ready'
+
 import { commands } from '@/lib/bindings'
 import { loadLocale, locales } from '@/lib/i18n'
 import type { UpdatePreferencesPayload } from '@/lib/platform'
@@ -44,6 +48,9 @@ export function PreferencesTab() {
   const [syntaxTheme, setSyntaxTheme] = useState('base16-mocha')
 
   const selectedProfile = profiles.find((p) => p.id === selectedProfileId)
+  const { data: readiness, isLoading: readinessLoading } = useProviderReady(
+    selectedProfileId ?? undefined
+  )
 
   // Language preference
   const settingsLanguage = useSettingsStore((s) => s.language)
@@ -167,6 +174,32 @@ export function PreferencesTab() {
               Save Prompt
             </Button>
           </div>
+
+          {/* Provider Readiness Indicator */}
+          {!readinessLoading && readiness && (
+            <div className="mt-3">
+              {readiness.status.status === 'ready' ? (
+                <Badge
+                  variant="outline"
+                  className="bg-green-500/15 text-green-600 dark:text-green-400 border-green-500/20"
+                >
+                  ✓ Provider ready
+                </Badge>
+              ) : (
+                <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 text-sm">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                    <span className="font-medium text-amber-800 dark:text-amber-300">
+                      Provider Not Ready
+                    </span>
+                  </div>
+                  <p className="text-amber-700 dark:text-amber-400 mt-1">
+                    {readiness.status.reason} {readiness.status.fix_action}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
         </Section>
       )}
 

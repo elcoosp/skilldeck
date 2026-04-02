@@ -1,0 +1,83 @@
+---
+title: "How to Import a Skill from a Gist"
+description: Install a community‑shared skill directly from a GitHub Gist URL.
+sidebar:
+  order: 11
+---
+
+import Nudge from '../../../../components/mdx/Nudge.astro';
+import Checkpoint from '../../../../components/mdx/Checkpoint.astro';
+import Feedback from '../../../../components/mdx/Feedback.astro';
+
+Many developers share their custom skills as GitHub Gists. With SkillDeck, you can import these skills directly from a Gist URL and start using them immediately.
+
+<Nudge type="tip" title="What you'll learn">
+  How to take any public Gist containing a `SKILL.md` file and install it as a local skill.
+</Nudge>
+
+## Prerequisites
+
+- SkillDeck installed and running
+- A Gist URL (e.g., `https://gist.github.com/username/123abc`)
+- (Optional) A GitHub personal access token if you want to import private Gists (see [Share skill via Gist](/en/how-to/share-skill-gist) for token setup)
+
+## Step 1: Find a Gist
+
+You can find Gists shared in the SkillDeck community, on GitHub, or from other sources. The Gist must contain a file named `SKILL.md` with valid frontmatter and instructions.
+
+## Step 2: Open the Import Dialog
+
+1. In the right sidebar, click the **Skills** tab.
+2. Look for the **Import from Gist** button – it might be a "+" icon or a dedicated button near the search bar.
+3. Click it to open the import dialog.
+
+## Step 3: Paste the Gist URL
+
+1. In the dialog, paste the full Gist URL (e.g., `https://gist.github.com/username/123abc`).
+2. If the Gist is private, ensure you have a GitHub token stored in SkillDeck (see the [Share skill guide](/en/how-to/share-skill-gist) for instructions).
+3. Click **Fetch** or **Next**.
+
+SkillDeck will retrieve the Gist and check for a `SKILL.md` file. If it finds one, it will display the skill name and description for confirmation.
+
+<Checkpoint question="Did SkillDeck successfully fetch the skill details?" onYes="Great! Proceed to installation." onNo="Check that the URL is correct and the Gist is public (or that your token has access)." />
+
+## Step 4: Choose Installation Location
+
+You'll be asked where to install the skill:
+
+- **Personal** – saves to `~/.agents/skills/` (available for all your conversations).
+- **Workspace** – saves to `./.skilldeck/skills/` inside your current workspace (only available when that workspace is open).
+
+Select your preferred location.
+
+## Step 5: Install the Skill
+
+Click **Install**. SkillDeck will download the Gist and create a new skill directory with the `SKILL.md` file.
+
+If a skill with the same name already exists in that location, you'll be prompted to overwrite or cancel.
+
+<Checkpoint question="Did the skill install without errors?" onYes="Excellent! The skill now appears in your local skills list." onNo="Check the error message – it might be a name conflict or invalid `SKILL.md`." />
+
+## Step 6: Verify the Skill
+
+1. In the **Skills** tab, find the newly imported skill under **Local**.
+2. Click on it to view its details (description, lint warnings, etc.).
+3. If there are lint warnings, you can decide whether to trust the skill or fix them.
+
+## Step 7: Use the Skill
+
+Go to the **Conversation** tab, type `@` followed by the skill name, and test it out.
+
+## Troubleshooting
+
+- **Gist not found** – ensure the URL is correct and the Gist is public.
+- **No SKILL.md in Gist** – the Gist must contain a file named exactly `SKILL.md`.
+- **Invalid frontmatter** – the skill may have errors; check the lint warnings after import.
+
+## Next Steps
+
+- [Share your own skill as a Gist](/en/how-to/share-skill-gist)
+- [Install a skill from the registry](/en/how-to/install-a-skill)
+- [Explore the skill registry](/en/market-insights/skill-ecosystem)
+
+<Feedback />

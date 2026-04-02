@@ -1,0 +1,57 @@
+---
+title: Superviseur MCP
+description: Comment SkillDeck gère les processus des serveurs MCP – redémarrages automatiques, gestion des erreurs et supervision.
+sidebar:
+  order: 3
+---
+
+import Feedback from '../../../../components/mdx/Feedback.astro';
+
+Les serveurs MCP sont des processus externes qui fournissent des outils à l'agent. Pour garantir la fiabilité, SkillDeck exécute un **superviseur** qui surveille chaque serveur et le redémarre automatiquement en cas de plantage.
+
+## Responsabilités du superviseur
+
+- **Démarrer les serveurs** au lancement de SkillDeck (pour les serveurs configurés comme `enabled`).
+- **Surveiller** les sorties inattendues.
+- **Redémarrer** les serveurs défaillants avec une temporisation exponentielle.
+- **Limiter** les tentatives de redémarrage pour éviter les boucles infinies.
+- **Signaler** les changements d'état via l'onglet MCP dans l'interface.
+
+## Politique de redémarrage
+
+Lorsqu'un serveur plante, le superviseur suit cette politique :
+
+| Tentative | Délai |
+|-----------|-------|
+| 1 | 1 seconde |
+| 2 | 2 secondes |
+| 3 | 4 secondes |
+| 4 | 8 secondes |
+| 5+ | 10 secondes (max) |
+
+Après **10 échecs consécutifs**, le serveur est marqué comme **en échec** et ne sera pas redémarré automatiquement. Vous pouvez réessayer manuellement en cliquant sur le bouton de connexion dans l'onglet MCP.
+
+## Configuration
+
+Le superviseur est intégré et ne peut pas être configuré directement. Cependant, vous pouvez contrôler si un serveur est activé en le basculant dans l'onglet MCP (ou en définissant `status = "enabled"` dans la base de données).
+
+## Pourquoi un superviseur ?
+
+Les serveurs MCP peuvent planter pour de nombreuses raisons :
+- La commande sous‑jacente est manquante ou mal configurée.
+- Le serveur rencontre un bug et panique.
+- Les ressources système sont épuisées.
+
+Sans supervision, vous devriez redémarrer manuellement les serveurs à chaque fois qu'ils tombent. Le superviseur maintient le bon fonctionnement de votre agent.
+
+## Signalement des erreurs
+
+Lorsqu'un serveur échoue, le superviseur enregistre l'erreur et met à jour le statut du serveur dans l'interface. Vous pouvez voir le dernier message d'erreur en survolant l'indicateur d'état dans l'onglet MCP.
+
+## En relation
+
+- [Ajouter un serveur MCP](/fr/how-to/add-mcp-server/filesystem-server)
+- [Dépanner les problèmes de connexion MCP](/fr/how-to/troubleshoot/mcp-connection)
+- [Référence de configuration des serveurs MCP](/fr/reference/mcp-server-config)
+
+<Feedback />
