@@ -275,6 +275,10 @@ function MessageBubbleInner({
     | React.RefObject<HTMLElement>
     | undefined
 
+  // State for user message "Show more/less" based on content length
+  const [isExpanded, setIsExpanded] = useState(false)
+  const [isLongContent, setIsLongContent] = useState(false)
+
   const handleBranch = useCallback(() => {
     setBranchModalOpen(true)
   }, [])
@@ -284,6 +288,21 @@ function MessageBubbleInner({
   const isTool = message.role === 'tool'
   const isSystem = message.role === 'system'
   const syntheticStreaming = message.id === '__streaming__'
+
+  // Determine if content is long based on character count (threshold: 300 chars)
+  useEffect(() => {
+    if (isUser && message.content && !isStreaming && !syntheticStreaming) {
+      setIsLongContent(message.content.length > 300)
+    } else {
+      setIsLongContent(false)
+    }
+  }, [isUser, message.content, isStreaming, syntheticStreaming])
+
+  // Helper to get truncated text (first 200 chars)
+  const getTruncatedText = (text: string) => {
+    if (text.length <= 200) return text
+    return text.slice(0, 200) + '...'
+  }
 
   useEffect(() => {
     const container = contentRef.current
@@ -422,7 +441,7 @@ function MessageBubbleInner({
   const collapsedStateRef = useRef(false)
   const [, forceUpdate] = useState(0)
   const isCollapsed = collapsedStateRef.current
-  const canCollapse =
+  const canCollapseAssistant =
     (isAssistant || isSystem || isTool) && !isStreaming && !syntheticStreaming
 
   const toggleCollapsed = useCallback(() => {
@@ -451,7 +470,7 @@ function MessageBubbleInner({
       <SubagentCard
         stepName={subagentData.task || 'Subagent'}
         status="running"
-        onOpen={() => {}}
+        onOpen={() => { }}
       />
     )
   }
@@ -536,7 +555,7 @@ function MessageBubbleInner({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1 text-muted-foreground">
               <span className="text-xs font-medium">Assistant</span>
-              {canCollapse && (
+              {canCollapseAssistant && (
                 <motion.button
                   type="button"
                   onClick={toggleCollapsed}
@@ -683,6 +702,11 @@ function MessageBubbleInner({
     )
   }
 
+  // User message return block with "Show more/less" button at the bottom
+  const displayContent = isLongContent && !isExpanded
+    ? getTruncatedText(message.content)
+    : message.content
+
   return (
     <motion.div
       id={`msg-${message.id}`}
@@ -725,7 +749,7 @@ function MessageBubbleInner({
             className={cn(
               'relative px-3.5 py-2.5 rounded-xl text-sm leading-relaxed transition-colors duration-300',
               isUser
-                ? 'bg-primary text-primary-foreground rounded-tr-sm inline-block'
+                ? 'bg-primary text-primary-foreground rounded-tr-sm block w-full'
                 : 'bg-muted/50 inline-block',
               isQueued && 'border-l-2 border-amber-400 pl-3'
             )}
@@ -759,55 +783,32 @@ function MessageBubbleInner({
               </div>
             )}
 
-            {canCollapse && (
-              <div className="flex items-center gap-1 mb-1 text-muted-foreground">
-                <span className="text-xs font-medium">
-                  {isUser ? 'User' : 'System'}
-                </span>
-                <motion.button
-                  type="button"
-                  onClick={toggleCollapsed}
-                  className="p-0.5 hover:bg-muted-foreground/20 rounded transition-colors"
-                  aria-label={
-                    isCollapsed ? 'Expand message' : 'Collapse message'
-                  }
-                  whileTap={{ scale: 0.9 }}
-                >
-                  <motion.div
-                    animate={{ rotate: isCollapsed ? 0 : 90 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    {isCollapsed ? (
-                      <ChevronRight className="size-3.5" />
-                    ) : (
-                      <ChevronDown className="size-3.5" />
-                    )}
-                  </motion.div>
-                </motion.button>
-              </div>
+            {/* Message content (truncated or full) */}
+            {shouldHighlight ? (
+              <span
+                className="whitespace-pre-wrap break-words"
+                dangerouslySetInnerHTML={{
+                  __html: highlightText(displayContent, searchQuery, {
+                    caseSensitive: searchCaseSensitive,
+                    isRegex: searchRegex
+                  })
+                }}
+              />
+            ) : (
+              <span className="whitespace-pre-wrap break-words">
+                {displayContent}
+              </span>
             )}
 
-            <CollapsibleContent
-              ref={collapsibleRef}
-              initialCollapsed={false}
-              messageId={message.id}
-            >
-              {shouldHighlight ? (
-                <span
-                  className="whitespace-pre-wrap break-words"
-                  dangerouslySetInnerHTML={{
-                    __html: highlightText(message.content, searchQuery, {
-                      caseSensitive: searchCaseSensitive,
-                      isRegex: searchRegex
-                    })
-                  }}
-                />
-              ) : (
-                <span className="whitespace-pre-wrap break-words">
-                  {message.content}
-                </span>
-              )}
-            </CollapsibleContent>
+            {/* "Show more/less" button at the bottom of the bubble */}
+            {isLongContent && !isStreaming && !syntheticStreaming && (
+              <button
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="mt-2 text-xs font-medium text-primary-foreground/80 hover:text-primary-foreground transition-colors"
+              >
+                {isExpanded ? 'Show less' : 'Show more'}
+              </button>
+            )}
 
             {isUser && !isStreaming && !syntheticStreaming && (
               <div className="absolute -left-8 top-1 opacity-0 group-hover:opacity-100 transition-opacity">

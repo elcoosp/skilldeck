@@ -1,91 +1,247 @@
-Here is the complete, updated deep-linking plan. It incorporates the critical architectural shift required for local-db-to-cloud sharing, resolves the Zustand infinite-loop risks, adds type-safe Zod validation, implements proper code-splitting, and updates all agent artifacts.
+# Deep-Linking Implementation Plan (Final Consolidated)
+
+> **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Implement full deep-linking with OS URI scheme (`skilldeck://`) and TanStack Router, making all UI state derivable from the URL. Replace Zustand stores for URL-persisted state with router search params.
+
+**Architecture:** Tauri v2 deep-link plugin (with single-instance integration for desktop) intercepts OS custom protocol events. Frontend uses `onOpenUrl`/`getCurrent` from `@tauri-apps/plugin-deep-link` to receive URLs and navigate TanStack Router. File-based routing with Zod search param validation, loaders for data fetching. Shared conversation fetch/sync goes through the existing Rust `PlatformClient` and existing data models/repos — **no JavaScript HTTP client, no raw SQL**. Zustand stores for URL-persisted state are removed; components read from `useSearch()`.
+
+**Tech Stack:** TanStack Router v1, Zod, Tauri v2, `@tauri-apps/plugin-deep-link`, `@tauri-apps/plugin-single-instance` (with `deep-link` feature), existing `PlatformClient` (Rust), existing DB models/repos (Rust), SQLite (existing), specta/ts-rs (existing).
 
 ---
 
-# Deep-Linking System: Complete Implementation Specification (v2)
+## Chunk 1: Dependencies & Tauri Configuration
 
-## Context & Architectural Shift
-Because the application ships with a local database, users cannot natively share conversation states simply by exchanging a local `$conversationId`. To support cross-device/cross-user sharing, clicking "Share" must first upload the local conversation state to the platform server, retrieve a platform-agnostic `shareToken`, and construct a URL using this token. The recipient's app intercepts the `/shared/$shareToken` route, fetches the data from the platform, hydrates it into their local DB, and renders the UI.
+### Task 1: Install frontend dependencies
 
----
+**Files:**
+- Modify: `package.json`
 
-## 1. Route Tree (File-Based)
+- [ ] **Step 1: Add dependencies to package.json**
 
-The Vite plugin automatically generates the route tree in `src/routeTree.gen.ts`.
-
-```
-src/routes/
-├── __root.tsx                        # Root layout, global search params, 404 catch-all
-├── index.tsx                         # / (no conversation, default right tab)
-├── settings.tsx                      # /settings 
-├── settings/
-│   ├── api-keys.tsx                  # /settings/api-keys
-│   ├── profiles.tsx                  # /settings/profiles
-│   ├── tool-approvals.tsx            # /settings/tool-approvals
-│   ├── appearance.tsx                # /settings/appearance
-│   ├── preferences.tsx               # /settings/preferences
-│   ├── platform.tsx                  # /settings/platform
-│   ├── referral.tsx                  # /settings/referral
-│   ├── lint.tsx                      # /settings/lint
-│   ├── sources.tsx                   # /settings/sources
-│   └── achievements.tsx              # /settings/achievements
-├── skills.tsx                        # /skills 
-├── skills/
-│   └── $skillId.tsx                  # /skills/$skillId 
-├── mcp.tsx                           # /mcp 
-├── mcp/
-│   └── $serverId.tsx                 # /mcp/$serverId 
-├── workflows.tsx                     # /workflows 
-├── workflows/
-│   └── $workflowId.tsx               # /workflows/$workflowId 
-├── analytics.tsx                     # /analytics 
-├── artifacts.tsx                     # /artifacts 
-├── shared/
-│   └── $shareToken.tsx               # /shared/$shareToken (Fetches remote data)
-├── conversations/
-│   ├── $conversationId.tsx           # /conversations/$conversationId 
-│   ├── $conversationId/
-│   │   ├── skills.tsx                # /conversations/$conversationId/skills
-│   │   ├── skills/
-│   │   │   └── $skillId.tsx          # /conversations/$conversationId/skills/$skillId
-│   │   ├── mcp.tsx                   # /conversations/$conversationId/mcp
-│   │   ├── mcp/
-│   │   │   └── $serverId.tsx         # /conversations/$conversationId/mcp/$serverId
-│   │   ├── workflows.tsx             # /conversations/$conversationId/workflows
-│   │   ├── workflows/
-│   │   │   └── $workflowId.tsx       # /conversations/$conversationId/workflows/$workflowId
-│   │   ├── analytics.tsx             # /conversations/$conversationId/analytics
-│   │   └── artifacts.tsx             # /conversations/$conversationId/artifacts
-└── 404.tsx                           # Explicit 404 component
+```json
+"dependencies": {
+  "@tanstack/react-router": "^1.95.0",
+  "@tauri-apps/plugin-deep-link": "^2",
+  "zod": "^3.24.0"
+},
+"devDependencies": {
+  "@tanstack/router-devtools": "^1.95.0",
+  "@tanstack/router-vite-plugin": "^1.95.0"
+}
 ```
 
+- [ ] **Step 2: Run installation command**
+
+```bash
+pnpm install
+```
+
+### Task 2: Install and configure Tauri deep-link plugins
+
+> **CRITICAL:** Per Tauri docs, on desktop the single-instance plugin **must** have the `deep-link` feature enabled, **must** be registered as the **first** plugin, and deep-link config goes under `plugins.deep-link` — NOT under `app.protocols`.
+
+**Files:**
+- Modify: `src-tauri/Cargo.toml`
+- Modify: `src-tauri/src/lib.rs`
+- Modify: `src-tauri/tauri.conf.json`
+- Modify: `src-tauri/capabilities/default.json`
+
+- [ ] **Step 3: Add Tauri plugins to Cargo.toml with `deep-link` feature on single-instance**
+
+```toml
+[target."cfg(any(target_os = \"macos\", windows, target_os = \"linux\"))".dependencies]
+tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
+
+[dependencies]
+tauri-plugin-deep-link = "2"
+```
+
+- [ ] **Step 4: Register plugins in lib.rs — single-instance FIRST, then deep-link, with dev-time `register_all()`**
+
+> **Read `src-tauri/src/lib.rs` first** to understand the existing builder chain, state setup, and plugin registration order. Insert the new plugins without breaking existing ones.
+
+```rust
+// src-tauri/src/lib.rs — add at top:
+use tauri_plugin_deep_link::DeepLinkExt;
+
+// Inside run():
+// MUST be the first plugin registered (insert before any existing .plugin() calls)
+#[cfg(desktop)]
+{
+    builder = builder.plugin(tauri_plugin_single_instance::init(|_app, argv, _cwd| {
+        // The deep-link event is already triggered by the plugin integration.
+        // This callback is informational only — do NOT manually parse argv or emit events.
+        println!("new instance opened with {argv:?}, deep-link event already handled");
+    }));
+}
+
+// Register deep-link plugin after single-instance
+builder = builder.plugin(tauri_plugin_deep_link::init());
+
+// Inside the existing .setup() closure, add:
+#[cfg(any(target_os = "linux", all(debug_assertions, windows)))]
+{
+    app.deep_link().register_all()?;
+}
+```
+
+- [ ] **Step 5: Configure URI scheme in tauri.conf.json under `plugins.deep-link`**
+
+> **NOT** under `app.protocols` — Tauri v2 deep-link plugin uses its own config section. **Read existing `tauri.conf.json` first** and merge into the existing `plugins` object.
+
+```json
+{
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["skilldeck"]
+      },
+      "mobile": [
+        {
+          "scheme": ["skilldeck"],
+          "appLink": false
+        }
+      ]
+    }
+  }
+}
+```
+
+- [ ] **Step 6: Add deep-link permission to capabilities**
+
+> **Read `src-tauri/capabilities/default.json` first** and add to the existing permissions array.
+
+```json
+{
+  "permissions": [
+    "core:event:default",
+    "deep-link:default"
+  ]
+}
+```
+
+- [ ] **Step 7: Run cargo check to verify**
+
+```bash
+cd src-tauri && cargo check
+```
+
 ---
 
-## 2. Query Parameters
+## Chunk 2: Vite & Router Setup
 
-| Parameter           | Scope                      | Type / Validation                                                       |
-|---------------------|----------------------------|-------------------------------------------------------------------------|
-| `leftSearch`        | Global                     | `z.string().optional()`                                                 |
-| `profileId`         | Global                     | `z.string().optional()`                                                 |
-| `expandedFolders`   | Global                     | `z.string().optional()` (comma-separated)                               |
-| `expandedDateGroups`| Global                     | `z.string().optional()` (comma-separated)                               |
-| `messageId`         | Conversation / Shared      | `z.string().optional()`                                                 |
-| `branchId`          | Conversation / Shared      | `z.string().optional()`                                                 |
-| `conversationSearch`| Conversation / Shared      | `z.string().optional()`                                                 |
-| `autoScroll`        | Conversation / Shared      | `z.string().transform(v => v !== 'false').default('true')`              |
-| `rightTabView`      | MCP, etc.                  | `z.string().optional()`                                                 |
-| `onboard`           | Global                     | `z.enum(['true']).optional()`                                           |
+### Task 3: Configure Vite with TanStack Router plugin
+
+**Files:**
+- Modify: `vite.config.ts`
+
+- [ ] **Step 8: Update vite.config.ts**
+
+> **Read existing `vite.config.ts` first.** Preserve all existing plugins, aliases, and config. Only add `TanStackRouterVite()` to the plugins array (before `react()`).
+
+```typescript
+import { TanStackRouterVite } from '@tanstack/router-vite-plugin'
+
+// In plugins array, add TanStackRouterVite() as the first entry:
+plugins: [TanStackRouterVite(), /* ...existing plugins... */]
+```
+
+- [ ] **Step 9: Create router instance**
+
+**Files:**
+- Create: `src/router.ts`
+
+```typescript
+// src/router.ts
+import { createRouter } from '@tanstack/react-router'
+import { routeTree } from './routeTree.gen'
+
+export const router = createRouter({ routeTree })
+
+declare module '@tanstack/react-router' {
+  interface Register {
+    router: typeof router
+  }
+}
+```
+
+- [ ] **Step 10: Update main.tsx to use RouterProvider and set up deep-link listeners**
+
+**Files:**
+- Modify: `src/main.tsx`
+
+> **Read existing `main.tsx` first.** Replace the current root render with `RouterProvider`. Add deep-link listeners using the correct Tauri API (`getCurrent` + `onOpenUrl` — NOT `listen('deep-link', ...)`). Both return/handle **arrays** of URLs.
+
+```tsx
+// src/main.tsx
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import { RouterProvider } from '@tanstack/react-router'
+import { getCurrent, onOpenUrl } from '@tauri-apps/plugin-deep-link'
+import { router } from './router'
+// ...keep any existing imports (App.css, etc.)
+
+function handleDeepLinkUrls(urls: string[]) {
+  for (const url of urls) {
+    try {
+      const parsed = new URL(url)
+      const pathWithSearch = parsed.pathname + parsed.search
+      if (pathWithSearch && pathWithSearch !== '/') {
+        router.navigate({ to: pathWithSearch })
+        return // Handle first valid URL only
+      }
+    } catch {
+      // Malformed URL, skip
+    }
+  }
+}
+
+// Handle cold-start deep link (app launched via skilldeck://...)
+getCurrent().then((urls) => {
+  if (urls && urls.length > 0) {
+    handleDeepLinkUrls(urls)
+  }
+})
+
+// Handle runtime deep links (app already running, new skilldeck://... triggered)
+onOpenUrl((urls) => {
+  handleDeepLinkUrls(urls)
+})
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <RouterProvider router={router} />
+  </React.StrictMode>
+)
+```
+
+- [ ] **Step 11: Generate initial route tree**
+
+```bash
+pnpm exec vite --force
+# This generates src/routeTree.gen.ts
+```
 
 ---
 
-## 3. Reading / Writing URL State
+## Chunk 3: Route Files Creation
 
-### 3.1 Defining Zod Schemas for Type Safety
-TanStack Router requires `validateSearch` to infer types and strip invalid params.
+### Task 4: Create root route with Zod validation
+
+**Files:**
+- Create: `src/routes/__root.tsx`
+
+- [ ] **Step 12: Define root route with search schema**
+
+> Export `Route` so nested routes/components can use `Route.useSearch()` to access root search params. **Read existing `src/components/layout/app-shell.tsx` first** to understand the current root render structure.
 
 ```tsx
 // src/routes/__root.tsx
+import { createRootRoute, Outlet } from '@tanstack/react-router'
 import { z } from 'zod'
+import { useEffect } from 'react'
+import AppShell from '@/components/layout/app-shell'
 
 export const rootSearchSchema = z.object({
   leftSearch: z.string().optional(),
@@ -94,1078 +250,1075 @@ export const rootSearchSchema = z.object({
   expandedDateGroups: z.string().optional(),
   onboard: z.enum(['true']).optional(),
 })
-```
 
-```tsx
-// src/routes/conversations/$conversationId.tsx
-export const conversationSearchSchema = z.object({
-  messageId: z.string().optional(),
-  branchId: z.string().optional(),
-  conversationSearch: z.string().optional(),
-  autoScroll: z.string().transform(v => v !== 'false').default('true'),
-})
-```
-
-### 3.2 Syncing URL with Zustand (Loop-Proof)
-To prevent infinite loops, treat the **URL as the single source of truth**. Do not write URL changes *into* Zustand and then listen to Zustand to write back to the URL.
-
-```tsx
-// hooks/useLeftPanelSearch.ts
-import { useNavigate, useSearch } from '@tanstack/react-router'
-import { useCallback } from 'react'
-
-export function useLeftPanelSearch() {
-  const navigate = useNavigate({ from: '/' })
-  // Type-safe search derived directly from URL
-  const search = useSearch({ from: '/' })
-  
-  const leftSearch = search.leftSearch ?? ''
-
-  const setLeftSearch = useCallback((value: string) => {
-    navigate({
-      search: (prev) => ({ 
-        ...prev, 
-        leftSearch: value || undefined // remove if empty to keep URL clean
-      })
-    })
-  }, [navigate])
-
-  return { leftSearch, setLeftSearch }
-}
-```
-
----
-
-## 4. Route Components (Implementations)
-
-### 4.1 Root Route (`__root.tsx`)
-Includes global search validation, proper 404 handling, and explicit param scoping prevention.
-
-```tsx
-import { createRootRoute, Outlet, useSearch, notFoundComponent } from '@tanstack/react-router'
-import { rootSearchSchema } from './__root'
-import NotFoundPage from './404'
+export type RootSearch = z.infer<typeof rootSearchSchema>
 
 export const Route = createRootRoute({
   validateSearch: rootSearchSchema,
   component: RootComponent,
-  notFoundComponent: NotFoundPage, // Catches all unmatched paths
+  notFoundComponent: NotFound,
 })
 
 function RootComponent() {
-  const search = useSearch({ from: '/' })
+  const search = Route.useSearch()
+  const navigate = Route.useNavigate()
 
-  // Onboarding trigger
   useEffect(() => {
     if (search.onboard === 'true') {
-      showOnboardingWizard()
-      // Clean up URL
-      navigate({ search: (prev) => { const { onboard, ...rest } = prev; return rest } })
+      window.dispatchEvent(new CustomEvent('skilldeck:show-onboarding'))
+      const { onboard, ...rest } = search
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      void navigate({ search: rest as RootSearch })
     }
-  }, [search.onboard])
+  }, [search.onboard, navigate])
 
+  return <AppShell />
+}
+
+function NotFound() {
   return (
-    <div className="app">
-      <Sidebar />
-      <main className="flex-1">
-        <Outlet />
-      </main>
+    <div className="flex flex-col items-center justify-center h-full">
+      <h1 className="text-2xl font-bold">404</h1>
+      <p className="text-muted-foreground">Page not found</p>
     </div>
   )
 }
 ```
 
-### 4.2 Conversation Route (`conversations/$conversationId.tsx`)
-Uses loaders for data fetching, code splitting, and error boundaries.
+### Task 5: Create conversation route
+
+**Files:**
+- Create: `src/routes/conversations.$conversationId.tsx`
+
+> Note: TanStack Router file-based routing uses `.` for path segments. The file is `conversations.$conversationId.tsx`, NOT `conversations/$conversationId.tsx`.
+
+- [ ] **Step 13: Define conversation route with loader and search schema**
+
+> **Read `src/store/conversation.ts` first** to find the actual store method names (`setActiveConversation`, `setScrollToMessageId`, etc.) and verify they exist. **Read `src/lib/bindings.ts` (or equivalent) first** to find the actual Tauri command name for fetching a conversation.
 
 ```tsx
-import { createFileRoute, Outlet, useParams, useSearch } from '@tanstack/react-router'
-import { conversationSearchSchema } from './$conversationId'
-import { ConversationSkeleton } from '@/components/Skeletons'
+// src/routes/conversations.$conversationId.tsx
+import { createFileRoute } from '@tanstack/react-router'
+import { z } from 'zod'
+import { CenterPanel } from '@/components/layout/center-panel'
+import { useConversationStore } from '@/store/conversation'
+import { useEffect } from 'react'
+import { commands } from '@/lib/bindings'
+
+export const conversationSearchSchema = z.object({
+  messageId: z.string().optional(),
+  branchId: z.string().optional(),
+  conversationSearch: z.string().optional(),
+  autoScroll: z.string().transform(v => v !== 'false').optional(),
+})
 
 export const Route = createFileRoute('/conversations/$conversationId')({
   validateSearch: conversationSearchSchema,
-  // Code splitting for non-critical routes
-  lazy: () => import('./ConversationLayout.lazy').then(m => ({ Component: m.default })),
-  pendingComponent: ConversationSkeleton,
-  errorComponent: ({ error }) => {
-    if (error.message.includes('not found')) return <NotFoundPage />
-    return <GenericError error={error} />
-  },
   loader: async ({ params }) => {
-    // Verify conversation exists in local DB before rendering
-    const conv = await localDb.getConversation(params.conversationId)
-    if (!conv) throw new Error('Conversation not found in local DB')
-    return conv
+    // VERIFY: use the actual command name from your bindings
+    const res = await commands.getConversation(params.conversationId)
+    if (res.status === 'error') {
+      throw new Error(res.error)
+    }
+    return res.data
   },
+  pendingComponent: () => <div className="p-4">Loading conversation...</div>,
+  errorComponent: ({ error }) => (
+    <div className="p-4 text-destructive">Error: {error.message}</div>
+  ),
+  component: ConversationLayout,
 })
+
+function ConversationLayout() {
+  const { conversationId } = Route.useParams()
+  const { messageId } = Route.useSearch()
+  // VERIFY: use actual method names from your conversation store
+  const setActiveConversation = useConversationStore((s) => s.setActiveConversation)
+  const setScrollToMessageId = useConversationStore((s) => s.setScrollToMessageId)
+
+  useEffect(() => {
+    setActiveConversation(conversationId)
+    if (messageId) {
+      setScrollToMessageId(messageId)
+    }
+  }, [conversationId, messageId, setActiveConversation, setScrollToMessageId])
+
+  return <CenterPanel />
+}
 ```
 
-### 4.3 Settings Route (`settings.tsx`) - Search Param Scoping
-Settings must explicitly define its search schema so it doesn't accidentally inherit `messageId` or `branchId` from the URL history.
+### Task 6: Create settings routes
+
+**Files:**
+- Create: `src/routes/settings.tsx`
+- Create: `src/routes/settings.profiles.tsx`
+- Create: `src/routes/settings.api-keys.tsx`
+- Create: `src/routes/settings.tool-approvals.tsx`
+- Create: `src/routes/settings.appearance.tsx`
+- Create: `src/routes/settings.preferences.tsx`
+- Create: `src/routes/settings.platform.tsx`
+- Create: `src/routes/settings.referral.tsx`
+- Create: `src/routes/settings.lint.tsx`
+- Create: `src/routes/settings.sources.tsx`
+- Create: `src/routes/settings.achievements.tsx`
+
+- [ ] **Step 14: Create settings layout route**
+
+> Child routes inherit root search params automatically — no need to re-declare `validateSearch`.
 
 ```tsx
+// src/routes/settings.tsx
 import { createFileRoute, Outlet } from '@tanstack/react-router'
-import { rootSearchSchema } from '@/routes/__root' // Only inherit global params
 
 export const Route = createFileRoute('/settings')({
-  validateSearch: rootSearchSchema, // Strips out conversation-specific params
   component: SettingsLayout,
+})
+
+function SettingsLayout() {
+  return (
+    <div className="container max-w-2xl mx-auto py-8">
+      <Outlet />
+    </div>
+  )
+}
+```
+
+- [ ] **Step 15: Create settings child routes**
+
+> **CRITICAL: Before creating each route file, read the corresponding component file in `src/components/settings/` to verify the file exists and the exported component name matches what you import.**
+
+```bash
+# List existing settings components to verify names:
+ls src/components/settings/
+```
+
+```tsx
+// src/routes/settings.profiles.tsx — pattern for each:
+import { createFileRoute } from '@tanstack/react-router'
+import { ProfilesTab } from '@/components/settings/profiles-tab'  // VERIFY export name
+
+export const Route = createFileRoute('/settings/profiles')({
+  component: ProfilesTab,
 })
 ```
 
-### 4.4 Shared Conversation Route (`shared/$shareToken.tsx`) - NEW
-This is the critical route that enables cross-user sharing despite the local DB.
+Repeat for each settings tab (`api-keys`, `tool-approvals`, `appearance`, `preferences`, `platform`, `referral`, `lint`, `sources`, `achievements`). If a component doesn't exist yet, use a placeholder:
 
 ```tsx
+export const Route = createFileRoute('/settings/achievements')({
+  component: () => <div className="p-8">Achievements — coming soon</div>,
+})
+```
+
+### Task 7: Create shared route for platform hydration
+
+**Files:**
+- Create: `src/routes/shared.$shareToken.tsx`
+
+- [ ] **Step 16: Implement shared route — calls Tauri commands, NOT a JS HTTP client**
+
+```tsx
+// src/routes/shared.$shareToken.tsx
 import { createFileRoute, redirect } from '@tanstack/react-router'
-import { sharedSearchSchema } from './$shareToken'
-import { SharedSkeleton } from '@/components/Skeletons'
+import { commands } from '@/lib/bindings'
 
 export const Route = createFileRoute('/shared/$shareToken')({
-  validateSearch: sharedSearchSchema, // Allows messageId, etc.
-  pendingComponent: SharedSkeleton,
-  errorComponent: ({ error }) => <div>Failed to load shared conversation: {error.message}</div>,
-  loader: async ({ params, search }) => {
-    // 1. Fetch from platform server
-    const sharedData = await platformApi.getSharedConversation(params.shareToken)
-    if (!sharedData) throw new Error('Shared conversation not found or expired')
+  loader: async ({ params }) => {
+    // Step 1: Fetch shared conversation via Tauri command (calls PlatformClient internally)
+    const fetchRes = await commands.getSharedConversation(params.shareToken)
+    if (fetchRes.status === 'error') {
+      throw new Error(fetchRes.error)
+    }
 
-    // 2. Hydrate into local DB for local functionality (skills, mcp, etc. to work)
-    const newLocalId = await localDb.hydrateSharedConversation(sharedData)
+    // Step 2: Hydrate into local SQLite via Tauri command using existing models/repos
+    const hydrateRes = await commands.hydrateSharedConversation(fetchRes.data)
+    if (hydrateRes.status === 'error') {
+      throw new Error(hydrateRes.error)
+    }
 
-    // 3. Redirect to the standard local route, preserving search params (like messageId)
-    throw redirect({ 
-      to: '/conversations/$conversationId', 
-      params: { conversationId: newLocalId },
-      search: search as any 
+    // Step 3: Redirect to local conversation route
+    throw redirect({
+      to: '/conversations/$conversationId',
+      params: { conversationId: hydrateRes.data.localId },
     })
   },
-  component: () => null // Redirect happens in loader
+  component: () => <div className="p-4">Loading shared conversation...</div>,
+})
+```
+
+### Task 8: Create standalone routes
+
+**Files:**
+- Create: `src/routes/skills.tsx`
+- Create: `src/routes/mcp.tsx`
+- Create: `src/routes/workflows.tsx`
+- Create: `src/routes/analytics.tsx`
+- Create: `src/routes/artifacts.tsx`
+- Create: `src/routes/index.tsx`
+
+- [ ] **Step 17: Create standalone routes using existing components**
+
+> **CRITICAL: Read each component file first** to verify it exists and the export name is correct.
+
+```bash
+# Verify components exist:
+ls src/components/skills/
+```
+
+```tsx
+// src/routes/skills.tsx
+import { createFileRoute } from '@tanstack/react-router'
+import { UnifiedSkillList } from '@/components/skills/unified-skill-list'  // VERIFY
+
+export const Route = createFileRoute('/skills')({
+  component: UnifiedSkillList,
+})
+```
+
+Repeat for each (`mcp`, `workflows`, `analytics`, `artifacts`). Use placeholder pattern for missing components:
+
+```tsx
+export const Route = createFileRoute('/mcp')({
+  component: () => <div className="p-8">MCP — coming soon</div>,
+})
+```
+
+- [ ] **Step 18: Create index route (home)**
+
+```tsx
+// src/routes/index.tsx
+import { createFileRoute } from '@tanstack/react-router'
+
+export const Route = createFileRoute('/')({
+  component: () => <div className="p-8 text-center">Select a conversation or start a new chat</div>,
 })
 ```
 
 ---
 
-## 5. Implementing the Share Button & Message Links
+## Chunk 4: Rust Backend — Shared Conversation Support
 
-### 5.1 Share Button with Upload Flow
-Since the DB is local, we must check platform sync status first.
+> **This chunk adds the shared conversation endpoints to the existing `PlatformClient` and exposes them as Tauri commands.** No JavaScript HTTP client is created. No raw SQL is used.
+
+### Task 9: Add shared conversation DTOs to PlatformClient
+
+**Files:**
+- Modify: `src-tauri/src/platform.rs` (or wherever `PlatformClient` lives — **find it first**)
+
+- [ ] **Step 19: Locate the PlatformClient file**
+
+```bash
+grep -rn "pub struct PlatformClient" src-tauri/src/ --include="*.rs"
+```
+
+- [ ] **Step 20: Add DTOs for shared conversations**
+
+> Add these near the existing DTOs section (after `SyncSkillsResponse`, before `impl PlatformClient`).
+
+```rust
+// ── Shared Conversation DTOs ─────────────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize, Clone, Type)]
+pub struct SharedConversationMessage {
+    pub id: String,
+    pub role: String,
+    pub content: String,
+    pub created_at: String,
+    pub branch_id: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Type)]
+pub struct SharedConversationPayload {
+    pub id: String,
+    pub title: String,
+    pub messages: Vec<SharedConversationMessage>,
+    pub created_at: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Type)]
+pub struct ShareResponse {
+    pub share_token: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Type)]
+pub struct SyncStatusResponse {
+    pub is_synced: bool,
+    pub last_synced_at: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Type)]
+pub struct SyncConversationResponse {
+    pub share_token: String,
+}
+
+#[derive(Debug, Serialize, Type)]
+pub struct SyncConversationRequest {
+    pub title: String,
+    pub messages: Vec<SharedConversationMessage>,
+}
+
+#[derive(Debug, Serialize, Type)]
+pub struct HydrateResponse {
+    pub local_id: String,
+}
+```
+
+### Task 10: Add methods to PlatformClient
+
+**Files:**
+- Modify: the file containing `impl PlatformClient`
+
+- [ ] **Step 21: Add `get_shared_conversation` (public/auth-free endpoint)**
+
+> Add in the "Auth-free endpoints" section, after `validate_referral_code`.
+
+```rust
+/// Fetch a publicly shared conversation by token. No auth required.
+pub async fn get_shared_conversation(
+    &self,
+    share_token: &str,
+    cancel: Option<CancellationToken>,
+) -> Result<SharedConversationPayload, PlatformError> {
+    self.check_enabled()?;
+    let url = format!("{}/api/shared/{}", self.base_url, share_token);
+    let fut = || async {
+        let resp = self.http.get(&url).send().await?;
+        Self::check_response(resp).await
+    };
+    self.retry(fut, cancel).await
+}
+```
+
+- [ ] **Step 22: Add `check_sync_status` (authed endpoint)**
+
+> Add in a new "Shared Conversations (authed)" section after the Skills section.
+
+```rust
+// ── Shared Conversations (authed) ────────────────────────────────────────────
+
+/// Check if a local conversation has been synced to the platform.
+pub async fn check_sync_status(
+    &self,
+    conversation_id: &str,
+    cancel: Option<CancellationToken>,
+) -> Result<SyncStatusResponse, PlatformError> {
+    self.check_enabled()?;
+    let auth = self.auth_header()?;
+    let url = format!(
+        "{}/api/conversations/{}/sync-status",
+        self.base_url, conversation_id
+    );
+    let fut = || async {
+        let resp = self
+            .http
+            .get(&url)
+            .header("Authorization", &auth)
+            .send()
+            .await?;
+        Self::check_response(resp).await
+    };
+    self.retry(fut, cancel).await
+}
+```
+
+- [ ] **Step 23: Add `share_conversation` (authed endpoint)**
+
+```rust
+/// Create a shareable link for a conversation that is already synced.
+pub async fn share_conversation(
+    &self,
+    conversation_id: &str,
+    cancel: Option<CancellationToken>,
+) -> Result<ShareResponse, PlatformError> {
+    self.check_enabled()?;
+    let auth = self.auth_header()?;
+    let url = format!(
+        "{}/api/conversations/{}/share",
+        self.base_url, conversation_id
+    );
+    let fut = || async {
+        let resp = self
+            .http
+            .post(&url)
+            .header("Authorization", &auth)
+            .send()
+            .await?;
+        Self::check_response(resp).await
+    };
+    self.retry(fut, cancel).await
+}
+```
+
+- [ ] **Step 24: Add `sync_conversation_to_platform` (authed endpoint)**
+
+```rust
+/// Sync a local conversation to the platform, returning a share token.
+pub async fn sync_conversation_to_platform(
+    &self,
+    conversation_id: &str,
+    payload: SyncConversationRequest,
+    cancel: Option<CancellationToken>,
+) -> Result<SyncConversationResponse, PlatformError> {
+    self.check_enabled()?;
+    let auth = self.auth_header()?;
+    let url = format!(
+        "{}/api/conversations/{}/sync",
+        self.base_url, conversation_id
+    );
+    let fut = || async {
+        let resp = self
+            .http
+            .put(&url)
+            .header("Authorization", &auth)
+            .json(&payload)
+            .send()
+            .await?;
+        Self::check_response(resp).await
+    };
+    self.retry(fut, cancel).await
+}
+```
+
+- [ ] **Step 25: Run cargo check**
+
+```bash
+cd src-tauri && cargo check
+```
+
+### Task 11: Add Tauri commands for shared conversations
+
+**Files:**
+- Modify: the file containing existing Tauri command definitions (**find it first**)
+
+- [ ] **Step 26: Locate the commands file and existing models**
+
+```bash
+# Find where commands are defined
+grep -rn "#[tauri::command]" src-tauri/src/ --include="*.rs" -l
+
+# Find conversation model definitions
+grep -rn "struct Conversation" src-tauri/src/ --include="*.rs" -l
+
+# Find message model definitions
+grep -rn "struct Message" src-tauri/src/ --include="*.rs" -l
+
+# Find how conversations/messages are created (NO raw SQL)
+grep -rn "create_conversation\|insert_conversation\|save_conversation\|new_conversation\|import_conversation" src-tauri/src/ --include="*.rs" -l
+```
+
+- [ ] **Step 27: Add `get_shared_conversation` command**
+
+> **Read the existing commands first** to understand the pattern: how they access state, return errors, etc.
+
+```rust
+#[tauri::command]
+#[specta::specta]
+pub async fn get_shared_conversation(
+    platform: tauri::State<'_, PlatformClient>,
+    share_token: String,
+) -> Result<SharedConversationPayload, String> {
+    platform
+        .get_shared_conversation(&share_token, None)
+        .await
+        .map_err(|e| e.to_string())
+}
+```
+
+- [ ] **Step 28: Add `check_sync_status` command**
+
+```rust
+#[tauri::command]
+#[specta::specta]
+pub async fn check_sync_status(
+    platform: tauri::State<'_, PlatformClient>,
+    conversation_id: String,
+) -> Result<SyncStatusResponse, String> {
+    platform
+        .check_sync_status(&conversation_id, None)
+        .await
+        .map_err(|e| e.to_string())
+}
+```
+
+- [ ] **Step 29: Add `share_conversation` command**
+
+```rust
+#[tauri::command]
+#[specta::specta]
+pub async fn share_conversation(
+    platform: tauri::State<'_, PlatformClient>,
+    conversation_id: String,
+) -> Result<ShareResponse, String> {
+    platform
+        .share_conversation(&conversation_id, None)
+        .await
+        .map_err(|e| e.to_string())
+}
+```
+
+- [ ] **Step 30: Add `sync_conversation_to_platform` command**
+
+```rust
+#[tauri::command]
+#[specta::specta]
+pub async fn sync_conversation_to_platform(
+    platform: tauri::State<'_, PlatformClient>,
+    conversation_id: String,
+    payload: SyncConversationRequest,
+) -> Result<SyncConversationResponse, String> {
+    platform
+        .sync_conversation_to_platform(&conversation_id, payload, None)
+        .await
+        .map_err(|e| e.to_string())
+}
+```
+
+- [ ] **Step 31: Add `hydrate_shared_conversation` command using existing models/repos (NO RAW SQL)**
+
+> **Read the conversation/message models and creation methods found in Step 26.** Adapt the code below to match your exact model structs and method signatures. **Do NOT use `sqlx::query` directly.**
+
+```rust
+#[tauri::command]
+#[specta::specta]
+pub async fn hydrate_shared_conversation(
+    // VERIFY: use your actual DB state type (e.g., DbRepo, AppState)
+    db: tauri::State<'_, YourDbRepo>,
+    payload: SharedConversationPayload,
+) -> Result<HydrateResponse, String> {
+    // PATTERN A: If your repo takes model structs directly
+    // let conversation = Conversation {
+    //     id: payload.id.clone(),
+    //     title: payload.title.clone(),
+    //     created_at: payload.created_at.clone(),
+    //     // ...map other required fields, use defaults for optional ones
+    // };
+    // db.create_conversation(conversation).await.map_err(|e| e.to_string())?;
+
+    // for msg in &payload.messages {
+    //     let message = Message {
+    //         id: msg.id.clone(),
+    //         conversation_id: payload.id.clone(),
+    //         role: msg.role.clone(),
+    //         content: msg.content.clone(),
+    //         created_at: msg.created_at.clone(),
+    //         branch_id: msg.branch_id.clone(),
+    //         // ...map other required fields
+    //     };
+    //     db.create_message(message).await.map_err(|e| e.to_string())?;
+    // }
+
+    // PATTERN B: If your repo takes individual fields
+    // db.create_conversation(
+    //     payload.id.clone(),
+    //     payload.title.clone(),
+    //     payload.created_at.clone(),
+    // ).await.map_err(|e| e.to_string())?;
+
+    // for msg in &payload.messages {
+    //     db.create_message(
+    //         msg.id.clone(),
+    //         payload.id.clone(),
+    //         msg.role.clone(),
+    //         msg.content.clone(),
+    //         msg.created_at.clone(),
+    //         msg.branch_id.clone(),
+    //     ).await.map_err(|e| e.to_string())?;
+    // }
+
+    // PATTERN C: If you have a bulk import method (preferred if available)
+    // let input = ImportConversationInput { /* map fields */ };
+    // db.import_conversation(input).await.map_err(|e| e.to_string())?;
+
+    Ok(HydrateResponse {
+        local_id: payload.id,
+    })
+}
+```
+
+- [ ] **Step 32: Register new commands in the builder**
+
+> **Read `src-tauri/src/lib.rs`** to find where `.invoke_handler()` is called and add the new commands to the existing list.
+
+```rust
+// In the invoke_handler macro call, add:
+// get_shared_conversation,
+// check_sync_status,
+// share_conversation,
+// sync_conversation_to_platform,
+// hydrate_shared_conversation,
+```
+
+- [ ] **Step 33: Run cargo check**
+
+```bash
+cd src-tauri && cargo check
+```
+
+- [ ] **Step 34: Regenerate frontend bindings**
+
+```bash
+# Run whatever command regenerates src/lib/bindings.ts:
+pnpm generate:bindings  # or pnpm specta, etc.
+```
+
+- [ ] **Step 35: Verify new commands appear in bindings**
+
+```bash
+grep -n "getSharedConversation\|checkSyncStatus\|shareConversation\|syncConversationToPlatform\|hydrateSharedConversation" src/lib/bindings.ts
+```
+
+---
+
+## Chunk 5: URL State Hooks & Zustand Removal
+
+### Task 12: Create URL-derived hooks (replace Zustand slices)
+
+**Files:**
+- Create: `src/hooks/use-left-panel-search.ts`
+- Create: `src/hooks/use-expanded-folders.ts`
+- Create: `src/hooks/use-expanded-date-groups.ts`
+- Create: `src/hooks/use-profile-filter.ts`
+
+- [ ] **Step 36: Implement useLeftPanelSearch**
+
+> Uses `Route.useSearch()` from the root route. Works because `LeftPanel` is rendered inside `AppShell` (the root route component), so `navigate({ search: fn })` updates root-level search params.
 
 ```tsx
-function ConversationHeader({ conversationId }) {
-  const [shareState, setShareState] = useState<'idle' | 'checking' | 'needsUpload'>('idle')
-  
-  const handleShare = async () => {
-    setShareState('checking')
-    
-    try {
-      // Check if conversation is synced to platform server
-      const syncStatus = await platformApi.checkSyncStatus(conversationId)
-      
-      if (!syncStatus.isSynced) {
-        setShareState('needsUpload')
-        return // Modal will handle the upload process
-      }
+// src/hooks/use-left-panel-search.ts
+import { useNavigate } from '@tanstack/react-router'
+import { Route } from '@/routes/__root'
+import { useCallback } from 'react'
 
-      // Construct URL using the share token, not the local UUID
-      const shareUrl = `${window.location.origin}/shared/${syncStatus.shareToken}`
-      await navigator.clipboard.writeText(shareUrl)
-      showToast('Shareable link copied!')
-    } catch (err) {
-      showToast('Failed to prepare link')
-    } finally {
-      setShareState('idle')
+export function useLeftPanelSearch() {
+  const navigate = useNavigate()
+  const { leftSearch } = Route.useSearch()
+
+  const setLeftSearch = useCallback(
+    (value: string) => {
+      navigate({
+        search: (prev) => ({ ...prev, leftSearch: value || undefined }),
+      })
+    },
+    [navigate],
+  )
+
+  return { leftSearch: leftSearch ?? '', setLeftSearch }
+}
+```
+
+- [ ] **Step 37: Implement useExpandedFolders**
+
+```tsx
+// src/hooks/use-expanded-folders.ts
+import { useNavigate } from '@tanstack/react-router'
+import { Route } from '@/routes/__root'
+import { useCallback, useMemo } from 'react'
+
+export function useExpandedFolders() {
+  const navigate = useNavigate()
+  const { expandedFolders } = Route.useSearch()
+
+  const folderIds = useMemo(() => {
+    return expandedFolders ? expandedFolders.split(',').filter(Boolean) : []
+  }, [expandedFolders])
+
+  const toggleFolder = useCallback(
+    (folderId: string) => {
+      navigate({
+        search: (prev) => {
+          const current = prev.expandedFolders
+            ? prev.expandedFolders.split(',')
+            : []
+          const next = current.includes(folderId)
+            ? current.filter((id) => id !== folderId)
+            : [...current, folderId]
+          return {
+            ...prev,
+            expandedFolders: next.length ? next.join(',') : undefined,
+          }
+        },
+      })
+    },
+    [navigate],
+  )
+
+  return { expandedFolders: folderIds, toggleFolder }
+}
+```
+
+- [ ] **Step 38: Implement useExpandedDateGroups**
+
+```tsx
+// src/hooks/use-expanded-date-groups.ts
+import { useNavigate } from '@tanstack/react-router'
+import { Route } from '@/routes/__root'
+import { useCallback, useMemo } from 'react'
+
+export function useExpandedDateGroups() {
+  const navigate = useNavigate()
+  const { expandedDateGroups } = Route.useSearch()
+
+  const groupKeys = useMemo(() => {
+    return expandedDateGroups ? expandedDateGroups.split(',').filter(Boolean) : []
+  }, [expandedDateGroups])
+
+  const toggleDateGroup = useCallback(
+    (key: string) => {
+      navigate({
+        search: (prev) => {
+          const current = prev.expandedDateGroups
+            ? prev.expandedDateGroups.split(',')
+            : []
+          const next = current.includes(key)
+            ? current.filter((k) => k !== key)
+            : [...current, key]
+          return {
+            ...prev,
+            expandedDateGroups: next.length ? next.join(',') : undefined,
+          }
+        },
+      })
+    },
+    [navigate],
+  )
+
+  return { expandedDateGroups: groupKeys, toggleDateGroup }
+}
+```
+
+- [ ] **Step 39: Implement useProfileFilter**
+
+```tsx
+// src/hooks/use-profile-filter.ts
+import { useNavigate } from '@tanstack/react-router'
+import { Route } from '@/routes/__root'
+import { useCallback } from 'react'
+
+export function useProfileFilter() {
+  const navigate = useNavigate()
+  const { profileId } = Route.useSearch()
+
+  const setProfileId = useCallback(
+    (id: string | null) => {
+      navigate({
+        search: (prev) => ({ ...prev, profileId: id || undefined }),
+      })
+    },
+    [navigate],
+  )
+
+  return { profileId: profileId ?? null, setProfileId }
+}
+```
+
+### Task 13: Remove Zustand state that is now URL-derived
+
+**Files:**
+- Modify: `src/store/ui-ephemeral.ts` — remove `searchQuery` and `setSearchQuery`
+- Modify: `src/store/ui-layout.ts` — remove `collapsedDateGroups`, `toggleDateGroup`, `setDateGroupCollapsed`
+
+- [ ] **Step 40: Remove searchQuery from ui-ephemeral store**
+
+> **Read `src/store/ui-ephemeral.ts` first** to find the exact field/action names.
+
+```typescript
+// In src/store/ui-ephemeral.ts, delete:
+// - searchQuery: string  (from state)
+// - setSearchQuery: (query: string) => void  (from actions)
+// - Any selectors like getSearchQuery
+// Keep: streaming state, draft message state, any other ephemeral UI state
+```
+
+- [ ] **Step 41: Remove collapsedDateGroups from ui-layout store**
+
+> **Read `src/store/ui-layout.ts` first** to find exact field/action names.
+
+```typescript
+// In src/store/ui-layout.ts, delete:
+// - collapsedDateGroups: Record<string, boolean>  (from state)
+// - toggleDateGroup: (key: string) => void  (from actions)
+// - setDateGroupCollapsed: (key: string, collapsed: boolean) => void  (from actions)
+// Keep: panel widths, sidebar collapsed state, other layout state
+```
+
+- [ ] **Step 42: Update LeftPanel to use new URL hooks**
+
+> **Read `src/components/layout/left-panel.tsx` first** to find exact import paths, variable names, and component structure.
+
+```tsx
+// In src/components/layout/left-panel.tsx — replace Zustand imports with URL hooks:
+
+// REMOVE:
+// const searchQuery = useUIEphemeralStore(s => s.searchQuery)
+// const setSearchQuery = useUIEphemeralStore(s => s.setSearchQuery)
+// const collapsedDateGroups = useUILayoutStore(s => s.collapsedDateGroups)
+// const toggleDateGroup = useUILayoutStore(s => s.toggleDateGroup)
+
+// ADD:
+import { useLeftPanelSearch } from '@/hooks/use-left-panel-search'
+import { useExpandedFolders } from '@/hooks/use-expanded-folders'
+import { useExpandedDateGroups } from '@/hooks/use-expanded-date-groups'
+import { useProfileFilter } from '@/hooks/use-profile-filter'
+
+// Inside component body:
+const { leftSearch, setLeftSearch } = useLeftPanelSearch()
+const { expandedFolders, toggleFolder } = useExpandedFolders()
+const { expandedDateGroups, toggleDateGroup } = useExpandedDateGroups()
+const { profileId, setProfileId } = useProfileFilter()
+```
+
+- [ ] **Step 43: Find and update ALL other components referencing removed Zustand fields**
+
+```bash
+grep -rn "searchQuery" src/ --include="*.ts" --include="*.tsx"
+grep -rn "collapsedDateGroups" src/ --include="*.ts" --include="*.tsx"
+grep -rn "toggleDateGroup" src/ --include="*.ts" --include="*.tsx"
+grep -rn "setSearchQuery" src/ --include="*.ts" --include="*.tsx"
+```
+
+Update every hit to use the new URL hooks or remove dead code.
+
+---
+
+## Chunk 6: Share Button & Conversation Search via URL
+
+### Task 14: Update share button to use Tauri commands
+
+**Files:**
+- Modify: the existing conversation header/share button component
+
+- [ ] **Step 44: Find the share button component**
+
+```bash
+grep -rn "share\|clipboard\|copy.*link" src/components/ --include="*.tsx" -l
+```
+
+- [ ] **Step 45: Update share handler to use Tauri commands**
+
+> **Read the existing share component first** to understand the current flow and what UI elements (modals, toasts) are available.
+
+```tsx
+// In the share button handler — replace any existing share logic:
+import { commands } from '@/lib/bindings'
+
+const handleShare = async (conversationId: string) => {
+  try {
+    // Step 1: Check if conversation is already synced to platform
+    const syncRes = await commands.checkSyncStatus(conversationId)
+    if (syncRes.status === 'error') {
+      toast.error('Failed to check sync status')
+      return
     }
+
+    if (!syncRes.data.is_synced) {
+      // Show upload confirmation modal using existing modal component
+      // After user confirms:
+      // const messages = await commands.getConversationMessages(conversationId)
+      // const syncPayload = { title: '...', messages: messages.data }
+      // await commands.syncConversationToPlatform(conversationId, syncPayload)
+    }
+
+    // Step 2: Create share link
+    const shareRes = await commands.shareConversation(conversationId)
+    if (shareRes.status === 'error') {
+      toast.error('Failed to share conversation')
+      return
+    }
+
+    // Step 3: Copy skilldeck:// deep link to clipboard
+    const shareUrl = `skilldeck://shared/${shareRes.data.share_token}`
+    await navigator.clipboard.writeText(shareUrl)
+
+    // Use existing toast/notification component
+    toast.success('Shareable link copied!')
+  } catch (err) {
+    toast.error('Failed to share conversation')
   }
+}
+```
+
+### Task 15: Bind conversation search to URL params
+
+**Files:**
+- Modify: the component containing the conversation-level search input
+
+- [ ] **Step 46: Find the conversation search input**
+
+```bash
+grep -rn "conversationSearch\|search.*message\|filterMessage" src/components/ --include="*.tsx" -l
+```
+
+- [ ] **Step 47: Bind to URL search param**
+
+> **Read the component first** to understand the current state management.
+
+```tsx
+import { useNavigate } from '@tanstack/react-router'
+import { Route as ConversationRoute } from '@/routes/conversations.$conversationId'
+
+// Inside component:
+const navigate = useNavigate()
+const { conversationSearch } = ConversationRoute.useSearch()
+
+const handleConversationSearch = (value: string) => {
+  navigate({
+    search: (prev) => ({
+      ...prev,
+      conversationSearch: value || undefined,
+    }),
+  })
+}
+
+// Bind to input:
+<input
+  value={conversationSearch ?? ''}
+  onChange={(e) => handleConversationSearch(e.target.value)}
+/>
+```
+
+---
+
+## Chunk 7: Devtools, Testing & Cleanup
+
+### Task 16: Add route devtools
+
+**Files:**
+- Modify: `src/routes/__root.tsx`
+
+- [ ] **Step 48: Add TanStack Router Devtools in development**
+
+```tsx
+// src/routes/__root.tsx — import and render inside RootComponent
+import { TanStackRouterDevtools } from '@tanstack/router-devtools'
+
+function RootComponent() {
+  const search = Route.useSearch()
+  const navigate = Route.useNavigate()
+
+  useEffect(() => {
+    if (search.onboard === 'true') {
+      window.dispatchEvent(new CustomEvent('skilldeck:show-onboarding'))
+      const { onboard, ...rest } = search
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      void navigate({ search: rest as RootSearch })
+    }
+  }, [search.onboard, navigate])
 
   return (
     <>
-      <Button onClick={handleShare} disabled={shareState === 'checking'}>
-        {shareState === 'checking' ? 'Preparing...' : 'Share'}
-      </Button>
-      
-      {shareState === 'needsUpload' && (
-        <UploadToShareModal
-          conversationId={conversationId}
-          onUploadComplete={async (shareToken) => {
-            const url = `${window.location.origin}/shared/${shareToken}`
-            await navigator.clipboard.writeText(url)
-            showToast('Uploaded & link copied!')
-            setShareState('idle')
-          }}
-          onCancel={() => setShareState('idle')}
-        />
-      )}
+      <AppShell />
+      {import.meta.env.DEV && <TanStackRouterDevtools />}
     </>
   )
 }
 ```
 
-### 5.2 Copy Link to Message (Local Bookmarking)
-If a user just wants to bookmark a message *for themselves* on this device, we use the local `$conversationId`.
+### Task 17: Clean up conversation store sync
 
-```tsx
-function Message({ id, content, conversationId }) {
-  const copyLocalLink = () => {
-    const url = new URL(window.location.href)
-    url.pathname = `/conversations/${conversationId}`
-    url.searchParams.set('messageId', id)
-    navigator.clipboard.writeText(url.toString())
-    showToast('Local bookmark link copied')
-  }
+**Files:**
+- Modify: `src/store/conversation.ts`
 
-  return (
-    <div className="message">
-      <button onClick={copyLocalLink} title="Copy link to this message">🔗</button>
-      {content}
-    </div>
-  )
-}
+- [ ] **Step 49: Ensure conversation store syncs from URL on mount**
+
+> **Read `src/store/conversation.ts` first.** Keep `activeConversationId` in the store for non-router consumers, but ensure it doesn't have a conflicting default. The `ConversationLayout` useEffect (Step 13) sets it from the URL.
+
+```typescript
+// Verify:
+// - Remove any hardcoded default activeConversationId that could conflict with URL
+// - The setActiveConversation call in ConversationLayout (Step 13) is the source of truth
+// - Any component reading activeConversationId from the store gets the URL-derived value
 ```
 
----
+### Task 18: Type-check and verify no dead references
 
-## 6. Implementation Steps (EL Plan)
+- [ ] **Step 50: Run TypeScript type-check**
 
-1. **Install dependencies**  
-   ```bash
-   pnpm add @tanstack/react-router @tanstack/router-vite-plugin zod
-   ```
-2. **Configure Vite**  
-   Add `@tanstack/router-vite-plugin` to `vite.config.ts` before the React plugin.
-3. **Define Zod Search Schemas** for root, conversation, and shared routes.
-4. **Create the route files** (stubs) including the new `shared/$shareToken.tsx`.
-5. **Generate the route tree** – verify `src/routeTree.gen.ts`.
-6. **Implement `__root.tsx`** with AppShell, `validateSearch`, and `notFoundComponent`.
-7. **Implement `shared/$shareToken.tsx`** with platform API fetcher and DB hydration logic.
-8. **Implement `conversations/$conversationId.tsx`** with local DB loader, `pendingComponent`, and `errorComponent`.
-9. **Create loop-proof URL sync hooks** (`useLeftPanelSearch`, etc.) that derive state from URL.
-10. **Build the `UploadToShareModal`** and update `ConversationHeader` with the check-sync-then-share logic.
-11. **Update left panel** to use `<Link>` components. Ensure Settings links explicitly pass scoped `search` objects to prevent param leakage.
-12. **Test back/forward navigation** and manual URL edits.
-13. **Execute automated test suite** (see QA plan below).
-
----
-
-## 7. QA Test Cases
-
-| ID | Title | Steps | Expected | Priority |
-|---|---|---|---|---|
-| TC-01 | Home route | `/` | No conversation, default right tab | P1 |
-| TC-02 | Settings root | `/settings` | Settings page, default tab | P1 |
-| TC-03 | Settings profile tab | `/settings/profiles` | Profiles settings page | P1 |
-| TC-04 | Conversation route | `/conversations/123` | Conversation 123 active | P0 |
-| TC-05 | Conversation with messageId | `/conversations/123?messageId=abc` | Scrolls to message abc | P0 |
-| TC-06 | Left panel search | `/?leftSearch=test` | Search input filled, list filtered | P1 |
-| TC-07 | Expanded folders | `/?expandedFolders=id1,id2` | Folders expanded | P1 |
-| TC-08 | Skills tab standalone | `/skills` | Skills tab active, no conversation | P1 |
-| TC-09 | Skill detail | `/skills/skill1` | Skill detail panel open | P1 |
-| TC-10 | Conversation + skills | `/conversations/123/skills` | Skills tab active, conversation loaded | P1 |
-| TC-11 | Conversation + skill detail | `/conversations/123/skills/skill1` | Skill detail within context | P1 |
-| TC-12 | MCP catalog view | `/mcp?rightTabView=mcp:catalog` | MCP catalog shown | P1 |
-| TC-13 | Conversation search | `/conversations/123?conversationSearch=hello` | Messages highlighted | P2 |
-| TC-14 | Auto-scroll toggle | `/conversations/123?autoScroll=false` | Auto-scroll disabled | P2 |
-| TC-15 | Onboarding wizard | `/?onboard=true` | Wizard appears, param cleared after | P2 |
-| TC-16 | Back/forward tabs | Nav `/skills`, `/workflows`, back | History works | P0 |
-| TC-17 | Back/forward settings | Nav `/settings/profiles`, `/settings/api-keys`, back | History works | P1 |
-| TC-18 | Invalid conversation ID | `/conversations/invalid` | 404 page (notFoundComponent) | P1 |
-| TC-19 | Invalid skill ID | `/skills/unknown` | "Skill not found" message | P2 |
-| TC-20 | Message link copy | Click copy link in message menu | URL includes `?messageId=...` | P1 |
-| TC-21 | Param scoping | Go to `/conversations/1?messageId=x`, click Settings | `messageId` is stripped from URL | P1 |
-| **TC-22** | **Share unsynced conversation** | Click share on local-only conversation | Upload modal appears | **P0** |
-| **TC-23** | **Share synced conversation** | Click share on synced conversation | URL copied with `/shared/{token}` | **P0** |
-| **TC-24** | **Open shared link** | Open `/shared/abc123` | Fetches from API, hydrates local DB, redirects to `/conversations/{newId}` | **P0** |
-| **TC-25** | **Open expired/invalid shared link** | Open `/shared/expired` | Error component / "Link expired" message | **P1** |
-| **TC-26** | **Shared link with messageId** | Open `/shared/abc123?messageId=xyz` | Redirects locally AND scrolls to message xyz | **P1** |
-
----
-
-## 📄 Artifact 1 – Product Requirements (PM‑003-v2)
-
-```yaml
----
-artifact_id: PM-003-deep-linking-v2
-agent: PM
-version: 2
-status: draft
-schema_version: 4.0
-goal_id: G-2026-001
-task_id: T1
-created: 2026-04-01T14:00:00Z
-author_agent: PM
-upstream_artifacts:
-  - G-2026-001: source_goal
-downstream_consumers:
-  - agent: SA
-    expects: SA-001-architecture-blueprint
-  - agent: EL
-    expects: EL-001-implementation-summary
-  - agent: QA
-    expects: QA-001-test-plan
-checksum_sha256: (to be computed)
----
-feature_name: Deep-Linking & Cross-User Sharing via TanStack Router
-target_release: 2026-Q2
-pm_owner: PM
-status: active
-linked_goal_id: G-2026-001
-
-problem:
-  Users cannot share or bookmark specific views. UI state is lost on reload. Because the app uses a local DB, sharing a raw local database ID (`/conversations/123`) is useless to another user on a different installation.
-  Business value: True cross-user collaboration, improved UX, higher retention.
-
-user_stories:
-  - As a user, I want to share a link to a conversation so a colleague can view the exact same state.
-  - As a user, I want to bookmark a view (e.g., settings tab) so I can return later.
-  - As a user, I want to open a link with a message ID so the browser scrolls to that message.
-  - As a user, I want left panel filters preserved in the URL.
-
-functional_requirements:
-  - FR-1: All UI state must be derived from the URL (path or query params).
-  - FR-2: Settings are full pages under `/settings/*`, not modals.
-  - FR-3: Global query params: leftPanelSearch, profileId, expandedFolders, expandedDateGroups, onboard.
-  - FR-4: Context query params: messageId, branchId, conversationSearch, autoScroll, rightTabView.
-  - FR-5: Invalid route parameters trigger a 404 page.
-  - FR-6: "Copy link to message" creates a local-only URL (for self-bookmarking).
-  - FR-7: "Share Conversation" button checks platform sync status.
-  - FR-8: If not synced, "Share" triggers an upload modal to push local DB state to the platform.
-  - FR-9: If synced, "Share" copies a `/shared/$shareToken` URL.
-  - FR-10: Opening a `/shared/$shareToken` fetches data from platform API, hydrates it into the recipient's local DB, and redirects to the standard `/conversations/$newId` route.
-  - FR-11: Opening a shared URL with `?messageId=xyz` scrolls to that message post-hydration.
-
-non_functional_requirements:
-  - Performance: Code splitting via TanStack Router `lazy` for all non-critical routes.
-  - Accessibility: WCAG 2.1 AA.
-  - Security: Zod validation for all search params; no script injection.
-
-out_of_scope:
-  - Real-time collaborative editing (only viewing shared states).
-  - i18n of route paths.
+```bash
+pnpm typecheck
 ```
 
----
+- [ ] **Step 51: Run unit tests**
 
-## 📄 Artifact 2 – Architecture Blueprint (SA‑001-v2)
-
-```yaml
----
-artifact_id: SA-001-deep-linking-architecture-v2
-agent: SA
-version: 2
-status: draft
-schema_version: 4.0
-goal_id: G-2026-001
-task_id: T2
-created: 2026-04-01T14:15:00Z
-author_agent: SA
-upstream_artifacts:
-  - PM-003-deep-linking-v2: informed_by
-downstream_consumers:
-  - agent: CPO
-    expects: CPO-003-security-assessment
-  - agent: EL
-    expects: EL-001-implementation-summary
-  - agent: QA
-    expects: QA-001-test-plan
-checksum_sha256: (to be computed)
----
-system_context:
-  description: |
-    SPA powered by TanStack Router. Local DB requires a platform-sync hop for cross-user sharing.
-
-component_diagram: |
-  ```mermaid
-  graph TD
-    A[Browser URL] --> B[TanStack Router]
-    B --> C{Route Type}
-    C -->|Standard| D[Local DB Loader]
-    C -->|Shared| E[Platform API Loader]
-    D --> F[Render Component]
-    E --> G[Hydrate Local DB]
-    G --> H[Redirect to Standard Route]
-    H --> F
-    B --> I[Zustand Stores - Derived from URL]
-    I --> F
-  ```
-
-shared_conversation_sequence: |
-  ```mermaid
-  sequenceDiagram
-    participant UserA
-    participant AppA[App A (Local DB)]
-    participant API[Platform Server]
-    participant AppB[App B (Local DB)]
-    participant UserB
-    
-    UserA->>AppA: Click 'Share'
-    AppA->>API: POST /conversations/{id}/share
-    alt Not Synced
-      API-->>AppA: 404 Not Found
-      AppA->>UserA: Show Upload Modal
-      UserA->>AppA: Confirm Upload
-      AppA->>API: PUT /conversations/{id}/sync
-      API-->>AppA: { shareToken: "abc123" }
-    else Synced
-      API-->>AppA: { shareToken: "abc123" }
-    end
-    AppA->>UserA: Copy /shared/abc123 URL
-    UserA->>UserB: Send URL
-    UserB->>AppB: Open /shared/abc123?messageId=xyz
-    AppB->>API: GET /shared/abc123
-    API-->>AppB: Conversation Payload
-    AppB->>AppB: Save to Local DB (returns newLocalId)
-    AppB->>AppB: Redirect to /conversations/newLocalId?messageId=xyz
-    AppB->>UserB: Render hydrated conversation & scroll
-  ```
-
-data_architecture:
-  schema_location: URL is source of truth for UI state; Local DB is source of truth for data.
-  pii_data_inventory: None expected in URL search params.
-  retention_policies: ShareTokens expire after 90 days (configurable).
-
-security_architecture:
-  auth_system: ShareTokens are unguessable UUIDs. No auth required to view shared links.
-  encryption_in_transit: TLS.
-
-adrs:
-  - adr_id: ADR-004
-    title: Use TanStack Router with file-based routing for full URL-derivable UI
-    status: accepted
-    context: Entire UI state must be derivable from URL. Local DB prevents simple ID sharing.
-    decision: Adopt file-based routing. Implement `/shared/$shareToken` route with loader hydration.
-    rationale: Separates local state from shareable state elegantly using router loaders.
-    consequences:
-      positive: Full shareability; deterministic UI; automatic code-splitting.
-      negative: Slight latency on first open of shared link due to API fetch + DB write.
+```bash
+pnpm test
 ```
 
----
+- [ ] **Step 52: Run e2e tests (if configured)**
 
-## 📄 Artifact 3 – Implementation Plan (EL‑001-v2)
-
-```yaml
----
-artifact_id: EL-001-deep-linking-implementation-v2
-agent: EL
-version: 2
-status: draft
-schema_version: 4.0
-goal_id: G-2026-001
-task_id: T3
-created: 2026-04-01T14:30:00Z
-author_agent: EL
-upstream_artifacts:
-  - PM-003-deep-linking-v2: informed_by
-  - SA-001-deep-linking-architecture-v2: informed_by
-downstream_consumers:
-  - agent: QA
-    expects: QA-001-test-plan
-  - agent: TW
-    expects: TW-003-api-docs
-checksum_sha256: (to be computed)
----
-implementation_summary: |
-  Implements deep linking via TanStack Router. Solves local-db sharing limit by 
-  introducing platform API upload flow and a dedicated `/shared` route that 
-  hydrates remote data locally. Avoids React render loops by treating URL as the
-  single source of truth for UI state (no bi-directional Zustand sync).
-
-what_was_built:
-  - Installed @tanstack/react-router, @tanstack/router-vite-plugin, zod.
-  - Created file-based route tree matching ADR.
-  - Defined Zod schemas (`rootSearchSchema`, `conversationSearchSchema`) and applied via `validateSearch`.
-  - Built loop-proof hooks (`useLeftPanelSearch`, etc.) deriving state directly from `useSearch`.
-  - Converted settings modal to `/settings/*` pages with explicit search param scoping.
-  - Implemented `shared/$shareToken.tsx` with `loader` that fetches from platform API, writes to local DB, and throws `redirect`.
-  - Implemented `UploadToShareModal` and updated `ConversationHeader` to check sync status before copying link.
-  - Added `lazy`, `pendingComponent`, and `errorComponent` to non-critical routes.
-  - Set `notFoundComponent` on root route.
-
-api_changes:
-  - new_endpoints:
-      - POST /conversations/{id}/share (Returns shareToken or 404)
-      - PUT /conversations/{id}/sync (Uploads local payload, returns shareToken)
-      - GET /shared/{shareToken} (Returns sharable payload)
-
-database_changes:
-  - local_db:
-      - Added `hydrateSharedConversation(payload)` method to map platform data to local schema.
-
-known_limitations:
-  - URL length limits (~2000 chars) restrict number of `expandedFolders`.
-  - First load of a `/shared` link takes ~500ms-1s depending on payload size.
-  - "Copy link to message" creates local-only links; cannot be used to share the message cross-device (must use main Share button).
-
-testing_summary:
-  unit_coverage_pct: 96
-  integration_tests_added: 14
-  e2e_tests_added: 10
-
-dependencies:
-  - new: @tanstack/react-router, @tanstack/router-vite-plugin, zod
+```bash
+pnpm test:e2e
 ```
 
----
+- [ ] **Step 53: Verify no remaining references to removed Zustand fields**
 
-## 📄 Artifact 4 – Test Plan (QA‑001-v2)
-
-```yaml
----
-artifact_id: QA-001-deep-linking-test-plan-v2
-agent: QA
-version: 2
-status: draft
-schema_version: 4.0
-goal_id: G-2026-001
-task_id: T4
-created: 2026-04-01T14:45:00Z
-author_agent: QA
-upstream_artifacts:
-  - EL-001-deep-linking-implementation-v2: informed_by
-downstream_consumers:
-  - agent: RM
-    expects: RM-001-release-checklist
-checksum_sha256: (to be computed)
----
-scope:
-  - All new routes (Standard, Settings, Shared)
-  - Zod search param validation (valid, invalid, missing)
-  - Share button upload vs copy flow
-  - Shared link hydration and redirect
-  - 404 handling
-  - History (back/forward) navigation
-  - Loop prevention in URL/Zustand sync
-
-test_strategy:
-  unit_testing: Vitest (Mock TanStack Router hooks)
-  integration_testing: Vitest + React Testing Library
-  e2e_testing: Playwright (Mock Platform API via route interception)
-
-test_cases:
-  - id: TC-01 to TC-21
-    note: "See full list in Section 7 of the main specification document."
-  - id: TC-22
-    description: Share unsynced conversation triggers upload modal
-    steps: Click share on local-only conversation
-    expected: Upload modal appears, URL is NOT copied yet
-    priority: P0
-  - id: TC-23
-    description: Share synced conversation copies shared URL
-    steps: Click share on synced conversation
-    expected: Clipboard contains `/shared/{token}` URL
-    priority: P0
-  - id: TC-24
-    description: Open shared link hydrates and redirects
-    steps: Open `/shared/abc123`
-    expected: Loader fetches API, writes to local DB, redirects to `/conversations/{newId}`
-    priority: P0
-  - id: TC-25
-    description: Open expired/invalid shared link
-    steps: Open `/shared/expired`
-    expected: ErrorComponent renders with failure message
-    priority: P1
-  - id: TC-26
-    description: Shared link with messageId preserves state
-    steps: Open `/shared/abc123?messageId=xyz`
-    expected: Redirects locally AND scrolls to message xyz
-    priority: P1
-  - id: TC-27 (New)
-    description: Invalid search params stripped safely
-    steps: Open `/?leftSearch=test&autoScroll=invalidBool`
-    expected: `autoScroll` defaults to true, no console errors
-    priority: P1
-
-coverage_targets:
-  unit_min_pct: 95
-  integration_min_pct: 90
-  e2e_critical_paths: 100
-
-acceptance_criteria:
-  - All P0 test cases pass.
-  - No React infinite re-render loops detected in profiler.
-  - Playwright trace viewer shows clean redirect chain for TC-24 and TC-26.
-
-sign_off:
-  status: pending
-```
-Understood. The previous plan made catastrophic assumptions about the delivery mechanism. The application is a **Tauri desktop client** utilizing a local SQLite database, and the platform backend infrastructure is explicitly out of scope. 
-
-This fundamentally changes the architecture: OS-level deep linking (URI schemes), Tauri IPC boundaries, desktop code-signing requirements for protocol registration, and abstracting the platform API as a black-box HTTP contract.
-
-Here is the fully revised, compliant artifact pipeline.
-
----
-
-## 🔄 Pipeline Execution Context (CDR-001 Reference)
-
-**Goal ID:** `G-2026-001`  
-**Task Flow:** `T1(PM)` → `T2(SA)` → `T3(CPO)` → `T4(EL)` → `T5(QA)` → `T6(RM)`  
-**Environmental Constraints:** Tauri v2 Desktop App. Local SQLite DB. Platform API deployment TBD (treated as external HTTP contract). 
-
----
-
-## 📄 Artifact 1 – Product Context Document (PM‑001)
-
-```yaml
----
-artifact_id: PM-001-app-context-v2
-agent: PM
-version: 2
-status: active
-schema_version: 4.0
-goal_id: G-2026-001
-task_id: T1
-created: 2026-04-01T09:00:00Z
-author_agent: PM
-upstream_artifacts:
-  - G-2026-001: source_goal
-downstream_consumers:
-  - agent: PM
-    expects: PM-003-deep-linking-prd
-  - agent: SA
-    expects: SA-001-deep-linking-architecture
-checksum_sha256: a1b2c3d4e5f6...
----
-product_name: AI Workspace App
-architecture_type: Tauri v2 Desktop Application (Local-First)
-data_storage: Local SQLite (primary), External Platform API (sync/share - infra TBD)
-core_user_persona: Desktop power users collaborating via shared AI conversation states
-distribution: Native installers (macOS .dmg, Windows .msi)
+```bash
+grep -rn "setSearchQuery\|collapsedDateGroups\|toggleDateGroup\|setDateGroupCollapsed" src/ --include="*.ts" --include="*.tsx"
+# Expect: zero results (or only in store files' removed sections)
 ```
 
----
+- [ ] **Step 54: Verify no JavaScript platform API client exists**
 
-## 📄 Artifact 2 – Product Requirements (PM‑003)
-
-```yaml
----
-artifact_id: PM-003-deep-linking-prd-v3
-agent: PM
-version: 3
-status: active
-schema_version: 4.0
-goal_id: G-2026-001
-task_id: T1
-created: 2026-04-01T09:15:00Z
-author_agent: PM
-upstream_artifacts:
-  - PM-001-app-context-v2: informed_by
-downstream_consumers:
-  - agent: SA
-    expects: SA-001-deep-linking-architecture
-checksum_sha256: b2c3d4e5f6a1...
----
-problem_statement: |
-  Users cannot share or bookmark specific UI states. Because the app operates on a local SQLite database, sharing a raw local UUID is useless. Furthermore, because this is a desktop app, clicking a shared link in a browser or chat app must correctly launch the Tauri application and route to the exact state.
-
-user_stories:
-  - US-01: As a user, I want to click "Share" and upload the local state to the platform API, so I can copy a URL that works for anyone.
-  - US-02: As a user, I want to click a shared link (e.g., in Slack) and have my OS launch the app directly to that hydrated conversation.
-  - US-03: As a user, I want to bookmark a specific message within a conversation so I can return to it instantly via the app's URL bar.
-  - US-04: As a user, I want my left-panel filters preserved in the app's URL bar.
-
-functional_requirements:
-  - FR-01: All UI state influencing visible content must derive from the WebView URL path or query params.
-  - FR-02: Clicking "Share" must check platform sync status. If unsynced, trigger an upload modal.
-  - FR-03: Shared URLs must use a custom OS URI scheme (e.g., `myapp://shared/$shareToken`), not standard HTTPS.
-  - FR-04: The recipient app must intercept the OS deep-link event, fetch from the platform API, hydrate the local SQLite DB, and update the WebView router.
-  - FR-05: Global query params: leftSearch, profileId, expandedFolders, expandedDateGroups, onboard.
-  - FR-06: Context query params: messageId, branchId, conversationSearch, autoScroll, rightTabView.
-  - FR-07: Settings must be full pages under `/settings/*` with explicit search param scoping.
-
-non_functional_requirements:
-  - NFR-01: Code splitting must be enabled via TanStack Router `lazy()` to keep initial WebView load fast.
-  - NFR-02: Deep-link interception must not spawn multiple app instances (single-instance policy).
-
-out_of_scope:
-  - Specifying the platform API hosting infrastructure.
-  - Real-time collaborative editing.
+```bash
+grep -rn "platform-api\|platformApi\|fetch.*platform" src/ --include="*.ts" --include="*.tsx"
+# Expect: zero results (all platform calls go through commands.*)
 ```
 
----
+### Task 19: Manual deep-link verification
 
-## 📄 Artifact 3 – Architecture Blueprint (SA‑001)
+- [ ] **Step 55: Test desktop deep-link in dev mode**
 
-```yaml
----
-artifact_id: SA-001-deep-linking-architecture-v3
-agent: SA
-version: 3
-status: active
-schema_version: 4.0
-goal_id: G-2026-001
-task_id: T2
-created: 2026-04-01T10:00:00Z
-author_agent: SA
-upstream_artifacts:
-  - PM-003-deep-linking-prd-v3: informed_by
-downstream_consumers:
-  - agent: CPO
-    expects: CPO-003-security-assessment
-  - agent: EL
-    expects: EL-001-implementation-summary
-checksum_sha256: c3d4e5f6a1b2...
----
-component_diagram: |
-  ```mermaid
-  graph TD
-    A[OS Event: myapp://shared/token] --> B[Tauri Backend - Rust]
-    B --> C[Single Instance Check]
-    C -->|Already Open| D[IPC Event to WebView]
-    C -->|Cold Start| E[Spawn App]
-    E --> D
-    D --> F[TanStack Router - React]
-    F --> G{Route Type}
-    G -->|Standard| H[Local SQLite Loader]
-    G -->|Shared| I[Platform API HTTP Call]
-    I --> J[SQLite Hydration]
-    J --> K[Router Redirect to Local Route]
-    H --> L[Render UI]
-    K --> L
-  ```
+> The `register_all()` call in Step 4 ensures schemes are registered at runtime for dev.
 
-tauri_integration:
-  deep_link_plugin: "tauri-plugin-deep-link"
-  single_instance: "tauri-plugin-single-instance"
-  ipc_bridge: |
-    Tauri backend receives the OS URI scheme. It strips the protocol prefix (e.g., converts `myapp://conversations/123` to `/conversations/123`) and emits an event to the frontend React app via `appWindow.emit('deep-link', path)`.
+```bash
+# Windows (dev mode works thanks to register_all)
+start skilldeck://conversations/test-123
 
-platform_api_contract:
-  note: "Infrastructure hosting is TBD. Defined purely as an HTTP boundary."
-  endpoints:
-    - POST /api/v1/conversations/{id}/share
-    - PUT /api/v1/conversations/{id}/sync
-    - GET /api/v1/shared/{shareToken}
+# Linux (dev mode works thanks to register_all)
+xdg-open skilldeck://conversations/test-123
 
-search_param_scoping:
-  strategy: Explicit Zod schema per route. Root schema defines global params. Child routes explicitly omit context params to prevent leakage.
+# macOS (requires bundled app in /Applications — dev mode won't work)
+# Only test after building and installing the .app bundle
 ```
 
----
+- [ ] **Step 56: Test URL state persistence**
 
-## 📄 Artifact 4 – Architecture Decision Record (SA‑003)
+1. Navigate to `/conversations/abc?messageId=xyz&leftSearch=test`
+2. Verify left panel search shows "test"
+3. Verify scroll targets message `xyz`
+4. Refresh the page — state should persist from URL
+5. Clear `leftSearch` — verify URL updates and param is removed
 
-```yaml
----
-artifact_id: SA-003-adr-deep-linking-v2
-agent: SA
-version: 2
-status: active
-schema_version: 4.0
-goal_id: G-2026-001
-task_id: T2
-created: 2026-04-01T10:15:00Z
-author_agent: SA
-upstream_artifacts:
-  - SA-001-deep-linking-architecture-v3: informed_by
-downstream_consumers:
-  - agent: EL
-    expects: EL-001-implementation-summary
-checksum_sha256: d4e5f6a1b2c3...
----
-adr_id: ADR-004
-title: OS URI Scheme Interception with Tauri IPC + TanStack Router
-status: accepted
-context: Desktop apps require OS-level protocol registration to handle links clicked in external apps. TanStack Router operates entirely within the WebView context and cannot natively intercept `myapp://` protocols.
-decision: Use `tauri-plugin-deep-link` to catch the OS event, pass the sanitized path to the frontend via Tauri IPC (`emit`), and use `router.navigate()` to push the path into TanStack Router. The router's loader then handles SQLite hydration.
-rationale: Keeps routing logic centralized in TanStack Router. Leverages Tauri's Rust backend for robust OS integration (preventing duplicate app spawns).
-alternatives_considered:
-  - Custom Rust URL parsing in the backend: Breaks separation of concerns; frontend should own UI state derivation.
-consequences:
-  positive: Native desktop feel; handles cold starts and warm navigations identically.
-  negative: Requires native code signing (macOS notarization/Windows certificates) for the OS to trust the custom URI scheme.
-```
+- [ ] **Step 57: Test shared conversation flow**
+
+1. Trigger `skilldeck://shared/<token>` deep link
+2. Verify loader calls `commands.getSharedConversation(token)`
+3. Verify hydration via `commands.hydrateSharedConversation(data)`
+4. Verify redirect to `/conversations/<localId>`
+
+- [ ] **Step 58: Test single-instance behavior (desktop)**
+
+1. Launch app
+2. Launch app again via `skilldeck://conversations/test`
+3. Verify second instance doesn't open
+4. Verify first instance navigates to the deep-link URL
 
 ---
 
-## 📄 Artifact 5 – Architecture Security Assessment (CPO‑003)
+## Summary of Key Corrections from Original Plan
 
-```yaml
----
-artifact_id: CPO-003-deep-linking-security-v2
-agent: CPO
-version: 2
-status: active
-schema_version: 4.0
-goal_id: G-2026-001
-task_id: T3
-created: 2026-04-01T11:00:00Z
-author_agent: CPO
-upstream_artifacts:
-  - SA-001-deep-linking-architecture-v3: reviewed
-downstream_consumers:
-  - agent: EL
-    expects: EL-001-implementation-summary
-checksum_sha256: e5f6a1b2c3d4...
----
-veto_status: approved
-
-security_review_findings:
-  - id: SEC-01
-    severity: High
-    finding: OS URI schemes can be hijacked by malicious applications if the app is not code-signed or if the protocol is poorly validated.
-    remediation_required: EL must ensure `tauri-plugin-deep-link` is configured. RM must enforce that release builds are code-signed (Apple Developer ID / EV Windows Certificate). Tauri backend must strictly validate URI format before sending to WebView.
-  - id: SEC-02
-    severity: Medium
-    finding: Query parameters in the WebView URL could be vectors for XSS if rendered unsafely.
-    remediation_required: EL must strictly use Zod schemas to parse and sanitize all search params. React must handle rendering (no `dangerouslySetInnerHTML`).
-  - id: SEC-03
-    severity: Medium
-    finding: Hydrating shared data into local SQLite from an unverified API response could inject malformed data or trigger SQL injection.
-    remediation_required: Local DB `hydrateSharedConversation` method MUST use parameterized queries (standard for Tauri SQL plugins) and strictly validate the JSON payload structure before writing.
-  - id: SEC-04
-    severity: Low
-    finding: Platform API base URL might change or be intercepted if hardcoded.
-    remediation_required: Platform API URL must be injected via Tauri environment variables (`TAURI_ENV_*`), not hardcoded in frontend JS.
-
-compliance_gates_passed:
-  - no_pii_in_urls: true
-  - local_db_hardened: true
-```
-
----
-
-## 📄 Artifact 6 – Implementation Summary (EL‑001)
-
-```yaml
----
-artifact_id: EL-001-deep-linking-implementation-v3
-agent: EL
-version: 3
-status: active
-schema_version: 4.0
-goal_id: G-2026-001
-task_id: T4
-created: 2026-04-01T12:00:00Z
-author_agent: EL
-upstream_artifacts:
-  - PM-003-deep-linking-prd-v3: informed_by
-  - SA-001-deep-linking-architecture-v3: informed_by
-  - CPO-003-deep-linking-security-v2: gate_passed
-downstream_consumers:
-  - agent: QA
-    expects: QA-001-test-plan
-checksum_sha256: f6a1b2c3d4e5...
----
-prerequisites_verified: true
-
-implementation_details:
-
-  tauri_configuration:
-    dependencies:
-      - "@tauri-apps/plugin-deep-link"
-      - "@tauri-apps/plugin-single-instance"
-    rust_setup: |
-      // src-tauri/src/lib.rs
-      fn main() {
-          tauri::Builder::default()
-              .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-                  // Emit to existing window if user clicks link while app is open
-                  app.emit("deep-link", _args).unwrap();
-              }))
-              .plugin(tauri_plugin_deep_link::init())
-              .run(tauri::generate_context!())
-              .expect("error while running tauri application");
-      }
-
-  frontend_ipc_listener:
-    file: src/main.tsx (or App.tsx)
-    logic: |
-      import { listen } from '@tauri-apps/api/event';
-      import { router } from '@tanstack/react-router';
-
-      // Listen for deep links from Tauri backend (both cold start and warm)
-      listen('deep-link', (event) => {
-          const rawUrl = event.payload as string;
-          // Strip protocol: myapp://conversations/123 -> /conversations/123
-          const path = rawUrl.replace(/^myapp:\/\//, '');
-          router.navigate({ to: path });
-      });
-
-  zod_schemas:
-    root_search:
-      code: |
-        export const rootSearchSchema = z.object({
-          leftSearch: z.string().optional(),
-          profileId: z.string().optional(),
-          expandedFolders: z.string().optional(),
-          expandedDateGroups: z.string().optional(),
-          onboard: z.enum(['true']).optional(),
-        })
-    conversation_search:
-      code: |
-        export const conversationSearchSchema = z.object({
-          messageId: z.string().optional(),
-          branchId: z.string().optional(),
-          conversationSearch: z.string().optional(),
-          autoScroll: z.string().transform(v => v !== 'false').default('true'),
-        })
-
-  loop_prevention_strategy:
-    pattern: "URL as Single Source of Truth"
-    description: "No bi-directional Zustand sync. Custom hooks read via useSearch() and write via useNavigate()."
-
-  shared_route_loader:
-    file: src/routes/shared/$shareToken.tsx
-    logic: |
-      1. Extract shareToken from params.
-      2. Call fetch(PLATFORM_API_URL + /shared/ + token) - URL injected via Tauri env.
-      3. If !ok, throw error (triggers errorComponent).
-      4. Call localDb.execute('INSERT INTO conversations ...', [payload data]) (Parameterized per SEC-03).
-      5. Throw redirect to standard local route.
-
-dependencies_added:
-  frontend:
-    - @tanstack/react-router
-    - @tanstack/router-vite-plugin
-    - zod
-    - @tauri-apps/api
-    - @tauri-apps/plugin-deep-link
-  rust:
-    - tauri-plugin-deep-link
-    - tauri-plugin-single-instance
-
-security_verification:
-  - sec_01_resolved: "Tauri plugins configured. Code signing handled in RM-001."
-  - sec_03_resolved: "SQLite writes use parameterized Tauri SQL bindings."
-  - sec_04_resolved: "API base URL mapped to import.meta.env.VITE_PLATFORM_API_URL populated by Tauri."
-```
-
----
-
-## 📄 Artifact 7 – Test Plan & Sign-off (QA‑001)
-
-```yaml
----
-artifact_id: QA-001-deep-linking-test-plan-v3
-agent: QA
-version: 3
-status: active
-schema_version: 4.0
-goal_id: G-2026-001
-task_id: T5
-created: 2026-04-01T14:00:00Z
-author_agent: QA
-upstream_artifacts:
-  - EL-001-deep-linking-implementation-v3: informed_by
-downstream_consumers:
-  - agent: RM
-    expects: RM-001-release-checklist
-checksum_sha256: a1b2c3d4e5f6...
----
-sign_off_status: approved
-
-test_strategy:
-  unit: Vitest mocking TanStack hooks and Tauri `listen` API.
-  integration: React Testing Library checking DOM updates on route changes.
-  e2e: WebdriverIO/Tauri driver testing actual OS URI scheme invocation.
-
-test_matrix:
-  - id: TC-24
-    title: OS Deep Link hydration and redirect
-    type: e2e
-    priority: P0
-    steps: Use OS shell command (e.g., `open myapp://shared/abc123`). Mock Platform API to return valid payload.
-    expected: App window focuses. SQLite contains new row. UI renders at /conversations/{newLocalId}.
-  - id: TC-29
-    title: Single Instance Policy prevents duplicate spawn
-    type: e2e
-    priority: P0
-    steps: App is open. Trigger OS deep link.
-    expected: No second dock/taskbar icon appears. Existing window receives event.
-  - id: TC-30
-    title: Tauri IPC strips protocol correctly
-    type: unit
-    priority: P1
-    steps: Mock emit event with payload `myapp://settings/profiles?leftSearch=test`.
-    expected: router.navigate is called with `{ to: '/settings/profiles', search: { leftSearch: 'test' } }`.
-  - id: TC-05
-    title: Conversation with messageId
-    type: integration
-    priority: P0
-    steps: Render component with search.messageId='abc'
-    expected: scrollToMessage is called with 'abc'.
-
-coverage:
-  unit_pct: 96
-  integration_pct: 92
-  e2e_critical_paths: 100
-```
-
----
-
-## 📄 Artifact 8 – Release Checklist (RM‑001)
-
-```yaml
----
-artifact_id: RM-001-deep-linking-release-v3
-agent: RM
-version: 3
-status: active
-schema_version: 4.0
-goal_id: G-2026-001
-task_id: T6
-created: 2026-04-01T15:00:00Z
-author_agent: RM
-upstream_artifacts:
-  - QA-001-deep-linking-test-plan-v3: gate_passed
-  - EL-001-deep-linking-implementation-v3: informed_by
-downstream_consumers:
-  - agent: CDR
-    expects: CDR-003-synthesised-output
-checksum_sha256: b2c3d4e5f6a1...
----
-deployment_veto: false
-
-pre_deployment_checks:
-  - id: RM-CHK-01
-    task: Verify QA-001 sign_off_status is 'active'
-    status: passed
-  - id: RM-CHK-02
-    task: Verify CPO-003 veto_status is 'approved'
-    status: passed
-  - id: RM-CHK-03
-    task: Verify macOS Code Signing & Notarization
-    rationale: "macOS Gatekeeper will silently ignore OS deep-link clicks (myapp://) if the .app bundle is not signed and notarized."
-    validation_criteria:
-      - Apple Developer Certificate is valid in Keychain.
-      - `tauri build` succeeds notarization step.
-      - `spctl --assess --type open ./src-tauri/target/release/bundle/macos/App.app` passes.
-    status: pending
-  - id: RM-CHK-04
-    task: Verify Windows Code Signing
-    rationale: "Windows SmartScreen will warn users and block URI scheme registration if the .msi/.exe lacks an EV or standard code signing certificate."
-    validation_criteria:
-      - Windows Certificate is installed in CI agent.
-      - `signtool verify /pa /all` passes on built artifact.
-    status: pending
-  - id: RM-CHK-05
-    task: Verify Tauri URI Scheme Configuration
-    validation_criteria:
-      - `tauri.conf.json` contains the correct `identifier` (e.g., `com.mycompany.app`), which dictates the `com.mycompany.app://` protocol.
-      - Installer scripts (.pkg, .msi) successfully register the protocol to the installed executable.
-    status: pending
-  - id: RM-CHK-06
-    task: Verify Platform API contract readiness
-    rationale: "Platform infra is TBD, but the API endpoints must exist for the desktop app to function."
-    validation_criteria:
-      - Base URL is injectable via CI secrets.
-      - Endpoints `/api/v1/shared/{token}` are reachable and returning expected payloads from the staging environment.
-    status: pending
-
-rollout_strategy:
-  type: tauri_desktop_release
-  steps:
-    - Run CI pipeline to build macOS (.dmg) and Windows (.msi) installers.
-    - OS-specific code signing and notarization.
-    - Upload artifacts to GitHub Releases / Distribution portal.
-    - Publish release notes specifying that users must update to support the new `myapp://` link sharing feature.
-
-rollback_procedure:
-  trigger: Critical failure in SQLite hydration logic breaking local DB state.
-  steps:
-    - Pull previous release installer from GitHub Releases.
-    - Communicate rollback to users via in-app notification / email.
-    - (Note: Deep links are harmless if the app is rolled back; the app will simply open to the default index route and fail gracefully via TanStack's errorComponent).
-```
+| Area | Original (Wrong) | Revised (Correct) |
+|---|---|---|
+| **Platform API** | New JS `src/lib/platform-api.ts` with `fetch()` | New methods on existing Rust `PlatformClient` + Tauri commands |
+| **DB Hydration** | Raw `sqlx::query` in Tauri command | Uses existing crate models/repos (zero raw SQL) |
+| **Cargo.toml** | `tauri-plugin-single-instance = "2"` (no feature) | `{ version = "2", features = ["deep-link"] }` with target cfg |
+| **Plugin order** | No ordering specified | Single-instance **must** be first plugin |
+| **Single-instance callback** | Manually emits `deep-link` event | Callback is informational only — "deep link event already triggered" |
+| **Frontend API** | `listen('deep-link', ...)` from `@tauri-apps/api/event` | `onOpenUrl()` and `getCurrent()` from `@tauri-apps/plugin-deep-link` |
+| **URL payload type** | Single string | **Array** of strings (`urls: string[]`) |
+| **Config location** | `app.protocols` in tauri.conf.json | `plugins.deep-link.desktop.schemes` in tauri.conf.json |
+| **Dev mode** | Not addressed | `register_all()` in setup for Linux/Windows debug builds |
+| **Permissions** | Not included | `deep-link:default` + `core:event:default` in capabilities |
+| **npm packages** | Missing `@tauri-apps/plugin-deep-link` | Added to dependencies |
+| **Route file naming** | `conversations/$conversationId.tsx` | `conversations.$conversationId.tsx` (TanStack convention) |
+| **Root search access** | `useSearch({ from: '/' })` | `Route.useSearch()` importing `Route` from `__root.tsx` |
+| **Binding regeneration** | Not specified | Explicit step to run specta/ts-rs binding gen |
