@@ -32,6 +32,7 @@ use events::{AgentEvent, McpEvent, SkillEvent, WorkflowEvent};
 use state::AppState;
 use std::sync::Arc;
 use tauri::Manager;
+use tauri_plugin_deep_link::DeepLinkExt;
 
 // Specta bindings export
 use specta_typescript::{BigIntExportBehavior, Typescript};
@@ -214,6 +215,18 @@ pub fn run() {
     let invoke_handler = builder.invoke_handler();
     // Start building the Tauri app
     let mut tauri_builder = tauri::Builder::default();
+
+    // Add single-instance plugin first (desktop only)
+    #[cfg(desktop)]
+    {
+        tauri_builder =
+            tauri_builder.plugin(tauri_plugin_single_instance::init(|_app, argv, _cwd| {
+                println!("new instance opened with {argv:?}, deep-link event already handled");
+            }));
+    }
+
+    // Add deep-link plugin (required for custom scheme handling)
+    tauri_builder = tauri_builder.plugin(tauri_plugin_deep_link::init());
 
     // Conditionally add the devtools plugin only for debug builds
     // #[cfg(debug_assertions)]
