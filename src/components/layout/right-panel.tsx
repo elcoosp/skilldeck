@@ -89,13 +89,13 @@ const TABS: {
   label: string
   Icon: React.FC<{ className?: string }>
 }[] = [
-  { id: 'session', label: 'Session', Icon: Cpu },
-  { id: 'skills', label: 'Skills', Icon: Layers },
-  { id: 'mcp', label: 'MCP', Icon: Zap },
-  { id: 'workflow', label: 'Workflow', Icon: GitBranch },
-  { id: 'analytics', label: 'Analytics', Icon: BarChart2 },
-  { id: 'artifacts', label: 'Artifacts', Icon: FileCode }
-]
+    { id: 'session', label: 'Session', Icon: Cpu },
+    { id: 'skills', label: 'Skills', Icon: Layers },
+    { id: 'mcp', label: 'MCP', Icon: Zap },
+    { id: 'workflow', label: 'Workflow', Icon: GitBranch },
+    { id: 'analytics', label: 'Analytics', Icon: BarChart2 },
+    { id: 'artifacts', label: 'Artifacts', Icon: FileCode }
+  ]
 
 export function RightPanel() {
   const [activeTab, setActiveTab] = useState<Tab>('session')
@@ -593,7 +593,7 @@ function WorkflowTab() {
   )
 }
 
-// ── Analytics tab (unchanged) ─────────────────────────────────────────────────────────────
+// ── Analytics tab ─────────────────────────────────────────────────────────────
 function AnalyticsTab() {
   const { data: analytics, isLoading, error } = useAnalytics()
   const [fullYearDialogOpen, setFullYearDialogOpen] = useState(false)
@@ -678,15 +678,19 @@ function AnalyticsTab() {
     <div className="p-4 space-y-5">
       {/* Overview stats */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-lg border border-border p-3">
-          <p className="text-xs text-muted-foreground">Conversations</p>
-          <p className="text-xl font-semibold">
+        <div className="rounded-lg border border-border p-3 min-w-0">
+          <p className="text-xs text-muted-foreground truncate">
+            Conversations
+          </p>
+          <p className="text-xl font-semibold truncate">
             {analytics.total_conversations}
           </p>
         </div>
-        <div className="rounded-lg border border-border p-3">
-          <p className="text-xs text-muted-foreground">Messages</p>
-          <p className="text-xl font-semibold">{analytics.total_messages}</p>
+        <div className="rounded-lg border border-border p-3 min-w-0">
+          <p className="text-xs text-muted-foreground truncate">Messages</p>
+          <p className="text-xl font-semibold truncate">
+            {analytics.total_messages}
+          </p>
         </div>
       </div>
 
