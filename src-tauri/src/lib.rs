@@ -171,6 +171,12 @@ pub fn run() {
             resend_verification_email,
             export_gdpr_data,
             delete_platform_account,
+            // shared conversation commands
+            get_shared_conversation,
+            check_sync_status,
+            share_conversation,
+            sync_conversation_to_platform,
+            hydrate_shared_conversation,
             // agent
             cancel_agent,
             // settings

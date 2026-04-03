@@ -14,6 +14,7 @@ use std::sync::Arc;
 use tauri::State;
 use uuid::Uuid;
 
+use crate::platform_client::{HydrateResponse, SharedConversationPayload};
 use crate::state::AppState;
 use skilldeck_models::conversations::{self, Entity as Conversation};
 use skilldeck_models::messages::{self as msg_model, Entity as Messages};
@@ -118,7 +119,7 @@ pub async fn list_conversations(
             created_at: conv.created_at.to_string(),
             updated_at: conv.updated_at.to_string(),
             message_count: count,
-            folder_id: conv.folder_id, // <-- added this line
+            folder_id: conv.folder_id,
             pinned: conv.pinned,
         });
     }
@@ -257,4 +258,104 @@ pub async fn update_conversation_workspace(
     active.update(db).await.map_err(|e| e.to_string())?;
 
     Ok(())
+}
+
+// ── Hydrate shared conversation ─────────────────────────────────────────────
+
+#[specta]
+#[tauri::command]
+pub async fn hydrate_shared_conversation(
+    state: State<'_, Arc<AppState>>,
+    payload: SharedConversationPayload,
+) -> Result<HydrateResponse, String> {
+    let db = state
+        .registry
+        .db
+        .connection()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let now = chrono::Utc::now().fixed_offset();
+
+    // Check if conversation already exists by ID (if the payload ID is a UUID)
+    let conv_uuid = Uuid::parse_str(&payload.id).unwrap_or_else(|_| Uuid::new_v4());
+
+    let existing = Conversation::find_by_id(conv_uuid)
+        .one(db)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let final_id = if let Some(conv) = existing {
+        // Conversation already exists locally – do nothing
+        conv.id
+    } else {
+        // Create a new conversation
+        // Need a default profile ID – use the first active profile
+        use skilldeck_models::profiles::Entity as Profiles;
+        let default_profile = Profiles::find()
+            .filter(skilldeck_models::profiles::Column::DeletedAt.is_null())
+            .one(db)
+            .await
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| {
+                "No active profile found to own the imported conversation".to_string()
+            })?;
+
+        let new_conv = conversations::ActiveModel {
+            id: Set(conv_uuid),
+            profile_id: Set(default_profile.id),
+            title: Set(Some(payload.title.clone())),
+            workspace_id: Set(None),
+            folder_id: Set(None),
+            status: Set("active".to_string()),
+            created_at: Set(now),
+            updated_at: Set(now),
+            archived_at: Set(None),
+            pinned: Set(false),
+        };
+        new_conv.insert(db).await.map_err(|e| e.to_string())?;
+        conv_uuid
+    };
+
+    // Insert messages that don't already exist
+    for msg in &payload.messages {
+        let msg_uuid = Uuid::parse_str(&msg.id).unwrap_or_else(|_| Uuid::new_v4());
+        let existing_msg = skilldeck_models::messages::Entity::find_by_id(msg_uuid)
+            .one(db)
+            .await
+            .map_err(|e| e.to_string())?;
+
+        if existing_msg.is_none() {
+            let msg_created_at = chrono::DateTime::parse_from_rfc3339(&msg.created_at)
+                .map(|dt| dt.with_timezone(&chrono::Utc).fixed_offset())
+                .unwrap_or(now);
+
+            let new_msg = skilldeck_models::messages::ActiveModel {
+                id: Set(msg_uuid),
+                conversation_id: Set(final_id),
+                parent_id: Set(None),
+                branch_id: Set(msg
+                    .branch_id
+                    .as_ref()
+                    .and_then(|id| Uuid::parse_str(id).ok())),
+                seen: Set(false),
+                role: Set(msg.role.clone()),
+                content: Set(msg.content.clone()),
+                metadata: Set(None),
+                node_document: Set(None),
+                context_items: Set(None),
+                input_tokens: Set(None),
+                output_tokens: Set(None),
+                cache_read_tokens: Set(None),
+                cache_write_tokens: Set(None),
+                status: Set("active".to_string()),
+                created_at: Set(msg_created_at),
+            };
+            new_msg.insert(db).await.map_err(|e| e.to_string())?;
+        }
+    }
+
+    Ok(HydrateResponse {
+        local_id: final_id.to_string(),
+    })
 }

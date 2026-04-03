@@ -164,6 +164,52 @@ pub struct SyncSkillsResponse {
     pub synced_at: String,
 }
 
+// ── Shared Conversation DTOs ─────────────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize, Clone, Type)]
+pub struct SharedConversationMessage {
+    pub id: String,
+    pub role: String,
+    pub content: String,
+    pub created_at: String,
+    pub branch_id: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Type)]
+pub struct SharedConversationPayload {
+    pub id: String,
+    pub title: String,
+    pub messages: Vec<SharedConversationMessage>,
+    pub created_at: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Type)]
+pub struct ShareResponse {
+    pub share_token: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Type)]
+pub struct SyncStatusResponse {
+    pub is_synced: bool,
+    pub last_synced_at: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Type)]
+pub struct SyncConversationResponse {
+    pub share_token: String,
+}
+
+#[derive(Debug, Serialize, Type)]
+pub struct SyncConversationRequest {
+    pub title: String,
+    pub messages: Vec<SharedConversationMessage>,
+}
+
+#[derive(Debug, Serialize, Type)]
+pub struct HydrateResponse {
+    pub local_id: String,
+}
+
 // ── Client ────────────────────────────────────────────────────────────────────
 
 #[derive(Clone)]
@@ -728,6 +774,97 @@ impl PlatformClient {
                 .http
                 .get(url.clone())
                 .header("Authorization", &auth)
+                .send()
+                .await?;
+            Self::check_response(resp).await
+        };
+        self.retry(fut, cancel).await
+    }
+
+    // ── Shared conversation endpoints (public, no auth) ─────────────────────────
+
+    /// Fetch a publicly shared conversation by token. No auth required.
+    pub async fn get_shared_conversation(
+        &self,
+        share_token: &str,
+        cancel: Option<CancellationToken>,
+    ) -> Result<SharedConversationPayload, PlatformError> {
+        self.check_enabled()?;
+        let url = format!("{}/api/shared/{}", self.base_url, share_token);
+        let fut = || async {
+            let resp = self.http.get(&url).send().await?;
+            Self::check_response(resp).await
+        };
+        self.retry(fut, cancel).await
+    }
+
+    /// Check if a conversation is synced to the platform (requires auth).
+    pub async fn check_sync_status(
+        &self,
+        conversation_id: &str,
+        cancel: Option<CancellationToken>,
+    ) -> Result<SyncStatusResponse, PlatformError> {
+        self.check_enabled()?;
+        let auth = self.auth_header()?;
+        let url = format!(
+            "{}/api/conversations/{}/sync-status",
+            self.base_url, conversation_id
+        );
+        let fut = || async {
+            let resp = self
+                .http
+                .get(&url)
+                .header("Authorization", &auth)
+                .send()
+                .await?;
+            Self::check_response(resp).await
+        };
+        self.retry(fut, cancel).await
+    }
+
+    /// Create a share token for a conversation (requires auth).
+    pub async fn share_conversation(
+        &self,
+        conversation_id: &str,
+        cancel: Option<CancellationToken>,
+    ) -> Result<ShareResponse, PlatformError> {
+        self.check_enabled()?;
+        let auth = self.auth_header()?;
+        let url = format!(
+            "{}/api/conversations/{}/share",
+            self.base_url, conversation_id
+        );
+        let fut = || async {
+            let resp = self
+                .http
+                .post(&url)
+                .header("Authorization", &auth)
+                .send()
+                .await?;
+            Self::check_response(resp).await
+        };
+        self.retry(fut, cancel).await
+    }
+
+    /// Sync a conversation to the platform (requires auth).
+    pub async fn sync_conversation_to_platform(
+        &self,
+        conversation_id: &str,
+        payload: SyncConversationRequest,
+        cancel: Option<CancellationToken>,
+    ) -> Result<SyncConversationResponse, PlatformError> {
+        self.check_enabled()?;
+        let auth = self.auth_header()?;
+        let url = format!(
+            "{}/api/conversations/{}/sync",
+            self.base_url, conversation_id
+        );
+        let fut = || async {
+            let resp = self
+                .http
+                .put(&url)
+                .header("Authorization", &auth)
+                .json(&payload)
                 .send()
                 .await?;
             Self::check_response(resp).await
