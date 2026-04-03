@@ -37,5 +37,22 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": [
+          "skilldeck"
+        ]
+      },
+      "mobile": [
+        {
+          "scheme": [
+            "skilldeck"
+          ],
+          "appLink": false
+        }
+      ]
+    }
   }
 }
