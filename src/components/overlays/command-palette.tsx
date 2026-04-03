@@ -11,25 +11,26 @@
 import { Command } from 'cmdk'
 import { FolderOpen, Layers, MessageSquare, Plus, Settings } from 'lucide-react'
 import { useEffect } from 'react'
+import { useRouter } from '@tanstack/react-router'
 import {
   useConversations,
   useCreateConversation
 } from '@/hooks/use-conversations'
 import { useProfiles } from '@/hooks/use-profiles'
-import { useUnifiedSkills } from '@/hooks/use-unified-skills' // changed
+import { useUnifiedSkills } from '@/hooks/use-unified-skills'
 import { useConversationStore } from '@/store/conversation'
 import { useUIOverlaysStore } from '@/store/ui-overlays'
 
 export function CommandPalette() {
+  const router = useRouter()
   const open = useUIOverlaysStore((s) => s.commandPaletteOpen)
   const setOpen = useUIOverlaysStore((s) => s.setCommandPaletteOpen)
   const setActiveConversation = useConversationStore(
     (s) => s.setActiveConversation
   )
-  const setSettingsOpen = useUIOverlaysStore((s) => s.setSettingsOpen)
 
   const { data: conversations = [] } = useConversations()
-  const { unifiedSkills } = useUnifiedSkills() // use unified skills
+  const { unifiedSkills } = useUnifiedSkills()
   const { data: profiles = [] } = useProfiles()
 
   const defaultProfile = profiles.find((p) => p.is_default) ?? profiles[0]
@@ -100,7 +101,7 @@ export function CommandPalette() {
                 label="Settings"
                 shortcut="⌘,"
                 onSelect={() => {
-                  setSettingsOpen(true)
+                  router.navigate({ to: '/settings/api-keys' })
                   setOpen(false)
                 }}
               />

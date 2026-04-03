@@ -1,17 +1,18 @@
 // src/components/settings/referral-tab.tsx
 
-import { openUrl } from '@tauri-apps/plugin-opener' // <-- corrected import
+import { openUrl } from '@tauri-apps/plugin-opener'
 import { Copy, ExternalLink, Gift, Users } from 'lucide-react'
 import { toast } from 'sonner'
+import { useRouter } from '@tanstack/react-router'
 import { usePlatformPreferences, useReferral } from '@/hooks/use-platform'
 import { PLATFORM_BASE_URL } from '@/lib/config'
 
 export function ReferralTab() {
+  const router = useRouter()
   const { stats, create } = useReferral()
   const { query: prefsQuery } = usePlatformPreferences()
 
   const code = stats.data?.code
-  // Build referral URL using platform base URL (e.g., https://platform.skilldeck.dev/r/<code>)
   const referralUrl = code ? `${PLATFORM_BASE_URL}/r/${code.code}` : null
 
   function copyCode() {
@@ -103,13 +104,7 @@ export function ReferralTab() {
               <button
                 type="button"
                 className="px-4 py-2 rounded-md bg-primary text-primary-foreground font-medium hover:bg-primary/90"
-                onClick={() => {
-                  window.dispatchEvent(
-                    new CustomEvent('skilldeck:open-settings', {
-                      detail: { tab: 'platform' }
-                    })
-                  )
-                }}
+                onClick={() => router.navigate({ to: '/settings/platform' })}
               >
                 Configure Platform
               </button>

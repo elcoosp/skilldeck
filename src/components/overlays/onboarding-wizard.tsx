@@ -2,6 +2,7 @@
 import { ArrowRight, Check, Key, Mail, Rocket, Shield } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { useRouter } from '@tanstack/react-router'
 import { useCreateConversation } from '@/hooks/use-conversations'
 import { useProfiles } from '@/hooks/use-profiles'
 import { commands } from '@/lib/bindings'
@@ -16,6 +17,7 @@ import { useUIPersistentStore } from '@/store/ui-state'
 type Step = 'welcome' | 'apikey' | 'platform' | 'done'
 
 export function OnboardingWizard() {
+  const router = useRouter()
   const onboardingComplete = useUIPersistentStore((s) => s.onboardingComplete)
   const setOnboardingComplete = useUIPersistentStore(
     (s) => s.setOnboardingComplete
@@ -81,14 +83,14 @@ export function OnboardingWizard() {
   const handleApiKeySkip = async () => {
     setSaving(true)
     try {
-      const profilesRes = await commands.listProfiles(false) // <-- pass false
+      const profilesRes = await commands.listProfiles(false)
       if (profilesRes.status === 'ok' && profilesRes.data.length === 0) {
         await commands.createProfile(
           'Local (Ollama)',
           'ollama',
           'glm-5:cloud',
           null
-        ) // <-- add null for systemPrompt
+        )
         toast.info('Default local profile created')
       }
     } catch (e) {
@@ -113,11 +115,7 @@ export function OnboardingWizard() {
 
   const handleManageProfiles = () => {
     setOnboardingComplete(true)
-    window.dispatchEvent(
-      new CustomEvent('skilldeck:open-settings', {
-        detail: { tab: 'profiles' }
-      })
-    )
+    router.navigate({ to: '/settings/profiles' })
   }
 
   const handleBrowseSkills = () => {

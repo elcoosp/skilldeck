@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { useRouter } from '@tanstack/react-router'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -34,6 +35,7 @@ import type { UpdatePreferencesPayload } from '@/lib/platform'
 import { useSettingsStore } from '@/store/settings'
 
 export function PreferencesTab() {
+  const router = useRouter()
   const { query, update, resendVerification } = usePlatformPreferences()
   const prefs = query.data
 
@@ -76,7 +78,7 @@ export function PreferencesTab() {
         <p className="text-sm text-muted-foreground mb-2">
           Platform not configured.
         </p>
-        <Button size="sm" onClick={() => (window.location.hash = '#platform')}>
+        <Button size="sm" onClick={() => router.navigate({ to: '/settings/platform' })}>
           Go to Platform Settings
         </Button>
       </div>

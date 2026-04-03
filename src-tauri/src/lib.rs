@@ -32,7 +32,6 @@ use events::{AgentEvent, McpEvent, SkillEvent, WorkflowEvent};
 use state::AppState;
 use std::sync::Arc;
 use tauri::Manager;
-use tauri_plugin_deep_link::DeepLinkExt;
 
 // Specta bindings export
 use specta_typescript::{BigIntExportBehavior, Typescript};

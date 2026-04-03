@@ -7,6 +7,7 @@ import { AlertCircle, RefreshCw, Search } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { useDebounce } from 'use-debounce'
+import { useRouter } from '@tanstack/react-router'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -61,6 +62,7 @@ function useColumnCount(ref: React.RefObject<HTMLElement | null>) {
 const ROW_HEIGHT_ESTIMATE = 164 // px
 
 export function UnifiedSkillList() {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState<'local' | 'registry'>('local')
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('all')
@@ -286,8 +288,7 @@ export function UnifiedSkillList() {
     : null
 
   const handleEnablePlatform = () => {
-    setSettingsTab('platform')
-    setSettingsOpen(true)
+    router.navigate({ to: '/settings/platform' })
   }
 
   const handleInstall = (skill: UnifiedSkill) => {
@@ -315,8 +316,7 @@ export function UnifiedSkillList() {
             action: {
               label: 'Register',
               onClick: () => {
-                setSettingsTab('platform')
-                setSettingsOpen(true)
+                router.navigate({ to: '/settings/platform' })
               }
             }
           })
@@ -325,7 +325,7 @@ export function UnifiedSkillList() {
         }
       }
     })
-  }, [syncMutation, setSettingsTab, setSettingsOpen])
+  }, [syncMutation, router])
 
   return (
     <div className="flex h-full min-h-0">
