@@ -7,18 +7,15 @@ interface UILayoutState {
   leftTab: 'conversations' | 'skills' | 'community'
   setLeftTab: (tab: 'conversations' | 'skills' | 'community') => void
   rightTab:
-    | 'session'
-    | 'skills'
-    | 'mcp'
-    | 'workflow'
-    | 'analytics'
-    | 'artifacts'
+  | 'session'
+  | 'skills'
+  | 'mcp'
+  | 'workflow'
+  | 'analytics'
+  | 'artifacts'
   setRightTab: (
     tab: 'session' | 'skills' | 'mcp' | 'workflow' | 'analytics'
   ) => void
-  collapsedDateGroups: Record<string, boolean>
-  toggleDateGroup: (key: string) => void
-  setDateGroupCollapsed: (key: string, collapsed: boolean) => void
 }
 
 export const useUILayoutStore = create<UILayoutState>()(
@@ -29,29 +26,13 @@ export const useUILayoutStore = create<UILayoutState>()(
       leftTab: 'conversations',
       setLeftTab: (tab) => set({ leftTab: tab }),
       rightTab: 'session',
-      setRightTab: (tab) => set({ rightTab: tab }),
-      collapsedDateGroups: {},
-      toggleDateGroup: (key) =>
-        set((state) => ({
-          collapsedDateGroups: {
-            ...state.collapsedDateGroups,
-            [key]: !state.collapsedDateGroups[key]
-          }
-        })),
-      setDateGroupCollapsed: (key, collapsed) =>
-        set((state) => ({
-          collapsedDateGroups: {
-            ...state.collapsedDateGroups,
-            [key]: collapsed
-          }
-        }))
+      setRightTab: (tab) => set({ rightTab: tab })
     }),
     {
       name: 'skilldeck-ui-layout',
       partialize: (state) => ({
         leftTab: state.leftTab,
-        rightTab: state.rightTab,
-        collapsedDateGroups: state.collapsedDateGroups
+        rightTab: state.rightTab
       })
     }
   )

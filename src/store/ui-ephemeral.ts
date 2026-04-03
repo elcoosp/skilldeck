@@ -1,8 +1,6 @@
 import { create } from 'zustand'
 import type { NodeDocument } from '@/lib/bindings'
 
-// Placeholder type – replace with actual when available
-
 interface UIState {
   drafts: Record<string, string>
   setDraft: (conversationId: string, content: string) => void
@@ -19,8 +17,6 @@ interface UIState {
   setAgentRunning: (conversationId: string, running: boolean) => void
   streamingError: Record<string, boolean>
   setStreamingError: (conversationId: string, error: boolean) => void
-  searchQuery: string
-  setSearchQuery: (query: string) => void
   conversationSearchQuery: string
   setConversationSearchQuery: (query: string) => void
 }
@@ -73,8 +69,6 @@ export const useUIEphemeralStore = create<UIState>((set) => ({
     set((state) => ({
       streamingError: { ...state.streamingError, [conversationId]: error }
     })),
-  searchQuery: '',
-  setSearchQuery: (query) => set({ searchQuery: query }),
   conversationSearchQuery: '',
   setConversationSearchQuery: (query) => set({ conversationSearchQuery: query })
 }))

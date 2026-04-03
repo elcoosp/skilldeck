@@ -47,12 +47,13 @@ import {
   useFolders,
   useMoveConversationToFolder
 } from '@/hooks/use-folders'
+import { useLeftPanelSearch } from '@/hooks/use-left-panel-search'
+import { useExpandedDateGroups } from '@/hooks/use-expanded-date-groups'
+import { useProfileFilter } from '@/hooks/use-profile-filter'
 import { useProfiles } from '@/hooks/use-profiles'
 import { useOpenWorkspace, useWorkspaces } from '@/hooks/use-workspaces'
 import { cn } from '@/lib/utils'
 import { useConversationStore } from '@/store/conversation'
-import { useUIEphemeralStore } from '@/store/ui-ephemeral'
-import { useUILayoutStore } from '@/store/ui-layout'
 import { useUIOverlaysStore } from '@/store/ui-overlays'
 import { useWorkspaceStore } from '@/store/workspace'
 
@@ -128,8 +129,6 @@ function getDateGroupKey(dateStr: string): string {
 // ----------------------------------------------------------------------
 export function LeftPanel() {
   const router = useRouter()
-  const searchQuery = useUIEphemeralStore((s) => s.searchQuery)
-  const setSearchQuery = useUIEphemeralStore((s) => s.setSearchQuery)
   const setGlobalSearchOpen = useUIOverlaysStore((s) => s.setGlobalSearchOpen)
   const activeConversationId = useConversationStore(
     (s) => s.activeConversationId
@@ -140,42 +139,39 @@ export function LeftPanel() {
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId)
   const setActiveWorkspace = useWorkspaceStore((s) => s.setActiveWorkspace)
 
+  // URL-derived state
+  const { leftSearch, setLeftSearch } = useLeftPanelSearch()
+  const { expandedDateGroups, toggleDateGroup } = useExpandedDateGroups()
+  const { profileId, setProfileId } = useProfileFilter()
+
   // Track which conversation is being deleted for animation
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
-  // Profile filter state
+  // Profile data
   const { data: profiles = [] } = useProfiles(false) // active profiles only
-  const [filterProfileId, setFilterProfileId] = useState<string | null>(null)
-
-  // Get profiles first for default profile fallback
   const { data: allProfiles, isLoading: profilesLoading } = useProfiles(true) // needed for default profile (might be deleted)
   const defaultProfile =
     allProfiles?.find((p) => p.is_default) ?? allProfiles?.[0]
 
-  // Pass the profile ID to conversations query (null means all profiles)
+  // Conversations query
   const { data: conversations, isLoading: conversationsLoading } =
-    useConversations(filterProfileId)
+    useConversations(profileId)
 
   // Folders
   const { data: folders = [], isLoading: foldersLoading } = useFolders()
   const createFolder = useCreateFolder()
   const moveConversationToFolder = useMoveConversationToFolder()
 
-  // UI state for collapsed date groups
-  const collapsedDateGroups = useUILayoutStore((s) => s.collapsedDateGroups)
-  const _toggleDateGroup = useUILayoutStore((s) => s.toggleDateGroup)
-  const setDateGroupCollapsed = useUILayoutStore((s) => s.setDateGroupCollapsed)
-
   // New folder creation modal state (simple prompt)
   const [showNewFolderInput, setShowNewFolderInput] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
 
-  // Pass the profile ID to useCreateConversation so it can invalidate the correct query key
+  // Create conversation mutation
   const createConversation = useCreateConversation(defaultProfile?.id)
 
+  // Workspaces
   const { data: workspaces = [] } = useWorkspaces()
   const openWorkspace = useOpenWorkspace()
-
   const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId)
 
   // Helper to get workspace name from ID
@@ -187,8 +183,8 @@ export function LeftPanel() {
 
   // Apply search filter client-side
   const filtered = conversations?.filter((c) =>
-    searchQuery
-      ? (c.title ?? '').toLowerCase().includes(searchQuery.toLowerCase())
+    leftSearch
+      ? (c.title ?? '').toLowerCase().includes(leftSearch.toLowerCase())
       : true
   )
 
@@ -279,23 +275,11 @@ export function LeftPanel() {
     }
   }
 
-  const _handleMoveToFolder = async (
-    conversationId: string,
-    folderId: string | null
-  ) => {
-    try {
-      await moveConversationToFolder.mutateAsync({ conversationId, folderId })
-      toast.success(folderId ? 'Moved to folder' : 'Removed from folder')
-    } catch (err) {
-      toast.error(`Failed to move: ${err}`)
-    }
-  }
-
   const isLoading = profilesLoading || conversationsLoading || foldersLoading
 
   // Find the currently selected profile name (if any)
-  const selectedProfile = filterProfileId
-    ? profiles.find((p) => p.id === filterProfileId)
+  const selectedProfile = profileId
+    ? profiles.find((p) => p.id === profileId)
     : null
 
   return (
@@ -311,9 +295,7 @@ export function LeftPanel() {
               variant="ghost"
               size="icon-sm"
               aria-label="Search all conversations"
-              onClick={() => {
-                setGlobalSearchOpen(true)
-              }}
+              onClick={() => setGlobalSearchOpen(true)}
             >
               <Search className="size-4" />
             </Button>
@@ -344,18 +326,16 @@ export function LeftPanel() {
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
             <Input
               placeholder="Search…"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              value={leftSearch}
+              onChange={(e) => setLeftSearch(e.target.value)}
               className="pl-8 h-7 text-sm"
             />
           </div>
 
           {/* Profile filter dropdown */}
           <Select
-            value={filterProfileId ?? 'all'}
-            onValueChange={(val) =>
-              setFilterProfileId(val === 'all' ? null : val)
-            }
+            value={profileId ?? 'all'}
+            onValueChange={(val) => setProfileId(val === 'all' ? null : val)}
           >
             <SelectTrigger className="w-[140px] h-7">
               <SelectValue placeholder="Profile" />
@@ -392,7 +372,7 @@ export function LeftPanel() {
             </div>
           ) : filtered?.length === 0 ? (
             // No conversations after applying search (or no conversations at all)
-            searchQuery ? (
+            leftSearch ? (
               // Case: search yielded no results
               <p className="text-center text-xs text-muted-foreground py-8">
                 No matches
@@ -405,7 +385,7 @@ export function LeftPanel() {
                 transition={{ duration: 0.3, ease: 'easeOut' }}
                 className="flex flex-col items-center justify-center py-12 px-4 text-center"
               >
-                {filterProfileId && selectedProfile ? (
+                {profileId && selectedProfile ? (
                   // Contextual empty state for a specific profile
                   <>
                     <div className="w-48 h-48 mb-4 overflow-hidden rounded-3xl opacity-70">
@@ -481,7 +461,7 @@ export function LeftPanel() {
                           }
                           profileName={c.profile_name}
                           profileDeleted={c.profile_deleted}
-                          showProfileBadge={filterProfileId === null}
+                          showProfileBadge={profileId === null}
                         />
                       </motion.div>
                     ))}
@@ -565,7 +545,7 @@ export function LeftPanel() {
                                 }
                                 profileName={c.profile_name}
                                 profileDeleted={c.profile_deleted}
-                                showProfileBadge={filterProfileId === null}
+                                showProfileBadge={profileId === null}
                               />
                             </motion.div>
                           ))}
@@ -580,8 +560,8 @@ export function LeftPanel() {
               {Object.entries(groupedByDate).map(([key, convs]) => (
                 <Collapsible.Root
                   key={key}
-                  open={!collapsedDateGroups[key]}
-                  onOpenChange={(open) => setDateGroupCollapsed(key, !open)}
+                  open={!expandedDateGroups.includes(key)}
+                  onOpenChange={() => toggleDateGroup(key)}
                 >
                   <Collapsible.Trigger className="flex items-center justify-between w-full px-2 py-1 text-xs font-semibold uppercase text-muted-foreground hover:text-foreground transition-colors group mt-2 first:mt-0">
                     {key}
@@ -611,7 +591,7 @@ export function LeftPanel() {
                           }
                           profileName={c.profile_name}
                           profileDeleted={c.profile_deleted}
-                          showProfileBadge={filterProfileId === null}
+                          showProfileBadge={profileId === null}
                         />
                       </motion.div>
                     ))}

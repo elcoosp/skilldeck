@@ -9,27 +9,295 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as SettingsIndexRouteImport } from './routes/settings.index'
+import { Route as SettingsReferralRouteImport } from './routes/settings.referral'
+import { Route as SettingsProfilesRouteImport } from './routes/settings.profiles'
+import { Route as SettingsPreferencesRouteImport } from './routes/settings.preferences'
+import { Route as SettingsPlatformRouteImport } from './routes/settings.platform'
+import { Route as SettingsLintRouteImport } from './routes/settings.lint'
+import { Route as SettingsApprovalsRouteImport } from './routes/settings.approvals'
+import { Route as SettingsAppearanceRouteImport } from './routes/settings.appearance'
+import { Route as SettingsApiKeysRouteImport } from './routes/settings.api-keys'
+import { Route as SettingsAchievementsRouteImport } from './routes/settings.achievements'
+import { Route as ConversationsConversationIdRouteImport } from './routes/conversations.$conversationId'
 
-export interface FileRoutesByFullPath {}
-export interface FileRoutesByTo {}
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsIndexRoute = SettingsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsReferralRoute = SettingsReferralRouteImport.update({
+  id: '/referral',
+  path: '/referral',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsProfilesRoute = SettingsProfilesRouteImport.update({
+  id: '/profiles',
+  path: '/profiles',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsPreferencesRoute = SettingsPreferencesRouteImport.update({
+  id: '/preferences',
+  path: '/preferences',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsPlatformRoute = SettingsPlatformRouteImport.update({
+  id: '/platform',
+  path: '/platform',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsLintRoute = SettingsLintRouteImport.update({
+  id: '/lint',
+  path: '/lint',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsApprovalsRoute = SettingsApprovalsRouteImport.update({
+  id: '/approvals',
+  path: '/approvals',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsAppearanceRoute = SettingsAppearanceRouteImport.update({
+  id: '/appearance',
+  path: '/appearance',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsApiKeysRoute = SettingsApiKeysRouteImport.update({
+  id: '/api-keys',
+  path: '/api-keys',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsAchievementsRoute = SettingsAchievementsRouteImport.update({
+  id: '/achievements',
+  path: '/achievements',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const ConversationsConversationIdRoute =
+  ConversationsConversationIdRouteImport.update({
+    id: '/conversations/$conversationId',
+    path: '/conversations/$conversationId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+
+export interface FileRoutesByFullPath {
+  '/settings': typeof SettingsRouteWithChildren
+  '/conversations/$conversationId': typeof ConversationsConversationIdRoute
+  '/settings/achievements': typeof SettingsAchievementsRoute
+  '/settings/api-keys': typeof SettingsApiKeysRoute
+  '/settings/appearance': typeof SettingsAppearanceRoute
+  '/settings/approvals': typeof SettingsApprovalsRoute
+  '/settings/lint': typeof SettingsLintRoute
+  '/settings/platform': typeof SettingsPlatformRoute
+  '/settings/preferences': typeof SettingsPreferencesRoute
+  '/settings/profiles': typeof SettingsProfilesRoute
+  '/settings/referral': typeof SettingsReferralRoute
+  '/settings/': typeof SettingsIndexRoute
+}
+export interface FileRoutesByTo {
+  '/conversations/$conversationId': typeof ConversationsConversationIdRoute
+  '/settings/achievements': typeof SettingsAchievementsRoute
+  '/settings/api-keys': typeof SettingsApiKeysRoute
+  '/settings/appearance': typeof SettingsAppearanceRoute
+  '/settings/approvals': typeof SettingsApprovalsRoute
+  '/settings/lint': typeof SettingsLintRoute
+  '/settings/platform': typeof SettingsPlatformRoute
+  '/settings/preferences': typeof SettingsPreferencesRoute
+  '/settings/profiles': typeof SettingsProfilesRoute
+  '/settings/referral': typeof SettingsReferralRoute
+  '/settings': typeof SettingsIndexRoute
+}
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/settings': typeof SettingsRouteWithChildren
+  '/conversations/$conversationId': typeof ConversationsConversationIdRoute
+  '/settings/achievements': typeof SettingsAchievementsRoute
+  '/settings/api-keys': typeof SettingsApiKeysRoute
+  '/settings/appearance': typeof SettingsAppearanceRoute
+  '/settings/approvals': typeof SettingsApprovalsRoute
+  '/settings/lint': typeof SettingsLintRoute
+  '/settings/platform': typeof SettingsPlatformRoute
+  '/settings/preferences': typeof SettingsPreferencesRoute
+  '/settings/profiles': typeof SettingsProfilesRoute
+  '/settings/referral': typeof SettingsReferralRoute
+  '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: never
+  fullPaths:
+    | '/settings'
+    | '/conversations/$conversationId'
+    | '/settings/achievements'
+    | '/settings/api-keys'
+    | '/settings/appearance'
+    | '/settings/approvals'
+    | '/settings/lint'
+    | '/settings/platform'
+    | '/settings/preferences'
+    | '/settings/profiles'
+    | '/settings/referral'
+    | '/settings/'
   fileRoutesByTo: FileRoutesByTo
-  to: never
-  id: '__root__'
+  to:
+    | '/conversations/$conversationId'
+    | '/settings/achievements'
+    | '/settings/api-keys'
+    | '/settings/appearance'
+    | '/settings/approvals'
+    | '/settings/lint'
+    | '/settings/platform'
+    | '/settings/preferences'
+    | '/settings/profiles'
+    | '/settings/referral'
+    | '/settings'
+  id:
+    | '__root__'
+    | '/settings'
+    | '/conversations/$conversationId'
+    | '/settings/achievements'
+    | '/settings/api-keys'
+    | '/settings/appearance'
+    | '/settings/approvals'
+    | '/settings/lint'
+    | '/settings/platform'
+    | '/settings/preferences'
+    | '/settings/profiles'
+    | '/settings/referral'
+    | '/settings/'
   fileRoutesById: FileRoutesById
 }
-export interface RootRouteChildren {}
-
-declare module '@tanstack/react-router' {
-  interface FileRoutesByPath {}
+export interface RootRouteChildren {
+  SettingsRoute: typeof SettingsRouteWithChildren
+  ConversationsConversationIdRoute: typeof ConversationsConversationIdRoute
 }
 
-const rootRouteChildren: RootRouteChildren = {}
+declare module '@tanstack/react-router' {
+  interface FileRoutesByPath {
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/': {
+      id: '/settings/'
+      path: '/'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof SettingsIndexRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/referral': {
+      id: '/settings/referral'
+      path: '/referral'
+      fullPath: '/settings/referral'
+      preLoaderRoute: typeof SettingsReferralRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/profiles': {
+      id: '/settings/profiles'
+      path: '/profiles'
+      fullPath: '/settings/profiles'
+      preLoaderRoute: typeof SettingsProfilesRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/preferences': {
+      id: '/settings/preferences'
+      path: '/preferences'
+      fullPath: '/settings/preferences'
+      preLoaderRoute: typeof SettingsPreferencesRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/platform': {
+      id: '/settings/platform'
+      path: '/platform'
+      fullPath: '/settings/platform'
+      preLoaderRoute: typeof SettingsPlatformRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/lint': {
+      id: '/settings/lint'
+      path: '/lint'
+      fullPath: '/settings/lint'
+      preLoaderRoute: typeof SettingsLintRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/approvals': {
+      id: '/settings/approvals'
+      path: '/approvals'
+      fullPath: '/settings/approvals'
+      preLoaderRoute: typeof SettingsApprovalsRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/appearance': {
+      id: '/settings/appearance'
+      path: '/appearance'
+      fullPath: '/settings/appearance'
+      preLoaderRoute: typeof SettingsAppearanceRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/api-keys': {
+      id: '/settings/api-keys'
+      path: '/api-keys'
+      fullPath: '/settings/api-keys'
+      preLoaderRoute: typeof SettingsApiKeysRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/achievements': {
+      id: '/settings/achievements'
+      path: '/achievements'
+      fullPath: '/settings/achievements'
+      preLoaderRoute: typeof SettingsAchievementsRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/conversations/$conversationId': {
+      id: '/conversations/$conversationId'
+      path: '/conversations/$conversationId'
+      fullPath: '/conversations/$conversationId'
+      preLoaderRoute: typeof ConversationsConversationIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+  }
+}
+
+interface SettingsRouteChildren {
+  SettingsAchievementsRoute: typeof SettingsAchievementsRoute
+  SettingsApiKeysRoute: typeof SettingsApiKeysRoute
+  SettingsAppearanceRoute: typeof SettingsAppearanceRoute
+  SettingsApprovalsRoute: typeof SettingsApprovalsRoute
+  SettingsLintRoute: typeof SettingsLintRoute
+  SettingsPlatformRoute: typeof SettingsPlatformRoute
+  SettingsPreferencesRoute: typeof SettingsPreferencesRoute
+  SettingsProfilesRoute: typeof SettingsProfilesRoute
+  SettingsReferralRoute: typeof SettingsReferralRoute
+  SettingsIndexRoute: typeof SettingsIndexRoute
+}
+
+const SettingsRouteChildren: SettingsRouteChildren = {
+  SettingsAchievementsRoute: SettingsAchievementsRoute,
+  SettingsApiKeysRoute: SettingsApiKeysRoute,
+  SettingsAppearanceRoute: SettingsAppearanceRoute,
+  SettingsApprovalsRoute: SettingsApprovalsRoute,
+  SettingsLintRoute: SettingsLintRoute,
+  SettingsPlatformRoute: SettingsPlatformRoute,
+  SettingsPreferencesRoute: SettingsPreferencesRoute,
+  SettingsProfilesRoute: SettingsProfilesRoute,
+  SettingsReferralRoute: SettingsReferralRoute,
+  SettingsIndexRoute: SettingsIndexRoute,
+}
+
+const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
+  SettingsRouteChildren,
+)
+
+const rootRouteChildren: RootRouteChildren = {
+  SettingsRoute: SettingsRouteWithChildren,
+  ConversationsConversationIdRoute: ConversationsConversationIdRoute,
+}
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
