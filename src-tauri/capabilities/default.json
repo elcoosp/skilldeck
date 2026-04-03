@@ -6,6 +6,8 @@
     "main"
   ],
   "permissions": [
+    "deep-link:allow-get-current",
+    "deep-link:default",
     "core:default",
     {
       "identifier": "opener:allow-open-path",
