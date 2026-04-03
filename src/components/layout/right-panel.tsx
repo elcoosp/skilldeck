@@ -80,7 +80,7 @@ import { McpTab } from './mcp-tab'
 const selectHasSkillsUnlocked = (state: UIPersistentState) =>
   state.unlockStage >= 1
 const selectHasWorkflowsUnlocked = (state: UIPersistentState) =>
-  state.unlockStage >= 3
+  state.unlockStage >= 1
 
 type Tab = 'session' | 'skills' | 'mcp' | 'workflow' | 'analytics' | 'artifacts'
 
