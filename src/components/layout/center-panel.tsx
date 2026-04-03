@@ -1,8 +1,3 @@
-// src/components/layout/center-panel.tsx
-/**
- * Center panel — virtualized message thread and input bar.
- */
-
 import { useQueryClient } from '@tanstack/react-query'
 import { ArrowDown, CaseSensitive, Regex, Search, Share2, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -31,23 +26,16 @@ import { useConversationBootstrap } from '@/hooks/use-conversation-bootstrap'
 import { useActiveConversationWorkspaceId } from '@/hooks/use-conversations'
 import { useMessagesWithStream } from '@/hooks/use-messages'
 import { useWorkspaces } from '@/hooks/use-workspaces'
+import { useConversationIdFromUrl } from '@/hooks/use-conversation-id'
+import { useScrollToMessage } from '@/hooks/use-scroll-to-message'
 import type { MessageData } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
-import { getScrollToken, setScrollToken } from '@/lib/scroll-token'
 import { cn } from '@/lib/utils'
-import { useConversationStore } from '@/store/conversation'
 import { useUIEphemeralStore } from '@/store/ui-ephemeral'
 
 export function CenterPanel() {
-  // ─── Store selectors (granular) ──────────────────────────────────────────
-  const activeConversationId = useConversationStore(
-    (s) => s.activeConversationId
-  )
-  const activeBranchId = useConversationStore((s) => s.activeBranchId)
-  const scrollToMessageId = useConversationStore((s) => s.scrollToMessageId)
-  const setScrollToMessageId = useConversationStore(
-    (s) => s.setScrollToMessageId
-  )
+  const conversationId = useConversationIdFromUrl()
+  const activeBranchId = useUIEphemeralStore((s) => s.activeBranchId)
   const searchQuery = useUIEphemeralStore((s) => s.conversationSearchQuery)
   const setSearchQuery = useUIEphemeralStore(
     (s) => s.setConversationSearchQuery
@@ -61,7 +49,6 @@ export function CenterPanel() {
   const [debouncedSearch] = useDebounce(searchQuery, 300)
   const [autoScroll, setAutoScroll] = useState(true)
 
-  // search toggles
   const [searchCaseSensitive, setSearchCaseSensitive] = useState(false)
   const [searchRegex, setSearchRegex] = useState(false)
 
@@ -79,20 +66,13 @@ export function CenterPanel() {
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const queryClient = useQueryClient()
-
-  // Share state
   const [sharing, setSharing] = useState(false)
 
-  // streamingMessage is NOT read here — MessageThread reads it from the store
-  // directly so that token updates never re-render CenterPanel.
-  const { isRunning } = useAgentStream(activeConversationId)
-  const messages = useMessagesWithStream(activeConversationId, activeBranchId)
+  const { isRunning } = useAgentStream(conversationId)
+  const messages = useMessagesWithStream(conversationId, activeBranchId)
 
-  // Keep refs in sync for use in stable callbacks
   const messagesRef = useRef(messages)
   messagesRef.current = messages
-  const activeConversationIdRef = useRef(activeConversationId)
-  activeConversationIdRef.current = activeConversationId
 
   const streamingMessageId = (() => {
     if (!isRunning) return undefined
@@ -101,35 +81,32 @@ export function CenterPanel() {
   })()
 
   const { data: bootstrap, isLoading: _bootstrapLoading } =
-    useConversationBootstrap(activeConversationId)
-  const _queuedMessages = bootstrap?.queued ?? []
+    useConversationBootstrap(conversationId)
   const headings = bootstrap?.headings ?? []
 
-  const { data: branches = [] } = useBranches(activeConversationId)
+  const { data: branches = [] } = useBranches(conversationId)
   const currentBranch = branches.find((b) => b.id === activeBranchId)
   const branchParentMessageId = currentBranch?.parent_message_id ?? null
 
-  const activeKey = activeConversationId
-    ? `${activeConversationId}_${activeBranchId ?? 'main'}`
-    : undefined
+  const scrollToMessageId = useScrollToMessage()
 
-  const activeKeyRef = useRef<string | undefined>(undefined)
-  if (activeKeyRef.current !== activeKey) {
-    if (activeKeyRef.current && threadRef.current) {
-      if (!threadRef.current.isScrollingToMessage?.()) {
-        const token = threadRef.current.getScrollToken()
-        if (token) setScrollToken(activeKeyRef.current, token)
-      }
-    }
-    activeKeyRef.current = activeKey
-  }
+  useEffect(() => {
+    if (!scrollToMessageId || !messages.length) return
+    const targetMessage = messages.find((m) => m.id === scrollToMessageId)
+    if (!targetMessage) return
 
-  const initialScrollToken = (() => {
-    if (!activeKey) return undefined
-    const cached = getScrollToken(activeKey)
-    if (!cached || typeof cached.messageId !== 'string') return undefined
-    return cached
-  })()
+    const raf = requestAnimationFrame(() => {
+      const fullIndex = messages.findIndex((m) => m.id === scrollToMessageId)
+      threadRef.current?.scrollToMessage(fullIndex)
+      setHighlightedMessageId(scrollToMessageId)
+      if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current)
+      highlightTimeoutRef.current = setTimeout(
+        () => setHighlightedMessageId(null),
+        800
+      )
+    })
+    return () => cancelAnimationFrame(raf)
+  }, [scrollToMessageId, messages])
 
   const realMessageCount = messages.filter(
     (m) => m.id !== '__streaming__'
@@ -137,7 +114,6 @@ export function CenterPanel() {
   const messagesLengthRef = useRef(realMessageCount)
   messagesLengthRef.current = realMessageCount
 
-  // Track seen message IDs locally for instant UI updates
   const locallySeenRef = useRef<Set<string>>(new Set())
 
   const unseenCount = useMemo(() => {
@@ -155,12 +131,14 @@ export function CenterPanel() {
   const lastSeenCountRef = useRef(realMessageCount)
   const initialScrollSettledRef = useRef(false)
 
+  // FIX: Reset tracking state when conversationId changes
   useEffect(() => {
-    lastSeenCountRef.current = messagesLengthRef.current
+    locallySeenRef.current = new Set()
     setUnseenJumpCount(0)
     setShowJumpToLatest(false)
-    locallySeenRef.current = new Set()
-  }, [])
+    lastSeenCountRef.current = messagesLengthRef.current
+    initialScrollSettledRef.current = false
+  }, [conversationId])
 
   useEffect(() => {
     if (isRunning) {
@@ -169,42 +147,25 @@ export function CenterPanel() {
     }
   }, [isRunning])
 
-  useEffect(() => {
-    if (!scrollToMessageId || !messages.length) return
-    const targetMessage = messages.find((m) => m.id === scrollToMessageId)
-    if (targetMessage) {
-      const fullIndex = messages.findIndex((m) => m.id === scrollToMessageId)
-      threadRef.current?.scrollToMessage(fullIndex)
-      setHighlightedMessageId(scrollToMessageId)
-      setTimeout(() => setHighlightedMessageId(null), 800)
-      setScrollToMessageId(null)
-    }
-  }, [scrollToMessageId, messages, setScrollToMessageId])
-
-  // Mark messages as seen - with optimistic cache update
   const markMessagesSeenByIds = useCallback(
     (ids: string[]) => {
       if (ids.length === 0) return
-      const convId = activeConversationIdRef.current
+      const convId = conversationId
       if (!convId) return
 
       const idSet = new Set(ids)
-
-      // Add to local tracking immediately
       for (const id of idSet) locallySeenRef.current.add(id)
 
-      // Optimistically update cache
       queryClient.setQueriesData<MessageData[]>(
         { queryKey: ['messages', convId] },
         (old) => old?.map((m) => (idSet.has(m.id) ? { ...m, seen: true } : m))
       )
 
-      // Persist to DB (fire and forget)
       Promise.all(ids.map((id) => commands.markMessageSeen(id))).catch((err) =>
         console.error('Failed to mark messages seen:', err)
       )
     },
-    [queryClient]
+    [queryClient, conversationId]
   )
 
   const markAllUnseenAsSeen = useCallback(() => {
@@ -230,7 +191,6 @@ export function CenterPanel() {
       setShowJumpToLatest(false)
       setUnseenJumpCount(0)
       lastSeenCountRef.current = messagesLengthRef.current
-      // Mark all as seen when content fits in viewport
       markAllUnseenAsSeen()
       return
     }
@@ -284,15 +244,6 @@ export function CenterPanel() {
     }
   }, [messages, markAllUnseenAsSeen])
 
-  const handleScrollSettled = useCallback((token: ScrollToken) => {
-    if (activeKeyRef.current) {
-      setScrollToken(activeKeyRef.current, token)
-    }
-    if (!initialScrollSettledRef.current) {
-      initialScrollSettledRef.current = true
-    }
-  }, [])
-
   const handleVisibleUserIndexChange = useCallback((index: number) => {
     setActiveUserMessageIndex(index)
   }, [])
@@ -345,7 +296,7 @@ export function CenterPanel() {
 
   useEffect(() => {
     setActiveHeadingIndex(null)
-  }, [])
+  }, [conversationId]) // Reset active heading when conversation changes
 
   const handleHeadingClick = useCallback(
     (messageIndex: number, tocIndex: number) => {
@@ -389,7 +340,6 @@ export function CenterPanel() {
     [messages, handleVisibleUserIndexChange]
   )
 
-  // Mark single message as seen with optimistic update
   const handleMessageVisible = useCallback(
     (messageId: string) => {
       if (locallySeenRef.current.has(messageId)) return
@@ -411,17 +361,15 @@ export function CenterPanel() {
 
   useEffect(() => {
     setSearchQuery('')
-  }, [setSearchQuery])
+  }, [setSearchQuery, conversationId]) // Clear search on conversation change
 
   const modifierKey = navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'
 
-  // ─── Share conversation handler ──────────────────────────────────────────
   const handleShare = async () => {
-    if (!activeConversationId) return
+    if (!conversationId) return
     setSharing(true)
     try {
-      // Check sync status
-      const syncRes = await commands.checkSyncStatus(activeConversationId)
+      const syncRes = await commands.checkSyncStatus(conversationId)
       if (syncRes.status === 'error') {
         console.error('Sync status check failed:', syncRes.error)
         toast.error('Could not check sync status')
@@ -429,7 +377,6 @@ export function CenterPanel() {
       }
 
       if (!syncRes.data.is_synced) {
-        // Sync the conversation first
         const title = bootstrap?.title || 'Shared Conversation'
         const syncPayload = {
           title,
@@ -444,7 +391,7 @@ export function CenterPanel() {
             }))
         }
         const syncConvRes = await commands.syncConversationToPlatform(
-          activeConversationId,
+          conversationId,
           syncPayload
         )
         if (syncConvRes.status === 'error') {
@@ -453,8 +400,7 @@ export function CenterPanel() {
         }
       }
 
-      // Create share token
-      const shareRes = await commands.shareConversation(activeConversationId)
+      const shareRes = await commands.shareConversation(conversationId)
       if (shareRes.status === 'error') {
         toast.error('Failed to create share link')
         return
@@ -471,7 +417,7 @@ export function CenterPanel() {
     }
   }
 
-  if (!activeConversationId) {
+  if (!conversationId) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-3 text-center px-8">
         <div className="size-12 rounded-xl bg-muted flex items-center justify-center">
@@ -487,9 +433,7 @@ export function CenterPanel() {
 
   return (
     <div className="relative flex flex-col h-full">
-      {activeConversationId && (
-        <BranchNav conversationId={activeConversationId} />
-      )}
+      {conversationId && <BranchNav conversationId={conversationId} />}
 
       <div className="px-4 py-2 border-b border-border flex items-center gap-2">
         <div className="relative flex-1">
@@ -570,7 +514,7 @@ export function CenterPanel() {
           variant="ghost"
           size="icon-sm"
           onClick={handleShare}
-          disabled={sharing || !activeConversationId}
+          disabled={sharing || !conversationId}
           title="Share this conversation"
           className="shrink-0"
         >
@@ -583,20 +527,19 @@ export function CenterPanel() {
       </div>
 
       <div className="relative flex-1 min-h-0">
+        {/* FIX: Removed key={conversationId} to allow scroll restoration to work correctly */}
         <MessageThread
           ref={threadRef}
-          conversationKey={activeKey ?? ''}
-          conversationId={activeConversationId}
+          conversationKey={conversationId ?? ''}
+          conversationId={conversationId}
           messages={messages}
           streamingMessageId={streamingMessageId}
           searchQuery={debouncedSearch}
           searchCaseSensitive={searchCaseSensitive}
           searchRegex={searchRegex}
           highlightedMessageId={highlightedMessageId}
-          initialScrollToken={initialScrollToken}
           autoScroll={autoScroll}
           onVisibleUserIndexChange={handleVisibleUserIndexChange}
-          onScrollSettled={handleScrollSettled}
           onMessageVisible={handleMessageVisible}
           branchParentMessageId={branchParentMessageId}
         />
@@ -635,7 +578,7 @@ export function CenterPanel() {
 
       <div className="shrink-0 border-t border-border">
         <MessageInput
-          conversationId={activeConversationId}
+          conversationId={conversationId}
           workspaceRoot={workspaceRoot}
         />
       </div>

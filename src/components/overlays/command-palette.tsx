@@ -101,8 +101,9 @@ export function CommandPalette() {
                 label="Settings"
                 shortcut="⌘,"
                 onSelect={() => {
-                  router.navigate({ to: '/settings/api-keys' })
+                  console.log('Command palette: navigating to settings')
                   setOpen(false)
+                  router.navigate({ to: '/settings/api-keys' })
                 }}
               />
               <CommandItem
@@ -185,7 +186,7 @@ function CommandItem({
       `}
     >
       <span className="text-muted-foreground shrink-0">{icon}</span>
-      <span className="flex-1 min-w-0">
+      <span className="flex-1 min-w-0 text-left">
         <span className="block truncate font-medium">{label}</span>
         {sublabel && (
           <span className="block truncate text-xs text-muted-foreground">

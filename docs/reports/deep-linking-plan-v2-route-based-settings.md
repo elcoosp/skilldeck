@@ -795,7 +795,7 @@ export const Route = createFileRoute('/settings/')({
 > import { useRouter } from '@tanstack/react-router'
 > // inside AppShell:
 > const router = useRouter()
-> useHotkeys('meta+,, ctrl+,', (e) => {
+> useHotkeys('meta+?, ctrl+?', (e) => {
 >   e.preventDefault()
 >   router.navigate({ to: '/settings/api-keys' })
 > })

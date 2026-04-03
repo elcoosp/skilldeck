@@ -1,11 +1,9 @@
-// src/components/conversation/message-thread.tsx
-// (full file with fixes applied)
-
 import {
   elementScroll,
   useVirtualizer,
   type Virtualizer
 } from '@tanstack/react-virtual'
+import { useElementScrollRestoration } from '@tanstack/react-router'
 import { motion } from 'framer-motion'
 import * as React from 'react'
 import { useSendMessage } from '@/hooks/use-messages'
@@ -42,10 +40,8 @@ interface MessageThreadProps {
   searchCaseSensitive?: boolean
   searchRegex?: boolean
   highlightedMessageId?: string | null
-  initialScrollToken?: ScrollToken | null
   autoScroll?: boolean
   onVisibleUserIndexChange?: (index: number) => void
-  onScrollSettled?: (token: ScrollToken) => void
   onMessageVisible?: (messageId: string) => void
   branchParentMessageId?: string | null
   headings?: any[]
@@ -98,13 +94,13 @@ const VirtualRow = React.memo(
     return (
       <div
         ref={(node) => {
-          measureRef.current?.(node) // call virtualizer.measureElement
+          measureRef.current?.(node)
           if (isLast && node !== lastItemNodeRef.current) {
             if (lastItemNodeRef.current)
               streamingRoRef.current?.unobserve(lastItemNodeRef.current)
-            ;(
-              lastItemNodeRef as React.MutableRefObject<Element | null>
-            ).current = node
+                ; (
+                  lastItemNodeRef as React.MutableRefObject<Element | null>
+                ).current = node
             if (node) streamingRoRef.current?.observe(node)
           }
         }}
@@ -169,17 +165,14 @@ export const MessageThread = React.forwardRef<
       searchCaseSensitive = false,
       searchRegex = false,
       highlightedMessageId,
-      initialScrollToken,
       autoScroll = true,
       onVisibleUserIndexChange,
-      onScrollSettled,
       onMessageVisible,
       branchParentMessageId,
       headings = []
     },
     ref
   ) => {
-    // ── Read streamingMessage directly from the store ──────────────────
     const streamingMessage = useUIEphemeralStore(
       React.useCallback(
         (s) => s.streamingMessages[conversationId ?? ''] ?? null,
@@ -192,6 +185,13 @@ export const MessageThread = React.forwardRef<
       (s) => s.activeConversationId
     )
     const sendMutation = useSendMessage(activeConversationId!)
+
+    // ─── TanStack Router Scroll Restoration ───
+    const scrollRestoration = useElementScrollRestoration({
+      id: `message-thread-${conversationKey}`,
+      getElement: () => scrollRef.current,
+      getKey: (location) => location.pathname,
+    })
 
     const messagesWithRetry = React.useMemo(() => {
       return messages.map((msg, idx) => {
@@ -223,21 +223,11 @@ export const MessageThread = React.forwardRef<
     autoScrollRef.current = autoScroll
     const streamingRef = React.useRef(streamingMessageId)
     streamingRef.current = streamingMessageId
-    const onScrollSettledRef = React.useRef(onScrollSettled)
-    onScrollSettledRef.current = onScrollSettled
 
-    const prevConversationKeyRef = React.useRef(conversationKey)
-    const initialScrollTokenRef = React.useRef(initialScrollToken)
-    const isSwitchingRef = React.useRef(false)
-
-    if (prevConversationKeyRef.current !== conversationKey) {
-      prevConversationKeyRef.current = conversationKey
-      initialScrollTokenRef.current = initialScrollToken
-      isSwitchingRef.current = true
-    }
-
-    const navigatorActiveRef = React.useRef(false)
-    const autoScrollReadyRef = React.useRef(false)
+    // FIX: Reset internal scroll state when conversation changes
+    React.useEffect(() => {
+      userScrolledAwayRef.current = false
+    }, [conversationKey])
 
     const scrollToFn: (
       offset: number,
@@ -281,6 +271,7 @@ export const MessageThread = React.forwardRef<
         return h
       },
       scrollToFn,
+      initialOffset: scrollRestoration?.scrollY ?? 0,
       onChange: (instance) => {
         const items = instance.getVirtualItems()
         if (items.length === 0) return
@@ -289,8 +280,6 @@ export const MessageThread = React.forwardRef<
         if (!autoScrollRef.current) return
         if (streamingRef.current) return
         if (userScrolledAwayRef.current) return
-        if (!autoScrollReadyRef.current) return
-        if (navigatorActiveRef.current) return
         if (dist === 0) {
           const lastIdx = filteredMessagesRef.current.length - 1
           if (lastIdx >= 0) {
@@ -302,100 +291,31 @@ export const MessageThread = React.forwardRef<
     const virtualizerRef = React.useRef(virtualizer)
     virtualizerRef.current = virtualizer
 
-    const applyScrollTop = React.useCallback(
-      (
-        el: HTMLElement,
-        savedScrollTop: number,
-        onLanded: (actual: number) => void,
-        maxAttempts = 60
-      ) => {
-        let attempts = 0
-        const tryApply = () => {
-          const maxScroll = el.scrollHeight - el.clientHeight
-          if (maxScroll >= savedScrollTop || attempts >= maxAttempts) {
-            const final = Math.min(savedScrollTop, Math.max(0, maxScroll))
-            isProgrammaticScrollRef.current = true
-            el.scrollTop = final
-            requestAnimationFrame(() => {
-              isProgrammaticScrollRef.current = false
-              requestAnimationFrame(() => {
-                onLanded(el.scrollTop)
-              })
-            })
-          } else {
-            attempts++
-            requestAnimationFrame(tryApply)
-          }
-        }
-        requestAnimationFrame(tryApply)
-      },
-      []
-    )
-
+    // FIX: Improved Restoration Effect
+    // 1. Allow scrollY === 0 (top of page) to be restored.
+    // 2. Depend on scrollRestoration?.scrollY to trigger on conversation change.
     React.useLayoutEffect(() => {
-      if (!isSwitchingRef.current) return
-      isSwitchingRef.current = false
       const el = scrollRef.current
-      if (!el) return
-      navigatorActiveRef.current = false
-      autoScrollReadyRef.current = false
-      userScrolledAwayRef.current = false
-      const token = initialScrollTokenRef.current
-      if (token?.scrollTop) {
-        applyScrollTop(el, token.scrollTop, (actual) => {
-          if (onScrollSettledRef.current && token.messageId) {
-            onScrollSettledRef.current({
-              messageId: token.messageId,
-              scrollTop: actual
-            })
-          }
-        })
-      } else {
-        const lastIdx = filteredMessagesRef.current.length - 1
-        if (lastIdx >= 0) {
-          virtualizerRef.current.scrollToIndex(lastIdx, {
-            align: 'end',
-            behavior: 'auto'
-          })
-        }
-        autoScrollReadyRef.current = true
-      }
-    }, [applyScrollTop])
+      const scrollY = scrollRestoration?.scrollY
 
-    const didMountRef = React.useRef(false)
-    React.useLayoutEffect(() => {
-      if (didMountRef.current) return
-      didMountRef.current = true
-      const el = scrollRef.current
-      if (!el) return
-      const token = initialScrollTokenRef.current
-      if (token?.scrollTop) {
-        applyScrollTop(el, token.scrollTop, (actual) => {
-          if (onScrollSettledRef.current && token.messageId) {
-            onScrollSettledRef.current({
-              messageId: token.messageId,
-              scrollTop: actual
-            })
-          }
-        })
-      } else {
-        const lastIdx = filteredMessagesRef.current.length - 1
-        if (lastIdx >= 0) {
-          virtualizerRef.current.scrollToIndex(lastIdx, {
-            align: 'end',
-            behavior: 'auto'
-          })
-        }
-        autoScrollReadyRef.current = true
-      }
-    }, [applyScrollTop])
+      if (!el || scrollY === undefined) return
+
+      isProgrammaticScrollRef.current = true
+
+      el.scrollTop = scrollY
+
+      virtualizerRef.current.scrollToOffset(scrollY, { behavior: 'auto' })
+
+      requestAnimationFrame(() => {
+        isProgrammaticScrollRef.current = false
+      })
+    }, [scrollRestoration?.scrollY])
 
     React.useEffect(() => {
       const el = scrollRef.current
       if (!el) return
       const onScroll = () => {
         if (isProgrammaticScrollRef.current) return
-        if (navigatorActiveRef.current) navigatorActiveRef.current = false
         userScrolledAwayRef.current = distFromBottom(el) > 100
       }
       el.addEventListener('scroll', onScroll, { passive: true })
@@ -414,22 +334,13 @@ export const MessageThread = React.forwardRef<
     const lastItemNodeRef = React.useRef<Element | null>(null)
     const streamingRoRef = React.useRef<ResizeObserver | null>(null)
 
-    const prevStreamingIdRef = React.useRef<string | undefined>(undefined)
-
     React.useEffect(() => {
       if (streamingRoRef.current) {
         streamingRoRef.current.disconnect()
         streamingRoRef.current = null
       }
 
-      const isNewStream = !!streamingMessageId && !prevStreamingIdRef.current
-      prevStreamingIdRef.current = streamingMessageId ?? undefined
-
       if (!streamingMessageId) return
-
-      if (isNewStream) {
-        userScrolledAwayRef.current = false
-      }
 
       const el = scrollRef.current
       if (!el) return
@@ -458,7 +369,6 @@ export const MessageThread = React.forwardRef<
       callbackRef.current = onVisibleUserIndexChange
     })
 
-    // Improved scroll listener – finds the user message closest to the viewport center
     React.useEffect(() => {
       const el = scrollRef.current
       if (!el || !onVisibleUserIndexChange) return
@@ -478,8 +388,6 @@ export const MessageThread = React.forwardRef<
       let lastReported = -1
 
       const updateActive = () => {
-        if (navigatorActiveRef.current) return
-
         const vItems = virtualizerRef.current.getVirtualItems()
         if (vItems.length === 0) return
 
@@ -519,7 +427,6 @@ export const MessageThread = React.forwardRef<
       }
 
       el.addEventListener('scroll', onScroll, { passive: true })
-      // Run once on mount to set initial active index
       updateActive()
 
       return () => {
@@ -602,7 +509,6 @@ export const MessageThread = React.forwardRef<
             (m) => m.id === targetId
           )
           if (fi === -1) return
-          navigatorActiveRef.current = true
           virtualizerRef.current.scrollToIndex(fi, {
             align: 'start',
             behavior: 'auto'
@@ -610,7 +516,6 @@ export const MessageThread = React.forwardRef<
           let lastStart = -1
           let stableTicks = 0
           const poll = () => {
-            if (!navigatorActiveRef.current) return
             const vItems = virtualizerRef.current.getVirtualItems()
             const targetItem = vItems.find((it) => it.index === fi)
             if (!targetItem) {
@@ -626,19 +531,10 @@ export const MessageThread = React.forwardRef<
             else stableTicks = 0
             lastStart = start
             if (stableTicks >= 3) {
-              navigatorActiveRef.current = false
               isProgrammaticScrollRef.current = true
               el.scrollTop = start
               requestAnimationFrame(() => {
                 isProgrammaticScrollRef.current = false
-                if (onScrollSettledRef.current) {
-                  const msg = filteredMessagesRef.current[fi]
-                  if (msg)
-                    onScrollSettledRef.current({
-                      messageId: msg.id,
-                      scrollTop: start
-                    })
-                }
                 onComplete?.()
               })
             } else {
@@ -673,27 +569,12 @@ export const MessageThread = React.forwardRef<
           })
         },
         getScrollElement: () => scrollRef.current,
-        getScrollToken: (): ScrollToken | null => {
-          if (navigatorActiveRef.current) return null
-          const el = scrollRef.current
-          if (!el) return null
-          const vItems = virtualizerRef.current.getVirtualItems()
-          if (vItems.length === 0) return null
-          const scrollTop = el.scrollTop
-          let topItem = vItems[0]
-          for (const item of vItems) {
-            if (item.start <= scrollTop) topItem = item
-            else break
-          }
-          const msg = filteredMessagesRef.current[topItem.index]
-          if (!msg) return null
-          return { messageId: msg.id, scrollTop }
-        },
-        isScrollingToMessage: () => navigatorActiveRef.current,
+        getScrollToken: () => null,
+        isScrollingToMessage: () => false,
         getScrollPosition: () => scrollRef.current?.scrollTop ?? 0,
         onScroll: (cb: () => void) => {
           const el = scrollRef.current
-          if (!el) return () => {}
+          if (!el) return () => { }
           el.addEventListener('scroll', cb, { passive: true })
           return () => el.removeEventListener('scroll', cb)
         }
@@ -716,6 +597,8 @@ export const MessageThread = React.forwardRef<
           <div className="relative h-full">
             <div
               ref={scrollRef}
+              id="message-thread-scroll-container"
+              data-scroll-restoration-id={`message-thread-${conversationKey}`}
               className="h-full overflow-y-auto thin-scrollbar pl-6"
             >
               {isLoading && (
@@ -772,7 +655,7 @@ export const MessageThread = React.forwardRef<
                     const retryAvailable = (message as any).retryAvailable
                     const handleRetry = retryAvailable
                       ? () =>
-                          sendMutation.mutateAsync({ content: message.content })
+                        sendMutation.mutateAsync({ content: message.content })
                       : undefined
 
                     return (
@@ -820,7 +703,7 @@ export const MessageThread = React.forwardRef<
 
           <ThreadNavigator
             messages={messages}
-            activeIndex={-1} // This will be updated by CenterPanel via onVisibleUserIndexChange
+            activeIndex={-1}
             activeHeadingIndex={null}
             onScrollTo={(idx) => {
               const targetMsg = messages[idx]
@@ -836,9 +719,7 @@ export const MessageThread = React.forwardRef<
                 }
               }
             }}
-            onHeadingClick={(_msgIdx, _tocIdx) => {
-              // Implement heading click if needed
-            }}
+            onHeadingClick={(_msgIdx, _tocIdx) => { }}
             headings={headings}
           />
         </AutoScrollContext.Provider>

@@ -1,22 +1,18 @@
 import { Outlet, createRootRoute } from '@tanstack/react-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { TanStackRouterDevtools } from '@tanstack/router-devtools'
+import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
+import { HotkeysProvider } from 'react-hotkeys-hook'
 import { useEffect, useState } from 'react'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import { useMcpEvents } from '@/hooks/use-mcp-events'
-import { useSkillEvents } from '@/hooks/use-skill-events'
-import { useSubagentEvents } from '@/hooks/use-subagent-events'
-import { useAttachFilesListener } from '@/hooks/use-attach-files-listener'
-import { useNudgeListener, usePlatformRegistration } from '@/hooks/use-platform'
 import { loadLocale, type locales } from '@/lib/i18n'
 import { useSettingsStore } from '@/store/settings'
-import { useUILayoutStore } from '@/store/ui-layout'
-import { useUIPersistentStore } from '@/store/ui-state'
-import { OnboardingWizard } from '@/components/overlays/onboarding-wizard'
 import { SplashScreen } from '@/components/overlays/splash-screen'
-import { AppShell } from '@/components/layout/app-shell'
 import { commands } from '@/lib/bindings'
 import { z } from 'zod'
+import { GlobalEventListeners } from '@/components/global-event-listeners'
+import { AppShell } from '@/components/layout/app-shell'
+import { OnboardingWizard } from '@/components/overlays/onboarding-wizard'
+import { useUIPersistentStore } from '@/store/ui-state'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -66,19 +62,10 @@ function LanguageSync() {
   return null
 }
 
-function GlobalEventListeners() {
-  useMcpEvents()
-  useSubagentEvents()
-  useSkillEvents()
-  useAttachFilesListener()
-  return null
-}
-
 function RootProviders({ children }: { children: React.ReactNode }) {
   const [showSplash, setShowSplash] = useState(true)
   const [fadeOut, setFadeOut] = useState(false)
 
-  // Load syntax theme CSS on mount
   useEffect(() => {
     commands
       .getSyntaxCss()
@@ -134,49 +121,17 @@ function RootProviders({ children }: { children: React.ReactNode }) {
 
 function RootComponent() {
   const onboardingComplete = useUIPersistentStore((s) => s.onboardingComplete)
-  const setRightTab = useUILayoutStore((s) => s.setRightTab)
-
-  useEffect(() => {
-    const handleOpenGlobalSearch = () => {
-      window.dispatchEvent(new CustomEvent('skilldeck:open-global-search'))
-    }
-    window.addEventListener(
-      'skilldeck:open-global-search',
-      handleOpenGlobalSearch
-    )
-    return () =>
-      window.removeEventListener(
-        'skilldeck:open-global-search',
-        handleOpenGlobalSearch
-      )
-  }, [])
-
-  useEffect(() => {
-    const handleSetRightTab = (
-      e: CustomEvent<{
-        tab: 'session' | 'skills' | 'mcp' | 'workflow' | 'analytics'
-      }>
-    ) => {
-      setRightTab(e.detail.tab)
-    }
-    window.addEventListener(
-      'skilldeck:set-right-tab',
-      handleSetRightTab as EventListener
-    )
-    return () =>
-      window.removeEventListener(
-        'skilldeck:set-right-tab',
-        handleSetRightTab as EventListener
-      )
-  }, [setRightTab])
 
   return (
-    <RootProviders>
-      <GlobalEventListeners />
-      <AppShell />
-      {!onboardingComplete && <OnboardingWizard />}
-      {import.meta.env.DEV && <TanStackRouterDevtools />}
-    </RootProviders>
+    <HotkeysProvider initiallyActiveScopes={['*']}>
+      <RootProviders>
+        <GlobalEventListeners />
+        <AppShell />
+        <Outlet />
+        {!onboardingComplete && <OnboardingWizard />}
+        {import.meta.env.DEV && <TanStackRouterDevtools />}
+      </RootProviders>
+    </HotkeysProvider>
   )
 }
 

@@ -95,39 +95,21 @@ export function AppShell() {
   usePlatformRegistration()
   useNudgeListener()
 
-  useHotkeys('meta+k, ctrl+k', (e) => {
-    e.preventDefault()
+  // Command palette: Cmd+K / Ctrl+K
+  useHotkeys('meta+k, ctrl+k', () => {
     setCommandPaletteOpen(true)
   })
 
-  useHotkeys('meta+,, ctrl+,', (e) => {
-    e.preventDefault()
+  // Settings: Cmd+, / Ctrl+, (comma)
+  useHotkeys(['meta+,', 'ctrl+,'], () => {
+    console.log('settings')
     router.navigate({ to: '/settings/api-keys' })
   })
 
-  useHotkeys('meta+shift+f, ctrl+shift+f', (e) => {
-    e.preventDefault()
+  // Global search: Cmd+Shift+F / Ctrl+Shift+F
+  useHotkeys('meta+shift+f, ctrl+shift+f', () => {
     setGlobalSearchOpen(true)
   })
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault()
-        setCommandPaletteOpen(true)
-      }
-      if ((e.metaKey || e.ctrlKey) && e.key === ',') {
-        e.preventDefault()
-        router.navigate({ to: '/settings/api-keys' })
-      }
-      if ((e.metaKey || e.ctrlKey) && e.key === 'F' && e.shiftKey) {
-        e.preventDefault()
-        setGlobalSearchOpen(true)
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [setCommandPaletteOpen, setGlobalSearchOpen, router])
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-background text-foreground flex flex-col">

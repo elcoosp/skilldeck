@@ -19,7 +19,7 @@ import {
 import { Collapsible } from 'radix-ui'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { useRouter } from '@tanstack/react-router'
+import { useRouter, useRouterState } from '@tanstack/react-router'
 import { ConversationItem } from '@/components/conversation/conversation-item'
 import { Button } from '@/components/ui/button'
 import {
@@ -53,7 +53,6 @@ import { useProfileFilter } from '@/hooks/use-profile-filter'
 import { useProfiles } from '@/hooks/use-profiles'
 import { useOpenWorkspace, useWorkspaces } from '@/hooks/use-workspaces'
 import { cn } from '@/lib/utils'
-import { useConversationStore } from '@/store/conversation'
 import { useUIOverlaysStore } from '@/store/ui-overlays'
 import { useWorkspaceStore } from '@/store/workspace'
 
@@ -129,13 +128,11 @@ function getDateGroupKey(dateStr: string): string {
 // ----------------------------------------------------------------------
 export function LeftPanel() {
   const router = useRouter()
+
+  // FIX: Use reactive router state for pathname to ensure highlights update on navigation
+  const pathname = useRouterState({ select: (s) => s.location.pathname })
+
   const setGlobalSearchOpen = useUIOverlaysStore((s) => s.setGlobalSearchOpen)
-  const activeConversationId = useConversationStore(
-    (s) => s.activeConversationId
-  )
-  const setActiveConversation = useConversationStore(
-    (s) => s.setActiveConversation
-  )
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId)
   const setActiveWorkspace = useWorkspaceStore((s) => s.setActiveWorkspace)
 
@@ -452,10 +449,10 @@ export function LeftPanel() {
                       >
                         <ConversationItem
                           conversation={c}
-                          isActive={c.id === activeConversationId}
+                          isActive={pathname === `/conversations/${c.id}`}
                           isDeleting={c.id === deletingId}
                           onDeleteStart={handleDeleteStart}
-                          onClick={() => setActiveConversation(c.id)}
+                          onClick={() => router.navigate({ to: '/conversations/$conversationId', params: { conversationId: c.id } })}
                           workspaceName={
                             getWorkspaceName(c.workspace_id) ?? undefined
                           }
@@ -536,10 +533,10 @@ export function LeftPanel() {
                             >
                               <ConversationItem
                                 conversation={c}
-                                isActive={c.id === activeConversationId}
+                                isActive={pathname === `/conversations/${c.id}`}
                                 isDeleting={c.id === deletingId}
                                 onDeleteStart={handleDeleteStart}
-                                onClick={() => setActiveConversation(c.id)}
+                                onClick={() => router.navigate({ to: '/conversations/$conversationId', params: { conversationId: c.id } })}
                                 workspaceName={
                                   getWorkspaceName(c.workspace_id) ?? undefined
                                 }
@@ -582,10 +579,10 @@ export function LeftPanel() {
                       >
                         <ConversationItem
                           conversation={c}
-                          isActive={c.id === activeConversationId}
+                          isActive={pathname === `/conversations/${c.id}`}
                           isDeleting={c.id === deletingId}
                           onDeleteStart={handleDeleteStart}
-                          onClick={() => setActiveConversation(c.id)}
+                          onClick={() => router.navigate({ to: '/conversations/$conversationId', params: { conversationId: c.id } })}
                           workspaceName={
                             getWorkspaceName(c.workspace_id) ?? undefined
                           }
