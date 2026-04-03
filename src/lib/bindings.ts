@@ -890,14 +890,6 @@ async listOllamaModels() : Promise<Result<OllamaModelInfo[], string>> {
     else return { status: "error", error: e  as any };
 }
 },
-/**
- * Ensure the app is registered with the platform.
- * 
- * Called lazily before the first platform feature is used.  If credentials
- * already exist in the keychain the function is a no-op.  Otherwise it
- * registers with the platform, stores the API key in the keychain, and
- * persists the `platform_user_id` in the local `user_preferences` table.
- */
 async ensurePlatformRegistration() : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("ensure_platform_registration") };
@@ -914,7 +906,7 @@ async getPlatformPreferences() : Promise<Result<PlatformPreferences, string>> {
     else return { status: "error", error: e  as any };
 }
 },
-async updatePlatformPreferences(payload: UpdatePrefsPayload) : Promise<Result<PlatformPreferences, string>> {
+async updatePlatformPreferences(payload: UpdatePreferencesRequest) : Promise<Result<PlatformPreferences, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("update_platform_preferences", { payload }) };
 } catch (e) {
@@ -930,7 +922,7 @@ async getPendingNudges() : Promise<Result<PendingNudge[], string>> {
     else return { status: "error", error: e  as any };
 }
 },
-async sendActivityEvent(payload: ActivityEventPayload) : Promise<Result<null, string>> {
+async sendActivityEvent(payload: ActivityEventRequest) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("send_activity_event", { payload }) };
 } catch (e) {
@@ -973,6 +965,46 @@ async exportGdprData() : Promise<Result<JsonValue, string>> {
 async deletePlatformAccount() : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("delete_platform_account") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async getSharedConversation(shareToken: string) : Promise<Result<SharedConversationPayload, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_shared_conversation", { shareToken }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async checkSyncStatus(conversationId: string) : Promise<Result<SyncStatusResponse, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("check_sync_status", { conversationId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async shareConversation(conversationId: string) : Promise<Result<ShareResponse, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("share_conversation", { conversationId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async syncConversationToPlatform(conversationId: string, payload: SyncConversationRequest) : Promise<Result<SyncConversationResponse, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("sync_conversation_to_platform", { conversationId, payload }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async hydrateSharedConversation(payload: SharedConversationPayload) : Promise<Result<HydrateResponse, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("hydrate_shared_conversation", { payload }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -1153,7 +1185,7 @@ workflowEvent: "workflow-event"
 
 /** user-defined types **/
 
-export type ActivityEventPayload = { event_type: string; metadata: JsonValue | null }
+export type ActivityEventRequest = { event_type: string; metadata: JsonValue }
 export type AddMcpServerPayload = { name: string; transport: string; command: string | null; args: string[] | null; url: string | null; env: Partial<{ [key in string]: string }> | null }
 export type AddQueuedMessageRequest = { conversation_id: string; content: string; context_items: ContextItem[] | null }
 /**
@@ -1202,6 +1234,7 @@ export type FolderScope = "shallow" | "deep"
 export type GistFile = { filename: string; content: string }
 export type GistInfo = { id: string; url: string; html_url: string; description: string }
 export type HeadingItem = { id: string; message_id: string; toc_index: number; text: string; level: number }
+export type HydrateResponse = { local_id: string }
 /**
  * Result returned after a successful installation.
  */
@@ -1299,6 +1332,9 @@ export type SendMessageRequest = { conversation_id: string; content: string; bra
  * Severity level of a lint warning.
  */
 export type Severity = "off" | "info" | "warning" | "error"
+export type ShareResponse = { share_token: string }
+export type SharedConversationMessage = { id: string; role: string; content: string; created_at: string; branch_id: string | null }
+export type SharedConversationPayload = { id: string; title: string; messages: SharedConversationMessage[]; created_at: string }
 /**
  * Payload for the `"skill-event"` Tauri channel.
  */
@@ -1306,10 +1342,13 @@ export type SkillEvent = { type: "updated"; source_label: string; skill_name: st
 export type SkillInfo = { name: string; description: string; is_active: boolean; source: string; path: string | null; lint_warnings: LintWarning[]; security_score: number; quality_score: number }
 export type SkillSourceInfo = { id: string; source_type: string; path: string; label: string | null }
 export type SkillUsage = { name: string; count: string }
+export type SyncConversationRequest = { title: string; messages: SharedConversationMessage[] }
+export type SyncConversationResponse = { share_token: string }
+export type SyncStatusResponse = { is_synced: boolean; last_synced_at: string | null }
 export type ThemeInfo = { name: string; display_name: string }
 export type TocItem = { id: string; toc_index: number; text: string; level: number; slug: string }
 export type TokenTotals = { input_tokens: string; output_tokens: string; total_tokens: string }
-export type UpdatePrefsPayload = { email: string | null; nudge_frequency: string | null; nudge_opt_out: boolean | null; notification_channels: string[] | null; theme_preference: string | null; timezone: string | null; analytics_opt_in: boolean | null }
+export type UpdatePreferencesRequest = { email: string | null; nudge_frequency: string | null; nudge_opt_out: boolean | null; notification_channels: string[] | null; theme_preference: string | null; timezone: string | null; analytics_opt_in: boolean | null }
 export type WorkflowDefinitionResponse = { id: string; name: string; definition: JsonValue; created_at: string; updated_at: string }
 /**
  * Payload for the `"workflow-event"` Tauri channel.
