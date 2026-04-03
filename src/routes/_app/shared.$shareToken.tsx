@@ -1,7 +1,7 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { commands } from '@/lib/bindings'
 
-export const Route = createFileRoute('/shared/$shareToken')({
+export const Route = createFileRoute('/_app/shared/$shareToken')({
   loader: async ({ params }) => {
     const { shareToken } = params
 

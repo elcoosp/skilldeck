@@ -28,15 +28,25 @@ const SETTINGS_TABS = [
   { id: 'achievements', label: 'Achievements', Icon: Trophy }
 ] as const
 
-export const Route = createFileRoute('/settings')({
+export const Route = createFileRoute('/_app/settings')({
   component: SettingsLayout
 })
 
 function SettingsLayout() {
   const router = useRouter()
+  const pathname = router.state.location.pathname
+  const activeTab = pathname.split('/').pop() ?? 'api-keys'
 
   const handleClose = () => {
-    router.navigate({ to: '/' })
+    router.history.back()
+  }
+
+  const handleTabChange = (tabId: string) => {
+    // Use replace to avoid adding to history stack
+    router.navigate({
+      to: `/settings/${tabId}`,
+      replace: true
+    })
   }
 
   return (
@@ -53,20 +63,20 @@ function SettingsLayout() {
             Settings
           </p>
           {SETTINGS_TABS.map(({ id, label, Icon }) => (
-            <Link
+            <button
               key={id}
-              to={`/settings/${id}`}
-              activeProps={{
-                className: 'bg-primary/10 text-foreground font-medium'
-              }}
-              inactiveProps={{
-                className: 'text-muted-foreground hover:text-foreground hover:bg-muted'
-              }}
-              className="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-md text-sm text-left transition-colors"
+              type="button"
+              onClick={() => handleTabChange(id)}
+              className={cn(
+                'flex items-center gap-2.5 w-full px-2.5 py-2 rounded-md text-sm text-left transition-colors',
+                activeTab === id
+                  ? 'bg-primary/10 text-foreground font-medium'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+              )}
             >
               <Icon className="size-4 shrink-0" />
               {label}
-            </Link>
+            </button>
           ))}
 
           <div className="mt-auto">

@@ -9,8 +9,8 @@ export function useLeftPanelSearch() {
   const setLeftSearch = useCallback(
     (value: string) => {
       navigate({
-        search: (prev) => ({ ...prev, leftSearch: value || undefined })
-      })
+        search: (prev: any) => ({ ...prev, leftSearch: value || undefined })
+      } as any)
     },
     [navigate]
   )

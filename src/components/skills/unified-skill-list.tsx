@@ -1,5 +1,3 @@
-// src/components/skills/unified-skill-list.tsx
-
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { motion } from 'framer-motion'
@@ -20,7 +18,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useUnifiedSkills } from '@/hooks/use-unified-skills'
 import { commands } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
-import { useUIOverlaysStore } from '@/store/ui-overlays'
 import { useUIPersistentStore } from '@/store/ui-state'
 import type { UnifiedSkill } from '@/types/skills'
 import { PlatformStatusBanner } from './platform-status-banner'
@@ -248,8 +245,6 @@ export function UnifiedSkillList() {
   const platformFeaturesEnabled = useUIPersistentStore(
     (s) => s.platformFeaturesEnabled
   )
-  const setSettingsTab = useUIOverlaysStore((s) => s.setSettingsTab)
-  const setSettingsOpen = useUIOverlaysStore((s) => s.setSettingsOpen)
 
   const parentRef = useRef<HTMLDivElement>(null)
 

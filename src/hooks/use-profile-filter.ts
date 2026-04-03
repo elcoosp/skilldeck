@@ -9,8 +9,8 @@ export function useProfileFilter() {
   const setProfileId = useCallback(
     (id: string | null) => {
       navigate({
-        search: (prev) => ({ ...prev, profileId: id || undefined })
-      })
+        search: (prev: any) => ({ ...prev, profileId: id || undefined })
+      } as any)
     },
     [navigate]
   )

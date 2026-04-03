@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { PlatformTab } from '@/components/settings/platform-tab'
 
-export const Route = createFileRoute('/settings/platform')({
+export const Route = createFileRoute('/_app/settings/platform')({
   component: PlatformTab
 })

@@ -3,9 +3,46 @@ import { I18nProvider } from '@lingui/react'
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { RouterProvider } from '@tanstack/react-router'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { getCurrent, onOpenUrl } from '@tauri-apps/plugin-deep-link'
 import { router } from './router'
+import { loadLocale, type locales } from '@/lib/i18n'
+import { useSettingsStore } from '@/store/settings'
+import { useEffect } from 'react'
 import './App.css'
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false
+    }
+  }
+})
+
+function ThemeSync() {
+  const theme = useSettingsStore((s) => s.theme)
+  useEffect(() => {
+    const root = document.documentElement
+    const resolved =
+      theme === 'system'
+        ? window.matchMedia('(prefers-color-scheme: dark)').matches
+          ? 'dark'
+          : 'light'
+        : theme
+    root.classList.toggle('dark', resolved === 'dark')
+  }, [theme])
+  return null
+}
+
+function LanguageSync() {
+  const language = useSettingsStore((s) => s.language)
+  useEffect(() => {
+    loadLocale(language as keyof typeof locales)
+  }, [language])
+  return null
+}
+
 function handleDeepLinkUrls(urls: string[]) {
   for (const url of urls) {
     try {
@@ -34,7 +71,13 @@ onOpenUrl((urls) => {
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <I18nProvider i18n={i18n}>
-      <RouterProvider router={router} />
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <ThemeSync />
+          <LanguageSync />
+          <RouterProvider router={router} />
+        </TooltipProvider>
+      </QueryClientProvider>
     </I18nProvider>
   </React.StrictMode>
 )

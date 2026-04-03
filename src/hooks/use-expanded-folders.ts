@@ -12,17 +12,15 @@ export function useExpandedFolders() {
 
   const toggleFolder = useCallback(
     (folderId: string) => {
+      const current = expandedFolders ? expandedFolders.split(',') : []
+      const next = current.includes(folderId)
+        ? current.filter((id) => id !== folderId)
+        : [...current, folderId]
       navigate({
-        search: (prev) => {
-          const current = prev.expandedFolders ? prev.expandedFolders.split(',') : []
-          const next = current.includes(folderId)
-            ? current.filter((id) => id !== folderId)
-            : [...current, folderId]
-          return { ...prev, expandedFolders: next.length ? next.join(',') : undefined }
-        }
-      })
+        search: (prev: any) => ({ ...prev, expandedFolders: next.length ? next.join(',') : undefined })
+      } as any)
     },
-    [navigate]
+    [navigate, expandedFolders]
   )
 
   return { expandedFolders: folderIds, toggleFolder }

@@ -12,17 +12,15 @@ export function useExpandedDateGroups() {
 
   const toggleDateGroup = useCallback(
     (key: string) => {
+      const current = expandedDateGroups ? expandedDateGroups.split(',') : []
+      const next = current.includes(key)
+        ? current.filter((k) => k !== key)
+        : [...current, key]
       navigate({
-        search: (prev) => {
-          const current = prev.expandedDateGroups ? prev.expandedDateGroups.split(',') : []
-          const next = current.includes(key)
-            ? current.filter((k) => k !== key)
-            : [...current, key]
-          return { ...prev, expandedDateGroups: next.length ? next.join(',') : undefined }
-        }
-      })
+        search: (prev: any) => ({ ...prev, expandedDateGroups: next.length ? next.join(',') : undefined })
+      } as any)
     },
-    [navigate]
+    [navigate, expandedDateGroups]
   )
 
   return { expandedDateGroups: groupKeys, toggleDateGroup }
