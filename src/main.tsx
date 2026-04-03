@@ -5,7 +5,7 @@ import ReactDOM from 'react-dom/client'
 import { RouterProvider } from '@tanstack/react-router'
 import { getCurrent, onOpenUrl } from '@tauri-apps/plugin-deep-link'
 import { router } from './router'
-
+import './App.css'
 function handleDeepLinkUrls(urls: string[]) {
   for (const url of urls) {
     try {

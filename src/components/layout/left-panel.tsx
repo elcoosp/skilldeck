@@ -19,6 +19,7 @@ import {
 import { Collapsible } from 'radix-ui'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
+import { useRouter } from '@tanstack/react-router'
 import { ConversationItem } from '@/components/conversation/conversation-item'
 import { Button } from '@/components/ui/button'
 import {
@@ -126,11 +127,10 @@ function getDateGroupKey(dateStr: string): string {
 // Main component
 // ----------------------------------------------------------------------
 export function LeftPanel() {
+  const router = useRouter()
   const searchQuery = useUIEphemeralStore((s) => s.searchQuery)
   const setSearchQuery = useUIEphemeralStore((s) => s.setSearchQuery)
-  const setSettingsOpen = useUIOverlaysStore((s) => s.setSettingsOpen)
-  const setSettingsTab = useUIOverlaysStore((s) => s.setSettingsTab)
-  const _setGlobalSearchOpen = useUIOverlaysStore((s) => s.setGlobalSearchOpen)
+  const setGlobalSearchOpen = useUIOverlaysStore((s) => s.setGlobalSearchOpen)
   const activeConversationId = useConversationStore(
     (s) => s.activeConversationId
   )
@@ -312,8 +312,7 @@ export function LeftPanel() {
               size="icon-sm"
               aria-label="Search all conversations"
               onClick={() => {
-                const event = new CustomEvent('skilldeck:open-global-search')
-                window.dispatchEvent(event)
+                setGlobalSearchOpen(true)
               }}
             >
               <Search className="size-4" />
@@ -322,7 +321,7 @@ export function LeftPanel() {
               variant="ghost"
               size="icon-sm"
               aria-label="Settings"
-              onClick={() => setSettingsOpen(true)}
+              onClick={() => router.navigate({ to: '/settings/api-keys' })}
             >
               <Settings className="size-4" />
             </Button>
@@ -375,10 +374,7 @@ export function LeftPanel() {
           <Button
             variant="ghost"
             size="icon-xs"
-            onClick={() => {
-              setSettingsTab('profiles')
-              setSettingsOpen(true)
-            }}
+            onClick={() => router.navigate({ to: '/settings/profiles' })}
             title="Create new profile"
             className="h-7 w-7"
           >

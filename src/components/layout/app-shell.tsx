@@ -3,10 +3,10 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { Group, type Layout, Panel, Separator } from 'react-resizable-panels'
 import { Toaster } from 'sonner'
+import { useRouter } from '@tanstack/react-router'
 import { GlobalDropZone } from '@/components/chat/global-drop-zone'
 import { CommandPalette } from '@/components/overlays/command-palette'
 import { LaunchNotificationBanner } from '@/components/overlays/launch-notification'
-import { SettingsOverlay } from '@/components/overlays/settings-overlay'
 import { useNudgeListener, usePlatformRegistration } from '@/hooks/use-platform'
 import { useUILayoutStore } from '@/store/ui-layout'
 import { useUIOverlaysStore } from '@/store/ui-overlays'
@@ -28,6 +28,7 @@ const DEFAULT_LAYOUT: Layout = {
 }
 
 export function AppShell() {
+  const router = useRouter()
   const setPanelSizesPx = useUILayoutStore((s) => s.setPanelSizesPx)
 
   const [layout, setLayout] = useState<Layout>(() => {
@@ -35,7 +36,6 @@ export function AppShell() {
       const stored = localStorage.getItem(LAYOUT_STORAGE_KEY)
       if (stored) {
         const parsed = JSON.parse(stored)
-        // Accept both old number[] format and new Layout map
         if (Array.isArray(parsed) && parsed.length === 3) {
           return {
             [PANEL_LEFT]: parsed[0],
@@ -47,7 +47,7 @@ export function AppShell() {
           return parsed as Layout
         }
       }
-    } catch {}
+    } catch { }
     return DEFAULT_LAYOUT
   })
 
@@ -90,9 +90,7 @@ export function AppShell() {
   const setCommandPaletteOpen = useUIOverlaysStore(
     (s) => s.setCommandPaletteOpen
   )
-  const setSettingsOpen = useUIOverlaysStore((s) => s.setSettingsOpen)
   const setGlobalSearchOpen = useUIOverlaysStore((s) => s.setGlobalSearchOpen)
-  const settingsOpen = useUIOverlaysStore((s) => s.settingsOpen)
 
   usePlatformRegistration()
   useNudgeListener()
@@ -104,7 +102,7 @@ export function AppShell() {
 
   useHotkeys('meta+,, ctrl+,', (e) => {
     e.preventDefault()
-    setSettingsOpen(true)
+    router.navigate({ to: '/settings/api-keys' })
   })
 
   useHotkeys('meta+shift+f, ctrl+shift+f', (e) => {
@@ -120,7 +118,7 @@ export function AppShell() {
       }
       if ((e.metaKey || e.ctrlKey) && e.key === ',') {
         e.preventDefault()
-        setSettingsOpen(true)
+        router.navigate({ to: '/settings/api-keys' })
       }
       if ((e.metaKey || e.ctrlKey) && e.key === 'F' && e.shiftKey) {
         e.preventDefault()
@@ -129,7 +127,7 @@ export function AppShell() {
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [setCommandPaletteOpen, setSettingsOpen, setGlobalSearchOpen])
+  }, [setCommandPaletteOpen, setGlobalSearchOpen, router])
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-background text-foreground flex flex-col">
@@ -170,7 +168,6 @@ export function AppShell() {
       </div>
 
       <CommandPalette />
-      {settingsOpen && <SettingsOverlay />}
       <GlobalDropZone />
       <Toaster position="bottom-right" richColors closeButton />
     </div>
