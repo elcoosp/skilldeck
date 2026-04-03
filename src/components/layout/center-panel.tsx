@@ -1,14 +1,13 @@
 // src/components/layout/center-panel.tsx
-// (full fixed file)
-
 /**
  * Center panel — virtualized message thread and input bar.
  */
 
 import { useQueryClient } from '@tanstack/react-query'
-import { ArrowDown, CaseSensitive, Regex, Search, X } from 'lucide-react'
+import { ArrowDown, CaseSensitive, Regex, Search, Share2, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useDebounce } from 'use-debounce'
+import { toast } from 'sonner'
 import { BranchNav } from '@/components/conversation/branch-nav'
 import { MessageInput } from '@/components/conversation/message-input'
 import {
@@ -32,7 +31,7 @@ import { useConversationBootstrap } from '@/hooks/use-conversation-bootstrap'
 import { useActiveConversationWorkspaceId } from '@/hooks/use-conversations'
 import { useMessagesWithStream } from '@/hooks/use-messages'
 import { useWorkspaces } from '@/hooks/use-workspaces'
-import type { MessageData } from '@/lib/bindings' // <-- remove HeadingItem
+import type { MessageData } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
 import { getScrollToken, setScrollToken } from '@/lib/scroll-token'
 import { cn } from '@/lib/utils'
@@ -81,6 +80,9 @@ export function CenterPanel() {
 
   const queryClient = useQueryClient()
 
+  // Share state
+  const [sharing, setSharing] = useState(false)
+
   // streamingMessage is NOT read here — MessageThread reads it from the store
   // directly so that token updates never re-render CenterPanel.
   const { isRunning } = useAgentStream(activeConversationId)
@@ -99,8 +101,8 @@ export function CenterPanel() {
   })()
 
   const { data: bootstrap, isLoading: _bootstrapLoading } =
-    useConversationBootstrap(activeConversationId) // renamed
-  const _queuedMessages = bootstrap?.queued ?? [] // renamed
+    useConversationBootstrap(activeConversationId)
+  const _queuedMessages = bootstrap?.queued ?? []
   const headings = bootstrap?.headings ?? []
 
   const { data: branches = [] } = useBranches(activeConversationId)
@@ -149,7 +151,7 @@ export function CenterPanel() {
   }, [messages])
 
   const [showJumpToLatest, setShowJumpToLatest] = useState(false)
-  const [_unseenJumpCount, setUnseenJumpCount] = useState(0) // renamed
+  const [_unseenJumpCount, setUnseenJumpCount] = useState(0)
   const lastSeenCountRef = useRef(realMessageCount)
   const initialScrollSettledRef = useRef(false)
 
@@ -158,7 +160,7 @@ export function CenterPanel() {
     setUnseenJumpCount(0)
     setShowJumpToLatest(false)
     locallySeenRef.current = new Set()
-  }, []) // dependency kept but could be removed; leaving as is
+  }, [])
 
   useEffect(() => {
     if (isRunning) {
@@ -247,7 +249,7 @@ export function CenterPanel() {
   }, [markAllUnseenAsSeen])
 
   useEffect(() => {
-    let unsub = () => {}
+    let unsub = () => { }
     const t = setTimeout(() => {
       const thread = threadRef.current
       if (!thread) return
@@ -258,7 +260,7 @@ export function CenterPanel() {
       clearTimeout(t)
       unsub()
     }
-  }, [computeShowJump]) // activeKey kept, but could be removed
+  }, [computeShowJump])
 
   useEffect(() => {
     computeShowJump()
@@ -413,6 +415,62 @@ export function CenterPanel() {
 
   const modifierKey = navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'
 
+  // ─── Share conversation handler ──────────────────────────────────────────
+  const handleShare = async () => {
+    if (!activeConversationId) return
+    setSharing(true)
+    try {
+      // Check sync status
+      const syncRes = await commands.checkSyncStatus(activeConversationId)
+      if (syncRes.status === 'error') {
+        console.error('Sync status check failed:', syncRes.error)
+        toast.error('Could not check sync status')
+        return
+      }
+
+      if (!syncRes.data.is_synced) {
+        // Sync the conversation first
+        const title = bootstrap?.title || 'Shared Conversation'
+        const syncPayload = {
+          title,
+          messages: messages
+            .filter((m) => m.id !== '__streaming__')
+            .map((m) => ({
+              id: m.id,
+              role: m.role,
+              content: m.content,
+              created_at: m.created_at,
+              branch_id: null
+            }))
+        }
+        const syncConvRes = await commands.syncConversationToPlatform(
+          activeConversationId,
+          syncPayload
+        )
+        if (syncConvRes.status === 'error') {
+          toast.error('Failed to sync conversation')
+          return
+        }
+      }
+
+      // Create share token
+      const shareRes = await commands.shareConversation(activeConversationId)
+      if (shareRes.status === 'error') {
+        toast.error('Failed to create share link')
+        return
+      }
+
+      const shareUrl = `skilldeck://shared/${shareRes.data.share_token}`
+      await navigator.clipboard.writeText(shareUrl)
+      toast.success('Share link copied to clipboard!')
+    } catch (err) {
+      console.error('Share failed:', err)
+      toast.error('Failed to share conversation')
+    } finally {
+      setSharing(false)
+    }
+  }
+
   if (!activeConversationId) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-3 text-center px-8">
@@ -508,6 +566,20 @@ export function CenterPanel() {
           />
           Auto-scroll
         </label>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={handleShare}
+          disabled={sharing || !activeConversationId}
+          title="Share this conversation"
+          className="shrink-0"
+        >
+          {sharing ? (
+            <div className="size-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <Share2 className="size-3.5" />
+          )}
+        </Button>
       </div>
 
       <div className="relative flex-1 min-h-0">

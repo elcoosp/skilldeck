@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SettingsIndexRouteImport } from './routes/settings.index'
+import { Route as SharedShareTokenRouteImport } from './routes/shared.$shareToken'
 import { Route as SettingsReferralRouteImport } from './routes/settings.referral'
 import { Route as SettingsProfilesRouteImport } from './routes/settings.profiles'
 import { Route as SettingsPreferencesRouteImport } from './routes/settings.preferences'
@@ -31,6 +32,11 @@ const SettingsIndexRoute = SettingsIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => SettingsRoute,
+} as any)
+const SharedShareTokenRoute = SharedShareTokenRouteImport.update({
+  id: '/shared/$shareToken',
+  path: '/shared/$shareToken',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsReferralRoute = SettingsReferralRouteImport.update({
   id: '/referral',
@@ -96,6 +102,7 @@ export interface FileRoutesByFullPath {
   '/settings/preferences': typeof SettingsPreferencesRoute
   '/settings/profiles': typeof SettingsProfilesRoute
   '/settings/referral': typeof SettingsReferralRoute
+  '/shared/$shareToken': typeof SharedShareTokenRoute
   '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -109,6 +116,7 @@ export interface FileRoutesByTo {
   '/settings/preferences': typeof SettingsPreferencesRoute
   '/settings/profiles': typeof SettingsProfilesRoute
   '/settings/referral': typeof SettingsReferralRoute
+  '/shared/$shareToken': typeof SharedShareTokenRoute
   '/settings': typeof SettingsIndexRoute
 }
 export interface FileRoutesById {
@@ -124,6 +132,7 @@ export interface FileRoutesById {
   '/settings/preferences': typeof SettingsPreferencesRoute
   '/settings/profiles': typeof SettingsProfilesRoute
   '/settings/referral': typeof SettingsReferralRoute
+  '/shared/$shareToken': typeof SharedShareTokenRoute
   '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRouteTypes {
@@ -140,6 +149,7 @@ export interface FileRouteTypes {
     | '/settings/preferences'
     | '/settings/profiles'
     | '/settings/referral'
+    | '/shared/$shareToken'
     | '/settings/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -153,6 +163,7 @@ export interface FileRouteTypes {
     | '/settings/preferences'
     | '/settings/profiles'
     | '/settings/referral'
+    | '/shared/$shareToken'
     | '/settings'
   id:
     | '__root__'
@@ -167,12 +178,14 @@ export interface FileRouteTypes {
     | '/settings/preferences'
     | '/settings/profiles'
     | '/settings/referral'
+    | '/shared/$shareToken'
     | '/settings/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRouteWithChildren
   ConversationsConversationIdRoute: typeof ConversationsConversationIdRoute
+  SharedShareTokenRoute: typeof SharedShareTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -190,6 +203,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/settings/'
       preLoaderRoute: typeof SettingsIndexRouteImport
       parentRoute: typeof SettingsRoute
+    }
+    '/shared/$shareToken': {
+      id: '/shared/$shareToken'
+      path: '/shared/$shareToken'
+      fullPath: '/shared/$shareToken'
+      preLoaderRoute: typeof SharedShareTokenRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/settings/referral': {
       id: '/settings/referral'
@@ -297,6 +317,7 @@ const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRouteWithChildren,
   ConversationsConversationIdRoute: ConversationsConversationIdRoute,
+  SharedShareTokenRoute: SharedShareTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
