@@ -5,7 +5,7 @@ export const router = createRouter({
   routeTree,
   scrollRestoration: true,
   scrollToTopSelectors: ['#message-thread-scroll-container'],
-  scrollRestorationBehavior: 'smooth', // or 'instant' for immediate jump
+  scrollRestorationBehavior: 'smooth' // or 'instant' for immediate jump
 })
 
 declare module '@tanstack/react-router' {

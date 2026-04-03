@@ -1,16 +1,15 @@
-import { createFileRoute, Link, Outlet, useRouter } from '@tanstack/react-router'
+import { createFileRoute, Outlet, useRouter } from '@tanstack/react-router'
 import {
   AlertTriangle,
+  Bell,
+  Folder,
   Globe,
   Key,
   Layers,
-  ShieldCheck,
-  Star,
-  Sun,
-  Folder,
   Share2,
+  ShieldCheck,
+  Sun,
   Trophy,
-  Bell,
   X
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -50,6 +49,9 @@ function SettingsLayout() {
   }
 
   return (
+    // biome lint/a11y/noStaticElementInteractions: ok
+    // biome-ignore  lint/a11y/useKeyWithClickEvents:ok
+    // biome-ignore lint/a11y/noStaticElementInteractions: ok
     <div
       className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
       onClick={(e) => {

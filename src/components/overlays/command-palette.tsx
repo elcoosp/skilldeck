@@ -8,10 +8,10 @@
  *   • Actions       — new chat, open workspace, settings
  */
 
+import { useRouter } from '@tanstack/react-router'
 import { Command } from 'cmdk'
 import { FolderOpen, Layers, MessageSquare, Plus, Settings } from 'lucide-react'
 import { useEffect } from 'react'
-import { useRouter } from '@tanstack/react-router'
 import {
   useConversations,
   useCreateConversation

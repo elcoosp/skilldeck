@@ -1,13 +1,15 @@
 import { useNavigate } from '@tanstack/react-router'
-import { Route } from '@/routes/__root'
 import { useCallback, useMemo } from 'react'
+import { Route } from '@/routes/__root'
 
 export function useExpandedDateGroups() {
   const navigate = useNavigate()
   const { expandedDateGroups } = Route.useSearch()
 
   const groupKeys = useMemo(() => {
-    return expandedDateGroups ? expandedDateGroups.split(',').filter(Boolean) : []
+    return expandedDateGroups
+      ? expandedDateGroups.split(',').filter(Boolean)
+      : []
   }, [expandedDateGroups])
 
   const toggleDateGroup = useCallback(
@@ -17,7 +19,10 @@ export function useExpandedDateGroups() {
         ? current.filter((k) => k !== key)
         : [...current, key]
       navigate({
-        search: (prev: any) => ({ ...prev, expandedDateGroups: next.length ? next.join(',') : undefined })
+        search: (prev: any) => ({
+          ...prev,
+          expandedDateGroups: next.length ? next.join(',') : undefined
+        })
       } as any)
     },
     [navigate, expandedDateGroups]

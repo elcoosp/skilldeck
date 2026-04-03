@@ -1,3 +1,4 @@
+import { useRouter } from '@tanstack/react-router'
 import { open } from '@tauri-apps/plugin-dialog'
 import {
   AlertTriangle,
@@ -11,7 +12,6 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { useRouter } from '@tanstack/react-router'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -78,7 +78,10 @@ export function PreferencesTab() {
         <p className="text-sm text-muted-foreground mb-2">
           Platform not configured.
         </p>
-        <Button size="sm" onClick={() => router.navigate({ to: '/settings/platform' })}>
+        <Button
+          size="sm"
+          onClick={() => router.navigate({ to: '/settings/platform' })}
+        >
           Go to Platform Settings
         </Button>
       </div>

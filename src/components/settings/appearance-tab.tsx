@@ -1,5 +1,5 @@
-import { useSettingsStore } from '@/store/settings'
 import { cn } from '@/lib/utils'
+import { useSettingsStore } from '@/store/settings'
 
 export function AppearanceTab() {
   const theme = useSettingsStore((s) => s.theme)

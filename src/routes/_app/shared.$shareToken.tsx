@@ -28,7 +28,9 @@ export const Route = createFileRoute('/_app/shared/$shareToken')({
       <div className="flex items-center justify-center h-full">
         <div className="text-center space-y-4">
           <div className="size-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-muted-foreground">Loading shared conversation...</p>
+          <p className="text-muted-foreground">
+            Loading shared conversation...
+          </p>
         </div>
       </div>
     )

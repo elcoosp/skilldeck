@@ -1,9 +1,10 @@
 // src/components/layout/app-shell.tsx
+
+import { useRouter } from '@tanstack/react-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { Group, type Layout, Panel, Separator } from 'react-resizable-panels'
 import { Toaster } from 'sonner'
-import { useRouter } from '@tanstack/react-router'
 import { GlobalDropZone } from '@/components/chat/global-drop-zone'
 import { CommandPalette } from '@/components/overlays/command-palette'
 import { LaunchNotificationBanner } from '@/components/overlays/launch-notification'
@@ -47,7 +48,7 @@ export function AppShell() {
           return parsed as Layout
         }
       }
-    } catch { }
+    } catch {}
     return DEFAULT_LAYOUT
   })
 

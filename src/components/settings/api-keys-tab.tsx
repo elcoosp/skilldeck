@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { Eye, EyeOff } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -12,27 +12,6 @@ const PROVIDERS = [
   { id: 'openai', label: 'OpenAI', placeholder: 'sk-…' },
   { id: 'ollama', label: 'Ollama (local)', placeholder: 'optional token' }
 ]
-
-function useAvailableModels(provider: string) {
-  return useQuery({
-    queryKey: ['available-models', provider],
-    queryFn: async () => {
-      if (provider === 'ollama') {
-        const res = await commands.listOllamaModels()
-        if (res.status === 'ok') return res.data.map((m) => m.id)
-        return []
-      }
-      if (provider === 'claude') {
-        return ['claude-sonnet-4-5', 'claude-opus-4', 'claude-3-5-sonnet']
-      }
-      if (provider === 'openai') {
-        return ['gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo']
-      }
-      return []
-    },
-    staleTime: 60_000
-  })
-}
 
 export function ApiKeysTab() {
   const [values, setValues] = useState<Record<string, string>>({})

@@ -1,9 +1,9 @@
+import { useElementScrollRestoration } from '@tanstack/react-router'
 import {
   elementScroll,
   useVirtualizer,
   type Virtualizer
 } from '@tanstack/react-virtual'
-import { useElementScrollRestoration } from '@tanstack/react-router'
 import { motion } from 'framer-motion'
 import * as React from 'react'
 import { useSendMessage } from '@/hooks/use-messages'
@@ -98,9 +98,9 @@ const VirtualRow = React.memo(
           if (isLast && node !== lastItemNodeRef.current) {
             if (lastItemNodeRef.current)
               streamingRoRef.current?.unobserve(lastItemNodeRef.current)
-                ; (
-                  lastItemNodeRef as React.MutableRefObject<Element | null>
-                ).current = node
+            ;(
+              lastItemNodeRef as React.MutableRefObject<Element | null>
+            ).current = node
             if (node) streamingRoRef.current?.observe(node)
           }
         }}
@@ -190,7 +190,7 @@ export const MessageThread = React.forwardRef<
     const scrollRestoration = useElementScrollRestoration({
       id: `message-thread-${conversationKey}`,
       getElement: () => scrollRef.current,
-      getKey: (location) => location.pathname,
+      getKey: (location) => location.pathname
     })
 
     const messagesWithRetry = React.useMemo(() => {
@@ -227,7 +227,7 @@ export const MessageThread = React.forwardRef<
     // FIX: Reset internal scroll state when conversation changes
     React.useEffect(() => {
       userScrolledAwayRef.current = false
-    }, [conversationKey])
+    }, [])
 
     const scrollToFn: (
       offset: number,
@@ -574,7 +574,7 @@ export const MessageThread = React.forwardRef<
         getScrollPosition: () => scrollRef.current?.scrollTop ?? 0,
         onScroll: (cb: () => void) => {
           const el = scrollRef.current
-          if (!el) return () => { }
+          if (!el) return () => {}
           el.addEventListener('scroll', cb, { passive: true })
           return () => el.removeEventListener('scroll', cb)
         }
@@ -655,7 +655,7 @@ export const MessageThread = React.forwardRef<
                     const retryAvailable = (message as any).retryAvailable
                     const handleRetry = retryAvailable
                       ? () =>
-                        sendMutation.mutateAsync({ content: message.content })
+                          sendMutation.mutateAsync({ content: message.content })
                       : undefined
 
                     return (
@@ -719,7 +719,7 @@ export const MessageThread = React.forwardRef<
                 }
               }
             }}
-            onHeadingClick={(_msgIdx, _tocIdx) => { }}
+            onHeadingClick={(_msgIdx, _tocIdx) => {}}
             headings={headings}
           />
         </AutoScrollContext.Provider>

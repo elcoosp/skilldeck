@@ -5,6 +5,7 @@
  */
 
 import { DotLottieReact } from '@lottiefiles/dotlottie-react'
+import { useRouter, useRouterState } from '@tanstack/react-router'
 import { open } from '@tauri-apps/plugin-dialog'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
@@ -19,7 +20,6 @@ import {
 import { Collapsible } from 'radix-ui'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { useRouter, useRouterState } from '@tanstack/react-router'
 import { ConversationItem } from '@/components/conversation/conversation-item'
 import { Button } from '@/components/ui/button'
 import {
@@ -42,13 +42,13 @@ import {
   useConversations,
   useCreateConversation
 } from '@/hooks/use-conversations'
+import { useExpandedDateGroups } from '@/hooks/use-expanded-date-groups'
 import {
   useCreateFolder,
   useFolders,
   useMoveConversationToFolder
 } from '@/hooks/use-folders'
 import { useLeftPanelSearch } from '@/hooks/use-left-panel-search'
-import { useExpandedDateGroups } from '@/hooks/use-expanded-date-groups'
 import { useProfileFilter } from '@/hooks/use-profile-filter'
 import { useProfiles } from '@/hooks/use-profiles'
 import { useOpenWorkspace, useWorkspaces } from '@/hooks/use-workspaces'
@@ -157,7 +157,7 @@ export function LeftPanel() {
   // Folders
   const { data: folders = [], isLoading: foldersLoading } = useFolders()
   const createFolder = useCreateFolder()
-  const moveConversationToFolder = useMoveConversationToFolder()
+  const _moveConversationToFolder = useMoveConversationToFolder()
 
   // New folder creation modal state (simple prompt)
   const [showNewFolderInput, setShowNewFolderInput] = useState(false)
@@ -452,7 +452,12 @@ export function LeftPanel() {
                           isActive={pathname === `/conversations/${c.id}`}
                           isDeleting={c.id === deletingId}
                           onDeleteStart={handleDeleteStart}
-                          onClick={() => router.navigate({ to: '/conversations/$conversationId', params: { conversationId: c.id } })}
+                          onClick={() =>
+                            router.navigate({
+                              to: '/conversations/$conversationId',
+                              params: { conversationId: c.id }
+                            })
+                          }
                           workspaceName={
                             getWorkspaceName(c.workspace_id) ?? undefined
                           }
@@ -536,7 +541,12 @@ export function LeftPanel() {
                                 isActive={pathname === `/conversations/${c.id}`}
                                 isDeleting={c.id === deletingId}
                                 onDeleteStart={handleDeleteStart}
-                                onClick={() => router.navigate({ to: '/conversations/$conversationId', params: { conversationId: c.id } })}
+                                onClick={() =>
+                                  router.navigate({
+                                    to: '/conversations/$conversationId',
+                                    params: { conversationId: c.id }
+                                  })
+                                }
                                 workspaceName={
                                   getWorkspaceName(c.workspace_id) ?? undefined
                                 }
@@ -582,7 +592,12 @@ export function LeftPanel() {
                           isActive={pathname === `/conversations/${c.id}`}
                           isDeleting={c.id === deletingId}
                           onDeleteStart={handleDeleteStart}
-                          onClick={() => router.navigate({ to: '/conversations/$conversationId', params: { conversationId: c.id } })}
+                          onClick={() =>
+                            router.navigate({
+                              to: '/conversations/$conversationId',
+                              params: { conversationId: c.id }
+                            })
+                          }
                           workspaceName={
                             getWorkspaceName(c.workspace_id) ?? undefined
                           }

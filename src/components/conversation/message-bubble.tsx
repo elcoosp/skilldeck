@@ -301,7 +301,7 @@ function MessageBubbleInner({
   // Helper to get truncated text (first 200 chars)
   const getTruncatedText = (text: string) => {
     if (text.length <= 200) return text
-    return text.slice(0, 200) + '...'
+    return `${text.slice(0, 200)}...`
   }
 
   useEffect(() => {
@@ -470,7 +470,7 @@ function MessageBubbleInner({
       <SubagentCard
         stepName={subagentData.task || 'Subagent'}
         status="running"
-        onOpen={() => { }}
+        onOpen={() => {}}
       />
     )
   }
@@ -703,9 +703,10 @@ function MessageBubbleInner({
   }
 
   // User message return block with "Show more/less" button at the bottom
-  const displayContent = isLongContent && !isExpanded
-    ? getTruncatedText(message.content)
-    : message.content
+  const displayContent =
+    isLongContent && !isExpanded
+      ? getTruncatedText(message.content)
+      : message.content
 
   return (
     <motion.div
@@ -803,6 +804,7 @@ function MessageBubbleInner({
             {/* "Show more/less" button at the bottom of the bubble */}
             {isLongContent && !isStreaming && !syntheticStreaming && (
               <button
+                type="button"
                 onClick={() => setIsExpanded(!isExpanded)}
                 className="mt-2 text-xs font-medium text-primary-foreground/80 hover:text-primary-foreground transition-colors"
               >

@@ -1,8 +1,9 @@
 // src/components/overlays/onboarding-wizard.tsx
+
+import { useRouter } from '@tanstack/react-router'
 import { ArrowRight, Check, Key, Mail, Rocket, Shield } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { useRouter } from '@tanstack/react-router'
 import { useCreateConversation } from '@/hooks/use-conversations'
 import { useProfiles } from '@/hooks/use-profiles'
 import { commands } from '@/lib/bindings'

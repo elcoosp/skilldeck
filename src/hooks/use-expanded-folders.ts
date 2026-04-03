@@ -1,6 +1,6 @@
 import { useNavigate } from '@tanstack/react-router'
-import { Route } from '@/routes/__root'
 import { useCallback, useMemo } from 'react'
+import { Route } from '@/routes/__root'
 
 export function useExpandedFolders() {
   const navigate = useNavigate()
@@ -17,7 +17,10 @@ export function useExpandedFolders() {
         ? current.filter((id) => id !== folderId)
         : [...current, folderId]
       navigate({
-        search: (prev: any) => ({ ...prev, expandedFolders: next.length ? next.join(',') : undefined })
+        search: (prev: any) => ({
+          ...prev,
+          expandedFolders: next.length ? next.join(',') : undefined
+        })
       } as any)
     },
     [navigate, expandedFolders]

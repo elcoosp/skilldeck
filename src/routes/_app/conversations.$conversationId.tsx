@@ -1,16 +1,22 @@
-// src/routes/conversations.$conversationId.tsx
 import { useQueryClient } from '@tanstack/react-query'
-import { ArrowDown, CaseSensitive, Regex, Search, Share2, X } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useDebounce } from 'use-debounce'
-import { toast } from 'sonner'
 import { createFileRoute, useRouter } from '@tanstack/react-router'
+import {
+  ArrowDown,
+  CaseSensitive,
+  Regex,
+  Search,
+  Share2,
+  X
+} from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { toast } from 'sonner'
+import { useDebounce } from 'use-debounce'
+import { z } from 'zod'
 import { BranchNav } from '@/components/conversation/branch-nav'
 import { MessageInput } from '@/components/conversation/message-input'
 import {
   MessageThread,
-  type MessageThreadHandle,
-  type ScrollToken
+  type MessageThreadHandle
 } from '@/components/conversation/message-thread'
 import ThreadNavigator from '@/components/conversation/thread-navigator'
 import { Button } from '@/components/ui/button'
@@ -27,19 +33,21 @@ import { useBranches } from '@/hooks/use-branches'
 import { useConversationBootstrap } from '@/hooks/use-conversation-bootstrap'
 import { useActiveConversationWorkspaceId } from '@/hooks/use-conversations'
 import { useMessagesWithStream } from '@/hooks/use-messages'
-import { useWorkspaces } from '@/hooks/use-workspaces'
 import { useScrollToMessage } from '@/hooks/use-scroll-to-message'
+import { useWorkspaces } from '@/hooks/use-workspaces'
 import type { MessageData } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
 import { useUIEphemeralStore } from '@/store/ui-ephemeral'
-import { z } from 'zod'
 
 export const conversationSearchSchema = z.object({
   messageId: z.string().optional(),
   branchId: z.string().optional(),
   conversationSearch: z.string().optional(),
-  autoScroll: z.string().transform((v) => v !== 'false').optional()
+  autoScroll: z
+    .string()
+    .transform((v) => v !== 'false')
+    .optional()
 })
 
 export const Route = createFileRoute('/_app/conversations/$conversationId')({
@@ -50,7 +58,7 @@ export const Route = createFileRoute('/_app/conversations/$conversationId')({
 
 function ConversationView() {
   const { conversationId } = Route.useParams()
-  const router = useRouter()
+  const _router = useRouter()
   const searchQuery = useUIEphemeralStore((s) => s.conversationSearchQuery)
   const setSearchQuery = useUIEphemeralStore(
     (s) => s.setConversationSearchQuery
@@ -63,7 +71,6 @@ function ConversationView() {
 
   const [debouncedSearch] = useDebounce(searchQuery, 300)
   const [autoScroll, setAutoScroll] = useState(true)
-
   const [searchCaseSensitive, setSearchCaseSensitive] = useState(false)
   const [searchRegex, setSearchRegex] = useState(false)
 
@@ -84,8 +91,7 @@ function ConversationView() {
   const [sharing, setSharing] = useState(false)
 
   const { isRunning } = useAgentStream(conversationId)
-  const messages = useMessagesWithStream(conversationId, null) // branch support later
-
+  const messages = useMessagesWithStream(conversationId, null)
   const messagesRef = useRef(messages)
   messagesRef.current = messages
 
@@ -97,27 +103,21 @@ function ConversationView() {
 
   const { data: bootstrap, isLoading: bootstrapLoading } =
     useConversationBootstrap(conversationId)
-
-  // Show 404 if conversation doesn't exist after loading
-  if (!bootstrapLoading && !bootstrap) {
-    return <ConversationNotFound />
-  }
-
   const headings = bootstrap?.headings ?? []
-
   const { data: branches = [] } = useBranches(conversationId)
   const activeBranchId = null // TODO: from URL
   const currentBranch = branches.find((b) => b.id === activeBranchId)
   const branchParentMessageId = currentBranch?.parent_message_id ?? null
-
-  // Scroll to message from URL – deferred to avoid racing with scroll restoration
   const scrollToMessageId = useScrollToMessage()
+
+  // All hooks are now at the top, before any conditional return.
+  // Now we can conditionally render based on loading/not found.
+  const showNotFound = !bootstrapLoading && !bootstrap
 
   useEffect(() => {
     if (!scrollToMessageId || !messages.length) return
     const targetMessage = messages.find((m) => m.id === scrollToMessageId)
     if (!targetMessage) return
-
     const raf = requestAnimationFrame(() => {
       const fullIndex = messages.findIndex((m) => m.id === scrollToMessageId)
       threadRef.current?.scrollToMessage(fullIndex)
@@ -136,7 +136,6 @@ function ConversationView() {
   ).length
   const messagesLengthRef = useRef(realMessageCount)
   messagesLengthRef.current = realMessageCount
-
   const locallySeenRef = useRef<Set<string>>(new Set())
 
   const unseenCount = useMemo(() => {
@@ -150,7 +149,7 @@ function ConversationView() {
   }, [messages])
 
   const [showJumpToLatest, setShowJumpToLatest] = useState(false)
-  const [_unseenJumpCount, setUnseenJumpCount] = useState(0)
+  const [, setUnseenJumpCount] = useState(0)
   const lastSeenCountRef = useRef(realMessageCount)
   const initialScrollSettledRef = useRef(false)
 
@@ -173,15 +172,12 @@ function ConversationView() {
       if (ids.length === 0) return
       const convId = conversationId
       if (!convId) return
-
       const idSet = new Set(ids)
       for (const id of idSet) locallySeenRef.current.add(id)
-
       queryClient.setQueriesData<MessageData[]>(
         { queryKey: ['messages', convId] },
         (old) => old?.map((m) => (idSet.has(m.id) ? { ...m, seen: true } : m))
       )
-
       Promise.all(ids.map((id) => commands.markMessageSeen(id))).catch((err) =>
         console.error('Failed to mark messages seen:', err)
       )
@@ -207,7 +203,6 @@ function ConversationView() {
   const computeShowJump = useCallback(() => {
     const el = threadRef.current?.getScrollElement()
     if (!el) return
-
     if (el.scrollHeight <= el.clientHeight + 1) {
       setShowJumpToLatest(false)
       setUnseenJumpCount(0)
@@ -215,7 +210,6 @@ function ConversationView() {
       markAllUnseenAsSeen()
       return
     }
-
     const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 100
     setShowJumpToLatest(!nearBottom && messagesLengthRef.current > 0)
     if (nearBottom) {
@@ -230,7 +224,7 @@ function ConversationView() {
   }, [markAllUnseenAsSeen])
 
   useEffect(() => {
-    let unsub = () => { }
+    let unsub = () => {}
     const t = setTimeout(() => {
       const thread = threadRef.current
       if (!thread) return
@@ -288,20 +282,16 @@ function ConversationView() {
     const unsub = threadRef.current?.onScroll(() => {
       const scrollContainer = threadRef.current?.getScrollElement()
       if (!scrollContainer || activeUserMessageIndex == null) return
-
       const assistantMsgId = messages[activeUserMessageIndex + 1]?.id
       if (!assistantMsgId) return
-
       const bubble = scrollContainer.querySelector(
         `[data-msg-id="${assistantMsgId}"]`
       )
       if (!bubble) return
-
       const headingEls = Array.from(
         bubble.querySelectorAll('h1,h2,h3,h4,h5,h6')
       )
       if (!headingEls.length) return
-
       const containerTop = scrollContainer.getBoundingClientRect().top
       let activeIdx = 0
       for (let i = 0; i < headingEls.length; i++) {
@@ -325,7 +315,6 @@ function ConversationView() {
       const scrollContainer = threadRef.current?.getScrollElement()
       const userMsgIndex = messageIndex - 1
       const userMsg = messages[userMsgIndex]
-
       const scrollToHeading = () => {
         requestAnimationFrame(() => {
           const container = threadRef.current?.getScrollElement()
@@ -336,22 +325,17 @@ function ConversationView() {
           const headingEls = bubble.querySelectorAll('h1,h2,h3,h4,h5,h6')
           const target = headingEls[tocIndex]
           if (!target) return
-
           const targetRect = (target as HTMLElement).getBoundingClientRect()
           if (targetRect.top === 0 && targetRect.bottom === 0) return
-
           const elTop = targetRect.top
           const containerTop = container.getBoundingClientRect().top
           container.scrollTop += elTop - containerTop - 16
-
           if (userMsg) handleVisibleUserIndexChange(userMsgIndex)
         })
       }
-
       const bubbleAlreadyRendered = !!scrollContainer?.querySelector(
         `[data-msg-id="${targetMsgId}"]`
       )
-
       if (bubbleAlreadyRendered) {
         scrollToHeading()
       } else {
@@ -396,7 +380,6 @@ function ConversationView() {
         toast.error('Could not check sync status')
         return
       }
-
       if (!syncRes.data.is_synced) {
         const title = bootstrap?.title || 'Shared Conversation'
         const syncPayload = {
@@ -420,13 +403,11 @@ function ConversationView() {
           return
         }
       }
-
       const shareRes = await commands.shareConversation(conversationId)
       if (shareRes.status === 'error') {
         toast.error('Failed to create share link')
         return
       }
-
       const shareUrl = `skilldeck://shared/${shareRes.data.share_token}`
       await navigator.clipboard.writeText(shareUrl)
       toast.success('Share link copied to clipboard!')
@@ -436,6 +417,10 @@ function ConversationView() {
     } finally {
       setSharing(false)
     }
+  }
+
+  if (showNotFound) {
+    return <ConversationNotFound />
   }
 
   return (
@@ -472,7 +457,6 @@ function ConversationView() {
                 <TooltipContent>Case sensitive</TooltipContent>
               </Tooltip>
             </TooltipProvider>
-
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -535,9 +519,9 @@ function ConversationView() {
 
       <div className="relative flex-1 min-h-0">
         <MessageThread
-          key={conversationId ?? ''}
+          key={conversationId}
           ref={threadRef}
-          conversationKey={conversationId ?? ''}
+          conversationKey={conversationId}
           conversationId={conversationId}
           messages={messages}
           streamingMessageId={streamingMessageId}
@@ -598,7 +582,9 @@ function ConversationNotFound() {
   return (
     <div className="flex flex-col items-center justify-center h-full gap-4">
       <h1 className="text-2xl font-bold">Conversation not found</h1>
-      <p className="text-muted-foreground">The conversation you're looking for doesn't exist or has been deleted.</p>
+      <p className="text-muted-foreground">
+        The conversation you're looking for doesn't exist or has been deleted.
+      </p>
       <Button onClick={() => router.navigate({ to: '/' })}>Go to Home</Button>
     </div>
   )

@@ -1,4 +1,4 @@
-import { Outlet, createRootRoute } from '@tanstack/react-router'
+import { createRootRoute, Outlet } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import { HotkeysProvider } from 'react-hotkeys-hook'
 import { z } from 'zod'
@@ -35,7 +35,7 @@ function NotFound() {
       <p className="text-muted-foreground mb-4">Page not found</p>
       <button
         type="button"
-        onClick={() => window.location.href = '/'}
+        onClick={() => (window.location.href = '/')}
         className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
       >
         Go to Home
