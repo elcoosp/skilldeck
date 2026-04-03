@@ -9,7 +9,9 @@ use crate::platform_client::{
 use crate::state::AppState;
 use specta::specta;
 use std::sync::Arc;
+use tauri::Manager; // <-- add for .path()
 use tauri::State;
+use tauri_plugin_keyring::KeyringExt; // <-- add for .keyring()
 use uuid::Uuid;
 
 // ── Registration ─────────────────────────────────────────────────────────────
@@ -18,24 +20,22 @@ use uuid::Uuid;
 #[tauri::command]
 pub async fn ensure_platform_registration(state: State<'_, Arc<AppState>>) -> Result<(), String> {
     let client_id = {
-        let mut client = state.platform_client.write().await;
-        // Generate a stable client ID from the app data directory
         let data_dir = state
             .app_handle
             .path()
             .app_data_dir()
-            .map_err(|e| e.to_string())?;
+            .map_err(|e: tauri::Error| e.to_string())?;
         let id_file = data_dir.join("client_id");
         if id_file.exists() {
             let id_str = tokio::fs::read_to_string(&id_file)
                 .await
-                .map_err(|e| e.to_string())?;
+                .map_err(|e: std::io::Error| e.to_string())?;
             Uuid::parse_str(&id_str).map_err(|e| e.to_string())?
         } else {
             let id = Uuid::new_v4();
             tokio::fs::write(&id_file, id.to_string())
                 .await
-                .map_err(|e| e.to_string())?;
+                .map_err(|e: std::io::Error| e.to_string())?;
             id
         }
     };
@@ -43,7 +43,7 @@ pub async fn ensure_platform_registration(state: State<'_, Arc<AppState>>) -> Re
     let (user_id, api_key) = {
         let client = state.platform_client.read().await;
         let resp = client
-            .register(client_id, None)
+            .register(client_id) // <-- removed extra None argument
             .await
             .map_err(|e| e.to_string())?;
         (resp.user_id, resp.api_key)
@@ -127,7 +127,7 @@ pub async fn get_platform_preferences(
         .ok_or_else(|| "Platform preferences not initialized".to_string())?;
 
     Ok(PlatformPreferences {
-        email: None, // email is not stored locally; it's fetched from platform if needed
+        email: None,
         email_verified: false,
         nudge_frequency: prefs.nudge_frequency,
         nudge_opt_out: prefs.nudge_opt_out,
@@ -164,32 +164,36 @@ pub async fn update_platform_preferences(
     let mut active: skilldeck_models::user_preferences::ActiveModel = existing.into();
     let now = chrono::Utc::now().fixed_offset();
 
-    if let Some(freq) = payload.nudge_frequency {
-        active.nudge_frequency = Set(freq);
+    // Borrow fields to avoid moving payload
+    if let Some(ref freq) = payload.nudge_frequency {
+        active.nudge_frequency = Set(freq.clone());
     }
-    if let Some(opt_out) = payload.nudge_opt_out {
-        active.nudge_opt_out = Set(opt_out);
+    if let Some(ref opt_out) = payload.nudge_opt_out {
+        active.nudge_opt_out = Set(*opt_out);
     }
-    if let Some(channels) = payload.notification_channels {
+    if let Some(ref channels) = payload.notification_channels {
         active.notification_channels = Set(serde_json::to_value(channels).unwrap());
     }
-    if let Some(theme) = payload.theme_preference {
-        active.theme_preference = Set(theme);
+    if let Some(ref theme) = payload.theme_preference {
+        active.theme_preference = Set(theme.clone());
     }
-    if let Some(tz) = payload.timezone {
-        active.timezone = Set(Some(tz));
+    if let Some(ref tz) = payload.timezone {
+        active.timezone = Set(Some(tz.clone()));
     }
-    if let Some(analytics) = payload.analytics_opt_in {
-        active.analytics_opt_in = Set(analytics);
+    if let Some(ref analytics) = payload.analytics_opt_in {
+        active.analytics_opt_in = Set(*analytics);
     }
     active.updated_at = Set(now);
     active.update(db).await.map_err(|e| e.to_string())?;
 
-    // Also sync to platform if configured
-    let client = state.platform_client.read().await;
-    if client.is_configured() {
-        let _ = client.update_preferences(payload, None).await;
-    }
+    // Also sync to platform if configured – drop the read guard before calling other functions
+    {
+        let client = state.platform_client.read().await;
+        if client.is_configured() {
+            // Clone payload to avoid moving; we already borrowed above
+            let _ = client.update_preferences(payload, None).await;
+        }
+    } // client guard dropped here
 
     get_platform_preferences(state).await
 }

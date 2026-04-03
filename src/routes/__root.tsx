@@ -1,5 +1,6 @@
 import { Outlet, createRootRoute } from '@tanstack/react-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { TanStackRouterDevtools } from '@tanstack/router-devtools'
 import { useEffect, useState } from 'react'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { useMcpEvents } from '@/hooks/use-mcp-events'
@@ -13,7 +14,6 @@ import { useUILayoutStore } from '@/store/ui-layout'
 import { useUIPersistentStore } from '@/store/ui-state'
 import { OnboardingWizard } from '@/components/overlays/onboarding-wizard'
 import { SplashScreen } from '@/components/overlays/splash-screen'
-import { GlobalSearchModal } from '@/components/search/global-search-modal'
 import { AppShell } from '@/components/layout/app-shell'
 import { commands } from '@/lib/bindings'
 import { z } from 'zod'
@@ -134,7 +134,6 @@ function RootProviders({ children }: { children: React.ReactNode }) {
 
 function RootComponent() {
   const onboardingComplete = useUIPersistentStore((s) => s.onboardingComplete)
-  const globalSearchOpen = useState(false)
   const setRightTab = useUILayoutStore((s) => s.setRightTab)
 
   useEffect(() => {
@@ -176,6 +175,7 @@ function RootComponent() {
       <GlobalEventListeners />
       <AppShell />
       {!onboardingComplete && <OnboardingWizard />}
+      {import.meta.env.DEV && <TanStackRouterDevtools />}
     </RootProviders>
   )
 }

@@ -56,7 +56,7 @@ pub struct PlatformPreferences {
     pub analytics_opt_in: bool,
 }
 
-#[derive(Debug, Serialize, Type)]
+#[derive(Debug, Serialize, Deserialize, Type)]
 pub struct UpdatePreferencesRequest {
     pub email: Option<String>,
     pub nudge_frequency: Option<String>,
@@ -93,7 +93,7 @@ pub struct PendingNudge {
     pub created_at: String,
 }
 
-#[derive(Debug, Serialize, Type)]
+#[derive(Debug, Serialize, Deserialize, Type)]
 pub struct ActivityEventRequest {
     pub event_type: String,
     pub metadata: serde_json::Value,
@@ -199,13 +199,13 @@ pub struct SyncConversationResponse {
     pub share_token: String,
 }
 
-#[derive(Debug, Serialize, Type)]
+#[derive(Debug, Serialize, Deserialize, Type)]
 pub struct SyncConversationRequest {
     pub title: String,
     pub messages: Vec<SharedConversationMessage>,
 }
 
-#[derive(Debug, Serialize, Type)]
+#[derive(Debug, Serialize, Deserialize, Type)]
 pub struct HydrateResponse {
     pub local_id: String,
 }
