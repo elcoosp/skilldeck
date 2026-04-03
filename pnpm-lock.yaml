@@ -95,6 +95,9 @@ importers:
       mdast-util-from-markdown:
         specifier: ^2.0.3
         version: 2.0.3
+      prelayout:
+        specifier: ^0.0.4
+        version: 0.0.4(@chenglou/pretext@0.0.4)(@tanstack/react-virtual@3.13.23(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(svelte@5.55.1)(vue@3.5.31(typescript@6.0.2))
       radix-ui:
         specifier: ^1.4.3
         version: 1.4.3(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -556,6 +559,9 @@ packages:
   '@capsizecss/unpack@4.0.0':
     resolution: {integrity: sha512-VERIM64vtTP1C4mxQ5thVT9fK0apjPFobqybMtA1UdUujWka24ERHbRHFGmpbbhp73MhV+KSsHQH9C6uOTdEQA==}
     engines: {node: '>=18'}
+
+  '@chenglou/pretext@0.0.4':
+    resolution: {integrity: sha512-FnPAFMid1/p1j2V2gRPUVBarGUIb2PhkkC9YNnTOfPtTDgHKh8siO8PP9pCxpFfYlcodWPJpE1UbSHGQqt8pQQ==}
 
   '@clack/core@1.2.0':
     resolution: {integrity: sha512-qfxof/3T3t9DPU/Rj3OmcFyZInceqj/NVtO9rwIuJqCUgh32gwPjpFQQp/ben07qKlhpwq7GzfWpST4qdJ5Drg==}
@@ -5897,6 +5903,33 @@ packages:
     resolution: {integrity: sha512-dM0jVuXJPsDN6DvRpea484tCUaMiXWjuCn++HGTqUWzGDjv5tZkEZldAJ/UMlqRYGFrD/etByo4/xOuC/snX2A==}
     engines: {node: '>=20'}
 
+  prelayout@0.0.4:
+    resolution: {integrity: sha512-CjoKyE8iPiGxrr6knLUBcuksSMCYNviKeYVL5x2JiiugegVZzlbM3IYQbeyhTEuIGJ2dWsIEIM2ivPz7Mo3BfQ==}
+    peerDependencies:
+      '@chenglou/pretext': '>=0.0.3'
+      '@tanstack/react-virtual': '>=3.0.0'
+      '@tanstack/vue-virtual': '>=3.0.0'
+      react: '>=18.0.0'
+      react-native-text-size: '>=4.0.0'
+      react-window: '>=1.0.0'
+      svelte: '>=5.0.0'
+      vue: '>=3.0.0'
+    peerDependenciesMeta:
+      '@tanstack/react-virtual':
+        optional: true
+      '@tanstack/vue-virtual':
+        optional: true
+      react:
+        optional: true
+      react-native-text-size:
+        optional: true
+      react-window:
+        optional: true
+      svelte:
+        optional: true
+      vue:
+        optional: true
+
   prettier@3.8.1:
     resolution: {integrity: sha512-UOnG6LftzbdaHZcKoPFtOcCKztrQ57WkHDeRD9t/PTQtmT0NHSeWWepj6pS0z/N7+08BHFDQVUrfmfMRcZwbMg==}
     engines: {node: '>=14'}
@@ -7557,6 +7590,8 @@ snapshots:
   '@capsizecss/unpack@4.0.0':
     dependencies:
       fontkitten: 1.0.3
+
+  '@chenglou/pretext@0.0.4': {}
 
   '@clack/core@1.2.0':
     dependencies:
@@ -13307,6 +13342,15 @@ snapshots:
       source-map-js: 1.2.1
 
   powershell-utils@0.1.0: {}
+
+  prelayout@0.0.4(@chenglou/pretext@0.0.4)(@tanstack/react-virtual@3.13.23(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(svelte@5.55.1)(vue@3.5.31(typescript@6.0.2)):
+    dependencies:
+      '@chenglou/pretext': 0.0.4
+    optionalDependencies:
+      '@tanstack/react-virtual': 3.13.23(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      react: 19.2.4
+      svelte: 5.55.1
+      vue: 3.5.31(typescript@6.0.2)
 
   prettier@3.8.1: {}
 

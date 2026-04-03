@@ -1,3 +1,4 @@
+// src/components/conversation/message-thread.tsx
 import { useElementScrollRestoration } from '@tanstack/react-router'
 import {
   elementScroll,
@@ -8,9 +9,16 @@ import { motion } from 'framer-motion'
 import * as React from 'react'
 import { useSendMessage } from '@/hooks/use-messages'
 import type { MessageData, NodeDocument } from '@/lib/bindings'
+import {
+  DEFAULT_PROSE_CONFIG,
+  DEFAULT_CHROME_CONFIG,
+  MarkdownHeightEngine,
+  estimateContextChipHeight
+} from '@/lib/markdown-layout'
 import { useConversationStore } from '@/store/conversation'
 import { useToolApprovalStore } from '@/store/tool-approvals'
 import { useUIEphemeralStore } from '@/store/ui-ephemeral'
+import { useUILayoutStore } from '@/store/ui-layout'
 import { MessageBubble } from './message-bubble'
 import ThreadNavigator from './thread-navigator'
 import { ToolApprovalCard } from './tool-approval-card'
@@ -51,8 +59,6 @@ function distFromBottom(el: HTMLElement): number {
   return el.scrollHeight - el.scrollTop - el.clientHeight
 }
 
-const globalMeasuredSizes = new Map<string, number>()
-
 export const ScrollContainerContext =
   React.createContext<React.RefObject<HTMLDivElement | null> | null>(null)
 export const AutoScrollContext = React.createContext<boolean>(true)
@@ -69,8 +75,6 @@ interface VirtualRowProps {
   searchCaseSensitive: boolean
   searchRegex: boolean
   measureRef: React.RefObject<(node: Element | null) => void>
-  lastItemNodeRef: React.RefObject<Element | null>
-  streamingRoRef: React.RefObject<ResizeObserver | null>
   isLast: boolean
 }
 
@@ -87,22 +91,12 @@ const VirtualRow = React.memo(
     searchCaseSensitive,
     searchRegex,
     isLast,
-    measureRef,
-    lastItemNodeRef,
-    streamingRoRef
+    measureRef
   }: VirtualRowProps) => {
     return (
       <div
         ref={(node) => {
           measureRef.current?.(node)
-          if (isLast && node !== lastItemNodeRef.current) {
-            if (lastItemNodeRef.current)
-              streamingRoRef.current?.unobserve(lastItemNodeRef.current)
-            ;(
-              lastItemNodeRef as React.MutableRefObject<Element | null>
-            ).current = node
-            if (node) streamingRoRef.current?.observe(node)
-          }
         }}
         data-index={virtualItem.index}
         data-msg-id={message.id}
@@ -216,7 +210,6 @@ export const MessageThread = React.forwardRef<
     const filteredMessagesRef = React.useRef(filteredMessages)
     filteredMessagesRef.current = filteredMessages
 
-    const measuredSizesRef = React.useRef(globalMeasuredSizes)
     const isProgrammaticScrollRef = React.useRef(false)
     const userScrolledAwayRef = React.useRef(false)
     const autoScrollRef = React.useRef(autoScroll)
@@ -224,7 +217,7 @@ export const MessageThread = React.forwardRef<
     const streamingRef = React.useRef(streamingMessageId)
     streamingRef.current = streamingMessageId
 
-    // FIX: Reset internal scroll state when conversation changes
+    // Reset internal scroll state when conversation changes
     React.useEffect(() => {
       userScrolledAwayRef.current = false
     }, [])
@@ -241,34 +234,68 @@ export const MessageThread = React.forwardRef<
       })
     }, [])
 
-    const avgAssistantHeightRef = React.useRef(5000)
-    const updateAvgAssistantHeight = React.useCallback((newHeight: number) => {
-      avgAssistantHeightRef.current = Math.round(
-        avgAssistantHeightRef.current * 0.7 + newHeight * 0.3
+    // ─── Height measurement engine ──────────────────────────────────────────
+    const containerWidth = useUILayoutStore((s) => s.panelSizesPx.center)
+    const effectiveWidth = containerWidth > 100 ? containerWidth : 800
+
+    const engineRef = React.useRef<MarkdownHeightEngine | null>(null)
+    if (!engineRef.current) {
+      engineRef.current = new MarkdownHeightEngine(
+        DEFAULT_PROSE_CONFIG,
+        DEFAULT_CHROME_CONFIG
       )
-    }, [])
+    }
+
+    // Prepare messages for the engine whenever they change
+    React.useEffect(() => {
+      const engine = engineRef.current
+      if (!engine) return
+      for (const msg of messages) {
+        engine.prepare(
+          msg.id,
+          (msg as any).node_document,
+          msg.role,
+          msg.content
+        )
+      }
+    }, [messages])
+
+    const estimateSize = React.useCallback(
+      (index: number): number => {
+        const msg = filteredMessagesRef.current[index]
+        if (!msg) return 80
+
+        if (msg.role === 'tool') {
+          return DEFAULT_CHROME_CONFIG.toolMessageBaseHeight
+        }
+
+        const baseHeight = engineRef.current!.layout(
+          msg.id,
+          effectiveWidth,
+          msg.content.length
+        )
+
+        const chipHeight = (msg.context_items?.length ?? 0) > 0
+          ? estimateContextChipHeight(
+            msg.context_items!.length,
+            effectiveWidth,
+            DEFAULT_CHROME_CONFIG
+          )
+          : 0
+
+        return baseHeight + chipHeight
+      },
+      [effectiveWidth]
+    )
 
     const virtualizer = useVirtualizer({
       count: filteredMessages.length,
       getScrollElement: () => scrollRef.current,
-      estimateSize: (index) => {
-        const msg = filteredMessagesRef.current[index]
-        if (!msg) return 80
-        const known = measuredSizesRef.current.get(msg.id)
-        if (known) return known
-        return msg.role === 'assistant' ? avgAssistantHeightRef.current : 80
-      },
+      estimateSize,
       overscan: 10,
       useAnimationFrameWithResizeObserver: true,
       measureElement: (el) => {
-        const h = el.getBoundingClientRect().height
-        const msgId = (el as HTMLElement).dataset.msgId
-        if (msgId) {
-          const role = (el as HTMLElement).dataset.role ?? 'user'
-          measuredSizesRef.current.set(msgId, h)
-          if (role === 'assistant' && h > 80) updateAvgAssistantHeight(h)
-        }
-        return h
+        return el.getBoundingClientRect().height
       },
       scrollToFn,
       initialOffset: scrollRestoration?.scrollY ?? 0,
@@ -291,21 +318,14 @@ export const MessageThread = React.forwardRef<
     const virtualizerRef = React.useRef(virtualizer)
     virtualizerRef.current = virtualizer
 
-    // FIX: Improved Restoration Effect
-    // 1. Allow scrollY === 0 (top of page) to be restored.
-    // 2. Depend on scrollRestoration?.scrollY to trigger on conversation change.
+    // Restore scroll position on conversation change
     React.useLayoutEffect(() => {
       const el = scrollRef.current
       const scrollY = scrollRestoration?.scrollY
-
       if (!el || scrollY === undefined) return
-
       isProgrammaticScrollRef.current = true
-
       el.scrollTop = scrollY
-
       virtualizerRef.current.scrollToOffset(scrollY, { behavior: 'auto' })
-
       requestAnimationFrame(() => {
         isProgrammaticScrollRef.current = false
       })
@@ -330,39 +350,6 @@ export const MessageThread = React.forwardRef<
     React.useEffect(() => {
       if (searchQuery.trim()) virtualizerRef.current.measure()
     }, [searchQuery])
-
-    const lastItemNodeRef = React.useRef<Element | null>(null)
-    const streamingRoRef = React.useRef<ResizeObserver | null>(null)
-
-    React.useEffect(() => {
-      if (streamingRoRef.current) {
-        streamingRoRef.current.disconnect()
-        streamingRoRef.current = null
-      }
-
-      if (!streamingMessageId) return
-
-      const el = scrollRef.current
-      if (!el) return
-
-      const scrollToBottom = () => {
-        if (!autoScrollRef.current || userScrolledAwayRef.current) return
-        isProgrammaticScrollRef.current = true
-        el.scrollTop = el.scrollHeight
-        isProgrammaticScrollRef.current = false
-      }
-
-      scrollToBottom()
-
-      const ro = new ResizeObserver(scrollToBottom)
-      streamingRoRef.current = ro
-      if (lastItemNodeRef.current) ro.observe(lastItemNodeRef.current)
-
-      return () => {
-        ro.disconnect()
-        streamingRoRef.current = null
-      }
-    }, [streamingMessageId])
 
     const callbackRef = React.useRef(onVisibleUserIndexChange)
     React.useLayoutEffect(() => {
@@ -574,7 +561,7 @@ export const MessageThread = React.forwardRef<
         getScrollPosition: () => scrollRef.current?.scrollTop ?? 0,
         onScroll: (cb: () => void) => {
           const el = scrollRef.current
-          if (!el) return () => {}
+          if (!el) return () => { }
           el.addEventListener('scroll', cb, { passive: true })
           return () => el.removeEventListener('scroll', cb)
         }
@@ -655,7 +642,7 @@ export const MessageThread = React.forwardRef<
                     const retryAvailable = (message as any).retryAvailable
                     const handleRetry = retryAvailable
                       ? () =>
-                          sendMutation.mutateAsync({ content: message.content })
+                        sendMutation.mutateAsync({ content: message.content })
                       : undefined
 
                     return (
@@ -675,8 +662,6 @@ export const MessageThread = React.forwardRef<
                         searchCaseSensitive={searchCaseSensitive}
                         searchRegex={searchRegex}
                         measureRef={measureElementRef}
-                        lastItemNodeRef={lastItemNodeRef}
-                        streamingRoRef={streamingRoRef}
                       />
                     )
                   })}
@@ -719,7 +704,7 @@ export const MessageThread = React.forwardRef<
                 }
               }
             }}
-            onHeadingClick={(_msgIdx, _tocIdx) => {}}
+            onHeadingClick={(_msgIdx, _tocIdx) => { }}
             headings={headings}
           />
         </AutoScrollContext.Provider>
