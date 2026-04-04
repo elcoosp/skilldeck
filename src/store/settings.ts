@@ -45,6 +45,26 @@ interface SettingsState {
   // Code block max height (px)
   codeBlockMaxHeight: number
   setCodeBlockMaxHeight: (px: number) => void
+
+  // Concierge UI new fields
+  inputModelId: string | null
+  setInputModelId: (id: string | null) => void
+  thinkingEnabled: boolean
+  setThinkingEnabled: (enabled: boolean) => void
+  conversationSort: 'updated' | 'created'
+  setConversationSort: (sort: 'updated' | 'created') => void
+  uiFontSize: 'sm' | 'md' | 'lg'
+  setUiFontSize: (size: 'sm' | 'md' | 'lg') => void
+  preferredEditor: 'vscode' | 'cursor' | 'system'
+  setPreferredEditor: (editor: 'vscode' | 'cursor' | 'system') => void
+  audioEnabled: boolean
+  setAudioEnabled: (enabled: boolean) => void
+  audioVolume: number
+  setAudioVolume: (volume: number) => void
+  autoCompactionEnabled: boolean
+  setAutoCompactionEnabled: (enabled: boolean) => void
+  compactionTokenThreshold: number
+  setCompactionTokenThreshold: (threshold: number) => void
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -89,20 +109,31 @@ export const useSettingsStore = create<SettingsState>()(
 
       // Code block max height
       codeBlockMaxHeight: 384,
-      setCodeBlockMaxHeight: (px) => set({ codeBlockMaxHeight: px })
+      setCodeBlockMaxHeight: (px) => set({ codeBlockMaxHeight: px }),
+
+      // Concierge UI new fields
+      inputModelId: null,
+      setInputModelId: (id) => set({ inputModelId: id }),
+      thinkingEnabled: false,
+      setThinkingEnabled: (enabled) => set({ thinkingEnabled: enabled }),
+      conversationSort: 'updated',
+      setConversationSort: (sort) => set({ conversationSort: sort }),
+      uiFontSize: 'md',
+      setUiFontSize: (size) => set({ uiFontSize: size }),
+      preferredEditor: 'system',
+      setPreferredEditor: (editor) => set({ preferredEditor: editor }),
+      audioEnabled: false,
+      setAudioEnabled: (enabled) => set({ audioEnabled: enabled }),
+      audioVolume: 0.5,
+      setAudioVolume: (volume) => set({ audioVolume: Math.min(1, Math.max(0, volume)) }),
+      autoCompactionEnabled: false,
+      setAutoCompactionEnabled: (enabled) => set({ autoCompactionEnabled: enabled }),
+      compactionTokenThreshold: 80000,
+      setCompactionTokenThreshold: (threshold) => set({ compactionTokenThreshold: threshold })
     }),
     {
       name: 'skilldeck-settings',
-      version: 2,
-      migrate: (persistedState: any, version: number) => {
-        if (version < 2) {
-          // Add new field with default 384
-          const migrated = { ...persistedState }
-          migrated.codeBlockMaxHeight = 384
-          return migrated
-        }
-        return persistedState
-      }
+      version: 3,
     }
   )
 )
