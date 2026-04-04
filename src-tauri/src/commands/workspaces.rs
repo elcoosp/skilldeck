@@ -171,3 +171,52 @@ pub async fn list_workspaces(
     }
     Ok(result)
 }
+// src-tauri/src/commands/workspace.rs
+// Add this new command at the end of the file, before the closing of the module
+
+use serde::{Deserialize, Serialize};
+use specta::{Type, specta};
+
+#[derive(Debug, Serialize, Deserialize, Type)]
+pub struct GitStatus {
+    pub is_git_repo: bool,
+    pub has_uncommitted: bool,
+}
+
+/// Check if the given workspace path is a git repository and whether it has uncommitted changes.
+#[specta]
+#[tauri::command]
+pub async fn check_git_status(workspace_path: String) -> Result<GitStatus, String> {
+    let is_git_repo = std::process::Command::new("git")
+        .args(["rev-parse", "--is-inside-work-tree"])
+        .current_dir(&workspace_path)
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false);
+
+    let has_uncommitted = if is_git_repo {
+        std::process::Command::new("git")
+            .args(["status", "--porcelain"])
+            .current_dir(&workspace_path)
+            .output()
+            .map(|o| !o.stdout.is_empty())
+            .unwrap_or(false)
+    } else {
+        false
+    };
+
+    Ok(GitStatus {
+        is_git_repo,
+        has_uncommitted,
+    })
+}
+#[specta]
+#[tauri::command]
+pub async fn git_init(path: String) -> Result<(), String> {
+    std::process::Command::new("git")
+        .arg("init")
+        .current_dir(&path)
+        .output()
+        .map_err(|e| format!("Failed to run git init: {}", e))?;
+    Ok(())
+}
