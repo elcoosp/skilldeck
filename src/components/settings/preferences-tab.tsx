@@ -22,6 +22,7 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { Switch } from '@/components/ui/switch'
 import {
   isPlatformNotConfigured,
   usePlatformPreferences
@@ -29,11 +30,12 @@ import {
 import { useProfiles, useUpdateProfile } from '@/hooks/use-profiles'
 import { useProviderReady } from '@/hooks/use-provider-ready'
 import { SettingsSection } from '@/components/settings/settings-section'
+import { useAppVersion } from '@/hooks/use-app-version'
+import { useSettingsStore } from '@/store/settings'
 
 import { commands } from '@/lib/bindings'
 import { loadLocale, locales } from '@/lib/i18n'
 import type { UpdatePreferencesPayload } from '@/lib/platform'
-import { useSettingsStore } from '@/store/settings'
 
 export function PreferencesTab() {
   const router = useRouter()
@@ -63,6 +65,19 @@ export function PreferencesTab() {
   // Code block max height
   const codeBlockMaxHeight = useSettingsStore((s) => s.codeBlockMaxHeight)
   const setCodeBlockMaxHeight = useSettingsStore((s) => s.setCodeBlockMaxHeight)
+
+  // Concierge UI: preferred editor
+  const preferredEditor = useSettingsStore((s) => s.preferredEditor)
+  const setPreferredEditor = useSettingsStore((s) => s.setPreferredEditor)
+
+  // Concierge UI: auto-compaction
+  const autoCompactionEnabled = useSettingsStore((s) => s.autoCompactionEnabled)
+  const setAutoCompactionEnabled = useSettingsStore((s) => s.setAutoCompactionEnabled)
+  const compactionTokenThreshold = useSettingsStore((s) => s.compactionTokenThreshold)
+  const setCompactionTokenThreshold = useSettingsStore((s) => s.setCompactionTokenThreshold)
+
+  // App version
+  const version = useAppVersion()
 
   if (query.isLoading || profilesLoading) {
     return (
@@ -140,7 +155,7 @@ export function PreferencesTab() {
   return (
     <div className="divide-y divide-border">
       {/* Profile selector */}
-      <SettingsSection icon={<Code size={14} />} title="Profile">
+      <SettingsSection title="Profile" description="Select a profile to edit its settings">
         <Select
           value={selectedProfileId ?? ''}
           onValueChange={(id) => {
@@ -164,7 +179,7 @@ export function PreferencesTab() {
 
       {/* System Prompt editor */}
       {selectedProfile && (
-        <SettingsSection icon={<Code size={14} />} title="System Prompt">
+        <SettingsSection title="System Prompt" description="Base instructions for the model">
           <Textarea
             placeholder="You are a helpful assistant…"
             value={systemPromptDraft}
@@ -218,7 +233,7 @@ export function PreferencesTab() {
       )}
 
       {/* Email & Verification */}
-      <SettingsSection icon={<Mail size={14} />} title="Email">
+      <SettingsSection title="Email" description="Used for nudges and referral rewards">
         <p className="text-muted-foreground mb-3">
           Used for nudges and referral rewards. Your data stays on your machine
           — we only sync what you choose.
@@ -267,10 +282,7 @@ export function PreferencesTab() {
       </SettingsSection>
 
       {/* Nudge Frequency */}
-      <SettingsSection icon={<Bell size={14} />} title="Nudge Frequency">
-        <p className="text-muted-foreground mb-3">
-          How often should SkillDeck send you tips and reminders?
-        </p>
+      <SettingsSection title="Nudge Frequency" description="How often should SkillDeck send you tips and reminders?">
         <div className="flex flex-col gap-1.5">
           {(
             [
@@ -307,7 +319,7 @@ export function PreferencesTab() {
       </SettingsSection>
 
       {/* Notification channels */}
-      <SettingsSection icon={<Globe size={14} />} title="Notification Channels">
+      <SettingsSection title="Notification Channels" description="Where to receive notifications">
         {(
           [
             { value: 'in-app', label: 'In-app toasts' },
@@ -342,7 +354,7 @@ export function PreferencesTab() {
       </SettingsSection>
 
       {/* App Theme (UI) */}
-      <SettingsSection icon={<Palette size={14} />} title="App Theme">
+      <SettingsSection title="App Theme" description="Color scheme for the application">
         <select
           className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
           value={prefs?.theme_preference ?? 'system'}
@@ -359,10 +371,7 @@ export function PreferencesTab() {
       </SettingsSection>
 
       {/* Syntax Theme (code highlighting) */}
-      <SettingsSection icon={<Palette size={14} />} title="Syntax Theme">
-        <p className="text-muted-foreground mb-3">
-          Theme for code blocks in messages.
-        </p>
+      <SettingsSection title="Syntax Theme" description="Theme for code blocks in messages">
         <Select value={syntaxTheme} onValueChange={handleThemeChange}>
           <SelectTrigger className="w-48">
             <SelectValue placeholder="Select theme" />
@@ -377,11 +386,7 @@ export function PreferencesTab() {
       </SettingsSection>
 
       {/* Code Block Max Height */}
-      <SettingsSection icon={<Maximize2 size={14} />} title="Code Block Max Height">
-        <p className="text-muted-foreground mb-3">
-          Maximum height of code blocks in messages. Scroll inside long code
-          blocks.
-        </p>
+      <SettingsSection title="Code Block Max Height" description="Maximum height of code blocks in messages. Scroll inside long code blocks.">
         <Select
           value={String(codeBlockMaxHeight)}
           onValueChange={(val) => setCodeBlockMaxHeight(Number(val))}
@@ -400,7 +405,7 @@ export function PreferencesTab() {
       </SettingsSection>
 
       {/* Language */}
-      <SettingsSection icon={<Globe size={14} />} title="Language">
+      <SettingsSection title="Language" description="UI language">
         <select
           value={settingsLanguage}
           onChange={(e) => {
@@ -421,8 +426,53 @@ export function PreferencesTab() {
         </p>
       </SettingsSection>
 
+      {/* Preferred Editor (F08) */}
+      <SettingsSection title="Preferred Editor" description="Choose which editor to open workspace folders in">
+        <Select
+          value={preferredEditor}
+          onValueChange={(v) => setPreferredEditor(v as 'vscode' | 'cursor' | 'system')}
+        >
+          <SelectTrigger className="w-48">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="vscode">VS Code</SelectItem>
+            <SelectItem value="cursor">Cursor</SelectItem>
+            <SelectItem value="system">System Default</SelectItem>
+          </SelectContent>
+        </Select>
+      </SettingsSection>
+
+      {/* Auto Compaction (F12) */}
+      <SettingsSection title="Context Management" description="Automatically compress long conversations to save context window space">
+        <div className="flex items-center justify-between">
+          <label htmlFor="compaction-toggle" className="text-sm">Auto-compaction</label>
+          <Switch
+            id="compaction-toggle"
+            checked={autoCompactionEnabled}
+            onCheckedChange={(v) => setAutoCompactionEnabled(v)}
+          />
+        </div>
+        {autoCompactionEnabled && (
+          <div className="mt-3">
+            <label className="text-sm text-muted-foreground">
+              Threshold: {compactionTokenThreshold.toLocaleString()} tokens
+            </label>
+            <input
+              type="range"
+              min="20000"
+              max="200000"
+              step="10000"
+              value={compactionTokenThreshold}
+              onChange={(e) => setCompactionTokenThreshold(Number(e.target.value))}
+              className="mt-1 w-full"
+            />
+          </div>
+        )}
+      </SettingsSection>
+
       {/* Analytics consent */}
-      <SettingsSection icon={<Shield size={14} />} title="Privacy">
+      <SettingsSection title="Privacy" description="SkillDeck never sells your data">
         <p className="text-muted-foreground mb-3">
           SkillDeck never sells your data. Anonymous usage analytics help us
           improve the product — opt in only if you're comfortable.
@@ -437,6 +487,11 @@ export function PreferencesTab() {
           <span>Share anonymous usage analytics</span>
         </label>
       </SettingsSection>
+
+      {/* App version */}
+      <p className="pt-6 text-center text-xs text-muted-foreground">
+        SkillDeck v{version}
+      </p>
     </div>
   )
 }

@@ -1,12 +1,17 @@
 import { cn } from '@/lib/utils'
 import { useSettingsStore } from '@/store/settings'
 import { SettingsSection } from '@/components/settings/settings-section'
+import { Switch } from '@/components/ui/switch'
 
 export function AppearanceTab() {
   const theme = useSettingsStore((s) => s.theme)
   const setTheme = useSettingsStore((s) => s.setTheme)
   const fontSize = useSettingsStore((s) => s.uiFontSize)
   const setFontSize = useSettingsStore((s) => s.setUiFontSize)
+  const audioEnabled = useSettingsStore((s) => s.audioEnabled)
+  const setAudioEnabled = useSettingsStore((s) => s.setAudioEnabled)
+  const audioVolume = useSettingsStore((s) => s.audioVolume)
+  const setAudioVolume = useSettingsStore((s) => s.setAudioVolume)
 
   return (
     <div className="divide-y divide-border">
@@ -50,6 +55,31 @@ export function AppearanceTab() {
         <p className="mt-2 text-xs text-muted-foreground">
           Preview: This is how your text will look at the selected size.
         </p>
+      </SettingsSection>
+
+      <SettingsSection title="Sound Effects" description="Play sounds for chat actions">
+        <div className="flex items-center justify-between">
+          <label htmlFor="audio-toggle" className="text-sm">Enable sounds</label>
+          <Switch
+            id="audio-toggle"
+            checked={audioEnabled}
+            onCheckedChange={(v) => setAudioEnabled(v)}
+          />
+        </div>
+        {audioEnabled && (
+          <div className="mt-3">
+            <label className="text-sm text-muted-foreground">Volume</label>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.1"
+              value={audioVolume}
+              onChange={(e) => setAudioVolume(Number(e.target.value))}
+              className="mt-1 w-full"
+            />
+          </div>
+        )}
       </SettingsSection>
     </div>
   )

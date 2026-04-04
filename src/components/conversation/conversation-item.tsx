@@ -20,6 +20,8 @@ import {
 import type { ConversationSummary } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
+import { BouncingDots } from '@/components/ui/bouncing-dots'
+import { useUIEphemeralStore } from '@/store/ui-ephemeral'
 
 interface ConversationItemProps {
   conversation: ConversationSummary
@@ -63,6 +65,10 @@ export function ConversationItem({
   const renameMutation = useRenameConversation()
   const pinMutation = usePinConversation()
   const unpinMutation = useUnpinConversation()
+
+  // Streaming indicator
+  const agentRunning = useUIEphemeralStore((s) => s.agentRunning)
+  const isStreaming = agentRunning[conversation.id] ?? false
 
   // ── Listen to the custom drag-drop event from GlobalDropZone ──────────────
   useEffect(() => {
@@ -295,9 +301,16 @@ export function ConversationItem({
               <Pin className="size-2.5 fill-primary" /> Pinned
             </span>
           )}
-          <span>
-            {conversation.message_count} msg · {relativeTime}
-          </span>
+          {isStreaming ? (
+            <div className="flex items-center gap-1">
+              <BouncingDots />
+              <span className="text-[11px] text-muted-foreground/70">Streaming...</span>
+            </div>
+          ) : (
+            <span>
+              {conversation.message_count} msg · {relativeTime}
+            </span>
+          )}
         </p>
       </div>
 
