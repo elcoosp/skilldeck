@@ -2,7 +2,9 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capability for the main window",
-  "windows": ["main"],
+  "windows": [
+    "main"
+  ],
   "permissions": [
     "deep-link:allow-get-current",
     "deep-link:default",
@@ -26,7 +28,20 @@
     },
     "opener:allow-reveal-item-in-dir",
     "opener:allow-default-urls",
-    "opener:allow-open-url",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        {
+          "url": "cursor:*"
+        },
+        {
+          "url": "vscode:*"
+        },
+        {
+          "url": "file:*"
+        }
+      ]
+    },
     "dialog:allow-open",
     "dialog:default",
     "fs:default"

@@ -1,5 +1,4 @@
 // src/components/search/global-search-modal.tsx
-
 import { useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
@@ -20,6 +19,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { commands } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
 import { useConversationStore } from '@/store/conversation'
+import { useUIOverlaysStore } from '@/store/ui-overlays'
 
 // Local type for the UI. We'll map from the backend response.
 interface GlobalSearchResult {
@@ -30,12 +30,10 @@ interface GlobalSearchResult {
   message_snippet: string
 }
 
-interface GlobalSearchModalProps {
-  open: boolean
-  onClose: () => void
-}
+export function GlobalSearchModal() {
+  const open = useUIOverlaysStore((s) => s.globalSearchOpen)
+  const setGlobalSearchOpen = useUIOverlaysStore((s) => s.setGlobalSearchOpen)
 
-export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
   const [query, setQuery] = useState('')
   const [debouncedQuery] = useDebounce(query, 300)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -53,26 +51,21 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
     (result: GlobalSearchResult) => {
       setActiveConversation(result.conversation_id)
       setScrollToMessageId(result.message_id)
-      onClose()
+      setGlobalSearchOpen(false)
     },
-    [setActiveConversation, setScrollToMessageId, onClose]
+    [setActiveConversation, setScrollToMessageId, setGlobalSearchOpen]
   )
 
   const { data: results = [], isLoading } = useQuery({
     queryKey: ['global-search', debouncedQuery],
     queryFn: async () => {
       if (!debouncedQuery.trim()) return []
-      // Use a dummy conversation_id to satisfy the type (backend may ignore it for global search)
-      // This is a temporary workaround; replace with actual global search API when available.
       const res = await commands.searchMessages({
-        conversation_id: '', // dummy
+        conversation_id: '',
         query: debouncedQuery,
         limit: '50'
       })
       if (res.status === 'ok') {
-        // Map the backend result to our UI type. Since the actual response may not have
-        // these fields, we use a type assertion. Replace with proper mapping once the
-        // real global search API is defined.
         const data = res.data as any[]
         return data.map(
           (item): GlobalSearchResult => ({
@@ -90,40 +83,36 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
     staleTime: 10_000
   })
 
-  // Focus input when modal opens
   useEffect(() => {
     if (open) {
       inputRef.current?.focus()
     }
   }, [open])
 
-  // Close on Escape
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onClose()
+        setGlobalSearchOpen(false)
       }
     }
     if (open) {
       document.addEventListener('keydown', handleKeyDown)
     }
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [open, onClose])
+  }, [open, setGlobalSearchOpen])
 
-  // Click outside to close
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
-        onClose()
+        setGlobalSearchOpen(false)
       }
     }
     if (open) {
       document.addEventListener('mousedown', handleClickOutside)
     }
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [open, onClose])
+  }, [open, setGlobalSearchOpen])
 
-  // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!open) return
@@ -179,7 +168,7 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
               <X className="size-3.5" />
             </Button>
           )}
-          <Kbd key={`${modifierKey}+K`} />
+          <Kbd>{modifierKey}+Shift+F</Kbd>
         </div>
 
         {/* Results */}
@@ -257,7 +246,7 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
         {/* Footer hint */}
         <div className="p-2 border-t border-border text-[10px] text-muted-foreground flex items-center justify-between">
           <span>↑↓ to navigate · ↵ to open</span>
-          <Kbd key="Esc" />
+          <Kbd>Esc</Kbd>
         </div>
       </motion.div>
     </div>,

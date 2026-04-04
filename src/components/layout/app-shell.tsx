@@ -1,11 +1,11 @@
 // src/components/layout/app-shell.tsx
-
 import { useRouter } from '@tanstack/react-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { Group, type Layout, Panel, Separator } from 'react-resizable-panels'
 import { Toaster } from 'sonner'
 import { GlobalDropZone } from '@/components/chat/global-drop-zone'
+import { GlobalSearchModal } from '@/components/search/global-search-modal'
 import { CommandPalette } from '@/components/overlays/command-palette'
 import { LaunchNotificationBanner } from '@/components/overlays/launch-notification'
 import { useNudgeListener, usePlatformRegistration } from '@/hooks/use-platform'
@@ -166,6 +166,7 @@ export function AppShell() {
       </div>
 
       <CommandPalette />
+      <GlobalSearchModal />
       <GlobalDropZone />
       <Toaster position="bottom-right" richColors closeButton />
     </div>

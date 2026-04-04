@@ -1,15 +1,25 @@
 // src/components/layout/left-panel.tsx
 /**
- * Left panel — conversation list, search, new chat, workspace switcher,
- * and profile filter, now with pinned conversations, folder grouping, and dated collapsible groups.
+ * Left panel — completely remade UX:
+ * - Narrow vertical band (min-w-[64px], pt-8 pb-4) with workspace avatar stack + bottom icons
+ * - border-r border-border kept for the visible delimiter, with a gradient overlay on the top 1/7 to fade it
+ * - All workspaces shown as clickable avatar circles (active one highlighted)
+ * - "+" button to open/add a new workspace
+ * - Sort toggle (F04): switch between updated/created order
+ * - Open in Editor button (F08): opens workspace in preferred editor
+ * - Main area — fully responsive conversation list
+ * - Conversations filtered by currently selected workspace only
  */
 
 import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 import { useRouter, useRouterState } from '@tanstack/react-router'
 import { open } from '@tauri-apps/plugin-dialog'
+import { openUrl } from '@tauri-apps/plugin-opener'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
+  ArrowUpDown,
   ChevronDown,
+  Code2,
   Folder,
   FolderOpen,
   FolderPlus,
@@ -22,12 +32,6 @@ import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { ConversationItem } from '@/components/conversation/conversation-item'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
@@ -37,7 +41,6 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
-import { WorkspaceContextBadge } from '@/components/workspace/workspace-context-badge'
 import {
   useConversations,
   useCreateConversation
@@ -46,18 +49,59 @@ import { useExpandedDateGroups } from '@/hooks/use-expanded-date-groups'
 import {
   useCreateFolder,
   useFolders,
-  useMoveConversationToFolder
 } from '@/hooks/use-folders'
 import { useLeftPanelSearch } from '@/hooks/use-left-panel-search'
 import { useProfileFilter } from '@/hooks/use-profile-filter'
 import { useProfiles } from '@/hooks/use-profiles'
 import { useOpenWorkspace, useWorkspaces } from '@/hooks/use-workspaces'
 import { cn } from '@/lib/utils'
+import { useSettingsStore } from '@/store/settings'
 import { useUIOverlaysStore } from '@/store/ui-overlays'
 import { useWorkspaceStore } from '@/store/workspace'
 
 // ----------------------------------------------------------------------
-// Lottie-powered empty state animation with fallback and reduced motion
+// Helper: deterministic color from workspace id
+// ----------------------------------------------------------------------
+function getWorkspaceColor(workspaceId: string): string {
+  const colors = [
+    'bg-red-500',
+    'bg-blue-500',
+    'bg-green-500',
+    'bg-yellow-500',
+    'bg-purple-500',
+    'bg-pink-500',
+    'bg-indigo-500',
+    'bg-orange-500'
+  ]
+  let hash = 0
+  for (let i = 0; i < workspaceId.length; i++) {
+    hash = (hash << 5) - hash + workspaceId.charCodeAt(i)
+    hash |= 0
+  }
+  return colors[Math.abs(hash) % colors.length]
+}
+
+// ----------------------------------------------------------------------
+// Date grouping helper
+// ----------------------------------------------------------------------
+import { isToday, isValid, isYesterday, parseISO, subDays } from 'date-fns'
+
+function getDateGroupKey(dateStr: string): string {
+  const normalized = dateStr
+    .replace(' ', 'T')
+    .replace(' +', '+')
+    .replace(' -', '-')
+  const date = parseISO(normalized)
+  if (!isValid(date)) return 'Older'
+  if (isToday(date)) return 'Today'
+  if (isYesterday(date)) return 'Yesterday'
+  if (date > subDays(new Date(), 7)) return 'Last 7 days'
+  if (date > subDays(new Date(), 30)) return 'Last 30 days'
+  return 'Older'
+}
+
+// ----------------------------------------------------------------------
+// Empty state animation
 // ----------------------------------------------------------------------
 interface EmptyStateAnimationProps {
   alt: string
@@ -71,14 +115,11 @@ function EmptyStateAnimation({ alt, className }: EmptyStateAnimationProps) {
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
     setPrefersReducedMotion(mediaQuery.matches)
-
-    const handler = (e: MediaQueryListEvent) =>
-      setPrefersReducedMotion(e.matches)
+    const handler = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches)
     mediaQuery.addEventListener('change', handler)
     return () => mediaQuery.removeEventListener('change', handler)
   }, [])
 
-  // If reduced motion is preferred or the Lottie failed to load, show static SVG
   if (prefersReducedMotion || hasError) {
     return (
       <img
@@ -101,110 +142,79 @@ function EmptyStateAnimation({ alt, className }: EmptyStateAnimationProps) {
 }
 
 // ----------------------------------------------------------------------
-// Helper to group conversations by date
-// ----------------------------------------------------------------------
-import { isToday, isValid, isYesterday, parseISO, subDays } from 'date-fns'
-
-function getDateGroupKey(dateStr: string): string {
-  // Handles "2026-03-23 15:35:22.009975 +00:00"
-  // date-fns parseISO requires a T separator and no space before offset
-  const normalized = dateStr
-    .replace(' ', 'T') // first space only: date/time separator
-    .replace(' +', '+') // remove space before timezone offset
-    .replace(' -', '-')
-
-  const date = parseISO(normalized)
-  if (!isValid(date)) return 'Older'
-
-  if (isToday(date)) return 'Today'
-  if (isYesterday(date)) return 'Yesterday'
-  if (date > subDays(new Date(), 7)) return 'Last 7 days'
-  if (date > subDays(new Date(), 30)) return 'Last 30 days'
-  return 'Older'
-}
-
-// ----------------------------------------------------------------------
 // Main component
 // ----------------------------------------------------------------------
 export function LeftPanel() {
   const router = useRouter()
-
-  // FIX: Use reactive router state for pathname to ensure highlights update on navigation
   const pathname = useRouterState({ select: (s) => s.location.pathname })
 
+  // Store & UI state
   const setGlobalSearchOpen = useUIOverlaysStore((s) => s.setGlobalSearchOpen)
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId)
   const setActiveWorkspace = useWorkspaceStore((s) => s.setActiveWorkspace)
 
-  // URL-derived state
   const { leftSearch, setLeftSearch } = useLeftPanelSearch()
   const { expandedDateGroups, toggleDateGroup } = useExpandedDateGroups()
   const { profileId, setProfileId } = useProfileFilter()
 
-  // Track which conversation is being deleted for animation
+  // F04: Sort preference from settings store
+  const conversationSort = useSettingsStore((s) => s.conversationSort) ?? 'updated'
+  // F08: Preferred editor from settings store
+  const preferredEditor = useSettingsStore((s) => s.preferredEditor) ?? 'system'
+
   const [deletingId, setDeletingId] = useState<string | null>(null)
-
-  // Profile data
-  const { data: profiles = [] } = useProfiles(false) // active profiles only
-  const { data: allProfiles, isLoading: profilesLoading } = useProfiles(true) // needed for default profile (might be deleted)
-  const defaultProfile =
-    allProfiles?.find((p) => p.is_default) ?? allProfiles?.[0]
-
-  // Conversations query
-  const { data: conversations, isLoading: conversationsLoading } =
-    useConversations(profileId)
-
-  // Folders
-  const { data: folders = [], isLoading: foldersLoading } = useFolders()
-  const createFolder = useCreateFolder()
-  const _moveConversationToFolder = useMoveConversationToFolder()
-
-  // New folder creation modal state (simple prompt)
   const [showNewFolderInput, setShowNewFolderInput] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
 
-  // Create conversation mutation
-  const createConversation = useCreateConversation(defaultProfile?.id)
-
-  // Workspaces
+  // Data hooks
   const { data: workspaces = [] } = useWorkspaces()
   const openWorkspace = useOpenWorkspace()
   const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId)
 
-  // Helper to get workspace name from ID
-  const getWorkspaceName = (workspaceId: string | null) => {
-    if (!workspaceId) return null
-    const ws = workspaces.find((w) => w.id === workspaceId)
-    return ws?.name ?? null
-  }
+  const { data: profiles = [] } = useProfiles(false)
+  const { data: allProfiles, isLoading: profilesLoading } = useProfiles(true)
+  const defaultProfile = allProfiles?.find((p) => p.is_default) ?? allProfiles?.[0]
 
-  // Apply search filter client-side
-  const filtered = conversations?.filter((c) =>
+  // Fetch all conversations (across all workspaces) then filter by current workspace
+  const { data: allConversations, isLoading: conversationsLoading } =
+    useConversations(profileId)
+  const workspaceConversations = allConversations?.filter(
+    (c) => c.workspace_id === activeWorkspaceId
+  ) ?? []
+
+  const { data: folders = [], isLoading: foldersLoading } = useFolders()
+  const createFolder = useCreateFolder()
+  const createConversation = useCreateConversation(defaultProfile?.id)
+
+  // Apply search filter client-side on workspace-filtered conversations
+  const filtered = workspaceConversations.filter((c) =>
     leftSearch
       ? (c.title ?? '').toLowerCase().includes(leftSearch.toLowerCase())
       : true
   )
 
-  // Separate pinned and unpinned conversations
-  const pinnedConversations = filtered?.filter((c) => c.pinned) ?? []
-  const unpinned = filtered?.filter((c) => !c.pinned) ?? []
+  // F04: Sort by the user's chosen field before splitting into pinned/unpinned
+  const sorted = [...filtered].sort((a, b) => {
+    const field = conversationSort === 'updated' ? 'updated_at' : 'created_at'
+    return new Date(b[field]).getTime() - new Date(a[field]).getTime()
+  })
 
-  // Group unpinned conversations by folder
+  // Pinned, folders, date groups
+  const pinnedConversations = sorted.filter((c) => c.pinned)
+  const unpinned = sorted.filter((c) => !c.pinned)
+
   const conversationsByFolder = new Map<string, typeof unpinned>()
   const conversationsWithoutFolder: typeof unpinned = []
-
   for (const conv of unpinned) {
     if (conv.folder_id) {
-      const folderId = conv.folder_id
-      const list = conversationsByFolder.get(folderId) || []
+      const list = conversationsByFolder.get(conv.folder_id) || []
       list.push(conv)
-      conversationsByFolder.set(folderId, list)
+      conversationsByFolder.set(conv.folder_id, list)
     } else {
       conversationsWithoutFolder.push(conv)
     }
   }
 
-  // Group the remaining (folderless) conversations by date
   const groupedByDate: Record<string, typeof unpinned> = {}
   for (const conv of conversationsWithoutFolder) {
     const key = getDateGroupKey(conv.updated_at)
@@ -212,31 +222,9 @@ export function LeftPanel() {
     groupedByDate[key].push(conv)
   }
 
-  const handleNew = () => {
-    if (!defaultProfile) {
-      toast.error('No profile found. Add one in Settings.')
-      return
-    }
-    createConversation.mutate({ title: undefined })
-  }
+  const isLoading = profilesLoading || conversationsLoading || foldersLoading
 
-  const handleOpenWorkspace = async () => {
-    try {
-      const selected = await open({
-        directory: true,
-        multiple: false,
-        title: 'Select workspace folder'
-      })
-      if (!selected) return
-
-      const workspace = await openWorkspace.mutateAsync(selected)
-      setActiveWorkspace(workspace.id)
-      toast.success(`Workspace opened: ${workspace.name}`)
-    } catch (err) {
-      toast.error(`Could not open workspace: ${err}`)
-    }
-  }
-
+  // Workspace actions
   const handleSwitchWorkspace = async (workspace: (typeof workspaces)[0]) => {
     if (!workspace.is_open) {
       try {
@@ -252,13 +240,59 @@ export function LeftPanel() {
     }
   }
 
-  const handleDeleteStart = (conversationId: string) => {
-    setDeletingId(conversationId)
+  const handleOpenWorkspace = async () => {
+    try {
+      const selected = await open({
+        directory: true,
+        multiple: false,
+        title: 'Select workspace folder'
+      })
+      if (!selected) return
+      const workspace = await openWorkspace.mutateAsync(selected)
+      setActiveWorkspace(workspace.id)
+      toast.success(`Workspace opened: ${workspace.name}`)
+    } catch (err) {
+      toast.error(`Could not open workspace: ${err}`)
+    }
   }
 
-  const handleDeleteComplete = () => {
-    setDeletingId(null)
+  // F08: Open workspace in preferred editor
+  const handleOpenInEditor = async () => {
+    if (!activeWorkspace) return
+    const path = activeWorkspace.path
+    const editorSchemes: Record<string, string> = {
+      vscode: `vscode://file/${path}`,
+      cursor: `cursor://file/${path}`,
+    }
+    const url = editorSchemes[preferredEditor] ?? `file://${path}`
+    try {
+      await openUrl(url)
+    } catch {
+      toast.error('Could not open editor')
+    }
   }
+
+  // F04: Toggle sort
+  const handleToggleSort = () => {
+    useSettingsStore.getState().setConversationSort(
+      conversationSort === 'updated' ? 'created' : 'updated'
+    )
+  }
+
+  const handleNewChat = () => {
+    if (!defaultProfile) {
+      toast.error('No profile found. Add one in Settings.')
+      return
+    }
+    if (!activeWorkspace) {
+      toast.error('No workspace selected. Open or create a workspace first.')
+      return
+    }
+    createConversation.mutate({ title: undefined })
+  }
+
+  const handleDeleteStart = (conversationId: string) => setDeletingId(conversationId)
+  const handleDeleteComplete = () => setDeletingId(null)
 
   const handleCreateFolder = async () => {
     if (!newFolderName.trim()) return
@@ -272,402 +306,374 @@ export function LeftPanel() {
     }
   }
 
-  const isLoading = profilesLoading || conversationsLoading || foldersLoading
-
-  // Find the currently selected profile name (if any)
-  const selectedProfile = profileId
-    ? profiles.find((p) => p.id === profileId)
-    : null
-
   return (
-    <div className="flex flex-col h-full select-none">
-      {/* Header */}
-      <div className="p-4 border-b border-border shrink-0">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-1 mt-2">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Search all conversations"
-              onClick={() => setGlobalSearchOpen(true)}
+    <div className="flex h-full w-full overflow-hidden">
+      {/* Narrow vertical band — workspace avatar stack + bottom icons */}
+      <div className="relative min-w-[64px] h-full flex flex-col justify-between border-r border-border bg-muted/10 pt-8 pb-4 shrink-0">
+        {/* Gradient overlay: fades the top 1/7 of the border from background → transparent */}
+        <div
+          className="absolute right-0 top-0 h-[14.2857%] w-2 -translate-x-[3px] pointer-events-none z-10 bg-gradient-to-b from-background to-transparent"
+          aria-hidden="true"
+        />
+
+        {/* Scrollable workspace avatar list */}
+        <ScrollArea className="flex-1 min-h-0">
+          <div className="flex flex-col items-center gap-2 px-2 pt-3 pb-3">
+            {workspaces.map((w) => {
+              const isActive = w.id === activeWorkspaceId
+              const initials = w.name ? w.name.slice(0, 2).toUpperCase() : '??'
+              const colorClass = getWorkspaceColor(w.id)
+
+              return (
+                <button
+                  key={w.id}
+                  type="button"
+                  onClick={() => handleSwitchWorkspace(w)}
+                  title={w.is_open ? w.name : `${w.name} (closed)`}
+                  className={cn(
+                    'w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-base shadow-sm transition-transform duration-150 ease-out hover:scale-105 focus:outline-none shrink-0',
+                    colorClass,
+                    isActive
+                      ? 'ring-2 ring-primary ring-offset-2 ring-offset-background shadow-md'
+                      : 'opacity-70 hover:opacity-100'
+                  )}
+                >
+                  {initials}
+                </button>
+              )
+            })}
+
+            {/* Add workspace button */}
+            <button
+              type="button"
+              onClick={handleOpenWorkspace}
+              title="Open workspace…"
+              className="w-10 h-10 rounded-full flex items-center justify-center text-muted-foreground border border-dashed border-muted-foreground/40 transition-transform duration-150 ease-out hover:scale-105 hover:border-muted-foreground/70 hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 shrink-0"
             >
-              <Search className="size-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Settings"
-              onClick={() => router.navigate({ to: '/settings/api-keys' })}
-            >
-              <Settings className="size-4" />
-            </Button>
+              <Plus className="size-4" />
+            </button>
           </div>
-        </div>
+        </ScrollArea>
 
-        <Button
-          className="w-full mb-2"
-          size="sm"
-          onClick={handleNew}
-          disabled={createConversation.isPending || !defaultProfile}
-        >
-          <Plus className="size-4 mr-1.5" />
-          New Chat
-        </Button>
-
-        {/* Search + filter row – flex-wrap prevents compression */}
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative min-w-[120px] flex-1">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
-            <Input
-              placeholder="Search…"
-              value={leftSearch}
-              onChange={(e) => setLeftSearch(e.target.value)}
-              className="pl-8 h-7 text-sm"
-            />
-          </div>
-
-          {/* Profile filter dropdown */}
-          <Select
-            value={profileId ?? 'all'}
-            onValueChange={(val) => setProfileId(val === 'all' ? null : val)}
-          >
-            <SelectTrigger className="w-[140px] h-7">
-              <SelectValue placeholder="Profile" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All profiles</SelectItem>
-              {profiles.map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {/* Profile creation shortcut */}
+        {/* Bottom icons */}
+        <div className="flex flex-col items-center gap-4 pt-2 border-t border-border/40 mt-1">
           <Button
             variant="ghost"
-            size="icon-xs"
-            onClick={() => router.navigate({ to: '/settings/profiles' })}
-            title="Create new profile"
-            className="h-7 w-7"
+            size="icon"
+            aria-label="Global search"
+            onClick={() => setGlobalSearchOpen(true)}
+            className="rounded-full h-9 w-9"
           >
-            <Plus className="size-3" />
+            <Search className="size-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Settings"
+            onClick={() => router.navigate({ to: '/settings/api-keys' })}
+            className="rounded-full h-9 w-9"
+          >
+            <Settings className="size-4" />
           </Button>
         </div>
       </div>
 
-      {/* Conversation list */}
-      <ScrollArea className="flex-1">
-        <div className="p-1.5 space-y-0.5">
-          {isLoading ? (
-            <div className="flex justify-center py-8">
-              <div className="size-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+      {/* Main area — fully responsive conversation list */}
+      <div className="flex-1 min-w-0 h-full flex flex-col">
+        {/* Header: New chat + search + profile filter + sort + editor */}
+        <div className="px-3 py-3 border-b border-border shrink-0">
+          <Button
+            className="w-full mb-2"
+            size="sm"
+            onClick={handleNewChat}
+            disabled={createConversation.isPending || !defaultProfile || !activeWorkspace}
+          >
+            <Plus className="size-4 mr-1.5" />
+            New Chat
+          </Button>
+
+          <div className="flex flex-wrap items-center gap-1.5">
+            {/* Search — takes all remaining space, wraps to full width if needed */}
+            <div className="relative min-w-[120px] flex-1 basis-full">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
+              <Input
+                placeholder="Search…"
+                value={leftSearch}
+                onChange={(e) => setLeftSearch(e.target.value)}
+                className="pl-7 h-7 text-sm w-full"
+              />
             </div>
-          ) : filtered?.length === 0 ? (
-            // No conversations after applying search (or no conversations at all)
-            leftSearch ? (
-              // Case: search yielded no results
-              <p className="text-center text-xs text-muted-foreground py-8">
-                No matches
-              </p>
-            ) : (
-              // No conversations at all
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.3, ease: 'easeOut' }}
-                className="flex flex-col items-center justify-center py-12 px-4 text-center"
-              >
-                {profileId && selectedProfile ? (
-                  // Contextual empty state for a specific profile
-                  <>
-                    <div className="w-48 h-48 mb-4 overflow-hidden rounded-3xl opacity-70">
-                      <EmptyStateAnimation
-                        alt={`No conversations in ${selectedProfile.name}`}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <h3 className="text-base font-semibold text-foreground mb-1">
-                      No conversations in "{selectedProfile.name}"
-                    </h3>
-                    <p className="text-sm text-muted-foreground max-w-xs mb-4">
-                      Start a new conversation to begin chatting with this
-                      profile.
-                    </p>
-                  </>
-                ) : (
-                  // Default empty state (all profiles, no conversations anywhere)
-                  <>
-                    <div className="w-48 h-48 mb-4 overflow-hidden rounded-3xl">
-                      <EmptyStateAnimation
-                        alt="No conversations"
-                        className="w-full h-full object-cover opacity-90"
-                      />
-                    </div>
-                    <h3 className="text-base font-semibold text-foreground mb-1">
-                      Your deck is empty—time to deal the first card.
-                    </h3>
-                    <p className="text-sm text-muted-foreground max-w-xs">
-                      Start a new conversation and build something brilliant.
-                    </p>
-                  </>
-                )}
-              </motion.div>
-            )
-          ) : (
-            // Has conversations – render the list
-            <AnimatePresence
-              mode="popLayout"
-              onExitComplete={handleDeleteComplete}
+
+            {/* Profile select — sizes to content, never truncates */}
+            <Select
+              value={profileId ?? 'all'}
+              onValueChange={(val) => setProfileId(val === 'all' ? null : val)}
             >
-              {/* Pinned section */}
-              {pinnedConversations.length > 0 && (
-                <Collapsible.Root defaultOpen>
-                  <Collapsible.Trigger className="flex items-center justify-between w-full px-2 py-1 text-xs font-semibold uppercase text-muted-foreground hover:text-foreground transition-colors group">
-                    <span className="flex items-center gap-1.5">
-                      <span className="size-1.5 rounded-full bg-primary" />
-                      Pinned
-                    </span>
-                    <ChevronDown className="size-3 transition-transform group-data-[state=open]:rotate-0 group-data-[state=closed]:-rotate-90" />
-                  </Collapsible.Trigger>
-                  <Collapsible.Content className="space-y-0.5 pl-2">
-                    {pinnedConversations.map((c) => (
-                      <motion.div
-                        key={c.id}
-                        layout
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{
-                          opacity: 0,
-                          x: -10,
-                          transition: { duration: 0.2 }
-                        }}
-                      >
-                        <ConversationItem
-                          conversation={c}
-                          isActive={pathname === `/conversations/${c.id}`}
-                          isDeleting={c.id === deletingId}
-                          onDeleteStart={handleDeleteStart}
-                          onClick={() =>
-                            router.navigate({
-                              to: '/conversations/$conversationId',
-                              params: { conversationId: c.id }
-                            })
-                          }
-                          workspaceName={
-                            getWorkspaceName(c.workspace_id) ?? undefined
-                          }
-                          profileName={c.profile_name}
-                          profileDeleted={c.profile_deleted}
-                          showProfileBadge={profileId === null}
-                        />
-                      </motion.div>
-                    ))}
-                  </Collapsible.Content>
-                </Collapsible.Root>
-              )}
+              <SelectTrigger className="h-7 text-sm shrink-0">
+                <SelectValue placeholder="Profile" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All profiles</SelectItem>
+                {profiles.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-              {/* Folders section */}
-              {folders.length > 0 && (
-                <div className="mt-2 pt-2 border-t border-border/50">
-                  <div className="flex items-center justify-between px-2 py-1">
-                    <span className="text-xs font-semibold uppercase text-muted-foreground">
-                      Folders
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      onClick={() => setShowNewFolderInput(true)}
-                      title="New folder"
-                    >
-                      <FolderPlus className="size-3.5" />
-                    </Button>
+            {/* F04: Sort toggle */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 shrink-0"
+              title={`Sort by: ${conversationSort === 'updated' ? 'last updated' : 'created date'} (click to toggle)`}
+              onClick={handleToggleSort}
+            >
+              <ArrowUpDown className="size-3.5" />
+            </Button>
+
+            {/* F08: Open in editor */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 shrink-0"
+              title="Open in editor"
+              onClick={handleOpenInEditor}
+              disabled={!activeWorkspace}
+            >
+              <Code2 className="size-3.5" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Conversation list */}
+        <ScrollArea className="flex-1 min-h-0 [&>[data-radix-scroll-area-viewport]>div]:!block [&>[data-radix-scroll-area-viewport]>div]:!min-w-0">
+          <div className="px-1.5 py-1.5 space-y-0.5">
+            {isLoading ? (
+              <div className="flex justify-center py-8">
+                <div className="size-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+              </div>
+            ) : !activeWorkspace ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex flex-col items-center justify-center py-10 px-3 text-center"
+              >
+                <div className="w-24 h-24 mb-3 rounded-full bg-muted flex items-center justify-center">
+                  <FolderOpen className="size-10 text-muted-foreground" />
+                </div>
+                <h3 className="text-sm font-semibold mb-1">No workspace selected</h3>
+                <p className="text-xs text-muted-foreground w-full mb-3">
+                  Open a workspace to see your conversations.
+                </p>
+                <Button size="sm" onClick={handleOpenWorkspace}>
+                  <FolderOpen className="size-3.5 mr-1.5" />
+                  Open workspace
+                </Button>
+              </motion.div>
+            ) : filtered.length === 0 ? (
+              leftSearch ? (
+                <p className="text-center text-xs text-muted-foreground py-8 px-3 w-full">
+                  No matches
+                </p>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex flex-col items-center justify-center py-10 px-3 text-center"
+                >
+                  <div className="w-36 h-36 mb-3 overflow-hidden rounded-2xl opacity-70">
+                    <EmptyStateAnimation
+                      alt={`No conversations in ${activeWorkspace.name}`}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
+                  <h3 className="text-sm font-semibold mb-1 truncate w-full">
+                    No conversations in &ldquo;{activeWorkspace.name}&rdquo;
+                  </h3>
+                  <p className="text-xs text-muted-foreground w-full mb-3">
+                    Start a new conversation to begin chatting.
+                  </p>
+                  <Button size="sm" onClick={handleNewChat}>
+                    <Plus className="size-3.5 mr-1.5" />
+                    New Chat
+                  </Button>
+                </motion.div>
+              )
+            ) : (
+              <AnimatePresence mode="popLayout" onExitComplete={handleDeleteComplete}>
+                {/* Pinned section */}
+                {pinnedConversations.length > 0 && (
+                  <Collapsible.Root defaultOpen>
+                    <Collapsible.Trigger className="flex items-center justify-between w-full px-2 py-1 text-xs font-semibold uppercase text-muted-foreground hover:text-foreground transition-colors group">
+                      <span className="flex items-center gap-1.5">
+                        <span className="size-1.5 rounded-full bg-primary" />
+                        Pinned
+                      </span>
+                      <ChevronDown className="size-3 transition-transform group-data-[state=open]:rotate-0 group-data-[state=closed]:-rotate-90" />
+                    </Collapsible.Trigger>
+                    <Collapsible.Content className="space-y-0.5">
+                      {pinnedConversations.map((c) => (
+                        <motion.div
+                          key={c.id}
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, transition: { duration: 0.15 } }}
+                          transition={{ duration: 0.2 }}
+                        >
+                          <ConversationItem
+                            conversation={c}
+                            isActive={pathname === `/conversations/${c.id}`}
+                            isDeleting={c.id === deletingId}
+                            onDeleteStart={handleDeleteStart}
+                            onClick={() =>
+                              router.navigate({
+                                to: '/conversations/$conversationId',
+                                params: { conversationId: c.id }
+                              })
+                            }
+                            workspaceName={activeWorkspace.name}
+                            profileName={c.profile_name}
+                            profileDeleted={c.profile_deleted}
+                            showProfileBadge={profileId === null}
+                          />
+                        </motion.div>
+                      ))}
+                    </Collapsible.Content>
+                  </Collapsible.Root>
+                )}
 
-                  {showNewFolderInput && (
-                    <div className="px-2 py-1 flex gap-1">
-                      <Input
-                        placeholder="Folder name"
-                        value={newFolderName}
-                        onChange={(e) => setNewFolderName(e.target.value)}
-                        className="h-7 text-xs"
-                        autoFocus
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleCreateFolder()
-                          if (e.key === 'Escape') setShowNewFolderInput(false)
-                        }}
-                      />
-                      <Button size="xs" onClick={handleCreateFolder}>
-                        Create
+                {/* Folders section */}
+                {folders.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-border/50">
+                    <div className="flex items-center justify-between px-2 py-1">
+                      <span className="text-xs font-semibold uppercase text-muted-foreground">
+                        Folders
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={() => setShowNewFolderInput(true)}
+                        title="New folder"
+                      >
+                        <FolderPlus className="size-3.5" />
                       </Button>
                     </div>
-                  )}
 
-                  {folders.map((folder) => {
-                    const folderConvs =
-                      conversationsByFolder.get(folder.id) ?? []
-                    if (folderConvs.length === 0) return null
-                    return (
-                      <Collapsible.Root key={folder.id} defaultOpen>
-                        <Collapsible.Trigger className="group flex items-center justify-between w-full px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
-                          <div className="flex items-center gap-1.5">
-                            <Folder className="size-3.5" />
-                            <span className="truncate">{folder.name}</span>
-                            <span className="text-[10px] text-muted-foreground">
-                              ({folderConvs.length})
-                            </span>
-                          </div>
-                          <ChevronDown className="size-3 transition-transform group-data-[state=open]:rotate-0 group-data-[state=closed]:-rotate-90" />
-                        </Collapsible.Trigger>
-                        <Collapsible.Content className="space-y-0.5 pl-5">
-                          {folderConvs.map((c) => (
-                            <motion.div
-                              key={c.id}
-                              layout
-                              initial={{ opacity: 0, y: 20 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{
-                                opacity: 0,
-                                x: -10,
-                                transition: { duration: 0.2 }
-                              }}
-                            >
-                              <ConversationItem
-                                conversation={c}
-                                isActive={pathname === `/conversations/${c.id}`}
-                                isDeleting={c.id === deletingId}
-                                onDeleteStart={handleDeleteStart}
-                                onClick={() =>
-                                  router.navigate({
-                                    to: '/conversations/$conversationId',
-                                    params: { conversationId: c.id }
-                                  })
-                                }
-                                workspaceName={
-                                  getWorkspaceName(c.workspace_id) ?? undefined
-                                }
-                                profileName={c.profile_name}
-                                profileDeleted={c.profile_deleted}
-                                showProfileBadge={profileId === null}
-                              />
-                            </motion.div>
-                          ))}
-                        </Collapsible.Content>
-                      </Collapsible.Root>
-                    )
-                  })}
-                </div>
-              )}
-
-              {/* Dated groups (only for conversations without a folder) */}
-              {Object.entries(groupedByDate).map(([key, convs]) => (
-                <Collapsible.Root
-                  key={key}
-                  open={!expandedDateGroups.includes(key)}
-                  onOpenChange={() => toggleDateGroup(key)}
-                >
-                  <Collapsible.Trigger className="flex items-center justify-between w-full px-2 py-1 text-xs font-semibold uppercase text-muted-foreground hover:text-foreground transition-colors group mt-2 first:mt-0">
-                    {key}
-                    <ChevronDown className="size-3 transition-transform group-data-[state=open]:rotate-0 group-data-[state=closed]:-rotate-90" />
-                  </Collapsible.Trigger>
-                  <Collapsible.Content className="space-y-0.5 pl-2">
-                    {convs.map((c) => (
-                      <motion.div
-                        key={c.id}
-                        layout
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{
-                          opacity: 0,
-                          x: -10,
-                          transition: { duration: 0.2 }
-                        }}
-                      >
-                        <ConversationItem
-                          conversation={c}
-                          isActive={pathname === `/conversations/${c.id}`}
-                          isDeleting={c.id === deletingId}
-                          onDeleteStart={handleDeleteStart}
-                          onClick={() =>
-                            router.navigate({
-                              to: '/conversations/$conversationId',
-                              params: { conversationId: c.id }
-                            })
-                          }
-                          workspaceName={
-                            getWorkspaceName(c.workspace_id) ?? undefined
-                          }
-                          profileName={c.profile_name}
-                          profileDeleted={c.profile_deleted}
-                          showProfileBadge={profileId === null}
+                    {showNewFolderInput && (
+                      <div className="px-2 py-1 flex gap-1">
+                        <Input
+                          placeholder="Folder name"
+                          value={newFolderName}
+                          onChange={(e) => setNewFolderName(e.target.value)}
+                          className="h-7 text-xs min-w-0 flex-1"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleCreateFolder()
+                            if (e.key === 'Escape') setShowNewFolderInput(false)
+                          }}
                         />
-                      </motion.div>
-                    ))}
-                  </Collapsible.Content>
-                </Collapsible.Root>
-              ))}
-            </AnimatePresence>
-          )}
-        </div>
-      </ScrollArea>
+                        <Button size="xs" onClick={handleCreateFolder} className="shrink-0">
+                          Create
+                        </Button>
+                      </div>
+                    )}
 
-      {/* Footer with workspace switcher */}
-      <div className="p-3 border-t border-border shrink-0 min-w-0 space-y-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full justify-between"
-            >
-              <span className="flex items-center gap-1 truncate">
-                {activeWorkspace ? activeWorkspace.name : 'No workspace'}
-                {activeWorkspace && (
-                  <WorkspaceContextBadge workspace={activeWorkspace} />
+                    {folders.map((folder) => {
+                      const folderConvs = conversationsByFolder.get(folder.id) ?? []
+                      if (folderConvs.length === 0) return null
+                      return (
+                        <Collapsible.Root key={folder.id} defaultOpen>
+                          <Collapsible.Trigger className="group flex items-center justify-between w-full px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <Folder className="size-3.5 shrink-0" />
+                              <span className="truncate">{folder.name}</span>
+                              <span className="text-[10px] text-muted-foreground shrink-0">
+                                ({folderConvs.length})
+                              </span>
+                            </div>
+                            <ChevronDown className="size-3 transition-transform group-data-[state=open]:rotate-0 group-data-[state=closed]:-rotate-90 shrink-0" />
+                          </Collapsible.Trigger>
+                          <Collapsible.Content className="space-y-0.5 pl-5">
+                            {folderConvs.map((c) => (
+                              <motion.div
+                                key={c.id}
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, transition: { duration: 0.15 } }}
+                                transition={{ duration: 0.2 }}
+                              >
+                                <ConversationItem
+                                  conversation={c}
+                                  isActive={pathname === `/conversations/${c.id}`}
+                                  isDeleting={c.id === deletingId}
+                                  onDeleteStart={handleDeleteStart}
+                                  onClick={() =>
+                                    router.navigate({
+                                      to: '/conversations/$conversationId',
+                                      params: { conversationId: c.id }
+                                    })
+                                  }
+                                  workspaceName={activeWorkspace.name}
+                                  profileName={c.profile_name}
+                                  profileDeleted={c.profile_deleted}
+                                  showProfileBadge={profileId === null}
+                                />
+                              </motion.div>
+                            ))}
+                          </Collapsible.Content>
+                        </Collapsible.Root>
+                      )
+                    })}
+                  </div>
                 )}
-              </span>
-              <ChevronDown className="size-3.5 opacity-50 shrink-0" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="start"
-            className="w-[--radix-dropdown-menu-trigger-width]"
-          >
-            {workspaces.length === 0 ? (
-              <DropdownMenuItem disabled>No workspaces yet</DropdownMenuItem>
-            ) : (
-              workspaces.map((w) => (
-                <DropdownMenuItem
-                  key={w.id}
-                  onClick={() => handleSwitchWorkspace(w)}
-                  className={cn(
-                    'flex items-center justify-between',
-                    w.id === activeWorkspaceId && 'bg-accent'
-                  )}
-                >
-                  <span className="truncate">{w.name}</span>
-                  {!w.is_open && (
-                    <span className="text-[10px] text-muted-foreground ml-2 shrink-0">
-                      (closed)
-                    </span>
-                  )}
-                </DropdownMenuItem>
-              ))
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
 
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full"
-          onClick={handleOpenWorkspace}
-          title="Open another workspace"
-        >
-          <FolderOpen className="size-3.5 mr-1.5 shrink-0" />
-          <span className="truncate">Open another workspace</span>
-        </Button>
+                {/* Dated groups (folderless conversations) */}
+                {Object.entries(groupedByDate).map(([key, convs]) => (
+                  <Collapsible.Root
+                    key={key}
+                    open={!expandedDateGroups.includes(key)}
+                    onOpenChange={() => toggleDateGroup(key)}
+                  >
+                    <Collapsible.Trigger className="flex items-center justify-between w-full px-2 py-1 text-xs font-semibold uppercase text-muted-foreground hover:text-foreground transition-colors group mt-2 first:mt-0">
+                      {key}
+                      <ChevronDown className="size-3 transition-transform group-data-[state=open]:rotate-0 group-data-[state=closed]:-rotate-90 shrink-0" />
+                    </Collapsible.Trigger>
+                    <Collapsible.Content className="space-y-0.5">
+                      {convs.map((c) => (
+                        <motion.div
+                          key={c.id}
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, transition: { duration: 0.15 } }}
+                          transition={{ duration: 0.2 }}
+                        >
+                          <ConversationItem
+                            conversation={c}
+                            isActive={pathname === `/conversations/${c.id}`}
+                            isDeleting={c.id === deletingId}
+                            onDeleteStart={handleDeleteStart}
+                            onClick={() =>
+                              router.navigate({
+                                to: '/conversations/$conversationId',
+                                params: { conversationId: c.id }
+                              })
+                            }
+                            workspaceName={activeWorkspace.name}
+                            profileName={c.profile_name}
+                            profileDeleted={c.profile_deleted}
+                            showProfileBadge={profileId === null}
+                          />
+                        </motion.div>
+                      ))}
+                    </Collapsible.Content>
+                  </Collapsible.Root>
+                ))}
+              </AnimatePresence>
+            )}
+          </div>
+        </ScrollArea>
       </div>
     </div>
   )

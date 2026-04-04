@@ -23,7 +23,7 @@ function RootComponent() {
   return (
     <HotkeysProvider initiallyActiveScopes={['*']}>
       <Outlet />
-      {import.meta.env.DEV && <TanStackRouterDevtools />}
+      {/*{import.meta.env.DEV && <TanStackRouterDevtools />}*/}
     </HotkeysProvider>
   )
 }

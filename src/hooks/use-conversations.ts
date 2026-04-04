@@ -1,5 +1,6 @@
+// src/hooks/use-conversations.ts
 /**
- * Conversation data hooks — TanStack Query wrappers over invoke layer.
+ * Conversation data hooks — TanStack Query wrappers over invoke layer
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -11,13 +12,11 @@ import { useWorkspaceStore } from '@/store/workspace'
 import { useProfiles } from './use-profiles'
 
 export function useConversations(profileId?: UUID | null) {
-  // <-- changed
   return useQuery({
     queryKey: ['conversations', profileId],
     queryFn: async () => {
       const res = await commands.listConversations(
         profileId ?? null,
-        //@ts-expect-error
         50
       )
       if (res.status === 'ok') return res.data
@@ -50,12 +49,10 @@ export function useCreateConversation(profileId?: UUID) {
     },
     onSuccess: async (newId) => {
       queryClient.invalidateQueries({
-        queryKey: ['conversations', profileId],
-        exact: true
+        queryKey: ['conversations'],
       })
       await queryClient.refetchQueries({
-        queryKey: ['conversations', profileId],
-        exact: true
+        queryKey: ['conversations'],
       })
       await new Promise((resolve) => setTimeout(resolve, 50))
       setActiveConversation(newId)
@@ -85,7 +82,6 @@ export function useDeleteConversation() {
     onSuccess: (_data, deletedId) => {
       queryClient.invalidateQueries({
         queryKey: ['conversations'],
-        exact: false
       })
       if (activeConversationId === deletedId) {
         setActiveConversation(null)
@@ -110,7 +106,6 @@ export function useRenameConversation() {
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ['conversations'],
-        exact: false
       })
       toast.success('Conversation renamed')
     },
@@ -145,7 +140,6 @@ export function useAutoNameConversation() {
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ['conversations'],
-        exact: false
       })
     },
     onError: (error) => {
