@@ -93,9 +93,13 @@ function SettingsLayout() {
           </div>
         </nav>
 
-        {/* Content pane */}
-        <div className="flex-1 overflow-y-auto p-6 text-left">
-          <Outlet />
+        {/* Content pane – wrapped in stacked-card container */}
+        <div className="flex-1 overflow-y-auto text-left">
+          <div className="mx-auto w-full max-w-2xl">
+            <div className="rounded-xl border border-border overflow-hidden divide-y divide-border">
+              <Outlet />
+            </div>
+          </div>
         </div>
       </div>
     </div>

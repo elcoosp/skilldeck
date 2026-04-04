@@ -28,6 +28,7 @@ import {
 } from '@/hooks/use-platform'
 import { useProfiles, useUpdateProfile } from '@/hooks/use-profiles'
 import { useProviderReady } from '@/hooks/use-provider-ready'
+import { SettingsSection } from '@/components/settings/settings-section'
 
 import { commands } from '@/lib/bindings'
 import { loadLocale, locales } from '@/lib/i18n'
@@ -137,9 +138,9 @@ export function PreferencesTab() {
   }
 
   return (
-    <div className="space-y-6 text-sm">
+    <div className="divide-y divide-border">
       {/* Profile selector */}
-      <Section icon={<Code size={14} />} title="Profile">
+      <SettingsSection icon={<Code size={14} />} title="Profile">
         <Select
           value={selectedProfileId ?? ''}
           onValueChange={(id) => {
@@ -159,11 +160,11 @@ export function PreferencesTab() {
             ))}
           </SelectContent>
         </Select>
-      </Section>
+      </SettingsSection>
 
       {/* System Prompt editor */}
       {selectedProfile && (
-        <Section icon={<Code size={14} />} title="System Prompt">
+        <SettingsSection icon={<Code size={14} />} title="System Prompt">
           <Textarea
             placeholder="You are a helpful assistant…"
             value={systemPromptDraft}
@@ -205,7 +206,7 @@ export function PreferencesTab() {
               )}
             </div>
           )}
-        </Section>
+        </SettingsSection>
       )}
 
       {/* Local mode hint */}
@@ -217,7 +218,7 @@ export function PreferencesTab() {
       )}
 
       {/* Email & Verification */}
-      <Section icon={<Mail size={14} />} title="Email">
+      <SettingsSection icon={<Mail size={14} />} title="Email">
         <p className="text-muted-foreground mb-3">
           Used for nudges and referral rewards. Your data stays on your machine
           — we only sync what you choose.
@@ -263,10 +264,10 @@ export function PreferencesTab() {
             )}
           </div>
         )}
-      </Section>
+      </SettingsSection>
 
       {/* Nudge Frequency */}
-      <Section icon={<Bell size={14} />} title="Nudge Frequency">
+      <SettingsSection icon={<Bell size={14} />} title="Nudge Frequency">
         <p className="text-muted-foreground mb-3">
           How often should SkillDeck send you tips and reminders?
         </p>
@@ -303,10 +304,10 @@ export function PreferencesTab() {
           />
           <span className="text-muted-foreground">Opt out of all nudges</span>
         </label>
-      </Section>
+      </SettingsSection>
 
       {/* Notification channels */}
-      <Section icon={<Globe size={14} />} title="Notification Channels">
+      <SettingsSection icon={<Globe size={14} />} title="Notification Channels">
         {(
           [
             { value: 'in-app', label: 'In-app toasts' },
@@ -338,10 +339,10 @@ export function PreferencesTab() {
             </label>
           )
         })}
-      </Section>
+      </SettingsSection>
 
       {/* App Theme (UI) */}
-      <Section icon={<Palette size={14} />} title="App Theme">
+      <SettingsSection icon={<Palette size={14} />} title="App Theme">
         <select
           className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
           value={prefs?.theme_preference ?? 'system'}
@@ -355,10 +356,10 @@ export function PreferencesTab() {
           <option value="light">Light</option>
           <option value="dark">Dark</option>
         </select>
-      </Section>
+      </SettingsSection>
 
       {/* Syntax Theme (code highlighting) */}
-      <Section icon={<Palette size={14} />} title="Syntax Theme">
+      <SettingsSection icon={<Palette size={14} />} title="Syntax Theme">
         <p className="text-muted-foreground mb-3">
           Theme for code blocks in messages.
         </p>
@@ -373,10 +374,10 @@ export function PreferencesTab() {
             <SelectItem value="custom">Custom...</SelectItem>
           </SelectContent>
         </Select>
-      </Section>
+      </SettingsSection>
 
       {/* Code Block Max Height */}
-      <Section icon={<Maximize2 size={14} />} title="Code Block Max Height">
+      <SettingsSection icon={<Maximize2 size={14} />} title="Code Block Max Height">
         <p className="text-muted-foreground mb-3">
           Maximum height of code blocks in messages. Scroll inside long code
           blocks.
@@ -396,10 +397,10 @@ export function PreferencesTab() {
             <SelectItem value="99999">Unlimited</SelectItem>
           </SelectContent>
         </Select>
-      </Section>
+      </SettingsSection>
 
       {/* Language */}
-      <Section icon={<Globe size={14} />} title="Language">
+      <SettingsSection icon={<Globe size={14} />} title="Language">
         <select
           value={settingsLanguage}
           onChange={(e) => {
@@ -418,10 +419,10 @@ export function PreferencesTab() {
         <p className="text-xs text-muted-foreground mt-1">
           UI language. Translations are community contributed; help us add more!
         </p>
-      </Section>
+      </SettingsSection>
 
       {/* Analytics consent */}
-      <Section icon={<Shield size={14} />} title="Privacy">
+      <SettingsSection icon={<Shield size={14} />} title="Privacy">
         <p className="text-muted-foreground mb-3">
           SkillDeck never sells your data. Anonymous usage analytics help us
           improve the product — opt in only if you're comfortable.
@@ -435,27 +436,7 @@ export function PreferencesTab() {
           />
           <span>Share anonymous usage analytics</span>
         </label>
-      </Section>
-    </div>
-  )
-}
-
-function Section({
-  icon,
-  title,
-  children
-}: {
-  icon: React.ReactNode
-  title: string
-  children: React.ReactNode
-}) {
-  return (
-    <div>
-      <div className="flex items-center gap-1.5 mb-3 font-medium text-foreground">
-        {icon}
-        {title}
-      </div>
-      {children}
+      </SettingsSection>
     </div>
   )
 }

@@ -10,6 +10,7 @@ import { loadLocale, type locales } from '@/lib/i18n'
 import { useSettingsStore } from '@/store/settings'
 import { router } from './router'
 import './App.css'
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -31,6 +32,17 @@ function ThemeSync() {
         : theme
     root.classList.toggle('dark', resolved === 'dark')
   }, [theme])
+  return null
+}
+
+function FontSizeSync() {
+  const fontSize = useSettingsStore((s) => s.uiFontSize)
+  useEffect(() => {
+    const root = document.documentElement
+    const sizeMap = { sm: 'text-sm', md: 'text-base', lg: 'text-lg' } as const
+    root.classList.remove('text-sm', 'text-base', 'text-lg')
+    root.classList.add(sizeMap[fontSize])
+  }, [fontSize])
   return null
 }
 
@@ -73,6 +85,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <ThemeSync />
+          <FontSizeSync />
           <LanguageSync />
           <RouterProvider router={router} />
         </TooltipProvider>
