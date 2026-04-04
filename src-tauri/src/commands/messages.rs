@@ -338,6 +338,7 @@ pub async fn send_message(
         None,
     )
     .await
+    .map(|_| ())
 }
 
 #[specta]
@@ -421,7 +422,7 @@ pub async fn get_conversation_bootstrap(
 }
 
 // =============================================================================
-// Internal send function
+// Internal send function (returns the user message ID)
 // =============================================================================
 
 pub(crate) async fn send_message_internal(
@@ -432,7 +433,7 @@ pub(crate) async fn send_message_internal(
     context_items: Option<Vec<ContextItem>>,
     app: tauri::AppHandle,
     metadata: Option<MessageMetadata>,
-) -> Result<(), String> {
+) -> Result<Uuid, String> {
     // Validate IDs synchronously – no DB call
     let conv_uuid = Uuid::parse_str(&conversation_id).map_err(|e| e.to_string())?;
     let branch_uuid = branch_id
@@ -452,73 +453,80 @@ pub(crate) async fn send_message_internal(
     );
 
     // Spawn the heavy work (DB insert + agent loop)
-    tokio::spawn(async move {
-        let db = match state.registry.db.connection().await {
-            Ok(db) => db,
-            Err(e) => {
-                let _ = app.emit(
-                    "agent-event",
-                    AgentEvent::Error {
-                        conversation_id: conversation_id.clone(),
-                        message: format!("Database connection failed: {}", e),
-                    },
-                );
-                return;
-            }
-        };
+    let state_clone = state.clone();
+    let app_clone = app.clone();
+    let conversation_id_clone = conversation_id.clone();
+    let content_clone = content.clone();
+    let context_items_clone = context_items.clone();
+    let metadata_clone = metadata;
 
-        // Insert user message
-        let context_items_model = context_items
-            .clone()
-            .map(ContextItems)
-            .unwrap_or_else(|| ContextItems(vec![]));
-
-        let user_msg = messages::ActiveModel {
-            id: Set(msg_id),
-            conversation_id: Set(conv_uuid),
-            branch_id: Set(branch_uuid),
-            role: Set("user".to_string()),
-            content: Set(content.clone()),
-            metadata: Set(metadata),
-            context_items: Set(Some(context_items_model)),
-            created_at: Set(now),
-            seen: Set(false),
-            status: Set("active".to_string()),
-            ..Default::default()
-        };
-
-        if let Err(e) = user_msg.insert(db).await {
+    // Insert user message immediately (synchronously) so we can return its ID
+    let db = match state.registry.db.connection().await {
+        Ok(db) => db,
+        Err(e) => {
             let _ = app.emit(
                 "agent-event",
                 AgentEvent::Error {
                     conversation_id: conversation_id.clone(),
-                    message: format!("Failed to save user message: {}", e),
+                    message: format!("Database connection failed: {}", e),
                 },
             );
-            return;
+            return Err(e.to_string());
         }
+    };
 
-        // Emit Persisted after the message is saved – triggers cache refresh
+    let context_items_model = context_items_clone
+        .clone()
+        .map(ContextItems)
+        .unwrap_or_else(|| ContextItems(vec![]));
+
+    let user_msg = messages::ActiveModel {
+        id: Set(msg_id),
+        conversation_id: Set(conv_uuid),
+        branch_id: Set(branch_uuid),
+        role: Set("user".to_string()),
+        content: Set(content_clone.clone()),
+        metadata: Set(metadata_clone),
+        context_items: Set(Some(context_items_model)),
+        created_at: Set(now),
+        seen: Set(false),
+        status: Set("active".to_string()),
+        ..Default::default()
+    };
+
+    if let Err(e) = user_msg.insert(db).await {
         let _ = app.emit(
             "agent-event",
-            AgentEvent::Persisted {
+            AgentEvent::Error {
                 conversation_id: conversation_id.clone(),
+                message: format!("Failed to save user message: {}", e),
             },
         );
+        return Err(e.to_string());
+    }
 
-        // Finally start the agent loop (not async, no .await)
+    // Emit Persisted after the message is saved – triggers cache refresh
+    let _ = app.emit(
+        "agent-event",
+        AgentEvent::Persisted {
+            conversation_id: conversation_id_clone.clone(),
+        },
+    );
+
+    // Finally start the agent loop (not async, no .await)
+    tokio::spawn(async move {
         run_agent_loop(
-            state,
-            conversation_id,
-            content,
+            state_clone,
+            conversation_id_clone,
+            content_clone,
             branch_id,
             msg_id,
-            context_items,
-            app,
+            context_items_clone,
+            app_clone,
         );
     });
 
-    Ok(())
+    Ok(msg_id)
 }
 
 // =============================================================================

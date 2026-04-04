@@ -34,7 +34,6 @@ export function QueueHeader({ conversationId, messages }: QueueHeaderProps) {
   const count = messages.length
   const selectedCount = useMemo(() => selectedIds.size, [selectedIds])
 
-  // Move all hooks before early return
   const handleSelectClick = useCallback(() => {
     setMode(conversationId, 'select')
     clearSelected(conversationId)
@@ -46,10 +45,11 @@ export function QueueHeader({ conversationId, messages }: QueueHeaderProps) {
   }, [conversationId, setMode, clearSelected])
 
   const handleToggleExpanded = useCallback(() => {
+    // Don't open if there are no messages and it's currently closed
+    if (count === 0 && !expanded) return
     setExpanded(conversationId, !expanded)
-  }, [conversationId, expanded, setExpanded])
+  }, [conversationId, expanded, setExpanded, count])
 
-  // Early return after hooks
   if (count === 0) return null
 
   return (

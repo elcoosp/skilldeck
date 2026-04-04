@@ -45,7 +45,6 @@ pub enum AgentEvent {
     Persisted {
         conversation_id: String,
     },
-    // NEW: Tool approval required
     ToolApprovalRequired {
         conversation_id: String,
         tool_call_id: String,
@@ -131,5 +130,16 @@ pub enum SkillEvent {
     Updated {
         source_label: String,
         skill_name: String,
+    },
+}
+
+// ── Queue events ────────────────────────────────────────────────────────────
+/// Payload for the `"queue-event"` Tauri channel.
+#[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum QueueEvent {
+    MessageSent {
+        conversation_id: String,
+        message_id: String,
     },
 }

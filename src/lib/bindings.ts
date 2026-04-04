@@ -569,12 +569,7 @@ async setApiKey(provider: string, key: string) : Promise<Result<null, string>> {
 },
 /**
  * Remove an API key from the OS keychain.
- * 
- * Note: we do NOT unregister the provider from the registry here because
- * the provider object holds no reference to the key after construction —
- * the key was captured by value.  A full de-registration would require
- * restarting the app or a more complex eviction mechanism; for v1 this is
- * acceptable.
+ * Tolerates missing entries (idempotent).
  */
 async deleteApiKey(provider: string) : Promise<Result<null, string>> {
     try {

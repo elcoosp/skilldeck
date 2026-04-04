@@ -20,7 +20,6 @@ import { useToolApprovalStore } from '@/store/tool-approvals'
 import { useUIEphemeralStore } from '@/store/ui-ephemeral'
 import { useUILayoutStore } from '@/store/ui-layout'
 import { MessageBubble } from './message-bubble'
-import ThreadNavigator from './thread-navigator'
 import { ToolApprovalCard } from './tool-approval-card'
 
 export interface ScrollToken {
@@ -686,27 +685,7 @@ export const MessageThread = React.forwardRef<
             )}
           </div>
 
-          <ThreadNavigator
-            messages={messages}
-            activeIndex={-1}
-            activeHeadingIndex={null}
-            onScrollTo={(idx) => {
-              const targetMsg = messages[idx]
-              if (targetMsg) {
-                const fullIndex = messages.findIndex(
-                  (m) => m.id === targetMsg.id
-                )
-                if (fullIndex !== -1) {
-                  virtualizerRef.current.scrollToIndex(fullIndex, {
-                    align: 'start',
-                    behavior: 'auto'
-                  })
-                }
-              }
-            }}
-            onHeadingClick={(_msgIdx, _tocIdx) => { }}
-            headings={headings}
-          />
+          {/* ❌ REMOVED the duplicate ThreadNavigator that was here */}
         </AutoScrollContext.Provider>
       </ScrollContainerContext.Provider>
     )

@@ -41,7 +41,6 @@ export function LintWarningPanel({
   className,
   skillRoot
 }: LintWarningPanelProps) {
-  const _disableRule = useDisableRule()
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
   const visible = warnings.filter((w) => w.severity !== 'off')
@@ -121,13 +120,13 @@ function WarningRow({
       className={cn(
         'rounded-md border px-3 py-2 text-sm',
         warning.severity === 'error' &&
-          isSecurity &&
-          'border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/20',
+        isSecurity &&
+        'border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/20',
         warning.severity === 'error' &&
-          !isSecurity &&
-          'border-destructive/30 bg-destructive/5',
+        !isSecurity &&
+        'border-destructive/30 bg-destructive/5',
         warning.severity === 'warning' &&
-          'border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/20',
+        'border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/20',
         warning.severity === 'info' && 'border-border bg-muted/30'
       )}
     >
@@ -139,11 +138,11 @@ function WarningRow({
             className={cn(
               'font-medium text-xs uppercase tracking-wide',
               warning.severity === 'error' &&
-                isSecurity &&
-                'text-red-600 dark:text-red-400',
+              isSecurity &&
+              'text-red-600 dark:text-red-400',
               warning.severity === 'error' && !isSecurity && 'text-destructive',
               warning.severity === 'warning' &&
-                'text-amber-600 dark:text-amber-400',
+              'text-amber-600 dark:text-amber-400',
               warning.severity === 'info' && 'text-muted-foreground'
             )}
           >
