@@ -96,9 +96,7 @@ function SettingsLayout() {
         {/* Content pane – wrapped in stacked-card container */}
         <div className="flex-1 overflow-y-auto text-left">
           <div className="mx-auto w-full max-w-2xl">
-            <div className="rounded-xl border border-border overflow-hidden divide-y divide-border">
-              <Outlet />
-            </div>
+            <Outlet />
           </div>
         </div>
       </div>
