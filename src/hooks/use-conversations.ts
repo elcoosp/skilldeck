@@ -15,10 +15,7 @@ export function useConversations(profileId?: UUID | null) {
   return useQuery({
     queryKey: ['conversations', profileId],
     queryFn: async () => {
-      const res = await commands.listConversations(
-        profileId ?? null,
-        50
-      )
+      const res = await commands.listConversations(profileId ?? null, 50)
       if (res.status === 'ok') return res.data
       throw new Error(res.error)
     },
@@ -49,10 +46,10 @@ export function useCreateConversation(profileId?: UUID) {
     },
     onSuccess: async (newId) => {
       queryClient.invalidateQueries({
-        queryKey: ['conversations'],
+        queryKey: ['conversations']
       })
       await queryClient.refetchQueries({
-        queryKey: ['conversations'],
+        queryKey: ['conversations']
       })
       await new Promise((resolve) => setTimeout(resolve, 50))
       setActiveConversation(newId)
@@ -81,7 +78,7 @@ export function useDeleteConversation() {
     },
     onSuccess: (_data, deletedId) => {
       queryClient.invalidateQueries({
-        queryKey: ['conversations'],
+        queryKey: ['conversations']
       })
       if (activeConversationId === deletedId) {
         setActiveConversation(null)
@@ -105,7 +102,7 @@ export function useRenameConversation() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ['conversations'],
+        queryKey: ['conversations']
       })
       toast.success('Conversation renamed')
     },
@@ -139,7 +136,7 @@ export function useAutoNameConversation() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ['conversations'],
+        queryKey: ['conversations']
       })
     },
     onError: (error) => {

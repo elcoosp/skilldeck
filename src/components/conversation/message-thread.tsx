@@ -10,10 +10,10 @@ import * as React from 'react'
 import { useSendMessage } from '@/hooks/use-messages'
 import type { MessageData, NodeDocument } from '@/lib/bindings'
 import {
-  DEFAULT_PROSE_CONFIG,
   DEFAULT_CHROME_CONFIG,
-  MarkdownHeightEngine,
-  estimateContextChipHeight
+  DEFAULT_PROSE_CONFIG,
+  estimateContextChipHeight,
+  MarkdownHeightEngine
 } from '@/lib/markdown-layout'
 import { useConversationStore } from '@/store/conversation'
 import { useToolApprovalStore } from '@/store/tool-approvals'
@@ -274,13 +274,14 @@ export const MessageThread = React.forwardRef<
           msg.content.length
         )
 
-        const chipHeight = (msg.context_items?.length ?? 0) > 0
-          ? estimateContextChipHeight(
-            msg.context_items!.length,
-            effectiveWidth,
-            DEFAULT_CHROME_CONFIG
-          )
-          : 0
+        const chipHeight =
+          (msg.context_items?.length ?? 0) > 0
+            ? estimateContextChipHeight(
+                msg.context_items!.length,
+                effectiveWidth,
+                DEFAULT_CHROME_CONFIG
+              )
+            : 0
 
         return baseHeight + chipHeight
       },
@@ -560,7 +561,7 @@ export const MessageThread = React.forwardRef<
         getScrollPosition: () => scrollRef.current?.scrollTop ?? 0,
         onScroll: (cb: () => void) => {
           const el = scrollRef.current
-          if (!el) return () => { }
+          if (!el) return () => {}
           el.addEventListener('scroll', cb, { passive: true })
           return () => el.removeEventListener('scroll', cb)
         }
@@ -641,7 +642,7 @@ export const MessageThread = React.forwardRef<
                     const retryAvailable = (message as any).retryAvailable
                     const handleRetry = retryAvailable
                       ? () =>
-                        sendMutation.mutateAsync({ content: message.content })
+                          sendMutation.mutateAsync({ content: message.content })
                       : undefined
 
                     return (

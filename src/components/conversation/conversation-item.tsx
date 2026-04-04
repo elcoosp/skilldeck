@@ -1,12 +1,6 @@
 // src/components/conversation/conversation-item.tsx
 import { formatDistanceToNow } from 'date-fns'
-import {
-  MoreHorizontal,
-  Pencil,
-  Pin,
-  PinOff,
-  Trash2
-} from 'lucide-react'
+import { MoreHorizontal, Pencil, Pin, PinOff, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
@@ -215,10 +209,7 @@ export function ConversationItem({
       <div className="flex-1 min-w-0 relative z-10">
         <div className="flex items-center gap-1 h-5">
           {isRenaming ? (
-            <div
-              className="flex-1 h-full"
-              onClick={(e) => e.stopPropagation()}
-            >
+            <div className="flex-1 h-full" onClick={(e) => e.stopPropagation()}>
               <input
                 ref={inputRef}
                 type="text"

@@ -46,10 +46,7 @@ import {
   useCreateConversation
 } from '@/hooks/use-conversations'
 import { useExpandedDateGroups } from '@/hooks/use-expanded-date-groups'
-import {
-  useCreateFolder,
-  useFolders,
-} from '@/hooks/use-folders'
+import { useCreateFolder, useFolders } from '@/hooks/use-folders'
 import { useLeftPanelSearch } from '@/hooks/use-left-panel-search'
 import { useProfileFilter } from '@/hooks/use-profile-filter'
 import { useProfiles } from '@/hooks/use-profiles'
@@ -115,7 +112,8 @@ function EmptyStateAnimation({ alt, className }: EmptyStateAnimationProps) {
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
     setPrefersReducedMotion(mediaQuery.matches)
-    const handler = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches)
+    const handler = (e: MediaQueryListEvent) =>
+      setPrefersReducedMotion(e.matches)
     mediaQuery.addEventListener('change', handler)
     return () => mediaQuery.removeEventListener('change', handler)
   }, [])
@@ -158,7 +156,8 @@ export function LeftPanel() {
   const { profileId, setProfileId } = useProfileFilter()
 
   // F04: Sort preference from settings store
-  const conversationSort = useSettingsStore((s) => s.conversationSort) ?? 'updated'
+  const conversationSort =
+    useSettingsStore((s) => s.conversationSort) ?? 'updated'
   // F08: Preferred editor from settings store
   const preferredEditor = useSettingsStore((s) => s.preferredEditor) ?? 'system'
 
@@ -173,14 +172,14 @@ export function LeftPanel() {
 
   const { data: profiles = [] } = useProfiles(false)
   const { data: allProfiles, isLoading: profilesLoading } = useProfiles(true)
-  const defaultProfile = allProfiles?.find((p) => p.is_default) ?? allProfiles?.[0]
+  const defaultProfile =
+    allProfiles?.find((p) => p.is_default) ?? allProfiles?.[0]
 
   // Fetch all conversations (across all workspaces) then filter by current workspace
   const { data: allConversations, isLoading: conversationsLoading } =
     useConversations(profileId)
-  const workspaceConversations = allConversations?.filter(
-    (c) => c.workspace_id === activeWorkspaceId
-  ) ?? []
+  const workspaceConversations =
+    allConversations?.filter((c) => c.workspace_id === activeWorkspaceId) ?? []
 
   const { data: folders = [], isLoading: foldersLoading } = useFolders()
   const createFolder = useCreateFolder()
@@ -262,7 +261,7 @@ export function LeftPanel() {
     const path = activeWorkspace.path
     const editorSchemes: Record<string, string> = {
       vscode: `vscode://file/${path}`,
-      cursor: `cursor://file/${path}`,
+      cursor: `cursor://file/${path}`
     }
     const url = editorSchemes[preferredEditor] ?? `file://${path}`
     try {
@@ -274,9 +273,11 @@ export function LeftPanel() {
 
   // F04: Toggle sort
   const handleToggleSort = () => {
-    useSettingsStore.getState().setConversationSort(
-      conversationSort === 'updated' ? 'created' : 'updated'
-    )
+    useSettingsStore
+      .getState()
+      .setConversationSort(
+        conversationSort === 'updated' ? 'created' : 'updated'
+      )
   }
 
   const handleNewChat = () => {
@@ -291,7 +292,8 @@ export function LeftPanel() {
     createConversation.mutate({ title: undefined })
   }
 
-  const handleDeleteStart = (conversationId: string) => setDeletingId(conversationId)
+  const handleDeleteStart = (conversationId: string) =>
+    setDeletingId(conversationId)
   const handleDeleteComplete = () => setDeletingId(null)
 
   const handleCreateFolder = async () => {
@@ -386,7 +388,11 @@ export function LeftPanel() {
             className="w-full mb-2"
             size="sm"
             onClick={handleNewChat}
-            disabled={createConversation.isPending || !defaultProfile || !activeWorkspace}
+            disabled={
+              createConversation.isPending ||
+              !defaultProfile ||
+              !activeWorkspace
+            }
           >
             <Plus className="size-4 mr-1.5" />
             New Chat
@@ -463,7 +469,9 @@ export function LeftPanel() {
                 <div className="w-24 h-24 mb-3 rounded-full bg-muted flex items-center justify-center">
                   <FolderOpen className="size-10 text-muted-foreground" />
                 </div>
-                <h3 className="text-sm font-semibold mb-1">No workspace selected</h3>
+                <h3 className="text-sm font-semibold mb-1">
+                  No workspace selected
+                </h3>
                 <p className="text-xs text-muted-foreground w-full mb-3">
                   Open a workspace to see your conversations.
                 </p>
@@ -502,7 +510,10 @@ export function LeftPanel() {
                 </motion.div>
               )
             ) : (
-              <AnimatePresence mode="popLayout" onExitComplete={handleDeleteComplete}>
+              <AnimatePresence
+                mode="popLayout"
+                onExitComplete={handleDeleteComplete}
+              >
                 {/* Pinned section */}
                 {pinnedConversations.length > 0 && (
                   <Collapsible.Root defaultOpen>
@@ -574,14 +585,19 @@ export function LeftPanel() {
                             if (e.key === 'Escape') setShowNewFolderInput(false)
                           }}
                         />
-                        <Button size="xs" onClick={handleCreateFolder} className="shrink-0">
+                        <Button
+                          size="xs"
+                          onClick={handleCreateFolder}
+                          className="shrink-0"
+                        >
                           Create
                         </Button>
                       </div>
                     )}
 
                     {folders.map((folder) => {
-                      const folderConvs = conversationsByFolder.get(folder.id) ?? []
+                      const folderConvs =
+                        conversationsByFolder.get(folder.id) ?? []
                       if (folderConvs.length === 0) return null
                       return (
                         <Collapsible.Root key={folder.id} defaultOpen>
@@ -601,12 +617,17 @@ export function LeftPanel() {
                                 key={c.id}
                                 initial={{ opacity: 0, y: 8 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, transition: { duration: 0.15 } }}
+                                exit={{
+                                  opacity: 0,
+                                  transition: { duration: 0.15 }
+                                }}
                                 transition={{ duration: 0.2 }}
                               >
                                 <ConversationItem
                                   conversation={c}
-                                  isActive={pathname === `/conversations/${c.id}`}
+                                  isActive={
+                                    pathname === `/conversations/${c.id}`
+                                  }
                                   isDeleting={c.id === deletingId}
                                   onDeleteStart={handleDeleteStart}
                                   onClick={() =>

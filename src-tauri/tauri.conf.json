@@ -42,15 +42,11 @@
   "plugins": {
     "deep-link": {
       "desktop": {
-        "schemes": [
-          "skilldeck"
-        ]
+        "schemes": ["skilldeck"]
       },
       "mobile": [
         {
-          "scheme": [
-            "skilldeck"
-          ],
+          "scheme": ["skilldeck"],
           "appLink": false
         }
       ]

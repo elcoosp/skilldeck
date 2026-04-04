@@ -30,7 +30,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
   activeHeadingIndex = null,
   onScrollTo,
   onHeadingClick,
-  headings,
+  headings
 }: ThreadNavigatorProps) {
   const userMessages = useMemo(
     () =>
@@ -58,7 +58,8 @@ const ThreadNavigator = memo(function ThreadNavigator({
 
   const assistantHasBookmark = useCallback(
     (assistantMsgId: string | undefined) =>
-      !!assistantMsgId && convBookmarks.some((b) => b.message_id === assistantMsgId),
+      !!assistantMsgId &&
+      convBookmarks.some((b) => b.message_id === assistantMsgId),
     [convBookmarks]
   )
 
@@ -76,7 +77,10 @@ const ThreadNavigator = memo(function ThreadNavigator({
 
   useEffect(() => {
     if (!hasMessages) return
-    if (total <= VISIBLE_ITEMS) { setWindowStart(0); return }
+    if (total <= VISIBLE_ITEMS) {
+      setWindowStart(0)
+      return
+    }
     const cur = userMessages.findIndex((u) => u.idx === activeIndex)
     if (cur === -1) return
     const isOutside = cur < windowStart || cur >= windowStart + VISIBLE_ITEMS
@@ -103,7 +107,10 @@ const ThreadNavigator = memo(function ThreadNavigator({
 
   const [isOpen, setIsOpen] = useState(false)
   const [focusedIdx, setFocusedIdx] = useState(0)
-  const [cardPosition, setCardPosition] = useState<{ top: number; left: number } | null>(null)
+  const [cardPosition, setCardPosition] = useState<{
+    top: number
+    left: number
+  } | null>(null)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const cardRef = useRef<HTMLDivElement>(null)
@@ -134,16 +141,21 @@ const ThreadNavigator = memo(function ThreadNavigator({
     setCardPosition({ top, left })
   }, [isOpen])
 
-  useEffect(() => () => {
-    if (enterTimer.current) clearTimeout(enterTimer.current)
-    if (leaveTimer.current) clearTimeout(leaveTimer.current)
-  }, [])
+  useEffect(
+    () => () => {
+      if (enterTimer.current) clearTimeout(enterTimer.current)
+      if (leaveTimer.current) clearTimeout(leaveTimer.current)
+    },
+    []
+  )
 
   const closeCard = useCallback(() => {
     if (enterTimer.current) clearTimeout(enterTimer.current)
     if (leaveTimer.current) clearTimeout(leaveTimer.current)
     dismissingRef.current = true
-    setTimeout(() => { dismissingRef.current = false }, 400)
+    setTimeout(() => {
+      dismissingRef.current = false
+    }, 400)
     setIsOpen(false)
     setExpandedMsgIdx(null)
     setCardPosition(null)
@@ -177,7 +189,13 @@ const ThreadNavigator = memo(function ThreadNavigator({
 
   type NavItem =
     | { kind: 'message'; msgIdx: number; listIdx: number }
-    | { kind: 'heading'; assistantMsgIdx: number; tocIndex: number; parentListIdx: number; headingId: string }
+    | {
+        kind: 'heading'
+        assistantMsgIdx: number
+        tocIndex: number
+        parentListIdx: number
+        headingId: string
+      }
 
   const { navItems, headingNavMap } = useMemo(() => {
     const items: NavItem[] = []
@@ -191,7 +209,13 @@ const ThreadNavigator = memo(function ThreadNavigator({
         hs.forEach((h) => {
           const navIdx = items.length
           map.set(`${assistantId}-${h.id}`, navIdx)
-          items.push({ kind: 'heading', assistantMsgIdx: idx + 1, tocIndex: h.toc_index, parentListIdx: listIdx, headingId: h.id })
+          items.push({
+            kind: 'heading',
+            assistantMsgIdx: idx + 1,
+            tocIndex: h.toc_index,
+            parentListIdx: listIdx,
+            headingId: h.id
+          })
         })
       }
     })
@@ -207,8 +231,13 @@ const ThreadNavigator = memo(function ThreadNavigator({
       const cr = scrollRef.current.getBoundingClientRect()
       const er = el.getBoundingClientRect()
       scrollRef.current.scrollTo({
-        top: scrollRef.current.scrollTop + er.top - cr.top - cr.height / 2 + er.height / 2,
-        behavior: 'auto',
+        top:
+          scrollRef.current.scrollTop +
+          er.top -
+          cr.top -
+          cr.height / 2 +
+          er.height / 2,
+        behavior: 'auto'
       })
       el.focus({ preventScroll: true })
     })
@@ -224,19 +253,47 @@ const ThreadNavigator = memo(function ThreadNavigator({
       const cr = scrollRef.current.getBoundingClientRect()
       const er = el.getBoundingClientRect()
       scrollRef.current.scrollTo({
-        top: scrollRef.current.scrollTop + er.top - cr.top - cr.height / 2 + er.height / 2,
-        behavior: 'auto',
+        top:
+          scrollRef.current.scrollTop +
+          er.top -
+          cr.top -
+          cr.height / 2 +
+          er.height / 2,
+        behavior: 'auto'
       })
     }
   }, [isOpen, activeIndex])
 
-  const stateRef = useRef({ isOpen, focusedIdx, navItems, expandedMsgIdx, userMessages, messages, headingsByMessage, activeIndex })
-  stateRef.current = { isOpen, focusedIdx, navItems, expandedMsgIdx, userMessages, messages, headingsByMessage, activeIndex }
+  const stateRef = useRef({
+    isOpen,
+    focusedIdx,
+    navItems,
+    expandedMsgIdx,
+    userMessages,
+    messages,
+    headingsByMessage,
+    activeIndex
+  })
+  stateRef.current = {
+    isOpen,
+    focusedIdx,
+    navItems,
+    expandedMsgIdx,
+    userMessages,
+    messages,
+    headingsByMessage,
+    activeIndex
+  }
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
+      )
+        return
 
       const s = stateRef.current
 
@@ -257,8 +314,13 @@ const ThreadNavigator = memo(function ThreadNavigator({
         }
         if (e.key === '?') {
           e.preventDefault()
-          const curListIdx = Math.max(0, s.userMessages.findIndex((u) => u.idx === s.activeIndex))
-          const startNavIdx = s.navItems.findIndex((n) => n.kind === 'message' && n.listIdx === curListIdx)
+          const curListIdx = Math.max(
+            0,
+            s.userMessages.findIndex((u) => u.idx === s.activeIndex)
+          )
+          const startNavIdx = s.navItems.findIndex(
+            (n) => n.kind === 'message' && n.listIdx === curListIdx
+          )
           openCard(Math.max(0, startNavIdx))
           return
         }
@@ -298,7 +360,9 @@ const ThreadNavigator = memo(function ThreadNavigator({
           if (!item) break
           if (item.kind === 'message') {
             const assistantId = s.messages[item.msgIdx + 1]?.id
-            const hs = assistantId ? (s.headingsByMessage.get(assistantId) ?? []) : []
+            const hs = assistantId
+              ? (s.headingsByMessage.get(assistantId) ?? [])
+              : []
             if (hs.length > 0 && s.expandedMsgIdx !== item.msgIdx) {
               toggleToc(item.msgIdx, true)
             } else {
@@ -317,8 +381,11 @@ const ThreadNavigator = memo(function ThreadNavigator({
           const item = s.navItems[cur]
           if (item?.kind !== 'message') break
           const assistantId = s.messages[item.msgIdx + 1]?.id
-          const hs = assistantId ? (s.headingsByMessage.get(assistantId) ?? []) : []
-          if (hs.length > 0 && s.expandedMsgIdx !== item.msgIdx) toggleToc(item.msgIdx, true)
+          const hs = assistantId
+            ? (s.headingsByMessage.get(assistantId) ?? [])
+            : []
+          if (hs.length > 0 && s.expandedMsgIdx !== item.msgIdx)
+            toggleToc(item.msgIdx, true)
           break
         }
         case 'ArrowLeft':
@@ -327,9 +394,14 @@ const ThreadNavigator = memo(function ThreadNavigator({
           const item = s.navItems[cur]
           if (item?.kind === 'heading') {
             toggleToc(item.assistantMsgIdx - 1, false)
-            const parentNavIdx = s.navItems.findIndex((n) => n.kind === 'message' && n.listIdx === item.parentListIdx)
+            const parentNavIdx = s.navItems.findIndex(
+              (n) => n.kind === 'message' && n.listIdx === item.parentListIdx
+            )
             if (parentNavIdx !== -1) focusItem(parentNavIdx)
-          } else if (item?.kind === 'message' && s.expandedMsgIdx === item.msgIdx) {
+          } else if (
+            item?.kind === 'message' &&
+            s.expandedMsgIdx === item.msgIdx
+          ) {
             toggleToc(item.msgIdx, false)
           }
           break
@@ -347,13 +419,14 @@ const ThreadNavigator = memo(function ThreadNavigator({
     if (el) {
       requestAnimationFrame(() => el.focus({ preventScroll: true }))
     }
-  }, [isOpen])
+  }, [isOpen, focusedIdx])
 
   useEffect(() => {
     if (!isOpen) return
     const onMouseDown = (e: MouseEvent) => {
       const t = e.target as Node
-      if (cardRef.current?.contains(t) || containerRef.current?.contains(t)) return
+      if (cardRef.current?.contains(t) || containerRef.current?.contains(t))
+        return
       setIsOpen(false)
     }
     document.addEventListener('mousedown', onMouseDown)
@@ -438,7 +511,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
                 top: cardPosition.top,
                 left: cardPosition.left,
                 transform: 'translateY(-50%)',
-                maxHeight: 'min(380px, 70vh)',
+                maxHeight: 'min(380px, 70vh)'
               }}
               onMouseEnter={onCardMouseEnter}
               onMouseLeave={onCardMouseLeave}
@@ -451,18 +524,26 @@ const ThreadNavigator = memo(function ThreadNavigator({
               </div>
 
               {/* Scrollable list */}
-              <div ref={scrollRef} className="overflow-y-auto thin-scrollbar flex-1 min-h-0">
+              <div
+                ref={scrollRef}
+                className="overflow-y-auto thin-scrollbar flex-1 min-h-0"
+              >
                 <div className="space-y-0.5 pr-1">
                   {userMessages.map(({ msg, idx }, listIdx) => {
                     const isActive = idx === activeIndex
                     const assistantMsgIdx = idx + 1
                     const assistantId = messages[assistantMsgIdx]?.id
-                    const hs = assistantId ? (headingsByMessage.get(assistantId) ?? []) : []
+                    const hs = assistantId
+                      ? (headingsByMessage.get(assistantId) ?? [])
+                      : []
                     const hasHeadings = hs.length > 0
                     const isExpanded = expandedMsgIdx === idx
                     const hasAnyBookmark = assistantHasBookmark(assistantId)
                     const msgLevelBookmark = assistantId
-                      ? convBookmarks.some((b) => b.message_id === assistantId && !b.heading_anchor)
+                      ? convBookmarks.some(
+                          (b) =>
+                            b.message_id === assistantId && !b.heading_anchor
+                        )
                       : false
 
                     const msgNavIdx = navItems.findIndex(
@@ -484,7 +565,10 @@ const ThreadNavigator = memo(function ThreadNavigator({
                               'group flex items-center gap-2 flex-1 text-left px-1.5 py-1 rounded transition-colors min-w-0 outline-none',
                               isFocused ? 'bg-muted/60' : 'hover:bg-muted/40'
                             )}
-                            onClick={() => { onScrollTo(idx); closeCard() }}
+                            onClick={() => {
+                              onScrollTo(idx)
+                              closeCard()
+                            }}
                             onMouseEnter={() => setFocusedIdx(msgNavIdx)}
                             onFocus={() => setFocusedIdx(msgNavIdx)}
                           >
@@ -492,14 +576,18 @@ const ThreadNavigator = memo(function ThreadNavigator({
                               <div
                                 className={cn(
                                   'h-[2px] rounded-full transition-all duration-150',
-                                  isActive ? 'w-3 bg-primary' : 'w-2 bg-muted-foreground/30 group-hover:bg-primary/60'
+                                  isActive
+                                    ? 'w-3 bg-primary'
+                                    : 'w-2 bg-muted-foreground/30 group-hover:bg-primary/60'
                                 )}
                               />
                             </div>
                             <p
                               className={cn(
                                 'text-xs truncate flex-1 transition-colors duration-150',
-                                isActive ? 'text-foreground font-medium' : 'text-muted-foreground group-hover:text-foreground'
+                                isActive
+                                  ? 'text-foreground font-medium'
+                                  : 'text-muted-foreground group-hover:text-foreground'
                               )}
                             >
                               {msg.content}
@@ -522,7 +610,11 @@ const ThreadNavigator = memo(function ThreadNavigator({
                               tabIndex={-1}
                               className="flex-shrink-0 p-1 rounded transition-colors outline-none text-muted-foreground hover:text-foreground hover:bg-muted/50"
                               onClick={() => toggleToc(idx, !isExpanded)}
-                              aria-label={isExpanded ? 'Collapse headings' : 'Expand headings'}
+                              aria-label={
+                                isExpanded
+                                  ? 'Collapse headings'
+                                  : 'Expand headings'
+                              }
                               aria-expanded={isExpanded}
                             >
                               <motion.div
@@ -546,10 +638,19 @@ const ThreadNavigator = memo(function ThreadNavigator({
                             >
                               <div className="ml-3 mt-0.5 mb-1.5 border-l-2 border-primary/20 pl-2 space-y-px">
                                 {hs.map((h) => {
-                                  const hBookmarked = headingIsBookmarked(assistantId, h.id)
-                                  const isActiveHeading = isActive && h.toc_index === activeHeadingIndex
-                                  const headingNavIdx = headingNavMap.get(`${assistantId}-${h.id}`) ?? -1
-                                  const isHFocused = focusedIdx === headingNavIdx
+                                  const hBookmarked = headingIsBookmarked(
+                                    assistantId,
+                                    h.id
+                                  )
+                                  const isActiveHeading =
+                                    isActive &&
+                                    h.toc_index === activeHeadingIndex
+                                  const headingNavIdx =
+                                    headingNavMap.get(
+                                      `${assistantId}-${h.id}`
+                                    ) ?? -1
+                                  const isHFocused =
+                                    focusedIdx === headingNavIdx
                                   const isH1 = h.level === 1
                                   const isH2 = h.level === 2
 
@@ -557,8 +658,13 @@ const ThreadNavigator = memo(function ThreadNavigator({
                                     <button
                                       key={`${assistantId}-${h.id}`}
                                       ref={(el) => {
-                                        if (el) itemRefs.current.set(headingNavIdx, el)
-                                        else itemRefs.current.delete(headingNavIdx)
+                                        if (el)
+                                          itemRefs.current.set(
+                                            headingNavIdx,
+                                            el
+                                          )
+                                        else
+                                          itemRefs.current.delete(headingNavIdx)
                                       }}
                                       type="button"
                                       tabIndex={-1}
@@ -567,10 +673,24 @@ const ThreadNavigator = memo(function ThreadNavigator({
                                         'flex w-full items-center text-left rounded transition-colors group outline-none py-0.5',
                                         isHFocused && 'bg-muted/60'
                                       )}
-                                      style={{ paddingLeft: `${(h.level - 1) * 8 + 6}px` }}
-                                      onClick={() => { onHeadingClick(assistantMsgIdx, h.toc_index); closeCard() }}
-                                      onMouseEnter={() => { if (headingNavIdx !== -1) setFocusedIdx(headingNavIdx) }}
-                                      onFocus={() => { if (headingNavIdx !== -1) setFocusedIdx(headingNavIdx) }}
+                                      style={{
+                                        paddingLeft: `${(h.level - 1) * 8 + 6}px`
+                                      }}
+                                      onClick={() => {
+                                        onHeadingClick(
+                                          assistantMsgIdx,
+                                          h.toc_index
+                                        )
+                                        closeCard()
+                                      }}
+                                      onMouseEnter={() => {
+                                        if (headingNavIdx !== -1)
+                                          setFocusedIdx(headingNavIdx)
+                                      }}
+                                      onFocus={() => {
+                                        if (headingNavIdx !== -1)
+                                          setFocusedIdx(headingNavIdx)
+                                      }}
                                     >
                                       <span
                                         className={cn(
@@ -578,17 +698,26 @@ const ThreadNavigator = memo(function ThreadNavigator({
                                           hBookmarked
                                             ? 'bg-amber-400 w-1.5 h-1.5'
                                             : cn(
-                                              isActiveHeading ? 'bg-primary' : 'bg-muted-foreground/20 group-hover:bg-primary/40',
-                                              isH1 ? 'w-1 h-1' : 'w-0.5 h-0.5',
-                                              !isH1 && !isH2 && 'opacity-60'
-                                            )
+                                                isActiveHeading
+                                                  ? 'bg-primary'
+                                                  : 'bg-muted-foreground/20 group-hover:bg-primary/40',
+                                                isH1
+                                                  ? 'w-1 h-1'
+                                                  : 'w-0.5 h-0.5',
+                                                !isH1 && !isH2 && 'opacity-60'
+                                              )
                                         )}
                                       />
                                       <span
                                         className={cn(
                                           'truncate flex-1 transition-colors',
-                                          !isActiveHeading && 'group-hover:text-foreground',
-                                          isH1 ? 'text-xs font-medium' : isH2 ? 'text-xs' : 'text-[11px]',
+                                          !isActiveHeading &&
+                                            'group-hover:text-foreground',
+                                          isH1
+                                            ? 'text-xs font-medium'
+                                            : isH2
+                                              ? 'text-xs'
+                                              : 'text-[11px]',
                                           isActiveHeading
                                             ? 'text-primary font-medium'
                                             : isH1

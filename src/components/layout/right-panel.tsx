@@ -89,13 +89,13 @@ const TABS: {
   label: string
   Icon: React.FC<{ className?: string }>
 }[] = [
-    { id: 'session', label: 'Session', Icon: Cpu },
-    { id: 'skills', label: 'Skills', Icon: Layers },
-    { id: 'mcp', label: 'MCP', Icon: Zap },
-    { id: 'workflow', label: 'Workflow', Icon: GitBranch },
-    { id: 'analytics', label: 'Analytics', Icon: BarChart2 },
-    { id: 'artifacts', label: 'Artifacts', Icon: FileCode }
-  ]
+  { id: 'session', label: 'Session', Icon: Cpu },
+  { id: 'skills', label: 'Skills', Icon: Layers },
+  { id: 'mcp', label: 'MCP', Icon: Zap },
+  { id: 'workflow', label: 'Workflow', Icon: GitBranch },
+  { id: 'analytics', label: 'Analytics', Icon: BarChart2 },
+  { id: 'artifacts', label: 'Artifacts', Icon: FileCode }
+]
 
 export function RightPanel() {
   const [activeTab, setActiveTab] = useState<Tab>('session')

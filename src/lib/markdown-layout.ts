@@ -1,17 +1,17 @@
 import {
-  schema,
-  text,
-  prepareItem,
   layoutItem,
-  type Schema,
   type PreparedItem,
+  prepareItem,
+  type Schema,
+  schema,
+  text
 } from 'prelayout'
 import type { MdNode, NodeDocument } from '@/lib/bindings'
 
 // ============================================================
 // Prose typography – matches your global CSS + @tailwindcss/typography
 // ============================================================
-const PROSE_BODY_PX = 14
+const _PROSE_BODY_PX = 14
 
 export interface ProseConfig {
   textFont: string
@@ -40,9 +40,11 @@ export interface ProseConfig {
 export const DEFAULT_PROSE_CONFIG: ProseConfig = {
   textFont: '400 14px Poppins, Inter, Avenir, Helvetica, Arial, sans-serif',
   textLineHeight: 24,
-  headingFont: '600 17.5px Poppins, Inter, Avenir, Helvetica, Arial, sans-serif',
+  headingFont:
+    '600 17.5px Poppins, Inter, Avenir, Helvetica, Arial, sans-serif',
   headingLineHeight: 28,
-  codeFont: '400 13px ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace',
+  codeFont:
+    '400 13px ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace',
   codeLineHeight: 20,
   codeBlockHeaderHeight: 36,
   codeBlockPaddingTop: 12,
@@ -54,11 +56,11 @@ export const DEFAULT_PROSE_CONFIG: ProseConfig = {
     list: { top: 17.5, bottom: 17.5 },
     blockquote: { top: 22.4, bottom: 22.4 },
     horizontal_rule: { top: 39.2, bottom: 39.2 },
-    html_block: { top: 0, bottom: 0 },
+    html_block: { top: 0, bottom: 0 }
   },
   listIndent: 20,
   listItemGap: 3.5,
-  blockquoteIndent: 20,
+  blockquoteIndent: 20
 }
 
 // ============================================================
@@ -66,8 +68,8 @@ export const DEFAULT_PROSE_CONFIG: ProseConfig = {
 // ============================================================
 export interface MessageChromeConfig {
   scrollPaddingLeft: number // pl-6 = 24
-  wrapperPaddingX: number   // px-4 = 32
-  wrapperPaddingY: number   // py-1.5 = 12
+  wrapperPaddingX: number // px-4 = 32
+  wrapperPaddingY: number // py-1.5 = 12
 
   assistantAvatarRowHeight: number
   assistantGapAfterAvatar: number
@@ -113,7 +115,7 @@ export const DEFAULT_CHROME_CONFIG: MessageChromeConfig = {
   contextChipGap: 8,
   toolMessageBaseHeight: 80,
   minUserHeight: 48,
-  minAssistantHeight: 60,
+  minAssistantHeight: 60
 }
 
 // ============================================================
@@ -127,15 +129,20 @@ const ENTITY_MAP: Record<string, string> = {
   '&#39;': "'",
   '&apos;': "'",
   '&nbsp;': ' ',
-  '&#160;': ' ',
+  '&#160;': ' '
 }
 
 function decodeEntities(s: string): string {
-  return s.replace(/&(?:amp|lt|gt|quot|#39|apos|nbsp|#160);/g, (m) => ENTITY_MAP[m] ?? m)
+  return s.replace(
+    /&(?:amp|lt|gt|quot|#39|apos|nbsp|#160);/g,
+    (m) => ENTITY_MAP[m] ?? m
+  )
 }
 
 function stripHtml(html: string): string {
-  return decodeEntities(html.replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim()
+  return decodeEntities(html.replace(/<[^>]+>/g, ' '))
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 function extractListItems(html: string): string[] {
@@ -166,7 +173,11 @@ type LayoutBlock = TextBlock | CodeBlock | ListBlock | HrBlock | HtmlBlock
 function nodeToBlock(node: MdNode): LayoutBlock {
   switch (node.type) {
     case 'paragraph':
-      return { kind: 'text', blockType: 'paragraph', text: stripHtml(node.html) }
+      return {
+        kind: 'text',
+        blockType: 'paragraph',
+        text: stripHtml(node.html)
+      }
     case 'heading':
       return { kind: 'text', blockType: 'heading', text: node.text }
     case 'code_block':
@@ -174,7 +185,11 @@ function nodeToBlock(node: MdNode): LayoutBlock {
     case 'list':
       return { kind: 'list', items: extractListItems(node.html) }
     case 'blockquote':
-      return { kind: 'text', blockType: 'blockquote', text: stripHtml(node.html) }
+      return {
+        kind: 'text',
+        blockType: 'blockquote',
+        text: stripHtml(node.html)
+      }
     case 'horizontal_rule':
       return { kind: 'hr' }
     case 'html_block':
@@ -196,24 +211,31 @@ function buildSchemas(c: ProseConfig): Schemas {
   const textSchema = schema({
     padding: 0,
     gap: 0,
-    children: [text('text', { font: c.textFont, lineHeight: c.textLineHeight })],
+    children: [text('text', { font: c.textFont, lineHeight: c.textLineHeight })]
   })
   const headingSchema = schema({
     padding: 0,
     gap: 0,
-    children: [text('text', { font: c.headingFont, lineHeight: c.headingLineHeight })],
+    children: [
+      text('text', { font: c.headingFont, lineHeight: c.headingLineHeight })
+    ]
   })
   const codeSchema = schema({
     padding: 0,
     gap: 0,
-    children: [text('text', { font: c.codeFont, lineHeight: c.codeLineHeight })],
+    children: [text('text', { font: c.codeFont, lineHeight: c.codeLineHeight })]
   })
   const userTextSchema = schema({
     padding: 0,
     gap: 0,
-    children: [text('text', { font: c.textFont, lineHeight: c.textLineHeight })],
+    children: [text('text', { font: c.textFont, lineHeight: c.textLineHeight })]
   })
-  return { text: textSchema, heading: headingSchema, code: codeSchema, userText: userTextSchema }
+  return {
+    text: textSchema,
+    heading: headingSchema,
+    code: codeSchema,
+    userText: userTextSchema
+  }
 }
 
 // ============================================================
@@ -247,7 +269,11 @@ type PreparedBlock =
 
 const NBSP = '\u00A0'
 
-function prepareBlocks(nodes: MdNode[], schemas: Schemas, fallbackText?: string): PreparedBlock[] {
+function prepareBlocks(
+  nodes: MdNode[],
+  schemas: Schemas,
+  fallbackText?: string
+): PreparedBlock[] {
   const blocks: LayoutBlock[] =
     nodes.length > 0
       ? nodes.map(nodeToBlock)
@@ -262,22 +288,22 @@ function prepareBlocks(nodes: MdNode[], schemas: Schemas, fallbackText?: string)
         return {
           kind: 'text',
           blockType: b.blockType,
-          prepared: prepareItem({ text: b.text || NBSP }, s),
+          prepared: prepareItem({ text: b.text || NBSP }, s)
         }
       }
       case 'code':
         return {
           kind: 'code',
           prepared: prepareItem({ text: b.rawCode || NBSP }, schemas.code, {
-            whiteSpace: 'pre-wrap',
-          }),
+            whiteSpace: 'pre-wrap'
+          })
         }
       case 'list':
         return {
           kind: 'list',
           items: (b.items.length > 0 ? b.items : [NBSP]).map((t) =>
             prepareItem({ text: t }, schemas.text)
-          ),
+          )
         }
       case 'hr':
         return { kind: 'hr' }
@@ -290,7 +316,11 @@ function prepareBlocks(nodes: MdNode[], schemas: Schemas, fallbackText?: string)
 // ============================================================
 // Margin collapsing + layout
 // ============================================================
-function getMargin(block: PreparedBlock, key: 'top' | 'bottom', c: ProseConfig): number {
+function getMargin(
+  block: PreparedBlock,
+  key: 'top' | 'bottom',
+  c: ProseConfig
+): number {
   switch (block.kind) {
     case 'text':
       return c.margins[block.blockType][key]
@@ -327,7 +357,11 @@ function layoutBlocks(
         break
       }
       case 'code': {
-        const codeTextHeight = layoutItem(block.prepared, Math.max(60, textAreaWidth), schemas.code)
+        const codeTextHeight = layoutItem(
+          block.prepared,
+          Math.max(60, textAreaWidth),
+          schemas.code
+        )
         h =
           c.codeBlockHeaderHeight +
           c.codeBlockPaddingTop +
@@ -383,7 +417,12 @@ export class MarkdownHeightEngine {
     this.schemas = buildSchemas(prose)
   }
 
-  prepare(msgId: string, doc: NodeDocument | null, role: string, content: string): void {
+  prepare(
+    msgId: string,
+    doc: NodeDocument | null,
+    role: string,
+    content: string
+  ): void {
     const cached = this.store.get(msgId)
     if (role === 'user') {
       if (!cached?.userPrepared) {
@@ -394,7 +433,7 @@ export class MarkdownHeightEngine {
             { text: content || NBSP },
             this.schemas.userText,
             { whiteSpace: 'pre-wrap' }
-          ),
+          )
         })
       }
       return
@@ -411,7 +450,7 @@ export class MarkdownHeightEngine {
     this.store.set(msgId, {
       stable: prepareBlocks(stableNodes, this.schemas),
       draft: prepareBlocks(draftNodes, this.schemas),
-      userPrepared: null,
+      userPrepared: null
     })
   }
 
@@ -427,7 +466,11 @@ export class MarkdownHeightEngine {
     return this.layoutAssistant(cached, containerWidth)
   }
 
-  private layoutUser(prepared: PreparedItem, containerWidth: number, contentLength: number): number {
+  private layoutUser(
+    prepared: PreparedItem,
+    containerWidth: number,
+    contentLength: number
+  ): number {
     const c = this.chrome
     const contentArea = containerWidth - c.scrollPaddingLeft - c.wrapperPaddingX
     const flexAvailable = contentArea - c.userAvatarSize - c.userGap
@@ -437,17 +480,25 @@ export class MarkdownHeightEngine {
     const textHeight = layoutItem(prepared, textWidth, this.schemas.userText)
     const bubbleHeight = c.userBubblePaddingY + textHeight
     const showMoreHeight =
-      contentLength > c.userLongContentThreshold ? c.userShowMoreButtonHeight : 0
+      contentLength > c.userLongContentThreshold
+        ? c.userShowMoreButtonHeight
+        : 0
     const total = bubbleHeight + showMoreHeight + c.userCopyButtonSlot
     return Math.max(total, c.minUserHeight)
   }
 
-  private layoutAssistant(cached: CachedMessage, containerWidth: number): number {
+  private layoutAssistant(
+    cached: CachedMessage,
+    containerWidth: number
+  ): number {
     const c = this.chrome
     const p = this.prose
     const textAreaWidth = Math.max(
       60,
-      containerWidth - c.scrollPaddingLeft - c.wrapperPaddingX - c.assistantContentPaddingX
+      containerWidth -
+        c.scrollPaddingLeft -
+        c.wrapperPaddingX -
+        c.assistantContentPaddingX
     )
     const allBlocks = cached.stable.concat(cached.draft)
     const proseHeight = layoutBlocks(allBlocks, textAreaWidth, this.schemas, p)
@@ -476,7 +527,8 @@ export function estimateContextChipHeight(
   chrome: MessageChromeConfig
 ): number {
   if (itemCount === 0) return 0
-  const available = containerWidth - chrome.scrollPaddingLeft - chrome.wrapperPaddingX - 40
+  const available =
+    containerWidth - chrome.scrollPaddingLeft - chrome.wrapperPaddingX - 40
   const perRow = Math.max(1, Math.floor(available / 124))
   const rows = Math.ceil(itemCount / perRow)
   return rows * chrome.contextChipRowHeight + chrome.contextChipGap

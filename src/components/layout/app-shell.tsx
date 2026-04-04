@@ -5,9 +5,9 @@ import { useHotkeys } from 'react-hotkeys-hook'
 import { Group, type Layout, Panel, Separator } from 'react-resizable-panels'
 import { Toaster } from 'sonner'
 import { GlobalDropZone } from '@/components/chat/global-drop-zone'
-import { GlobalSearchModal } from '@/components/search/global-search-modal'
 import { CommandPalette } from '@/components/overlays/command-palette'
 import { LaunchNotificationBanner } from '@/components/overlays/launch-notification'
+import { GlobalSearchModal } from '@/components/search/global-search-modal'
 import { useNudgeListener, usePlatformRegistration } from '@/hooks/use-platform'
 import { useUILayoutStore } from '@/store/ui-layout'
 import { useUIOverlaysStore } from '@/store/ui-overlays'
@@ -48,7 +48,7 @@ export function AppShell() {
           return parsed as Layout
         }
       }
-    } catch { }
+    } catch {}
     return DEFAULT_LAYOUT
   })
 
@@ -76,8 +76,12 @@ export function AppShell() {
 
       // Derive pixel sizes from percentages – pure arithmetic, zero DOM reads
       const totalWidth = window.innerWidth
-      const leftPx = Math.round(((newLayout[PANEL_LEFT] ?? 20) / 100) * totalWidth)
-      const rightPx = Math.round(((newLayout[PANEL_RIGHT] ?? 20) / 100) * totalWidth)
+      const leftPx = Math.round(
+        ((newLayout[PANEL_LEFT] ?? 20) / 100) * totalWidth
+      )
+      const rightPx = Math.round(
+        ((newLayout[PANEL_RIGHT] ?? 20) / 100) * totalWidth
+      )
 
       // Center width = total minus left/right panels minus 2px for the two separators
       const centerPx = Math.max(35, totalWidth - leftPx - rightPx - 2)
