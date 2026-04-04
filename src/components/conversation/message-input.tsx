@@ -67,7 +67,6 @@ import { useChatContextStore } from '@/store/chat-context-store'
 import { useConversationStore } from '@/store/conversation'
 import { useQueueStore } from '@/store/queue'
 import { useSettingsStore } from '@/store/settings'
-import { useToolApprovalStore } from '@/store/tool-approvals'
 import { useUIEphemeralStore } from '@/store/ui-ephemeral'
 import { useWorkspaceStore } from '@/store/workspace'
 import type {
@@ -559,8 +558,8 @@ export function MessageInput({
   }, [conversationId, setAgentRunning])
 
   // ── Auto-approve toggle (F17) ────────────────────────────────────────────
-  const toolApprovals = useToolApprovalStore((s) => s.toolApprovals)
-  const setToolApprovals = useToolApprovalStore((s) => s.setToolApprovals)
+  const toolApprovals = useSettingsStore((s) => s.toolApprovals)
+  const setToolApprovals = useSettingsStore((s) => s.setToolApprovals)
   const hasAnyApproval = toolApprovals.autoApproveReads || toolApprovals.autoApproveWrites || toolApprovals.autoApproveShell || toolApprovals.autoApproveHttpRequests
 
   // ── Submit / Queue ────────────────────────────────────────────────────────
