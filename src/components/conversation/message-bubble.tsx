@@ -44,10 +44,23 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@/components/ui/tooltip'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog'
 import { useBookmarks, useToggleBookmark } from '@/hooks/use-bookmarks'
+import { useCreateBranch } from '@/hooks/use-branches'
+import { useEditMessage } from '@/hooks/use-edit-message'
 import type { MdNode, MessageData, NodeDocument } from '@/lib/bindings'
 import { cn, highlightText } from '@/lib/utils'
 import { useConversationStore } from '@/store/conversation'
+import { useUIEphemeralStore } from '@/store/ui-ephemeral'
 import { CreateBranchModal } from './create-branch-modal'
 import { ScrollContainerContext } from './message-thread'
 import { SubagentCard } from './subagent-card'
@@ -268,6 +281,7 @@ function MessageBubbleInner({
 }: MessageBubbleProps) {
   const [copied, setCopied] = useState(false)
   const [branchModalOpen, setBranchModalOpen] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
   const contentRef = useRef<HTMLDivElement>(null)
 
   const activeConversationId = useConversationStore(
@@ -284,6 +298,10 @@ function MessageBubbleInner({
   const handleBranch = useCallback(() => {
     setBranchModalOpen(true)
   }, [])
+
+  const createBranch = useCreateBranch()
+  const editMessage = useEditMessage()
+  const setEditingMessageId = useUIEphemeralStore((s) => s.setEditingMessageId)
 
   const isUser = message.role === 'user'
   const isAssistant = message.role === 'assistant'
@@ -458,6 +476,37 @@ function MessageBubbleInner({
     }
     forceUpdate((n) => n + 1)
   }, [])
+
+  // Edit handler
+  const handleEditClick = () => {
+    setEditDialogOpen(true)
+  }
+
+  const handleEditInPlace = () => {
+    setEditDialogOpen(false)
+    // Set editing message ID to trigger inline edit mode (Task 18)
+    setEditingMessageId(message.id)
+  }
+
+  const handleEditNewBranch = async () => {
+    setEditDialogOpen(false)
+    if (!activeConversationId) {
+      toast.error('No active conversation')
+      return
+    }
+    try {
+      const branchId = await createBranch.mutateAsync({
+        conversation_id: activeConversationId,
+        parent_message_id: message.id,
+        name: `Edit of ${message.id.slice(0, 6)}`
+      })
+      toast.success('Branch created for editing')
+      // Switch to the new branch
+      useConversationStore.getState().setActiveBranch(branchId)
+    } catch (err) {
+      toast.error(`Failed to create branch: ${err}`)
+    }
+  }
 
   let subagentData: any = null
   if (isAssistant && !isStreaming && message.content) {
@@ -873,10 +922,7 @@ function MessageBubbleInner({
             </button>
             <button
               type="button"
-              onClick={() => {
-                // Edit functionality placeholder
-                toast.info('Edit functionality coming soon')
-              }}
+              onClick={handleEditClick}
               className="p-0.5 text-muted-foreground hover:text-foreground transition-colors rounded"
               aria-label="Edit message"
             >
@@ -907,6 +953,27 @@ function MessageBubbleInner({
           </div>
         )}
       </div>
+
+      {/* Edit Choice Dialog */}
+      <AlertDialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Edit Message</AlertDialogTitle>
+            <AlertDialogDescription>
+              Edit in place to replace this message, or edit on a new branch to preserve the original conversation.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleEditNewBranch}>
+              New Branch
+            </AlertDialogAction>
+            <AlertDialogAction onClick={handleEditInPlace}>
+              Edit in Place
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <CreateBranchModal
         open={branchModalOpen}
