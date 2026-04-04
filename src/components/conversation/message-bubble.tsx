@@ -54,9 +54,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from '@/components/ui/alert-dialog'
+import { Textarea } from '@/components/ui/textarea'
+import { Button } from '@/components/ui/button'
 import { useBookmarks, useToggleBookmark } from '@/hooks/use-bookmarks'
 import { useCreateBranch } from '@/hooks/use-branches'
 import { useEditMessage } from '@/hooks/use-edit-message'
+import { useSendMessage } from '@/hooks/use-messages'
 import type { MdNode, MessageData, NodeDocument } from '@/lib/bindings'
 import { cn, highlightText } from '@/lib/utils'
 import { useConversationStore } from '@/store/conversation'
@@ -282,7 +285,10 @@ function MessageBubbleInner({
   const [copied, setCopied] = useState(false)
   const [branchModalOpen, setBranchModalOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [isInlineEditing, setIsInlineEditing] = useState(false)
+  const [editContent, setEditContent] = useState('')
   const contentRef = useRef<HTMLDivElement>(null)
+  const editTextareaRef = useRef<HTMLTextAreaElement>(null)
 
   const activeConversationId = useConversationStore(
     (s) => s.activeConversationId
@@ -301,7 +307,28 @@ function MessageBubbleInner({
 
   const createBranch = useCreateBranch()
   const editMessage = useEditMessage()
+  const sendMessage = useSendMessage(activeConversationId!)
+  const editingMessageId = useUIEphemeralStore((s) => s.editingMessageId)
   const setEditingMessageId = useUIEphemeralStore((s) => s.setEditingMessageId)
+
+  // Check if this message is being edited
+  const isEditing = editingMessageId === message.id
+
+  // When edit mode starts, initialize edit content and focus textarea
+  useEffect(() => {
+    if (isEditing && !isInlineEditing) {
+      setIsInlineEditing(true)
+      setEditContent(message.content)
+    }
+  }, [isEditing, message.content, isInlineEditing])
+
+  // Focus textarea when inline editing becomes active
+  useEffect(() => {
+    if (isInlineEditing && editTextareaRef.current) {
+      editTextareaRef.current.focus()
+      editTextareaRef.current.select()
+    }
+  }, [isInlineEditing])
 
   const isUser = message.role === 'user'
   const isAssistant = message.role === 'assistant'
@@ -477,14 +504,13 @@ function MessageBubbleInner({
     forceUpdate((n) => n + 1)
   }, [])
 
-  // Edit handler
+  // Edit handlers
   const handleEditClick = () => {
     setEditDialogOpen(true)
   }
 
   const handleEditInPlace = () => {
     setEditDialogOpen(false)
-    // Set editing message ID to trigger inline edit mode (Task 18)
     setEditingMessageId(message.id)
   }
 
@@ -501,10 +527,48 @@ function MessageBubbleInner({
         name: `Edit of ${message.id.slice(0, 6)}`
       })
       toast.success('Branch created for editing')
-      // Switch to the new branch
       useConversationStore.getState().setActiveBranch(branchId)
     } catch (err) {
       toast.error(`Failed to create branch: ${err}`)
+    }
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editContent.trim()) {
+      toast.error('Message cannot be empty')
+      return
+    }
+
+    try {
+      await editMessage.mutateAsync({
+        messageId: message.id,
+        newContent: editContent.trim()
+      })
+      // Resend the edited message to trigger agent
+      await sendMessage.mutateAsync({
+        content: editContent.trim()
+      })
+      setIsInlineEditing(false)
+      setEditingMessageId(null)
+      toast.success('Message updated and resent')
+    } catch (err) {
+      toast.error(`Failed to update message: ${err}`)
+    }
+  }
+
+  const handleCancelEdit = () => {
+    setIsInlineEditing(false)
+    setEditingMessageId(null)
+  }
+
+  const handleEditKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      handleCancelEdit()
+    }
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault()
+      handleSaveEdit()
     }
   }
 
@@ -793,6 +857,68 @@ function MessageBubbleInner({
     }
   }
   const timeString = formatTime(message.created_at)
+
+  // If inline editing is active, show textarea instead of content
+  if (isInlineEditing && isUser) {
+    return (
+      <motion.div
+        id={`msg-${message.id}`}
+        className={cn('flex gap-3 max-w-full group', 'flex-row-reverse')}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.15, ease: 'easeOut' }}
+      >
+        <div
+          className="flex-shrink-0 size-7 rounded-full flex items-center justify-center bg-primary text-primary-foreground mt-0.5"
+          aria-hidden
+        >
+          <User className="size-3.5" />
+        </div>
+
+        <div className="flex flex-col items-end min-w-0 max-w-[78%]">
+          <div className="w-full">
+            <div className="relative px-3.5 py-2.5 rounded-xl rounded-tr-sm bg-primary text-primary-foreground block w-full">
+              <Textarea
+                ref={editTextareaRef}
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                onKeyDown={handleEditKeyDown}
+                className="min-h-[80px] w-full bg-primary-foreground/10 text-primary-foreground placeholder:text-primary-foreground/50 border-primary-foreground/20"
+                placeholder="Edit your message..."
+              />
+              <div className="flex justify-end gap-2 mt-2">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleCancelEdit}
+                  className="text-primary-foreground hover:bg-primary-foreground/20"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleSaveEdit}
+                  className="bg-primary-foreground text-primary hover:bg-primary-foreground/90"
+                >
+                  Save & Resend
+                </Button>
+              </div>
+              <p className="text-xs text-primary-foreground/70 mt-2 text-right">
+                Press Escape to cancel, Ctrl+Enter to save
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <CreateBranchModal
+          open={branchModalOpen}
+          onClose={() => setBranchModalOpen(false)}
+          conversationId={activeConversationId!}
+          parentMessageId={message.id}
+        />
+      </motion.div>
+    )
+  }
 
   return (
     <motion.div

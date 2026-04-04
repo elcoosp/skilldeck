@@ -1,0 +1,60 @@
+---
+title: "How Skills Work: Markdown-Based AI Instruction Packages"
+date: "2025-01-20"
+excerpt: "Skills are the building blocks of AI behavior in SkillDeck. Learn how Markdown-based skill packages with YAML frontmatter, built-in linting, and hot-reloading make agent customization simple and safe."
+author: "SkillDeck Team"
+---
+
+# How Skills Work in SkillDeck
+
+Skills are the core extensibility mechanism in SkillDeck. They let you define reusable AI instruction packages that guide agent behavior for specific tasks -- code review, testing, documentation, and anything else you can describe in a Markdown file.
+
+## What Is a Skill?
+
+A Skill is a directory containing a `SKILL.md` file with YAML frontmatter. The frontmatter declares the skill's metadata -- its name, description, compatible models, and allowed tools. The Markdown body contains the actual instructions that get injected into the agent's system prompt.
+
+Here is what a minimal skill looks like:
+
+```yaml
+---
+name: code-review
+description: Reviews code changes for bugs, style issues, and best practices
+models: ["claude-3.5-sonnet", "gpt-4o"]
+tools: ["read_file", "list_directory"]
+---
+
+# Code Review Instructions
+
+When reviewing code changes:
+1. Check for potential bugs and logic errors
+2. Verify error handling is comprehensive
+3. Ensure naming conventions are consistent
+4. Look for performance issues
+5. Verify test coverage for new code
+```
+
+## How Skills Get Loaded
+
+The **Skill Loader** discovers skills from local directories on startup. The **Skill Watcher** monitors those directories for changes and hot-reloads skills when files are modified -- no restart required.
+
+Skills can also be installed from the **Unified Skill Marketplace**, which shows community-built skills alongside your local collection.
+
+## The Skill Linter: 17 Rules Across 4 Categories
+
+Before a skill reaches your agent, it passes through the **Skill Linter**, which runs 17 validation rules across four categories:
+
+**Frontmatter rules** validate that required fields are present and correctly formatted. Missing name, description, or model declarations are caught here.
+
+**Structure rules** check file existence, size limits, and nesting depth to prevent malformed skill packages.
+
+**Security rules** detect dangerous patterns in skill content -- shell injections like `rm -rf /`, fork bombs, and `curl | sh` chains. Symlinked skill directories are rejected to prevent path traversal attacks.
+
+**Quality rules** check for examples, structured instructions, and overall content clarity. Skills are scored on a 1-5 scale for both security and quality.
+
+## Creating Your Own Skills
+
+Creating a skill is as simple as creating a directory with a `SKILL.md` file. The onboarding wizard in SkillDeck can scaffold a new skill for you with the correct frontmatter structure.
+
+For teams, skills can be shared through the Skill Marketplace or through version control. The Skill Linter ensures consistency across all installed skills, whether they come from the community or from your own repository.
+
+Skills are one of the most powerful features in SkillDeck because they give you fine-grained control over agent behavior without writing code. If you can write a Markdown document, you can create a Skill.

@@ -1,0 +1,49 @@
+---
+title: "MCP Deep Dive: Connecting External Tools to Your AI Agents"
+date: "2025-01-25"
+excerpt: "A technical deep dive into how SkillDeck implements the Model Context Protocol. Learn about stdio and SSE transports, the MCP Supervisor, and how to connect any MCP-compatible server to your agent workflows."
+author: "SkillDeck Team"
+---
+
+# MCP Deep Dive: External Tool Integration in SkillDeck
+
+The Model Context Protocol (MCP) is a standard for connecting AI agents to external tools and data sources. SkillDeck implements the full MCP protocol (JSON-RPC 2.0, protocol version 2024-11-05) with two transport types, a health-monitoring supervisor, and a built-in catalog for discovering MCP servers.
+
+## Why MCP Matters
+
+Without MCP, your AI agents are limited to whatever tools are built into the application. With MCP, your agents can access file systems, databases, APIs, and any other tool that exposes an MCP-compatible server. This turns SkillDeck from a chat application into a universal AI orchestration platform.
+
+## Transport Types
+
+SkillDeck supports two MCP transport types:
+
+**stdio transport** launches local MCP servers as child processes. The MCP server communicates with SkillDeck through standard input and output streams. This is ideal for tools that run on your machine -- file system servers, local database connectors, and development tools.
+
+**SSE (Server-Sent Events) transport** connects to remote MCP servers over HTTP. The server sends events to SkillDeck as they become available. This is used for cloud-based tools, shared team resources, and any MCP server that runs on a remote machine.
+
+## The MCP Supervisor
+
+The **MCP Supervisor** is the background service that manages all active MCP connections. It handles:
+
+- **Health monitoring**: Tracks the status of every connected MCP server and detects failures
+- **Automatic reconnection**: When a server goes down, the supervisor reconnects with exponential backoff
+- **Connection registry**: Maintains a live registry of all active connections, their status, and available tools
+- **Transport routing**: Routes messages to the correct transport (stdio or SSE) based on server configuration
+
+## Adding MCP Servers
+
+You can add MCP servers through the built-in configuration form in SkillDeck, or through the MCP Catalog -- a curated collection of community-maintained MCP servers for common tools like GitHub, Jira, databases, and cloud services.
+
+For custom use cases, adding your own MCP server requires only a name, transport type, and connection details. The supervisor handles the rest.
+
+## Security Considerations
+
+All MCP tool calls pass through the **Tool Approval Gate**. When an agent attempts to call an external tool through an MCP server, execution pauses and the request is presented to you in the conversation. You can approve it, edit the input before it executes, or deny it entirely.
+
+Six auto-approve categories are available (reads, writes, selects, mutations, HTTP requests, shell commands), but every single one is off by default. This means you always maintain full control over what your agents can do through MCP.
+
+## Getting Started
+
+To start using MCP with SkillDeck, open the MCP Catalog from the sidebar, browse available servers, and connect the ones you need. If you have a custom MCP server, add it through the configuration form with your server details and transport type.
+
+MCP is what transforms SkillDeck from an AI chat application into a complete AI workflow orchestration platform. By connecting the right tools, your agents can interact with your entire development stack -- without ever sending your code to the cloud.
