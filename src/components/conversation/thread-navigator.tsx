@@ -103,6 +103,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
 
   const [isOpen, setIsOpen] = useState(false)
   const [focusedIdx, setFocusedIdx] = useState(0)
+  const [cardPosition, setCardPosition] = useState<{ top: number; left: number } | null>(null)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const cardRef = useRef<HTMLDivElement>(null)
@@ -112,39 +113,26 @@ const ThreadNavigator = memo(function ThreadNavigator({
   const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const dismissingRef = useRef(false)
 
-  // Position card relative to dot rail (right side with gap, flip if needed)
-  const updateCardPosition = useCallback(() => {
-    if (!containerRef.current || !cardRef.current) return
+  // Position card once when opening – to the left of the dot rail (above it)
+  useEffect(() => {
+    if (!isOpen || !containerRef.current) {
+      setCardPosition(null)
+      return
+    }
     const railRect = containerRef.current.getBoundingClientRect()
     const cardWidth = 264
     const gap = 8
-    let left = railRect.right + gap
-    // Flip to left side if card would go off‑screen
-    if (left + cardWidth > window.innerWidth - 16) {
-      left = railRect.left - cardWidth - gap
+    // Place to the left of the rail (above in layout)
+    let left = railRect.left - cardWidth - gap
+    // If too far left, place to the right
+    if (left < 8) {
+      left = railRect.right + gap
     }
-    // Keep at least 8px from window edges
-    left = Math.max(8, left)
+    // Keep within viewport
+    left = Math.max(8, Math.min(left, window.innerWidth - cardWidth - 8))
     const top = railRect.top + railRect.height / 2
-    cardRef.current.style.top = `${top}px`
-    cardRef.current.style.left = `${left}px`
-    cardRef.current.style.transform = 'translateY(-50%)'
-  }, [])
-
-  // Attach scroll/resize listeners only when card is open
-  useEffect(() => {
-    if (!isOpen) return
-    // Wait for card DOM to be rendered
-    requestAnimationFrame(() => {
-      updateCardPosition()
-    })
-    window.addEventListener('scroll', updateCardPosition, true)
-    window.addEventListener('resize', updateCardPosition)
-    return () => {
-      window.removeEventListener('scroll', updateCardPosition, true)
-      window.removeEventListener('resize', updateCardPosition)
-    }
-  }, [isOpen, updateCardPosition])
+    setCardPosition({ top, left })
+  }, [isOpen])
 
   useEffect(() => () => {
     if (enterTimer.current) clearTimeout(enterTimer.current)
@@ -158,6 +146,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
     setTimeout(() => { dismissingRef.current = false }, 400)
     setIsOpen(false)
     setExpandedMsgIdx(null)
+    setCardPosition(null)
   }, [])
 
   const openCard = useCallback((startFocusIdx = 0) => {
@@ -375,7 +364,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
 
   return (
     <>
-      {/* Dot rail (always visible) */}
+      {/* Dot rail – always visible */}
       <nav
         ref={containerRef}
         aria-label="Thread navigation"
@@ -436,7 +425,7 @@ const ThreadNavigator = memo(function ThreadNavigator({
 
       {createPortal(
         <AnimatePresence mode="wait">
-          {isOpen && (
+          {isOpen && cardPosition && (
             <motion.div
               key="nav-card"
               ref={cardRef}
@@ -446,17 +435,22 @@ const ThreadNavigator = memo(function ThreadNavigator({
               transition={{ duration: 0.15 }}
               className="fixed z-50 w-64 p-2 bg-popover rounded-lg border shadow-md flex flex-col"
               style={{
+                top: cardPosition.top,
+                left: cardPosition.left,
+                transform: 'translateY(-50%)',
                 maxHeight: 'min(380px, 70vh)',
               }}
               onMouseEnter={onCardMouseEnter}
               onMouseLeave={onCardMouseLeave}
             >
+              {/* Help hint */}
               <div className="flex items-center px-1 pb-1.5 mb-1 border-b border-border/50">
                 <span className="text-[10px] text-muted-foreground/50 font-mono leading-none">
                   ↑↓ move · ↵ jump · → expand · Esc close
                 </span>
               </div>
 
+              {/* Scrollable list */}
               <div ref={scrollRef} className="overflow-y-auto thin-scrollbar flex-1 min-h-0">
                 <div className="space-y-0.5 pr-1">
                   {userMessages.map(({ msg, idx }, listIdx) => {
