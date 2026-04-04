@@ -5,8 +5,6 @@ import { writeTextFile } from '@tauri-apps/plugin-fs'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   AlertCircle,
-  Bookmark,
-  BookmarkCheck,
   Bot,
   Check,
   ChevronDown,
@@ -16,7 +14,11 @@ import {
   Download,
   GitBranch,
   MoreHorizontal,
-  User
+  Pencil,
+  RotateCcw,
+  User,
+  Bookmark,
+  BookmarkCheck
 } from 'lucide-react'
 import React, {
   memo,
@@ -470,7 +472,7 @@ function MessageBubbleInner({
       <SubagentCard
         stepName={subagentData.task || 'Subagent'}
         status="running"
-        onOpen={() => {}}
+        onOpen={() => { }}
       />
     )
   }
@@ -533,10 +535,23 @@ function MessageBubbleInner({
 
     if (!contentElement && !showShimmer && !documentToRender) return null
 
+    // Safe date formatting
+    const formatTime = (dateStr?: string) => {
+      if (!dateStr) return 'just now'
+      try {
+        const date = new Date(dateStr)
+        if (isNaN(date.getTime())) return 'just now'
+        return date.toLocaleTimeString()
+      } catch {
+        return 'just now'
+      }
+    }
+    const timeString = formatTime(message.created_at)
+
     return (
       <motion.div
         id={`msg-${message.id}`}
-        className="flex flex-col max-w-full"
+        className="flex flex-col max-w-full group"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.15, ease: 'easeOut' }}
@@ -653,29 +668,38 @@ function MessageBubbleInner({
           </div>
         </div>
 
-        <AnimatePresence>
-          {!isStreaming &&
-            !syntheticStreaming &&
-            message.content &&
-            !collapsedStateRef.current && (
-              <motion.button
-                key="copy-button"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-                onClick={copyMessage}
-                className="mt-1 p-1 text-muted-foreground hover:text-foreground transition-colors bg-transparent border-0 shadow-none self-start"
-                aria-label="Copy message"
+        {/* Bottom row - fixed height, no layout shift, date replaced by actions on hover */}
+        <div className="mt-1 relative h-5">
+          <div className="absolute left-0 top-0 inline-flex items-center gap-2 group-hover:opacity-0 transition-opacity">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">
+              {timeString}
+            </span>
+          </div>
+          <div className="absolute left-0 top-0 inline-flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              type="button"
+              onClick={copyMessage}
+              className="p-0.5 text-muted-foreground hover:text-foreground transition-colors rounded"
+              aria-label="Copy message"
+            >
+              {copied ? (
+                <Check className="size-3 text-green-500" />
+              ) : (
+                <Copy className="size-3" />
+              )}
+            </button>
+            {onRetry && (
+              <button
+                type="button"
+                onClick={onRetry}
+                className="p-0.5 text-muted-foreground hover:text-foreground transition-colors rounded"
+                aria-label="Retry"
               >
-                {copied ? (
-                  <Check className="size-3.5 text-green-500" />
-                ) : (
-                  <Copy className="size-3.5" />
-                )}
-              </motion.button>
+                <RotateCcw className="size-3" />
+              </button>
             )}
-        </AnimatePresence>
+          </div>
+        </div>
 
         {isAssistant && message.status === 'cancelled' && (
           <div className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
@@ -708,10 +732,23 @@ function MessageBubbleInner({
       ? getTruncatedText(message.content)
       : message.content
 
+  // Safe date formatting for user messages
+  const formatTime = (dateStr?: string) => {
+    if (!dateStr) return 'just now'
+    try {
+      const date = new Date(dateStr)
+      if (isNaN(date.getTime())) return 'just now'
+      return date.toLocaleTimeString()
+    } catch {
+      return 'just now'
+    }
+  }
+  const timeString = formatTime(message.created_at)
+
   return (
     <motion.div
       id={`msg-${message.id}`}
-      className={cn('flex gap-3 max-w-full', isUser && 'flex-row-reverse')}
+      className={cn('flex gap-3 max-w-full group', isUser && 'flex-row-reverse')}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.15, ease: 'easeOut' }}
@@ -811,64 +848,52 @@ function MessageBubbleInner({
                 {isExpanded ? 'Show less' : 'Show more'}
               </button>
             )}
-
-            {isUser && !isStreaming && !syntheticStreaming && (
-              <div className="absolute -left-8 top-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <DropdownMenu modal={false}>
-                  <DropdownMenuTrigger asChild>
-                    <button
-                      type="button"
-                      className="p-0.5 hover:bg-muted-foreground/20 rounded transition-colors"
-                      aria-label="Message options"
-                    >
-                      <MoreHorizontal className="size-3.5" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-32">
-                    <DropdownMenuItem
-                      onClick={copyMessage}
-                      className="cursor-pointer hover:bg-primary/10 hover:text-foreground focus:bg-primary/10 focus:text-foreground"
-                    >
-                      <Copy className="mr-2 h-4 w-4" />
-                      <span>Copy</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={handleBranch}
-                      className="cursor-pointer hover:bg-primary/10 hover:text-foreground focus:bg-primary/10 focus:text-foreground"
-                    >
-                      <GitBranch className="mr-2 h-4 w-4" />
-                      <span>Branch from here</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            )}
           </div>
         </div>
 
-        <AnimatePresence>
-          {!isStreaming &&
-            !syntheticStreaming &&
-            message.content &&
-            !collapsedStateRef.current && (
-              <motion.button
-                key="copy-button"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-                onClick={copyMessage}
-                className="mt-1 p-1 text-muted-foreground hover:text-foreground transition-colors bg-transparent border-0 shadow-none"
-                aria-label="Copy message"
+        {/* Bottom row - fixed height, no layout shift, date replaced by actions on hover */}
+        <div className="mt-1 relative h-5 w-full">
+          <div className="absolute right-0 top-0 inline-flex items-center gap-2 group-hover:opacity-0 transition-opacity">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">
+              {timeString}
+            </span>
+          </div>
+          <div className="absolute right-0 top-0 inline-flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              type="button"
+              onClick={copyMessage}
+              className="p-0.5 text-muted-foreground hover:text-foreground transition-colors rounded"
+              aria-label="Copy message"
+            >
+              {copied ? (
+                <Check className="size-3 text-green-500" />
+              ) : (
+                <Copy className="size-3" />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                // Edit functionality placeholder
+                toast.info('Edit functionality coming soon')
+              }}
+              className="p-0.5 text-muted-foreground hover:text-foreground transition-colors rounded"
+              aria-label="Edit message"
+            >
+              <Pencil className="size-3" />
+            </button>
+            {onRetry && (
+              <button
+                type="button"
+                onClick={onRetry}
+                className="p-0.5 text-muted-foreground hover:text-foreground transition-colors rounded"
+                aria-label="Retry"
               >
-                {copied ? (
-                  <Check className="size-3.5 text-green-500" />
-                ) : (
-                  <Copy className="size-3.5" />
-                )}
-              </motion.button>
+                <RotateCcw className="size-3" />
+              </button>
             )}
-        </AnimatePresence>
+          </div>
+        </div>
 
         {isUser && onRetry && (
           <div className="text-xs text-muted-foreground mt-1 flex justify-end">
