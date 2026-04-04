@@ -48,7 +48,7 @@ export function AppShell() {
           return parsed as Layout
         }
       }
-    } catch {}
+    } catch { }
     return DEFAULT_LAYOUT
   })
 

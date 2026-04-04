@@ -5,6 +5,7 @@ import {
   Folder,
   Globe,
   Key,
+  Keyboard,
   Layers,
   Share2,
   ShieldCheck,
@@ -24,6 +25,8 @@ const SETTINGS_TABS = [
   { id: 'referral', label: 'Refer & Earn', Icon: Share2 },
   { id: 'lint', label: 'Lint Rules', Icon: AlertTriangle },
   { id: 'sources', label: 'Skill Sources', Icon: Folder },
+
+  { id: 'shortcuts', label: 'Shortcuts', Icon: Keyboard },
   { id: 'achievements', label: 'Achievements', Icon: Trophy }
 ] as const
 

@@ -1,5 +1,5 @@
 // src/components/conversation/message-input.tsx
-// (full file with the useLayoutEffect dependency fixed)
+// (full file with concierge-ui additions except model switcher)
 
 import { open } from '@tauri-apps/plugin-dialog'
 import { openUrl } from '@tauri-apps/plugin-opener'
@@ -12,7 +12,9 @@ import {
   Paperclip,
   Send,
   Square,
-  Timer
+  Timer,
+  Shield,
+  ShieldCheck
 } from 'lucide-react'
 import {
   useCallback,
@@ -30,8 +32,15 @@ import { FileMentionPicker } from '@/components/chat/file-mention-picker'
 import { SecurityWarningDialog } from '@/components/chat/security-warning-dialog'
 import { QueueHeader } from '@/components/conversation/queue/queue-header'
 import { QueueList } from '@/components/conversation/queue/queue-list'
+import { SuggestedPrompts } from '@/components/conversation/suggested-prompts'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu'
 import {
   Tooltip,
   TooltipContent,
@@ -39,6 +48,7 @@ import {
   TooltipTrigger
 } from '@/components/ui/tooltip'
 import { useCreateConversation } from '@/hooks/use-conversations'
+import { useMessages } from '@/hooks/use-messages'
 import { useSendMessage } from '@/hooks/use-messages'
 import { useProfiles } from '@/hooks/use-profiles'
 import { useProviderReady } from '@/hooks/use-provider-ready'
@@ -56,6 +66,8 @@ import { cn } from '@/lib/utils'
 import { useChatContextStore } from '@/store/chat-context-store'
 import { useConversationStore } from '@/store/conversation'
 import { useQueueStore } from '@/store/queue'
+import { useSettingsStore } from '@/store/settings'
+import { useToolApprovalStore } from '@/store/tool-approvals'
 import { useUIEphemeralStore } from '@/store/ui-ephemeral'
 import { useWorkspaceStore } from '@/store/workspace'
 import type {
@@ -64,6 +76,7 @@ import type {
   TriggerState
 } from '@/types/chat-context'
 import type { UnifiedSkill } from '@/types/skills'
+import { playSound } from '@/lib/audio'
 
 interface MessageInputProps {
   conversationId: UUID
@@ -545,6 +558,11 @@ export function MessageInput({
     }
   }, [conversationId, setAgentRunning])
 
+  // ── Auto-approve toggle (F17) ────────────────────────────────────────────
+  const toolApprovals = useToolApprovalStore((s) => s.toolApprovals)
+  const setToolApprovals = useToolApprovalStore((s) => s.setToolApprovals)
+  const hasAnyApproval = toolApprovals.autoApproveReads || toolApprovals.autoApproveWrites || toolApprovals.autoApproveShell || toolApprovals.autoApproveHttpRequests
+
   // ── Submit / Queue ────────────────────────────────────────────────────────
 
   const submit = useCallback(async () => {
@@ -615,6 +633,7 @@ export function MessageInput({
         content: finalContent,
         contextItems: metadataItems.length > 0 ? metadataItems : undefined
       })
+      playSound('messageSent')
       onRequestScrollToBottom?.()
     } catch (err) {
       toast.error(`Failed to send message: ${err}`)
@@ -638,6 +657,10 @@ export function MessageInput({
     onRequestScrollToBottom,
     readiness
   ])
+
+  // Get messages count for suggested prompts
+  const messages = useMessages(conversationId)
+  const hasMessages = (messages.data?.length ?? 0) > 0
 
   return (
     <div className="p-3 space-y-2">
@@ -714,6 +737,16 @@ export function MessageInput({
         )}
       >
         <AttachedItemsList />
+
+        {/* Suggested prompts (F03) */}
+        <SuggestedPrompts
+          conversationId={conversationId}
+          hasMessages={hasMessages}
+          onSelect={(prompt) => {
+            setContent(prompt)
+            textareaRef.current?.focus()
+          }}
+        />
 
         {/* URL chips */}
         {detectedUrls.length > 0 && (
@@ -833,6 +866,35 @@ export function MessageInput({
                 </>
               )}
             </AnimatePresence>
+
+            {/* Auto-approve toggle button (F17) */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn('h-8 w-8', hasAnyApproval && 'text-green-500')}
+                >
+                  {hasAnyApproval ? <ShieldCheck className="h-4 w-4" /> : <Shield className="h-4 w-4" />}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                {(['autoApproveReads', 'autoApproveWrites', 'autoApproveShell', 'autoApproveHttpRequests'] as const).map((key) => {
+                  const label = key.replace('autoApprove', '').replace(/([A-Z])/g, ' $1').trim()
+                  return (
+                    <DropdownMenuItem
+                      key={key}
+                      onClick={() => {
+                        setToolApprovals({ [key]: !toolApprovals[key] })
+                      }}
+                    >
+                      <span className={toolApprovals[key] ? 'text-green-500' : ''}>{label}</span>
+                      <span className="ml-auto">{toolApprovals[key] ? 'ON' : 'OFF'}</span>
+                    </DropdownMenuItem>
+                  )
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>
