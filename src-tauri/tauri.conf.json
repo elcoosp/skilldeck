@@ -20,7 +20,8 @@
         "resizable": true,
         "dragDropEnabled": true,
         "fullscreen": false,
-        "decorations": true
+        "hiddenTitle": true,
+        "titleBarStyle": "Overlay"
       }
     ],
     "security": {
@@ -41,11 +42,15 @@
   "plugins": {
     "deep-link": {
       "desktop": {
-        "schemes": ["skilldeck"]
+        "schemes": [
+          "skilldeck"
+        ]
       },
       "mobile": [
         {
-          "scheme": ["skilldeck"],
+          "scheme": [
+            "skilldeck"
+          ],
           "appLink": false
         }
       ]

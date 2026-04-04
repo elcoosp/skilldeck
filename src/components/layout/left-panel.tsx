@@ -284,10 +284,7 @@ export function LeftPanel() {
       {/* Header */}
       <div className="p-4 border-b border-border shrink-0">
         <div className="flex items-center justify-between mb-3">
-          <span className="text-sm font-semibold tracking-tight">
-            SkillDeck
-          </span>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 mt-2">
             <Button
               variant="ghost"
               size="icon-sm"
