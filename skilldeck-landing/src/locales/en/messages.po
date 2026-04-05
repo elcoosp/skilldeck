@@ -238,7 +238,7 @@ msgstr "actually ask"
 msgid "Add rotation logic..."
 msgstr "Add rotation logic..."
 
-#: src/components/sections/HowItWorks.tsx:34
+#: src/components/sections/HowItWorks.tsx:33
 msgid "Add your tools and skills"
 msgstr "Add your tools and skills"
 
@@ -340,7 +340,7 @@ msgstr "branched"
 msgid "Browse community-built skills alongside your local collection. Bundle skills and MCP servers into profiles for different projects and workflows."
 msgstr "Browse community-built skills alongside your local collection. Bundle skills and MCP servers into profiles for different projects and workflows."
 
-#: src/components/sections/HowItWorks.tsx:34
+#: src/components/sections/HowItWorks.tsx:33
 msgid "Browse the MCP Catalog to connect external tool servers, or add your own via stdio and SSE. Install community-built skills from the Marketplace, or create your own from a Markdown file with YAML frontmatter."
 msgstr "Browse the MCP Catalog to connect external tool servers, or add your own via stdio and SSE. Install community-built skills from the Marketplace, or create your own from a Markdown file with YAML frontmatter."
 
@@ -431,7 +431,7 @@ msgstr "Design multi-step AI pipelines on a drag-and-drop canvas. Pick from thre
 msgid "Design multi-step AI pipelines on a visual canvas, pick an execution pattern, and watch them run with live step tracking. No scripting required."
 msgstr "Design multi-step AI pipelines on a visual canvas, pick an execution pattern, and watch them run with live step tracking. No scripting required."
 
-#: src/components/sections/HowItWorks.tsx:35
+#: src/components/sections/HowItWorks.tsx:34
 msgid "Design multi-step AI pipelines on the visual workflow editor. Equip agents with skills, spawn parallel subagents for independent tasks, and track every step in real time. Three execution patterns — Sequential, Parallel, Evaluator-Optimizer."
 msgstr "Design multi-step AI pipelines on the visual workflow editor. Equip agents with skills, spawn parallel subagents for independent tasks, and track every step in real time. Three execution patterns — Sequential, Parallel, Evaluator-Optimizer."
 
@@ -457,7 +457,7 @@ msgstr "done"
 msgid "Download"
 msgstr "Download"
 
-#: src/components/sections/HowItWorks.tsx:33
+#: src/components/sections/HowItWorks.tsx:32
 msgid "Download and set up"
 msgstr "Download and set up"
 
@@ -547,7 +547,7 @@ msgstr "Free and open source —"
 #~ msgid "from a single desktop app."
 #~ msgstr "from a single desktop app."
 
-#: src/components/sections/HowItWorks.tsx:43
+#: src/components/sections/HowItWorks.tsx:42
 msgid "From download to your first AI workflow — no cloud account, no config files, no credit card."
 msgstr "From download to your first AI workflow — no cloud account, no config files, no credit card."
 
@@ -603,7 +603,7 @@ msgstr "How SkillDeck compares"
 msgid "I found 3 potential issues in the JWT implementation..."
 msgstr "I found 3 potential issues in the JWT implementation..."
 
-#: src/components/sections/HowItWorks.tsx:42
+#: src/components/sections/HowItWorks.tsx:41
 msgid "in three steps"
 msgstr "in three steps"
 
@@ -611,7 +611,7 @@ msgstr "in three steps"
 msgid "In your operating system's native keychain (Keychain on macOS, Credential Manager on Windows, Secret Service on Linux). They are never written to the database or to any configuration file in plaintext. This is verified by automated security tests in the codebase."
 msgstr "In your operating system's native keychain (Keychain on macOS, Credential Manager on Windows, Secret Service on Linux). They are never written to the database or to any configuration file in plaintext. This is verified by automated security tests in the codebase."
 
-#: src/components/sections/HowItWorks.tsx:33
+#: src/components/sections/HowItWorks.tsx:32
 msgid "Install the native app for your platform. The onboarding wizard walks you through provider setup in under a minute. No account needed — pick Ollama for fully local, or add OpenAI and Claude API keys stored in your OS keychain."
 msgstr "Install the native app for your platform. The onboarding wizard walks you through provider setup in under a minute. No account needed — pick Ollama for fully local, or add OpenAI and Claude API keys stored in your OS keychain."
 
@@ -779,7 +779,7 @@ msgstr "Open source under MIT License."
 #~ msgid "OpenAI, Claude, Ollama & more"
 #~ msgstr "OpenAI, Claude, Ollama & more"
 
-#: src/components/sections/HowItWorks.tsx:35
+#: src/components/sections/HowItWorks.tsx:34
 msgid "Orchestrate and ship"
 msgstr "Orchestrate and ship"
 
@@ -1017,7 +1017,7 @@ msgstr "Tool Approval Gate (category-based, off by default)"
 msgid "Unified Skill Marketplace"
 msgstr "Unified Skill Marketplace"
 
-#: src/components/sections/HowItWorks.tsx:42
+#: src/components/sections/HowItWorks.tsx:41
 msgid "Up and running"
 msgstr "Up and running"
 

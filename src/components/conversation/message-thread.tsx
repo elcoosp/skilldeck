@@ -7,6 +7,9 @@ import {
 } from '@tanstack/react-virtual'
 import { motion } from 'framer-motion'
 import * as React from 'react'
+import { toast } from 'sonner'
+import { invoke } from '@tauri-apps/api/core'
+import { Button } from '@/components/ui/button'
 import { useSendMessage } from '@/hooks/use-messages'
 import type { MessageData, NodeDocument } from '@/lib/bindings'
 import {
@@ -19,6 +22,9 @@ import { useConversationStore } from '@/store/conversation'
 import { useToolApprovalStore } from '@/store/tool-approvals'
 import { useUIEphemeralStore } from '@/store/ui-ephemeral'
 import { useUILayoutStore } from '@/store/ui-layout'
+import { useWorkspaceStore } from '@/store/workspace'
+import { useWorkspaceGitStatus } from '@/hooks/use-workspace-git'
+import { GitBranch } from 'lucide-react'
 import { MessageBubble } from './message-bubble'
 import { ToolApprovalCard } from './tool-approval-card'
 
@@ -179,6 +185,33 @@ export const MessageThread = React.forwardRef<
     )
     const sendMutation = useSendMessage(activeConversationId!)
 
+    // ─── Git repo init hint (F18) ─────────────────────────────────────────
+    const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId)
+    const workspaces = useWorkspaceStore((s) => s.workspaces)
+    const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId)
+    const { data: gitStatus } = useWorkspaceGitStatus(activeWorkspace?.path)
+    const gitDismissed = useUIEphemeralStore((s) => s.gitInitDismissed)
+    const setGitInitDismissed = useUIEphemeralStore((s) => s.setGitInitDismissed)
+    const queryClient = React.use((s) => s) // not used, but we need access to queryClient for invalidation
+    // Actually we need to import useQueryClient
+    const { useQueryClient } = require('@tanstack/react-query')
+    const queryClientRef = React.useRef(useQueryClient())
+
+    const showGitHint = activeWorkspace?.path
+      && gitStatus
+      && !gitStatus.is_git_repo
+      && !gitDismissed[activeWorkspace.path]
+
+    const handleGitInit = async (path: string) => {
+      try {
+        await invoke('git_init', { path })
+        await queryClientRef.current.invalidateQueries({ queryKey: ['git-status', path] })
+        toast.success('Git repository initialized')
+      } catch (err) {
+        toast.error(`Failed to initialize git: ${err}`)
+      }
+    }
+
     // ─── TanStack Router Scroll Restoration ───
     const scrollRestoration = useElementScrollRestoration({
       id: `message-thread-${conversationKey}`,
@@ -277,10 +310,10 @@ export const MessageThread = React.forwardRef<
         const chipHeight =
           (msg.context_items?.length ?? 0) > 0
             ? estimateContextChipHeight(
-                msg.context_items!.length,
-                effectiveWidth,
-                DEFAULT_CHROME_CONFIG
-              )
+              msg.context_items!.length,
+              effectiveWidth,
+              DEFAULT_CHROME_CONFIG
+            )
             : 0
 
         return baseHeight + chipHeight
@@ -561,7 +594,7 @@ export const MessageThread = React.forwardRef<
         getScrollPosition: () => scrollRef.current?.scrollTop ?? 0,
         onScroll: (cb: () => void) => {
           const el = scrollRef.current
-          if (!el) return () => {}
+          if (!el) return () => { }
           el.addEventListener('scroll', cb, { passive: true })
           return () => el.removeEventListener('scroll', cb)
         }
@@ -588,6 +621,35 @@ export const MessageThread = React.forwardRef<
               data-scroll-restoration-id={`message-thread-${conversationKey}`}
               className="h-full overflow-y-auto thin-scrollbar pl-6"
             >
+              {/* Git repo init hint banner (F18) */}
+              {showGitHint && (
+                <div className="flex items-center justify-between rounded-lg border border-yellow-500/30 bg-yellow-500/5 px-4 py-2 mx-4 mt-2 mb-2">
+                  <div className="flex items-center gap-2">
+                    <GitBranch className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                    <span className="text-sm text-yellow-700 dark:text-yellow-300">
+                      This folder is not a git repository. Initialize one?
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setGitInitDismissed(activeWorkspace!.path, true)}
+                      className="border-yellow-500/30 text-yellow-700 hover:bg-yellow-500/10 dark:text-yellow-300"
+                    >
+                      Dismiss
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => handleGitInit(activeWorkspace!.path)}
+                      className="bg-yellow-600 text-white hover:bg-yellow-700"
+                    >
+                      Initialize
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               {isLoading && (
                 <motion.div
                   className="flex items-center justify-center h-full text-sm text-muted-foreground"
@@ -642,7 +704,7 @@ export const MessageThread = React.forwardRef<
                     const retryAvailable = (message as any).retryAvailable
                     const handleRetry = retryAvailable
                       ? () =>
-                          sendMutation.mutateAsync({ content: message.content })
+                        sendMutation.mutateAsync({ content: message.content })
                       : undefined
 
                     return (

@@ -14,6 +14,8 @@
  */
 
 import { useQuery } from '@tanstack/react-query'
+
+import { FileTreePanel } from '@/components/workspace/file-tree-panel'
 import {
   differenceInWeeks,
   endOfMonth,
@@ -26,6 +28,7 @@ import {
   ChevronRight,
   Cpu,
   FileCode,
+  FolderTree,
   GitBranch,
   Layers,
   Play,
@@ -82,20 +85,21 @@ const selectHasSkillsUnlocked = (state: UIPersistentState) =>
 const selectHasWorkflowsUnlocked = (state: UIPersistentState) =>
   state.unlockStage >= 1
 
-type Tab = 'session' | 'skills' | 'mcp' | 'workflow' | 'analytics' | 'artifacts'
+type Tab = 'session' | 'skills' | 'mcp' | 'workflow' | 'analytics' | 'artifacts' | "files"
 
 const TABS: {
   id: Tab
   label: string
   Icon: React.FC<{ className?: string }>
 }[] = [
-  { id: 'session', label: 'Session', Icon: Cpu },
-  { id: 'skills', label: 'Skills', Icon: Layers },
-  { id: 'mcp', label: 'MCP', Icon: Zap },
-  { id: 'workflow', label: 'Workflow', Icon: GitBranch },
-  { id: 'analytics', label: 'Analytics', Icon: BarChart2 },
-  { id: 'artifacts', label: 'Artifacts', Icon: FileCode }
-]
+    { id: 'session', label: 'Session', Icon: Cpu },
+    { id: 'skills', label: 'Skills', Icon: Layers },
+    { id: 'mcp', label: 'MCP', Icon: Zap },
+    { id: 'workflow', label: 'Workflow', Icon: GitBranch },
+    { id: 'analytics', label: 'Analytics', Icon: BarChart2 },
+    { id: 'artifacts', label: 'Artifacts', Icon: FileCode },
+    { id: 'files', label: 'Files', Icon: FolderTree },
+  ]
 
 export function RightPanel() {
   const [activeTab, setActiveTab] = useState<Tab>('session')
@@ -161,14 +165,18 @@ export function RightPanel() {
         <div className="flex-1 min-h-0 overflow-hidden w-full min-w-0">
           <ArtifactPanel />
         </div>
-      ) : (
-        <ScrollArea className="flex-1 min-h-0">
-          {activeTab === 'session' && (
-            <SessionTab conversationId={activeConversationId} />
-          )}
-          {activeTab === 'workflow' && <WorkflowTab />}
-          {activeTab === 'analytics' && <AnalyticsTab />}
-        </ScrollArea>
+      ) : activeTab === 'files' && (
+        <div className="flex-1 min-h-0 overflow-hidden w-full min-w-0">
+          <FileTreePanel />
+        </div>
+      ): (
+      <ScrollArea className="flex-1 min-h-0">
+        {activeTab === 'session' && (
+          <SessionTab conversationId={activeConversationId} />
+        )}
+        {activeTab === 'workflow' && <WorkflowTab />}
+        {activeTab === 'analytics' && <AnalyticsTab />}
+      </ScrollArea>
       )}
     </div>
   )

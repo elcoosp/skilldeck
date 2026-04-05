@@ -1,6 +1,6 @@
 'use client'
 
-import { Download, Plug, Rocket } from 'lucide-react'
+import { Download, Plug, Rocket, ChevronRight } from 'lucide-react'
 import { useLingui } from '@lingui/react/macro'
 
 function StepCard({ number, icon: Icon, title, description, color, bgColor, borderColor, isLast }: {
@@ -17,9 +17,8 @@ function StepCard({ number, icon: Icon, title, description, color, bgColor, bord
         <p className="text-muted-foreground leading-relaxed">{description}</p>
       </div>
       {isLast ? null : (
-        <div className="hidden lg:flex items-center justify-center py-2 absolute -right-8 top-1/2 -translate-y-1/2">
-          <div className="w-6 h-px bg-border" />
-          <div className="w-2 h-2 border-t-2 border-r-2 border-border rotate-45 -ml-1" />
+        <div className="hidden lg:flex items-center justify-center absolute -right-8 top-1/2 -translate-y-1/2">
+          <ChevronRight className="w-5 h-5 text-border" />
         </div>
       )}
     </div>

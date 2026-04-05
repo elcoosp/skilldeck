@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { PageLayout } from '@/components/shared/PageLayout'
 import { getBlogPost, getAllBlogSlugs } from '@/lib/blog'
 
@@ -49,32 +51,27 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
             </div>
           </header>
 
-          <div className="prose prose-invert prose-slate max-w-none">
-            {post.content.split('\n').map((line, i) => {
-              if (line.startsWith('# ')) {
-                return <h1 key={i} className="text-3xl font-bold text-foreground mt-10 mb-4">{line.replace('# ', '')}</h1>
-              }
-              if (line.startsWith('## ')) {
-                return <h2 key={i} className="text-2xl font-bold text-foreground mt-10 mb-4">{line.replace('## ', '')}</h2>
-              }
-              if (line.startsWith('### ')) {
-                return <h3 key={i} className="text-xl font-semibold text-foreground mt-8 mb-3">{line.replace('### ', '')}</h3>
-              }
-              if (line.startsWith('```')) {
-                return null
-              }
-              if (line.startsWith('- ')) {
-                return <li key={i} className="ml-4 text-muted-foreground">{line.replace('- ', '')}</li>
-              }
-              if (line.trim() === '') return <br key={i} />
-              if (line.startsWith('1. ') || line.startsWith('2. ') || line.startsWith('3. ') || line.startsWith('4. ') || line.startsWith('5. ')) {
-                return <li key={i} className="ml-4 text-muted-foreground">{line.replace(/^\d+\.\s/, '')}</li>
-              }
-              if (line.startsWith('**') && line.endsWith('**')) {
-                return <p key={i} className="font-semibold text-foreground">{line.replace(/\*\*/g, '')}</p>
-              }
-              return <p key={i} className="text-muted-foreground leading-relaxed">{line}</p>
-            })}
+          <div className="prose prose-invert prose-slate max-w-none
+            prose-headings:text-foreground prose-headings:font-bold
+            prose-h1:text-3xl prose-h1:mt-10 prose-h1:mb-4
+            prose-h2:text-2xl prose-h2:mt-10 prose-h2:mb-4
+            prose-h3:text-xl prose-h3:mt-8 prose-h3:mb-3
+            prose-p:text-muted-foreground prose-p:leading-relaxed
+            prose-a:text-primary prose-a:no-underline hover:prose-a:underline
+            prose-strong:text-foreground prose-strong:font-semibold
+            prose-li:text-muted-foreground prose-li:leading-relaxed
+            prose-ul:my-4 prose-ul:ml-4 prose-ul:list-disc prose-ul:space-y-2
+            prose-ol:my-4 prose-ol:ml-4 prose-ol:list-decimal prose-ol:space-y-2
+            prose-code:text-primary prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:before:content-[''] prose-code:after:content-[''] prose-code:text-sm
+            prose-pre:bg-muted prose-pre:border prose-pre:border-border prose-pre:rounded-xl prose-pre:p-4
+            prose-pre:code:bg-transparent prose-pre:code:border-0 prose-pre:code:p-0
+            prose-blockquote:border-l-4 prose-blockquote:border-primary prose-blockquote:text-muted-foreground prose-blockquote:italic prose-blockquote:my-4 prose-blockquote:pl-4
+            prose-hr:border-border prose-hr:my-8
+            prose-img:rounded-xl
+          ">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {post.content}
+            </ReactMarkdown>
           </div>
         </article>
       </div>
