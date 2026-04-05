@@ -52,14 +52,14 @@ export function SuggestedPrompts({ conversationId, hasMessages, onSelect }: Sugg
           <button
             key={p.id}
             onClick={() => onSelect(p.prompt)}
-            className="rounded-full border bg-background px-2.5 py-1 text-xs text-foreground transition-colors hover:bg-accent"
+            className="rounded-full border bg-background px-2.5 py-1 text-xs text-foreground transition-colors hover:bg-accent hover:text-primary-foreground"
           >
             {p.label}
           </button>
         ))}
         <button
           onClick={() => setExploreOpen(true)}
-          className="rounded-full border border-dashed px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="rounded-full border border-dashed px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-primary-foreground"
         >
           Explore more...
         </button>
@@ -69,7 +69,7 @@ export function SuggestedPrompts({ conversationId, hasMessages, onSelect }: Sugg
           <DialogHeader>
             <DialogTitle>Suggested Prompts</DialogTitle>
           </DialogHeader>
-          <div className="max-h-96 overflow-y-auto space-y-4">
+          <div className="max-h-96 overflow-y-auto space-y-4 thin-scrollbar">
             {Object.entries(categoryLabels).map(([cat, label]) => (
               <div key={cat}>
                 <h4 className="mb-2 text-sm font-medium">{label}</h4>
@@ -78,7 +78,7 @@ export function SuggestedPrompts({ conversationId, hasMessages, onSelect }: Sugg
                     <button
                       key={p.id}
                       onClick={() => { onSelect(p.prompt); setExploreOpen(false) }}
-                      className="rounded-full border bg-background px-2.5 py-1 text-xs transition-colors hover:bg-accent"
+                      className="rounded-full border bg-background px-2.5 py-1 text-xs transition-colors hover:bg-accent hover:text-primary-foreground"
                     >
                       {p.label}
                     </button>
@@ -89,6 +89,5 @@ export function SuggestedPrompts({ conversationId, hasMessages, onSelect }: Sugg
           </div>
         </DialogContent>
       </Dialog>
-    </div>
-  )
+    </div>)
 }

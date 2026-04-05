@@ -1,11 +1,5 @@
+// src-tauri/skilldeck-core/src/agent/loop.rs
 //! Core agent loop implementation.
-//!
-//! 1. Receive user message
-//! 2. Build context (history + skills + system prompt)
-//! 3. Call model provider (streaming)
-//! 4. Debounce token emission (50 ms / 100-char buffer)
-//! 5. Handle tool calls via ToolDispatcher
-//! 6. Repeat until no tool calls or cancellation
 
 use futures::StreamExt;
 use std::sync::Arc;
@@ -25,6 +19,7 @@ use crate::{
         ToolCall, ToolDefinition,
     },
 };
+
 // ── Internal event type (loop → caller) ──────────────────────────────────────
 
 #[derive(Debug, Clone)]
@@ -79,11 +74,8 @@ pub struct AgentLoop {
     tools: Vec<ToolDefinition>,
     dispatcher: Option<Arc<ToolDispatcher>>,
     tx: mpsc::Sender<Result<AgentLoopEvent, CoreError>>,
-    /// Cancellation token — set by `cancel()` or passed in from outside.
     cancel_token: CancellationToken,
-    /// Whether the model supports Toon encoding.
     supports_toon: bool,
-    /// Database connection (for persisting cancellation status)
     db: Arc<dyn crate::traits::Database>,
 }
 
@@ -97,7 +89,6 @@ pub struct AgentRunResult {
     pub cache_write_tokens: u32,
 }
 
-// Helper macro to send events and abort on receiver drop.
 macro_rules! send_event {
     ($self:expr, $event:expr) => {{
         if $self.tx.send(Ok($event)).await.is_err() {
@@ -158,25 +149,26 @@ impl AgentLoop {
         self
     }
 
-    /// Wire an external cancellation token so the parent can cancel this loop.
     pub fn with_cancel_token(mut self, token: CancellationToken) -> Self {
         self.cancel_token = token;
         self
     }
 
-    /// Return a child token that the caller can use to cancel this loop.
     pub fn cancellation_token(&self) -> CancellationToken {
         self.cancel_token.child_token()
     }
 
-    /// Cancel the running loop.  Safe to call from any thread / task.
     pub fn cancel(&self) {
         self.cancel_token.cancel();
     }
 
     /// Run the agent loop for a single user turn.
     #[instrument(skip(self), fields(model = %self.model_id))]
-    pub async fn run(mut self, user_message: String) -> Result<AgentRunResult, CoreError> {
+    pub async fn run(
+        mut self,
+        user_message: String,
+        thinking: bool,
+    ) -> Result<AgentRunResult, CoreError> {
         info!("Agent loop starting");
 
         // ── Provider readiness check ─────────────────────────────────────────
@@ -205,14 +197,12 @@ impl AgentLoop {
         let after_user_len = self.messages.len();
         let mut iteration = 0u32;
 
-        // Accumulate final token usage
         let mut final_input_tokens = 0;
         let mut final_output_tokens = 0;
         let mut final_cache_read_tokens = 0;
         let mut final_cache_write_tokens = 0;
 
         loop {
-            // Check cancellation at the top of each iteration.
             if self.cancel_token.is_cancelled() {
                 info!("Agent loop cancelled");
                 send_event!(self, AgentLoopEvent::Cancelled);
@@ -249,9 +239,8 @@ impl AgentLoop {
             }
 
             info!("Agent iteration {} starting", iteration);
-            let request = self.build_request()?;
+            let request = self.build_request(thinking)?;
 
-            // === DIAGNOSTIC: log the entire request (especially tool messages) ===
             debug!(
                 "Sending request to provider:\n  model: {}\n  system: {:?}\n  messages: {:#?}\n  tools (raw): {}",
                 request.model_id,
@@ -259,7 +248,6 @@ impl AgentLoop {
                 request.messages,
                 request.tools.len()
             );
-            // If there are tool messages, log them in detail
             for msg in &request.messages {
                 if msg.role == MessageRole::Tool {
                     debug!(
@@ -293,7 +281,6 @@ impl AgentLoop {
                 name: None,
             });
 
-            // Update final token counts from this iteration
             final_input_tokens += result.input_tokens;
             final_output_tokens += result.output_tokens;
             final_cache_read_tokens += result.cache_read_tokens;
@@ -340,7 +327,6 @@ impl AgentLoop {
                 );
 
                 info!("Executing tool: {:?}", tool_call);
-                // Wrap the tool execution in a 30-second timeout to prevent hangs
                 let tool_result = timeout(Duration::from_secs(30), self.execute_tool(&tool_call))
                     .await
                     .map_err(|_| {
@@ -349,7 +335,7 @@ impl AgentLoop {
                             message: format!("Tool '{}' timed out", tool_call.function.name),
                         }
                     })
-                    .and_then(|res| res); // flatten the Result<Result<_, _>, _>
+                    .and_then(|res| res);
 
                 let content = match tool_result {
                     Ok(v) => {
@@ -363,9 +349,8 @@ impl AgentLoop {
                     }
                 };
 
-                // Diagnostic: log the tool call ID (if present) to help debug missing tool_call_id.
                 debug!(
-                    "Tool call id: {:?}, but ChatMessage does not store it yet. The provider may reject this message.",
+                    "Tool call id: {:?}, but ChatMessage does not store it yet.",
                     tool_call.id
                 );
 
@@ -375,7 +360,6 @@ impl AgentLoop {
                     name: Some(tool_call.function.name.clone()),
                 });
 
-                // Handle loadSkill result
                 if tool_call.function.name == "loadSkill" {
                     match serde_json::from_str::<LoadSkillResult>(&content) {
                         Ok(load_result) => {
@@ -419,7 +403,7 @@ impl AgentLoop {
         })
     }
 
-    fn build_request(&self) -> Result<CompletionRequest, CoreError> {
+    fn build_request(&self, thinking: bool) -> Result<CompletionRequest, CoreError> {
         let mut system_parts = Vec::new();
         if let Some(ref p) = self.system_prompt {
             system_parts.push(p.clone());
@@ -469,6 +453,7 @@ impl AgentLoop {
             tools_toon,
             model_params: ModelParams::default(),
             model_id: self.model_id.clone(),
+            thinking, // <-- pass thinking flag
         })
     }
 
@@ -531,7 +516,6 @@ impl AgentLoop {
                     cache_read_tokens: crt,
                     cache_write_tokens: cwt,
                 } => {
-                    // Flush any remaining buffered tokens before processing Done
                     if !buffer.is_empty() {
                         debug!("Flushing buffer on Done (size={})", buffer.len());
                         send_event!(
@@ -554,7 +538,6 @@ impl AgentLoop {
             }
         }
 
-        // Final flush in case the stream ended without a Done chunk
         if !buffer.is_empty() {
             debug!("Final flush after stream ended");
             send_event!(

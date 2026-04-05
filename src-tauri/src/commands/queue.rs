@@ -333,6 +333,7 @@ pub fn auto_send_next_queued(state: Arc<AppState>, conversation_id: String, app:
                                 None, // context_items
                                 app_clone,
                                 Some(meta),
+                                false,
                             )
                             .await
                             {

@@ -336,6 +336,7 @@ pub async fn send_message(
         req.context_items,
         app,
         None,
+        req.thinking.unwrap_or(false), // <-- pass thinking flag
     )
     .await
     .map(|_| ())
@@ -392,6 +393,7 @@ pub struct SendMessageRequest {
     pub content: String,
     pub branch_id: Option<String>,
     pub context_items: Option<Vec<ContextItem>>,
+    pub thinking: Option<bool>, // <-- ADDED
 }
 
 /// Get conversation bootstrap data (messages, branches, draft, queued, headings).
@@ -433,6 +435,7 @@ pub(crate) async fn send_message_internal(
     context_items: Option<Vec<ContextItem>>,
     app: tauri::AppHandle,
     metadata: Option<MessageMetadata>,
+    thinking: bool, // <-- ADDED
 ) -> Result<Uuid, String> {
     // Validate IDs synchronously – no DB call
     let conv_uuid = Uuid::parse_str(&conversation_id).map_err(|e| e.to_string())?;
@@ -523,6 +526,7 @@ pub(crate) async fn send_message_internal(
             msg_id,
             context_items_clone,
             app_clone,
+            thinking, // <-- pass thinking flag
         );
     });
 
@@ -762,6 +766,7 @@ fn run_agent_loop(
     current_msg_id: Uuid,
     context_items: Option<Vec<ContextItem>>,
     app: tauri::AppHandle,
+    thinking: bool, // <-- ADDED
 ) {
     use skilldeck_core::agent::tool_dispatcher::ToolDispatcher;
     use skilldeck_core::traits::ChatMessage;
@@ -1076,7 +1081,11 @@ fn run_agent_loop(
             }
         });
 
-        let loop_handle = tokio::spawn(async move { agent.run(enriched_user_message).await });
+        let loop_handle = tokio::spawn(async move {
+            agent
+                .run(enriched_user_message, thinking) // <-- pass thinking flag
+                .await
+        });
 
         while let Some(event) = rx.recv().await {
             match event {
@@ -1126,7 +1135,8 @@ fn run_agent_loop(
                 Ok(AgentLoopEvent::Done {
                     input_tokens,
                     output_tokens,
-                    ..
+                    cache_read_tokens,
+                    cache_write_tokens,
                 }) => {
                     saw_done = true;
 

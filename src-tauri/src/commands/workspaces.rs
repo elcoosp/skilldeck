@@ -3,7 +3,7 @@
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, QueryFilter, QueryOrder,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use specta::{Type, specta};
 use std::{path::PathBuf, sync::Arc};
 use tauri::State;
@@ -173,9 +173,6 @@ pub async fn list_workspaces(
 }
 // src-tauri/src/commands/workspace.rs
 // Add this new command at the end of the file, before the closing of the module
-
-use serde::{Deserialize, Serialize};
-use specta::{Type, specta};
 
 #[derive(Debug, Serialize, Deserialize, Type)]
 pub struct GitStatus {

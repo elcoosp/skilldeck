@@ -1,3 +1,4 @@
+// src-tauri/skilldeck-core/src/traits/model_provider.rs
 //! Model Provider trait and related types.
 
 use async_trait::async_trait;
@@ -84,6 +85,8 @@ pub struct CompletionRequest {
     pub tools_toon: Option<String>,
     pub model_params: ModelParams,
     pub model_id: String,
+    /// Enable extended thinking mode (Claude only for now)
+    pub thinking: bool, // <-- ADDED
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -150,7 +153,7 @@ pub struct ModelCapabilities {
 }
 
 // =============================================================================
-// New: ProviderReadyStatus
+// ProviderReadyStatus
 // =============================================================================
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]

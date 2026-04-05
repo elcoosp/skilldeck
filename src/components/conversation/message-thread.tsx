@@ -5,12 +5,15 @@ import {
   useVirtualizer,
   type Virtualizer
 } from '@tanstack/react-virtual'
+import { useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import * as React from 'react'
 import { toast } from 'sonner'
 import { invoke } from '@tauri-apps/api/core'
 import { Button } from '@/components/ui/button'
 import { useSendMessage } from '@/hooks/use-messages'
+import { useWorkspaces } from '@/hooks/use-workspaces'
+import { useWorkspaceGitStatus } from '@/hooks/use-workspace-git'
 import type { MessageData, NodeDocument } from '@/lib/bindings'
 import {
   DEFAULT_CHROME_CONFIG,
@@ -23,7 +26,6 @@ import { useToolApprovalStore } from '@/store/tool-approvals'
 import { useUIEphemeralStore } from '@/store/ui-ephemeral'
 import { useUILayoutStore } from '@/store/ui-layout'
 import { useWorkspaceStore } from '@/store/workspace'
-import { useWorkspaceGitStatus } from '@/hooks/use-workspace-git'
 import { GitBranch } from 'lucide-react'
 import { MessageBubble } from './message-bubble'
 import { ToolApprovalCard } from './tool-approval-card'
@@ -187,15 +189,12 @@ export const MessageThread = React.forwardRef<
 
     // ─── Git repo init hint (F18) ─────────────────────────────────────────
     const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId)
-    const workspaces = useWorkspaceStore((s) => s.workspaces)
-    const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId)
+    const { data: workspaces } = useWorkspaces()
+    const activeWorkspace = workspaces?.find((w) => w.id === activeWorkspaceId)
     const { data: gitStatus } = useWorkspaceGitStatus(activeWorkspace?.path)
     const gitDismissed = useUIEphemeralStore((s) => s.gitInitDismissed)
     const setGitInitDismissed = useUIEphemeralStore((s) => s.setGitInitDismissed)
-    const queryClient = React.use((s) => s) // not used, but we need access to queryClient for invalidation
-    // Actually we need to import useQueryClient
-    const { useQueryClient } = require('@tanstack/react-query')
-    const queryClientRef = React.useRef(useQueryClient())
+    const queryClient = useQueryClient()
 
     const showGitHint = activeWorkspace?.path
       && gitStatus
@@ -205,7 +204,7 @@ export const MessageThread = React.forwardRef<
     const handleGitInit = async (path: string) => {
       try {
         await invoke('git_init', { path })
-        await queryClientRef.current.invalidateQueries({ queryKey: ['git-status', path] })
+        await queryClient.invalidateQueries({ queryKey: ['git-status', path] })
         toast.success('Git repository initialized')
       } catch (err) {
         toast.error(`Failed to initialize git: ${err}`)

@@ -18,6 +18,7 @@ pub struct ContextBuilder {
     tools: Vec<ToolDefinition>,
     model_params: ModelParams,
     max_messages: usize,
+    thinking: bool, // <-- added
 }
 
 impl ContextBuilder {
@@ -25,6 +26,7 @@ impl ContextBuilder {
         Self {
             model_id: model_id.into(),
             max_messages: 100,
+            thinking: false, // default
             ..Default::default()
         }
     }
@@ -59,6 +61,11 @@ impl ContextBuilder {
         self
     }
 
+    pub fn thinking(mut self, thinking: bool) -> Self {
+        self.thinking = thinking;
+        self
+    }
+
     /// Build the [`CompletionRequest`].
     pub fn build(self) -> Result<CompletionRequest, CoreError> {
         // Assemble system prompt from base + injected skills.
@@ -72,8 +79,9 @@ impl ContextBuilder {
             messages,
             system,
             tools: self.tools,
-            tools_toon: None, // <-- added field
+            tools_toon: None,
             model_params: self.model_params,
+            thinking: self.thinking, // <-- add thinking field
         })
     }
 }
@@ -174,7 +182,6 @@ mod tests {
             .collect();
         let trimmed = trim_messages(msgs, 10);
         assert_eq!(trimmed.len(), 10);
-        // Last message should be #19.
         assert_eq!(trimmed.last().unwrap().content, "19");
     }
 

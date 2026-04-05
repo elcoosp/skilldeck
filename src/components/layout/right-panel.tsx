@@ -165,18 +165,18 @@ export function RightPanel() {
         <div className="flex-1 min-h-0 overflow-hidden w-full min-w-0">
           <ArtifactPanel />
         </div>
-      ) : activeTab === 'files' && (
+      ) : activeTab === 'files' ? (
         <div className="flex-1 min-h-0 overflow-hidden w-full min-w-0">
           <FileTreePanel />
         </div>
-      ): (
-      <ScrollArea className="flex-1 min-h-0">
-        {activeTab === 'session' && (
-          <SessionTab conversationId={activeConversationId} />
-        )}
-        {activeTab === 'workflow' && <WorkflowTab />}
-        {activeTab === 'analytics' && <AnalyticsTab />}
-      </ScrollArea>
+      ) : (
+        <ScrollArea className="flex-1 min-h-0">
+          {activeTab === 'session' && (
+            <SessionTab conversationId={activeConversationId} />
+          )}
+          {activeTab === 'workflow' && <WorkflowTab />}
+          {activeTab === 'analytics' && <AnalyticsTab />}
+        </ScrollArea>
       )}
     </div>
   )

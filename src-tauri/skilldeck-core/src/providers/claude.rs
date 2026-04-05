@@ -6,7 +6,7 @@ use bytes::Bytes;
 use futures::StreamExt;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
+use serde_json::Value;
 use std::time::Duration;
 use tracing::{debug, instrument, warn};
 
@@ -36,7 +36,9 @@ enum ClaudeContent {
 #[derive(Debug, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum ClaudeContentBlock {
-    Text { text: String },
+    Text {
+        text: String,
+    },
     ToolUse {
         id: String,
         name: String,
@@ -281,11 +283,11 @@ impl ModelProvider for ClaudeProvider {
         }
 
         // ── Thinking budget handling ──────────────────────────────────────────
-        let thinking = request.thinking.unwrap_or(false);
+        let thinking = request.thinking; // already bool
         let thinking_config = if thinking {
             Some(ClaudeThinking {
                 type_: "enabled".to_string(),
-                budget_tokens: 1024, // Configurable in future
+                budget_tokens: 1024,
             })
         } else {
             None
@@ -385,7 +387,8 @@ impl ModelProvider for ClaudeProvider {
                             line_buf.push_str(&text);
 
                             while let Some(newline_pos) = line_buf.find('\n') {
-                                let line = line_buf[..newline_pos].trim_end_matches('\r').to_string();
+                                let line =
+                                    line_buf[..newline_pos].trim_end_matches('\r').to_string();
                                 line_buf.drain(..=newline_pos);
 
                                 if line.is_empty() || line.starts_with(':') {
