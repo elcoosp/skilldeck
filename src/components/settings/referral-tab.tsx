@@ -1,9 +1,8 @@
-// src/components/settings/referral-tab.tsx
-
 import { useRouter } from '@tanstack/react-router'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { Copy, ExternalLink, Gift, Users } from 'lucide-react'
 import { toast } from 'sonner'
+import { SettingsSection } from '@/components/settings/settings-section'
 import { usePlatformPreferences, useReferral } from '@/hooks/use-platform'
 import { PLATFORM_BASE_URL } from '@/lib/config'
 
@@ -50,117 +49,124 @@ export function ReferralTab() {
     prefsQuery.data?.platformEnabled && prefsQuery.data?.platformUrl
 
   return (
-    <div className="space-y-6 text-sm">
-      {/* Hero micro-story */}
-      <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
-        <p className="font-medium text-foreground mb-1">
-          Your best prompts shouldn't die in a chat window.
-        </p>
-        <p className="text-muted-foreground">
-          Developers who share SkillDeck bring an average of 3 teammates on
-          board. Each team member who joins compounds the knowledge base for
-          everyone.
-        </p>
-      </div>
-
-      {/* Code display / create */}
-      {code ? (
-        <div className="space-y-3">
-          <p className="font-medium">Your referral link</p>
-          <div className="flex items-center gap-2">
-            <code className="flex-1 rounded-md bg-muted px-3 py-2 text-xs font-mono overflow-hidden text-ellipsis whitespace-nowrap">
-              {referralUrl}
-            </code>
-            <button
-              type="button"
-              onClick={copyCode}
-              className="p-2 rounded-md hover:bg-muted transition-colors"
-              title="Copy link"
-            >
-              <Copy size={14} />
-            </button>
+    <div className="divide-y divide-border">
+      <SettingsSection
+        title="Referrals"
+        description="Share SkillDeck with your team and earn rewards."
+      >
+        <div className="space-y-6 text-sm">
+          {/* Hero micro-story */}
+          <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
+            <p className="font-medium text-foreground mb-1">
+              Your best prompts shouldn't die in a chat window.
+            </p>
+            <p className="text-muted-foreground">
+              Developers who share SkillDeck bring an average of 3 teammates on
+              board. Each team member who joins compounds the knowledge base for
+              everyone.
+            </p>
           </div>
 
-          {/* Share buttons */}
-          <div className="flex gap-2">
-            <ShareButton
-              label="Twitter / X"
-              onClick={() => shareVia('twitter')}
-            />
-            <ShareButton
-              label="LinkedIn"
-              onClick={() => shareVia('linkedin')}
-            />
-            <ShareButton label="Email" onClick={() => shareVia('email')} />
-          </div>
-        </div>
-      ) : (
-        <div className="text-center py-6">
-          {!platformConfigured ? (
-            <div>
-              <p className="text-muted-foreground mb-4">
-                Connect to SkillDeck Platform to enable referrals.
-              </p>
-              <button
-                type="button"
-                className="px-4 py-2 rounded-md bg-primary text-primary-foreground font-medium hover:bg-primary/90"
-                onClick={() => router.navigate({ to: '/settings/platform' })}
-              >
-                Configure Platform
-              </button>
+          {/* Code display / create */}
+          {code ? (
+            <div className="space-y-3">
+              <p className="font-medium">Your referral link</p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 rounded-md bg-muted px-3 py-2 text-xs font-mono overflow-hidden text-ellipsis whitespace-nowrap">
+                  {referralUrl}
+                </code>
+                <button
+                  type="button"
+                  onClick={copyCode}
+                  className="p-2 rounded-md hover:bg-muted transition-colors"
+                  title="Copy link"
+                >
+                  <Copy size={14} />
+                </button>
+              </div>
+
+              {/* Share buttons */}
+              <div className="flex gap-2">
+                <ShareButton
+                  label="Twitter / X"
+                  onClick={() => shareVia('twitter')}
+                />
+                <ShareButton
+                  label="LinkedIn"
+                  onClick={() => shareVia('linkedin')}
+                />
+                <ShareButton label="Email" onClick={() => shareVia('email')} />
+              </div>
             </div>
           ) : (
-            <>
-              <p className="text-muted-foreground mb-4">
-                Create your referral link and start earning rewards.
-              </p>
-              <button
-                type="button"
-                className="px-4 py-2 rounded-md bg-primary text-primary-foreground font-medium hover:bg-primary/90 disabled:opacity-50"
-                disabled={create.isPending}
-                onClick={() => create.mutate()}
-              >
-                {create.isPending ? 'Creating…' : 'Create my referral link'}
-              </button>
-            </>
+            <div className="text-center py-6">
+              {!platformConfigured ? (
+                <div>
+                  <p className="text-muted-foreground mb-4">
+                    Connect to SkillDeck Platform to enable referrals.
+                  </p>
+                  <button
+                    type="button"
+                    className="px-4 py-2 rounded-md bg-primary text-primary-foreground font-medium hover:bg-primary/90"
+                    onClick={() => router.navigate({ to: '/settings/platform' })}
+                  >
+                    Configure Platform
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <p className="text-muted-foreground mb-4">
+                    Create your referral link and start earning rewards.
+                  </p>
+                  <button
+                    type="button"
+                    className="px-4 py-2 rounded-md bg-primary text-primary-foreground font-medium hover:bg-primary/90 disabled:opacity-50"
+                    disabled={create.isPending}
+                    onClick={() => create.mutate()}
+                  >
+                    {create.isPending ? 'Creating…' : 'Create my referral link'}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Stats */}
+          {stats.data && (
+            <div className="grid grid-cols-3 gap-3">
+              <Stat
+                icon={<Users size={14} />}
+                label="Signups"
+                value={stats.data.total_signups}
+              />
+              <Stat
+                icon={<ExternalLink size={14} />}
+                label="Conversions"
+                value={stats.data.total_conversions}
+              />
+              <Stat
+                icon={<Gift size={14} />}
+                label="Rewards"
+                value={stats.data.rewards_earned}
+                highlight
+              />
+            </div>
+          )}
+
+          {/* Usage indicator */}
+          {code && (
+            <div className="text-xs text-muted-foreground">
+              {code.uses}/{code.max_uses} uses
+              <div className="mt-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full bg-primary rounded-full transition-all"
+                  style={{ width: `${(code.uses / code.max_uses) * 100}%` }}
+                />
+              </div>
+            </div>
           )}
         </div>
-      )}
-
-      {/* Stats */}
-      {stats.data && (
-        <div className="grid grid-cols-3 gap-3">
-          <Stat
-            icon={<Users size={14} />}
-            label="Signups"
-            value={stats.data.total_signups}
-          />
-          <Stat
-            icon={<ExternalLink size={14} />}
-            label="Conversions"
-            value={stats.data.total_conversions}
-          />
-          <Stat
-            icon={<Gift size={14} />}
-            label="Rewards"
-            value={stats.data.rewards_earned}
-            highlight
-          />
-        </div>
-      )}
-
-      {/* Usage indicator */}
-      {code && (
-        <div className="text-xs text-muted-foreground">
-          {code.uses}/{code.max_uses} uses
-          <div className="mt-1 h-1.5 rounded-full bg-muted overflow-hidden">
-            <div
-              className="h-full bg-primary rounded-full transition-all"
-              style={{ width: `${(code.uses / code.max_uses) * 100}%` }}
-            />
-          </div>
-        </div>
-      )}
+      </SettingsSection>
     </div>
   )
 }

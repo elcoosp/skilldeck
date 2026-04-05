@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, useRouter } from '@tanstack/react-router'
+import { createFileRoute, Outlet, useLocation, useRouter } from '@tanstack/react-router'
 import {
   AlertTriangle,
   Bell,
@@ -35,8 +35,8 @@ export const Route = createFileRoute('/_app/settings')({
 
 function SettingsLayout() {
   const router = useRouter()
-  const pathname = router.state.location.pathname
-  const activeTab = pathname.split('/').pop() ?? 'api-keys'
+  const location = useLocation()
+  const activeTab = location.pathname.split('/').pop() ?? 'api-keys'
 
   const handleClose = () => {
     router.history.back()
