@@ -1,10 +1,6 @@
-// src/components/chat/chat-command-palette.tsx
-
 import { Loader2 } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
-import { TrustBadge } from '@/components/skills/trust-badge'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import type { UnifiedSkill } from '@/types/skills'
@@ -14,94 +10,112 @@ interface ChatCommandPaletteProps {
   query: string
   items: UnifiedSkill[]
   loading: boolean
-  position: { top: number; left: number } | null
   onSelect: (skill: UnifiedSkill) => void
   onClose: () => void
-  _workspaceId?: string | null // unused, kept for API compatibility
+  onQueryChange?: (query: string) => void
 }
 
 export const ChatCommandPalette: React.FC<ChatCommandPaletteProps> = ({
+  type,
   query,
   items,
   loading,
-  position,
   onSelect,
   onClose,
-  _workspaceId
+  onQueryChange
 }) => {
   const [selectedIndex, setSelectedIndex] = useState(0)
   const listRef = useRef<HTMLDivElement>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const pickerRef = useRef<HTMLDivElement>(null)
 
+  // Filter items based on query
   const filtered = items.filter(
-    (s) =>
-      s.name.toLowerCase().includes(query.toLowerCase()) ||
-      s.description.toLowerCase().includes(query.toLowerCase())
+    (item) =>
+      item.name.toLowerCase().includes(query.toLowerCase()) ||
+      item.description?.toLowerCase().includes(query.toLowerCase())
   )
 
-  // Reset selected index when query changes
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reset on query change
+  // Reset index on filter change
   useEffect(() => {
     setSelectedIndex(0)
   }, [query])
 
+  // Focus input when opened
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.focus()
+    }
+  }, [])
+
+  // Scroll selected item into view
   useEffect(() => {
     if (listRef.current) {
-      const el = listRef.current.children[selectedIndex] as
+      const selectedEl = listRef.current.children[selectedIndex] as
         | HTMLElement
         | undefined
-      el?.scrollIntoView({ block: 'nearest' })
+      selectedEl?.scrollIntoView({ block: 'nearest' })
     }
   }, [selectedIndex])
 
+  // Click outside to close
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowDown') {
-        e.preventDefault()
-        setSelectedIndex((prev) => Math.min(prev + 1, filtered.length - 1))
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault()
-        setSelectedIndex((prev) => Math.max(prev - 1, 0))
-      } else if (e.key === 'Enter') {
-        e.preventDefault()
-        if (filtered[selectedIndex]) {
-          onSelect(filtered[selectedIndex])
-          onClose()
-        }
-      } else if (e.key === 'Escape') {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
         onClose()
       }
     }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [filtered, selectedIndex, onSelect, onClose])
-
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(e.target as Node)
-      ) {
-        onClose()
-      }
-    }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [onClose])
 
-  if (!position) return null
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault()
+        e.stopPropagation()
+        setSelectedIndex((prev) => Math.min(prev + 1, filtered.length - 1))
+        break
+      case 'ArrowUp':
+        e.preventDefault()
+        e.stopPropagation()
+        setSelectedIndex((prev) => Math.max(prev - 1, 0))
+        break
+      case 'Enter':
+        e.preventDefault()
+        e.stopPropagation()
+        if (filtered[selectedIndex]) {
+          onSelect(filtered[selectedIndex])
+        }
+        break
+      case 'Escape':
+        e.preventDefault()
+        onClose()
+        break
+    }
+  }
 
-  return createPortal(
+  if (type !== 'skill') return null
+
+  return (
     <div
-      ref={containerRef}
-      className="fixed z-50 w-80 bg-popover text-popover-foreground shadow-lg border rounded-lg overflow-hidden"
-      style={{ top: position.top, left: position.left }}
+      ref={pickerRef}
+      role="dialog"
+      aria-label="Skill picker"
+      className="absolute bottom-full left-0 mb-2 z-50 w-full bg-popover text-popover-foreground shadow-lg border rounded-lg overflow-hidden"
+      onKeyDown={handleKeyDown}
     >
       <div className="p-2 border-b">
         <Input
+          ref={inputRef}
+          type="text"
           placeholder="Search skills…"
           value={query}
-          readOnly
+          onChange={(e) => {
+            let newVal = e.target.value
+            if (newVal.startsWith('@')) newVal = newVal.slice(1)
+            onQueryChange?.(newVal)
+          }}
           className="h-8 text-sm"
         />
       </div>
@@ -109,73 +123,42 @@ export const ChatCommandPalette: React.FC<ChatCommandPaletteProps> = ({
       <div className="max-h-60 overflow-y-auto p-1" ref={listRef}>
         {loading && (
           <div className="flex items-center justify-center p-4 gap-2 text-sm text-muted-foreground">
-            <Loader2 className="animate-spin w-4 h-4" /> Searching…
+            <Loader2 className="animate-spin w-4 h-4" />
+            <span>Loading…</span>
           </div>
         )}
 
         {!loading && filtered.length === 0 && (
           <div className="p-4 text-center text-sm text-muted-foreground">
-            No skills found.
+            No skills found
           </div>
         )}
 
-        {filtered.map((skill, index) => {
-          const isRegistry = !!skill.registryData
-          const securityScore = skill.registryData?.securityScore ?? 5
-          const qualityScore = skill.registryData?.qualityScore ?? 5
-          const sourceType = isRegistry ? 'registry' : 'local'
-
-          return (
+        {!loading &&
+          filtered.map((skill, index) => (
             <div
               key={skill.id}
               role="option"
               aria-selected={index === selectedIndex}
               tabIndex={-1}
               className={cn(
-                'flex items-start gap-2 px-2 py-1.5 rounded-sm cursor-pointer text-sm',
+                'flex flex-col gap-0.5 px-2 py-1.5 rounded-sm cursor-pointer text-sm text-foreground',
                 index === selectedIndex
-                  ? 'bg-primary/20 text-foreground'
+                  ? 'bg-primary/10'
                   : 'hover:bg-primary/10'
               )}
-              onClick={() => {
-                onSelect(skill)
-                onClose()
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault()
-                  onSelect(skill)
-                  onClose()
-                }
-              }}
+              onClick={() => onSelect(skill)}
               onMouseEnter={() => setSelectedIndex(index)}
             >
-              <div className="flex flex-col min-w-0 flex-1">
-                <span className="font-medium text-blue-600 dark:text-blue-400 truncate">
-                  {skill.name}
+              <span className="font-medium truncate">{skill.name}</span>
+              {skill.description && (
+                <span className="text-xs text-muted-foreground truncate">
+                  {skill.description}
                 </span>
-                <div className="flex items-center gap-2 flex-nowrap min-w-0">
-                  <span className="text-xs text-muted-foreground truncate min-w-0 flex-1">
-                    {skill.description}
-                  </span>
-                  {sourceType === 'local' ? (
-                    <span className="text-[10px] bg-muted px-1 rounded whitespace-nowrap flex-shrink-0">
-                      local
-                    </span>
-                  ) : sourceType === 'registry' ? (
-                    <TrustBadge
-                      securityScore={securityScore}
-                      qualityScore={qualityScore}
-                      className="flex-shrink-0"
-                    />
-                  ) : null}
-                </div>
-              </div>
+              )}
             </div>
-          )
-        })}
+          ))}
       </div>
-    </div>,
-    document.body
+    </div>
   )
 }

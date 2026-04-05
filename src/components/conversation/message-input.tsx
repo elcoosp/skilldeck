@@ -101,6 +101,7 @@ export function MessageInput({
   onRequestScrollToBottom
 }: MessageInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
   const [isComposing, setIsComposing] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<FileChip[]>([])
   const [processingFiles, setProcessingFiles] = useState<UploadStatusMap>(
@@ -154,10 +155,6 @@ export function MessageInput({
 
   // ── Context injection state ───────────────────────────────────────────────
   const [triggerState, setTriggerState] = useState<TriggerState | null>(null)
-  const [pickerPosition, setPickerPosition] = useState<{
-    top: number
-    left: number
-  } | null>(null)
 
   // File picker
   const [fileItems, setFileItems] = useState<FileEntry[]>([])
@@ -262,22 +259,11 @@ export function MessageInput({
     debouncedSaveDraft(content, items)
   }, [content, conversationId, itemsMap, debouncedSaveDraft])
 
-  // ─── Picker position ───────────────────────────────────────────────────────
-
-  const calculatePickerPosition = useCallback(() => {
-    if (!textareaRef.current) return null
-    const rect = textareaRef.current.getBoundingClientRect()
-    return {
-      top: rect.top - 268 + window.scrollY,
-      left: rect.left + 10
-    }
-  }, [])
-
-  // ─── Picker close ──────────────────────────────────────────────────────────
+  // ─── Picker close & refocus ─────────────────────────────────────────────
 
   const closePicker = useCallback(() => {
     setTriggerState(null)
-    setPickerPosition(null)
+    textareaRef.current?.focus()
   }, [])
 
   // ─── Clear trigger text from textarea ─────────────────────────────────────
@@ -450,7 +436,6 @@ export function MessageInput({
       const cursorPos = e.currentTarget.selectionStart ?? 0
       const type = e.key === '@' ? 'skill' : 'file'
       setTriggerState({ type, query: '', startIndex: cursorPos + 1 })
-      setPickerPosition(calculatePickerPosition())
       if (type === 'file' && effectiveWorkspaceRoot) {
         loadDirectory(effectiveWorkspaceRoot)
       }
@@ -469,7 +454,6 @@ export function MessageInput({
     } else {
       const query = value.substring(triggerState.startIndex, cursorPos)
       setTriggerState((prev) => (prev ? { ...prev, query } : null))
-      if (!pickerPosition) setPickerPosition(calculatePickerPosition())
     }
   }
 
@@ -532,12 +516,11 @@ export function MessageInput({
 
   const triggerFilePicker = useCallback(() => {
     setTriggerState({ type: 'file', query: '', startIndex: content.length + 1 })
-    setPickerPosition(calculatePickerPosition())
     if (effectiveWorkspaceRoot) {
       loadDirectory(effectiveWorkspaceRoot)
     }
     textareaRef.current?.focus()
-  }, [content, effectiveWorkspaceRoot, loadDirectory, calculatePickerPosition])
+  }, [content, effectiveWorkspaceRoot, loadDirectory])
 
   const triggerSkillPicker = useCallback(() => {
     setTriggerState({
@@ -545,9 +528,8 @@ export function MessageInput({
       query: '',
       startIndex: content.length + 1
     })
-    setPickerPosition(calculatePickerPosition())
     textareaRef.current?.focus()
-  }, [content, calculatePickerPosition])
+  }, [content])
 
   // ── Stop agent ───────────────────────────────────────────────────────────
   const handleStop = useCallback(async () => {
@@ -637,7 +619,7 @@ export function MessageInput({
       await sendMutation.mutateAsync({
         content: finalContent,
         contextItems: metadataItems.length > 0 ? metadataItems : undefined,
-        thinking: thinkingEnabled  // <-- Add thinking flag
+        thinking: thinkingEnabled
       })
       playSound('messageSent')
       onRequestScrollToBottom?.()
@@ -662,7 +644,7 @@ export function MessageInput({
     sendMutation,
     onRequestScrollToBottom,
     readiness,
-    thinkingEnabled  // <-- Add dependency
+    thinkingEnabled
   ])
 
   // Get messages count for suggested prompts
@@ -738,11 +720,45 @@ export function MessageInput({
       </AnimatePresence>
 
       <div
+        ref={containerRef}
         className={cn(
           'relative rounded-xl border border-input bg-background shadow-sm',
           'focus-within:ring-2 focus-within:ring-ring/50'
         )}
       >
+        {/* Skill picker – rendered inline, anchored above the input */}
+        {triggerState?.type === 'skill' && (
+          <ChatCommandPalette
+            type="skill"
+            query={triggerState.query}
+            items={unifiedSkills}
+            loading={skillsLoading}
+            onSelect={handleSkillSelect}
+            onClose={closePicker}
+            onQueryChange={(q) =>
+              setTriggerState((prev) => (prev ? { ...prev, query: q } : null))
+            }
+          />
+        )}
+
+        {/* File picker – rendered inline, anchored above the input */}
+        {triggerState?.type === 'file' && (
+          <FileMentionPicker
+            open
+            query={triggerState.query}
+            items={fileItems}
+            loading={fileLoading}
+            currentFolderCounts={folderCounts}
+            onSelect={handleFileSelect}
+            onClose={closePicker}
+            onQueryChange={(q) =>
+              setTriggerState((prev) => (prev ? { ...prev, query: q } : null))
+            }
+            workspaceRoot={effectiveWorkspaceRoot}
+            uploadingFiles={processingFiles}
+          />
+        )}
+
         <AttachedItemsList />
 
         {/* Suggested prompts (F03) */}
@@ -964,36 +980,6 @@ export function MessageInput({
           ↵ {isRunning ? 'queue' : 'send'} · ⇧↵ newline
         </span>
       </div>
-
-      {triggerState?.type === 'file' && (
-        <FileMentionPicker
-          open
-          query={triggerState.query}
-          position={pickerPosition}
-          items={fileItems}
-          loading={fileLoading}
-          currentFolderCounts={folderCounts}
-          onSelect={handleFileSelect}
-          onClose={closePicker}
-          onQueryChange={(q) =>
-            setTriggerState((prev) => (prev ? { ...prev, query: q } : null))
-          }
-          workspaceRoot={effectiveWorkspaceRoot}
-          uploadingFiles={processingFiles}
-        />
-      )}
-
-      {triggerState?.type === 'skill' && (
-        <ChatCommandPalette
-          type="skill"
-          query={triggerState.query}
-          items={unifiedSkills}
-          loading={skillsLoading}
-          position={pickerPosition}
-          onSelect={handleSkillSelect}
-          onClose={closePicker}
-        />
-      )}
 
       {skillForReview && (
         <SecurityWarningDialog
