@@ -1,4 +1,4 @@
-//! Claude (Anthropic) model provider implementation.
+// src-tauri/skilldeck-core/src/providers/claude.rs
 
 use async_trait::async_trait;
 use backoff::{self, ExponentialBackoff, future::retry};
@@ -6,7 +6,7 @@ use bytes::Bytes;
 use futures::StreamExt;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Value, json};
 use std::time::Duration;
 use tracing::{debug, instrument, warn};
 
@@ -30,22 +30,18 @@ struct ClaudeMessage {
 #[serde(untagged)]
 enum ClaudeContent {
     Text(String),
-    #[allow(dead_code)] // Used for future tool call support
     Blocks(Vec<ClaudeContentBlock>),
 }
 
 #[derive(Debug, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum ClaudeContentBlock {
-    #[allow(dead_code)]
     Text { text: String },
-    #[allow(dead_code)]
     ToolUse {
         id: String,
         name: String,
         input: Value,
     },
-    #[allow(dead_code)]
     ToolResult {
         tool_use_id: String,
         content: String,
@@ -61,6 +57,13 @@ struct ClaudeTool {
 }
 
 #[derive(Debug, Serialize)]
+struct ClaudeThinking {
+    #[serde(rename = "type")]
+    type_: String,
+    budget_tokens: u32,
+}
+
+#[derive(Debug, Serialize)]
 struct ClaudeRequest {
     model: String,
     max_tokens: u32,
@@ -72,6 +75,8 @@ struct ClaudeRequest {
     stream: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     temperature: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    thinking: Option<ClaudeThinking>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -84,10 +89,8 @@ struct ClaudeEvent {
     message: Option<ClaudeMessageResponse>,
     #[serde(default)]
     usage: Option<ClaudeUsage>,
-    #[allow(dead_code)]
     #[serde(default)]
     index: Option<u32>,
-    #[allow(dead_code)]
     #[serde(default)]
     content_block: Option<ClaudeContentBlockResponse>,
 }
@@ -96,26 +99,20 @@ struct ClaudeEvent {
 struct ClaudeDelta {
     #[serde(default)]
     text: Option<String>,
-    #[allow(dead_code)]
     #[serde(default)]
     stop_reason: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 struct ClaudeMessageResponse {
-    #[allow(dead_code)]
     #[serde(default)]
     id: Option<String>,
-    #[allow(dead_code)]
     #[serde(default)]
     role: Option<String>,
-    #[allow(dead_code)]
     #[serde(default)]
     content: Vec<ClaudeContentBlockResponse>,
-    #[allow(dead_code)]
     #[serde(default)]
     model: Option<String>,
-    #[allow(dead_code)]
     #[serde(default)]
     stop_reason: Option<String>,
     #[serde(default)]
@@ -124,19 +121,14 @@ struct ClaudeMessageResponse {
 
 #[derive(Debug, Deserialize)]
 struct ClaudeContentBlockResponse {
-    #[allow(dead_code)]
     #[serde(rename = "type", default)]
     block_type: Option<String>,
-    #[allow(dead_code)]
     #[serde(default)]
     text: Option<String>,
-    #[allow(dead_code)]
     #[serde(default)]
     id: Option<String>,
-    #[allow(dead_code)]
     #[serde(default)]
     name: Option<String>,
-    #[allow(dead_code)]
     #[serde(default)]
     input: Option<Value>,
 }
@@ -153,7 +145,6 @@ struct ClaudeUsage {
     cache_creation_input_tokens: Option<u32>,
 }
 
-/// Anthropic error envelope (can appear mid-stream with certain failure modes).
 #[derive(Debug, Deserialize)]
 struct ClaudeErrorEnvelope {
     #[serde(rename = "type")]
@@ -199,8 +190,8 @@ impl ClaudeProvider {
             let role = match msg.role {
                 MessageRole::User => "user",
                 MessageRole::Assistant => "assistant",
-                MessageRole::System => continue, // handled separately
-                MessageRole::Tool => "user",     // tool results go in user turn
+                MessageRole::System => continue,
+                MessageRole::Tool => "user",
             };
             out.push(ClaudeMessage {
                 role: role.to_string(),
@@ -280,7 +271,6 @@ impl ModelProvider for ClaudeProvider {
         let messages = Self::convert_messages(&request.messages)?;
         let tools = Self::convert_tools(&request.tools);
 
-        // If tools_toon is present, add it as a system message
         let mut system = request.system.clone();
         if let Some(toon) = &request.tools_toon {
             let tool_msg = format!("Available tools are provided in TOON format:\n{}", toon);
@@ -290,6 +280,17 @@ impl ModelProvider for ClaudeProvider {
             };
         }
 
+        // ── Thinking budget handling ──────────────────────────────────────────
+        let thinking = request.thinking.unwrap_or(false);
+        let thinking_config = if thinking {
+            Some(ClaudeThinking {
+                type_: "enabled".to_string(),
+                budget_tokens: 1024, // Configurable in future
+            })
+        } else {
+            None
+        };
+
         let claude_request = ClaudeRequest {
             model: request.model_id.clone(),
             max_tokens: request.model_params.max_tokens.unwrap_or(8192),
@@ -298,6 +299,7 @@ impl ModelProvider for ClaudeProvider {
             tools,
             stream: true,
             temperature: request.model_params.temperature,
+            thinking: thinking_config,
         };
 
         debug!("Sending request to Claude API");
@@ -363,13 +365,10 @@ impl ModelProvider for ClaudeProvider {
 
         let response = retry(backoff, operation).await?;
 
-        // BUG FIX: Use `scan` to maintain a line buffer across TCP chunks.
-        // Claude's SSE format is the same as OpenAI's — raw TCP chunks,
-        // not logical lines.
         let stream = response
             .bytes_stream()
             .scan(
-                String::new(), // line_buf
+                String::new(),
                 move |line_buf, result: Result<Bytes, reqwest::Error>| {
                     let mut items: Vec<Result<CompletionChunk, CoreError>> = Vec::new();
 
@@ -386,11 +385,9 @@ impl ModelProvider for ClaudeProvider {
                             line_buf.push_str(&text);
 
                             while let Some(newline_pos) = line_buf.find('\n') {
-                                let line =
-                                    line_buf[..newline_pos].trim_end_matches('\r').to_string();
+                                let line = line_buf[..newline_pos].trim_end_matches('\r').to_string();
                                 line_buf.drain(..=newline_pos);
 
-                                // Skip empty lines and SSE comments
                                 if line.is_empty() || line.starts_with(':') {
                                     continue;
                                 }
@@ -400,7 +397,6 @@ impl ModelProvider for ClaudeProvider {
                                         continue;
                                     }
 
-                                    // BUG FIX: Check for Anthropic error envelope before parsing
                                     if let Ok(err_envelope) =
                                         serde_json::from_str::<ClaudeErrorEnvelope>(data)
                                     {
@@ -421,7 +417,6 @@ impl ModelProvider for ClaudeProvider {
                                         continue;
                                     }
 
-                                    // BUG FIX: Use `match` to log parse failures
                                     match serde_json::from_str::<ClaudeEvent>(data) {
                                         Ok(event) => {
                                             if let Some(delta) = &event.delta {
@@ -477,8 +472,6 @@ impl ModelProvider for ClaudeProvider {
                 },
             )
             .flat_map(|s| s);
-
-        // NOTE (Bug 4): Same as OpenAI — agent loop must handle stream-end-without-Done.
 
         Ok(Box::pin(stream))
     }

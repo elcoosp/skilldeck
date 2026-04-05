@@ -1,5 +1,5 @@
 // src/components/conversation/message-input.tsx
-// (full file with concierge-ui additions except model switcher)
+// Full file with concierge-ui additions (suggested prompts, auto-approve toggle, thinking mode)
 
 import { open } from '@tauri-apps/plugin-dialog'
 import { openUrl } from '@tauri-apps/plugin-opener'
@@ -14,7 +14,8 @@ import {
   Square,
   Timer,
   Shield,
-  ShieldCheck
+  ShieldCheck,
+  BrainCircuit
 } from 'lucide-react'
 import {
   useCallback,
@@ -67,6 +68,7 @@ import { useChatContextStore } from '@/store/chat-context-store'
 import { useConversationStore } from '@/store/conversation'
 import { useQueueStore } from '@/store/queue'
 import { useSettingsStore } from '@/store/settings'
+import { useToolApprovalStore } from '@/store/tool-approvals'
 import { useUIEphemeralStore } from '@/store/ui-ephemeral'
 import { useWorkspaceStore } from '@/store/workspace'
 import type {
@@ -562,6 +564,10 @@ export function MessageInput({
   const setToolApprovals = useSettingsStore((s) => s.setToolApprovals)
   const hasAnyApproval = toolApprovals.autoApproveReads || toolApprovals.autoApproveWrites || toolApprovals.autoApproveShell || toolApprovals.autoApproveHttpRequests
 
+  // ── Thinking mode toggle (F02) ────────────────────────────────────────────
+  const thinkingEnabled = useSettingsStore((s) => s.thinkingEnabled)
+  const setThinkingEnabled = useSettingsStore((s) => s.setThinkingEnabled)
+
   // ── Submit / Queue ────────────────────────────────────────────────────────
 
   const submit = useCallback(async () => {
@@ -630,7 +636,8 @@ export function MessageInput({
     try {
       await sendMutation.mutateAsync({
         content: finalContent,
-        contextItems: metadataItems.length > 0 ? metadataItems : undefined
+        contextItems: metadataItems.length > 0 ? metadataItems : undefined,
+        thinking: thinkingEnabled  // <-- Add thinking flag
       })
       playSound('messageSent')
       onRequestScrollToBottom?.()
@@ -654,7 +661,8 @@ export function MessageInput({
     currentItems,
     sendMutation,
     onRequestScrollToBottom,
-    readiness
+    readiness,
+    thinkingEnabled  // <-- Add dependency
   ])
 
   // Get messages count for suggested prompts
@@ -865,6 +873,17 @@ export function MessageInput({
                 </>
               )}
             </AnimatePresence>
+
+            {/* Thinking mode toggle (F02) */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn('h-8 w-8', thinkingEnabled && 'text-primary')}
+              onClick={() => setThinkingEnabled(!thinkingEnabled)}
+              title={thinkingEnabled ? 'Thinking mode ON' : 'Thinking mode OFF'}
+            >
+              <BrainCircuit className="h-4 w-4" />
+            </Button>
 
             {/* Auto-approve toggle button (F17) */}
             <DropdownMenu>
