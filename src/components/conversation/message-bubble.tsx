@@ -585,7 +585,7 @@ function MessageBubbleInner({
       <SubagentCard
         stepName={subagentData.task || 'Subagent'}
         status="running"
-        onOpen={() => { }}
+        onOpen={() => {}}
       />
     )
   }
@@ -923,7 +923,10 @@ function MessageBubbleInner({
   return (
     <motion.div
       id={`msg-${message.id}`}
-      className={cn('flex gap-3 max-w-full group', isUser && 'flex-row-reverse')}
+      className={cn(
+        'flex gap-3 max-w-full group',
+        isUser && 'flex-row-reverse'
+      )}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.15, ease: 'easeOut' }}
@@ -1086,7 +1089,8 @@ function MessageBubbleInner({
           <AlertDialogHeader>
             <AlertDialogTitle>Edit Message</AlertDialogTitle>
             <AlertDialogDescription>
-              Edit in place to replace this message, or edit on a new branch to preserve the original conversation.
+              Edit in place to replace this message, or edit on a new branch to
+              preserve the original conversation.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -29,88 +29,88 @@ import { Route as AppConversationsConversationIdRouteImport } from './routes/_ap
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => rootRouteImport
 } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AppRoute,
+  getParentRoute: () => AppRoute
 } as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
-  getParentRoute: () => AppRoute,
+  getParentRoute: () => AppRoute
 } as any)
 const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AppSettingsRoute,
+  getParentRoute: () => AppSettingsRoute
 } as any)
 const AppSharedShareTokenRoute = AppSharedShareTokenRouteImport.update({
   id: '/shared/$shareToken',
   path: '/shared/$shareToken',
-  getParentRoute: () => AppRoute,
+  getParentRoute: () => AppRoute
 } as any)
 const AppSettingsSourcesRoute = AppSettingsSourcesRouteImport.update({
   id: '/sources',
   path: '/sources',
-  getParentRoute: () => AppSettingsRoute,
+  getParentRoute: () => AppSettingsRoute
 } as any)
 const AppSettingsShortcutsRoute = AppSettingsShortcutsRouteImport.update({
   id: '/shortcuts',
   path: '/shortcuts',
-  getParentRoute: () => AppSettingsRoute,
+  getParentRoute: () => AppSettingsRoute
 } as any)
 const AppSettingsReferralRoute = AppSettingsReferralRouteImport.update({
   id: '/referral',
   path: '/referral',
-  getParentRoute: () => AppSettingsRoute,
+  getParentRoute: () => AppSettingsRoute
 } as any)
 const AppSettingsProfilesRoute = AppSettingsProfilesRouteImport.update({
   id: '/profiles',
   path: '/profiles',
-  getParentRoute: () => AppSettingsRoute,
+  getParentRoute: () => AppSettingsRoute
 } as any)
 const AppSettingsPreferencesRoute = AppSettingsPreferencesRouteImport.update({
   id: '/preferences',
   path: '/preferences',
-  getParentRoute: () => AppSettingsRoute,
+  getParentRoute: () => AppSettingsRoute
 } as any)
 const AppSettingsPlatformRoute = AppSettingsPlatformRouteImport.update({
   id: '/platform',
   path: '/platform',
-  getParentRoute: () => AppSettingsRoute,
+  getParentRoute: () => AppSettingsRoute
 } as any)
 const AppSettingsLintRoute = AppSettingsLintRouteImport.update({
   id: '/lint',
   path: '/lint',
-  getParentRoute: () => AppSettingsRoute,
+  getParentRoute: () => AppSettingsRoute
 } as any)
 const AppSettingsApprovalsRoute = AppSettingsApprovalsRouteImport.update({
   id: '/approvals',
   path: '/approvals',
-  getParentRoute: () => AppSettingsRoute,
+  getParentRoute: () => AppSettingsRoute
 } as any)
 const AppSettingsAppearanceRoute = AppSettingsAppearanceRouteImport.update({
   id: '/appearance',
   path: '/appearance',
-  getParentRoute: () => AppSettingsRoute,
+  getParentRoute: () => AppSettingsRoute
 } as any)
 const AppSettingsApiKeysRoute = AppSettingsApiKeysRouteImport.update({
   id: '/api-keys',
   path: '/api-keys',
-  getParentRoute: () => AppSettingsRoute,
+  getParentRoute: () => AppSettingsRoute
 } as any)
 const AppSettingsAchievementsRoute = AppSettingsAchievementsRouteImport.update({
   id: '/achievements',
   path: '/achievements',
-  getParentRoute: () => AppSettingsRoute,
+  getParentRoute: () => AppSettingsRoute
 } as any)
 const AppConversationsConversationIdRoute =
   AppConversationsConversationIdRouteImport.update({
     id: '/conversations/$conversationId',
     path: '/conversations/$conversationId',
-    getParentRoute: () => AppRoute,
+    getParentRoute: () => AppRoute
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -380,11 +380,11 @@ const AppSettingsRouteChildren: AppSettingsRouteChildren = {
   AppSettingsReferralRoute: AppSettingsReferralRoute,
   AppSettingsShortcutsRoute: AppSettingsShortcutsRoute,
   AppSettingsSourcesRoute: AppSettingsSourcesRoute,
-  AppSettingsIndexRoute: AppSettingsIndexRoute,
+  AppSettingsIndexRoute: AppSettingsIndexRoute
 }
 
 const AppSettingsRouteWithChildren = AppSettingsRoute._addFileChildren(
-  AppSettingsRouteChildren,
+  AppSettingsRouteChildren
 )
 
 interface AppRouteChildren {
@@ -398,13 +398,13 @@ const AppRouteChildren: AppRouteChildren = {
   AppSettingsRoute: AppSettingsRouteWithChildren,
   AppIndexRoute: AppIndexRoute,
   AppConversationsConversationIdRoute: AppConversationsConversationIdRoute,
-  AppSharedShareTokenRoute: AppSharedShareTokenRoute,
+  AppSharedShareTokenRoute: AppSharedShareTokenRoute
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
-  AppRoute: AppRouteWithChildren,
+  AppRoute: AppRouteWithChildren
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

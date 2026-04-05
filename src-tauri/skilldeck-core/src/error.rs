@@ -129,6 +129,12 @@ pub enum CoreError {
     #[error("Maximum subagent depth ({max_depth}) exceeded")]
     SubagentMaxDepth { max_depth: u32 },
 
+    #[error("Subagent not found: {0}")]
+    SubagentNotFound(String),
+
+    #[error("Tool dispatch failed for '{tool}': {reason}")]
+    ToolDispatchFailed { tool: String, reason: String },
+
     // =========================================================================
     // Database Errors
     // =========================================================================
@@ -320,6 +326,8 @@ impl CoreError {
             CoreError::SubagentSpawn { .. } => "SUBAGENT_SPAWN",
             CoreError::SubagentExecution { .. } => "SUBAGENT_EXECUTION",
             CoreError::SubagentMaxDepth { .. } => "SUBAGENT_MAX_DEPTH",
+            CoreError::SubagentNotFound { .. } => "SUBAGENT_NOT_FOUND",
+            CoreError::ToolDispatchFailed { .. } => "TOOL_DISPATCH_FAILED",
             // Database errors
             CoreError::DatabaseConnection { .. } => "DATABASE_CONNECTION",
             CoreError::DatabaseQuery { .. } => "DATABASE_QUERY",

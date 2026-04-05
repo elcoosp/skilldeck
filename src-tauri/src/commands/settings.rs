@@ -62,11 +62,11 @@ pub async fn set_api_key(
     match provider.as_str() {
         "claude" => {
             state.registry.register_provider(ClaudeProvider::new(key));
-            tracing::info!("Claude provider re-registered with new key");
+            tracing::debug!("Claude provider re-registered with new key");
         }
         "openai" => {
             state.registry.register_provider(OpenAiProvider::new(key));
-            tracing::info!("OpenAI provider re-registered with new key");
+            tracing::debug!("OpenAI provider re-registered with new key");
         }
         _ => {}
     }

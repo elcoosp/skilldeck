@@ -7,7 +7,11 @@ export interface KeyboardShortcut {
 
 export const keyboardShortcuts: KeyboardShortcut[] = [
   // Navigation
-  { keys: 'Cmd+K', description: 'Open command palette', category: 'navigation' },
+  {
+    keys: 'Cmd+K',
+    description: 'Open command palette',
+    category: 'navigation'
+  },
   { keys: 'Cmd+Shift+F', description: 'Global search', category: 'navigation' },
   { keys: 'Cmd+N', description: 'New conversation', category: 'navigation' },
   // App
@@ -16,8 +20,12 @@ export const keyboardShortcuts: KeyboardShortcut[] = [
   // Conversation
   { keys: 'Cmd+Enter', description: 'Send message', category: 'conversation' },
   { keys: 'Shift+Enter', description: 'New line', category: 'conversation' },
-  { keys: 'Esc', description: 'Close modal / Cancel', category: 'conversation' },
+  {
+    keys: 'Esc',
+    description: 'Close modal / Cancel',
+    category: 'conversation'
+  },
   // Editing
   { keys: 'Cmd+Z', description: 'Undo', category: 'editing' },
-  { keys: 'Cmd+Shift+Z', description: 'Redo', category: 'editing' },
+  { keys: 'Cmd+Shift+Z', description: 'Redo', category: 'editing' }
 ]

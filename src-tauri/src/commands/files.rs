@@ -9,6 +9,27 @@ use serde::{Deserialize, Serialize};
 use specta::{Type, specta};
 use std::path::PathBuf;
 
+/// Validate that a path falls within allowed workspace roots.
+fn validate_path(path: &str) -> Result<std::path::PathBuf, String> {
+    let canonical =
+        std::fs::canonicalize(path).map_err(|e| format!("Invalid path '{}': {}", path, e))?;
+
+    // Allow home directory and current working directory
+    let allowed_roots: Vec<std::path::PathBuf> =
+        [dirs_next::home_dir(), std::env::current_dir().ok()]
+            .into_iter()
+            .flatten()
+            .collect();
+
+    if !allowed_roots.iter().any(|root| canonical.starts_with(root)) {
+        return Err(format!(
+            "Path '{}' is outside allowed workspace directories",
+            path
+        ));
+    }
+    Ok(canonical)
+}
+
 /// A single file or directory entry returned by `list_directory_contents`.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct FileEntry {
@@ -32,8 +53,9 @@ pub struct FolderCounts {
 #[specta]
 #[tauri::command]
 pub async fn list_directory_contents(path: String) -> Result<Vec<FileEntry>, String> {
+    let validated = validate_path(&path)?;
     tokio::task::spawn_blocking(move || {
-        let dir_path = PathBuf::from(&path);
+        let dir_path = validated;
 
         if !dir_path.exists() || !dir_path.is_dir() {
             return Err(format!("'{}' is not a valid directory", path));
@@ -102,8 +124,9 @@ pub async fn list_directory_contents(path: String) -> Result<Vec<FileEntry>, Str
 #[specta]
 #[tauri::command]
 pub async fn count_folder_files(path: String) -> Result<FolderCounts, String> {
+    let validated = validate_path(&path)?;
     tokio::task::spawn_blocking(move || {
-        let dir_path = PathBuf::from(&path);
+        let dir_path = validated;
 
         if !dir_path.exists() || !dir_path.is_dir() {
             return Err(format!("'{}' is not a valid directory", path));
@@ -163,6 +186,7 @@ pub async fn open_folder(path: String) -> Result<(), String> {
     #[cfg(target_os = "linux")]
     {
         std::process::Command::new("xdg-open")
+            .arg("--")
             .arg(&path)
             .spawn()
             .map_err(|e| e.to_string())?;
@@ -184,8 +208,9 @@ pub struct ReadFileResponse {
 #[specta]
 #[tauri::command]
 pub async fn read_file(req: ReadFileRequest) -> Result<ReadFileResponse, String> {
+    let validated = validate_path(&req.path)?;
     tokio::task::spawn_blocking(move || {
-        let path = std::path::PathBuf::from(&req.path);
+        let path = validated;
         let metadata = std::fs::metadata(&path).map_err(|e| e.to_string())?;
         if !metadata.is_file() {
             return Err("Path is not a file".to_string());
@@ -230,8 +255,9 @@ pub struct AssembleFolderResponse {
 #[specta]
 #[tauri::command]
 pub async fn assemble_folder(req: AssembleFolderRequest) -> Result<AssembleFolderResponse, String> {
+    let validated = validate_path(&req.path)?;
     tokio::task::spawn_blocking(move || {
-        let path = std::path::PathBuf::from(&req.path);
+        let path = validated;
         let (content, count) = crate::skills::folder_assembler::assemble_folder_context(
             &path,
             req.deep,

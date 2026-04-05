@@ -156,7 +156,8 @@ export function LeftPanel() {
   const { profileId, setProfileId } = useProfileFilter()
 
   // F04: Sort preference from settings store
-  const conversationSort = useSettingsStore((s) => s.conversationSort) ?? 'updated'
+  const conversationSort =
+    useSettingsStore((s) => s.conversationSort) ?? 'updated'
   // F08: Preferred editor from settings store
   const preferredEditor = useSettingsStore((s) => s.preferredEditor) ?? 'system'
 

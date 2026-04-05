@@ -2,7 +2,12 @@
 import { useState } from 'react'
 import { X, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
 import { suggestedPrompts } from '@/lib/suggested-prompts'
 import { useUIEphemeralStore } from '@/store/ui-ephemeral'
 
@@ -12,7 +17,7 @@ const categoryLabels: Record<string, string> = {
   analysis: 'Analysis',
   debugging: 'Debugging',
   planning: 'Planning',
-  brainstorming: 'Brainstorming',
+  brainstorming: 'Brainstorming'
 }
 
 interface SuggestedPromptsProps {
@@ -21,10 +26,17 @@ interface SuggestedPromptsProps {
   onSelect: (prompt: string) => void
 }
 
-export function SuggestedPrompts({ conversationId, hasMessages, onSelect }: SuggestedPromptsProps) {
+export function SuggestedPrompts({
+  conversationId,
+  hasMessages,
+  onSelect
+}: SuggestedPromptsProps) {
   const [exploreOpen, setExploreOpen] = useState(false)
-  const dismissed = useUIEphemeralStore((s) => s.suggestedPromptsDismissed) ?? {}
-  const setSuggestedPromptsDismissed = useUIEphemeralStore((s) => s.setSuggestedPromptsDismissed)
+  const dismissed =
+    useUIEphemeralStore((s) => s.suggestedPromptsDismissed) ?? {}
+  const setSuggestedPromptsDismissed = useUIEphemeralStore(
+    (s) => s.setSuggestedPromptsDismissed
+  )
 
   // Guard: if conversationId is null or hasMessages true or already dismissed, don't render
   if (!conversationId || hasMessages || dismissed[conversationId]) return null
@@ -74,20 +86,26 @@ export function SuggestedPrompts({ conversationId, hasMessages, onSelect }: Sugg
               <div key={cat}>
                 <h4 className="mb-2 text-sm font-medium">{label}</h4>
                 <div className="flex flex-wrap gap-1.5">
-                  {suggestedPrompts.filter(p => p.category === cat).map((p) => (
-                    <button
-                      key={p.id}
-                      onClick={() => { onSelect(p.prompt); setExploreOpen(false) }}
-                      className="rounded-full border bg-background px-2.5 py-1 text-xs transition-colors hover:bg-accent hover:text-primary-foreground"
-                    >
-                      {p.label}
-                    </button>
-                  ))}
+                  {suggestedPrompts
+                    .filter((p) => p.category === cat)
+                    .map((p) => (
+                      <button
+                        key={p.id}
+                        onClick={() => {
+                          onSelect(p.prompt)
+                          setExploreOpen(false)
+                        }}
+                        className="rounded-full border bg-background px-2.5 py-1 text-xs transition-colors hover:bg-accent hover:text-primary-foreground"
+                      >
+                        {p.label}
+                      </button>
+                    ))}
                 </div>
               </div>
             ))}
           </div>
         </DialogContent>
       </Dialog>
-    </div>)
+    </div>
+  )
 }

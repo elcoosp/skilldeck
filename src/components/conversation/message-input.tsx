@@ -545,7 +545,11 @@ export function MessageInput({
   // ── Auto-approve toggle (F17) ────────────────────────────────────────────
   const toolApprovals = useSettingsStore((s) => s.toolApprovals)
   const setToolApprovals = useSettingsStore((s) => s.setToolApprovals)
-  const hasAnyApproval = toolApprovals.autoApproveReads || toolApprovals.autoApproveWrites || toolApprovals.autoApproveShell || toolApprovals.autoApproveHttpRequests
+  const hasAnyApproval =
+    toolApprovals.autoApproveReads ||
+    toolApprovals.autoApproveWrites ||
+    toolApprovals.autoApproveShell ||
+    toolApprovals.autoApproveHttpRequests
 
   // ── Thinking mode toggle (F02) ────────────────────────────────────────────
   const thinkingEnabled = useSettingsStore((s) => s.thinkingEnabled)
@@ -910,12 +914,26 @@ export function MessageInput({
                   size="icon"
                   className={cn('h-8 w-8', hasAnyApproval && 'text-green-500')}
                 >
-                  {hasAnyApproval ? <ShieldCheck className="h-4 w-4" /> : <Shield className="h-4 w-4" />}
+                  {hasAnyApproval ? (
+                    <ShieldCheck className="h-4 w-4" />
+                  ) : (
+                    <Shield className="h-4 w-4" />
+                  )}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
-                {(['autoApproveReads', 'autoApproveWrites', 'autoApproveShell', 'autoApproveHttpRequests'] as const).map((key) => {
-                  const label = key.replace('autoApprove', '').replace(/([A-Z])/g, ' $1').trim()
+                {(
+                  [
+                    'autoApproveReads',
+                    'autoApproveWrites',
+                    'autoApproveShell',
+                    'autoApproveHttpRequests'
+                  ] as const
+                ).map((key) => {
+                  const label = key
+                    .replace('autoApprove', '')
+                    .replace(/([A-Z])/g, ' $1')
+                    .trim()
                   return (
                     <DropdownMenuItem
                       key={key}
@@ -923,8 +941,14 @@ export function MessageInput({
                         setToolApprovals({ [key]: !toolApprovals[key] })
                       }}
                     >
-                      <span className={toolApprovals[key] ? 'text-green-500' : ''}>{label}</span>
-                      <span className="ml-auto">{toolApprovals[key] ? 'ON' : 'OFF'}</span>
+                      <span
+                        className={toolApprovals[key] ? 'text-green-500' : ''}
+                      >
+                        {label}
+                      </span>
+                      <span className="ml-auto">
+                        {toolApprovals[key] ? 'ON' : 'OFF'}
+                      </span>
                     </DropdownMenuItem>
                   )
                 })}

@@ -162,3 +162,6 @@ async fn agent_loop_max_tool_iterations() {
     // Should have executed 3 tool iterations (each adds assistant+tool message).
     assert_eq!(result.messages.len(), 6); // 3 assistant + 3 tool results
 }
+
+
+

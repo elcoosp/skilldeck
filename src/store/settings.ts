@@ -125,15 +125,18 @@ export const useSettingsStore = create<SettingsState>()(
       audioEnabled: false,
       setAudioEnabled: (enabled) => set({ audioEnabled: enabled }),
       audioVolume: 0.5,
-      setAudioVolume: (volume) => set({ audioVolume: Math.min(1, Math.max(0, volume)) }),
+      setAudioVolume: (volume) =>
+        set({ audioVolume: Math.min(1, Math.max(0, volume)) }),
       autoCompactionEnabled: false,
-      setAutoCompactionEnabled: (enabled) => set({ autoCompactionEnabled: enabled }),
+      setAutoCompactionEnabled: (enabled) =>
+        set({ autoCompactionEnabled: enabled }),
       compactionTokenThreshold: 80000,
-      setCompactionTokenThreshold: (threshold) => set({ compactionTokenThreshold: threshold })
+      setCompactionTokenThreshold: (threshold) =>
+        set({ compactionTokenThreshold: threshold })
     }),
     {
       name: 'skilldeck-settings',
-      version: 3,
+      version: 3
     }
   )
 )

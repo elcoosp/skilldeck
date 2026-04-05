@@ -16,3 +16,6 @@ async fn stats_returns_known_tables() {
     assert!(stats.contains_key("profiles"));
     assert!(stats.contains_key("conversations"));
 }
+
+
+

@@ -107,7 +107,11 @@ export function SkillSources() {
                 label: 'Workspace (.skilldeck/skills/)',
                 priority: 1
               },
-              { icon: Home, label: 'Personal (~/.agents/skills/)', priority: 2 },
+              {
+                icon: Home,
+                label: 'Personal (~/.agents/skills/)',
+                priority: 2
+              },
               { icon: Globe, label: 'Registry (platform)', priority: 3 }
             ].map((item, idx) => {
               const key = `order-${item.priority}-${item.label}`
@@ -130,7 +134,9 @@ export function SkillSources() {
 
           {/* Source list */}
           {isLoading ? (
-            <div className="text-xs text-muted-foreground">Loading sources…</div>
+            <div className="text-xs text-muted-foreground">
+              Loading sources…
+            </div>
           ) : (
             <div className="space-y-1.5">
               {sortedSources.length === 0 && (

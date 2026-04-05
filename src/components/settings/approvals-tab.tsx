@@ -7,27 +7,27 @@ const APPROVAL_FIELDS: Array<{
   label: string
   description: string
 }> = [
-    {
-      key: 'autoApproveReads',
-      label: 'Auto-approve file reads',
-      description: 'Skip the approval dialog for read-only filesystem tools'
-    },
-    {
-      key: 'autoApproveWrites',
-      label: 'Auto-approve file writes',
-      description: 'Skip approval for file creation and modification'
-    },
-    {
-      key: 'autoApproveShell',
-      label: 'Auto-approve shell commands',
-      description: 'Never require approval for shell execution (⚠ dangerous)'
-    },
-    {
-      key: 'autoApproveHttpRequests',
-      label: 'Auto-approve HTTP requests',
-      description: 'Skip approval for outbound HTTP tool calls'
-    }
-  ]
+  {
+    key: 'autoApproveReads',
+    label: 'Auto-approve file reads',
+    description: 'Skip the approval dialog for read-only filesystem tools'
+  },
+  {
+    key: 'autoApproveWrites',
+    label: 'Auto-approve file writes',
+    description: 'Skip approval for file creation and modification'
+  },
+  {
+    key: 'autoApproveShell',
+    label: 'Auto-approve shell commands',
+    description: 'Never require approval for shell execution (⚠ dangerous)'
+  },
+  {
+    key: 'autoApproveHttpRequests',
+    label: 'Auto-approve HTTP requests',
+    description: 'Skip approval for outbound HTTP tool calls'
+  }
+]
 
 export function ApprovalsTab() {
   const toolApprovals = useSettingsStore((s) => s.toolApprovals)
@@ -35,7 +35,10 @@ export function ApprovalsTab() {
 
   return (
     <div className="divide-y divide-border">
-      <SettingsSection title="Tool Approvals" description="Configure which tool categories skip the approval gate. All options are off by default for maximum safety.">
+      <SettingsSection
+        title="Tool Approvals"
+        description="Configure which tool categories skip the approval gate. All options are off by default for maximum safety."
+      >
         <div className="space-y-3 text-left">
           {APPROVAL_FIELDS.map(({ key, label, description }) => (
             <label
@@ -46,7 +49,9 @@ export function ApprovalsTab() {
                 <input
                   type="checkbox"
                   checked={toolApprovals[key]}
-                  onChange={(e) => setToolApprovals({ [key]: e.target.checked })}
+                  onChange={(e) =>
+                    setToolApprovals({ [key]: e.target.checked })
+                  }
                   className="sr-only"
                 />
                 <div

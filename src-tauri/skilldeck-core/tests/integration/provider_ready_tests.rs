@@ -11,3 +11,6 @@ async fn test_check_provider_ready_with_valid_ollama_profile() {
     let info = result.unwrap();
     assert_eq!(info.status.status, "ready");
 }
+
+
+

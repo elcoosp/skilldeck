@@ -1,4 +1,9 @@
-import { createFileRoute, Outlet, useLocation, useRouter } from '@tanstack/react-router'
+import {
+  createFileRoute,
+  Outlet,
+  useLocation,
+  useRouter
+} from '@tanstack/react-router'
 import {
   AlertTriangle,
   Bell,

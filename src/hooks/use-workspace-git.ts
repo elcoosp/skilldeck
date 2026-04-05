@@ -13,6 +13,6 @@ export function useWorkspaceGitStatus(workspacePath: string | undefined) {
     queryFn: () => invoke<GitStatus>('check_git_status', { workspacePath }),
     enabled: !!workspacePath,
     staleTime: 60_000, // Check once per minute
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: true
   })
 }

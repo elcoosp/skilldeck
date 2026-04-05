@@ -65,7 +65,10 @@ export function ApiKeysTab() {
 
   return (
     <div className="divide-y divide-border">
-      <SettingsSection title="API Keys" description="Keys are stored exclusively in the OS keychain — never in the database.">
+      <SettingsSection
+        title="API Keys"
+        description="Keys are stored exclusively in the OS keychain — never in the database."
+      >
         <div className="space-y-4">
           {PROVIDERS.map(({ id, label, placeholder }) => {
             const status = keyStatuses.find((k: any) => k.provider === id)
@@ -93,7 +96,9 @@ export function ApiKeysTab() {
                       onChange={(e) =>
                         setValues((v) => ({ ...v, [id]: e.target.value }))
                       }
-                      placeholder={hasKey ? '••••••••••••• (replace)' : placeholder}
+                      placeholder={
+                        hasKey ? '••••••••••••• (replace)' : placeholder
+                      }
                       className={cn(
                         'w-full h-8 rounded-md border border-input bg-background px-3 pr-9 text-sm',
                         'placeholder:text-muted-foreground focus-visible:outline-none',
@@ -103,7 +108,9 @@ export function ApiKeysTab() {
                     />
                     <button
                       type="button"
-                      onClick={() => setVisible((v) => ({ ...v, [id]: !v[id] }))}
+                      onClick={() =>
+                        setVisible((v) => ({ ...v, [id]: !v[id] }))
+                      }
                       className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     >
                       {visible[id] ? (

@@ -4,7 +4,7 @@ import { useSettingsStore } from '@/store/settings'
 const sounds = {
   messageSent: new Audio('/sounds/send.mp3'),
   messageReceived: new Audio('/sounds/receive.mp3'),
-  toolApproved: new Audio('/sounds/approve.mp3'),
+  toolApproved: new Audio('/sounds/approve.mp3')
 } as const
 
 export type SoundName = keyof typeof sounds

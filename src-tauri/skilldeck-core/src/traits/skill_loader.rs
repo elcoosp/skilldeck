@@ -7,6 +7,11 @@ use std::path::PathBuf;
 use crate::CoreError;
 use skilldeck_lint::LintWarning;
 
+/// Default quality score for skills that don't explicitly set one.
+pub const DEFAULT_QUALITY_SCORE: u8 = 5;
+/// Default security score for skills that don't explicitly set one.
+pub const DEFAULT_SECURITY_SCORE: u8 = 5;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SkillSource {
     Filesystem(PathBuf),
@@ -58,8 +63,8 @@ impl Skill {
             source,
             content_hash: None,
             lint_warnings: None,
-            security_score: 5,
-            quality_score: 5,
+            security_score: DEFAULT_SECURITY_SCORE,
+            quality_score: DEFAULT_QUALITY_SCORE,
         }
     }
 

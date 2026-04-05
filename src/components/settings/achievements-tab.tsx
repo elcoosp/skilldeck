@@ -23,7 +23,9 @@ export function AchievementsTab() {
               <span className="text-2xl">{ach.emoji}</span>
               <div>
                 <p className="font-medium">{ach.title}</p>
-                <p className="text-xs text-muted-foreground">{ach.description}</p>
+                <p className="text-xs text-muted-foreground">
+                  {ach.description}
+                </p>
               </div>
               {isUnlocked(ach.key) && (
                 <CheckCircle2 className="ml-auto text-green-500" />

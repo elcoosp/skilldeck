@@ -3,11 +3,11 @@
 //!
 //! Run with: cargo test --manifest-path src-tauri/skilldeck-lint/Cargo.toml
 
-use skilldeck_lint::{lint_skill, LintConfig};
+use skilldeck_lint::{LintConfig, lint_skill};
+use std::fs;
 use std::path::Path;
 use std::process::Command;
 use tempfile::TempDir;
-use std::fs;
 
 fn write_sample_skill(dir: &TempDir) {
     let skill_dir = dir.path().join("sample-skill");
@@ -92,11 +92,7 @@ fn test_all_warnings_have_rule_ids() {
     let config = LintConfig::default();
     let warnings = lint_skill(&skill_path, &config);
     for w in &warnings {
-        assert!(
-            !w.rule_id.is_empty(),
-            "Warning has empty rule_id: {:?}",
-            w
-        );
+        assert!(!w.rule_id.is_empty(), "Warning has empty rule_id: {:?}", w);
     }
 }
 

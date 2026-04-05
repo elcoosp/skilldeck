@@ -52,7 +52,9 @@ export function ProfilesTab() {
   const [newSystemPrompt, setNewSystemPrompt] = useState('')
 
   // State for inline system prompt editor
-  const [expandedProfileId, setExpandedProfileId] = useState<string | null>(null)
+  const [expandedProfileId, setExpandedProfileId] = useState<string | null>(
+    null
+  )
   const [editSystemPrompt, setEditSystemPrompt] = useState('')
 
   const { data: allProfiles = [], isLoading } = useProfiles(true)
@@ -194,7 +196,9 @@ export function ProfilesTab() {
               <div className="size-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
             </div>
           ) : activeProfiles.length === 0 ? (
-            <p className="text-sm text-muted-foreground italic">No profiles yet.</p>
+            <p className="text-sm text-muted-foreground italic">
+              No profiles yet.
+            </p>
           ) : (
             <div className="space-y-2">
               {activeProfiles.map((p: any) => (
@@ -210,7 +214,9 @@ export function ProfilesTab() {
                   <div className="flex items-center gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-sm font-medium truncate">{p.name}</span>
+                        <span className="text-sm font-medium truncate">
+                          {p.name}
+                        </span>
                         {p.is_default && (
                           <Badge
                             variant="outline"
@@ -277,7 +283,9 @@ export function ProfilesTab() {
                   {/* Inline system prompt editor */}
                   {expandedProfileId === p.id && (
                     <div className="mt-3 border-t pt-3">
-                      <label className="text-sm font-medium">Personality / System Prompt</label>
+                      <label className="text-sm font-medium">
+                        Personality / System Prompt
+                      </label>
                       <Textarea
                         className="mt-1.5 min-h-[100px]"
                         placeholder="You are a helpful assistant with a concise, direct style..."

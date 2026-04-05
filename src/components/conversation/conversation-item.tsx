@@ -304,7 +304,9 @@ export function ConversationItem({
           {isStreaming ? (
             <div className="flex items-center gap-1">
               <BouncingDots />
-              <span className="text-[11px] text-muted-foreground/70">Streaming...</span>
+              <span className="text-[11px] text-muted-foreground/70">
+                Streaming...
+              </span>
             </div>
           ) : (
             <span>

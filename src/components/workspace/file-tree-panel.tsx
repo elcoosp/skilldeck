@@ -30,7 +30,7 @@ function FileTreeItem({ entry, depth = 0 }: FileTreeItemProps) {
     } else {
       const schemes: Record<string, string> = {
         vscode: 'vscode://file/',
-        cursor: 'cursor://file/',
+        cursor: 'cursor://file/'
       }
       const url = schemes[preferredEditor]
         ? `${schemes[preferredEditor]}${entry.path}`
@@ -66,9 +66,11 @@ function FileTreeItem({ entry, depth = 0 }: FileTreeItemProps) {
         )}
         <span className="truncate">{entry.name}</span>
       </button>
-      {entry.is_dir && expanded && entry.children.map((child) => (
-        <FileTreeItem key={child.path} entry={child} depth={depth + 1} />
-      ))}
+      {entry.is_dir &&
+        expanded &&
+        entry.children.map((child) => (
+          <FileTreeItem key={child.path} entry={child} depth={depth + 1} />
+        ))}
     </div>
   )
 }
@@ -80,12 +82,13 @@ export function FileTreePanel() {
 
   const { data: files, isLoading } = useQuery({
     queryKey: ['workspace-files', activeWorkspace?.path],
-    queryFn: () => invoke<FileEntry[]>('list_workspace_files', {
-      workspacePath: activeWorkspace!.path,
-      maxDepth: 4,
-    }),
+    queryFn: () =>
+      invoke<FileEntry[]>('list_workspace_files', {
+        workspacePath: activeWorkspace!.path,
+        maxDepth: 4
+      }),
     enabled: !!activeWorkspace?.path,
-    staleTime: 30_000,
+    staleTime: 30_000
   })
 
   if (!activeWorkspace) {
@@ -108,9 +111,7 @@ export function FileTreePanel() {
     <ScrollArea className="h-full">
       <div className="p-2">
         {files && files.length > 0 ? (
-          files.map((entry) => (
-            <FileTreeItem key={entry.path} entry={entry} />
-          ))
+          files.map((entry) => <FileTreeItem key={entry.path} entry={entry} />)
         ) : (
           <div className="p-4 text-center text-sm text-muted-foreground">
             No files found in workspace

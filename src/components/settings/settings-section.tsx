@@ -7,7 +7,11 @@ interface SettingsSectionProps {
   children: ReactNode
 }
 
-export function SettingsSection({ title, description, children }: SettingsSectionProps) {
+export function SettingsSection({
+  title,
+  description,
+  children
+}: SettingsSectionProps) {
   return (
     <section className="px-5 py-4">
       <div className="mb-1">

@@ -27,7 +27,7 @@ beforeEach(() => {
     audioEnabled: false,
     audioVolume: 0.5,
     autoCompactionEnabled: false,
-    compactionTokenThreshold: 80000,
+    compactionTokenThreshold: 80000
   })
 })
 
@@ -67,8 +67,12 @@ describe('toolApprovals', () => {
 
   it('setToolApprovals patches a single field', () => {
     useSettingsStore.getState().setToolApprovals({ autoApproveReads: true })
-    expect(useSettingsStore.getState().toolApprovals.autoApproveReads).toBe(true)
-    expect(useSettingsStore.getState().toolApprovals.autoApproveWrites).toBe(false)
+    expect(useSettingsStore.getState().toolApprovals.autoApproveReads).toBe(
+      true
+    )
+    expect(useSettingsStore.getState().toolApprovals.autoApproveWrites).toBe(
+      false
+    )
   })
 
   it('setToolApprovals patches multiple fields at once', () => {
@@ -83,7 +87,9 @@ describe('toolApprovals', () => {
   })
 
   it('autoApproveShell stays false by default', () => {
-    expect(useSettingsStore.getState().toolApprovals.autoApproveShell).toBe(false)
+    expect(useSettingsStore.getState().toolApprovals.autoApproveShell).toBe(
+      false
+    )
   })
 })
 

@@ -78,12 +78,16 @@ export const useUIEphemeralStore = create<UIState>((set) => ({
       streamingError: { ...state.streamingError, [conversationId]: error }
     })),
   conversationSearchQuery: '',
-  setConversationSearchQuery: (query) => set({ conversationSearchQuery: query }),
+  setConversationSearchQuery: (query) =>
+    set({ conversationSearchQuery: query }),
   // Concierge UI new fields
   suggestedPromptsDismissed: {},
   setSuggestedPromptsDismissed: (id, dismissed) =>
     set((state) => ({
-      suggestedPromptsDismissed: { ...state.suggestedPromptsDismissed, [id]: dismissed }
+      suggestedPromptsDismissed: {
+        ...state.suggestedPromptsDismissed,
+        [id]: dismissed
+      }
     })),
   gitInitDismissed: {},
   setGitInitDismissed: (path, dismissed) =>

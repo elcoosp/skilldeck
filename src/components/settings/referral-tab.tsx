@@ -108,7 +108,9 @@ export function ReferralTab() {
                   <button
                     type="button"
                     className="px-4 py-2 rounded-md bg-primary text-primary-foreground font-medium hover:bg-primary/90"
-                    onClick={() => router.navigate({ to: '/settings/platform' })}
+                    onClick={() =>
+                      router.navigate({ to: '/settings/platform' })
+                    }
                   >
                     Configure Platform
                   </button>

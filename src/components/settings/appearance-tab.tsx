@@ -15,7 +15,10 @@ export function AppearanceTab() {
 
   return (
     <div className="divide-y divide-border">
-      <SettingsSection title="Theme" description="Choose your preferred color scheme">
+      <SettingsSection
+        title="Theme"
+        description="Choose your preferred color scheme"
+      >
         <div className="flex gap-2">
           {(['light', 'dark', 'system'] as const).map((t) => (
             <button
@@ -35,7 +38,10 @@ export function AppearanceTab() {
         </div>
       </SettingsSection>
 
-      <SettingsSection title="Font Size" description="Adjust the base text size across the app">
+      <SettingsSection
+        title="Font Size"
+        description="Adjust the base text size across the app"
+      >
         <div className="flex gap-1">
           {(['sm', 'md', 'lg'] as const).map((size) => (
             <button
@@ -57,9 +63,14 @@ export function AppearanceTab() {
         </p>
       </SettingsSection>
 
-      <SettingsSection title="Sound Effects" description="Play sounds for chat actions">
+      <SettingsSection
+        title="Sound Effects"
+        description="Play sounds for chat actions"
+      >
         <div className="flex items-center justify-between">
-          <label htmlFor="audio-toggle" className="text-sm">Enable sounds</label>
+          <label htmlFor="audio-toggle" className="text-sm">
+            Enable sounds
+          </label>
           <Switch
             id="audio-toggle"
             checked={audioEnabled}

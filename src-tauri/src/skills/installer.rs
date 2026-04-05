@@ -49,7 +49,13 @@ pub fn install_skill(
     }
 
     fs::create_dir_all(&dest_path)?;
-    fs::write(dest_path.join("SKILL.md"), skill_content)?;
+
+    // Write to a temporary file first, then atomically rename to prevent
+    // partial writes from leaving corrupt skill files on disk.
+    let skill_file = dest_path.join("SKILL.md");
+    let tmp_path = skill_file.with_extension("tmp");
+    fs::write(&tmp_path, skill_content)?;
+    fs::rename(&tmp_path, &skill_file)?;
 
     info!(
         "Installed skill '{}' to '{}'",
@@ -89,7 +95,12 @@ pub fn update_skill(
     let dest_path = target_dir.join(skill_name);
 
     fs::create_dir_all(&dest_path)?;
-    fs::write(dest_path.join("SKILL.md"), new_content)?;
+
+    // Atomic write: temp file then rename.
+    let skill_file = dest_path.join("SKILL.md");
+    let tmp_path = skill_file.with_extension("tmp");
+    fs::write(&tmp_path, new_content)?;
+    fs::rename(&tmp_path, &skill_file)?;
 
     info!(
         "Updated skill '{}' at '{}'",

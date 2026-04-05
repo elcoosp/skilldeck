@@ -193,13 +193,16 @@ export const MessageThread = React.forwardRef<
     const activeWorkspace = workspaces?.find((w) => w.id === activeWorkspaceId)
     const { data: gitStatus } = useWorkspaceGitStatus(activeWorkspace?.path)
     const gitDismissed = useUIEphemeralStore((s) => s.gitInitDismissed)
-    const setGitInitDismissed = useUIEphemeralStore((s) => s.setGitInitDismissed)
+    const setGitInitDismissed = useUIEphemeralStore(
+      (s) => s.setGitInitDismissed
+    )
     const queryClient = useQueryClient()
 
-    const showGitHint = activeWorkspace?.path
-      && gitStatus
-      && !gitStatus.is_git_repo
-      && !gitDismissed[activeWorkspace.path]
+    const showGitHint =
+      activeWorkspace?.path &&
+      gitStatus &&
+      !gitStatus.is_git_repo &&
+      !gitDismissed[activeWorkspace.path]
 
     const handleGitInit = async (path: string) => {
       try {
@@ -309,10 +312,10 @@ export const MessageThread = React.forwardRef<
         const chipHeight =
           (msg.context_items?.length ?? 0) > 0
             ? estimateContextChipHeight(
-              msg.context_items!.length,
-              effectiveWidth,
-              DEFAULT_CHROME_CONFIG
-            )
+                msg.context_items!.length,
+                effectiveWidth,
+                DEFAULT_CHROME_CONFIG
+              )
             : 0
 
         return baseHeight + chipHeight
@@ -593,7 +596,7 @@ export const MessageThread = React.forwardRef<
         getScrollPosition: () => scrollRef.current?.scrollTop ?? 0,
         onScroll: (cb: () => void) => {
           const el = scrollRef.current
-          if (!el) return () => { }
+          if (!el) return () => {}
           el.addEventListener('scroll', cb, { passive: true })
           return () => el.removeEventListener('scroll', cb)
         }
@@ -633,7 +636,9 @@ export const MessageThread = React.forwardRef<
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => setGitInitDismissed(activeWorkspace!.path, true)}
+                      onClick={() =>
+                        setGitInitDismissed(activeWorkspace!.path, true)
+                      }
                       className="border-yellow-500/30 text-yellow-700 hover:bg-yellow-500/10 dark:text-yellow-300"
                     >
                       Dismiss
@@ -703,7 +708,7 @@ export const MessageThread = React.forwardRef<
                     const retryAvailable = (message as any).retryAvailable
                     const handleRetry = retryAvailable
                       ? () =>
-                        sendMutation.mutateAsync({ content: message.content })
+                          sendMutation.mutateAsync({ content: message.content })
                       : undefined
 
                     return (
