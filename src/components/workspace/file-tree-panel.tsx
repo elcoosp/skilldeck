@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { invoke } from '@tauri-apps/api/core'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { ChevronRight, ChevronDown, File, Folder } from 'lucide-react'
-import { useState, useCallback } from 'react'
+import { useState } from 'react'
 import { useWorkspaceStore } from '@/store/workspace'
 import { useSettingsStore } from '@/store/settings'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -75,7 +75,7 @@ function FileTreeItem({ entry, depth = 0 }: FileTreeItemProps) {
 
 export function FileTreePanel() {
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId)
-  const workspaces = useWorkspaceStore((s) => s.workspaces)
+  const workspaces = useWorkspaceStore((s) => s.workspaces) ?? []
   const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId)
 
   const { data: files, isLoading } = useQuery({
