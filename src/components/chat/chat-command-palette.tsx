@@ -113,7 +113,7 @@ export const ChatCommandPalette: React.FC<ChatCommandPaletteProps> = ({
           value={query}
           onChange={(e) => {
             let newVal = e.target.value
-            if (newVal.startsWith('@')) newVal = newVal.slice(1)
+            if (newVal.startsWith('$')) newVal = newVal.slice(1)
             onQueryChange?.(newVal)
           }}
           className="h-8 text-sm"

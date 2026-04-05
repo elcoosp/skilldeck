@@ -15,7 +15,8 @@ import {
   Timer,
   Shield,
   ShieldCheck,
-  BrainCircuit
+  BrainCircuit,
+  DollarSign
 } from 'lucide-react'
 import {
   useCallback,
@@ -271,7 +272,7 @@ export function MessageInput({
   const clearTriggerText = useCallback(
     (trigger: TriggerState) => {
       const charBefore = content[trigger.startIndex - 1]
-      if (charBefore === '@' || charBefore === '#') {
+      if (charBefore === '$' || charBefore === '#') {
         const before = content.substring(0, trigger.startIndex - 1)
         const after = content.substring(trigger.startIndex)
         setContent(before + after)
@@ -432,9 +433,9 @@ export function MessageInput({
       return
     }
 
-    if (e.key === '@' || e.key === '#') {
+    if (e.key === '$' || e.key === '#') {
       const cursorPos = e.currentTarget.selectionStart ?? 0
-      const type = e.key === '@' ? 'skill' : 'file'
+      const type = e.key === '$' ? 'skill' : 'file'
       setTriggerState({ type, query: '', startIndex: cursorPos + 1 })
       if (type === 'file' && effectiveWorkspaceRoot) {
         loadDirectory(effectiveWorkspaceRoot)
@@ -812,7 +813,7 @@ export function MessageInput({
               placeholder={
                 isRunning
                   ? 'Agent is running… (type to queue)'
-                  : 'Type a message… (@ for skills · # for files)'
+                  : 'Type a message… ($ for skills · # for files)'
               }
               disabled={false}
               className="w-full resize-none border-0 shadow-none bg-transparent focus-visible:ring-0 text-sm leading-6 py-2 px-1.5 overflow-y-auto thin-scrollbar min-h-[36px]"
@@ -940,7 +941,7 @@ export function MessageInput({
           className="h-6 px-2 text-xs gap-1"
           onClick={triggerSkillPicker}
         >
-          <AtSign className="size-3" />
+          <DollarSign className="size-3" />
           Skill
         </Button>
 
