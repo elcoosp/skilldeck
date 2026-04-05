@@ -4,54 +4,55 @@ import { notFound } from 'next/navigation'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { PageLayout } from '@/components/shared/PageLayout'
-import { getBlogPost, getAllBlogSlugs } from '@/lib/blog'
+import { getAllBlogSlugs, getBlogPost } from '@/lib/blog'
 
 interface BlogPostPageProps {
-  params: Promise<{ slug: string }>
+	params: Promise<{ slug: string }>
 }
 
 export async function generateStaticParams() {
-  const slugs = getAllBlogSlugs()
-  return slugs.map((slug) => ({ slug }))
+	const slugs = getAllBlogSlugs()
+	return slugs.map((slug) => ({ slug }))
 }
 
 export async function generateMetadata({ params }: BlogPostPageProps): Promise<Metadata> {
-  const { slug } = await params
-  const post = getBlogPost(slug)
-  return {
-    title: post?.title ?? 'Post Not Found',
-    description: post?.excerpt ?? '',
-  }
+	const { slug } = await params
+	const post = getBlogPost(slug)
+	return {
+		title: post?.title ?? 'Post Not Found',
+		description: post?.excerpt ?? '',
+	}
 }
 
 export default async function BlogPostPage({ params }: BlogPostPageProps) {
-  const { slug } = await params
-  const post = getBlogPost(slug)
+	const { slug } = await params
+	const post = getBlogPost(slug)
 
-  if (!post) {
-    notFound()
-  }
+	if (!post) {
+		notFound()
+	}
 
-  return (
-    <PageLayout>
-      <div className="py-16 sm:py-24">
-        <article className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-          <Link
-            href="/blog"
-            className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors mb-8"
-          >
-            &larr; Back to Blog
-          </Link>
+	return (
+		<PageLayout>
+			<div className="py-16 sm:py-24">
+				<article className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+					<Link
+						href="/blog"
+						className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors mb-8"
+					>
+						&larr; Back to Blog
+					</Link>
 
-          <header className="mb-10">
-            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4">{post.title}</h1>
-            <div className="flex items-center gap-3 text-sm text-muted-foreground">
-              <time>{post.date}</time>
-              <span>by {post.author}</span>
-            </div>
-          </header>
+					<header className="mb-10">
+						<h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4">{post.title}</h1>
+						<div className="flex items-center gap-3 text-sm text-muted-foreground">
+							<time>{post.date}</time>
+							<span>by {post.author}</span>
+						</div>
+					</header>
 
-          <div className="prose prose-invert prose-slate max-w-none
+					<div
+						className="prose prose-invert prose-slate max-w-none
             prose-headings:text-foreground prose-headings:font-bold
             prose-h1:text-3xl prose-h1:mt-10 prose-h1:mb-4
             prose-h2:text-2xl prose-h2:mt-10 prose-h2:mb-4
@@ -68,13 +69,12 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
             prose-blockquote:border-l-4 prose-blockquote:border-primary prose-blockquote:text-muted-foreground prose-blockquote:italic prose-blockquote:my-4 prose-blockquote:pl-4
             prose-hr:border-border prose-hr:my-8
             prose-img:rounded-xl
-          ">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {post.content}
-            </ReactMarkdown>
-          </div>
-        </article>
-      </div>
-    </PageLayout>
-  )
+          "
+					>
+						<ReactMarkdown remarkPlugins={[remarkGfm]}>{post.content}</ReactMarkdown>
+					</div>
+				</article>
+			</div>
+		</PageLayout>
+	)
 }

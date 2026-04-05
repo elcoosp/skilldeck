@@ -1,3 +1,3 @@
 export function TestimonialsSection() {
-  return null
+	return null
 }

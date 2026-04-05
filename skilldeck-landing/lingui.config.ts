@@ -20,3 +20,6 @@ const config: LinguiConfig = {
 };
 
 export default config;
+
+
+

@@ -1,7 +1,7 @@
 'use client'
 
-import { Plug, Blocks, SearchCheck, FolderGit2, Cpu } from 'lucide-react'
 import { useLingui } from '@lingui/react/macro'
+import { Blocks, Cpu, FolderGit2, Plug, SearchCheck } from 'lucide-react'
 
 function SkillCard({
 	icon: Icon,
@@ -92,7 +92,9 @@ export function FeatureSkillsMCP() {
 									{/* Skill list */}
 									<div className="flex-1 overflow-auto p-2 space-y-1">
 										<div className="flex items-center gap-2 px-2 py-2 rounded-lg bg-primary/10 text-xs">
-											<div className="w-5 h-5 rounded bg-blue-500/20 flex items-center justify-center shrink-0"><Plug className="w-3 h-3 text-primary" /></div>
+											<div className="w-5 h-5 rounded bg-blue-500/20 flex items-center justify-center shrink-0">
+												<Plug className="w-3 h-3 text-primary" />
+											</div>
 											<div className="min-w-0">
 												<p className="font-medium text-primary truncate">mcp-github</p>
 												<p className="text-[10px] text-muted-foreground">v1.2.0</p>
@@ -100,7 +102,9 @@ export function FeatureSkillsMCP() {
 											<span className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500" />
 										</div>
 										<div className="flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-white/5 text-xs">
-											<div className="w-5 h-5 rounded bg-emerald-500/20 flex items-center justify-center shrink-0"><Blocks className="w-3 h-3 text-emerald-500" /></div>
+											<div className="w-5 h-5 rounded bg-emerald-500/20 flex items-center justify-center shrink-0">
+												<Blocks className="w-3 h-3 text-emerald-500" />
+											</div>
 											<div className="min-w-0">
 												<p className="font-medium text-foreground truncate">code-review</p>
 												<p className="text-[10px] text-muted-foreground">v2.0.1</p>
@@ -108,7 +112,9 @@ export function FeatureSkillsMCP() {
 											<span className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500" />
 										</div>
 										<div className="flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-white/5 text-xs">
-											<div className="w-5 h-5 rounded bg-amber-400/20 flex items-center justify-center shrink-0"><FolderGit2 className="w-3 h-3 text-amber-400" /></div>
+											<div className="w-5 h-5 rounded bg-amber-400/20 flex items-center justify-center shrink-0">
+												<FolderGit2 className="w-3 h-3 text-amber-400" />
+											</div>
 											<div className="min-w-0">
 												<p className="font-medium text-foreground truncate">git-tools</p>
 												<p className="text-[10px] text-muted-foreground">v1.0.3</p>
@@ -116,7 +122,9 @@ export function FeatureSkillsMCP() {
 											<span className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500" />
 										</div>
 										<div className="flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-white/5 text-xs">
-											<div className="w-5 h-5 rounded bg-[#ff8a4c]/20 flex items-center justify-center shrink-0"><Cpu className="w-3 h-3 text-[#ff8a4c]" /></div>
+											<div className="w-5 h-5 rounded bg-[#ff8a4c]/20 flex items-center justify-center shrink-0">
+												<Cpu className="w-3 h-3 text-[#ff8a4c]" />
+											</div>
 											<div className="min-w-0">
 												<p className="font-medium text-foreground truncate">docker-manage</p>
 												<p className="text-[10px] text-muted-foreground">v0.9.0</p>

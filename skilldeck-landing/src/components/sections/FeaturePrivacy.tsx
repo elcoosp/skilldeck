@@ -1,7 +1,7 @@
 'use client'
 
-import { Shield, Lock, Eye, Database } from 'lucide-react'
 import { useLingui } from '@lingui/react/macro'
+import { Database, Eye, Lock, Shield } from 'lucide-react'
 
 function PrivacyCard({
 	icon: Icon,
@@ -65,7 +65,9 @@ export function FeaturePrivacy() {
 		<section className="py-32 relative">
 			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 				<div className="text-center max-w-3xl mx-auto">
-					<h2 className="text-3xl font-bold tracking-tight sm:text-4xl"><span className="gradient-text">{t`Your code. Your keys. Your control.`}</span></h2>
+					<h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+						<span className="gradient-text">{t`Your code. Your keys. Your control.`}</span>
+					</h2>
 					<p className="mt-4 text-lg text-muted-foreground leading-relaxed">
 						{t`Local-first by design. API keys in your OS keychain, a tool approval gate for every external call, and zero mandatory cloud services.`}
 					</p>

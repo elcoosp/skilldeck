@@ -1,9 +1,15 @@
 'use client'
 
-import { MessageSquare, GitBranch, Clock, RotateCcw } from 'lucide-react'
 import { useLingui } from '@lingui/react/macro'
+import { Clock, GitBranch, MessageSquare, RotateCcw } from 'lucide-react'
 
-function BulletItem({ icon: Icon, text }: { icon: React.ComponentType<{ className?: string }>; text: string }) {
+function BulletItem({
+	icon: Icon,
+	text,
+}: {
+	icon: React.ComponentType<{ className?: string }>
+	text: string
+}) {
 	return (
 		<li className="flex items-start gap-3">
 			<div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0 mt-0.5">
@@ -18,9 +24,18 @@ export function FeatureConversations() {
 	const { t } = useLingui()
 
 	const BULLET_POINTS = [
-		{ icon: GitBranch, text: t`Branch from any message to explore different approaches side by side` },
-		{ icon: MessageSquare, text: t`Thread replies under specific messages to keep discussions focused` },
-		{ icon: RotateCcw, text: t`Artifacts capture AI-generated code with full version history and rollback` },
+		{
+			icon: GitBranch,
+			text: t`Branch from any message to explore different approaches side by side`,
+		},
+		{
+			icon: MessageSquare,
+			text: t`Thread replies under specific messages to keep discussions focused`,
+		},
+		{
+			icon: RotateCcw,
+			text: t`Artifacts capture AI-generated code with full version history and rollback`,
+		},
 		{ icon: Clock, text: t`Message Queue batches multiple prompts and processes them in order` },
 	] as const
 
@@ -38,13 +53,17 @@ export function FeatureConversations() {
 							{/* Conversation tree */}
 							<div className="space-y-3">
 								<div className="flex gap-3">
-									<div className="w-7 h-7 rounded-full bg-blue-500/20 flex items-center justify-center text-xs text-primary shrink-0 mt-1">U</div>
+									<div className="w-7 h-7 rounded-full bg-blue-500/20 flex items-center justify-center text-xs text-primary shrink-0 mt-1">
+										U
+									</div>
 									<div className="bg-card border border-border rounded-lg px-3 py-2 max-w-xs">
 										<p className="text-sm text-foreground">{t`Review the authentication module changes`}</p>
 									</div>
 								</div>
 								<div className="flex gap-3">
-									<div className="w-7 h-7 rounded-full bg-[#ff8a4c]/20 flex items-center justify-center text-xs text-[#ff8a4c] shrink-0 mt-1">A</div>
+									<div className="w-7 h-7 rounded-full bg-[#ff8a4c]/20 flex items-center justify-center text-xs text-[#ff8a4c] shrink-0 mt-1">
+										A
+									</div>
 									<div className="bg-card border border-border rounded-lg px-3 py-2 max-w-xs">
 										<p className="text-sm text-foreground">{t`I found 3 potential issues in the JWT implementation...`}</p>
 									</div>

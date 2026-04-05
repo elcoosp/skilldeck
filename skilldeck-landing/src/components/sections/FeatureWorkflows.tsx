@@ -1,9 +1,15 @@
 'use client'
 
-import { Workflow, GitFork, Eye, Save, Check } from 'lucide-react'
 import { useLingui } from '@lingui/react/macro'
+import { Check, Eye, GitFork, Save, Workflow } from 'lucide-react'
 
-function BulletItem({ icon: Icon, text }: { icon: React.ComponentType<{ className?: string }>; text: string }) {
+function BulletItem({
+	icon: Icon,
+	text,
+}: {
+	icon: React.ComponentType<{ className?: string }>
+	text: string
+}) {
 	return (
 		<li className="flex items-start gap-3">
 			<div className="w-8 h-8 rounded-lg bg-[#ff8a4c]/10 flex items-center justify-center shrink-0 mt-0.5">
@@ -19,8 +25,14 @@ export function FeatureWorkflows() {
 
 	const BULLET_POINTS = [
 		{ icon: Workflow, text: t`Sequential — steps execute one after another in topological order` },
-		{ icon: GitFork, text: t`Parallel — independent steps launch simultaneously with Tokio JoinSet` },
-		{ icon: Eye, text: t`Evaluator-Optimizer — iterative loop that re-optimizes output up to five times` },
+		{
+			icon: GitFork,
+			text: t`Parallel — independent steps launch simultaneously with Tokio JoinSet`,
+		},
+		{
+			icon: Eye,
+			text: t`Evaluator-Optimizer — iterative loop that re-optimizes output up to five times`,
+		},
 		{ icon: Save, text: t`Real-time status — step nodes update live on the graph as they run` },
 	] as const
 

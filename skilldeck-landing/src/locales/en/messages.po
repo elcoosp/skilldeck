@@ -1102,3 +1102,6 @@ msgstr "Your code. Your keys. Your control."
 #: src/components/sections/FeatureBelt.tsx:58
 msgid "Zero cloud dependency"
 msgstr "Zero cloud dependency"
+
+
+
