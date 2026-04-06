@@ -37,9 +37,41 @@ const HeadingBookmarkButton = memo(
       messageId === '__streaming__' ||
       messageId.startsWith('__')
 
+    // --- DEBUG LOGS ---
+    console.log('[HeadingBookmarkButton] Render', {
+      messageId,
+      headingAnchor,
+      headingLabel,
+      conversationId,
+      isDisabled,
+      isBookmarked,
+      bookmarksCount: bookmarks.length
+    })
+
     const handleToggle = useCallback(() => {
-      if (isDisabled) return
-      toggleBookmark.mutate({ messageId, headingAnchor, label: headingLabel })
+      console.log('[HeadingBookmarkButton] handleToggle called', {
+        isDisabled,
+        messageId,
+        headingAnchor,
+        headingLabel,
+        conversationId
+      })
+      if (isDisabled) {
+        console.warn('[HeadingBookmarkButton] Toggle blocked because isDisabled = true')
+        return
+      }
+      console.log('[HeadingBookmarkButton] Calling toggleBookmark.mutate')
+      toggleBookmark.mutate(
+        { messageId, headingAnchor, label: headingLabel },
+        {
+          onSuccess: () => {
+            console.log('[HeadingBookmarkButton] toggleBookmark.mutate succeeded')
+          },
+          onError: (error) => {
+            console.error('[HeadingBookmarkButton] toggleBookmark.mutate failed', error)
+          }
+        }
+      )
     }, [isDisabled, messageId, headingAnchor, headingLabel, toggleBookmark])
 
     return (
@@ -47,6 +79,7 @@ const HeadingBookmarkButton = memo(
         type="button"
         disabled={isDisabled}
         onClick={(e) => {
+          console.log('[HeadingBookmarkButton] onClick fired', e)
           e.preventDefault()
           e.stopPropagation()
           handleToggle()
@@ -76,7 +109,6 @@ const HeadingBookmarkButton = memo(
     )
   }
 )
-
 // ─── Split props: stable nodes never receive isStreaming ─────────────────────
 interface StableNodeListProps {
   nodes: MdNode[]
