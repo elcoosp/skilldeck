@@ -1,5 +1,5 @@
 // src/components/conversation/message-input.tsx
-// Full file with concierge-ui additions (suggested prompts, auto-approve toggle, thinking mode)
+// Full file with concierge-ui additions (suggested prompts, auto-approve toggle, thinking mode, compaction)
 
 import { open } from '@tauri-apps/plugin-dialog'
 import { openUrl } from '@tauri-apps/plugin-opener'
@@ -16,7 +16,8 @@ import {
   Shield,
   ShieldCheck,
   BrainCircuit,
-  DollarSign
+  DollarSign,
+  Compress
 } from 'lucide-react'
 import {
   useCallback,
@@ -110,6 +111,7 @@ export function MessageInput({
   )
   const [isSending, setIsSending] = useState(false)
   const [contentHeight, setContentHeight] = useState(36)
+  const [compacting, setCompacting] = useState(false)
 
   // ── Workspace context ───────────────────────────────────────────────────
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId)
@@ -189,12 +191,11 @@ export function MessageInput({
   useLayoutEffect(() => {
     const el = textareaRef.current
     if (!el) return
-    // Force reflow by setting to 0px
     el.style.height = '0px'
     const newHeight = Math.min(el.scrollHeight, MAX_HEIGHT)
     el.style.height = `${newHeight}px`
     setContentHeight(newHeight)
-  }) // No dependency array – runs after every render, which is correct
+  })
 
   // ─── Draft sync & auto-grow ────────────────────────────────────────────────
   useEffect(() => {
@@ -206,7 +207,6 @@ export function MessageInput({
     return () => clearTimeout(t)
   }, [content, conversationId, setDraft])
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: effect depends on content indirectly
   useEffect(() => {
     const el = textareaRef.current
     if (!el) return
@@ -214,7 +214,6 @@ export function MessageInput({
     el.style.height = `${Math.min(el.scrollHeight, MAX_HEIGHT)}px`
   }, [content])
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: focus on conversation change
   useEffect(() => {
     textareaRef.current?.focus()
   }, [conversationId])
@@ -253,7 +252,6 @@ export function MessageInput({
     500
   )
 
-  // Save on content or items change
   useEffect(() => {
     if (!conversationId) return
     const items = itemsMap[conversationId] ?? []
@@ -469,7 +467,6 @@ export function MessageInput({
     if (!selected) return
     const paths = Array.isArray(selected) ? selected : [selected]
 
-    // Add files with pending status and simulate processing
     const newFiles = paths.map((p) => ({
       path: p,
       name: p.split('/').pop() || p
@@ -477,7 +474,6 @@ export function MessageInput({
 
     setSelectedFiles((prev) => [...prev, ...newFiles])
 
-    // Simulate processing for each file
     for (const file of newFiles) {
       setProcessingFiles((prev) => {
         const next = new Map(prev)
@@ -485,14 +481,12 @@ export function MessageInput({
         return next
       })
 
-      // Simulate async processing (e.g., reading file, uploading)
       setTimeout(() => {
         setProcessingFiles((prev) => {
           const next = new Map(prev)
           next.set(file.path, { status: 'success' })
           return next
         })
-        // Optionally remove success status after a delay
         setTimeout(() => {
           setProcessingFiles((prev) => {
             const next = new Map(prev)
@@ -555,10 +549,29 @@ export function MessageInput({
   const thinkingEnabled = useSettingsStore((s) => s.thinkingEnabled)
   const setThinkingEnabled = useSettingsStore((s) => s.setThinkingEnabled)
 
+  // ── Compaction (F12) ───────────────────────────────────────────────────────
+  const handleCompact = useCallback(async () => {
+    if (!conversationId) return
+    setCompacting(true)
+    try {
+      const res = await commands.compactConversation(conversationId)
+      if (res.status === 'error') {
+        toast.error(res.error)
+      } else {
+        toast.success('Conversation compacted successfully')
+        // Invalidate messages to refresh the view
+        useQueryClient().invalidateQueries({ queryKey: ['messages', conversationId] })
+      }
+    } catch (err) {
+      toast.error(`Failed to compact: ${err}`)
+    } finally {
+      setCompacting(false)
+    }
+  }, [conversationId])
+
   // ── Submit / Queue ────────────────────────────────────────────────────────
 
   const submit = useCallback(async () => {
-    // Provider readiness guard
     if (readiness?.status.status !== 'ready') {
       toast.error(readiness?.status.reason ?? 'Provider not ready')
       return
@@ -897,7 +910,7 @@ export function MessageInput({
           </div>
         </div>
 
-        {/* Thinking & Tool Approval bubble – sits above center of bottom border */}
+        {/* Thinking, Tool Approval & Compaction bubble – sits above center of bottom border */}
         <div className="absolute -bottom-3.5 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 bg-background border border-input rounded-full px-2 py-1 shadow-sm">
           <TooltipProvider delayDuration={300}>
             <Tooltip>
@@ -983,6 +996,30 @@ export function MessageInput({
               })}
             </DropdownMenuContent>
           </DropdownMenu>
+
+          <div className="w-px h-3 bg-border" />
+
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={handleCompact}
+                  disabled={compacting || !conversationId}
+                  className="rounded-full p-0.5 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                >
+                  {compacting ? (
+                    <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                  ) : (
+                    <Compress className="h-3.5 w-3.5" />
+                  )}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-xs">
+                Compact conversation (summarize older messages)
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
 
