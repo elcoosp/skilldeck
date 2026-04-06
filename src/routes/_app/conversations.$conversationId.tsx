@@ -224,7 +224,7 @@ function ConversationView() {
   }, [markAllUnseenAsSeen])
 
   useEffect(() => {
-    let unsub = () => {}
+    let unsub = () => { }
     const t = setTimeout(() => {
       const thread = threadRef.current
       if (!thread) return
@@ -567,7 +567,7 @@ function ConversationView() {
         </button>
       </div>
 
-      <div className="shrink-0 border-t border-border">
+      <div className="shrink-0">
         <MessageInput
           conversationId={conversationId}
           workspaceRoot={workspaceRoot}

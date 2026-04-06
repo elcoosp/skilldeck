@@ -670,7 +670,7 @@ export function MessageInput({
   const hasMessages = (messages.data?.length ?? 0) > 0
 
   return (
-    <div className="p-3 space-y-2">
+    <div className="p-3 pt-0 space-y-2">
       {queuedMessages.length > 0 && (
         <div className="space-y-1">
           <QueueHeader
