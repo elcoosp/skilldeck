@@ -1,3 +1,4 @@
+// src/components/settings/profiles-tab.tsx
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, ChevronRight, Plus, Star, Trash2 } from 'lucide-react'
 import { useState } from 'react'
@@ -15,6 +16,9 @@ import {
 import { commands } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
 import { Textarea } from '@/components/ui/textarea'
+import { ProviderIcon } from '@/components/ui/provider-icon'
+import { ProviderSelect } from '@/components/ui/provider-select'
+import { ModelSelectorWithIcon } from '@/components/ui/model-selector-with-icon'
 
 const PROVIDER_OPTIONS = [
   { id: 'ollama', label: 'Ollama (local)' },
@@ -122,41 +126,35 @@ export function ProfilesTab() {
                 onChange={(e) => setNewName(e.target.value)}
                 className="w-full h-7 rounded-md border border-input bg-background px-2.5 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
               />
-              <select
+              <ProviderSelect
                 value={newProvider}
-                onChange={(e) => {
-                  setNewProvider(e.target.value)
+                onValueChange={(val) => {
+                  setNewProvider(val)
                   setNewModel('')
                 }}
-                className="w-full h-7 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-              >
-                {PROVIDER_OPTIONS.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.label}
-                  </option>
-                ))}
-              </select>
-              {newProvider === 'ollama' ? (
-                <select
-                  value={newModel || (models[0] ?? '')}
-                  onChange={(e) => setNewModel(e.target.value)}
-                  className="w-full h-7 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                  disabled={modelsLoading}
-                >
-                  {models.map((id) => (
-                    <option key={id} value={id}>
-                      {id}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  placeholder={`Model ID (e.g. ${models[0] ?? 'claude-sonnet-4-5'})`}
-                  value={newModel}
-                  onChange={(e) => setNewModel(e.target.value)}
-                  className="w-full h-7 rounded-md border border-input bg-background px-2.5 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                />
-              )}
+                options={PROVIDER_OPTIONS}
+              />
+
+              {/* Model selector with icons */}
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Model</label>
+                {newProvider === 'ollama' ? (
+                  <ModelSelectorWithIcon
+                    value={newModel || (models[0] ?? '')}
+                    onValueChange={setNewModel}
+                    models={models}
+                    placeholder="Select model"
+                    disabled={modelsLoading}
+                  />
+                ) : (
+                  <input
+                    placeholder={`Model ID (e.g. ${models[0] ?? 'claude-sonnet-4-5'})`}
+                    value={newModel}
+                    onChange={(e) => setNewModel(e.target.value)}
+                    className="w-full h-7 rounded-md border border-input bg-background px-2.5 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                  />
+                )}
+              </div>
 
               <textarea
                 placeholder="System prompt (optional)"
@@ -226,9 +224,12 @@ export function ProfilesTab() {
                           </Badge>
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {getProviderName(p.model_provider)} · {p.model_id}
-                      </p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <ProviderIcon provider={p.model_provider} size={14} />
+                        <p className="text-xs text-muted-foreground truncate">
+                          {getProviderName(p.model_provider)} · {p.model_id}
+                        </p>
+                      </div>
                       {p.system_prompt && (
                         <p className="text-xs text-muted-foreground/70 truncate mt-0.5 italic">
                           {p.system_prompt}

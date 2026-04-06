@@ -78,6 +78,7 @@ import { useConversationStore } from '@/store/conversation'
 import { type UIPersistentState, useUIPersistentStore } from '@/store/ui-state'
 import { AnalyticsHeatmap } from '../analytics/analytics-heatmap'
 import { McpTab } from './mcp-tab'
+import { ModelSelectorWithIcon } from '@/components/ui/model-selector-with-icon'
 
 // Feature gate selectors remain unchanged
 const selectHasSkillsUnlocked = (state: UIPersistentState) =>
@@ -99,14 +100,14 @@ const TABS: {
   label: string
   Icon: React.FC<{ className?: string }>
 }[] = [
-  { id: 'session', label: 'Session', Icon: Cpu },
-  { id: 'skills', label: 'Skills', Icon: Layers },
-  { id: 'mcp', label: 'MCP', Icon: Zap },
-  { id: 'workflow', label: 'Workflow', Icon: GitBranch },
-  { id: 'analytics', label: 'Analytics', Icon: BarChart2 },
-  { id: 'artifacts', label: 'Artifacts', Icon: FileCode },
-  { id: 'files', label: 'Files', Icon: FolderTree }
-]
+    { id: 'session', label: 'Session', Icon: Cpu },
+    { id: 'skills', label: 'Skills', Icon: Layers },
+    { id: 'mcp', label: 'MCP', Icon: Zap },
+    { id: 'workflow', label: 'Workflow', Icon: GitBranch },
+    { id: 'analytics', label: 'Analytics', Icon: BarChart2 },
+    { id: 'artifacts', label: 'Artifacts', Icon: FileCode },
+    { id: 'files', label: 'Files', Icon: FolderTree }
+  ]
 
 export function RightPanel() {
   const [activeTab, setActiveTab] = useState<Tab>('session')
@@ -375,18 +376,13 @@ function ModelSelector({
       <label htmlFor="model-select" className="text-xs text-muted-foreground">
         Model {isLoading && <span className="opacity-50">(loading…)</span>}
       </label>
-      <Select value={safeSelected} onValueChange={setSelected}>
-        <SelectTrigger id="model-select" className="h-7 text-xs">
-          <SelectValue placeholder="Select model" />
-        </SelectTrigger>
-        <SelectContent>
-          {displayModels.map((m) => (
-            <SelectItem key={m} value={m} className="text-xs">
-              {m}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <ModelSelectorWithIcon
+        value={safeSelected}
+        onValueChange={setSelected}
+        models={displayModels}
+        placeholder="Select model"
+        disabled={isLoading}
+      />
     </div>
   )
 }

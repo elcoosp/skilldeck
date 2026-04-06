@@ -1434,6 +1434,7 @@ fn run_agent_loop(
         }
     });
 }
+
 #[specta]
 #[tauri::command]
 pub async fn compact_conversation(
@@ -1510,7 +1511,10 @@ pub async fn compact_conversation(
         thinking: false,
     };
 
-    let stream = provider.complete(request).await.map_err(|e| e.to_string())?;
+    let stream = provider
+        .complete(request)
+        .await
+        .map_err(|e| e.to_string())?;
     use futures::StreamExt;
     let chunks: Vec<_> = stream.collect().await;
     let mut summary = String::new();
@@ -1527,7 +1531,10 @@ pub async fn compact_conversation(
     // Delete old messages
     let old_ids: Vec<Uuid> = old_messages.iter().map(|m| m.id).collect();
     for id in old_ids {
-        Messages::delete_by_id(id).exec(db).await.map_err(|e| e.to_string())?;
+        Messages::delete_by_id(id)
+            .exec(db)
+            .await
+            .map_err(|e| e.to_string())?;
     }
 
     // Insert summary as a system message at the beginning
@@ -1537,7 +1544,10 @@ pub async fn compact_conversation(
         conversation_id: Set(conv_uuid),
         branch_id: Set(None),
         role: Set("system".to_string()),
-        content: Set(format!("[Compacted summary of previous conversation]\n{}", summary)),
+        content: Set(format!(
+            "[Compacted summary of previous conversation]\n{}",
+            summary
+        )),
         created_at: Set(now),
         context_items: Set(Some(ContextItems(vec![]))),
         seen: Set(false),
