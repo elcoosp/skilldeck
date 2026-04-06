@@ -17,7 +17,7 @@ import {
   ShieldCheck,
   BrainCircuit,
   DollarSign,
-  Compress
+  Minimize2
 } from 'lucide-react'
 import {
   useCallback,
@@ -1011,7 +1011,7 @@ export function MessageInput({
                   {compacting ? (
                     <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                   ) : (
-                    <Compress className="h-3.5 w-3.5" />
+                    <Minimize2 className="h-3.5 w-3.5" />
                   )}
                 </button>
               </TooltipTrigger>

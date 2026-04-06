@@ -5,6 +5,14 @@
 
 
 export const commands = {
+async compactConversation(conversationId: string) : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("compact_conversation", { conversationId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async checkProviderReady(profileId: string) : Promise<Result<ProviderReadyInfo, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("check_provider_ready", { profileId }) };
