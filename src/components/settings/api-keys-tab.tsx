@@ -9,7 +9,7 @@ import { commands } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
 
 const PROVIDERS = [
-  { id: 'claude', label: 'Anthropic (Claude)', placeholder: 'sk-ant-…' },
+  { id: 'anthropic', label: 'Anthropic', placeholder: 'sk-ant-…' },
   { id: 'openai', label: 'OpenAI', placeholder: 'sk-…' },
   { id: 'ollama', label: 'Ollama (local)', placeholder: 'optional token' }
 ]

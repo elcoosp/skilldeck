@@ -1,45 +1,160 @@
 // src/components/ui/provider-icon.tsx
-import { ProviderIcon as LobeProviderIcon } from '@lobehub/icons';
-import { cn } from '@/lib/utils';
+import {
+  OpenAI,
+  Anthropic,
+  Google,
+  DeepSeek,
+  Mistral,
+  Cohere,
+  Perplexity,
+  Ollama,
+  Qwen,
+  Zhipu,
+  Baidu,
+  Tencent,
+  Alibaba,
+  AlibabaCloud,
+  BaiduCloud,
+  TencentCloud,
+  Volcengine,
+  Groq,
+  Meta,
+  Together,
+  Fireworks,
+  Aws,
+  Azure,
+  Bedrock,
+  HuggingFace,
+  Civitai,
+  Stability,
+  Cloudflare,
+  Vercel,
+  XAI,
+  Moonshot,
+  Doubao,
+  Yi,
+  Minimax,
+  Stepfun,
+  Spark,
+  Wenxin,
+  Baichuan,
+  Hunyuan,
+  SiliconCloud,
+  Novita,
+  Replicate,
+  SambaNova,
+  Cerebras,
+  DeepInfra,
+  LeptonAI,
+  Github,
+  LobeHub,
+  ByteDance,
+  Skywork,
+  Nvidia,
+  Microsoft,
+  Huawei,
+  VertexAI,
+  Dify,
+  Coze,
+  Midjourney,
+  ComfyUI,
+  OpenRouter,
+  Upstage,
+  GoogleCloud,
+  ModelScope,
+  IFlyTekCloud,
+  SenseNova,
+} from '@lobehub/icons'
 
 interface ProviderIconProps {
-  provider: string;
-  size?: number;
-  type?: 'mono' | 'color' | 'brand' | 'brand-color';
-  className?: string;
+  provider: string
+  size?: number
+  className?: string
+  colored?: boolean
 }
 
-export function ProviderIcon({ provider, size = 16, type = 'mono', className }: ProviderIconProps) {
-  // Normalize provider string to match lobe's expected keys
-  const normalized = provider.toLowerCase();
-  // Map common provider names to lobe's provider keys
-  const providerMap: Record<string, string> = {
-    openai: 'openai',
-    anthropic: 'anthropic',
-    claude: 'anthropic', // Claude uses Anthropic icon
-    ollama: 'ollama',
-    google: 'google',
-    gemini: 'google',
-    mistral: 'mistral',
-    cohere: 'cohere',
-    deepseek: 'deepseek',
-    perplexity: 'perplexity',
-    groq: 'groq',
-    together: 'together.ai',
-    replicate: 'replicate',
-    huggingface: 'huggingface',
-    azure: 'azure',
-    aws: 'aws',
-    bedrock: 'bedrock',
-    vertexai: 'vertexai',
-  };
-  const lobeProvider = providerMap[normalized] || normalized;
-  return (
-    <LobeProviderIcon
-      provider={lobeProvider}
-      size={size}
-      type={type}
-      className={cn('shrink-0', className)}
-    />
-  );
+// Strict exact-match map for Providers
+const providerMap: Record<string, React.ComponentType<any>> = {
+  'openai': OpenAI,
+  'anthropic': Anthropic,
+  'google': Google,
+  'deepseek': DeepSeek,
+  'mistral': Mistral,
+  'cohere': Cohere,
+  'perplexity': Perplexity,
+  'ollama': Ollama,
+  'qwen': Qwen,
+  'zhipu': Zhipu,
+  'baidu': Baidu,
+  'tencent': Tencent,
+  'alibaba': Alibaba,
+  'alibabacloud': AlibabaCloud,
+  'alicloud': AlibabaCloud,
+  'baiducloud': BaiduCloud,
+  'tencentcloud': TencentCloud,
+  'volcengine': Volcengine,
+  'groq': Groq,
+  'meta': Meta,
+  'together': Together,
+  'together.ai': Together,
+  'fireworks': Fireworks,
+  'aws': Aws,
+  'azure': Azure,
+  'azureai': Azure,
+  'bedrock': Bedrock,
+  'huggingface': HuggingFace,
+  'civitai': Civitai,
+  'stability': Stability,
+  'cloudflare': Cloudflare,
+  'vercel': Vercel,
+  'xai': XAI,
+  'moonshot': Moonshot,
+  'doubao': Doubao,
+  'yi': Yi,
+  'minimax': Minimax,
+  'stepfun': Stepfun,
+  'spark': Spark,
+  'wenxin': Wenxin,
+  'baichuan': Baichuan,
+  'hunyuan': Hunyuan,
+  'siliconcloud': SiliconCloud,
+  'siliconflow': SiliconCloud,
+  'novita': Novita,
+  'replicate': Replicate,
+  'sambanova': SambaNova,
+  'cerebras': Cerebras,
+  'deepinfra': DeepInfra,
+  'lepton': LeptonAI,
+  'leptonai': LeptonAI,
+  'github': Github,
+  'lobehub': LobeHub,
+  'bytedance': ByteDance,
+  'iflytek': IFlyTekCloud,
+  'sensetime': SenseNova,
+  'skywork': Skywork,
+  'nvidia': Nvidia,
+  'microsoft': Microsoft,
+  'huawei': Huawei,
+  'vertexai': VertexAI,
+  'googlecloud': GoogleCloud,
+  'dify': Dify,
+  'coze': Coze,
+  'midjourney': Midjourney,
+  'comfyui': ComfyUI,
+  'openrouter': OpenRouter,
+  'upstage': Upstage,
+  'modelscope': ModelScope,
+}
+
+export function ProviderIcon({
+  provider,
+  size = 16,
+  className,
+  colored = true
+}: ProviderIconProps) {
+  if (!provider) return null
+  const Icon = providerMap[provider.toLowerCase()]
+  if (!Icon) return null // No fallback guess. If it's not in the map, render nothing.
+
+  return <Icon size={size} className={className} type={colored ? "color" : undefined} />
 }

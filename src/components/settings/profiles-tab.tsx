@@ -17,12 +17,12 @@ import { commands } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
 import { Textarea } from '@/components/ui/textarea'
 import { ProviderIcon } from '@/components/ui/provider-icon'
-import { ProviderSelect } from '@/components/ui/provider-select'
+import { ProviderDropdown } from '@/components/ui/provider-dropdown'
 import { ModelSelectorWithIcon } from '@/components/ui/model-selector-with-icon'
 
 const PROVIDER_OPTIONS = [
   { id: 'ollama', label: 'Ollama (local)' },
-  { id: 'claude', label: 'Anthropic (Claude)' },
+  { id: 'anthropic', label: 'Anthropic' },
   { id: 'openai', label: 'OpenAI' }
 ]
 
@@ -126,7 +126,7 @@ export function ProfilesTab() {
                 onChange={(e) => setNewName(e.target.value)}
                 className="w-full h-7 rounded-md border border-input bg-background px-2.5 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
               />
-              <ProviderSelect
+              <ProviderDropdown
                 value={newProvider}
                 onValueChange={(val) => {
                   setNewProvider(val)

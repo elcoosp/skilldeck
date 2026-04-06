@@ -6,8 +6,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { ProviderIcon } from '@/components/ui/provider-icon'
-import { getProviderFromModelId } from '@/lib/model-provider'
+import { ModelIcon } from '@/components/ui/model-icon'
 import { cn } from '@/lib/utils'
 
 interface ModelSelectorWithIconProps {
@@ -27,31 +26,30 @@ export function ModelSelectorWithIcon({
   className,
   disabled,
 }: ModelSelectorWithIconProps) {
-  // Find the selected model's provider
-  const selectedProvider = value ? getProviderFromModelId(value) : null
-
   return (
     <Select value={value} onValueChange={onValueChange} disabled={disabled}>
       <SelectTrigger className={cn('h-7 text-xs', className)}>
         <div className="flex items-center gap-1.5 truncate">
-          {selectedProvider && (
-            <ProviderIcon provider={selectedProvider} size={14} className="shrink-0" />
-          )}
+          <ModelIcon colored modelId={value} size={14} className="shrink-0" />
+          <span className={cn("truncate", !value && "text-muted-foreground")}>
+            {value || placeholder}
+          </span>
+        </div>
+
+        <div className="sr-only">
           <SelectValue placeholder={placeholder} />
         </div>
       </SelectTrigger>
+
       <SelectContent>
-        {models.map((modelId) => {
-          const provider = getProviderFromModelId(modelId)
-          return (
-            <SelectItem key={modelId} value={modelId} className="text-xs">
-              <div className="flex items-center gap-2">
-                <ProviderIcon provider={provider} size={14} className="shrink-0" />
-                <span className="truncate">{modelId}</span>
-              </div>
-            </SelectItem>
-          )
-        })}
+        {models.map((modelId) => (
+          <SelectItem key={modelId} value={modelId} className="text-xs">
+            <div className="flex items-center gap-2">
+              <ModelIcon colored modelId={modelId} size={14} className="shrink-0" />
+              <span className="truncate">{modelId}</span>
+            </div>
+          </SelectItem>
+        ))}
       </SelectContent>
     </Select>
   )

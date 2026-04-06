@@ -52,17 +52,11 @@ import {
   DialogTrigger
 } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select'
 import { WorkflowEditor } from '@/components/workflow/workflow-editor'
 import { WorkflowGraph } from '@/components/workflow/workflow-graph'
 import { useAnalytics } from '@/hooks/use-analytics'
 import { useConversations } from '@/hooks/use-conversations'
+import { useConversationIdFromUrl } from '@/hooks/use-conversation-id'
 import { useProfiles } from '@/hooks/use-profiles'
 import { useProviderReady } from '@/hooks/use-provider-ready'
 import { useSessionStats } from '@/hooks/use-session-stats'
@@ -79,6 +73,8 @@ import { type UIPersistentState, useUIPersistentStore } from '@/store/ui-state'
 import { AnalyticsHeatmap } from '../analytics/analytics-heatmap'
 import { McpTab } from './mcp-tab'
 import { ModelSelectorWithIcon } from '@/components/ui/model-selector-with-icon'
+import { ProviderIcon } from '../ui/provider-icon'
+import { getProviderFromModelId } from '@/lib/model-provider'
 
 // Feature gate selectors remain unchanged
 const selectHasSkillsUnlocked = (state: UIPersistentState) =>
@@ -111,9 +107,9 @@ const TABS: {
 
 export function RightPanel() {
   const [activeTab, setActiveTab] = useState<Tab>('session')
-  const activeConversationId = useConversationStore(
-    (s) => s.activeConversationId
-  )
+  const urlConversationId = useConversationIdFromUrl()
+  const conversationId = urlConversationId
+
   const _unlockStage = useUIPersistentStore((s) => s.unlockStage)
   const hasSkillsUnlocked = useUIPersistentStore(selectHasSkillsUnlocked)
   const hasWorkflowsUnlocked = useUIPersistentStore(selectHasWorkflowsUnlocked)
@@ -180,7 +176,7 @@ export function RightPanel() {
       ) : (
         <ScrollArea className="flex-1 min-h-0">
           {activeTab === 'session' && (
-            <SessionTab conversationId={activeConversationId} />
+            <SessionTab conversationId={conversationId} />
           )}
           {activeTab === 'workflow' && <WorkflowTab />}
           {activeTab === 'analytics' && <AnalyticsTab />}
@@ -233,21 +229,17 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
     staleTime: 30_000
   })
 
-  // ── Token counter ──
   const { inputTokens, outputTokens } = useSessionStats(conversationId)
   const conversation = conversations?.find((c) => c.id === conversationId)
-
   const profile = profiles?.find((p) => p.id === conversation?.profile_id)
-  // Provider readiness
-  const { data: readiness, isLoading: readinessLoading } = useProviderReady(
-    profile?.id
-  )
+
+  const { data: readiness, isLoading: readinessLoading } = useProviderReady(profile?.id)
+  const { data: models = [], isLoading: modelsLoading } = useAvailableModels(profile?.model_provider || '')
+
+  const [selectedModelId, setSelectedModelId] = useState(profile?.model_id || '')
+
   if (!conversationId) {
-    return (
-      <div className="p-4 text-sm text-muted-foreground">
-        No active conversation.
-      </div>
-    )
+    return <div className="p-4 text-sm text-muted-foreground">No active conversation.</div>
   }
 
   if (conversationsLoading) {
@@ -262,15 +254,8 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
   if (!conversation) {
     return (
       <div className="p-4 space-y-3">
-        <p className="text-xs text-muted-foreground">
-          Conversation not found. It may still be loading or may have been
-          deleted.
-        </p>
-        <div className="flex gap-2">
-          <Button size="xs" variant="outline" onClick={() => refetch()}>
-            Refresh
-          </Button>
-        </div>
+        <p className="text-xs text-muted-foreground">Conversation not found.</p>
+        <Button size="xs" variant="outline" onClick={() => refetch()}>Refresh</Button>
       </div>
     )
   }
@@ -278,47 +263,35 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
   if (!profile) {
     return (
       <div className="p-4 space-y-3">
-        <p className="text-xs text-muted-foreground">
-          Profile for this conversation not found.
-        </p>
-        <Button size="xs" variant="outline" onClick={() => refetch()}>
-          Refresh
-        </Button>
+        <p className="text-xs text-muted-foreground">Profile not found.</p>
+        <Button size="xs" variant="outline" onClick={() => refetch()}>Refresh</Button>
       </div>
     )
   }
 
-  const hasKeyForProvider = (p: string) =>
-    keyStatuses.find((k) => k.provider === p)?.has_key ?? false
-  const hasKey = hasKeyForProvider(profile.model_provider)
+  const hasKey = keyStatuses.find((k) => k.provider === profile.model_provider)?.has_key ?? false
+  const displayModels = models.length > 0 ? models : [profile.model_id]
+  const safeSelectedModel = displayModels.includes(selectedModelId) ? selectedModelId : displayModels[0]
 
   return (
     <div className="p-4 space-y-4">
       <section>
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-          Active Conversation
-        </h3>
-        <p className="text-xs font-mono text-muted-foreground break-all">
-          {conversationId}
-        </p>
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Active Conversation</h3>
+        <p className="text-xs font-mono text-muted-foreground break-all">{conversationId}</p>
       </section>
 
       <section className="space-y-3">
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-          Profile & Model
-        </h3>
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Profile & Model</h3>
 
         <div className="space-y-1">
           <span className="text-xs text-muted-foreground">Provider</span>
           <div className="text-xs font-medium px-2 py-1 rounded bg-muted/50 flex items-center gap-1.5">
-            {profile.model_provider}
-            {!hasKey &&
-              !readinessLoading &&
-              readiness?.status.status !== 'ready' && (
-                <span className="text-[10px] text-amber-500 font-normal">
-                  (not configured)
-                </span>
-              )}
+            {/* STRICTLY PROVIDER ICON */}
+            <ProviderIcon provider={profile.model_provider} size={14} className="shrink-0" />
+            <span className="truncate">{profile.model_provider}</span>
+            {!hasKey && !readinessLoading && readiness?.status.status !== 'ready' && (
+              <span className="text-[10px] text-amber-500 font-normal shrink-0">(not configured)</span>
+            )}
           </div>
           {!readinessLoading && readiness?.status.status === 'not_ready' && (
             <div className="mt-1 text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/20 p-2 rounded">
@@ -327,66 +300,37 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
           )}
         </div>
 
-        <ModelSelector
-          provider={profile.model_provider}
-          currentModelId={profile.model_id}
-        />
+        <div className="space-y-1">
+          <label className="text-xs text-muted-foreground">
+            Model {modelsLoading && <span className="opacity-50">(loading…)</span>}
+          </label>
+          {/* STRICTLY MODEL ICONS INSIDE */}
+          <ModelSelectorWithIcon
+            value={safeSelectedModel}
+            onValueChange={setSelectedModelId}
+            models={displayModels}
+            placeholder="Select model"
+            disabled={modelsLoading}
+          />
+        </div>
       </section>
 
-      {/* Token usage */}
       <section className="space-y-2">
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-          Token Usage (Current Session)
-        </h3>
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Token Usage (Current Session)</h3>
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div className="rounded border border-border p-2">
             <span className="text-muted-foreground">Input</span>
-            <div className="font-mono text-base">
-              {inputTokens.toLocaleString()}
-            </div>
+            <div className="font-mono text-base">{inputTokens.toLocaleString()}</div>
           </div>
           <div className="rounded border border-border p-2">
             <span className="text-muted-foreground">Output</span>
-            <div className="font-mono text-base">
-              {outputTokens.toLocaleString()}
-            </div>
+            <div className="font-mono text-base">{outputTokens.toLocaleString()}</div>
           </div>
         </div>
       </section>
     </div>
   )
 }
-
-function ModelSelector({
-  provider,
-  currentModelId
-}: {
-  provider: string
-  currentModelId: string
-}) {
-  const { data: models = [], isLoading } = useAvailableModels(provider)
-  const [selected, setSelected] = useState(currentModelId)
-  const displayModels = models.length > 0 ? models : [currentModelId]
-  const safeSelected = displayModels.includes(selected)
-    ? selected
-    : displayModels[0]
-
-  return (
-    <div className="space-y-1">
-      <label htmlFor="model-select" className="text-xs text-muted-foreground">
-        Model {isLoading && <span className="opacity-50">(loading…)</span>}
-      </label>
-      <ModelSelectorWithIcon
-        value={safeSelected}
-        onValueChange={setSelected}
-        models={displayModels}
-        placeholder="Select model"
-        disabled={isLoading}
-      />
-    </div>
-  )
-}
-
 // ── Workflow tab (unchanged) ──────────────────────────────────────────────────────────────
 
 function WorkflowTab() {
