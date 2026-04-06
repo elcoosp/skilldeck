@@ -894,67 +894,95 @@ export function MessageInput({
                 </>
               )}
             </AnimatePresence>
-
-            {/* Thinking mode toggle (F02) */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn('h-8 w-8', thinkingEnabled && 'text-primary')}
-              onClick={() => setThinkingEnabled(!thinkingEnabled)}
-              title={thinkingEnabled ? 'Thinking mode ON' : 'Thinking mode OFF'}
-            >
-              <BrainCircuit className="h-4 w-4" />
-            </Button>
-
-            {/* Auto-approve toggle button (F17) */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn('h-8 w-8', hasAnyApproval && 'text-green-500')}
-                >
-                  {hasAnyApproval ? (
-                    <ShieldCheck className="h-4 w-4" />
-                  ) : (
-                    <Shield className="h-4 w-4" />
-                  )}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                {(
-                  [
-                    'autoApproveReads',
-                    'autoApproveWrites',
-                    'autoApproveShell',
-                    'autoApproveHttpRequests'
-                  ] as const
-                ).map((key) => {
-                  const label = key
-                    .replace('autoApprove', '')
-                    .replace(/([A-Z])/g, ' $1')
-                    .trim()
-                  return (
-                    <DropdownMenuItem
-                      key={key}
-                      onClick={() => {
-                        setToolApprovals({ [key]: !toolApprovals[key] })
-                      }}
-                    >
-                      <span
-                        className={toolApprovals[key] ? 'text-green-500' : ''}
-                      >
-                        {label}
-                      </span>
-                      <span className="ml-auto">
-                        {toolApprovals[key] ? 'ON' : 'OFF'}
-                      </span>
-                    </DropdownMenuItem>
-                  )
-                })}
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
+        </div>
+
+        {/* Thinking & Tool Approval bubble – sits above center of bottom border */}
+        <div className="absolute -bottom-3.5 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 bg-background border border-input rounded-full px-2 py-1 shadow-sm">
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  className={cn(
+                    'rounded-full p-0.5 transition-colors',
+                    thinkingEnabled
+                      ? 'text-primary hover:text-primary/80'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                  onClick={() => setThinkingEnabled(!thinkingEnabled)}
+                >
+                  <BrainCircuit className="h-3.5 w-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-xs">
+                {thinkingEnabled ? 'Thinking mode ON' : 'Thinking mode OFF'}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          <div className="w-px h-3 bg-border" />
+
+          <DropdownMenu>
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className={cn(
+                        'rounded-full p-0.5 transition-colors',
+                        hasAnyApproval
+                          ? 'text-green-500 hover:text-green-600 dark:hover:text-green-400'
+                          : 'text-muted-foreground hover:text-foreground'
+                      )}
+                    >
+                      {hasAnyApproval ? (
+                        <ShieldCheck className="h-3.5 w-3.5" />
+                      ) : (
+                        <Shield className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs">
+                  Tool approvals
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <DropdownMenuContent align="center" className="w-48">
+              {(
+                [
+                  'autoApproveReads',
+                  'autoApproveWrites',
+                  'autoApproveShell',
+                  'autoApproveHttpRequests'
+                ] as const
+              ).map((key) => {
+                const label = key
+                  .replace('autoApprove', '')
+                  .replace(/([A-Z])/g, ' $1')
+                  .trim()
+                return (
+                  <DropdownMenuItem
+                    key={key}
+                    onClick={() => {
+                      setToolApprovals({ [key]: !toolApprovals[key] })
+                    }}
+                  >
+                    <span
+                      className={toolApprovals[key] ? 'text-green-500' : ''}
+                    >
+                      {label}
+                    </span>
+                    <span className="ml-auto">
+                      {toolApprovals[key] ? 'ON' : 'OFF'}
+                    </span>
+                  </DropdownMenuItem>
+                )
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 

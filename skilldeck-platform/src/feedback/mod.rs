@@ -1,3 +1,4 @@
 pub mod handlers;
-pub mod ingestion;
+// NOTE: `ingestion` module is deprecated — contains only commented-out pseudocode.
+// pub mod ingestion;
 pub mod models;

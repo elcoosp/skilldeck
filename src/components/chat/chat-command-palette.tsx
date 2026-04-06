@@ -120,7 +120,8 @@ export const ChatCommandPalette: React.FC<ChatCommandPaletteProps> = ({
         />
       </div>
 
-      <div className="max-h-60 overflow-y-auto p-1" ref={listRef}>
+      {/* Added scrollbar-thin class here */}
+      <div className="max-h-60 overflow-y-auto p-1 thin-scrollbar" ref={listRef}>
         {loading && (
           <div className="flex items-center justify-center p-4 gap-2 text-sm text-muted-foreground">
             <Loader2 className="animate-spin w-4 h-4" />

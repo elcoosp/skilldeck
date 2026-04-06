@@ -14,7 +14,7 @@ use skilldeck_platform::config::Config;
 use skilldeck_platform::db;
 use skilldeck_platform::email;
 use skilldeck_platform::skills;
-
+use tracing_subscriber::EnvFilter;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
