@@ -129,28 +129,24 @@ const AssistantMessageActions = memo(
         <DropdownMenuContent align="end" className="w-32">
           <DropdownMenuItem
             onClick={onCopy}
-            className="cursor-pointer hover:bg-primary/10 hover:text-foreground focus:bg-primary/10 focus:text-foreground"
           >
             <Copy className="mr-2 h-4 w-4" />
             <span>Copy</span>
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={onDownload}
-            className="cursor-pointer hover:bg-primary/10 hover:text-foreground focus:bg-primary/10 focus:text-foreground"
           >
             <Download className="mr-2 h-4 w-4" />
             <span>Download</span>
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={onBranch}
-            className="cursor-pointer hover:bg-primary/10 hover:text-foreground focus:bg-primary/10 focus:text-foreground"
           >
             <GitBranch className="mr-2 h-4 w-4" />
             <span>Branch from here</span>
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={onBookmark}
-            className="cursor-pointer hover:bg-primary/10 hover:text-foreground focus:bg-primary/10 focus:text-foreground"
           >
             {isBookmarked ? (
               <BookmarkCheck className="mr-2 h-4 w-4 text-amber-400 fill-amber-400" />
@@ -585,7 +581,7 @@ function MessageBubbleInner({
       <SubagentCard
         stepName={subagentData.task || 'Subagent'}
         status="running"
-        onOpen={() => {}}
+        onOpen={() => { }}
       />
     )
   }
