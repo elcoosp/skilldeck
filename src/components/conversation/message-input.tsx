@@ -1,5 +1,5 @@
 // src/components/conversation/message-input.tsx
-// (full file with the useLayoutEffect dependency fixed)
+// Full file with concierge-ui additions (suggested prompts, auto-approve toggle, thinking mode, compaction)
 
 import { open } from '@tauri-apps/plugin-dialog'
 import { openUrl } from '@tauri-apps/plugin-opener'
@@ -12,7 +12,12 @@ import {
   Paperclip,
   Send,
   Square,
-  Timer
+  Timer,
+  Shield,
+  ShieldCheck,
+  BrainCircuit,
+  DollarSign,
+  Minimize2
 } from 'lucide-react'
 import {
   useCallback,
@@ -30,8 +35,15 @@ import { FileMentionPicker } from '@/components/chat/file-mention-picker'
 import { SecurityWarningDialog } from '@/components/chat/security-warning-dialog'
 import { QueueHeader } from '@/components/conversation/queue/queue-header'
 import { QueueList } from '@/components/conversation/queue/queue-list'
+import { SuggestedPrompts } from '@/components/conversation/suggested-prompts'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu'
 import {
   Tooltip,
   TooltipContent,
@@ -39,6 +51,7 @@ import {
   TooltipTrigger
 } from '@/components/ui/tooltip'
 import { useCreateConversation } from '@/hooks/use-conversations'
+import { useMessages } from '@/hooks/use-messages'
 import { useSendMessage } from '@/hooks/use-messages'
 import { useProfiles } from '@/hooks/use-profiles'
 import { useProviderReady } from '@/hooks/use-provider-ready'
@@ -56,6 +69,8 @@ import { cn } from '@/lib/utils'
 import { useChatContextStore } from '@/store/chat-context-store'
 import { useConversationStore } from '@/store/conversation'
 import { useQueueStore } from '@/store/queue'
+import { useSettingsStore } from '@/store/settings'
+import { useToolApprovalStore } from '@/store/tool-approvals'
 import { useUIEphemeralStore } from '@/store/ui-ephemeral'
 import { useWorkspaceStore } from '@/store/workspace'
 import type {
@@ -64,6 +79,7 @@ import type {
   TriggerState
 } from '@/types/chat-context'
 import type { UnifiedSkill } from '@/types/skills'
+import { playSound } from '@/lib/audio'
 
 interface MessageInputProps {
   conversationId: UUID
@@ -87,6 +103,7 @@ export function MessageInput({
   onRequestScrollToBottom
 }: MessageInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
   const [isComposing, setIsComposing] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<FileChip[]>([])
   const [processingFiles, setProcessingFiles] = useState<UploadStatusMap>(
@@ -94,6 +111,7 @@ export function MessageInput({
   )
   const [isSending, setIsSending] = useState(false)
   const [contentHeight, setContentHeight] = useState(36)
+  const [compacting, setCompacting] = useState(false)
 
   // ── Workspace context ───────────────────────────────────────────────────
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId)
@@ -140,10 +158,6 @@ export function MessageInput({
 
   // ── Context injection state ───────────────────────────────────────────────
   const [triggerState, setTriggerState] = useState<TriggerState | null>(null)
-  const [pickerPosition, setPickerPosition] = useState<{
-    top: number
-    left: number
-  } | null>(null)
 
   // File picker
   const [fileItems, setFileItems] = useState<FileEntry[]>([])
@@ -177,12 +191,11 @@ export function MessageInput({
   useLayoutEffect(() => {
     const el = textareaRef.current
     if (!el) return
-    // Force reflow by setting to 0px
     el.style.height = '0px'
     const newHeight = Math.min(el.scrollHeight, MAX_HEIGHT)
     el.style.height = `${newHeight}px`
     setContentHeight(newHeight)
-  }) // No dependency array – runs after every render, which is correct
+  })
 
   // ─── Draft sync & auto-grow ────────────────────────────────────────────────
   useEffect(() => {
@@ -194,7 +207,6 @@ export function MessageInput({
     return () => clearTimeout(t)
   }, [content, conversationId, setDraft])
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: effect depends on content indirectly
   useEffect(() => {
     const el = textareaRef.current
     if (!el) return
@@ -202,7 +214,6 @@ export function MessageInput({
     el.style.height = `${Math.min(el.scrollHeight, MAX_HEIGHT)}px`
   }, [content])
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: focus on conversation change
   useEffect(() => {
     textareaRef.current?.focus()
   }, [conversationId])
@@ -241,29 +252,17 @@ export function MessageInput({
     500
   )
 
-  // Save on content or items change
   useEffect(() => {
     if (!conversationId) return
     const items = itemsMap[conversationId] ?? []
     debouncedSaveDraft(content, items)
   }, [content, conversationId, itemsMap, debouncedSaveDraft])
 
-  // ─── Picker position ───────────────────────────────────────────────────────
-
-  const calculatePickerPosition = useCallback(() => {
-    if (!textareaRef.current) return null
-    const rect = textareaRef.current.getBoundingClientRect()
-    return {
-      top: rect.top - 268 + window.scrollY,
-      left: rect.left + 10
-    }
-  }, [])
-
-  // ─── Picker close ──────────────────────────────────────────────────────────
+  // ─── Picker close & refocus ─────────────────────────────────────────────
 
   const closePicker = useCallback(() => {
     setTriggerState(null)
-    setPickerPosition(null)
+    textareaRef.current?.focus()
   }, [])
 
   // ─── Clear trigger text from textarea ─────────────────────────────────────
@@ -271,7 +270,7 @@ export function MessageInput({
   const clearTriggerText = useCallback(
     (trigger: TriggerState) => {
       const charBefore = content[trigger.startIndex - 1]
-      if (charBefore === '@' || charBefore === '#') {
+      if (charBefore === '$' || charBefore === '#') {
         const before = content.substring(0, trigger.startIndex - 1)
         const after = content.substring(trigger.startIndex)
         setContent(before + after)
@@ -432,11 +431,10 @@ export function MessageInput({
       return
     }
 
-    if (e.key === '@' || e.key === '#') {
+    if (e.key === '$' || e.key === '#') {
       const cursorPos = e.currentTarget.selectionStart ?? 0
-      const type = e.key === '@' ? 'skill' : 'file'
+      const type = e.key === '$' ? 'skill' : 'file'
       setTriggerState({ type, query: '', startIndex: cursorPos + 1 })
-      setPickerPosition(calculatePickerPosition())
       if (type === 'file' && effectiveWorkspaceRoot) {
         loadDirectory(effectiveWorkspaceRoot)
       }
@@ -455,7 +453,6 @@ export function MessageInput({
     } else {
       const query = value.substring(triggerState.startIndex, cursorPos)
       setTriggerState((prev) => (prev ? { ...prev, query } : null))
-      if (!pickerPosition) setPickerPosition(calculatePickerPosition())
     }
   }
 
@@ -470,7 +467,6 @@ export function MessageInput({
     if (!selected) return
     const paths = Array.isArray(selected) ? selected : [selected]
 
-    // Add files with pending status and simulate processing
     const newFiles = paths.map((p) => ({
       path: p,
       name: p.split('/').pop() || p
@@ -478,7 +474,6 @@ export function MessageInput({
 
     setSelectedFiles((prev) => [...prev, ...newFiles])
 
-    // Simulate processing for each file
     for (const file of newFiles) {
       setProcessingFiles((prev) => {
         const next = new Map(prev)
@@ -486,14 +481,12 @@ export function MessageInput({
         return next
       })
 
-      // Simulate async processing (e.g., reading file, uploading)
       setTimeout(() => {
         setProcessingFiles((prev) => {
           const next = new Map(prev)
           next.set(file.path, { status: 'success' })
           return next
         })
-        // Optionally remove success status after a delay
         setTimeout(() => {
           setProcessingFiles((prev) => {
             const next = new Map(prev)
@@ -518,12 +511,11 @@ export function MessageInput({
 
   const triggerFilePicker = useCallback(() => {
     setTriggerState({ type: 'file', query: '', startIndex: content.length + 1 })
-    setPickerPosition(calculatePickerPosition())
     if (effectiveWorkspaceRoot) {
       loadDirectory(effectiveWorkspaceRoot)
     }
     textareaRef.current?.focus()
-  }, [content, effectiveWorkspaceRoot, loadDirectory, calculatePickerPosition])
+  }, [content, effectiveWorkspaceRoot, loadDirectory])
 
   const triggerSkillPicker = useCallback(() => {
     setTriggerState({
@@ -531,9 +523,8 @@ export function MessageInput({
       query: '',
       startIndex: content.length + 1
     })
-    setPickerPosition(calculatePickerPosition())
     textareaRef.current?.focus()
-  }, [content, calculatePickerPosition])
+  }, [content])
 
   // ── Stop agent ───────────────────────────────────────────────────────────
   const handleStop = useCallback(async () => {
@@ -545,10 +536,42 @@ export function MessageInput({
     }
   }, [conversationId, setAgentRunning])
 
+  // ── Auto-approve toggle (F17) ────────────────────────────────────────────
+  const toolApprovals = useSettingsStore((s) => s.toolApprovals)
+  const setToolApprovals = useSettingsStore((s) => s.setToolApprovals)
+  const hasAnyApproval =
+    toolApprovals.autoApproveReads ||
+    toolApprovals.autoApproveWrites ||
+    toolApprovals.autoApproveShell ||
+    toolApprovals.autoApproveHttpRequests
+
+  // ── Thinking mode toggle (F02) ────────────────────────────────────────────
+  const thinkingEnabled = useSettingsStore((s) => s.thinkingEnabled)
+  const setThinkingEnabled = useSettingsStore((s) => s.setThinkingEnabled)
+
+  // ── Compaction (F12) ───────────────────────────────────────────────────────
+  const handleCompact = useCallback(async () => {
+    if (!conversationId) return
+    setCompacting(true)
+    try {
+      const res = await commands.compactConversation(conversationId)
+      if (res.status === 'error') {
+        toast.error(res.error)
+      } else {
+        toast.success('Conversation compacted successfully')
+        // Invalidate messages to refresh the view
+        useQueryClient().invalidateQueries({ queryKey: ['messages', conversationId] })
+      }
+    } catch (err) {
+      toast.error(`Failed to compact: ${err}`)
+    } finally {
+      setCompacting(false)
+    }
+  }, [conversationId])
+
   // ── Submit / Queue ────────────────────────────────────────────────────────
 
   const submit = useCallback(async () => {
-    // Provider readiness guard
     if (readiness?.status.status !== 'ready') {
       toast.error(readiness?.status.reason ?? 'Provider not ready')
       return
@@ -613,8 +636,10 @@ export function MessageInput({
     try {
       await sendMutation.mutateAsync({
         content: finalContent,
-        contextItems: metadataItems.length > 0 ? metadataItems : undefined
+        contextItems: metadataItems.length > 0 ? metadataItems : undefined,
+        thinking: thinkingEnabled
       })
+      playSound('messageSent')
       onRequestScrollToBottom?.()
     } catch (err) {
       toast.error(`Failed to send message: ${err}`)
@@ -636,11 +661,16 @@ export function MessageInput({
     currentItems,
     sendMutation,
     onRequestScrollToBottom,
-    readiness
+    readiness,
+    thinkingEnabled
   ])
 
+  // Get messages count for suggested prompts
+  const messages = useMessages(conversationId)
+  const hasMessages = (messages.data?.length ?? 0) > 0
+
   return (
-    <div className="p-3 space-y-2">
+    <div className="p-3 pt-0 space-y-2">
       {queuedMessages.length > 0 && (
         <div className="space-y-1">
           <QueueHeader
@@ -708,12 +738,56 @@ export function MessageInput({
       </AnimatePresence>
 
       <div
+        ref={containerRef}
         className={cn(
           'relative rounded-xl border border-input bg-background shadow-sm',
           'focus-within:ring-2 focus-within:ring-ring/50'
         )}
       >
+        {/* Skill picker – rendered inline, anchored above the input */}
+        {triggerState?.type === 'skill' && (
+          <ChatCommandPalette
+            type="skill"
+            query={triggerState.query}
+            items={unifiedSkills}
+            loading={skillsLoading}
+            onSelect={handleSkillSelect}
+            onClose={closePicker}
+            onQueryChange={(q) =>
+              setTriggerState((prev) => (prev ? { ...prev, query: q } : null))
+            }
+          />
+        )}
+
+        {/* File picker – rendered inline, anchored above the input */}
+        {triggerState?.type === 'file' && (
+          <FileMentionPicker
+            open
+            query={triggerState.query}
+            items={fileItems}
+            loading={fileLoading}
+            currentFolderCounts={folderCounts}
+            onSelect={handleFileSelect}
+            onClose={closePicker}
+            onQueryChange={(q) =>
+              setTriggerState((prev) => (prev ? { ...prev, query: q } : null))
+            }
+            workspaceRoot={effectiveWorkspaceRoot}
+            uploadingFiles={processingFiles}
+          />
+        )}
+
         <AttachedItemsList />
+
+        {/* Suggested prompts (F03) */}
+        <SuggestedPrompts
+          conversationId={conversationId}
+          hasMessages={hasMessages}
+          onSelect={(prompt) => {
+            setContent(prompt)
+            textareaRef.current?.focus()
+          }}
+        />
 
         {/* URL chips */}
         {detectedUrls.length > 0 && (
@@ -756,7 +830,7 @@ export function MessageInput({
               placeholder={
                 isRunning
                   ? 'Agent is running… (type to queue)'
-                  : 'Type a message… (@ for skills · # for files)'
+                  : 'Type a message… ($ for skills · # for files)'
               }
               disabled={false}
               className="w-full resize-none border-0 shadow-none bg-transparent focus-visible:ring-0 text-sm leading-6 py-2 px-1.5 overflow-y-auto thin-scrollbar min-h-[36px]"
@@ -835,6 +909,118 @@ export function MessageInput({
             </AnimatePresence>
           </div>
         </div>
+
+        {/* Thinking, Tool Approval & Compaction bubble – sits above center of bottom border */}
+        <div className="absolute -bottom-3.5 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 bg-background border border-input rounded-full px-2 py-1 shadow-sm">
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  className={cn(
+                    'rounded-full p-0.5 transition-colors',
+                    thinkingEnabled
+                      ? 'text-primary hover:text-primary/80'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                  onClick={() => setThinkingEnabled(!thinkingEnabled)}
+                >
+                  <BrainCircuit className="h-3.5 w-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-xs">
+                {thinkingEnabled ? 'Thinking mode ON' : 'Thinking mode OFF'}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          <div className="w-px h-3 bg-border" />
+
+          <DropdownMenu>
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className={cn(
+                        'rounded-full p-0.5 transition-colors',
+                        hasAnyApproval
+                          ? 'text-green-500 hover:text-green-600 dark:hover:text-green-400'
+                          : 'text-muted-foreground hover:text-foreground'
+                      )}
+                    >
+                      {hasAnyApproval ? (
+                        <ShieldCheck className="h-3.5 w-3.5" />
+                      ) : (
+                        <Shield className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs">
+                  Tool approvals
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <DropdownMenuContent align="center" className="w-48">
+              {(
+                [
+                  'autoApproveReads',
+                  'autoApproveWrites',
+                  'autoApproveShell',
+                  'autoApproveHttpRequests'
+                ] as const
+              ).map((key) => {
+                const label = key
+                  .replace('autoApprove', '')
+                  .replace(/([A-Z])/g, ' $1')
+                  .trim()
+                return (
+                  <DropdownMenuItem
+                    key={key}
+                    onClick={() => {
+                      setToolApprovals({ [key]: !toolApprovals[key] })
+                    }}
+                  >
+                    <span
+                      className={toolApprovals[key] ? 'text-green-500' : ''}
+                    >
+                      {label}
+                    </span>
+                    <span className="ml-auto">
+                      {toolApprovals[key] ? 'ON' : 'OFF'}
+                    </span>
+                  </DropdownMenuItem>
+                )
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <div className="w-px h-3 bg-border" />
+
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={handleCompact}
+                  disabled={compacting || !conversationId}
+                  className="rounded-full p-0.5 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                >
+                  {compacting ? (
+                    <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                  ) : (
+                    <Minimize2 className="h-3.5 w-3.5" />
+                  )}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-xs">
+                Compact conversation (summarize older messages)
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       </div>
 
       <div className="flex items-center gap-0.5 text-muted-foreground">
@@ -844,7 +1030,7 @@ export function MessageInput({
           className="h-6 px-2 text-xs gap-1"
           onClick={triggerSkillPicker}
         >
-          <AtSign className="size-3" />
+          <DollarSign className="size-3" />
           Skill
         </Button>
 
@@ -884,36 +1070,6 @@ export function MessageInput({
           ↵ {isRunning ? 'queue' : 'send'} · ⇧↵ newline
         </span>
       </div>
-
-      {triggerState?.type === 'file' && (
-        <FileMentionPicker
-          open
-          query={triggerState.query}
-          position={pickerPosition}
-          items={fileItems}
-          loading={fileLoading}
-          currentFolderCounts={folderCounts}
-          onSelect={handleFileSelect}
-          onClose={closePicker}
-          onQueryChange={(q) =>
-            setTriggerState((prev) => (prev ? { ...prev, query: q } : null))
-          }
-          workspaceRoot={effectiveWorkspaceRoot}
-          uploadingFiles={processingFiles}
-        />
-      )}
-
-      {triggerState?.type === 'skill' && (
-        <ChatCommandPalette
-          type="skill"
-          query={triggerState.query}
-          items={unifiedSkills}
-          loading={skillsLoading}
-          position={pickerPosition}
-          onSelect={handleSkillSelect}
-          onClose={closePicker}
-        />
-      )}
 
       {skillForReview && (
         <SecurityWarningDialog

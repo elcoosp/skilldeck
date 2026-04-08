@@ -3,7 +3,7 @@ import { useMatch } from '@tanstack/react-router'
 
 export function useConversationIdFromUrl(): string | null {
   const match = useMatch({
-    from: '/conversations/$conversationId',
+    from: '/_app/conversations/$conversationId',
     shouldThrow: false
   })
   return (match?.params as { conversationId?: string })?.conversationId ?? null

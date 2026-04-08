@@ -17,7 +17,17 @@ beforeEach(() => {
     notificationsEnabled: true,
     defaultModelId: 'glm-5:cloud',
     defaultProvider: 'ollama',
-    language: 'en'
+    language: 'en',
+    // new fields
+    inputModelId: null,
+    thinkingEnabled: false,
+    conversationSort: 'updated',
+    uiFontSize: 'md',
+    preferredEditor: 'system',
+    audioEnabled: false,
+    audioVolume: 0.5,
+    autoCompactionEnabled: false,
+    compactionTokenThreshold: 80000
   })
 })
 
@@ -112,5 +122,82 @@ describe('preferences', () => {
   it('language can be changed', () => {
     useSettingsStore.getState().setLanguage('fr')
     expect(useSettingsStore.getState().language).toBe('fr')
+  })
+})
+
+// ── Concierge UI new fields ───────────────────────────────────────────────────
+
+describe('concierge-ui settings', () => {
+  it('initializes inputModelId as null', () => {
+    expect(useSettingsStore.getState().inputModelId).toBeNull()
+  })
+
+  it('setInputModelId updates the model override', () => {
+    useSettingsStore.getState().setInputModelId('claude-3-opus')
+    expect(useSettingsStore.getState().inputModelId).toBe('claude-3-opus')
+  })
+
+  it('initializes thinkingEnabled as false', () => {
+    expect(useSettingsStore.getState().thinkingEnabled).toBe(false)
+  })
+
+  it('setThinkingEnabled toggles the flag', () => {
+    useSettingsStore.getState().setThinkingEnabled(true)
+    expect(useSettingsStore.getState().thinkingEnabled).toBe(true)
+  })
+
+  it('initializes conversationSort as "updated"', () => {
+    expect(useSettingsStore.getState().conversationSort).toBe('updated')
+  })
+
+  it('setConversationSort accepts "created"', () => {
+    useSettingsStore.getState().setConversationSort('created')
+    expect(useSettingsStore.getState().conversationSort).toBe('created')
+  })
+
+  it('initializes uiFontSize as "md"', () => {
+    expect(useSettingsStore.getState().uiFontSize).toBe('md')
+  })
+
+  it('setUiFontSize cycles through sizes', () => {
+    useSettingsStore.getState().setUiFontSize('lg')
+    expect(useSettingsStore.getState().uiFontSize).toBe('lg')
+  })
+
+  it('initializes preferredEditor as "system"', () => {
+    expect(useSettingsStore.getState().preferredEditor).toBe('system')
+  })
+
+  it('setPreferredEditor accepts known editors', () => {
+    useSettingsStore.getState().setPreferredEditor('vscode')
+    expect(useSettingsStore.getState().preferredEditor).toBe('vscode')
+  })
+
+  it('initializes audioEnabled as false and audioVolume as 0.5', () => {
+    const s = useSettingsStore.getState()
+    expect(s.audioEnabled).toBe(false)
+    expect(s.audioVolume).toBe(0.5)
+  })
+
+  it('setAudioEnabled and setAudioVolume update independently', () => {
+    useSettingsStore.getState().setAudioEnabled(true)
+    useSettingsStore.getState().setAudioVolume(0.8)
+    const s = useSettingsStore.getState()
+    expect(s.audioEnabled).toBe(true)
+    expect(s.audioVolume).toBe(0.8)
+  })
+
+  it('initializes autoCompactionEnabled as false with threshold 80000', () => {
+    const s = useSettingsStore.getState()
+    expect(s.autoCompactionEnabled).toBe(false)
+    expect(s.compactionTokenThreshold).toBe(80000)
+  })
+
+  it('setAutoCompactionEnabled and setCompactionTokenThreshold update', () => {
+    useSettingsStore.getState().setAutoCompactionEnabled(true)
+    useSettingsStore.getState().setCompactionTokenThreshold(50000)
+    const s = useSettingsStore.getState()
+    expect(s.autoCompactionEnabled).toBe(true)
+    expect(s.compactionTokenThreshold).toBe(50000)
   })
 })

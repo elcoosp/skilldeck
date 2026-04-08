@@ -1,5 +1,6 @@
 //! Axum router wiring and shared application state.
 
+use axum::http::{HeaderValue, Method};
 use axum::{
     Router, middleware,
     routing::{delete, get, post, put},
@@ -129,8 +130,24 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .merge(authenticated)
         .merge(verify)
         .layer(TraceLayer::new_for_http())
-        .layer(CorsLayer::permissive())
+        .layer(cors_layer())
         .with_state(state)
+}
+
+/// Restricted CORS layer — only allows known origins.
+fn cors_layer() -> CorsLayer {
+    CorsLayer::new()
+        .allow_origin([
+            "https://skilldeck.dev".parse::<HeaderValue>().unwrap(),
+            "https://docs.skilldeck.dev".parse::<HeaderValue>().unwrap(),
+            "http://localhost:3000".parse::<HeaderValue>().unwrap(),
+            "http://localhost:1420".parse::<HeaderValue>().unwrap(),
+        ])
+        .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
+        .allow_headers([
+            axum::http::header::CONTENT_TYPE,
+            axum::http::header::AUTHORIZATION,
+        ])
 }
 
 async fn health() -> &'static str {

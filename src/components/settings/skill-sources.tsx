@@ -16,6 +16,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { SettingsSection } from '@/components/settings/settings-section'
 import {
   useAddSkillSource,
   useRemoveSkillSource,
@@ -78,124 +79,130 @@ export function SkillSources() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-sm font-semibold">Skill Source Directories</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Skills are resolved in priority order — sources listed earlier
-            override later ones.
-          </p>
-        </div>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={handleRefresh}
-          title="Refresh"
-        >
-          <RefreshCw className="size-3.5" />
-        </Button>
-      </div>
-
-      {/* Resolution order explanation */}
-      <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1.5 text-xs">
-        <p className="font-medium text-muted-foreground uppercase tracking-wide text-[10px]">
-          Resolution order
-        </p>
-        {[
-          {
-            icon: FolderOpen,
-            label: 'Workspace (.skilldeck/skills/)',
-            priority: 1
-          },
-          { icon: Home, label: 'Personal (~/.agents/skills/)', priority: 2 },
-          { icon: Globe, label: 'Registry (platform)', priority: 3 }
-        ].map((item, idx) => {
-          const key = `order-${item.priority}-${item.label}`
-          return (
-            <div key={key} className="flex items-center gap-2">
-              {idx > 0 && (
-                <ArrowDown className="size-3 text-muted-foreground ml-4" />
-              )}
-              <div className="flex items-center gap-1.5 ml-0">
-                <item.icon className="size-3.5 text-muted-foreground" />
-                <span>{item.label}</span>
-                <span className="text-[10px] bg-primary/10 text-primary px-1 rounded">
-                  Priority {item.priority}
-                </span>
-              </div>
-            </div>
-          )
-        })}
-      </div>
-
-      {/* Source list */}
-      {isLoading ? (
-        <div className="text-xs text-muted-foreground">Loading sources…</div>
-      ) : (
-        <div className="space-y-1.5">
-          {sortedSources.length === 0 && (
-            <p className="text-xs text-muted-foreground">
-              No custom sources added.
-            </p>
-          )}
-          {sortedSources.map((source, index) => (
-            <SourceRow
-              key={source.id}
-              source={source}
-              priority={index + 1} // Display priority based on order
-              onRemove={() => handleRemove(source.id)}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Add new source */}
-      {showAdd ? (
-        <div className="rounded-lg border border-border p-3 space-y-2">
-          <p className="text-xs font-medium">Add custom source</p>
-          <Input
-            placeholder="Path or URL"
-            value={newPath}
-            onChange={(e) => setNewPath(e.target.value)}
-            className="h-8 text-xs"
-          />
-          <Input
-            placeholder="Label (optional)"
-            value={newLabel}
-            onChange={(e) => setNewLabel(e.target.value)}
-            className="h-8 text-xs"
-          />
-          <div className="flex gap-2">
+    <div className="divide-y divide-border">
+      <SettingsSection
+        title="Skill Source Directories"
+        description="Skills are resolved in priority order — sources listed earlier override later ones."
+      >
+        <div className="space-y-4">
+          <div className="flex justify-end">
             <Button
-              size="sm"
-              className="h-7 text-xs"
-              onClick={handleAdd}
-              disabled={!newPath.trim() || addSource.isPending}
-            >
-              {addSource.isPending ? 'Adding...' : 'Add'}
-            </Button>
-            <Button
-              size="sm"
               variant="ghost"
-              className="h-7 text-xs"
-              onClick={() => setShowAdd(false)}
+              size="icon-sm"
+              onClick={handleRefresh}
+              title="Refresh"
             >
-              Cancel
+              <RefreshCw className="size-3.5" />
             </Button>
           </div>
+
+          {/* Resolution order explanation */}
+          <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1.5 text-xs">
+            <p className="font-medium text-muted-foreground uppercase tracking-wide text-[10px]">
+              Resolution order
+            </p>
+            {[
+              {
+                icon: FolderOpen,
+                label: 'Workspace (.skilldeck/skills/)',
+                priority: 1
+              },
+              {
+                icon: Home,
+                label: 'Personal (~/.agents/skills/)',
+                priority: 2
+              },
+              { icon: Globe, label: 'Registry (platform)', priority: 3 }
+            ].map((item, idx) => {
+              const key = `order-${item.priority}-${item.label}`
+              return (
+                <div key={key} className="flex items-center gap-2">
+                  {idx > 0 && (
+                    <ArrowDown className="size-3 text-muted-foreground ml-4" />
+                  )}
+                  <div className="flex items-center gap-1.5 ml-0">
+                    <item.icon className="size-3.5 text-muted-foreground" />
+                    <span>{item.label}</span>
+                    <span className="text-[10px] bg-primary/10 text-primary px-1 rounded">
+                      Priority {item.priority}
+                    </span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Source list */}
+          {isLoading ? (
+            <div className="text-xs text-muted-foreground">
+              Loading sources…
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              {sortedSources.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  No custom sources added.
+                </p>
+              )}
+              {sortedSources.map((source, index) => (
+                <SourceRow
+                  key={source.id}
+                  source={source}
+                  priority={index + 1} // Display priority based on order
+                  onRemove={() => handleRemove(source.id)}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Add new source */}
+          {showAdd ? (
+            <div className="rounded-lg border border-border p-3 space-y-2">
+              <p className="text-xs font-medium">Add custom source</p>
+              <Input
+                placeholder="Path or URL"
+                value={newPath}
+                onChange={(e) => setNewPath(e.target.value)}
+                className="h-8 text-xs"
+              />
+              <Input
+                placeholder="Label (optional)"
+                value={newLabel}
+                onChange={(e) => setNewLabel(e.target.value)}
+                className="h-8 text-xs"
+              />
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={handleAdd}
+                  disabled={!newPath.trim() || addSource.isPending}
+                >
+                  {addSource.isPending ? 'Adding...' : 'Add'}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-xs"
+                  onClick={() => setShowAdd(false)}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs"
+              onClick={() => setShowAdd(true)}
+            >
+              <Plus className="size-3.5 mr-1.5" />
+              Add Source
+            </Button>
+          )}
         </div>
-      ) : (
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 text-xs"
-          onClick={() => setShowAdd(true)}
-        >
-          <Plus className="size-3.5 mr-1.5" />
-          Add Source
-        </Button>
-      )}
+      </SettingsSection>
     </div>
   )
 }

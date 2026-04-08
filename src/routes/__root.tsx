@@ -1,5 +1,4 @@
 import { createRootRoute, Outlet } from '@tanstack/react-router'
-import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import { HotkeysProvider } from 'react-hotkeys-hook'
 import { z } from 'zod'
 
@@ -23,7 +22,7 @@ function RootComponent() {
   return (
     <HotkeysProvider initiallyActiveScopes={['*']}>
       <Outlet />
-      {import.meta.env.DEV && <TanStackRouterDevtools />}
+      {/*{import.meta.env.DEV && <TanStackRouterDevtools />}*/}
     </HotkeysProvider>
   )
 }

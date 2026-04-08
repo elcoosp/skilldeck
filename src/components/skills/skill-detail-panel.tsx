@@ -217,15 +217,10 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
     disableRule.mutate(
       { ruleId, scope: 'workspace' },
       {
-        onSuccess: () => {
-          if (skill.localData?.path) {
-            relint.mutate()
-          }
-        }
+        onSuccess: () => relint.mutate()
       }
     )
   }
-
   // ── Share skill ───────────────────────────────────────────────────────────
   const handleShareClick = async () => {
     if (!skill.localData?.path) return

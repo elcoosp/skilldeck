@@ -1,5 +1,4 @@
 // src/components/layout/app-shell.tsx
-
 import { useRouter } from '@tanstack/react-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
@@ -8,6 +7,7 @@ import { Toaster } from 'sonner'
 import { GlobalDropZone } from '@/components/chat/global-drop-zone'
 import { CommandPalette } from '@/components/overlays/command-palette'
 import { LaunchNotificationBanner } from '@/components/overlays/launch-notification'
+import { GlobalSearchModal } from '@/components/search/global-search-modal'
 import { useNudgeListener, usePlatformRegistration } from '@/hooks/use-platform'
 import { useUILayoutStore } from '@/store/ui-layout'
 import { useUIOverlaysStore } from '@/store/ui-overlays'
@@ -56,9 +56,11 @@ export function AppShell() {
   useEffect(() => {
     const panels = document.querySelectorAll('[data-panel]')
     const left = panels[0] as HTMLDivElement
+    const center = panels[1] as HTMLDivElement
     const right = panels[2] as HTMLDivElement
     setPanelSizesPx({
       left: left?.clientWidth ?? 0,
+      center: center?.clientWidth ?? 0,
       right: right?.clientWidth ?? 0
     })
   }, [setPanelSizesPx])
@@ -72,11 +74,22 @@ export function AppShell() {
     (newLayout: Layout) => {
       setLayout(newLayout)
 
-      // Derive pixel sizes from percentages – no DOM read needed
+      // Derive pixel sizes from percentages – pure arithmetic, zero DOM reads
       const totalWidth = window.innerWidth
+      const leftPx = Math.round(
+        ((newLayout[PANEL_LEFT] ?? 20) / 100) * totalWidth
+      )
+      const rightPx = Math.round(
+        ((newLayout[PANEL_RIGHT] ?? 20) / 100) * totalWidth
+      )
+
+      // Center width = total minus left/right panels minus 2px for the two separators
+      const centerPx = Math.max(35, totalWidth - leftPx - rightPx - 2)
+
       setPanelSizesPx({
-        left: Math.round(((newLayout[PANEL_LEFT] ?? 20) / 100) * totalWidth),
-        right: Math.round(((newLayout[PANEL_RIGHT] ?? 20) / 100) * totalWidth)
+        left: leftPx,
+        center: centerPx,
+        right: rightPx
       })
 
       // Debounce the write just in case
@@ -103,7 +116,6 @@ export function AppShell() {
 
   // Settings: Cmd+, / Ctrl+, (comma)
   useHotkeys(['meta+,', 'ctrl+,'], () => {
-    console.log('settings')
     router.navigate({ to: '/settings/api-keys' })
   })
 
@@ -127,13 +139,19 @@ export function AppShell() {
             minSize={'15%'}
             maxSize={'30%'}
             className="border-r border-border"
+            data-panel
           >
             <LeftPanel />
           </Panel>
 
           <Separator className="w-px bg-border hover:bg-primary/30 transition-colors cursor-col-resize" />
 
-          <Panel id={PANEL_CENTER} minSize={35}>
+          <Panel
+            id={PANEL_CENTER}
+            minSize={35}
+            className="overflow-hidden"
+            data-panel
+          >
             <CenterPanel />
           </Panel>
 
@@ -144,6 +162,7 @@ export function AppShell() {
             minSize={'18%'}
             maxSize={'35%'}
             className="border-l border-border"
+            data-panel
           >
             <RightPanel />
           </Panel>
@@ -151,6 +170,7 @@ export function AppShell() {
       </div>
 
       <CommandPalette />
+      <GlobalSearchModal />
       <GlobalDropZone />
       <Toaster position="bottom-right" richColors closeButton />
     </div>

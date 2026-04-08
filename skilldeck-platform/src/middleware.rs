@@ -52,8 +52,8 @@ fn extract_bearer(headers: &HeaderMap) -> Option<String> {
 }
 
 async fn verify_api_key(db: &sea_orm::DatabaseConnection, token: &str) -> Result<Uuid, AppError> {
-    // We store a bcrypt/argon2 hash; for lookup efficiency we store the token
-    // prefix as an index hint (first 8 chars).
+    // TODO: Add key_prefix column (first 8 chars) for indexed lookup to avoid
+    // scanning all rows. For now, fetch all rows but the table is expected to be small.
     let rows = core_models::api_keys::Entity::find()
         .all(db)
         .await

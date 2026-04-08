@@ -1,14 +1,6 @@
 // src/components/conversation/conversation-item.tsx
 import { formatDistanceToNow } from 'date-fns'
-import { AnimatePresence, motion } from 'framer-motion'
-import {
-  Folder,
-  MoreHorizontal,
-  Pencil,
-  Pin,
-  PinOff,
-  Trash2
-} from 'lucide-react'
+import { MoreHorizontal, Pencil, Pin, PinOff, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
@@ -28,6 +20,8 @@ import {
 import type { ConversationSummary } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
+import { BouncingDots } from '@/components/ui/bouncing-dots'
+import { useUIEphemeralStore } from '@/store/ui-ephemeral'
 
 interface ConversationItemProps {
   conversation: ConversationSummary
@@ -72,11 +66,9 @@ export function ConversationItem({
   const pinMutation = usePinConversation()
   const unpinMutation = useUnpinConversation()
 
-  // Mount guard to prevent re-animation on re-renders (e.g., panel resize)
-  const hasMounted = useRef(false)
-  useEffect(() => {
-    hasMounted.current = true
-  }, [])
+  // Streaming indicator
+  const agentRunning = useUIEphemeralStore((s) => s.agentRunning)
+  const isStreaming = agentRunning[conversation.id] ?? false
 
   // ── Listen to the custom drag-drop event from GlobalDropZone ──────────────
   useEffect(() => {
@@ -211,7 +203,6 @@ export function ConversationItem({
       onKeyDown={handleKeyDown}
       className={cn(
         'group relative flex items-start gap-2 w-full px-2 py-2 rounded-md text-left transition-colors cursor-pointer',
-        'pr-6',
         isActive
           ? 'bg-primary/10 text-foreground'
           : 'hover:bg-muted/70 text-muted-foreground hover:text-foreground',
@@ -223,50 +214,33 @@ export function ConversationItem({
     >
       <div className="flex-1 min-w-0 relative z-10">
         <div className="flex items-center gap-1 h-5">
-          <AnimatePresence mode="wait" initial={false}>
-            {isRenaming ? (
-              <motion.div
-                key="input"
-                initial={hasMounted.current ? false : { opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-                className="flex-1 h-full"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  onBlur={commitRename}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      commitRename()
-                    }
-                    if (e.key === 'Escape') {
-                      e.preventDefault()
-                      cancelRename()
-                    }
-                  }}
-                  disabled={renameMutation.isPending || isDeleting}
-                  className="w-full h-full text-xs bg-transparent border-b border-primary outline-none px-0 leading-none box-border"
-                />
-              </motion.div>
-            ) : (
-              <motion.span
-                key="title"
-                initial={hasMounted.current ? false : { opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-                className="text-xs font-medium truncate leading-none"
-              >
-                {conversation.title ?? 'Untitled'}
-              </motion.span>
-            )}
-          </AnimatePresence>
+          {isRenaming ? (
+            <div className="flex-1 h-full" onClick={(e) => e.stopPropagation()}>
+              <input
+                ref={inputRef}
+                type="text"
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onBlur={commitRename}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    commitRename()
+                  }
+                  if (e.key === 'Escape') {
+                    e.preventDefault()
+                    cancelRename()
+                  }
+                }}
+                disabled={renameMutation.isPending || isDeleting}
+                className="w-full h-full text-xs bg-transparent border-b border-primary outline-none px-0 leading-none box-border"
+              />
+            </div>
+          ) : (
+            <span className="text-xs font-medium truncate leading-none">
+              {conversation.title ?? 'Untitled'}
+            </span>
+          )}
 
           <Button
             variant="ghost"
@@ -327,15 +301,18 @@ export function ConversationItem({
               <Pin className="size-2.5 fill-primary" /> Pinned
             </span>
           )}
-          {workspaceName && (
-            <span className="inline-flex items-center gap-0.5 bg-muted/50 px-1 py-0.5 rounded-sm">
-              <Folder className="size-2.5" />
-              {workspaceName}
+          {isStreaming ? (
+            <div className="flex items-center gap-1">
+              <BouncingDots />
+              <span className="text-[11px] text-muted-foreground/70">
+                Streaming...
+              </span>
+            </div>
+          ) : (
+            <span>
+              {conversation.message_count} msg · {relativeTime}
             </span>
           )}
-          <span>
-            {conversation.message_count} msg · {relativeTime}
-          </span>
         </p>
       </div>
 

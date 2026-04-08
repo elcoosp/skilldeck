@@ -22,3 +22,6 @@ fn symlink_skill_directory_skipped() {
     // No warnings because it's not a real skill directory
     assert!(warnings.is_empty());
 }
+
+
+

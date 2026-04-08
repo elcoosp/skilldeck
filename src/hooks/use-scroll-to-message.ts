@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 
 export function useScrollToMessage() {
   const match = useMatch({
-    from: '/conversations/$conversationId',
+    from: '/_app/conversations/$conversationId',
     shouldThrow: false
   })
   const search = match?.search as { messageId?: string } | undefined

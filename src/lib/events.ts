@@ -23,7 +23,7 @@ export type AgentEventType =
   | 'error'
   | 'persisted'
   | 'tool_approval_required'
-  | 'stream_update' // <-- new
+  | 'stream_update'
 
 export interface AgentEvent {
   type: AgentEventType
@@ -35,13 +35,11 @@ export interface AgentEvent {
   input_tokens?: number
   output_tokens?: number
   message?: string
-  // Fields for tool_approval_required
   tool_name?: string
   arguments?: Record<string, unknown>
-  // Fields for stream_update
   draft_html?: string | null
   slot_count?: number
-  new_toc_items?: any[] // We'll define a proper type later, but for now use any
+  new_toc_items?: any[]
   new_artifact_specs?: any[]
 }
 export interface ToolCallInfo {
@@ -104,6 +102,18 @@ export interface SkillEvent {
 }
 
 // ============================================================================
+// Queue events  ("queue-event") – NEW
+// ============================================================================
+
+export type QueueEventType = 'message_sent'
+
+export interface QueueEvent {
+  type: QueueEventType
+  conversation_id: string
+  message_id: string
+}
+
+// ============================================================================
 // Listener helpers
 // ============================================================================
 
@@ -129,4 +139,11 @@ export function onSkillEvent(
   callback: (event: SkillEvent) => void
 ): Promise<UnlistenFn> {
   return listen<SkillEvent>('skill-event', (e) => callback(e.payload))
+}
+
+// NEW: Queue event listener
+export function onQueueEvent(
+  callback: (event: QueueEvent) => void
+): Promise<UnlistenFn> {
+  return listen<QueueEvent>('queue-event', (e) => callback(e.payload))
 }

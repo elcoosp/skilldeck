@@ -4,7 +4,6 @@ import { FileIcon, FolderIcon } from '@react-symbols/icons/utils'
 import { CheckCircle, ChevronLeft, Loader2, XCircle } from 'lucide-react'
 import type React from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import type { FileEntry, FolderCounts } from '@/types/chat-context'
@@ -13,7 +12,6 @@ import { FolderScopeModal } from './folder-scope-modal'
 interface FileMentionPickerProps {
   open: boolean
   query: string
-  position: { top: number; left: number } | null
   items: FileEntry[]
   loading: boolean
   uploadingFiles?: Map<
@@ -39,7 +37,6 @@ function formatBytes(bytes?: number): string {
 export const FileMentionPicker: React.FC<FileMentionPickerProps> = ({
   open,
   query,
-  position,
   items,
   loading,
   uploadingFiles = new Map(),
@@ -169,15 +166,14 @@ export const FileMentionPicker: React.FC<FileMentionPickerProps> = ({
   // Determine if we are in a workspace (not just the default '.' root)
   const hasWorkspace = workspaceRoot !== '.'
 
-  if (!open || !position) return null
+  if (!open) return null
 
-  return createPortal(
+  return (
     <div
       ref={pickerRef}
       role="dialog"
       aria-label="File picker"
-      className="fixed z-50 w-80 bg-popover text-popover-foreground shadow-lg border rounded-lg overflow-hidden"
-      style={{ top: position.top, left: position.left }}
+      className="absolute bottom-full left-0 mb-2 z-50 w-full bg-popover text-popover-foreground shadow-lg border rounded-lg overflow-hidden"
       onKeyDown={handleKeyDown}
     >
       <div className="p-2 border-b">
@@ -296,7 +292,6 @@ export const FileMentionPicker: React.FC<FileMentionPickerProps> = ({
             })}
         </div>
       )}
-    </div>,
-    document.body
+    </div>
   )
 }

@@ -1,0 +1,42 @@
+---
+title: "Announcing SkillDeck: Local-First AI Orchestration for Developers"
+date: "2025-01-15"
+excerpt: "SkillDeck is a native desktop application that brings multi-agent orchestration, visual workflows, and full model control to one local-first interface. Your code never leaves your machine."
+author: "SkillDeck Team"
+---
+
+# Announcing SkillDeck
+
+Today we are releasing SkillDeck into the world as a fully open source project under the MIT License. SkillDeck is a native desktop application built with Tauri 2 and Rust that gives you a single interface for multi-agent AI orchestration, visual workflow automation, skill management, and full model control.
+
+## Why We Built SkillDeck
+
+We are developers, and we were tired of stitching together a fragmented toolchain of cloud-locked AI services. Every tool we adopted created a new dependency and a new risk. We worried about whether our proprietary code was being logged, whether our API keys were stored safely, and whether the tool we invested time learning would change its pricing or shut down.
+
+So we built what we wished existed: a single native app that runs on your machine, connects to any model you want, and puts you in control of every aspect of your AI workflow.
+
+## What Makes SkillDeck Different
+
+**Local-first by design.** Every conversation, every workflow execution, and every API key stays on your machine. Conversations and state are stored in a local SQLite database. API keys are stored in your operating system's native keychain, never in plaintext.
+
+**Multi-agent orchestration.** The streaming agent loop supports tool dispatching, subagent spawning, and merge strategies (concat, summarize, vote). Track every subagent in real time with dedicated status cards.
+
+**Visual workflow builder.** Design multi-step AI pipelines with a drag-and-drop graph editor. Choose from three execution patterns: Sequential, Parallel, and Evaluator-Optimizer.
+
+**Skill system with MCP.** Skills are Markdown-based instruction packages with YAML frontmatter and 17 built-in lint rules. Connect external tools through the full MCP protocol (JSON-RPC 2.0, stdio and SSE transports).
+
+**Native performance.** Built with Tauri 2 and Rust, not Electron. The Rust backend includes skilldeck-core for the agent engine, MCP supervisor, and workflow execution, plus skilldeck-lint for dedicated skill validation with 17 lint rules.
+
+## What Comes Next
+
+We are actively developing the next set of features, including the Unified Skill Marketplace, enhanced conversation branching with artifacts, and the optional SkillDeck Platform for those who want cloud-based skill sharing and analytics.
+
+SkillDeck is open source, and we welcome contributions. Whether you want to report bugs, submit pull requests, build skills for the registry, or create MCP servers, the door is wide open.
+
+## Download SkillDeck
+
+SkillDeck is available for macOS, Windows, and Linux. No account required. No cloud dependency.
+
+Visit the [download page](/download) to get started, or [view the source on GitHub](https://github.com/elcoosp/skilldeck).
+
+Your AI workflow. Your machine. Your rules.

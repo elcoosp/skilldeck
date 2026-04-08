@@ -1,3 +1,4 @@
+// src/store/ui-ephemeral.ts
 import { create } from 'zustand'
 import type { NodeDocument } from '@/lib/bindings'
 
@@ -19,6 +20,13 @@ interface UIState {
   setStreamingError: (conversationId: string, error: boolean) => void
   conversationSearchQuery: string
   setConversationSearchQuery: (query: string) => void
+  // Concierge UI new fields
+  suggestedPromptsDismissed: Record<string, boolean>
+  setSuggestedPromptsDismissed: (id: string, dismissed: boolean) => void
+  gitInitDismissed: Record<string, boolean>
+  setGitInitDismissed: (path: string, dismissed: boolean) => void
+  editingMessageId: string | null
+  setEditingMessageId: (id: string | null) => void
 }
 
 export const useUIEphemeralStore = create<UIState>((set) => ({
@@ -70,5 +78,22 @@ export const useUIEphemeralStore = create<UIState>((set) => ({
       streamingError: { ...state.streamingError, [conversationId]: error }
     })),
   conversationSearchQuery: '',
-  setConversationSearchQuery: (query) => set({ conversationSearchQuery: query })
+  setConversationSearchQuery: (query) =>
+    set({ conversationSearchQuery: query }),
+  // Concierge UI new fields
+  suggestedPromptsDismissed: {},
+  setSuggestedPromptsDismissed: (id, dismissed) =>
+    set((state) => ({
+      suggestedPromptsDismissed: {
+        ...state.suggestedPromptsDismissed,
+        [id]: dismissed
+      }
+    })),
+  gitInitDismissed: {},
+  setGitInitDismissed: (path, dismissed) =>
+    set((state) => ({
+      gitInitDismissed: { ...state.gitInitDismissed, [path]: dismissed }
+    })),
+  editingMessageId: null,
+  setEditingMessageId: (id) => set({ editingMessageId: id })
 }))

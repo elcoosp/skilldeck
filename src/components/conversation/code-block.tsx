@@ -254,7 +254,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
                 ref={preRef}
                 className="p-3 m-0 mt-0 mb-0 text-xs leading-relaxed"
                 style={{
-                  fontSize: 16,
+                  fontSize: 14,
                   whiteSpace: 'pre',
                   fontFamily: 'inherit'
                 }}

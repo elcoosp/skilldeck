@@ -59,36 +59,31 @@ pub async fn set_api_key(
         .set_password(KEYRING_SERVICE, &provider, &key)
         .map_err(|e| e.to_string())?;
 
-    // Re-register the provider in the live registry so the next agent loop
-    // invocation uses the new key without requiring an app restart.
     match provider.as_str() {
         "claude" => {
             state.registry.register_provider(ClaudeProvider::new(key));
-            tracing::info!("Claude provider re-registered with new key");
+            tracing::debug!("Claude provider re-registered with new key");
         }
         "openai" => {
             state.registry.register_provider(OpenAiProvider::new(key));
-            tracing::info!("OpenAI provider re-registered with new key");
+            tracing::debug!("OpenAI provider re-registered with new key");
         }
-        _ => {} // ollama needs no key; other providers are not yet implemented
+        _ => {}
     }
 
     Ok(())
 }
 
 /// Remove an API key from the OS keychain.
-///
-/// Note: we do NOT unregister the provider from the registry here because
-/// the provider object holds no reference to the key after construction —
-/// the key was captured by value.  A full de-registration would require
-/// restarting the app or a more complex eviction mechanism; for v1 this is
-/// acceptable.
+/// Tolerates missing entries (idempotent).
 #[specta]
 #[tauri::command]
 pub async fn delete_api_key(app: tauri::AppHandle, provider: String) -> Result<(), String> {
-    app.keyring()
-        .delete_password(KEYRING_SERVICE, &provider)
-        .map_err(|e| e.to_string())
+    match app.keyring().delete_password(KEYRING_SERVICE, &provider) {
+        Ok(()) => Ok(()),
+        Err(e) if e.to_string().contains("No matching entry") => Ok(()),
+        Err(e) => Err(e.to_string()),
+    }
 }
 
 /// Light format-based validation – does not make a real API call.
@@ -139,7 +134,6 @@ pub async fn test_api_connection(provider: String, key: String) -> Result<bool, 
             Ok(resp.status().is_success())
         }
         "ollama" => {
-            // Ollama has no API key; just check if the server is reachable.
             let url = "http://localhost:11434/api/tags";
             let resp = client.get(url).send().await.map_err(|e| e.to_string())?;
             Ok(resp.status().is_success())
@@ -179,8 +173,5 @@ pub async fn set_auto_approve_config(
         mutations: config.auto_approve_mutations,
     };
     *state.global_auto_approve.write().await = core_config;
-    // Emit event so existing ToolDispatcher instances can update.
-    // Note: We'll rely on the dispatcher reading the global config at creation time.
-    // Future improvement: broadcast changes.
     Ok(())
 }

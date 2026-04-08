@@ -136,7 +136,7 @@ async fn run_step_with_agent(
     );
 
     let prompt_owned = prompt.to_string();
-    let loop_handle = tokio::spawn(async move { agent.run(prompt_owned).await });
+    let loop_handle = tokio::spawn(async move { agent.run(prompt_owned, false).await });
 
     let mut streamed = String::new();
     while let Some(event) = event_rx.recv().await {

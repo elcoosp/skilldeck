@@ -39,6 +39,7 @@ import type { MessageData } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
 import { useUIEphemeralStore } from '@/store/ui-ephemeral'
+import { useConversationStore } from '@/store/conversation'
 
 export const conversationSearchSchema = z.object({
   messageId: z.string().optional(),
@@ -58,7 +59,14 @@ export const Route = createFileRoute('/_app/conversations/$conversationId')({
 
 function ConversationView() {
   const { conversationId } = Route.useParams()
-  const _router = useRouter()
+  const setActiveConversation = useConversationStore((s) => s.setActiveConversation)
+
+  // Sync URL param to store
+  useEffect(() => {
+    if (conversationId) {
+      setActiveConversation(conversationId)
+    }
+  }, [conversationId, setActiveConversation])
   const searchQuery = useUIEphemeralStore((s) => s.conversationSearchQuery)
   const setSearchQuery = useUIEphemeralStore(
     (s) => s.setConversationSearchQuery
@@ -224,7 +232,7 @@ function ConversationView() {
   }, [markAllUnseenAsSeen])
 
   useEffect(() => {
-    let unsub = () => {}
+    let unsub = () => { }
     const t = setTimeout(() => {
       const thread = threadRef.current
       if (!thread) return
@@ -567,7 +575,7 @@ function ConversationView() {
         </button>
       </div>
 
-      <div className="shrink-0 border-t border-border">
+      <div className="shrink-0">
         <MessageInput
           conversationId={conversationId}
           workspaceRoot={workspaceRoot}

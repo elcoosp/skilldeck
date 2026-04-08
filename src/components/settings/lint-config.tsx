@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { useDisableRule, useLintRules } from '@/hooks/use-lint'
 import { DOCS_LINT_URL } from '@/lib/config'
 import { cn } from '@/lib/utils'
+import { SettingsSection } from '@/components/settings/settings-section'
 
 const RULE_DESCRIPTIONS: Record<string, string> = {
   'fm-name-format': 'Skill name must be lowercase kebab-case',
@@ -62,7 +63,7 @@ const RULE_CATEGORIES: Record<string, string[]> = {
 }
 
 export function LintConfig() {
-  const { data: _allRules, isLoading } = useLintRules() // renamed to _allRules
+  const { data: _allRules, isLoading } = useLintRules()
   const disableRule = useDisableRule()
   const [disabledRules, setDisabledRules] = useState<Set<string>>(new Set())
 
@@ -89,74 +90,75 @@ export function LintConfig() {
   }
 
   return (
-    <div className="space-y-5">
-      <div>
-        <h3 className="text-sm font-semibold flex items-center gap-2">
-          <Settings2 className="size-4" />
-          Lint Rules
-        </h3>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          Disabled rules are written to{' '}
-          <code className="text-[10px] bg-muted px-1 rounded">
-            ~/.config/skilldeck/skilldeck-lint.toml
-          </code>
-        </p>
-      </div>
-
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={() => openUrl(DOCS_LINT_URL)}
-          className="text-xs text-primary underline hover:no-underline"
-        >
-          Learn more about linting
-        </button>
-      </div>
-
-      {Object.entries(RULE_CATEGORIES).map(([category, ruleIds]) => (
-        <div key={category} className="space-y-1">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-            {category}
-          </p>
-          <div className="space-y-0.5 rounded-lg border border-border overflow-hidden">
-            {ruleIds.map((ruleId, i) => {
-              const isDisabled = disabledRules.has(ruleId)
-              return (
-                <div
-                  key={ruleId}
-                  className={cn(
-                    'flex items-center gap-3 px-3 py-2.5 text-xs',
-                    i > 0 && 'border-t border-border/50',
-                    isDisabled && 'opacity-50'
-                  )}
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="font-mono text-[11px] text-muted-foreground">
-                      {ruleId}
-                    </p>
-                    <p className="text-xs mt-0.5">
-                      {RULE_DESCRIPTIONS[ruleId] ?? ruleId}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => toggleRule(ruleId)}
-                    className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-                    title={isDisabled ? 'Enable rule' : 'Disable rule'}
-                    disabled={disableRule.isPending}
-                  >
-                    {isDisabled ? (
-                      <ToggleLeft className="size-5" />
-                    ) : (
-                      <ToggleRight className="size-5 text-primary" />
-                    )}
-                  </button>
-                </div>
-              )
-            })}
+    <div className="divide-y divide-border">
+      <SettingsSection
+        title="Lint Rules"
+        description={
+          <>
+            Disabled rules are written to{' '}
+            <code className="text-[10px] bg-muted px-1 rounded">
+              ~/.config/skilldeck/skilldeck-lint.toml
+            </code>
+          </>
+        }
+      >
+        <div className="space-y-5">
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => openUrl(DOCS_LINT_URL)}
+              className="text-xs text-primary underline hover:no-underline"
+            >
+              Learn more about linting
+            </button>
           </div>
+
+          {Object.entries(RULE_CATEGORIES).map(([category, ruleIds]) => (
+            <div key={category} className="space-y-1">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                {category}
+              </p>
+              <div className="space-y-0.5 rounded-lg border border-border overflow-hidden">
+                {ruleIds.map((ruleId, i) => {
+                  const isDisabled = disabledRules.has(ruleId)
+                  return (
+                    <div
+                      key={ruleId}
+                      className={cn(
+                        'flex items-center gap-3 px-3 py-2.5 text-xs',
+                        i > 0 && 'border-t border-border/50',
+                        isDisabled && 'opacity-50'
+                      )}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="font-mono text-[11px] text-muted-foreground">
+                          {ruleId}
+                        </p>
+                        <p className="text-xs mt-0.5">
+                          {RULE_DESCRIPTIONS[ruleId] ?? ruleId}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => toggleRule(ruleId)}
+                        className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                        title={isDisabled ? 'Enable rule' : 'Disable rule'}
+                        disabled={disableRule.isPending}
+                      >
+                        {isDisabled ? (
+                          <ToggleLeft className="size-5" />
+                        ) : (
+                          <ToggleRight className="size-5 text-primary" />
+                        )}
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
         </div>
-      ))}
+      </SettingsSection>
     </div>
   )
 }

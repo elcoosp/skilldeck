@@ -109,6 +109,7 @@ export function useDisableRule() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lint-rules'] })
+      queryClient.invalidateQueries({ queryKey: ['local_skills'] }) // <-- added
     }
   })
 }

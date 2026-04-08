@@ -5,8 +5,6 @@ import { writeTextFile } from '@tauri-apps/plugin-fs'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   AlertCircle,
-  Bookmark,
-  BookmarkCheck,
   Bot,
   Check,
   ChevronDown,
@@ -16,7 +14,11 @@ import {
   Download,
   GitBranch,
   MoreHorizontal,
-  User
+  Pencil,
+  RotateCcw,
+  User,
+  Bookmark,
+  BookmarkCheck
 } from 'lucide-react'
 import React, {
   memo,
@@ -42,10 +44,26 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@/components/ui/tooltip'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog'
+import { Textarea } from '@/components/ui/textarea'
+import { Button } from '@/components/ui/button'
 import { useBookmarks, useToggleBookmark } from '@/hooks/use-bookmarks'
+import { useCreateBranch } from '@/hooks/use-branches'
+import { useEditMessage } from '@/hooks/use-edit-message'
+import { useSendMessage } from '@/hooks/use-messages'
 import type { MdNode, MessageData, NodeDocument } from '@/lib/bindings'
 import { cn, highlightText } from '@/lib/utils'
 import { useConversationStore } from '@/store/conversation'
+import { useUIEphemeralStore } from '@/store/ui-ephemeral'
 import { CreateBranchModal } from './create-branch-modal'
 import { ScrollContainerContext } from './message-thread'
 import { SubagentCard } from './subagent-card'
@@ -111,28 +129,24 @@ const AssistantMessageActions = memo(
         <DropdownMenuContent align="end" className="w-32">
           <DropdownMenuItem
             onClick={onCopy}
-            className="cursor-pointer hover:bg-primary/10 hover:text-foreground focus:bg-primary/10 focus:text-foreground"
           >
             <Copy className="mr-2 h-4 w-4" />
             <span>Copy</span>
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={onDownload}
-            className="cursor-pointer hover:bg-primary/10 hover:text-foreground focus:bg-primary/10 focus:text-foreground"
           >
             <Download className="mr-2 h-4 w-4" />
             <span>Download</span>
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={onBranch}
-            className="cursor-pointer hover:bg-primary/10 hover:text-foreground focus:bg-primary/10 focus:text-foreground"
           >
             <GitBranch className="mr-2 h-4 w-4" />
             <span>Branch from here</span>
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={onBookmark}
-            className="cursor-pointer hover:bg-primary/10 hover:text-foreground focus:bg-primary/10 focus:text-foreground"
           >
             {isBookmarked ? (
               <BookmarkCheck className="mr-2 h-4 w-4 text-amber-400 fill-amber-400" />
@@ -266,7 +280,11 @@ function MessageBubbleInner({
 }: MessageBubbleProps) {
   const [copied, setCopied] = useState(false)
   const [branchModalOpen, setBranchModalOpen] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [isInlineEditing, setIsInlineEditing] = useState(false)
+  const [editContent, setEditContent] = useState('')
   const contentRef = useRef<HTMLDivElement>(null)
+  const editTextareaRef = useRef<HTMLTextAreaElement>(null)
 
   const activeConversationId = useConversationStore(
     (s) => s.activeConversationId
@@ -282,6 +300,31 @@ function MessageBubbleInner({
   const handleBranch = useCallback(() => {
     setBranchModalOpen(true)
   }, [])
+
+  const createBranch = useCreateBranch()
+  const editMessage = useEditMessage()
+  const sendMessage = useSendMessage(activeConversationId!)
+  const editingMessageId = useUIEphemeralStore((s) => s.editingMessageId)
+  const setEditingMessageId = useUIEphemeralStore((s) => s.setEditingMessageId)
+
+  // Check if this message is being edited
+  const isEditing = editingMessageId === message.id
+
+  // When edit mode starts, initialize edit content and focus textarea
+  useEffect(() => {
+    if (isEditing && !isInlineEditing) {
+      setIsInlineEditing(true)
+      setEditContent(message.content)
+    }
+  }, [isEditing, message.content, isInlineEditing])
+
+  // Focus textarea when inline editing becomes active
+  useEffect(() => {
+    if (isInlineEditing && editTextareaRef.current) {
+      editTextareaRef.current.focus()
+      editTextareaRef.current.select()
+    }
+  }, [isInlineEditing])
 
   const isUser = message.role === 'user'
   const isAssistant = message.role === 'assistant'
@@ -457,6 +500,74 @@ function MessageBubbleInner({
     forceUpdate((n) => n + 1)
   }, [])
 
+  // Edit handlers
+  const handleEditClick = () => {
+    setEditDialogOpen(true)
+  }
+
+  const handleEditInPlace = () => {
+    setEditDialogOpen(false)
+    setEditingMessageId(message.id)
+  }
+
+  const handleEditNewBranch = async () => {
+    setEditDialogOpen(false)
+    if (!activeConversationId) {
+      toast.error('No active conversation')
+      return
+    }
+    try {
+      const branchId = await createBranch.mutateAsync({
+        conversation_id: activeConversationId,
+        parent_message_id: message.id,
+        name: `Edit of ${message.id.slice(0, 6)}`
+      })
+      toast.success('Branch created for editing')
+      useConversationStore.getState().setActiveBranch(branchId)
+    } catch (err) {
+      toast.error(`Failed to create branch: ${err}`)
+    }
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editContent.trim()) {
+      toast.error('Message cannot be empty')
+      return
+    }
+
+    try {
+      await editMessage.mutateAsync({
+        messageId: message.id,
+        newContent: editContent.trim()
+      })
+      // Resend the edited message to trigger agent
+      await sendMessage.mutateAsync({
+        content: editContent.trim()
+      })
+      setIsInlineEditing(false)
+      setEditingMessageId(null)
+      toast.success('Message updated and resent')
+    } catch (err) {
+      toast.error(`Failed to update message: ${err}`)
+    }
+  }
+
+  const handleCancelEdit = () => {
+    setIsInlineEditing(false)
+    setEditingMessageId(null)
+  }
+
+  const handleEditKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      handleCancelEdit()
+    }
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault()
+      handleSaveEdit()
+    }
+  }
+
   let subagentData: any = null
   if (isAssistant && !isStreaming && message.content) {
     try {
@@ -470,7 +581,7 @@ function MessageBubbleInner({
       <SubagentCard
         stepName={subagentData.task || 'Subagent'}
         status="running"
-        onOpen={() => {}}
+        onOpen={() => { }}
       />
     )
   }
@@ -533,10 +644,23 @@ function MessageBubbleInner({
 
     if (!contentElement && !showShimmer && !documentToRender) return null
 
+    // Safe date formatting
+    const formatTime = (dateStr?: string) => {
+      if (!dateStr) return 'just now'
+      try {
+        const date = new Date(dateStr)
+        if (isNaN(date.getTime())) return 'just now'
+        return date.toLocaleTimeString()
+      } catch {
+        return 'just now'
+      }
+    }
+    const timeString = formatTime(message.created_at)
+
     return (
       <motion.div
         id={`msg-${message.id}`}
-        className="flex flex-col max-w-full"
+        className="flex flex-col max-w-full group"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.15, ease: 'easeOut' }}
@@ -653,29 +777,38 @@ function MessageBubbleInner({
           </div>
         </div>
 
-        <AnimatePresence>
-          {!isStreaming &&
-            !syntheticStreaming &&
-            message.content &&
-            !collapsedStateRef.current && (
-              <motion.button
-                key="copy-button"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-                onClick={copyMessage}
-                className="mt-1 p-1 text-muted-foreground hover:text-foreground transition-colors bg-transparent border-0 shadow-none self-start"
-                aria-label="Copy message"
+        {/* Bottom row - fixed height, no layout shift, date replaced by actions on hover */}
+        <div className="mt-1 relative h-5">
+          <div className="absolute left-0 top-0 inline-flex items-center gap-2 group-hover:opacity-0 transition-opacity">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">
+              {timeString}
+            </span>
+          </div>
+          <div className="absolute left-0 top-0 inline-flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              type="button"
+              onClick={copyMessage}
+              className="p-0.5 text-muted-foreground hover:text-foreground transition-colors rounded"
+              aria-label="Copy message"
+            >
+              {copied ? (
+                <Check className="size-3 text-green-500" />
+              ) : (
+                <Copy className="size-3" />
+              )}
+            </button>
+            {onRetry && (
+              <button
+                type="button"
+                onClick={onRetry}
+                className="p-0.5 text-muted-foreground hover:text-foreground transition-colors rounded"
+                aria-label="Retry"
               >
-                {copied ? (
-                  <Check className="size-3.5 text-green-500" />
-                ) : (
-                  <Copy className="size-3.5" />
-                )}
-              </motion.button>
+                <RotateCcw className="size-3" />
+              </button>
             )}
-        </AnimatePresence>
+          </div>
+        </div>
 
         {isAssistant && message.status === 'cancelled' && (
           <div className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
@@ -708,10 +841,88 @@ function MessageBubbleInner({
       ? getTruncatedText(message.content)
       : message.content
 
+  // Safe date formatting for user messages
+  const formatTime = (dateStr?: string) => {
+    if (!dateStr) return 'just now'
+    try {
+      const date = new Date(dateStr)
+      if (isNaN(date.getTime())) return 'just now'
+      return date.toLocaleTimeString()
+    } catch {
+      return 'just now'
+    }
+  }
+  const timeString = formatTime(message.created_at)
+
+  // If inline editing is active, show textarea instead of content
+  if (isInlineEditing && isUser) {
+    return (
+      <motion.div
+        id={`msg-${message.id}`}
+        className={cn('flex gap-3 max-w-full group', 'flex-row-reverse')}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.15, ease: 'easeOut' }}
+      >
+        <div
+          className="flex-shrink-0 size-7 rounded-full flex items-center justify-center bg-primary text-primary-foreground mt-0.5"
+          aria-hidden
+        >
+          <User className="size-3.5" />
+        </div>
+
+        <div className="flex flex-col items-end min-w-0 max-w-[78%]">
+          <div className="w-full">
+            <div className="relative px-3.5 py-2.5 rounded-xl rounded-tr-sm bg-primary text-primary-foreground block w-full">
+              <Textarea
+                ref={editTextareaRef}
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                onKeyDown={handleEditKeyDown}
+                className="min-h-[80px] w-full bg-primary-foreground/10 text-primary-foreground placeholder:text-primary-foreground/50 border-primary-foreground/20"
+                placeholder="Edit your message..."
+              />
+              <div className="flex justify-end gap-2 mt-2">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleCancelEdit}
+                  className="text-primary-foreground hover:bg-primary-foreground/20"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleSaveEdit}
+                  className="bg-primary-foreground text-primary hover:bg-primary-foreground/90"
+                >
+                  Save & Resend
+                </Button>
+              </div>
+              <p className="text-xs text-primary-foreground/70 mt-2 text-right">
+                Press Escape to cancel, Ctrl+Enter to save
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <CreateBranchModal
+          open={branchModalOpen}
+          onClose={() => setBranchModalOpen(false)}
+          conversationId={activeConversationId!}
+          parentMessageId={message.id}
+        />
+      </motion.div>
+    )
+  }
+
   return (
     <motion.div
       id={`msg-${message.id}`}
-      className={cn('flex gap-3 max-w-full', isUser && 'flex-row-reverse')}
+      className={cn(
+        'flex gap-3 max-w-full group',
+        isUser && 'flex-row-reverse'
+      )}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.15, ease: 'easeOut' }}
@@ -811,64 +1022,49 @@ function MessageBubbleInner({
                 {isExpanded ? 'Show less' : 'Show more'}
               </button>
             )}
-
-            {isUser && !isStreaming && !syntheticStreaming && (
-              <div className="absolute -left-8 top-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <DropdownMenu modal={false}>
-                  <DropdownMenuTrigger asChild>
-                    <button
-                      type="button"
-                      className="p-0.5 hover:bg-muted-foreground/20 rounded transition-colors"
-                      aria-label="Message options"
-                    >
-                      <MoreHorizontal className="size-3.5" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-32">
-                    <DropdownMenuItem
-                      onClick={copyMessage}
-                      className="cursor-pointer hover:bg-primary/10 hover:text-foreground focus:bg-primary/10 focus:text-foreground"
-                    >
-                      <Copy className="mr-2 h-4 w-4" />
-                      <span>Copy</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={handleBranch}
-                      className="cursor-pointer hover:bg-primary/10 hover:text-foreground focus:bg-primary/10 focus:text-foreground"
-                    >
-                      <GitBranch className="mr-2 h-4 w-4" />
-                      <span>Branch from here</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            )}
           </div>
         </div>
 
-        <AnimatePresence>
-          {!isStreaming &&
-            !syntheticStreaming &&
-            message.content &&
-            !collapsedStateRef.current && (
-              <motion.button
-                key="copy-button"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-                onClick={copyMessage}
-                className="mt-1 p-1 text-muted-foreground hover:text-foreground transition-colors bg-transparent border-0 shadow-none"
-                aria-label="Copy message"
+        {/* Bottom row - fixed height, no layout shift, date replaced by actions on hover */}
+        <div className="mt-1 relative h-5 w-full">
+          <div className="absolute right-0 top-0 inline-flex items-center gap-2 group-hover:opacity-0 transition-opacity">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">
+              {timeString}
+            </span>
+          </div>
+          <div className="absolute right-0 top-0 inline-flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              type="button"
+              onClick={copyMessage}
+              className="p-0.5 text-muted-foreground hover:text-foreground transition-colors rounded"
+              aria-label="Copy message"
+            >
+              {copied ? (
+                <Check className="size-3 text-green-500" />
+              ) : (
+                <Copy className="size-3" />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={handleEditClick}
+              className="p-0.5 text-muted-foreground hover:text-foreground transition-colors rounded"
+              aria-label="Edit message"
+            >
+              <Pencil className="size-3" />
+            </button>
+            {onRetry && (
+              <button
+                type="button"
+                onClick={onRetry}
+                className="p-0.5 text-muted-foreground hover:text-foreground transition-colors rounded"
+                aria-label="Retry"
               >
-                {copied ? (
-                  <Check className="size-3.5 text-green-500" />
-                ) : (
-                  <Copy className="size-3.5" />
-                )}
-              </motion.button>
+                <RotateCcw className="size-3" />
+              </button>
             )}
-        </AnimatePresence>
+          </div>
+        </div>
 
         {isUser && onRetry && (
           <div className="text-xs text-muted-foreground mt-1 flex justify-end">
@@ -882,6 +1078,28 @@ function MessageBubbleInner({
           </div>
         )}
       </div>
+
+      {/* Edit Choice Dialog */}
+      <AlertDialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Edit Message</AlertDialogTitle>
+            <AlertDialogDescription>
+              Edit in place to replace this message, or edit on a new branch to
+              preserve the original conversation.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleEditNewBranch}>
+              New Branch
+            </AlertDialogAction>
+            <AlertDialogAction onClick={handleEditInPlace}>
+              Edit in Place
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <CreateBranchModal
         open={branchModalOpen}

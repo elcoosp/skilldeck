@@ -247,7 +247,8 @@ export function useAgentStream(conversationId: string | null) {
           setAgentRunning(conversationId, false)
           clearStreamingText(conversationId)
           clearAllApprovals()
-          queryClient.invalidateQueries({
+          // FIX: Use refetch instead of invalidate to get fresh data immediately
+          queryClient.refetchQueries({
             queryKey: ['queued-messages', conversationId]
           })
           if (unlockStage === 0) setUnlockStage(1)

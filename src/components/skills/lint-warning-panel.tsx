@@ -21,7 +21,6 @@ import {
   TooltipContent,
   TooltipTrigger
 } from '@/components/ui/tooltip'
-import { useDisableRule } from '@/hooks/use-lint'
 import type { LintWarning } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
 
@@ -41,7 +40,6 @@ export function LintWarningPanel({
   className,
   skillRoot
 }: LintWarningPanelProps) {
-  const _disableRule = useDisableRule()
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
   const visible = warnings.filter((w) => w.severity !== 'off')

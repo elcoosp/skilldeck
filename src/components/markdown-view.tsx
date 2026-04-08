@@ -37,9 +37,24 @@ const HeadingBookmarkButton = memo(
       messageId === '__streaming__' ||
       messageId.startsWith('__')
 
+    // --- DEBUG LOGS ---
+    console.log('[HeadingBookmarkButton] Render', {
+      messageId,
+      headingAnchor,
+      headingLabel,
+      conversationId,
+      isDisabled,
+      isBookmarked,
+      bookmarksCount: bookmarks.length
+    })
+
     const handleToggle = useCallback(() => {
-      if (isDisabled) return
-      toggleBookmark.mutate({ messageId, headingAnchor, label: headingLabel })
+      if (isDisabled) {
+        return
+      }
+      toggleBookmark.mutate(
+        { messageId, headingAnchor, label: headingLabel },
+      )
     }, [isDisabled, messageId, headingAnchor, headingLabel, toggleBookmark])
 
     return (
@@ -76,7 +91,6 @@ const HeadingBookmarkButton = memo(
     )
   }
 )
-
 // ─── Split props: stable nodes never receive isStreaming ─────────────────────
 interface StableNodeListProps {
   nodes: MdNode[]

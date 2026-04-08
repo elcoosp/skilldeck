@@ -1,10 +1,16 @@
-import { createFileRoute, Outlet, useRouter } from '@tanstack/react-router'
+import {
+  createFileRoute,
+  Outlet,
+  useLocation,
+  useRouter
+} from '@tanstack/react-router'
 import {
   AlertTriangle,
   Bell,
   Folder,
   Globe,
   Key,
+  Keyboard,
   Layers,
   Share2,
   ShieldCheck,
@@ -24,6 +30,7 @@ const SETTINGS_TABS = [
   { id: 'referral', label: 'Refer & Earn', Icon: Share2 },
   { id: 'lint', label: 'Lint Rules', Icon: AlertTriangle },
   { id: 'sources', label: 'Skill Sources', Icon: Folder },
+  { id: 'shortcuts', label: 'Shortcuts', Icon: Keyboard },
   { id: 'achievements', label: 'Achievements', Icon: Trophy }
 ] as const
 
@@ -33,8 +40,8 @@ export const Route = createFileRoute('/_app/settings')({
 
 function SettingsLayout() {
   const router = useRouter()
-  const pathname = router.state.location.pathname
-  const activeTab = pathname.split('/').pop() ?? 'api-keys'
+  const location = useLocation()
+  const activeTab = location.pathname.split('/').pop() ?? 'api-keys'
 
   const handleClose = () => {
     router.history.back()
@@ -93,9 +100,11 @@ function SettingsLayout() {
           </div>
         </nav>
 
-        {/* Content pane */}
-        <div className="flex-1 overflow-y-auto p-6 text-left">
-          <Outlet />
+        {/* Content pane – wrapped in stacked-card container */}
+        <div className="flex-1 overflow-y-auto text-left">
+          <div className="mx-auto w-full max-w-2xl">
+            <Outlet />
+          </div>
         </div>
       </div>
     </div>

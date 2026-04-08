@@ -23,3 +23,6 @@ fn parse_ollama_list_multiple() {
     let models = OllamaProvider::parse_ollama_list(output);
     assert_eq!(models, vec!["llama3.2:latest", "mistral:latest"]);
 }
+
+
+

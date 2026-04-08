@@ -140,23 +140,23 @@ struct NoopEmailService;
 #[async_trait]
 impl EmailService for NoopEmailService {
     async fn send(&self, to: &str, subject: &str, _html: &str) -> Result<(), EmailError> {
-        tracing::info!("[no-op email] To: {to} | Subject: {subject}");
+        tracing::debug!("[no-op email] To: {to} | Subject: {subject}");
         Ok(())
     }
     async fn send_verification(&self, to: &str, _token: &str) -> Result<(), EmailError> {
-        tracing::info!("[no-op email] Verification to {to}");
+        tracing::debug!("[no-op email] Verification to {to}");
         Ok(())
     }
     async fn send_nudge(&self, to: &str, _msg: &str, _cta: Option<&str>) -> Result<(), EmailError> {
-        tracing::info!("[no-op email] Nudge to {to}");
+        tracing::debug!("[no-op email] Nudge to {to}");
         Ok(())
     }
     async fn send_referral_reward(&self, to: &str, _reward: &str) -> Result<(), EmailError> {
-        tracing::info!("[no-op email] Referral reward to {to}");
+        tracing::debug!("[no-op email] Referral reward to {to}");
         Ok(())
     }
     async fn send_welcome(&self, to: &str) -> Result<(), EmailError> {
-        tracing::info!("[no-op email] Welcome to {to}");
+        tracing::debug!("[no-op email] Welcome to {to}");
         Ok(())
     }
 }

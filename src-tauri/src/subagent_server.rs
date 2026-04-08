@@ -185,6 +185,7 @@ fn convert_request(req: LlmRequest, model_id: String) -> Result<CompletionReques
         tools,
         tools_toon,
         model_params,
+        thinking: false,
     })
 }
 

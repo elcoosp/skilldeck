@@ -121,3 +121,6 @@ async fn test_update_preferences() -> Result<()> {
     assert_eq!(prefs.email, Some("updated@example.com".to_string()));
     Ok(())
 }
+
+
+

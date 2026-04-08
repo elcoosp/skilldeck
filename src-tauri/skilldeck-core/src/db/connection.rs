@@ -13,6 +13,15 @@ use migration::Migrator;
 /// Opens a SQLite database, applies PRAGMAs for WAL + safety, and optionally
 /// runs pending migrations.
 pub async fn open_db(url: &str, run_migrations: bool) -> Result<DatabaseConnection, CoreError> {
+    // Ensure parent directory exists for file-based databases
+    if url != ":memory:" {
+        if let Some(parent) = std::path::Path::new(url).parent() {
+            std::fs::create_dir_all(parent).map_err(|e| CoreError::DatabaseConnection {
+                message: format!("Failed to create database directory: {e}"),
+            })?;
+        }
+    }
+
     let db_url = if url == ":memory:" {
         "sqlite::memory:".to_owned()
     } else {
@@ -93,7 +102,9 @@ pub async fn check_integrity(db: &DatabaseConnection) -> Result<(), CoreError> {
         })?;
 
     if let Some(row) = result {
-        let check: String = row.try_get("", "integrity_check").unwrap_or_default();
+        let check: String = row
+            .try_get("", "integrity_check")
+            .unwrap_or_else(|e| format!("<query error: {e}>"));
         if check != "ok" {
             return Err(CoreError::DatabaseQuery {
                 message: format!("Database integrity check failed: {check}"),

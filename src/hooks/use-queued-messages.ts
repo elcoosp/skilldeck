@@ -1,8 +1,10 @@
 // src/hooks/use-queued-messages.ts
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
 import { toast } from 'sonner'
 import type { ContextItem } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
+import { onQueueEvent, type QueueEvent } from '@/lib/events'
 import type { UUID } from '@/lib/types'
 
 export interface QueuedMessage {
@@ -45,7 +47,7 @@ export function useAddQueuedMessage(conversationId: UUID) {
       const res = await commands.addQueuedMessage({
         conversation_id: conversationId,
         content,
-        context_items: contextItems ?? null // convert undefined to null
+        context_items: contextItems ?? null
       })
       if (res.status === 'error') throw new Error(res.error)
       return res.data
@@ -117,4 +119,29 @@ export function useMergeQueuedMessages(conversationId: UUID) {
       qc.invalidateQueries({ queryKey: ['queued-messages', conversationId] })
     }
   })
+}
+
+// NEW: Hook to listen for queue events and invalidate queries
+export function useQueueEvents() {
+  const queryClient = useQueryClient()
+
+  useEffect(() => {
+    let unlisten: (() => void) | null = null
+
+    const handleEvent = (event: QueueEvent) => {
+      if (event.type === 'message_sent') {
+        queryClient.invalidateQueries({
+          queryKey: ['queued-messages', event.conversation_id]
+        })
+      }
+    }
+
+    onQueueEvent(handleEvent).then((fn) => {
+      unlisten = fn
+    })
+
+    return () => {
+      unlisten?.()
+    }
+  }, [queryClient])
 }

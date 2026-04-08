@@ -14,6 +14,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy
 } from '@dnd-kit/sortable'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect } from 'react'
 import {
   useQueuedMessages,
@@ -36,19 +37,16 @@ export function QueueList({ conversationId }: QueueListProps) {
   const mode = useQueueStore((s) => s.mode[conversationId] ?? 'view')
   const setIsDragging = useQueueStore((s) => s.setIsDragging)
 
-  // Get pause-related state
   const editingId = useQueueStore((s) => s.editingId[conversationId])
   const isDragging = useQueueStore((s) => s.isDragging[conversationId] ?? false)
 
   const isPaused = editingId !== null || isDragging || mode === 'select'
 
-  // Sync pause state to backend and trigger processing when unpaused
   useEffect(() => {
     commands
       .setAutoSendPaused(conversationId, isPaused)
       .catch((err) => console.error('Failed to set auto-send pause:', err))
 
-    // When unpaused, trigger processing of queued messages
     if (!isPaused) {
       commands
         .processQueuedMessages(conversationId)
@@ -91,45 +89,54 @@ export function QueueList({ conversationId }: QueueListProps) {
     )
   }
 
-  if (messages.length === 0) {
-    return null
-  }
-
+  // Animate presence wrapper
   return (
-    <div className="relative flex flex-col max-h-[200px] overflow-hidden border-t border-border">
-      <QueuePauseIndicator conversationId={conversationId} />
-
-      <div className="flex-1 overflow-y-auto overflow-x-hidden">
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-          onDragStart={handleDragStart}
+    <AnimatePresence mode="wait">
+      {messages.length > 0 && (
+        <motion.div
+          key="queue-container"
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: 'auto', opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={{ duration: 0.25, ease: 'easeInOut' }}
+          className="relative flex flex-col overflow-hidden border-t border-border"
+          style={{ maxHeight: 200 }}
         >
-          <SortableContext
-            items={messages.map((m) => m.id)}
-            strategy={verticalListSortingStrategy}
-          >
-            <div className="divide-y divide-border">
-              {messages.map((message, index) => (
-                <QueueItem
-                  key={message.id}
-                  message={message}
-                  conversationId={conversationId}
-                  position={index + 1}
-                />
-              ))}
-            </div>
-          </SortableContext>
-        </DndContext>
-      </div>
+          <QueuePauseIndicator conversationId={conversationId} />
 
-      {mode === 'select' && (
-        <QueueSelectionToolbar
-          conversationId={conversationId}
-          messageIds={messages.map((m) => m.id)}
-        />
+          <div className="flex-1 overflow-y-auto overflow-x-hidden">
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+              onDragStart={handleDragStart}
+            >
+              <SortableContext
+                items={messages.map((m) => m.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="divide-y divide-border">
+                  {messages.map((message, index) => (
+                    <QueueItem
+                      key={message.id}
+                      message={message}
+                      conversationId={conversationId}
+                      position={index + 1}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+          </div>
+
+          {mode === 'select' && (
+            <QueueSelectionToolbar
+              conversationId={conversationId}
+              messageIds={messages.map((m) => m.id)}
+            />
+          )}
+        </motion.div>
       )}
-    </div>
+    </AnimatePresence>
   )
 }

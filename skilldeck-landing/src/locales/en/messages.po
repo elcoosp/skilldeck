@@ -1,0 +1,1107 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-04-04 19:38+0000\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: en\n"
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Plural-Forms: \n"
+
+#. js-lingui-explicit-id
+#: src/components/sections/Hero.tsx:21
+#~ msgid "Code Review"
+#~ msgstr "Code Review"
+
+#. js-lingui-explicit-id
+#: src/components/sections/Hero.tsx:30
+#~ msgid "Review the auth module"
+#~ msgstr "Review the auth module"
+
+#. js-lingui-explicit-id
+#: src/components/sections/Hero.tsx:36
+#~ msgid "Found 3 issues in the JWT implementation."
+#~ msgstr "Found 3 issues in the JWT implementation."
+
+#. js-lingui-explicit-id
+#: src/components/sections/Hero.tsx:42
+#~ msgid "Awaiting your review"
+#~ msgstr "Awaiting your review"
+
+#. js-lingui-explicit-id
+#: src/components/sections/Hero.tsx:58
+#~ msgid "SkillDeck — Code Review"
+#~ msgstr "SkillDeck — Code Review"
+
+#. js-lingui-explicit-id
+#: src/components/sections/Hero.tsx:66
+#~ msgid "Agents"
+#~ msgstr "Agents"
+
+#. js-lingui-explicit-id
+#: src/components/sections/Hero.tsx:69
+#~ msgid "Coordinator"
+#~ msgstr "Coordinator"
+
+#. js-lingui-explicit-id
+#: src/components/sections/Hero.tsx:73
+#~ msgid "Reviewer"
+#~ msgstr "Reviewer"
+
+#. js-lingui-explicit-id
+#: src/components/sections/Hero.tsx:77
+#~ msgid "Executor"
+#~ msgstr "Executor"
+
+#. js-lingui-explicit-id
+#: src/components/sections/Hero.tsx:79
+#~ msgid "Status"
+#~ msgstr "Status"
+
+#. js-lingui-explicit-id
+#: src/components/sections/Hero.tsx:80
+#~ msgid "3 files changed"
+#~ msgstr "3 files changed"
+
+#. js-lingui-explicit-id
+#: src/components/sections/Hero.tsx:81
+#~ msgid "Lint passed"
+#~ msgstr "Lint passed"
+
+#. js-lingui-explicit-id
+#: src/components/sections/Hero.tsx:82
+#~ msgid "3 suggestions"
+#~ msgstr "3 suggestions"
+
+#. js-lingui-explicit-id
+#: src/components/sections/Hero.tsx:89
+#~ msgid "Review the authentication module changes"
+#~ msgstr "Review the authentication module changes"
+
+#. js-lingui-explicit-id
+#: src/components/sections/Hero.tsx:96
+#~ msgid "I found 3 potential issues in the JWT implementation. Running deeper analysis..."
+#~ msgstr "I found 3 potential issues in the JWT implementation. Running deeper analysis..."
+
+#. js-lingui-explicit-id
+#: src/components/sections/Hero.tsx:100
+#~ msgid "Approval gate: awaiting human review"
+#~ msgstr "Approval gate: awaiting human review"
+
+#. js-lingui-explicit-id
+#: src/components/sections/Hero.tsx:107
+#~ msgid "Type a message..."
+#~ msgstr "Type a message..."
+
+#. js-lingui-explicit-id
+#: src/components/sections/Hero.tsx:155
+#~ msgid "Run AI agents, workflows, and tools"
+#~ msgstr "Run AI agents, workflows, and tools"
+
+#. js-lingui-explicit-id
+#: src/components/sections/Hero.tsx:156
+#~ msgid "Stop stitching together"
+#~ msgstr "Stop stitching together"
+
+#. js-lingui-explicit-id
+#: src/components/sections/Hero.tsx:159
+#~ msgid "from a single desktop app."
+#~ msgstr "from a single desktop app."
+
+#. js-lingui-explicit-id
+#: src/components/sections/Hero.tsx:160
+#~ msgid "AI tools that don't talk to each other."
+#~ msgstr "AI tools that don't talk to each other."
+
+#. js-lingui-explicit-id
+#: src/components/sections/Hero.tsx:163
+#~ msgid "SkillDeck gives you multi-agent orchestration, a visual workflow editor, and a skill system with built-in linting — all running locally on macOS, Windows, or Linux. No account, no cloud, no vendor lock-in."
+#~ msgstr "SkillDeck gives you multi-agent orchestration, a visual workflow editor, and a skill system with built-in linting — all running locally on macOS, Windows, or Linux. No account, no cloud, no vendor lock-in."
+
+#. js-lingui-explicit-id
+#: src/components/sections/Hero.tsx:164
+#~ msgid "SkillDeck puts multi-agent orchestration, visual workflows, and skill-based AI in one desktop app. Everything runs locally — your prompts, your code, your API keys never leave your machine."
+#~ msgstr "SkillDeck puts multi-agent orchestration, visual workflows, and skill-based AI in one desktop app. Everything runs locally — your prompts, your code, your API keys never leave your machine."
+
+#. js-lingui-explicit-id
+#: src/components/sections/Hero.tsx:166
+#~ msgid "Get SkillDeck Free"
+#~ msgstr "Get SkillDeck Free"
+
+#. js-lingui-explicit-id
+#: src/components/sections/Hero.tsx:169
+#~ msgid "Local-First"
+#~ msgstr "Local-First"
+
+#. js-lingui-explicit-id
+#: src/components/sections/Hero.tsx:169
+#~ msgid "All data stays on your machine"
+#~ msgstr "All data stays on your machine"
+
+#. js-lingui-explicit-id
+#: src/components/sections/Hero.tsx:170
+#~ msgid "Rust-Powered"
+#~ msgstr "Rust-Powered"
+
+#. js-lingui-explicit-id
+#: src/components/sections/Hero.tsx:170
+#~ msgid "Built with Tauri 2 for native speed"
+#~ msgstr "Built with Tauri 2 for native speed"
+
+#. js-lingui-explicit-id
+#: src/components/sections/Hero.tsx:171
+#~ msgid "Open Source"
+#~ msgstr "Open Source"
+
+#. js-lingui-explicit-id
+#: src/components/sections/Hero.tsx:171
+#~ msgid "MIT License"
+#~ msgstr "MIT License"
+
+#. js-lingui-explicit-id
+#: src/components/sections/Hero.tsx:172
+#~ msgid "Multi-LLM"
+#~ msgstr "Multi-LLM"
+
+#. js-lingui-explicit-id
+#: src/components/sections/Hero.tsx:172
+#~ msgid "OpenAI, Claude, Ollama & more"
+#~ msgstr "OpenAI, Claude, Ollama & more"
+
+#. js-lingui-explicit-id
+#: src/components/sections/Hero.tsx:202
+#~ msgid "View on GitHub"
+#~ msgstr "View on GitHub"
+
+#: src/components/sections/FeaturePrivacy.tsx:43
+msgid "100% local data storage"
+msgstr "100% local data storage"
+
+#: src/components/sections/ComparisonTable.tsx:77
+msgid "100% local data storage, OS keychain for keys"
+msgstr "100% local data storage, OS keychain for keys"
+
+#: src/components/sections/FeatureSkillsMCP.tsx:78
+msgid "12 skills installed"
+msgstr "12 skills installed"
+
+#: src/components/sections/FeatureSkillsMCP.tsx:50
+msgid "17 built-in lint rules"
+msgstr "17 built-in lint rules"
+
+#: src/components/sections/FeaturePrivacy.tsx:58
+msgid "17 lint rules catch dangerous patterns in skill content — shell injections, fork bombs, path traversal. Symlinked skill directories are rejected automatically."
+msgstr "17 lint rules catch dangerous patterns in skill content — shell injections, fork bombs, path traversal. Symlinked skill directories are rejected automatically."
+
+#: src/components/sections/FAQSection.tsx:18
+msgid "17 rules across four categories. Frontmatter rules validate required fields and formatting. Structure rules check file existence, size limits, and nesting depth. Security rules detect dangerous patterns like shell injections and unmatched tool declarations. Quality rules check for examples, structured instructions, and content clarity."
+msgstr "17 rules across four categories. Frontmatter rules validate required fields and formatting. Structure rules check file existence, size limits, and nesting depth. Security rules detect dangerous patterns like shell injections and unmatched tool declarations. Quality rules check for examples, structured instructions, and content clarity."
+
+#: src/components/sections/FeatureAgentSystem.tsx:28
+msgid "3 agents active"
+msgstr "3 agents active"
+
+#: src/components/sections/Hero.tsx:80
+#~ msgid "3 files changed"
+#~ msgstr "3 files changed"
+
+#: src/components/sections/Hero.tsx:82
+#~ msgid "3 suggestions"
+#~ msgstr "3 suggestions"
+
+#: src/components/sections/FeatureAgentSystem.tsx:106
+msgid "3 tools dispatched"
+msgstr "3 tools dispatched"
+
+#: src/components/sections/ComparisonTable.tsx:56
+msgid "A feature-by-feature breakdown against the tools you're probably using right now."
+msgstr "A feature-by-feature breakdown against the tools you're probably using right now."
+
+#: src/components/sections/ComparisonTable.tsx:57
+msgid "A side-by-side look at what sets SkillDeck apart from other AI developer tools."
+msgstr "A side-by-side look at what sets SkillDeck apart from other AI developer tools."
+
+#: src/components/sections/FeatureWorkflows.tsx:54
+msgid "Active"
+msgstr "Active"
+
+#: src/components/sections/FAQSection.tsx:26
+msgid "actually ask"
+msgstr "actually ask"
+
+#: src/components/sections/FeatureConversations.tsx:67
+msgid "Add rotation logic..."
+msgstr "Add rotation logic..."
+
+#: src/components/sections/HowItWorks.tsx:33
+msgid "Add your tools and skills"
+msgstr "Add your tools and skills"
+
+#: src/components/sections/FeatureAgentSystem.tsx:102
+msgid "Agent loop running"
+msgstr "Agent loop running"
+
+#: src/components/sections/FeatureAgentSystem.tsx:85
+msgid "Agents"
+msgstr "Agents"
+
+#: src/components/sections/FeatureAgentSystem.tsx:175
+msgid "Agents that actually"
+msgstr "Agents that actually"
+
+#: src/components/sections/FeatureBelt.tsx:37
+msgid "AI orchestration"
+msgstr "AI orchestration"
+
+#: src/components/sections/FeatureBelt.tsx:36
+msgid "AI toolchain"
+msgstr "AI toolchain"
+
+#: src/components/sections/Hero.tsx:162
+#~ msgid "AI tools that don't talk to each other."
+#~ msgstr "AI tools that don't talk to each other."
+
+#: src/components/sections/Hero.tsx:173
+#~ msgid "All data stays on your machine"
+#~ msgstr "All data stays on your machine"
+
+#: src/components/sections/FeatureWorkflows.tsx:64
+msgid "Analyze Diff"
+msgstr "Analyze Diff"
+
+#: src/components/sections/FeaturePrivacy.tsx:37
+msgid "API keys live in your operating system's native keychain — never in the database, never in plaintext. Verified by automated security tests."
+msgstr "API keys live in your operating system's native keychain — never in the database, never in plaintext. Verified by automated security tests."
+
+#: src/components/sections/FeatureAgentSystem.tsx:50
+msgid "Approval"
+msgstr "Approval"
+
+#: src/components/sections/FeatureWorkflows.tsx:97
+msgid "Approval Gate"
+msgstr "Approval Gate"
+
+#: src/components/sections/Hero.tsx:100
+#~ msgid "Approval gate: awaiting human review"
+#~ msgstr "Approval gate: awaiting human review"
+
+#: src/components/sections/FeatureAgentSystem.tsx:134
+msgid "Approval Required"
+msgstr "Approval Required"
+
+#: src/components/sections/FeatureAgentSystem.tsx:56
+#: src/components/sections/FeatureAgentSystem.tsx:140
+msgid "Approve"
+msgstr "Approve"
+
+#: src/components/sections/FeatureConversations.tsx:23
+msgid "Artifacts capture AI-generated code with full version history and rollback"
+msgstr "Artifacts capture AI-generated code with full version history and rollback"
+
+#: src/components/sections/FeatureWorkflows.tsx:98
+msgid "Awaiting human review"
+msgstr "Awaiting human review"
+
+#: src/components/sections/Hero.tsx:42
+#~ msgid "Awaiting your review"
+#~ msgstr "Awaiting your review"
+
+#: src/components/sections/WaitlistSection.tsx:54
+msgid "Be first in line"
+msgstr "Be first in line"
+
+#: src/components/shared/Footer.tsx:26
+#: src/components/shared/Header.tsx:23
+msgid "Blog"
+msgstr "Blog"
+
+#: src/components/sections/FeatureConversations.tsx:59
+msgid "Branch A: Fix JWT"
+msgstr "Branch A: Fix JWT"
+
+#: src/components/sections/FeatureConversations.tsx:65
+msgid "Branch B: Keep HS256"
+msgstr "Branch B: Keep HS256"
+
+#: src/components/sections/FeatureConversations.tsx:21
+msgid "Branch from any message to explore different approaches side by side"
+msgstr "Branch from any message to explore different approaches side by side"
+
+#: src/components/sections/FeatureConversations.tsx:55
+msgid "branched"
+msgstr "branched"
+
+#: src/components/sections/FeatureSkillsMCP.tsx:44
+msgid "Browse community-built skills alongside your local collection. Bundle skills and MCP servers into profiles for different projects and workflows."
+msgstr "Browse community-built skills alongside your local collection. Bundle skills and MCP servers into profiles for different projects and workflows."
+
+#: src/components/sections/HowItWorks.tsx:33
+msgid "Browse the MCP Catalog to connect external tool servers, or add your own via stdio and SSE. Install community-built skills from the Marketplace, or create your own from a Markdown file with YAML frontmatter."
+msgstr "Browse the MCP Catalog to connect external tool servers, or add your own via stdio and SSE. Install community-built skills from the Marketplace, or create your own from a Markdown file with YAML frontmatter."
+
+#: src/components/sections/FeatureWorkflows.tsx:34
+msgid "Build it once."
+msgstr "Build it once."
+
+#: src/components/sections/Hero.tsx:174
+#~ msgid "Built with Tauri 2 for native speed"
+#~ msgstr "Built with Tauri 2 for native speed"
+
+#: src/components/sections/FAQSection.tsx:13
+msgid "Can I use my own local models?"
+msgstr "Can I use my own local models?"
+
+#: src/components/sections/FAQSection.tsx:19
+msgid "Can I use SkillDeck with any text editor?"
+msgstr "Can I use SkillDeck with any text editor?"
+
+#: src/components/shared/Footer.tsx:22
+msgid "Changelog"
+msgstr "Changelog"
+
+#: src/components/sections/FeatureAgentSystem.tsx:27
+msgid "Code Review"
+msgstr "Code Review"
+
+#: src/components/sections/FeatureWorkflows.tsx:53
+msgid "Code Review Workflow"
+msgstr "Code Review Workflow"
+
+#: src/components/shared/Footer.tsx:30
+msgid "Community"
+msgstr "Community"
+
+#: src/components/shared/Footer.tsx:21
+#: src/components/shared/Header.tsx:24
+msgid "Compare"
+msgstr "Compare"
+
+#: src/components/sections/FeatureSkillsMCP.tsx:160
+msgid "Configure"
+msgstr "Configure"
+
+#: src/components/sections/FeatureSkillsMCP.tsx:37
+msgid "Connect any MCP-compatible server through stdio or SSE transports. Give your agents access to external tools, databases, and APIs without writing glue code."
+msgstr "Connect any MCP-compatible server through stdio or SSE transports. Give your agents access to external tools, databases, and APIs without writing glue code."
+
+#: src/components/sections/FeatureSkillsMCP.tsx:138
+msgid "Connect to GitHub API through MCP. Create issues, manage PRs, search code, and interact with repositories directly from your agent workflows."
+msgstr "Connect to GitHub API through MCP. Create issues, manage PRs, search code, and interact with repositories directly from your agent workflows."
+
+#: src/components/sections/FeatureAgentSystem.tsx:80
+msgid "Connected"
+msgstr "Connected"
+
+#: src/components/shared/Footer.tsx:32
+msgid "Contributing"
+msgstr "Contributing"
+
+#: src/components/sections/FeatureConversations.tsx:36
+msgid "Conversation — code-review"
+msgstr "Conversation — code-review"
+
+#: src/components/sections/ComparisonTable.tsx:74
+msgid "Conversation branching from any message"
+msgstr "Conversation branching from any message"
+
+#: src/components/sections/FeatureBelt.tsx:59
+msgid "Conversations, workflow runs, and API keys all live on your machine in SQLite and your OS keychain. Use Ollama for fully offline work. The optional SkillDeck Platform is just that — optional."
+msgstr "Conversations, workflow runs, and API keys all live on your machine in SQLite and your OS keychain. Use Ollama for fully offline work. The optional SkillDeck Platform is just that — optional."
+
+#: src/components/sections/FeatureAgentSystem.tsx:88
+#: src/components/sections/FeatureAgentSystem.tsx:119
+msgid "Coordinator"
+msgstr "Coordinator"
+
+#: src/components/sections/FeatureAgentSystem.tsx:57
+#: src/components/sections/FeatureAgentSystem.tsx:141
+msgid "Deny"
+msgstr "Deny"
+
+#: src/components/sections/FeatureBelt.tsx:53
+msgid "Design multi-step AI pipelines on a drag-and-drop canvas. Pick from three execution patterns — Sequential, Parallel, and Evaluator-Optimizer — and let the graph engine handle the rest."
+msgstr "Design multi-step AI pipelines on a drag-and-drop canvas. Pick from three execution patterns — Sequential, Parallel, and Evaluator-Optimizer — and let the graph engine handle the rest."
+
+#: src/components/sections/FeatureWorkflows.tsx:39
+msgid "Design multi-step AI pipelines on a visual canvas, pick an execution pattern, and watch them run with live step tracking. No scripting required."
+msgstr "Design multi-step AI pipelines on a visual canvas, pick an execution pattern, and watch them run with live step tracking. No scripting required."
+
+#: src/components/sections/HowItWorks.tsx:34
+msgid "Design multi-step AI pipelines on the visual workflow editor. Equip agents with skills, spawn parallel subagents for independent tasks, and track every step in real time. Three execution patterns — Sequential, Parallel, Evaluator-Optimizer."
+msgstr "Design multi-step AI pipelines on the visual workflow editor. Equip agents with skills, spawn parallel subagents for independent tasks, and track every step in real time. Three execution patterns — Sequential, Parallel, Evaluator-Optimizer."
+
+#: src/components/shared/Header.tsx:25
+msgid "Docs"
+msgstr "Docs"
+
+#: src/components/shared/Footer.tsx:25
+msgid "Documentation"
+msgstr "Documentation"
+
+#: src/components/sections/FAQSection.tsx:10
+msgid "Does my code ever leave my machine?"
+msgstr "Does my code ever leave my machine?"
+
+#: src/components/sections/FeatureAgentSystem.tsx:62
+msgid "done"
+msgstr "done"
+
+#: src/components/shared/Footer.tsx:20
+#: src/components/shared/Header.tsx:46
+#: src/components/shared/Header.tsx:69
+msgid "Download"
+msgstr "Download"
+
+#: src/components/sections/HowItWorks.tsx:32
+msgid "Download and set up"
+msgstr "Download and set up"
+
+#: src/components/sections/FeatureSkillsMCP.tsx:58
+msgid "Each skill is a directory with YAML frontmatter — name, description, compatible models, allowed tools. Drop a folder, and it's ready. Changes hot-reload automatically."
+msgstr "Each skill is a directory with YAML frontmatter — name, description, compatible models, allowed tools. Drop a folder, and it's ready. Changes hot-reload automatically."
+
+#: src/components/sections/CodeDemo.tsx:49
+msgid "Each skill is a SKILL.md with YAML frontmatter. The linter validates name, description, license, and content quality before the agent ever sees it."
+msgstr "Each skill is a SKILL.md with YAML frontmatter. The linter validates name, description, license, and content quality before the agent ever sees it."
+
+#: src/components/sections/FeatureAgentSystem.tsx:142
+msgid "Edit"
+msgstr "Edit"
+
+#: src/components/sections/FeatureWorkflows.tsx:23
+msgid "Evaluator-Optimizer — iterative loop that re-optimizes output up to five times"
+msgstr "Evaluator-Optimizer — iterative loop that re-optimizes output up to five times"
+
+#: src/components/sections/FeaturePrivacy.tsx:44
+msgid "Every conversation, message, artifact, and workflow definition lives in a local SQLite database on your machine. No server. No sync."
+msgstr "Every conversation, message, artifact, and workflow definition lives in a local SQLite database on your machine. No server. No sync."
+
+#: src/components/sections/FeaturePrivacy.tsx:51
+msgid "Every external tool call pauses execution and shows you the request. Approve, edit the input, or deny it outright. Six auto-approve categories exist, all off by default."
+msgstr "Every external tool call pauses execution and shows you the request. Approve, edit the input, or deny it outright. Six auto-approve categories exist, all off by default."
+
+#: src/components/sections/OpenSourceCTA.tsx:38
+msgid "Every feature ships under MIT — the agent loop, workflow engine, skill system, MCP supervisor, conversation branching. Audit the code, fork it, make it yours."
+msgstr "Every feature ships under MIT — the agent loop, workflow engine, skill system, MCP supervisor, conversation branching. Audit the code, fork it, make it yours."
+
+#: src/components/sections/FeatureBelt.tsx:37
+msgid "Everything you need for"
+msgstr "Everything you need for"
+
+#: src/components/sections/FeatureAgentSystem.tsx:137
+msgid "Execute test suite with"
+msgstr "Execute test suite with"
+
+#: src/components/sections/FeatureAgentSystem.tsx:96
+#: src/components/sections/FeatureAgentSystem.tsx:128
+msgid "Executor"
+msgstr "Executor"
+
+#: src/components/sections/FeatureAgentSystem.tsx:44
+msgid "Executor running"
+msgstr "Executor running"
+
+#: src/components/sections/FeatureConversations.tsx:78
+msgid "Explore different approaches"
+msgstr "Explore different approaches"
+
+#: src/components/shared/Footer.tsx:27
+msgid "FAQ"
+msgstr "FAQ"
+
+#: src/components/sections/ComparisonTable.tsx:91
+msgid "Feature"
+msgstr "Feature"
+
+#: src/components/shared/Footer.tsx:19
+#: src/components/shared/Header.tsx:22
+msgid "Features"
+msgstr "Features"
+
+#: src/components/sections/OpenSourceCTA.tsx:35
+msgid "forever"
+msgstr "forever"
+
+#: src/components/sections/OpenSourceCTA.tsx:67
+msgid "Fork & Contribute"
+msgstr "Fork & Contribute"
+
+#: src/components/sections/OpenSourceCTA.tsx:50
+msgid "forks"
+msgstr "forks"
+
+#: src/components/sections/Hero.tsx:36
+#~ msgid "Found 3 issues in the JWT implementation."
+#~ msgstr "Found 3 issues in the JWT implementation."
+
+#: src/components/sections/OpenSourceCTA.tsx:35
+msgid "Free and open source —"
+msgstr "Free and open source —"
+
+#: src/components/sections/Hero.tsx:161
+#~ msgid "from a single desktop app."
+#~ msgstr "from a single desktop app."
+
+#: src/components/sections/HowItWorks.tsx:42
+msgid "From download to your first AI workflow — no cloud account, no config files, no credit card."
+msgstr "From download to your first AI workflow — no cloud account, no config files, no credit card."
+
+#: src/components/sections/FeatureSkillsMCP.tsx:36
+msgid "Full MCP protocol"
+msgstr "Full MCP protocol"
+
+#: src/components/sections/ComparisonTable.tsx:72
+msgid "Full MCP protocol (stdio + SSE, supervisor)"
+msgstr "Full MCP protocol (stdio + SSE, supervisor)"
+
+#: src/components/sections/FeatureWorkflows.tsx:86
+msgid "Generate Review"
+msgstr "Generate Review"
+
+#: src/components/sections/WaitlistSection.tsx:55
+msgid "Get early access when we launch. No spam, no shared emails — just one notification when SkillDeck is ready."
+msgstr "Get early access when we launch. No spam, no shared emails — just one notification when SkillDeck is ready."
+
+#: src/components/sections/Hero.tsx:169
+#~ msgid "Get SkillDeck Free"
+#~ msgstr "Get SkillDeck Free"
+
+#: src/components/shared/Footer.tsx:31
+msgid "GitHub"
+msgstr "GitHub"
+
+#: src/components/sections/FeatureSkillsMCP.tsx:171
+msgid "Give your agents the right tools,"
+msgstr "Give your agents the right tools,"
+
+#: src/components/sections/FAQSection.tsx:15
+msgid "How do the workflows work?"
+msgstr "How do the workflows work?"
+
+#: src/components/sections/FAQSection.tsx:17
+msgid "How does the tool approval gate work?"
+msgstr "How does the tool approval gate work?"
+
+#: src/components/shared/Footer.tsx:28
+msgid "How It Works"
+msgstr "How It Works"
+
+#: src/components/sections/ComparisonTable.tsx:53
+msgid "How SkillDeck compares"
+msgstr "How SkillDeck compares"
+
+#: src/components/sections/Hero.tsx:96
+#~ msgid "I found 3 potential issues in the JWT implementation. Running deeper analysis..."
+#~ msgstr "I found 3 potential issues in the JWT implementation. Running deeper analysis..."
+
+#: src/components/sections/FeatureConversations.tsx:49
+msgid "I found 3 potential issues in the JWT implementation..."
+msgstr "I found 3 potential issues in the JWT implementation..."
+
+#: src/components/sections/HowItWorks.tsx:41
+msgid "in three steps"
+msgstr "in three steps"
+
+#: src/components/sections/FAQSection.tsx:11
+msgid "In your operating system's native keychain (Keychain on macOS, Credential Manager on Windows, Secret Service on Linux). They are never written to the database or to any configuration file in plaintext. This is verified by automated security tests in the codebase."
+msgstr "In your operating system's native keychain (Keychain on macOS, Credential Manager on Windows, Secret Service on Linux). They are never written to the database or to any configuration file in plaintext. This is verified by automated security tests in the codebase."
+
+#: src/components/sections/HowItWorks.tsx:32
+msgid "Install the native app for your platform. The onboarding wizard walks you through provider setup in under a minute. No account needed — pick Ollama for fully local, or add OpenAI and Claude API keys stored in your OS keychain."
+msgstr "Install the native app for your platform. The onboarding wizard walks you through provider setup in under a minute. No account needed — pick Ollama for fully local, or add OpenAI and Claude API keys stored in your OS keychain."
+
+#: src/components/sections/FeatureSkillsMCP.tsx:157
+msgid "Installed"
+msgstr "Installed"
+
+#: src/components/sections/FAQSection.tsx:16
+msgid "Is the platform backend required?"
+msgstr "Is the platform backend required?"
+
+#: src/components/sections/WaitlistSection.tsx:52
+msgid "Join the Waitlist"
+msgstr "Join the Waitlist"
+
+#: src/components/sections/WaitlistSection.tsx:73
+msgid "Join Waitlist"
+msgstr "Join Waitlist"
+
+#: src/components/sections/WaitlistSection.tsx:73
+msgid "Joining..."
+msgstr "Joining..."
+
+#: src/components/shared/Footer.tsx:34
+msgid "Legal"
+msgstr "Legal"
+
+#: src/components/sections/OpenSourceCTA.tsx:56
+msgid "license"
+msgstr "license"
+
+#: src/components/sections/Hero.tsx:81
+#~ msgid "Lint passed"
+#~ msgstr "Lint passed"
+
+#: src/components/sections/FeatureSkillsMCP.tsx:150
+msgid "Lint Status"
+msgstr "Lint Status"
+
+#: src/components/sections/ComparisonTable.tsx:68
+msgid "Local model support (full Ollama, works offline)"
+msgstr "Local model support (full Ollama, works offline)"
+
+#: src/components/sections/Hero.tsx:173
+#~ msgid "Local-First"
+#~ msgstr "Local-First"
+
+#: src/components/shared/Footer.tsx:52
+msgid "Local-first AI orchestration for developers who ship."
+msgstr "Local-first AI orchestration for developers who ship."
+
+#: src/components/sections/FeaturePrivacy.tsx:70
+msgid "Local-first by design. API keys in your OS keychain, a tool approval gate for every external call, and zero mandatory cloud services."
+msgstr "Local-first by design. API keys in your OS keychain, a tool approval gate for every external call, and zero mandatory cloud services."
+
+#: src/components/sections/FeatureSkillsMCP.tsx:176
+msgid "Markdown-based skill packages with built-in linting. Full MCP protocol support so you can connect any external tool in seconds."
+msgstr "Markdown-based skill packages with built-in linting. Full MCP protocol support so you can connect any external tool in seconds."
+
+#: src/components/sections/FeatureSkillsMCP.tsx:57
+msgid "Markdown-based skills"
+msgstr "Markdown-based skills"
+
+#: src/components/sections/FAQSection.tsx:14
+msgid "MCP (Model Context Protocol) is an open standard for connecting AI agents to external tools and data sources. SkillDeck implements the full protocol with stdio and SSE transports, so you can plug in any MCP-compatible server and give agents access to file systems, databases, APIs, and more — without writing glue code."
+msgstr "MCP (Model Context Protocol) is an open standard for connecting AI agents to external tools and data sources. SkillDeck implements the full protocol with stdio and SSE transports, so you can plug in any MCP-compatible server and give agents access to file systems, databases, APIs, and more — without writing glue code."
+
+#: src/components/sections/FeatureSkillsMCP.tsx:146
+msgid "MCP Servers"
+msgstr "MCP Servers"
+
+#: src/components/sections/FeatureAgentSystem.tsx:150
+msgid "Merge strategy:"
+msgstr "Merge strategy:"
+
+#: src/components/sections/FeatureAgentSystem.tsx:62
+msgid "Merge:"
+msgstr "Merge:"
+
+#: src/components/sections/FeatureConversations.tsx:24
+msgid "Message Queue batches multiple prompts and processes them in order"
+msgstr "Message Queue batches multiple prompts and processes them in order"
+
+#: src/components/shared/Footer.tsx:35
+msgid "MIT License"
+msgstr "MIT License"
+
+#: src/components/sections/WaitlistSection.tsx:77
+msgid "MIT License · Built with Tauri 2 + Rust · Your data stays on your machine"
+msgstr "MIT License · Built with Tauri 2 + Rust · Your data stays on your machine"
+
+#: src/components/sections/LogoCloud.tsx:25
+msgid "Model Context Protocol"
+msgstr "Model Context Protocol"
+
+#: src/components/sections/FeatureBelt.tsx:46
+msgid "Multi-agent orchestration"
+msgstr "Multi-agent orchestration"
+
+#: src/components/sections/ComparisonTable.tsx:71
+msgid "Multi-agent orchestration with parallel subagents"
+msgstr "Multi-agent orchestration with parallel subagents"
+
+#: src/components/sections/Hero.tsx:176
+#~ msgid "Multi-LLM"
+#~ msgstr "Multi-LLM"
+
+#: src/components/sections/ComparisonTable.tsx:67
+msgid "Multi-provider support (OpenAI, Claude, Ollama)"
+msgstr "Multi-provider support (OpenAI, Claude, Ollama)"
+
+#: src/components/sections/ComparisonTable.tsx:75
+msgid "Multiple LLM providers"
+msgstr "Multiple LLM providers"
+
+#: src/components/sections/ComparisonTable.tsx:78
+msgid "Native desktop (Tauri, not Electron)"
+msgstr "Native desktop (Tauri, not Electron)"
+
+#: src/components/shared/Header.tsx:56
+msgid "Navigation Menu"
+msgstr "Navigation Menu"
+
+#: src/components/sections/WaitlistSection.tsx:39
+msgid "Network error. Please try again."
+msgstr "Network error. Please try again."
+
+#: src/components/sections/FAQSection.tsx:10
+msgid "No. All conversations, artifacts, and workflow executions are stored in a local SQLite database. When you use OpenAI or Claude, only the prompts you explicitly send reach those APIs. When you use Ollama, everything stays on your machine entirely."
+msgstr "No. All conversations, artifacts, and workflow executions are stored in a local SQLite database. When you use OpenAI or Claude, only the prompts you explicitly send reach those APIs. When you use Ollama, everything stays on your machine entirely."
+
+#: src/components/sections/FAQSection.tsx:16
+msgid "No. The SkillDeck Platform is entirely optional. It provides features like the skill registry, referrals, and analytics — but the desktop app works fully without it. Registration is opt-in, and you can delete your account at any time."
+msgstr "No. The SkillDeck Platform is entirely optional. It provides features like the skill registry, referrals, and analytics — but the desktop app works fully without it. Registration is opt-in, and you can delete your account at any time."
+
+#: src/components/sections/FeatureConversations.tsx:83
+msgid "Non-linear conversations with branching, threading, artifacts, and batch processing. Try multiple directions at once and compare results."
+msgstr "Non-linear conversations with branching, threading, artifacts, and batch processing. Try multiple directions at once and compare results."
+
+#: src/components/sections/FeatureAgentSystem.tsx:180
+msgid "Not just another chat window. A real agent loop that dispatches tools, spawns parallel workers for independent tasks, and asks your permission before running anything risky."
+msgstr "Not just another chat window. A real agent loop that dispatches tools, spawns parallel workers for independent tasks, and asks your permission before running anything risky."
+
+#: src/components/sections/FeatureBelt.tsx:36
+msgid "One app replaces your"
+msgstr "One app replaces your"
+
+#: src/components/sections/CodeDemo.tsx:48
+msgid "One Markdown file. That's the whole skill."
+msgstr "One Markdown file. That's the whole skill."
+
+#: src/components/sections/Hero.tsx:175
+#~ msgid "Open Source"
+#~ msgstr "Open Source"
+
+#: src/components/sections/ComparisonTable.tsx:76
+msgid "Open source (MIT)"
+msgstr "Open source (MIT)"
+
+#: src/components/shared/Footer.tsx:71
+msgid "Open source under MIT License."
+msgstr "Open source under MIT License."
+
+#: src/components/sections/Hero.tsx:176
+#~ msgid "OpenAI, Claude, Ollama & more"
+#~ msgstr "OpenAI, Claude, Ollama & more"
+
+#: src/components/sections/HowItWorks.tsx:34
+msgid "Orchestrate and ship"
+msgstr "Orchestrate and ship"
+
+#: src/components/sections/FeaturePrivacy.tsx:36
+msgid "OS keychain for API keys"
+msgstr "OS keychain for API keys"
+
+#: src/components/sections/FeatureWorkflows.tsx:22
+msgid "Parallel — independent steps launch simultaneously with Tokio JoinSet"
+msgstr "Parallel — independent steps launch simultaneously with Tokio JoinSet"
+
+#: src/components/sections/FeatureAgentSystem.tsx:165
+msgid "Parallel subagent spawning — merge results with concat, summarize, or vote strategies"
+msgstr "Parallel subagent spawning — merge results with concat, summarize, or vote strategies"
+
+#: src/components/sections/FeatureSkillsMCP.tsx:151
+msgid "Passed (0 warnings)"
+msgstr "Passed (0 warnings)"
+
+#: src/components/shared/Footer.tsx:36
+msgid "Privacy Policy"
+msgstr "Privacy Policy"
+
+#: src/components/sections/FeaturePrivacy.tsx:91
+msgid "Privacy-First Architecture"
+msgstr "Privacy-First Architecture"
+
+#: src/components/shared/Footer.tsx:18
+msgid "Product"
+msgstr "Product"
+
+#: src/components/sections/FAQSection.tsx:26
+msgid "Questions developers"
+msgstr "Questions developers"
+
+#: src/components/sections/FeatureWorkflows.tsx:24
+msgid "Real-time status — step nodes update live on the graph as they run"
+msgstr "Real-time status — step nodes update live on the graph as they run"
+
+#: src/components/shared/Footer.tsx:24
+msgid "Resources"
+msgstr "Resources"
+
+#: src/components/sections/FeatureAgentSystem.tsx:34
+msgid "Review PR #142 and run tests"
+msgstr "Review PR #142 and run tests"
+
+#: src/components/sections/Hero.tsx:30
+#~ msgid "Review the auth module"
+#~ msgstr "Review the auth module"
+
+#: src/components/sections/FeatureConversations.tsx:43
+msgid "Review the authentication module changes"
+msgstr "Review the authentication module changes"
+
+#: src/components/sections/FeatureAgentSystem.tsx:113
+msgid "Review the changes in PR #142 and run the test suite."
+msgstr "Review the changes in PR #142 and run the test suite."
+
+#: src/components/sections/FeatureAgentSystem.tsx:92
+#: src/components/sections/FeatureAgentSystem.tsx:124
+msgid "Reviewer"
+msgstr "Reviewer"
+
+#: src/components/sections/FeatureAgentSystem.tsx:40
+msgid "Reviewer done"
+msgstr "Reviewer done"
+
+#: src/components/sections/FeatureConversations.tsx:61
+msgid "Rewrite using RS256..."
+msgstr "Rewrite using RS256..."
+
+#: src/components/sections/Hero.tsx:157
+#~ msgid "Run AI agents, workflows, and tools"
+#~ msgstr "Run AI agents, workflows, and tools"
+
+#: src/components/sections/FeatureWorkflows.tsx:36
+msgid "Run it forever."
+msgstr "Run it forever."
+
+#: src/components/sections/FeatureWorkflows.tsx:75
+msgid "Run Lint & Tests"
+msgstr "Run Lint & Tests"
+
+#: src/components/sections/Hero.tsx:174
+#~ msgid "Rust-Powered"
+#~ msgstr "Rust-Powered"
+
+#: src/components/sections/FeatureSkillsMCP.tsx:89
+msgid "Search skills..."
+msgstr "Search skills..."
+
+#: src/components/shared/Footer.tsx:37
+msgid "Security"
+msgstr "Security"
+
+#: src/components/sections/FeaturePrivacy.tsx:57
+msgid "Security-first Skill Linter"
+msgstr "Security-first Skill Linter"
+
+#: src/components/sections/FeatureWorkflows.tsx:21
+msgid "Sequential — steps execute one after another in topological order"
+msgstr "Sequential — steps execute one after another in topological order"
+
+#: src/components/sections/ComparisonTable.tsx:69
+msgid "Skill system with linting, registry, and sharing"
+msgstr "Skill system with linting, registry, and sharing"
+
+#: src/components/sections/FeatureAgentSystem.tsx:77
+msgid "SkillDeck -- Code Review"
+msgstr "SkillDeck -- Code Review"
+
+#: src/components/sections/Hero.tsx:58
+#~ msgid "SkillDeck — Code Review"
+#~ msgstr "SkillDeck — Code Review"
+
+#: src/components/sections/FeatureSkillsMCP.tsx:76
+msgid "SkillDeck — Skill Browser"
+msgstr "SkillDeck — Skill Browser"
+
+#: src/components/sections/Hero.tsx:165
+#~ msgid "SkillDeck gives you multi-agent orchestration, a visual workflow editor, and a skill system with built-in linting — all running locally on macOS, Windows, or Linux. No account, no cloud, no vendor lock-in."
+#~ msgstr "SkillDeck gives you multi-agent orchestration, a visual workflow editor, and a skill system with built-in linting — all running locally on macOS, Windows, or Linux. No account, no cloud, no vendor lock-in."
+
+#: src/components/sections/Hero.tsx:166
+#~ msgid "SkillDeck puts multi-agent orchestration, visual workflows, and skill-based AI in one desktop app. Everything runs locally — your prompts, your code, your API keys never leave your machine."
+#~ msgstr "SkillDeck puts multi-agent orchestration, visual workflows, and skill-based AI in one desktop app. Everything runs locally — your prompts, your code, your API keys never leave your machine."
+
+#: src/components/sections/FAQSection.tsx:12
+msgid "Skills are Markdown-based AI instruction packages. Each skill is a directory containing a SKILL.md file with YAML frontmatter that declares the skill name, description, compatible models, and allowed tools. Skills are injected into the agent's system prompt to guide its behavior for specific tasks."
+msgstr "Skills are Markdown-based AI instruction packages. Each skill is a directory containing a SKILL.md file with YAML frontmatter that declares the skill name, description, compatible models, and allowed tools. Skills are injected into the agent's system prompt to guide its behavior for specific tasks."
+
+#: src/components/sections/WaitlistSection.tsx:35
+msgid "Something went wrong."
+msgstr "Something went wrong."
+
+#: src/components/sections/FeatureBelt.tsx:47
+msgid "Spawn parallel subagents that tackle independent tasks at the same time. Each one runs in its own session with dedicated skills, then reports back. Merge results your way — concatenate, summarize, or vote."
+msgstr "Spawn parallel subagents that tackle independent tasks at the same time. Each one runs in its own session with dedicated skills, then reports back. Merge results your way — concatenate, summarize, or vote."
+
+#: src/components/sections/FeatureAgentSystem.tsx:119
+msgid "Spawning subagents for parallel review..."
+msgstr "Spawning subagents for parallel review..."
+
+#: src/components/sections/OpenSourceCTA.tsx:62
+msgid "Star on GitHub"
+msgstr "Star on GitHub"
+
+#: src/components/shared/Footer.tsx:54
+msgid "Star us on GitHub"
+msgstr "Star us on GitHub"
+
+#: src/components/sections/OpenSourceCTA.tsx:44
+msgid "stars"
+msgstr "stars"
+
+#: src/components/sections/FeatureAgentSystem.tsx:99
+msgid "Status"
+msgstr "Status"
+
+#: src/components/sections/FeatureBelt.tsx:40
+msgid "Stop bouncing between browser tabs, cloud services, and tools that send your code to someone else's servers. SkillDeck gives you a single native app that handles orchestration, workflows, and skills — no subscription required."
+msgstr "Stop bouncing between browser tabs, cloud services, and tools that send your code to someone else's servers. SkillDeck gives you a single native app that handles orchestration, workflows, and skills — no subscription required."
+
+#: src/components/sections/Hero.tsx:158
+#~ msgid "Stop stitching together"
+#~ msgstr "Stop stitching together"
+
+#: src/components/sections/FeatureBelt.tsx:41
+msgid "Stop stitching together cloud AI tools that lock you into one provider and send your code to someone else's servers. SkillDeck gives you a single native app that does it all."
+msgstr "Stop stitching together cloud AI tools that lock you into one provider and send your code to someone else's servers. SkillDeck gives you a single native app that does it all."
+
+#: src/components/sections/FeatureAgentSystem.tsx:163
+msgid "Streaming agent loop — see tokens arrive in real time as agents work"
+msgstr "Streaming agent loop — see tokens arrive in real time as agents work"
+
+#: src/components/sections/FeatureAgentSystem.tsx:166
+msgid "Subagent cards with live status, progress tracking, and instant result access"
+msgstr "Subagent cards with live status, progress tracking, and instant result access"
+
+#: src/components/sections/FeatureAgentSystem.tsx:62
+#: src/components/sections/FeatureAgentSystem.tsx:150
+msgid "summarize"
+msgstr "summarize"
+
+#: src/components/shared/Footer.tsx:38
+msgid "Terms of Use"
+msgstr "Terms of Use"
+
+#: src/components/sections/FAQSection.tsx:27
+msgid "The answers to the things you're wondering about right now."
+msgstr "The answers to the things you're wondering about right now."
+
+#: src/components/sections/FeaturePrivacy.tsx:96
+msgid "The desktop app works fully offline with local Ollama models and no network connection whatsoever."
+msgstr "The desktop app works fully offline with local Ollama models and no network connection whatsoever."
+
+#: src/components/sections/FeatureSkillsMCP.tsx:51
+msgid "The Skill Linter checks frontmatter, file structure, security patterns, and content quality. Catches shell injections and dangerous patterns before they reach your agent."
+msgstr "The Skill Linter checks frontmatter, file structure, security patterns, and content quality. Catches shell injections and dangerous patterns before they reach your agent."
+
+#: src/components/sections/FeaturePrivacy.tsx:94
+msgid "The SkillDeck Platform is entirely optional. Registration, the skill registry, referrals, and analytics are opt-in features."
+msgstr "The SkillDeck Platform is entirely optional. Registration, the skill registry, referrals, and analytics are opt-in features."
+
+#: src/components/sections/FAQSection.tsx:15
+msgid "The Workflow Editor is a visual drag-and-drop canvas where you define steps, draw dependency edges, and assign skills. Pick an execution pattern — Sequential for ordered pipelines, Parallel for concurrent steps, or Evaluator-Optimizer for iterative refinement. The graph engine computes the correct execution order and runs your workflow with live status updates."
+msgstr "The Workflow Editor is a visual drag-and-drop canvas where you define steps, draw dependency edges, and assign skills. Pick an execution pattern — Sequential for ordered pipelines, Parallel for concurrent steps, or Evaluator-Optimizer for iterative refinement. The graph engine computes the correct execution order and runs your workflow with live status updates."
+
+#: src/components/sections/FeatureConversations.tsx:22
+msgid "Thread replies under specific messages to keep discussions focused"
+msgstr "Thread replies under specific messages to keep discussions focused"
+
+#: src/components/shared/Header.tsx:51
+msgid "Toggle menu"
+msgstr "Toggle menu"
+
+#: src/components/sections/FeaturePrivacy.tsx:50
+msgid "Tool Approval Gate"
+msgstr "Tool Approval Gate"
+
+#: src/components/sections/FeatureAgentSystem.tsx:164
+msgid "Tool Approval Gate — review, edit, or block every external call before it executes"
+msgstr "Tool Approval Gate — review, edit, or block every external call before it executes"
+
+#: src/components/sections/ComparisonTable.tsx:73
+msgid "Tool Approval Gate (category-based, off by default)"
+msgstr "Tool Approval Gate (category-based, off by default)"
+
+#: src/components/sections/Hero.tsx:107
+#~ msgid "Type a message..."
+#~ msgstr "Type a message..."
+
+#: src/components/sections/FeatureSkillsMCP.tsx:43
+msgid "Unified Skill Marketplace"
+msgstr "Unified Skill Marketplace"
+
+#: src/components/sections/HowItWorks.tsx:41
+msgid "Up and running"
+msgstr "Up and running"
+
+#: src/components/sections/FeatureSkillsMCP.tsx:142
+msgid "Version"
+msgstr "Version"
+
+#: src/components/shared/Header.tsx:42
+#: src/components/shared/Header.tsx:72
+msgid "View on GitHub"
+msgstr "View on GitHub"
+
+#: src/components/sections/FeatureBelt.tsx:52
+msgid "Visual workflow builder"
+msgstr "Visual workflow builder"
+
+#: src/components/sections/ComparisonTable.tsx:70
+msgid "Visual workflow editor (3 execution patterns)"
+msgstr "Visual workflow editor (3 execution patterns)"
+
+#: src/components/sections/FeatureAgentSystem.tsx:150
+msgid "Waiting for 1/2 subagents"
+msgstr "Waiting for 1/2 subagents"
+
+#: src/components/sections/FAQSection.tsx:18
+msgid "What does the Skill Linter check?"
+msgstr "What does the Skill Linter check?"
+
+#: src/components/sections/FAQSection.tsx:14
+msgid "What is MCP and why does it matter?"
+msgstr "What is MCP and why does it matter?"
+
+#: src/components/sections/FAQSection.tsx:12
+msgid "What is the Skill system?"
+msgstr "What is the Skill system?"
+
+#: src/components/sections/FAQSection.tsx:17
+msgid "When an agent calls an external tool through MCP or a skill, execution pauses and the request appears in the conversation. You can approve it as-is, edit the input before it runs, or deny it entirely. Six auto-approve categories exist for convenience, but every single one is off by default."
+msgstr "When an agent calls an external tool through MCP or a skill, execution pauses and the request appears in the conversation. You can approve it as-is, edit the input before it runs, or deny it entirely. Six auto-approve categories exist for convenience, but every single one is off by default."
+
+#: src/components/sections/FAQSection.tsx:11
+msgid "Where are my API keys stored?"
+msgstr "Where are my API keys stored?"
+
+#: src/components/sections/ComparisonTable.tsx:52
+msgid "Why developers are switching to SkillDeck"
+msgstr "Why developers are switching to SkillDeck"
+
+#: src/components/sections/FeatureConversations.tsx:80
+msgid "without losing context"
+msgstr "without losing context"
+
+#: src/components/sections/FeatureSkillsMCP.tsx:173
+msgid "without the setup headache"
+msgstr "without the setup headache"
+
+#: src/components/sections/FeatureAgentSystem.tsx:177
+msgid "work together"
+msgstr "work together"
+
+#: src/components/sections/LogoCloud.tsx:31
+msgid "Works with your favorite LLM providers"
+msgstr "Works with your favorite LLM providers"
+
+#: src/components/sections/FAQSection.tsx:13
+msgid "Yes. SkillDeck detects any model installed through Ollama and makes it available as a provider option. You can run SkillDeck fully offline with no network connection whatsoever."
+msgstr "Yes. SkillDeck detects any model installed through Ollama and makes it available as a provider option. You can run SkillDeck fully offline with no network connection whatsoever."
+
+#: src/components/sections/FAQSection.tsx:19
+msgid "Yes. SkillDeck is a standalone desktop application, not a plugin or extension. It works alongside VS Code, Neovim, JetBrains, or any editor and IDE you prefer."
+msgstr "Yes. SkillDeck is a standalone desktop application, not a plugin or extension. It works alongside VS Code, Neovim, JetBrains, or any editor and IDE you prefer."
+
+#. placeholder {0}: count.toLocaleString()
+#: src/components/sections/WaitlistSection.tsx:65
+msgid "You're joining {0} others on the waitlist."
+msgstr "You're joining {0} others on the waitlist."
+
+#: src/components/sections/FeaturePrivacy.tsx:68
+msgid "Your code. Your keys. Your control."
+msgstr "Your code. Your keys. Your control."
+
+#: src/components/sections/FeatureBelt.tsx:58
+msgid "Zero cloud dependency"
+msgstr "Zero cloud dependency"
+
+
+

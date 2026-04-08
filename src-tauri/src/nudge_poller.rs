@@ -12,7 +12,8 @@ use tracing::{debug, warn};
 use crate::platform_client::PendingNudge;
 use crate::state::AppState;
 
-const POLL_INTERVAL_SECS: u64 = 3600; // 1 hour
+const BASE_INTERVAL_SECS: u64 = 3600; // 1 hour
+const MAX_INTERVAL_SECS: u64 = 86400; // 24 hours
 
 /// Payload sent to the frontend via the `nudge://pending` Tauri event.
 #[derive(Debug, Clone, serde::Serialize)]
@@ -38,20 +39,37 @@ impl From<PendingNudge> for NudgeEventPayload {
 /// background until the app exits.
 pub fn start_nudge_poller(app: AppHandle, state: Arc<AppState>) {
     tokio::spawn(async move {
-        let mut interval = tokio::time::interval(Duration::from_secs(POLL_INTERVAL_SECS));
-        // First tick fires immediately so we load nudges on startup.
+        // Track consecutive failures for exponential backoff.
+        let mut consecutive_failures: u32 = 0;
+
         loop {
-            interval.tick().await;
-            poll_once(&app, &state).await;
+            match poll_once(&app, &state).await {
+                Ok(_) => {
+                    consecutive_failures = 0; // reset on success
+                }
+                Err(e) => {
+                    consecutive_failures += 1;
+                    warn!(
+                        "Nudge poll failed (attempt {}): {}",
+                        consecutive_failures, e
+                    );
+                }
+            }
+
+            let backoff = std::cmp::min(
+                BASE_INTERVAL_SECS * (1 << consecutive_failures.min(4)),
+                MAX_INTERVAL_SECS,
+            );
+            tokio::time::sleep(Duration::from_secs(backoff)).await;
         }
     });
 }
 
-async fn poll_once(app: &AppHandle, state: &Arc<AppState>) {
+async fn poll_once(app: &AppHandle, state: &Arc<AppState>) -> Result<(), String> {
     let client = state.platform_client.read().await;
     if !client.is_configured() {
         debug!("Nudge poller: client not configured, skipping");
-        return;
+        return Ok(());
     }
 
     match client.get_pending_nudges(None).await {
@@ -67,6 +85,7 @@ async fn poll_once(app: &AppHandle, state: &Arc<AppState>) {
                 let _ = client.mark_nudge_delivered(nudge_id, None).await; // <-- added None
             }
         }
-        Err(e) => debug!("Nudge poll failed: {e}"),
+        Err(e) => return Err(e.to_string()),
     }
+    Ok(())
 }

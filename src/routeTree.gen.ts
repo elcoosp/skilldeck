@@ -15,6 +15,7 @@ import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings.index'
 import { Route as AppSharedShareTokenRouteImport } from './routes/_app/shared.$shareToken'
 import { Route as AppSettingsSourcesRouteImport } from './routes/_app/settings.sources'
+import { Route as AppSettingsShortcutsRouteImport } from './routes/_app/settings.shortcuts'
 import { Route as AppSettingsReferralRouteImport } from './routes/_app/settings.referral'
 import { Route as AppSettingsProfilesRouteImport } from './routes/_app/settings.profiles'
 import { Route as AppSettingsPreferencesRouteImport } from './routes/_app/settings.preferences'
@@ -53,6 +54,11 @@ const AppSharedShareTokenRoute = AppSharedShareTokenRouteImport.update({
 const AppSettingsSourcesRoute = AppSettingsSourcesRouteImport.update({
   id: '/sources',
   path: '/sources',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsShortcutsRoute = AppSettingsShortcutsRouteImport.update({
+  id: '/shortcuts',
+  path: '/shortcuts',
   getParentRoute: () => AppSettingsRoute,
 } as any)
 const AppSettingsReferralRoute = AppSettingsReferralRouteImport.update({
@@ -120,6 +126,7 @@ export interface FileRoutesByFullPath {
   '/settings/preferences': typeof AppSettingsPreferencesRoute
   '/settings/profiles': typeof AppSettingsProfilesRoute
   '/settings/referral': typeof AppSettingsReferralRoute
+  '/settings/shortcuts': typeof AppSettingsShortcutsRoute
   '/settings/sources': typeof AppSettingsSourcesRoute
   '/shared/$shareToken': typeof AppSharedShareTokenRoute
   '/settings/': typeof AppSettingsIndexRoute
@@ -136,6 +143,7 @@ export interface FileRoutesByTo {
   '/settings/preferences': typeof AppSettingsPreferencesRoute
   '/settings/profiles': typeof AppSettingsProfilesRoute
   '/settings/referral': typeof AppSettingsReferralRoute
+  '/settings/shortcuts': typeof AppSettingsShortcutsRoute
   '/settings/sources': typeof AppSettingsSourcesRoute
   '/shared/$shareToken': typeof AppSharedShareTokenRoute
   '/settings': typeof AppSettingsIndexRoute
@@ -155,6 +163,7 @@ export interface FileRoutesById {
   '/_app/settings/preferences': typeof AppSettingsPreferencesRoute
   '/_app/settings/profiles': typeof AppSettingsProfilesRoute
   '/_app/settings/referral': typeof AppSettingsReferralRoute
+  '/_app/settings/shortcuts': typeof AppSettingsShortcutsRoute
   '/_app/settings/sources': typeof AppSettingsSourcesRoute
   '/_app/shared/$shareToken': typeof AppSharedShareTokenRoute
   '/_app/settings/': typeof AppSettingsIndexRoute
@@ -174,6 +183,7 @@ export interface FileRouteTypes {
     | '/settings/preferences'
     | '/settings/profiles'
     | '/settings/referral'
+    | '/settings/shortcuts'
     | '/settings/sources'
     | '/shared/$shareToken'
     | '/settings/'
@@ -190,6 +200,7 @@ export interface FileRouteTypes {
     | '/settings/preferences'
     | '/settings/profiles'
     | '/settings/referral'
+    | '/settings/shortcuts'
     | '/settings/sources'
     | '/shared/$shareToken'
     | '/settings'
@@ -208,6 +219,7 @@ export interface FileRouteTypes {
     | '/_app/settings/preferences'
     | '/_app/settings/profiles'
     | '/_app/settings/referral'
+    | '/_app/settings/shortcuts'
     | '/_app/settings/sources'
     | '/_app/shared/$shareToken'
     | '/_app/settings/'
@@ -259,6 +271,13 @@ declare module '@tanstack/react-router' {
       path: '/sources'
       fullPath: '/settings/sources'
       preLoaderRoute: typeof AppSettingsSourcesRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/shortcuts': {
+      id: '/_app/settings/shortcuts'
+      path: '/shortcuts'
+      fullPath: '/settings/shortcuts'
+      preLoaderRoute: typeof AppSettingsShortcutsRouteImport
       parentRoute: typeof AppSettingsRoute
     }
     '/_app/settings/referral': {
@@ -344,6 +363,7 @@ interface AppSettingsRouteChildren {
   AppSettingsPreferencesRoute: typeof AppSettingsPreferencesRoute
   AppSettingsProfilesRoute: typeof AppSettingsProfilesRoute
   AppSettingsReferralRoute: typeof AppSettingsReferralRoute
+  AppSettingsShortcutsRoute: typeof AppSettingsShortcutsRoute
   AppSettingsSourcesRoute: typeof AppSettingsSourcesRoute
   AppSettingsIndexRoute: typeof AppSettingsIndexRoute
 }
@@ -358,6 +378,7 @@ const AppSettingsRouteChildren: AppSettingsRouteChildren = {
   AppSettingsPreferencesRoute: AppSettingsPreferencesRoute,
   AppSettingsProfilesRoute: AppSettingsProfilesRoute,
   AppSettingsReferralRoute: AppSettingsReferralRoute,
+  AppSettingsShortcutsRoute: AppSettingsShortcutsRoute,
   AppSettingsSourcesRoute: AppSettingsSourcesRoute,
   AppSettingsIndexRoute: AppSettingsIndexRoute,
 }

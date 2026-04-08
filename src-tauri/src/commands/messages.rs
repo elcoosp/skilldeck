@@ -336,8 +336,10 @@ pub async fn send_message(
         req.context_items,
         app,
         None,
+        req.thinking.unwrap_or(false), // <-- pass thinking flag
     )
     .await
+    .map(|_| ())
 }
 
 #[specta]
@@ -391,6 +393,7 @@ pub struct SendMessageRequest {
     pub content: String,
     pub branch_id: Option<String>,
     pub context_items: Option<Vec<ContextItem>>,
+    pub thinking: Option<bool>, // <-- ADDED
 }
 
 /// Get conversation bootstrap data (messages, branches, draft, queued, headings).
@@ -421,7 +424,7 @@ pub async fn get_conversation_bootstrap(
 }
 
 // =============================================================================
-// Internal send function
+// Internal send function (returns the user message ID)
 // =============================================================================
 
 pub(crate) async fn send_message_internal(
@@ -432,7 +435,8 @@ pub(crate) async fn send_message_internal(
     context_items: Option<Vec<ContextItem>>,
     app: tauri::AppHandle,
     metadata: Option<MessageMetadata>,
-) -> Result<(), String> {
+    thinking: bool, // <-- ADDED
+) -> Result<Uuid, String> {
     // Validate IDs synchronously – no DB call
     let conv_uuid = Uuid::parse_str(&conversation_id).map_err(|e| e.to_string())?;
     let branch_uuid = branch_id
@@ -452,73 +456,81 @@ pub(crate) async fn send_message_internal(
     );
 
     // Spawn the heavy work (DB insert + agent loop)
-    tokio::spawn(async move {
-        let db = match state.registry.db.connection().await {
-            Ok(db) => db,
-            Err(e) => {
-                let _ = app.emit(
-                    "agent-event",
-                    AgentEvent::Error {
-                        conversation_id: conversation_id.clone(),
-                        message: format!("Database connection failed: {}", e),
-                    },
-                );
-                return;
-            }
-        };
+    let state_clone = state.clone();
+    let app_clone = app.clone();
+    let conversation_id_clone = conversation_id.clone();
+    let content_clone = content.clone();
+    let context_items_clone = context_items.clone();
+    let metadata_clone = metadata;
 
-        // Insert user message
-        let context_items_model = context_items
-            .clone()
-            .map(ContextItems)
-            .unwrap_or_else(|| ContextItems(vec![]));
-
-        let user_msg = messages::ActiveModel {
-            id: Set(msg_id),
-            conversation_id: Set(conv_uuid),
-            branch_id: Set(branch_uuid),
-            role: Set("user".to_string()),
-            content: Set(content.clone()),
-            metadata: Set(metadata),
-            context_items: Set(Some(context_items_model)),
-            created_at: Set(now),
-            seen: Set(false),
-            status: Set("active".to_string()),
-            ..Default::default()
-        };
-
-        if let Err(e) = user_msg.insert(db).await {
+    // Insert user message immediately (synchronously) so we can return its ID
+    let db = match state.registry.db.connection().await {
+        Ok(db) => db,
+        Err(e) => {
             let _ = app.emit(
                 "agent-event",
                 AgentEvent::Error {
                     conversation_id: conversation_id.clone(),
-                    message: format!("Failed to save user message: {}", e),
+                    message: format!("Database connection failed: {}", e),
                 },
             );
-            return;
+            return Err(e.to_string());
         }
+    };
 
-        // Emit Persisted after the message is saved – triggers cache refresh
+    let context_items_model = context_items_clone
+        .clone()
+        .map(ContextItems)
+        .unwrap_or_else(|| ContextItems(vec![]));
+
+    let user_msg = messages::ActiveModel {
+        id: Set(msg_id),
+        conversation_id: Set(conv_uuid),
+        branch_id: Set(branch_uuid),
+        role: Set("user".to_string()),
+        content: Set(content_clone.clone()),
+        metadata: Set(metadata_clone),
+        context_items: Set(Some(context_items_model)),
+        created_at: Set(now),
+        seen: Set(false),
+        status: Set("active".to_string()),
+        ..Default::default()
+    };
+
+    if let Err(e) = user_msg.insert(db).await {
         let _ = app.emit(
             "agent-event",
-            AgentEvent::Persisted {
+            AgentEvent::Error {
                 conversation_id: conversation_id.clone(),
+                message: format!("Failed to save user message: {}", e),
             },
         );
+        return Err(e.to_string());
+    }
 
-        // Finally start the agent loop (not async, no .await)
+    // Emit Persisted after the message is saved – triggers cache refresh
+    let _ = app.emit(
+        "agent-event",
+        AgentEvent::Persisted {
+            conversation_id: conversation_id_clone.clone(),
+        },
+    );
+
+    // Finally start the agent loop (not async, no .await)
+    tokio::spawn(async move {
         run_agent_loop(
-            state,
-            conversation_id,
-            content,
+            state_clone,
+            conversation_id_clone,
+            content_clone,
             branch_id,
             msg_id,
-            context_items,
-            app,
+            context_items_clone,
+            app_clone,
+            thinking, // <-- pass thinking flag
         );
     });
 
-    Ok(())
+    Ok(msg_id)
 }
 
 // =============================================================================
@@ -754,6 +766,7 @@ fn run_agent_loop(
     current_msg_id: Uuid,
     context_items: Option<Vec<ContextItem>>,
     app: tauri::AppHandle,
+    thinking: bool, // <-- ADDED
 ) {
     use skilldeck_core::agent::tool_dispatcher::ToolDispatcher;
     use skilldeck_core::traits::ChatMessage;
@@ -1068,7 +1081,11 @@ fn run_agent_loop(
             }
         });
 
-        let loop_handle = tokio::spawn(async move { agent.run(enriched_user_message).await });
+        let loop_handle = tokio::spawn(async move {
+            agent
+                .run(enriched_user_message, thinking) // <-- pass thinking flag
+                .await
+        });
 
         while let Some(event) = rx.recv().await {
             match event {
@@ -1118,7 +1135,8 @@ fn run_agent_loop(
                 Ok(AgentLoopEvent::Done {
                     input_tokens,
                     output_tokens,
-                    ..
+                    cache_read_tokens,
+                    cache_write_tokens,
                 }) => {
                     saw_done = true;
 
@@ -1417,6 +1435,134 @@ fn run_agent_loop(
     });
 }
 
+#[specta]
+#[tauri::command]
+pub async fn compact_conversation(
+    state: State<'_, Arc<AppState>>,
+    conversation_id: String,
+) -> Result<String, String> {
+    let db = state
+        .registry
+        .db
+        .connection()
+        .await
+        .map_err(|e| e.to_string())?;
+    let conv_uuid = Uuid::parse_str(&conversation_id).map_err(|e| e.to_string())?;
+
+    // Fetch all messages for the conversation
+    let messages = Messages::find()
+        .filter(messages::Column::ConversationId.eq(conv_uuid))
+        .order_by_asc(messages::Column::CreatedAt)
+        .all(db)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if messages.len() < 10 {
+        return Err("Conversation too short to compact".to_string());
+    }
+
+    // Split point: keep last 30% of messages
+    let split_point = (messages.len() as f64 * 0.7) as usize;
+    let old_messages = &messages[..split_point];
+    let keep_messages = &messages[split_point..];
+
+    // Build summary prompt from old messages
+    let mut summary_content = String::new();
+    for msg in old_messages {
+        summary_content.push_str(&format!("{}: {}\n", msg.role, msg.content));
+    }
+
+    let summary_prompt = format!(
+        "Summarize the following conversation concisely, preserving key decisions, code changes, and important context:\n\n{}",
+        summary_content
+    );
+
+    // Get provider and model for the conversation
+    let conv = Conversations::find_by_id(conv_uuid)
+        .one(db)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("Conversation {} not found", conversation_id))?;
+
+    let profile = skilldeck_models::profiles::Entity::find_by_id(conv.profile_id)
+        .one(db)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("Profile {} not found", conv.profile_id))?;
+
+    let provider = state
+        .registry
+        .get_provider(&profile.model_provider)
+        .ok_or_else(|| format!("Provider {} not available", profile.model_provider))?;
+
+    // Run a simple completion to get summary
+    use skilldeck_core::traits::{ChatMessage, CompletionRequest, MessageRole, ModelParams};
+    let request = CompletionRequest {
+        messages: vec![ChatMessage {
+            role: MessageRole::User,
+            content: summary_prompt,
+            name: None,
+        }],
+        system: None,
+        tools: vec![],
+        tools_toon: None,
+        model_params: ModelParams::default(),
+        model_id: profile.model_id,
+        thinking: false,
+    };
+
+    let stream = provider
+        .complete(request)
+        .await
+        .map_err(|e| e.to_string())?;
+    use futures::StreamExt;
+    let chunks: Vec<_> = stream.collect().await;
+    let mut summary = String::new();
+    for chunk in chunks {
+        if let Ok(skilldeck_core::traits::CompletionChunk::Token { content }) = chunk {
+            summary.push_str(&content);
+        }
+    }
+
+    if summary.is_empty() {
+        return Err("Failed to generate summary".to_string());
+    }
+
+    // Delete old messages
+    let old_ids: Vec<Uuid> = old_messages.iter().map(|m| m.id).collect();
+    for id in old_ids {
+        Messages::delete_by_id(id)
+            .exec(db)
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+
+    // Insert summary as a system message at the beginning
+    let now = chrono::Utc::now().fixed_offset();
+    let summary_msg = messages::ActiveModel {
+        id: Set(Uuid::new_v4()),
+        conversation_id: Set(conv_uuid),
+        branch_id: Set(None),
+        role: Set("system".to_string()),
+        content: Set(format!(
+            "[Compacted summary of previous conversation]\n{}",
+            summary
+        )),
+        created_at: Set(now),
+        context_items: Set(Some(ContextItems(vec![]))),
+        seen: Set(false),
+        status: Set("active".to_string()),
+        ..Default::default()
+    };
+    summary_msg.insert(db).await.map_err(|e| e.to_string())?;
+
+    // Update conversation updated_at
+    let mut conv_active: conversations::ActiveModel = conv.into();
+    conv_active.updated_at = Set(now);
+    conv_active.update(db).await.map_err(|e| e.to_string())?;
+
+    Ok(summary)
+}
 #[cfg(test)]
 mod tests {
     use super::*;

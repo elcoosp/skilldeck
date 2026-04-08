@@ -118,8 +118,11 @@ impl ToolApprovalEmitter for TauriToolApprovalEmitter {
 
 /// Top-level shared application state injected into every Tauri command.
 pub struct AppState {
+    // ── Core Registry ──────────────────────────────────────────
     /// Core registry: DB connection + provider map + MCP/skill registries.
     pub registry: Arc<Registry>,
+
+    // ── Agent Runtime ──────────────────────────────────────────
     /// Async approval gate: suspends agent tasks awaiting user approval.
     pub approval_gate: Arc<skilldeck_core::agent::ApprovalGate>,
     /// MCP supervisor command channel (used to register configs and trigger restarts).
@@ -127,17 +130,10 @@ pub struct AppState {
     pub supervisor_tx: tokio::sync::mpsc::Sender<SupervisorCommand>,
     /// Per-conversation cancellation tokens so callers can abort agent loops.
     pub agent_cancel_tokens: Arc<DashMap<String, CancellationToken>>,
-    /// Canonical SQLite path – e.g. "/Users/alice/Library/…/skilldeck.db".
-    /// Kept as a plain `String` so background tasks can open a fresh connection.
-    pub db_url: String,
-    pub config: crate::config::AppConfig,
-    /// HTTP client for the optional SkillDeck Platform.
-    pub platform_client: tokio::sync::RwLock<crate::platform_client::PlatformClient>,
-    /// Whether the user has opted in to anonymous analytics (mirrored from DB).
-    pub analytics_opt_in: std::sync::atomic::AtomicBool,
-    /// Merged lint configuration — starts from `~/.config/skilldeck/skilldeck-lint.toml`
-    /// and can be updated at runtime via the `disable_lint_rule` command.
-    pub lint_config: Arc<RwLock<LintConfig>>,
+    /// Per-conversation flag to pause auto-send when editing/dragging/selecting.
+    pub auto_send_paused: Arc<DashMap<String, bool>>,
+    /// Global auto-approve configuration (shared by all ToolDispatcher instances).
+    pub global_auto_approve: Arc<RwLock<AutoApproveConfig>>,
     /// Subagent servers indexed by subagent ID.
     pub subagent_servers: Arc<DashMap<String, SubagentServer>>,
     /// Semaphore to limit concurrent subagents (default 3).
@@ -146,18 +142,35 @@ pub struct AppState {
     pub subagent_clients: Arc<DashMap<String, Arc<A2aClient>>>,
     /// Final results of completed subagents (for mergeSubagentResult).
     pub subagent_results: Arc<DashMap<String, String>>,
-    /// Tauri app handle (needed to emit events from background tasks).
-    pub app_handle: tauri::AppHandle,
-    /// Per-conversation flag to pause auto-send when editing/dragging/selecting.
-    pub auto_send_paused: Arc<DashMap<String, bool>>,
-    /// Global auto-approve configuration (shared by all ToolDispatcher instances).
-    pub global_auto_approve: Arc<RwLock<AutoApproveConfig>>,
     /// Subagent session manager.
     pub subagent_manager: Arc<tokio::sync::Mutex<SubagentManager>>,
+
+    // ── Database ───────────────────────────────────────────────
+    /// Canonical SQLite path – e.g. "/Users/alice/Library/…/skilldeck.db".
+    /// Kept as a plain `String` so background tasks can open a fresh connection.
+    pub db_url: String,
+
+    // ── Platform Integration ───────────────────────────────────
+    /// HTTP client for the optional SkillDeck Platform.
+    pub platform_client: tokio::sync::RwLock<crate::platform_client::PlatformClient>,
+    /// Whether the user has opted in to anonymous analytics (mirrored from DB).
+    pub analytics_opt_in: std::sync::atomic::AtomicBool,
+    pub config: crate::config::AppConfig,
+
+    // ── Configuration ──────────────────────────────────────────
+    /// Merged lint configuration — starts from `~/.config/skilldeck/skilldeck-lint.toml`
+    /// and can be updated at runtime via the `disable_lint_rule` command.
+    pub lint_config: Arc<RwLock<LintConfig>>,
+
+    // ── Presentation ───────────────────────────────────────────
     /// Shared theme for syntax highlighting (live-swappable).
     pub theme: SharedTheme,
     /// Markdown pipeline (uses the same theme).
     pub markdown: Arc<MarkdownPipeline>,
+
+    // ── App Handle ─────────────────────────────────────────────
+    /// Tauri app handle (needed to emit events from background tasks).
+    pub app_handle: tauri::AppHandle,
 }
 
 impl AppState {

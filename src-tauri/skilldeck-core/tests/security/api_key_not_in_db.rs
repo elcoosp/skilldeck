@@ -28,3 +28,6 @@ async fn api_key_not_in_db() {
         assert!(!row.key_hash.contains(key));
     }
 }
+
+
+
