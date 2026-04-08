@@ -1,5 +1,3 @@
-// src/components/conversation/message-bubble.tsx
-
 import { save } from '@tauri-apps/plugin-dialog'
 import { writeTextFile } from '@tauri-apps/plugin-fs'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -67,6 +65,7 @@ import { useUIEphemeralStore } from '@/store/ui-ephemeral'
 import { CreateBranchModal } from './create-branch-modal'
 import { ScrollContainerContext } from './message-thread'
 import { SubagentCard } from './subagent-card'
+import { ThinkingView } from './thinking-view'
 import { ToolResultBubble } from './tool-result-bubble'
 
 interface MessageBubbleProps {
@@ -284,6 +283,11 @@ function MessageBubbleInner({
   const scrollContainer = useContext(ScrollContainerContext) as
     | React.RefObject<HTMLElement>
     | undefined
+
+  // Thinking document from ephemeral store (during streaming)
+  const thinkingDoc = useUIEphemeralStore(
+    (s) => s.thinkingDocuments[activeConversationId ?? ''] ?? null
+  )
 
   // State for user message "Show more/less" based on content length
   const [isExpanded, setIsExpanded] = useState(false)
@@ -573,7 +577,7 @@ function MessageBubbleInner({
       <SubagentCard
         stepName={subagentData.task || 'Subagent'}
         status="running"
-        onOpen={() => {}}
+        onOpen={() => { }}
       />
     )
   }
@@ -764,6 +768,17 @@ function MessageBubbleInner({
               initialCollapsed={false}
               messageId={message.id}
             >
+              {/* Thinking panel — renders above the main content */}
+              <ThinkingView
+                document={
+                  isStreaming
+                    ? thinkingDoc
+                    : (message as any).thinking_document ?? null
+                }
+                messageId={message.id}
+                conversationId={activeConversationId}
+                isStreaming={isStreaming && !!thinkingDoc}
+              />
               {contentElement}
             </CollapsibleContent>
           </div>

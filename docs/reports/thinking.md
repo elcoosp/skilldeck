@@ -1,366 +1,359 @@
-I'll continue by first reading the codebase file to understand the existing code, then provide the updated plan with thinking rendered as regular markdown document nodes.
-Let me read the key files I need to understand for the thinking integration plan.
-Let me search for the critical files within the codebase dump.
-Now let me also check the UI ephemeral store to understand the streaming state management.
-Now I have a thorough understanding of the entire codebase architecture. Let me also check the `OpenAiProvider` since `OllamaProvider` delegates to it.
-Now I have a complete picture of the codebase. Let me create the updated plan.
-Here is the **updated plan** for integrating Ollama's thinking capability, with thinking rendered as a **regular markdown document node** using the same rendering pipeline as all other messages.
+Let me read the codebase first.The file is truncated. Let me read the most relevant sections.Now let me also read the agent loop and the events to understand the full picture:Now I have a thorough understanding of the entire codebase. Let me also quickly check the message-input.tsx to find the existing thinking icon:Now let me check how `thinking` is currently passed to the Rust agent command:---
+
+I now have a comprehensive view of the entire pipeline. Here is the plan:
 
 ---
 
-# 🧠 Ollama Thinking Integration Plan — "Markdown-as-Document" Approach
+## Plan: Native Ollama Thinking Integration
 
-## Design Philosophy
-
-Instead of building a special animated/expandable thinking UI component, thinking content flows through the **exact same markdown rendering pipeline** as every other message:
+### Architecture overview (what the plan slots into)
 
 ```
-Thinking text → IncrementalStream → NodeDocument → MarkdownView
+message-input.tsx  ──(thinking: bool)──▶  commands.sendMessage
+                                                │
+                                    src-tauri/src/commands/messages.rs
+                                                │
+                                    AgentLoop::run(user_message, thinking)
+                                                │
+                                    CompletionRequest { thinking, … }
+                                                │
+                          OllamaProvider::complete()  ◀── TODAY: goes through OpenAiProvider
+                                                │
+                                  Tauri emits AgentEvent::Token / StreamUpdate / ThinkingUpdate
+                                                │
+                                    use-agent-stream.ts (processEvent)
+                                                │
+                                    ui-ephemeral store (streamingMessages / NEW: thinkingDocument)
+                                                │
+                                    message-bubble.tsx → ThinkingView + MarkdownView
 ```
-
-This means thinking appears as a naturally rendered markdown section within the assistant's message — same rendering, same code blocks, same headings — just visually distinguished by a subtle label/styling and optionally collapsible. **No special component, no different rendering path.**
 
 ---
 
-## Phase 1: Rust Backend — Core Types & Provider
+### Step 1 — Rust: add `ollama-rs` and a native Ollama provider
 
-### 1.1 Add thinking types to `model_provider.rs`
+**`src-tauri/skilldeck-core/Cargo.toml`**
 
-**File:** `src-tauri/skilldeck-core/src/traits/model_provider.rs`
-
-| Change | Detail |
-|--------|--------|
-| `CompletionChunk` enum | Add variant: `Thinking { content: String }` |
-| `CompletionRequest` struct | Add field: `enable_thinking: Option<bool>` |
-| `ModelParams` struct | Add field: `thinking_budget: Option<u32>` |
-| `ModelCapabilities` struct | Add field: `thinking: bool` |
-| `TokenUsage` struct | Add field: `thinking_tokens: u32` |
-| `CompletionResult` struct | Add field: `thinking_content: Option<String>` |
-
-### 1.2 Modify `OllamaProvider` to send thinking params
-
-**File:** `src-tauri/skilldeck-core/src/providers/ollama.rs`
-
-- Override `complete()` instead of delegating directly to `self.inner.complete()`
-- Inject `"think": true` into the OpenAI-compatible API request body
-- Parse Ollama's streaming response: detect `message.thinking` chunks (arrive before `message.content` chunks)
-- Map thinking chunks → `CompletionChunk::Thinking { content }`, content chunks → `CompletionChunk::Token { content }`
-- On `Done`, include thinking content in the result
-- Add `thinking_budget` passthrough from `ModelParams`
-
-**Ollama API contract:**
-```
-Request:  { "messages": [...], "think": true }                    // or "think": "low"|"medium"|"high"
-Response: { "message": { "thinking": "...", "content": "..." } }  // streaming: thinking deltas first, then content deltas
+```toml
+[dependencies]
+ollama-rs = { version = "0.3.4", features = ["stream"] }
 ```
 
-### 1.3 Add thinking events to core events
+**`src-tauri/skilldeck-core/src/providers/ollama_native.rs`** *(new file)*
 
-**File:** `src-tauri/skilldeck-core/src/events.rs`
+Replace the current `OllamaProvider` (which wraps `OpenAiProvider`) with a first-class implementation using `ollama-rs`:
 
 ```rust
-// New AgentEvent variants:
-ThinkingDelta {
-    conversation_id: String,
-    delta: String,           // raw thinking text delta
-},
-ThinkingStreamUpdate {
-    conversation_id: String,
-    document: NodeDocument,  // fully rendered thinking NodeDocument (via IncrementalStream)
-    new_toc_items: Vec<TocItem>,
-    new_artifact_specs: Vec<ArtifactSpec>,
-},
-ThinkingDone {
-    conversation_id: String,
-    thinking_content: String, // full thinking text (for persistence)
-},
-```
+use ollama_rs::{
+    Ollama,
+    generation::{
+        chat::{ChatMessage as OllamaChatMessage, request::ChatMessageRequest},
+        options::GenerationOptions,
+    },
+};
+use futures::StreamExt;
 
-### 1.4 Mirror events in Tauri IPC layer
+pub struct OllamaNativeProvider {
+    client: Ollama,
+}
 
-**File:** `src-tauri/src/events.rs`
-
-Add the same `ThinkingDelta`, `ThinkingStreamUpdate`, `ThinkingDone` variants to the `AgentEvent` enum with `#[derive(Event)]`.
-
----
-
-## Phase 2: Rust Backend — Agent Loop & Persistence
-
-### 2.1 Agent loop thinking handling
-
-**File:** `src-tauri/skilldeck-core/src/agent/loop.rs` (currently binary — needs source)
-
-The agent loop is the heart. When processing `CompletionChunk`:
-
-1. **New state**: Maintain a `thinking_buffer: String` and a `thinking_stream: Option<IncrementalStream>` alongside the existing content buffer/stream
-2. **On `CompletionChunk::Thinking { content }`**:
-   - Initialize `thinking_stream` on first thinking chunk
-   - Push delta to `thinking_stream.push(&content)`
-   - If it returns `Some(NodeDocument)`, emit `AgentEvent::ThinkingStreamUpdate`
-   - Also emit `AgentEvent::ThinkingDelta` for raw text fallback
-3. **On `CompletionChunk::Token { content }`** (first content token):
-   - If thinking stream exists, finalize it: `thinking_stream.take().finalize()`
-   - Emit final `ThinkingStreamUpdate` with finalized thinking NodeDocument
-   - Emit `ThinkingDone { thinking_content }` for persistence
-   - Then begin normal content processing
-4. **On `CompletionChunk::Done`**:
-   - Finalize both streams if needed
-   - Include thinking token count in usage
-
-### 2.2 Database schema — add thinking columns
-
-**File:** `src-tauri/skilldeck-models/src/messages.rs`
-
-| Change | Detail |
-|--------|--------|
-| `Message` struct | Add `thinking: Option<String>` — raw thinking text |
-| `Message` struct | Add `thinking_node_document: Option<Json>` — pre-rendered thinking NodeDocument |
-| `Message` struct | Add `thinking_tokens: Option<i32>` — token count for thinking |
-
-**Migration file:** New migration adding:
-```sql
-ALTER TABLE messages ADD COLUMN thinking TEXT;
-ALTER TABLE messages ADD COLUMN thinking_node_document JSON;
-ALTER TABLE messages ADD COLUMN thinking_tokens INTEGER;
-```
-
-### 2.3 Persist thinking when saving messages
-
-**File:** Agent loop message persistence (where `Persisted` event is emitted)
-
-- After the full response completes, save `thinking_content` to the `thinking` column
-- Run the thinking text through `MarkdownPipeline` to produce a final `NodeDocument`
-- Save it to `thinking_node_document` column
-- Save thinking token count
-
----
-
-## Phase 3: Frontend — Streaming & State
-
-### 3.1 Add thinking state to `useUIEphemeralStore`
-
-**File:** `src/store/ui-ephemeral.ts`
-
-```ts
-// New state fields:
-streamingThinkingText: Record<string, string>    // raw thinking text per conversation
-streamingThinkingDocument: Record<string, NodeDocument | null>  // rendered thinking doc per conversation
-isThinking: Record<string, boolean>             // whether model is currently in thinking phase
-
-// New actions:
-appendThinkingText(conversationId: string, delta: string)
-setThinkingDocument(conversationId: string, doc: NodeDocument | null)
-setIsThinking(conversationId: string, value: boolean)
-clearThinkingState(conversationId: string)
-```
-
-### 3.2 Handle thinking events in `use-agent-stream.ts`
-
-**File:** `src/hooks/use-agent-stream.ts`
-
-Add cases in the `processEvent` switch:
-
-```ts
-case 'thinking_delta':
-  // Buffer raw thinking text (like existing token buffering)
-  pendingThinkingBuffer.current += event.delta
-  scheduleThinkingFlush()
-  break
-
-case 'thinking_stream_update':
-  // Deduplicate/stabilize thinking NodeDocument (same logic as stream_update)
-  setThinkingDocument(conversationId, event.node_document)
-  break
-
-case 'thinking_done':
-  // Final flush of thinking buffer
-  flushThinkingNow()
-  setIsThinking(conversationId, false)
-  break
-```
-
-On `started` event: reset thinking state (`clearThinkingState`)
-On `done`/`cancelled`/`error` events: clear thinking state
-
-### 3.3 Include thinking in streaming message
-
-**File:** `src/hooks/use-messages.ts`
-
-In `useMessagesWithStream`, the synthetic `__streaming__` message already carries `node_document` for the content. We need to also carry thinking:
-
-```ts
-const streamBubble: MessageData = {
-  ...existingFields,
-  // New fields for thinking:
-  thinking: streamingThinkingText || null,
-  thinking_node_document: streamingThinkingDocument || null,
+impl OllamaNativeProvider {
+    pub fn new(port: u16) -> Self {
+        Self {
+            client: Ollama::new("http://localhost".into(), port),
+        }
+    }
 }
 ```
 
-This means `MessageData` (from Tauri bindings) needs `thinking` and `thinking_node_document` fields added — which happens automatically when the Rust `Message` model is updated and `tauri-specta` regenerates bindings.
+Implement `ModelProvider::complete`:
+
+- Convert `CompletionRequest.messages` → `Vec<OllamaChatMessage>` (role mapping: `System` → user message prepended; `User` → user; `Assistant` → assistant; `Tool` → omit or fold into user).
+- If `request.thinking == true`, append `.think(true)` to the `ChatMessageRequest`.
+- Use `ollama.send_chat_messages_stream(req)` to get a stream.
+- Map each streamed response:
+  - The response from `ollama-rs` with `.think(true)` exposes `response.thinking` (Option<String>) and `response.message.content`.
+  - Emit `CompletionChunk::Thinking { delta: String }` for thinking deltas (new variant, see Step 2).
+  - Emit `CompletionChunk::Token { content }` for normal content.
+  - Emit `CompletionChunk::Done { … }` when `response.done == true`.
+
+**`src-tauri/skilldeck-core/src/providers/mod.rs`**
+
+Expose `OllamaNativeProvider` and keep `OllamaProvider` as a deprecated alias or remove it.
 
 ---
 
-## Phase 4: Frontend — Rendering
+### Step 2 — Rust: extend `CompletionChunk` with a `Thinking` variant
 
-### 4.1 Render thinking as markdown in `MessageBubble`
+**`src-tauri/skilldeck-core/src/traits/model_provider.rs`**
 
-**File:** `src/components/conversation/message-bubble.tsx`
-
-In the assistant rendering block (`if (isAssistant || syntheticStreaming)`):
-
-```tsx
-// BEFORE the main contentElement, render thinking if present:
-const thinkingDocument = message.thinking_node_document as NodeDocument | null
-const isCurrentlyThinking = isStreaming && isThinkingState
-
-{thinkingDocument && (
-  <div className="mb-2 pb-2 border-b border-border/50">
-    <span className="text-xs text-muted-foreground font-medium mb-1 block">
-      Thinking
-    </span>
-    <MarkdownView
-      document={thinkingDocument}
-      messageId={`${message.id}-thinking`}
-      className="prose prose-sm dark:prose-invert max-w-none break-words text-muted-foreground/80"
-      conversationId={activeConversationId}
-      isStreaming={isCurrentlyThinking}
-      scrollContainerRef={scrollContainer}
-    />
-  </div>
-)}
-{contentElement}
+```rust
+pub enum CompletionChunk {
+    Token { content: String },
+    Thinking { delta: String },   // ← NEW
+    ToolCall { tool_call: ToolCall },
+    Done { input_tokens: u32, output_tokens: u32, cache_read_tokens: u32, cache_write_tokens: u32 },
+}
 ```
 
-**Key points:**
-- Uses the **exact same `MarkdownView` component** as regular messages
-- Uses the **exact same `NodeDocument` → `MdNode` rendering pipeline**
-- Only visual distinction: subtle muted styling + "Thinking" label + border separator
-- During streaming, the thinking section auto-scrolls like normal content
-- After thinking phase ends, the thinking section stays visible (not auto-collapsed)
-- The existing collapsible behavior for assistant messages can optionally wrap the thinking section too
-
-### 4.2 Streaming transition behavior
-
-During streaming, the visual sequence is:
-
-```
-[Assistant avatar]
-[Thinking section — streaming, auto-scrolling]     ← MarkdownView with thinking NodeDocument
-[Content section — not yet started]
-```
-
-After thinking completes:
-
-```
-[Assistant avatar]
-[Thinking section — finalized, complete]            ← MarkdownView with final thinking NodeDocument
-[Content section — now streaming]                   ← MarkdownView with content NodeDocument
-```
-
-After full completion:
-
-```
-[Assistant avatar]
-[Thinking section — persisted, complete]            ← MarkdownView with persisted thinking_node_document
-[Content section — persisted, complete]             ← MarkdownView with persisted node_document
-```
-
-### 4.3 Handle persisted messages with thinking
-
-When loading persisted messages from DB, `MessageData` now includes:
-- `thinking`: raw thinking text (optional)
-- `thinking_node_document`: pre-rendered NodeDocument (optional)
-
-The `MessageBubble` reads these directly — no special loading logic needed. If `thinking_node_document` is present, render it via `MarkdownView` above the main content. If only `thinking` text exists (fallback), generate a NodeDocument client-side using the same `getTextNodeDocument()` helper already in the file.
+All existing providers (OpenAI, Claude) never emit `Thinking`, so no changes needed there — the agent loop's `process_stream` will simply never hit that arm for them.
 
 ---
 
-## Phase 5: Settings & UX Polish
+### Step 3 — Rust: thread `Thinking` chunks through the agent loop
 
-### 5.1 Add thinking display settings
+**`src-tauri/skilldeck-core/src/agent/loop.rs`**
 
-**File:** `src/store/settings.ts`
+In `process_stream`, add a new arm:
+
+```rust
+CompletionChunk::Thinking { delta } => {
+    send_event!(self, AgentLoopEvent::ThinkingToken { delta });
+}
+```
+
+Add the `ThinkingToken` variant to `AgentLoopEvent`:
+
+```rust
+pub enum AgentLoopEvent {
+    Token { delta: String },
+    ThinkingToken { delta: String },   // ← NEW
+    // …existing variants
+}
+```
+
+---
+
+### Step 4 — Rust: add `AgentEvent::ThinkingUpdate` and emit it
+
+**`src-tauri/skilldeck-core/src/events.rs`**
+
+```rust
+pub enum AgentEvent {
+    // …existing variants
+    ThinkingStreamUpdate {
+        conversation_id: String,
+        document: NodeDocument,   // ← same type, thinking text parsed through IncrementalStream
+    },
+    ThinkingDone {
+        conversation_id: String,
+        document: NodeDocument,   // final finalized NodeDocument for thinking
+    },
+}
+```
+
+**`src-tauri/src/commands/messages.rs`** (the runner that bridges `AgentLoop` → Tauri events)
+
+Add a second `IncrementalStream` instance dedicated to the thinking channel:
+
+```rust
+let mut thinking_stream = IncrementalStream::new(pipeline.clone());
+
+// In the loop that processes AgentLoopEvent:
+AgentLoopEvent::ThinkingToken { delta } => {
+    if let Some(doc) = thinking_stream.push(&delta) {
+        app.emit("agent-event", AgentEvent::ThinkingStreamUpdate {
+            conversation_id: conv_id.clone(),
+            document: doc,
+        })?;
+    }
+}
+
+// On Done or Cancelled:
+let final_thinking_doc = thinking_stream.finalize();
+app.emit("agent-event", AgentEvent::ThinkingDone {
+    conversation_id: conv_id.clone(),
+    document: final_thinking_doc,
+})?;
+```
+
+The key insight: **thinking content is just markdown text, so it goes through the exact same `IncrementalStream` / `MarkdownPipeline` as the main content** — producing a `NodeDocument` with `stable_nodes` + `draft_nodes`. No new parsing code needed.
+
+---
+
+### Step 5 — TypeScript: extend event types and the ephemeral store
+
+**`src/lib/events.ts`**
 
 ```ts
-// New settings:
-showThinking: boolean          // default: true — master toggle
-autoCollapseThinking: boolean  // default: false — whether to start thinking collapsed
-thinkingModelFilter: string[]  // default: [] — empty = show for all models
+export type AgentEventType =
+  | 'started' | 'token' | 'tool_call' | 'tool_result'
+  | 'done' | 'error' | 'persisted' | 'tool_approval_required'
+  | 'stream_update'
+  | 'thinking_stream_update'   // ← NEW
+  | 'thinking_done'            // ← NEW
+
+export interface AgentEvent {
+  // …existing fields
+  thinking_document?: NodeDocument   // ← NEW (present on thinking_stream_update and thinking_done)
+}
 ```
 
-### 5.2 Settings UI (optional, low priority)
+**`src/store/ui-ephemeral.ts`**
 
-**File:** `src/components/settings/preferences-tab.tsx`
-
-Add a "Thinking" section with:
-- Toggle: "Show model thinking" (on/off)
-- Toggle: "Auto-collapse thinking sections"
-- Note: "Only supported by compatible models (Qwen 3, DeepSeek R1, etc.)"
-
----
-
-## File Change Summary
-
-| # | File | Layer | Changes |
-|---|------|-------|---------|
-| 1 | `traits/model_provider.rs` | Rust Core | `CompletionChunk::Thinking`, `enable_thinking`, `thinking` capability, thinking token tracking |
-| 2 | `providers/ollama.rs` | Rust Core | Override `complete()` to inject `"think": true`, parse thinking chunks |
-| 3 | `providers/openai.rs` | Rust Core | (Optionally) support thinking passthrough for non-Ollama providers |
-| 4 | `events.rs` (core) | Rust Core | `ThinkingDelta`, `ThinkingStreamUpdate`, `ThinkingDone` events |
-| 5 | `events.rs` (tauri) | Rust Tauri | Mirror thinking events with `#[derive(Event)]` |
-| 6 | `agent/loop.rs` | Rust Core | Handle `Thinking` chunks, maintain parallel `IncrementalStream`, emit thinking events |
-| 7 | `markdown/streaming.rs` | Rust Core | (No change needed — reuse `IncrementalStream` for thinking as-is) |
-| 8 | `messages.rs` (models) | Rust Models | Add `thinking`, `thinking_node_document`, `thinking_tokens` columns |
-| 9 | Migration file | Rust Migration | `ALTER TABLE messages ADD COLUMN thinking ...` |
-| 10 | `store/ui-ephemeral.ts` | TS Store | Add thinking streaming state + actions |
-| 11 | `hooks/use-agent-stream.ts` | TS Hook | Handle thinking events in processEvent switch |
-| 12 | `hooks/use-messages.ts` | TS Hook | Include thinking in synthetic streaming message |
-| 13 | `message-bubble.tsx` | TS Component | Render thinking as MarkdownView above content |
-| 14 | `store/settings.ts` | TS Store | Add `showThinking`, `autoCollapseThinking` settings |
-| 15 | `lib/bindings.ts` | TS (auto-gen) | Auto-regenerated by `tauri-specta` after Rust changes |
-
----
-
-## Implementation Order
-
-```
-Phase 1 (Backend Types)     ─── foundation, no visible changes yet
-  ↓
-Phase 2 (Agent Loop + DB)   ─── core logic, messages persisted with thinking
-  ↓
-Phase 3 (Frontend Streaming) ─── thinking appears during streaming
-  ↓
-Phase 4 (Frontend Rendering) ─── thinking renders as markdown in message bubble
-  ↓
-Phase 5 (Settings + Polish)  ─── user controls for thinking display
+```ts
+interface UIState {
+  // …existing
+  thinkingDocuments: Record<string, NodeDocument | null>
+  setThinkingDocument: (conversationId: string, doc: NodeDocument | null) => void
+}
 ```
 
 ---
 
-## Key Design Decisions
+### Step 6 — TypeScript: handle new events in `use-agent-stream.ts`
 
-1. **Same MarkdownView component** — zero divergence in rendering logic
-2. **Separate IncrementalStream for thinking** — clean separation of concerns, no interleaving issues
-3. **Thinking as first-class message field** — not crammed into metadata, properly queryable/persistable
-4. **Pre-rendered thinking_node_document on persistence** — avoids re-parsing on load
-5. **Fallback to raw text** — if `thinking_node_document` is null but `thinking` text exists, generate a basic NodeDocument client-side
-6. **No special animation for thinking** — just a subtle label and muted styling, same auto-scroll behavior as content
-7. **Streaming transition is seamless** — thinking section completes, then content section begins, both using the same visual language
+In `processEvent`:
+
+```ts
+case 'thinking_stream_update': {
+  const doc: NodeDocument = (event as any).thinking_document
+  if (!doc) break
+  // Same stabilization pattern as stream_update — preserve stable_nodes reference
+  setThinkingDocument(conversationId, stabilizedDoc)
+  break
+}
+
+case 'thinking_done': {
+  const doc: NodeDocument = (event as any).thinking_document
+  if (!doc) break
+  setThinkingDocument(conversationId, doc)
+  break
+}
+
+case 'started':
+  // …existing
+  setThinkingDocument(conversationId, null)   // ← reset on new turn
+  break
+
+case 'persisted':
+  // …existing — thinking doc is already stored on the finalized message server-side
+  // Optionally clear from ephemeral store here
+  break
+```
 
 ---
 
-## Risk: Missing `agent/loop.rs` Source
+### Step 7 — Frontend: `ThinkingView` component
 
-The agent loop file was stored as binary in the dump and could not be extracted. This is the **most critical file** for Phase 2. Before implementation begins, the actual source of `src-tauri/skilldeck-core/src/agent/loop.rs` must be obtained.
+**`src/components/conversation/thinking-view.tsx`** *(new file)*
+
+```tsx
+import { useState } from 'react'
+import { BrainCircuit, ChevronDown, ChevronRight } from 'lucide-react'
+import { MarkdownView } from '@/components/markdown-view'
+import type { NodeDocument } from '@/lib/bindings'
+import { cn } from '@/lib/utils'
+
+interface ThinkingViewProps {
+  document: NodeDocument | null
+  messageId: string
+  conversationId: string | null
+  isStreaming?: boolean
+}
+
+export function ThinkingView({
+  document,
+  messageId,
+  conversationId,
+  isStreaming = false,
+}: ThinkingViewProps) {
+  const [expanded, setExpanded] = useState(isStreaming) // auto-open while streaming
+
+  if (!document) return null
+
+  return (
+    <div className="mb-2 rounded-md border border-border/50 bg-muted/30">
+      <button
+        type="button"
+        className="flex w-full items-center gap-1.5 px-3 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        onClick={() => setExpanded((v) => !v)}
+      >
+        <BrainCircuit className="size-3.5 shrink-0" />
+        <span className="font-medium">
+          {isStreaming ? 'Thinking…' : 'Thought process'}
+        </span>
+        {expanded ? (
+          <ChevronDown className="ml-auto size-3" />
+        ) : (
+          <ChevronRight className="ml-auto size-3" />
+        )}
+      </button>
+
+      {expanded && (
+        <div className="border-t border-border/40 px-3 pb-3 pt-2">
+          {/* Reuse MarkdownView but with muted prose styling.
+              No artifacts, no TOC — stable/draft node split is unchanged. */}
+          <MarkdownView
+            document={document}
+            messageId={messageId}
+            conversationId={conversationId}
+            isStreaming={isStreaming}
+            className={cn(
+              'text-muted-foreground/80',
+              '[&_code]:bg-muted [&_pre]:bg-muted',
+              // suppress artifact cards and heading bookmark buttons
+              '[&_.artifact-card]:hidden [&_.heading-bookmark]:hidden',
+            )}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+```
+
+**Why reuse `MarkdownView` directly:** The `NodeDocument` format is identical — same `stable_nodes`/`draft_nodes` split, same `MdNode` variants, same incremental update logic. The only differences are visual: muted colors, no artifacts rendered, no TOC, no bookmark buttons. These are controlled by the `className` overrides and the fact that `artifact_specs` in the thinking document will always be empty (the `IncrementalStream` for thinking emits `emit_artifacts = false`).
 
 ---
 
-Would you like me to proceed with implementation, starting from Phase 1?
-The updated plan is complete. Here's a concise summary of the key change from the original approach:
+### Step 8 — Wire `ThinkingView` into `message-bubble.tsx`
 
-**Before (rejected):** Special animated/expandable thinking UI component with dedicated rendering logic.
+In the assistant message rendering section of `MessageBubble`:
 
-**After (this plan):** Thinking flows through the **exact same pipeline** as regular messages — `IncrementalStream` → `NodeDocument` → `MarkdownView`. The only visual distinction is a subtle "Thinking" label and muted styling. No special rendering component, no divergent code path.
+```tsx
+// At the top of the assistant bubble content, before <MarkdownView>:
+<ThinkingView
+  document={isStreaming
+    ? (thinkingDoc ?? null)       // live from ephemeral store during streaming
+    : (message.thinking_document ?? null)  // persisted after streaming ends
+  }
+  messageId={message.id}
+  conversationId={conversationId}
+  isStreaming={isStreaming && !!thinkingDoc}
+/>
+<MarkdownView … />
+```
 
-The plan covers 5 phases across 15 files, touching Rust backend types, the Ollama provider, the agent loop, database persistence, frontend streaming state, and the message bubble rendering. The critical blocker is that `agent/loop.rs` was stored as binary in the dump and needs to be obtained before Phase 2 implementation.
+The `thinkingDoc` is read from the ephemeral store in the same way `streamingMessages` is read today — directly in `MessageThread` or `MessageBubble` to avoid re-rendering the whole tree.
+
+---
+
+### Step 9 — Persist thinking content (optional but recommended)
+
+**`src-tauri/skilldeck-models` / messages migration**
+
+Add a nullable `thinking_content TEXT` column to the messages table. In the agent runner, after `AgentLoop::run` completes, store the full accumulated thinking text alongside the assistant message content. On load, `MessageData` gains an optional `thinking_document: Option<NodeDocument>` that is rendered server-side using `MarkdownPipeline::render_full`.
+
+This step is optional for a first pass — without it, thinking is only visible during the streaming turn and disappears on reload.
+
+---
+
+### Summary of file changes
+
+| File | Change |
+|---|---|
+| `Cargo.toml` (core) | Add `ollama-rs` dependency |
+| `providers/ollama_native.rs` | New native provider using `ollama-rs` with `think(true)` |
+| `providers/mod.rs` | Expose `OllamaNativeProvider`, wire it in registry setup |
+| `traits/model_provider.rs` | Add `CompletionChunk::Thinking { delta }` variant |
+| `agent/loop.rs` | Handle `Thinking` chunk → emit `AgentLoopEvent::ThinkingToken` |
+| `events.rs` | Add `ThinkingStreamUpdate` and `ThinkingDone` `AgentEvent` variants |
+| `commands/messages.rs` | Second `IncrementalStream` for thinking; emit new events |
+| `src/lib/events.ts` | Add two new `AgentEventType` values + `thinking_document` field |
+| `src/store/ui-ephemeral.ts` | Add `thinkingDocuments` map + setter |
+| `src/hooks/use-agent-stream.ts` | Handle `thinking_stream_update` / `thinking_done` events |
+| `src/components/conversation/thinking-view.tsx` | New component (collapsible, reuses `MarkdownView`) |
+| `src/components/conversation/message-bubble.tsx` | Render `ThinkingView` above assistant message content |
+
+No changes needed to `IncrementalStream`, `MarkdownPipeline`, `MarkdownView`, `NodeDocument`, or `MdNode` — the thinking pipeline reuses them entirely as-is.

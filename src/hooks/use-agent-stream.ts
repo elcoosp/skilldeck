@@ -1,4 +1,3 @@
-// src/hooks/use-agent-stream.ts
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
@@ -17,6 +16,7 @@ export function useAgentStream(conversationId: string | null) {
   const setStreamingMessage = useUIEphemeralStore((s) => s.setStreamingMessage)
   const setAgentRunning = useUIEphemeralStore((s) => s.setAgentRunning)
   const setStreamingError = useUIEphemeralStore((s) => s.setStreamingError)
+  const setThinkingDocument = useUIEphemeralStore((s) => s.setThinkingDocument)
   const unlockStage = useUIPersistentStore((s) => s.unlockStage)
   const setUnlockStage = useUIPersistentStore((s) => s.setUnlockStage)
 
@@ -42,6 +42,15 @@ export function useAgentStream(conversationId: string | null) {
   const resetStreamingRefs = useCallback(() => {
     prevStableNodesRef.current = []
     prevStableDocRef.current = null
+  }, [])
+
+  // ── Thinking stream stabilization refs (same pattern as content) ──────────
+  const prevThinkingStableNodesRef = useRef<MdNode[]>([])
+  const prevThinkingStableDocRef = useRef<NodeDocument | null>(null)
+
+  const resetThinkingStreamingRefs = useCallback(() => {
+    prevThinkingStableNodesRef.current = []
+    prevThinkingStableDocRef.current = null
   }, [])
 
   const scheduleFlush = useCallback(() => {
@@ -156,9 +165,11 @@ export function useAgentStream(conversationId: string | null) {
       switch (event.type) {
         case 'started':
           resetStreamingRefs()
+          resetThinkingStreamingRefs()
           setStreamingError(conversationId, false)
           setAgentRunning(conversationId, true)
           setStreamingMessage(conversationId, null)
+          setThinkingDocument(conversationId, null)
           break
 
         case 'token':
@@ -218,6 +229,66 @@ export function useAgentStream(conversationId: string | null) {
           break
         }
 
+        case 'thinking_stream_update': {
+          const doc: NodeDocument = (event as any).thinking_document
+          if (!doc) break
+
+          // Same stabilization pattern as stream_update
+          const incoming = doc.stable_nodes
+          const prev = prevThinkingStableNodesRef.current
+          const sameStable =
+            incoming.length === prev.length &&
+            incoming.every((n, i) => n.id === prev[i].id)
+
+          const stableNodes = sameStable ? prev : incoming
+          if (!sameStable) prevThinkingStableNodesRef.current = incoming
+
+          const prevDoc = prevThinkingStableDocRef.current
+          const prevDraft = prevDoc?.draft_nodes ?? []
+          const nextDraft = doc.draft_nodes
+          let sameDraft = prevDraft.length === nextDraft.length
+          if (sameDraft) {
+            for (let i = 0; i < nextDraft.length; i++) {
+              if (prevDraft[i].id !== nextDraft[i].id) {
+                sameDraft = false
+                break
+              }
+              const pn = prevDraft[i] as Record<string, unknown>
+              const nn = nextDraft[i] as Record<string, unknown>
+              if (pn.html !== nn.html) {
+                sameDraft = false
+                break
+              }
+            }
+          }
+
+          if (sameStable && sameDraft) break
+
+          const stabilizedDoc: NodeDocument = {
+            stable_nodes: stableNodes,
+            draft_nodes: doc.draft_nodes,
+            toc_items: doc.toc_items,
+            artifact_specs: doc.artifact_specs,
+          }
+          prevThinkingStableDocRef.current = stabilizedDoc
+
+          if (rafRef.current) cancelAnimationFrame(rafRef.current)
+          rafRef.current = requestAnimationFrame(() => {
+            setThinkingDocument(conversationId, stabilizedDoc)
+            rafRef.current = null
+          })
+          break
+        }
+
+        case 'thinking_done': {
+          const doc: NodeDocument = (event as any).thinking_document
+          if (doc) {
+            setThinkingDocument(conversationId, doc)
+          }
+          resetThinkingStreamingRefs()
+          break
+        }
+
         case 'tool_approval_required':
           if (event.tool_call_id) {
             addPending(event.tool_call_id, {
@@ -231,9 +302,11 @@ export function useAgentStream(conversationId: string | null) {
         case 'cancelled' as any:
           flushNow()
           resetStreamingRefs()
+          resetThinkingStreamingRefs()
           setAgentRunning(conversationId, false)
           clearStreamingText(conversationId)
           setStreamingMessage(conversationId, null)
+          setThinkingDocument(conversationId, null)
           clearAllApprovals()
           queryClient.invalidateQueries({
             queryKey: ['messages', conversationId],
@@ -257,10 +330,12 @@ export function useAgentStream(conversationId: string | null) {
         case 'error':
           flushNow()
           resetStreamingRefs()
+          resetThinkingStreamingRefs()
           setAgentRunning(conversationId, false)
           setStreamingError(conversationId, true)
           clearStreamingText(conversationId)
           setStreamingMessage(conversationId, null)
+          setThinkingDocument(conversationId, null)
           clearAllApprovals()
           toast.error(
             event.message || 'An error occurred while processing your message'
@@ -277,7 +352,9 @@ export function useAgentStream(conversationId: string | null) {
 
         case 'persisted':
           resetStreamingRefs()
+          resetThinkingStreamingRefs()
           setStreamingMessage(conversationId, null)
+          setThinkingDocument(conversationId, null)
 
           // Invalidate and wait for completion before auto‑naming
           Promise.all([
@@ -336,9 +413,11 @@ export function useAgentStream(conversationId: string | null) {
     setStreamingMessage,
     setAgentRunning,
     setStreamingError,
+    setThinkingDocument,
     addPending,
     clearAllApprovals,
     resetStreamingRefs,
+    resetThinkingStreamingRefs,
     scheduleFlush,
     flushNow
   ])

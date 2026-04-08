@@ -1,4 +1,3 @@
-// src/store/ui-ephemeral.ts
 import { create } from 'zustand'
 import type { NodeDocument } from '@/lib/bindings'
 
@@ -27,6 +26,9 @@ interface UIState {
   setGitInitDismissed: (path: string, dismissed: boolean) => void
   editingMessageId: string | null
   setEditingMessageId: (id: string | null) => void
+  // Thinking documents (streaming thought process per conversation)
+  thinkingDocuments: Record<string, NodeDocument | null>
+  setThinkingDocument: (conversationId: string, doc: NodeDocument | null) => void
 }
 
 export const useUIEphemeralStore = create<UIState>((set) => ({
@@ -95,5 +97,14 @@ export const useUIEphemeralStore = create<UIState>((set) => ({
       gitInitDismissed: { ...state.gitInitDismissed, [path]: dismissed }
     })),
   editingMessageId: null,
-  setEditingMessageId: (id) => set({ editingMessageId: id })
+  setEditingMessageId: (id) => set({ editingMessageId: id }),
+  // Thinking documents
+  thinkingDocuments: {},
+  setThinkingDocument: (conversationId, doc) =>
+    set((state) => ({
+      thinkingDocuments: {
+        ...state.thinkingDocuments,
+        [conversationId]: doc,
+      },
+    })),
 }))

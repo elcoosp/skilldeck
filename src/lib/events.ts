@@ -1,4 +1,3 @@
-// File: src/lib/events.ts
 /**
  * Typed Tauri event listeners.
  *
@@ -9,6 +8,7 @@
 
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import type { UUID } from './types'
+import type { NodeDocument } from '@/lib/bindings'
 
 // ============================================================================
 // Agent events  ("agent-event")
@@ -24,6 +24,8 @@ export type AgentEventType =
   | 'persisted'
   | 'tool_approval_required'
   | 'stream_update'
+  | 'thinking_stream_update'
+  | 'thinking_done'
 
 export interface AgentEvent {
   type: AgentEventType
@@ -41,6 +43,7 @@ export interface AgentEvent {
   slot_count?: number
   new_toc_items?: any[]
   new_artifact_specs?: any[]
+  thinking_document?: NodeDocument
 }
 export interface ToolCallInfo {
   id: string
