@@ -558,7 +558,7 @@ pub(crate) async fn send_message_internal(
 // Assistant message persistence helper
 // =============================================================================
 
-/// Persist an assistant message with its node document, headings, artifacts, and thinking.
+/// Persist an assistant message with its node document, headings, and artifacts.
 ///
 /// Used both on the success path (status = "active") and on error paths
 /// (status = "incomplete") to avoid losing partial streamed content.
@@ -577,7 +577,25 @@ async fn persist_assistant_message(
     thinking_document: Option<NodeDocument>,
     now: chrono::DateTime<chrono::FixedOffset>,
 ) -> Result<Uuid, String> {
+    if let Some(ref tc) = thinking_content {
+        tracing::debug!(
+            target: "agent::thinking",
+            content_len = tc.len(),
+            "Persisting thinking content"
+        );
+    }
+    if let Some(ref td) = thinking_document {
+        tracing::debug!(
+            target: "agent::thinking",
+            stable_nodes = td.stable_nodes.len(),
+            draft_nodes = td.draft_nodes.len(),
+            "Persisting thinking document"
+        );
+    }
+
     let msg_id = Uuid::new_v4();
+
+    let thinking_doc_json = thinking_document.and_then(|td| serde_json::to_value(td).ok());
 
     // Insert the assistant message row
     let active = messages::ActiveModel {
@@ -595,7 +613,7 @@ async fn persist_assistant_message(
         cache_read_tokens: Set(Some(cache_read_tokens)),
         cache_write_tokens: Set(Some(cache_write_tokens)),
         thinking_content: Set(thinking_content),
-        thinking_document: Set(thinking_document.and_then(|td| serde_json::to_value(td).ok())),
+        thinking_document: Set(thinking_doc_json),
         ..Default::default()
     };
 
@@ -716,6 +734,13 @@ async fn resolve_provider_and_model(state: &AppState, conversation_id: &str) -> 
         .get_provider(&profile.model_provider)
         .is_some()
     {
+        tracing::info!(
+            target: "agent::provider",
+            provider_id = %profile.model_provider,
+            model_id = %profile.model_id,
+            conversation_id = %conversation_id,
+            "Resolved provider and model"
+        );
         (profile.model_provider, profile.model_id)
     } else {
         tracing::warn!(
@@ -1087,8 +1112,18 @@ fn run_agent_loop(
 
         // ─── Create incremental streamer for thinking (only if thinking mode is enabled) ───
         let mut thinking_streamer = if thinking {
+            tracing::debug!(
+                target: "agent::thinking",
+                conversation_id = %conversation_id,
+                "Thinking mode ENABLED for this turn"
+            );
             Some(IncrementalStream::new(Arc::clone(&state.markdown)))
         } else {
+            tracing::debug!(
+                target: "agent::thinking",
+                conversation_id = %conversation_id,
+                "Thinking mode DISABLED for this turn"
+            );
             None
         };
         let mut final_thinking_document: Option<NodeDocument> = None;
@@ -1125,13 +1160,32 @@ fn run_agent_loop(
                     });
                 }
                 Ok(AgentLoopEvent::ThinkingToken { delta }) => {
+                    tracing::debug!(
+                        target: "agent::thinking",
+                        conversation_id = %conversation_id,
+                        delta_len = delta.len(),
+                        "Received thinking token chunk"
+                    );
                     if let Some(stream) = thinking_streamer.as_mut() {
                         if let Some(doc) = stream.push(&delta) {
+                            tracing::debug!(
+                                target: "agent::thinking",
+                                conversation_id = %conversation_id,
+                                stable_nodes = doc.stable_nodes.len(),
+                                draft_nodes = doc.draft_nodes.len(),
+                                "Thinking document updated"
+                            );
                             let _ = emit_tx.send(AgentEvent::ThinkingStreamUpdate {
                                 conversation_id: conversation_id.clone(),
                                 document: doc,
                             });
                         }
+                    } else {
+                        tracing::warn!(
+                            target: "agent::thinking",
+                            conversation_id = %conversation_id,
+                            "Received thinking token but thinking_streamer is None"
+                        );
                     }
                 }
                 Ok(AgentLoopEvent::Token { delta }) => {
@@ -1149,11 +1203,23 @@ fn run_agent_loop(
                     }
                 }
                 Ok(AgentLoopEvent::Cancelled) => {
+                    tracing::debug!(
+                        target: "agent::thinking",
+                        conversation_id = %conversation_id,
+                        "Agent cancelled, finalizing thinking stream if any"
+                    );
                     let _ = emit_tx.send(AgentEvent::Cancelled {
                         conversation_id: conversation_id.clone(),
                     });
                     if let Some(stream) = thinking_streamer.take() {
                         let t_doc = stream.finalize();
+                        tracing::debug!(
+                            target: "agent::thinking",
+                            conversation_id = %conversation_id,
+                            stable_nodes = t_doc.stable_nodes.len(),
+                            draft_nodes = t_doc.draft_nodes.len(),
+                            "Thinking stream finalized (cancelled)"
+                        );
                         let _ = emit_tx.send(AgentEvent::ThinkingDone {
                             conversation_id: conversation_id.clone(),
                             document: t_doc,
@@ -1187,6 +1253,11 @@ fn run_agent_loop(
                     cache_read_tokens,
                     cache_write_tokens,
                 }) => {
+                    tracing::debug!(
+                        target: "agent::thinking",
+                        conversation_id = %conversation_id,
+                        "Agent loop done, finalizing thinking stream"
+                    );
                     saw_done = true;
 
                     let doc = streamer.finalize();
@@ -1195,12 +1266,25 @@ fn run_agent_loop(
                     // Finalize thinking stream if it exists
                     if let Some(stream) = thinking_streamer.take() {
                         let t_doc = stream.finalize();
+                        tracing::debug!(
+                            target: "agent::thinking",
+                            conversation_id = %conversation_id,
+                            stable_nodes = t_doc.stable_nodes.len(),
+                            draft_nodes = t_doc.draft_nodes.len(),
+                            toc_items = t_doc.toc_items.len(),
+                            "Thinking stream finalized"
+                        );
                         final_thinking_document = Some(t_doc.clone());
                         let _ = emit_tx.send(AgentEvent::ThinkingDone {
                             conversation_id: conversation_id.clone(),
                             document: t_doc,
                         });
                     } else {
+                        tracing::debug!(
+                            target: "agent::thinking",
+                            conversation_id = %conversation_id,
+                            "No thinking stream to finalize (thinking mode off or already finalized)"
+                        );
                         let _ = emit_tx.send(AgentEvent::ThinkingDone {
                             conversation_id: conversation_id.clone(),
                             document: NodeDocument {
@@ -1248,7 +1332,6 @@ fn run_agent_loop(
         state.agent_cancel_tokens.remove(&conversation_id);
 
         // Prepare thinking content and document for the last assistant message
-        // FIX: Clone thinking_content before moving `res`
         let (result, thinking_content_str) = match loop_result {
             Ok(Ok(res)) => {
                 let thinking = res.thinking_content.clone();
@@ -1447,7 +1530,15 @@ fn run_agent_loop(
                         // For incomplete messages, we don't have thinking content, but we may have a final thinking document
                         let incomplete_thinking_doc = if let Some(stream) = thinking_streamer.take()
                         {
-                            Some(stream.finalize())
+                            let t_doc = stream.finalize();
+                            tracing::debug!(
+                                target: "agent::thinking",
+                                conversation_id = %conversation_id,
+                                stable_nodes = t_doc.stable_nodes.len(),
+                                draft_nodes = t_doc.draft_nodes.len(),
+                                "Finalized incomplete thinking document in error path"
+                            );
+                            Some(t_doc)
                         } else {
                             final_thinking_document.clone()
                         };
