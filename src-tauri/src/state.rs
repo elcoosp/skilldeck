@@ -18,7 +18,7 @@ use skilldeck_core::{
         SseTransport, StdioTransport,
         supervisor::{SupervisorCommand, SupervisorConfig, start_supervisor},
     },
-    providers::{ClaudeProvider, OllamaProvider, OpenAiProvider},
+    providers::{ClaudeProvider, OllamaNativeProvider, OllamaProvider, OpenAiProvider},
     skills::{scanner, watcher::start_registry_watcher},
     workspace::ContextLoader,
 };
@@ -233,6 +233,9 @@ impl AppState {
 
         info!("Registering Ollama provider (port 11434)");
         registry.register_provider(OllamaProvider::new(11434));
+
+        info!("Registering Ollama native provider (port 11434)");
+        registry.register_provider(OllamaNativeProvider::new(11434));
 
         // Create the tool approval emitter
         let tool_approval_emitter = TauriToolApprovalEmitter {

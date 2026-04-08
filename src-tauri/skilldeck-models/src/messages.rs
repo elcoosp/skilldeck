@@ -59,6 +59,9 @@ pub struct Model {
     pub cache_write_tokens: Option<i32>,
     #[sea_orm(default_value = "active")]
     pub status: String,
+    /// Full thinking text for assistant messages when thinking mode was enabled.
+    /// `None` for non-thinking messages or when thinking was not used.
+    pub thinking_content: Option<String>,
     pub created_at: DateTimeWithTimeZone,
     // Relations
     #[sea_orm(belongs_to, from = "conversation_id", to = "id")]

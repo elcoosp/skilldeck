@@ -9,10 +9,7 @@ use async_trait::async_trait;
 use futures::StreamExt;
 use ollama_rs::{
     Ollama as OllamaClient,
-    generation::{
-        chat::{ChatMessage as OllamaChatMessage, request::ChatMessageRequest},
-        options::GenerationOptions,
-    },
+    generation::chat::{ChatMessage as OllamaChatMessage, request::ChatMessageRequest},
 };
 use tracing::{debug, info, warn};
 
@@ -35,7 +32,7 @@ pub struct OllamaNativeProvider {
 impl OllamaNativeProvider {
     pub fn new(port: u16) -> Self {
         Self {
-            client: OllamaClient::new(format!("http://localhost:{}", port), false),
+            client: OllamaClient::new("http://localhost", port),
             port,
         }
     }
@@ -51,7 +48,7 @@ impl OllamaNativeProvider {
 
         // If there's a system prompt, prepend it as a user message
         if let Some(sys) = system {
-            out.push(OllamaChatMessage::user(sys));
+            out.push(OllamaChatMessage::user(sys.clone()));
         }
 
         for msg in messages {
@@ -59,10 +56,10 @@ impl OllamaNativeProvider {
                 MessageRole::System => {
                     // System messages in the middle of conversation are
                     // converted to user messages in Ollama's API.
-                    OllamaChatMessage::user(&msg.content)
+                    OllamaChatMessage::user(msg.content.clone())
                 }
-                MessageRole::User => OllamaChatMessage::user(&msg.content),
-                MessageRole::Assistant => OllamaChatMessage::assistant(&msg.content),
+                MessageRole::User => OllamaChatMessage::user(msg.content.clone()),
+                MessageRole::Assistant => OllamaChatMessage::assistant(msg.content.clone()),
                 MessageRole::Tool => {
                     // Ollama doesn't natively support tool messages in the
                     // same way. Fold tool results back into the assistant
@@ -209,13 +206,13 @@ impl ModelProvider for OllamaNativeProvider {
                 Ok(response) => {
                     debug!(
                         "Ollama response: thinking={:?}, content={:?}, done={}",
-                        response.thinking, response.message, response.done
+                        response.message.thinking, response.message, response.done
                     );
 
                     let mut items = Vec::new();
 
                     // Emit thinking delta if present
-                    if let Some(ref thinking) = response.thinking {
+                    if let Some(ref thinking) = response.message.thinking {
                         if !thinking.is_empty() {
                             items.push(Ok(CompletionChunk::Thinking {
                                 delta: thinking.clone(),
@@ -224,12 +221,11 @@ impl ModelProvider for OllamaNativeProvider {
                     }
 
                     // Emit content delta if present
-                    if let Some(ref content) = response.message.content {
-                        if !content.is_empty() {
-                            items.push(Ok(CompletionChunk::Token {
-                                content: content.clone(),
-                            }));
-                        }
+                    let content = &response.message.content;
+                    if !content.is_empty() {
+                        items.push(Ok(CompletionChunk::Token {
+                            content: content.clone(),
+                        }));
                     }
 
                     // Emit Done on final chunk
@@ -251,11 +247,11 @@ impl ModelProvider for OllamaNativeProvider {
                     }
                 }
                 Err(e) => {
-                    warn!("Ollama stream item error: {}", e);
+                    warn!("Ollama stream item error: {:?}", e);
                     Some(futures::stream::iter(vec![Err(
                         CoreError::ModelConnection {
                             provider: "ollama-native".to_string(),
-                            message: e.to_string(),
+                            message: format!("{:?}", e),
                         },
                     )]))
                 }

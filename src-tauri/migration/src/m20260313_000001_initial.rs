@@ -280,6 +280,9 @@ impl MigrationTrait for Migration {
                     .col(integer(Messages::CacheWriteTokens).null())
                     // NEW: status column
                     .col(string(Messages::Status).not_null().default("active"))
+                    // NEW: Thinking integration columns
+                    .col(text(Messages::ThinkingContent).null())
+                    .col(json(Messages::ThinkingDocument).null())
                     .col(
                         timestamp_with_time_zone(Messages::CreatedAt)
                             .not_null()
@@ -1647,6 +1650,9 @@ enum Messages {
     CacheReadTokens,
     CacheWriteTokens,
     Status,
+    // New: Thinking integration columns
+    ThinkingContent,
+    ThinkingDocument,
     CreatedAt,
 }
 

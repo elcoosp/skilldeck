@@ -1,4 +1,3 @@
-// src-tauri/src/commands/messages.rs
 //! Message Tauri commands.
 
 use sea_orm::{
@@ -42,6 +41,9 @@ pub struct MessageData {
     pub seen: bool,
     pub node_document: Option<NodeDocument>,
     pub status: String,
+    // New: Thinking fields
+    pub thinking_content: Option<String>,
+    pub thinking_document: Option<NodeDocument>,
 }
 
 /// Request for searching messages within a conversation.
@@ -158,7 +160,13 @@ pub async fn list_messages(
             // Deserialize from JSON string
             let node_document = m
                 .node_document
-                .map(|x| serde_json::from_value::<NodeDocument>(x).unwrap());
+                .and_then(|x| serde_json::from_value::<NodeDocument>(x).ok());
+
+            // Deserialize thinking document from JSON string
+            let thinking_document = m
+                .thinking_document
+                .and_then(|x| serde_json::from_value::<NodeDocument>(x).ok());
+
             MessageData {
                 id: m.id.to_string(),
                 conversation_id: m.conversation_id.to_string(),
@@ -172,6 +180,8 @@ pub async fn list_messages(
                 seen: m.seen,
                 node_document,
                 status: m.status,
+                thinking_content: m.thinking_content,
+                thinking_document,
             }
         })
         .collect())
@@ -336,7 +346,7 @@ pub async fn send_message(
         req.context_items,
         app,
         None,
-        req.thinking.unwrap_or(false), // <-- pass thinking flag
+        req.thinking.unwrap_or(false),
     )
     .await
     .map(|_| ())
@@ -393,7 +403,7 @@ pub struct SendMessageRequest {
     pub content: String,
     pub branch_id: Option<String>,
     pub context_items: Option<Vec<ContextItem>>,
-    pub thinking: Option<bool>, // <-- ADDED
+    pub thinking: Option<bool>,
 }
 
 /// Get conversation bootstrap data (messages, branches, draft, queued, headings).
@@ -435,7 +445,7 @@ pub(crate) async fn send_message_internal(
     context_items: Option<Vec<ContextItem>>,
     app: tauri::AppHandle,
     metadata: Option<MessageMetadata>,
-    thinking: bool, // <-- ADDED
+    thinking: bool,
 ) -> Result<Uuid, String> {
     // Validate IDs synchronously – no DB call
     let conv_uuid = Uuid::parse_str(&conversation_id).map_err(|e| e.to_string())?;
@@ -452,6 +462,20 @@ pub(crate) async fn send_message_internal(
         "agent-event",
         AgentEvent::Started {
             conversation_id: conversation_id.clone(),
+        },
+    );
+
+    // Reset thinking panel before starting
+    let _ = app.emit(
+        "agent-event",
+        AgentEvent::ThinkingDone {
+            conversation_id: conversation_id.clone(),
+            document: NodeDocument {
+                stable_nodes: vec![],
+                draft_nodes: vec![],
+                toc_items: vec![],
+                artifact_specs: vec![],
+            },
         },
     );
 
@@ -526,7 +550,7 @@ pub(crate) async fn send_message_internal(
             msg_id,
             context_items_clone,
             app_clone,
-            thinking, // <-- pass thinking flag
+            thinking,
         );
     });
 
@@ -537,7 +561,7 @@ pub(crate) async fn send_message_internal(
 // Assistant message persistence helper
 // =============================================================================
 
-/// Persist an assistant message with its node document, headings, and artifacts.
+/// Persist an assistant message with its node document, headings, artifacts, and thinking.
 ///
 /// Used both on the success path (status = "active") and on error paths
 /// (status = "incomplete") to avoid losing partial streamed content.
@@ -552,6 +576,8 @@ async fn persist_assistant_message(
     cache_read_tokens: i32,
     cache_write_tokens: i32,
     doc: NodeDocument,
+    thinking_content: Option<String>,        // NEW
+    thinking_document: Option<NodeDocument>, // NEW
     now: chrono::DateTime<chrono::FixedOffset>,
 ) -> Result<Uuid, String> {
     let msg_id = Uuid::new_v4();
@@ -571,6 +597,7 @@ async fn persist_assistant_message(
         output_tokens: Set(Some(output_tokens)),
         cache_read_tokens: Set(Some(cache_read_tokens)),
         cache_write_tokens: Set(Some(cache_write_tokens)),
+        thinking_content: Set(thinking_content), // NEW
         ..Default::default()
     };
 
@@ -589,6 +616,21 @@ async fn persist_assistant_message(
         .exec(db)
         .await
         .map_err(|e| format!("Failed to store node document: {}", e))?;
+
+    // NEW: Store thinking document as JSON if present
+    if let Some(td) = thinking_document {
+        let thinking_document_json = serde_json::to_string(&td)
+            .map_err(|e| format!("Failed to serialize thinking document: {}", e))?;
+        messages::Entity::update_many()
+            .col_expr(
+                messages::Column::ThinkingDocument,
+                Expr::value(thinking_document_json),
+            )
+            .filter(messages::Column::Id.eq(msg_id))
+            .exec(db)
+            .await
+            .map_err(|e| format!("Failed to store thinking document: {}", e))?;
+    }
 
     // Store headings
     use skilldeck_models::message_headings::{
@@ -766,7 +808,7 @@ fn run_agent_loop(
     current_msg_id: Uuid,
     context_items: Option<Vec<ContextItem>>,
     app: tauri::AppHandle,
-    thinking: bool, // <-- ADDED
+    thinking: bool,
 ) {
     use skilldeck_core::agent::tool_dispatcher::ToolDispatcher;
     use skilldeck_core::traits::ChatMessage;
@@ -1064,9 +1106,13 @@ fn run_agent_loop(
             user_message
         };
 
-        // ─── Create incremental streamer for this assistant response ───
+        // ─── Create incremental streamer for content ───
         let mut streamer = IncrementalStream::new(Arc::clone(&state.markdown));
         let mut final_document: Option<NodeDocument> = None;
+
+        // ─── Create incremental streamer for thinking (NEW) ───
+        let mut thinking_streamer = IncrementalStream::new(Arc::clone(&state.markdown));
+        let mut final_thinking_document: Option<NodeDocument> = None;
 
         // Track accumulated content for error recovery
         let mut accumulated_content = String::new();
@@ -1081,11 +1127,8 @@ fn run_agent_loop(
             }
         });
 
-        let loop_handle = tokio::spawn(async move {
-            agent
-                .run(enriched_user_message, thinking) // <-- pass thinking flag
-                .await
-        });
+        let loop_handle =
+            tokio::spawn(async move { agent.run(enriched_user_message, thinking).await });
 
         while let Some(event) = rx.recv().await {
             match event {
@@ -1101,6 +1144,15 @@ fn run_agent_loop(
                         conversation_id: conversation_id.clone(),
                         message: format!("{}\nSuggested fix: {}", reason, fix_action),
                     });
+                }
+                // NEW: Handle Thinking Tokens
+                Ok(AgentLoopEvent::ThinkingToken { delta }) => {
+                    if let Some(doc) = thinking_streamer.push(&delta) {
+                        let _ = emit_tx.send(AgentEvent::ThinkingStreamUpdate {
+                            conversation_id: conversation_id.clone(),
+                            document: doc,
+                        });
+                    }
                 }
                 Ok(AgentLoopEvent::Token { delta }) => {
                     accumulated_content.push_str(&delta);
@@ -1119,6 +1171,16 @@ fn run_agent_loop(
                 Ok(AgentLoopEvent::Cancelled) => {
                     let _ = emit_tx.send(AgentEvent::Cancelled {
                         conversation_id: conversation_id.clone(),
+                    });
+                    // Clear thinking on cancel
+                    let _ = emit_tx.send(AgentEvent::ThinkingDone {
+                        conversation_id: conversation_id.clone(),
+                        document: NodeDocument {
+                            stable_nodes: vec![],
+                            draft_nodes: vec![],
+                            toc_items: vec![],
+                            artifact_specs: vec![],
+                        },
                     });
                 }
                 Ok(AgentLoopEvent::ToolCall { tool_call }) => {
@@ -1143,12 +1205,23 @@ fn run_agent_loop(
                     let doc = streamer.finalize();
                     final_document = Some(doc.clone());
 
+                    // NEW: Finalize thinking stream
+                    let t_doc = thinking_streamer.finalize();
+                    final_thinking_document = Some(t_doc.clone());
+
                     let _ = emit_tx.send(AgentEvent::StreamUpdate {
                         conversation_id: conversation_id.clone(),
                         document: doc.clone(),
                         new_toc_items: doc.toc_items.clone(),
                         new_artifact_specs: doc.artifact_specs.clone(),
                     });
+
+                    // NEW: Emit ThinkingDone
+                    let _ = emit_tx.send(AgentEvent::ThinkingDone {
+                        conversation_id: conversation_id.clone(),
+                        document: t_doc,
+                    });
+
                     let _ = emit_tx.send(AgentEvent::Done {
                         conversation_id: conversation_id.clone(),
                         input_tokens,
@@ -1237,6 +1310,19 @@ fn run_agent_loop(
                             0
                         };
 
+                        // NEW: Prepare thinking data for persistence
+                        let thinking_content_to_save =
+                            if is_last && !result.thinking_content.is_empty() {
+                                Some(result.thinking_content)
+                            } else {
+                                None
+                            };
+                        let thinking_doc_to_save = if is_last {
+                            final_thinking_document.clone()
+                        } else {
+                            None
+                        };
+
                         if let Err(e) = persist_assistant_message(
                             db,
                             conv_uuid,
@@ -1248,6 +1334,8 @@ fn run_agent_loop(
                             cache_read_tokens,
                             cache_write_tokens,
                             doc,
+                            thinking_content_to_save, // NEW
+                            thinking_doc_to_save,     // NEW
                             now,
                         )
                         .await
@@ -1344,6 +1432,9 @@ fn run_agent_loop(
                 if !accumulated_content.is_empty() {
                     if let Ok(db) = state.registry.db.connection().await {
                         let doc = state.markdown.render_final(&accumulated_content);
+                        // Finalize thinking even on error if it exists
+                        let t_doc = thinking_streamer.finalize();
+
                         match persist_assistant_message(
                             db,
                             conv_uuid,
@@ -1355,6 +1446,8 @@ fn run_agent_loop(
                             0,
                             0,
                             doc,
+                            None, // No thinking_content result on error path easily available
+                            Some(t_doc),
                             chrono::Utc::now().fixed_offset(),
                         )
                         .await
@@ -1398,6 +1491,8 @@ fn run_agent_loop(
                 if !accumulated_content.is_empty() {
                     if let Ok(db) = state.registry.db.connection().await {
                         let doc = state.markdown.render_final(&accumulated_content);
+                        let t_doc = thinking_streamer.finalize();
+
                         match persist_assistant_message(
                             db,
                             conv_uuid,
@@ -1409,6 +1504,8 @@ fn run_agent_loop(
                             0,
                             0,
                             doc,
+                            None,
+                            Some(t_doc),
                             chrono::Utc::now().fixed_offset(),
                         )
                         .await
