@@ -7,7 +7,6 @@
 use ignore::WalkBuilder;
 use serde::{Deserialize, Serialize};
 use specta::{Type, specta};
-use std::path::PathBuf;
 
 /// Validate that a path falls within allowed workspace roots.
 fn validate_path(path: &str) -> Result<std::path::PathBuf, String> {

@@ -349,6 +349,8 @@ pub async fn hydrate_shared_conversation(
                 cache_read_tokens: Set(None),
                 cache_write_tokens: Set(None),
                 status: Set("active".to_string()),
+                thinking_content: Set(None),
+                thinking_document: Set(None),
                 created_at: Set(msg_created_at),
             };
             new_msg.insert(db).await.map_err(|e| e.to_string())?;

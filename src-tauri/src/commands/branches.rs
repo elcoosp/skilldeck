@@ -133,9 +133,11 @@ pub async fn get_branch_messages(
         .into_iter()
         .map(|m| {
             let context_items = m.context_items.map(|c| c.0);
-            // m.node_document is Option<Json> where Json = serde_json::Value
             let node_document = m
                 .node_document
+                .and_then(|json| serde_json::from_value(json).ok());
+            let thinking_document = m
+                .thinking_document
                 .and_then(|json| serde_json::from_value(json).ok());
             crate::commands::messages::MessageData {
                 id: m.id.to_string(),
@@ -150,6 +152,8 @@ pub async fn get_branch_messages(
                 seen: m.seen,
                 node_document,
                 status: m.status,
+                thinking_content: m.thinking_content,
+                thinking_document,
             }
         })
         .collect())

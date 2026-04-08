@@ -1194,7 +1194,7 @@ export type AddQueuedMessageRequest = { conversation_id: string; content: string
 /**
  * Payload for the `"agent-event"` Tauri channel.
  */
-export type AgentEvent = { type: "cancelled"; conversation_id: string } | { type: "started"; conversation_id: string } | { type: "token"; conversation_id: string; delta: string } | { type: "tool_call"; conversation_id: string; tool_call: AgentToolCall } | { type: "tool_result"; conversation_id: string; tool_call_id: string; result: string } | { type: "done"; conversation_id: string; input_tokens: number; output_tokens: number } | { type: "error"; conversation_id: string; message: string } | { type: "persisted"; conversation_id: string } | { type: "tool_approval_required"; conversation_id: string; tool_call_id: string; tool_name: string; arguments: JsonValue } | { type: "stream_update"; conversation_id: string; document: NodeDocument; new_toc_items: TocItem[]; new_artifact_specs: ArtifactSpec[] } | { type: "provider_not_ready"; conversation_id: string; reason: string; fix_action: string }
+export type AgentEvent = { type: "cancelled"; conversation_id: string } | { type: "started"; conversation_id: string } | { type: "token"; conversation_id: string; delta: string } | { type: "tool_call"; conversation_id: string; tool_call: AgentToolCall } | { type: "tool_result"; conversation_id: string; tool_call_id: string; result: string } | { type: "done"; conversation_id: string; input_tokens: number; output_tokens: number } | { type: "error"; conversation_id: string; message: string } | { type: "persisted"; conversation_id: string } | { type: "tool_approval_required"; conversation_id: string; tool_call_id: string; tool_name: string; arguments: JsonValue } | { type: "stream_update"; conversation_id: string; document: NodeDocument; new_toc_items: TocItem[]; new_artifact_specs: ArtifactSpec[] } | { type: "provider_not_ready"; conversation_id: string; reason: string; fix_action: string } | { type: "thinking_stream_update"; conversation_id: string; document: NodeDocument } | { type: "thinking_done"; conversation_id: string; document: NodeDocument }
 export type AgentToolCall = { id: string; name: string; arguments: JsonValue }
 export type AnalyticsData = { total_conversations: string; total_messages: string; messages_per_day: DailyCount[]; conversations_per_day: DailyCount[]; skills_used: SkillUsage[]; token_usage: TokenTotals }
 /**
@@ -1278,33 +1278,15 @@ export type MdNode = { type: "paragraph"; id: string; html: string } | { type: "
 /**
  * Serialisable message returned to the frontend.
  */
-export type MessageData = { id: string; conversation_id: string; role: string; content: string; created_at: string; context_items: ContextItem[] | null; metadata: MessageMetadata | null; input_tokens: number | null; output_tokens: number | null; seen: boolean; node_document: NodeDocument | null; status: string }
+export type MessageData = { id: string; conversation_id: string; role: string; content: string; created_at: string; context_items: ContextItem[] | null; metadata: MessageMetadata | null; input_tokens: number | null; output_tokens: number | null; seen: boolean; node_document: NodeDocument | null; status: string; thinking_content: string | null; thinking_document: NodeDocument | null }
 /**
  * Lightweight message representation used by the Markdown gist exporter.
  */
 export type MessageExport = { role: string; content: string }
 /**
  * Typed metadata stored on every message row.
- * All fields are optional — missing fields mean "not applicable for this role".
  */
-export type MessageMetadata = { 
-/**
- * Set on `role = user` messages sent from the queue.
- */
-from_queue?: boolean | null; 
-/**
- * ISO-8601 timestamp of when the message entered the queue.
- */
-queued_at?: string | null; 
-/**
- * Set on `role = tool` messages — the name of the tool that produced this result.
- */
-tool_name?: string | null; 
-/**
- * Set on `role = tool` messages — the tool_call_id that pairs this result
- * with the assistant's tool_use block.
- */
-tool_call_id?: string | null }
+export type MessageMetadata = { from_queue?: boolean | null; queued_at?: string | null; tool_name?: string | null; tool_call_id?: string | null }
 export type NodeDocument = { stable_nodes: MdNode[]; draft_nodes: MdNode[]; toc_items: TocItem[]; artifact_specs: ArtifactSpec[] }
 /**
  * A minimal model descriptor returned to the frontend.
