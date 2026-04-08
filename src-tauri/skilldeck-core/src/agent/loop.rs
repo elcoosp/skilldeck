@@ -1,4 +1,3 @@
-// src-tauri/skilldeck-core/src/agent/loop.rs
 //! Core agent loop implementation.
 
 use futures::StreamExt;
@@ -25,6 +24,9 @@ use crate::{
 #[derive(Debug, Clone)]
 pub enum AgentLoopEvent {
     Token {
+        delta: String,
+    },
+    ThinkingToken {
         delta: String,
     },
     ToolCall {
@@ -83,6 +85,7 @@ pub struct AgentLoop {
 #[derive(Debug, Clone)]
 pub struct AgentRunResult {
     pub messages: Vec<ChatMessage>,
+    pub thinking_content: String,
     pub input_tokens: u32,
     pub output_tokens: u32,
     pub cache_read_tokens: u32,
@@ -201,6 +204,7 @@ impl AgentLoop {
         let mut final_output_tokens = 0;
         let mut final_cache_read_tokens = 0;
         let mut final_cache_write_tokens = 0;
+        let mut final_thinking_content = String::new();
 
         loop {
             if self.cancel_token.is_cancelled() {
@@ -281,15 +285,17 @@ impl AgentLoop {
                 name: None,
             });
 
+            final_thinking_content.push_str(&result.thinking_content);
             final_input_tokens += result.input_tokens;
             final_output_tokens += result.output_tokens;
             final_cache_read_tokens += result.cache_read_tokens;
             final_cache_write_tokens += result.cache_write_tokens;
 
             info!(
-                "Iteration {}: content length={}, tool_calls={}, tokens (in/out/cacheR/cacheW) = {}/{}/{}/{}",
+                "Iteration {}: content length={}, thinking length={}, tool_calls={}, tokens (in/out/cacheR/cacheW) = {}/{}/{}/{}",
                 iteration,
                 result.content.len(),
+                result.thinking_content.len(),
                 result.tool_calls.len(),
                 result.input_tokens,
                 result.output_tokens,
@@ -396,6 +402,7 @@ impl AgentLoop {
         let new_messages = self.messages[after_user_len..].to_vec();
         Ok(AgentRunResult {
             messages: new_messages,
+            thinking_content: final_thinking_content,
             input_tokens: final_input_tokens,
             output_tokens: final_output_tokens,
             cache_read_tokens: final_cache_read_tokens,
@@ -453,7 +460,7 @@ impl AgentLoop {
             tools_toon,
             model_params: ModelParams::default(),
             model_id: self.model_id.clone(),
-            thinking, // <-- pass thinking flag
+            thinking,
         })
     }
 
@@ -462,6 +469,7 @@ impl AgentLoop {
         mut stream: crate::traits::CompletionStream,
     ) -> Result<StreamResult, CoreError> {
         let mut content = String::new();
+        let mut thinking_content = String::new();
         let mut tool_calls: Vec<ToolCall> = Vec::new();
         let mut input_tokens = 0u32;
         let mut output_tokens = 0u32;
@@ -479,6 +487,19 @@ impl AgentLoop {
                 });
             }
             match chunk? {
+                CompletionChunk::Thinking { delta } => {
+                    debug!("Thinking chunk: {:?}", delta);
+                    thinking_content.push_str(&delta);
+                    // Emit thinking tokens immediately (no debouncing — the UI
+                    // accumulates them into its own IncrementalStream on the
+                    // Tauri event bridge side).
+                    send_event!(
+                        self,
+                        AgentLoopEvent::ThinkingToken {
+                            delta: delta.clone(),
+                        }
+                    );
+                }
                 CompletionChunk::Token { content: token } => {
                     debug!("Token chunk: {:?}", token);
                     content.push_str(&token);
@@ -550,6 +571,7 @@ impl AgentLoop {
 
         Ok(StreamResult {
             content,
+            thinking_content,
             tool_calls,
             input_tokens,
             output_tokens,
@@ -569,6 +591,7 @@ impl AgentLoop {
 
 struct StreamResult {
     content: String,
+    thinking_content: String,
     tool_calls: Vec<ToolCall>,
     input_tokens: u32,
     output_tokens: u32,
@@ -592,6 +615,28 @@ mod tests {
     fn agent_loop_event_is_clone() {
         let e = AgentLoopEvent::Token { delta: "hi".into() };
         let _ = e.clone();
+    }
+
+    #[test]
+    fn agent_loop_event_thinking_token_is_clone() {
+        let e = AgentLoopEvent::ThinkingToken {
+            delta: "hmm...".into(),
+        };
+        let _ = e.clone();
+    }
+
+    #[test]
+    fn stream_result_has_thinking_field() {
+        let result = StreamResult {
+            content: "hello".to_string(),
+            thinking_content: "let me think...".to_string(),
+            tool_calls: vec![],
+            input_tokens: 0,
+            output_tokens: 0,
+            cache_read_tokens: 0,
+            cache_write_tokens: 0,
+        };
+        assert_eq!(result.thinking_content, "let me think...");
     }
 
     #[test]

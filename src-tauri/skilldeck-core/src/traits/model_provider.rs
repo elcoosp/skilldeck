@@ -1,4 +1,3 @@
-// src-tauri/skilldeck-core/src/traits/model_provider.rs
 //! Model Provider trait and related types.
 
 use async_trait::async_trait;
@@ -86,7 +85,7 @@ pub struct CompletionRequest {
     pub model_params: ModelParams,
     pub model_id: String,
     /// Enable extended thinking mode (Claude only for now)
-    pub thinking: bool, // <-- ADDED
+    pub thinking: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -94,6 +93,9 @@ pub struct CompletionRequest {
 pub enum CompletionChunk {
     Token {
         content: String,
+    },
+    Thinking {
+        delta: String,
     },
     ToolCall {
         tool_call: ToolCall,
@@ -193,6 +195,10 @@ pub trait ModelProvider: Send + Sync {
         for chunk in collected.into_iter().flatten() {
             match chunk {
                 CompletionChunk::Token { content: token } => content.push_str(&token),
+                CompletionChunk::Thinking { delta: _ } => {
+                    // Thinking content is not included in the final CompletionResult
+                    // It is streamed separately via events and persisted independently
+                }
                 CompletionChunk::ToolCall { tool_call } => tool_calls.push(tool_call),
                 CompletionChunk::Done {
                     input_tokens,
