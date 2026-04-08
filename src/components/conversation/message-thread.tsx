@@ -1,19 +1,21 @@
 // src/components/conversation/message-thread.tsx
+
+import { useQueryClient } from '@tanstack/react-query'
 import { useElementScrollRestoration } from '@tanstack/react-router'
 import {
   elementScroll,
   useVirtualizer,
   type Virtualizer
 } from '@tanstack/react-virtual'
-import { useQueryClient } from '@tanstack/react-query'
+import { invoke } from '@tauri-apps/api/core'
 import { motion } from 'framer-motion'
+import { GitBranch } from 'lucide-react'
 import * as React from 'react'
 import { toast } from 'sonner'
-import { invoke } from '@tauri-apps/api/core'
 import { Button } from '@/components/ui/button'
 import { useSendMessage } from '@/hooks/use-messages'
-import { useWorkspaces } from '@/hooks/use-workspaces'
 import { useWorkspaceGitStatus } from '@/hooks/use-workspace-git'
+import { useWorkspaces } from '@/hooks/use-workspaces'
 import type { MessageData, NodeDocument } from '@/lib/bindings'
 import {
   DEFAULT_CHROME_CONFIG,
@@ -26,7 +28,6 @@ import { useToolApprovalStore } from '@/store/tool-approvals'
 import { useUIEphemeralStore } from '@/store/ui-ephemeral'
 import { useUILayoutStore } from '@/store/ui-layout'
 import { useWorkspaceStore } from '@/store/workspace'
-import { GitBranch } from 'lucide-react'
 import { MessageBubble } from './message-bubble'
 import { ToolApprovalCard } from './tool-approval-card'
 

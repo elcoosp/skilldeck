@@ -1,7 +1,7 @@
-import { cn } from '@/lib/utils'
-import { useSettingsStore } from '@/store/settings'
 import { SettingsSection } from '@/components/settings/settings-section'
 import { Switch } from '@/components/ui/switch'
+import { cn } from '@/lib/utils'
+import { useSettingsStore } from '@/store/settings'
 
 export function AppearanceTab() {
   const theme = useSettingsStore((s) => s.theme)

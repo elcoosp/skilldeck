@@ -14,9 +14,9 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { SettingsSection } from '@/components/settings/settings-section'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { SettingsSection } from '@/components/settings/settings-section'
 import {
   useAddSkillSource,
   useRemoveSkillSource,

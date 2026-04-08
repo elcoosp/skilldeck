@@ -1,12 +1,13 @@
 // src/components/ui/model-selector-with-icon.tsx
+
+import { ModelIcon } from '@/components/ui/model-icon'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
+  SelectValue
 } from '@/components/ui/select'
-import { ModelIcon } from '@/components/ui/model-icon'
 import { cn } from '@/lib/utils'
 
 interface ModelSelectorWithIconProps {
@@ -24,14 +25,14 @@ export function ModelSelectorWithIcon({
   models,
   placeholder = 'Select model',
   className,
-  disabled,
+  disabled
 }: ModelSelectorWithIconProps) {
   return (
     <Select value={value} onValueChange={onValueChange} disabled={disabled}>
       <SelectTrigger className={cn('h-7 text-xs', className)}>
         <div className="flex items-center gap-1.5 truncate">
           <ModelIcon colored modelId={value} size={14} className="shrink-0" />
-          <span className={cn("truncate", !value && "text-muted-foreground")}>
+          <span className={cn('truncate', !value && 'text-muted-foreground')}>
             {value || placeholder}
           </span>
         </div>
@@ -45,7 +46,12 @@ export function ModelSelectorWithIcon({
         {models.map((modelId) => (
           <SelectItem key={modelId} value={modelId} className="text-xs">
             <div className="flex items-center gap-2">
-              <ModelIcon colored modelId={modelId} size={14} className="shrink-0" />
+              <ModelIcon
+                colored
+                modelId={modelId}
+                size={14}
+                className="shrink-0"
+              />
               <span className="truncate">{modelId}</span>
             </div>
           </SelectItem>

@@ -1,40 +1,40 @@
 // src/components/ui/model-icon.tsx
 import {
-  Claude,
-  Gemma,
-  Gemini,
-  DeepSeek,
-  Mistral,
-  Qwen,
-  Zhipu,
-  Doubao,
-  Moonshot,
-  Yi,
-  Minimax,
-  Stepfun,
-  Spark,
-  Wenxin,
   Baichuan,
-  Hunyuan,
-  Ollama,
-  InternLM,
-  Skywork,
-  SenseNova,
-  OpenAI,
-  Dalle,
-  Sora,
-  Grok,
-  Cohere,
-  Google,
-  Flux,
-  LLaVA,
+  Claude,
   CodeGeeX,
   CogVideo,
   CogView,
+  Cohere,
+  Dalle,
+  Dbrx,
+  DeepSeek,
+  Doubao,
+  Flux,
+  Gemini,
+  Gemma,
+  Google,
+  Grok,
+  Hunyuan,
+  InternLM,
   Kolors,
   KwaiKAT,
-  Dbrx,
+  LLaVA,
+  Minimax,
+  Mistral,
+  Moonshot,
+  Ollama,
+  OpenAI,
+  Qwen,
   Rwkv,
+  SenseNova,
+  Skywork,
+  Sora,
+  Spark,
+  Stepfun,
+  Wenxin,
+  Yi,
+  Zhipu
 } from '@lobehub/icons'
 
 interface ModelIconProps {
@@ -45,50 +45,49 @@ interface ModelIconProps {
 }
 
 const modelPrefixMap: Record<string, React.ComponentType<any>> = {
-  'claude': Claude,
-  'gemma': Gemma,
-  'gemini': Gemini,
-  'deepseek': DeepSeek,
-  'mistral': Mistral,
-  'mixtral': Mistral,
-  'qwen': Qwen,
-  'glm': Zhipu,
-  'chatglm': Zhipu,
-  'doubao': Doubao,
-  'moonshot': Moonshot,
-  'yi': Yi,
-  'minimax': Minimax,
-  'step': Stepfun,
-  'spark': Spark,
-  'ernie': Wenxin,
-  'wenxin': Wenxin,
-  'baichuan': Baichuan,
-  'hunyuan': Hunyuan,
-  'llava': LLaVA,
-  'llama': Ollama,
-  'codellama': Ollama,
-  'rwkv': Rwkv,
-  'internlm': InternLM,
-  'skywork': Skywork,
-  'sensenova': SenseNova,
-  'gpt': OpenAI,
-  'o1': OpenAI,
-  'o3': OpenAI,
-  'codex': OpenAI,
+  claude: Claude,
+  gemma: Gemma,
+  gemini: Gemini,
+  deepseek: DeepSeek,
+  mistral: Mistral,
+  mixtral: Mistral,
+  qwen: Qwen,
+  glm: Zhipu,
+  chatglm: Zhipu,
+  doubao: Doubao,
+  moonshot: Moonshot,
+  yi: Yi,
+  minimax: Minimax,
+  step: Stepfun,
+  spark: Spark,
+  ernie: Wenxin,
+  wenxin: Wenxin,
+  baichuan: Baichuan,
+  hunyuan: Hunyuan,
+  llava: LLaVA,
+  llama: Ollama,
+  codellama: Ollama,
+  rwkv: Rwkv,
+  internlm: InternLM,
+  skywork: Skywork,
+  sensenova: SenseNova,
+  gpt: OpenAI,
+  o1: OpenAI,
+  o3: OpenAI,
+  codex: OpenAI,
   'dall-e': Dalle,
-  'dall·e': Dalle,
-  'sora': Sora,
-  'grok': Grok,
-  'command': Cohere,
-  'palm': Google,
-  'flux': Flux,
-  'codegeex': CodeGeeX,
-  'cogvideo': CogVideo,
-  'cogview': CogView,
-  'dbrx': Dbrx,
-  'kolors': Kolors,
-  'kwai': KwaiKAT,
-
+  dall·e: Dalle,
+  sora: Sora,
+  grok: Grok,
+  command: Cohere,
+  palm: Google,
+  flux: Flux,
+  codegeex: CodeGeeX,
+  cogvideo: CogVideo,
+  cogview: CogView,
+  dbrx: Dbrx,
+  kolors: Kolors,
+  kwai: KwaiKAT
 }
 
 export function ModelIcon({
@@ -101,12 +100,17 @@ export function ModelIcon({
 
   const id = modelId.toLowerCase()
 
-
   const matchKey = Object.keys(modelPrefixMap).find((key) => id.startsWith(key))
   // ------------------
 
   if (!matchKey) return null
 
   const Icon = modelPrefixMap[matchKey]
-  return <Icon size={size} className={className} type={colored ? "colored" : undefined} />
+  return (
+    <Icon
+      size={size}
+      className={className}
+      type={colored ? 'colored' : undefined}
+    />
+  )
 }

@@ -3,9 +3,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, ChevronRight, Plus, Star, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { SettingsSection } from '@/components/settings/settings-section'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { SettingsSection } from '@/components/settings/settings-section'
+import { ModelSelectorWithIcon } from '@/components/ui/model-selector-with-icon'
+import { ProviderDropdown } from '@/components/ui/provider-dropdown'
+import { ProviderIcon } from '@/components/ui/provider-icon'
+import { Textarea } from '@/components/ui/textarea'
 import {
   useDeleteProfile,
   useProfiles,
@@ -15,10 +19,6 @@ import {
 } from '@/hooks/use-profiles'
 import { commands } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
-import { Textarea } from '@/components/ui/textarea'
-import { ProviderIcon } from '@/components/ui/provider-icon'
-import { ProviderDropdown } from '@/components/ui/provider-dropdown'
-import { ModelSelectorWithIcon } from '@/components/ui/model-selector-with-icon'
 
 const PROVIDER_OPTIONS = [
   { id: 'ollama', label: 'Ollama (local)' },

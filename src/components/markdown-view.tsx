@@ -52,9 +52,7 @@ const HeadingBookmarkButton = memo(
       if (isDisabled) {
         return
       }
-      toggleBookmark.mutate(
-        { messageId, headingAnchor, label: headingLabel },
-      )
+      toggleBookmark.mutate({ messageId, headingAnchor, label: headingLabel })
     }, [isDisabled, messageId, headingAnchor, headingLabel, toggleBookmark])
 
     return (

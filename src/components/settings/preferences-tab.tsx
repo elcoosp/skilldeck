@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { SettingsSection } from '@/components/settings/settings-section'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -21,21 +22,19 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
+import { Textarea } from '@/components/ui/textarea'
+import { useAppVersion } from '@/hooks/use-app-version'
 import {
   isPlatformNotConfigured,
   usePlatformPreferences
 } from '@/hooks/use-platform'
 import { useProfiles, useUpdateProfile } from '@/hooks/use-profiles'
 import { useProviderReady } from '@/hooks/use-provider-ready'
-import { SettingsSection } from '@/components/settings/settings-section'
-import { useAppVersion } from '@/hooks/use-app-version'
-import { useSettingsStore } from '@/store/settings'
-
 import { commands } from '@/lib/bindings'
 import { loadLocale, locales } from '@/lib/i18n'
 import type { UpdatePreferencesPayload } from '@/lib/platform'
+import { useSettingsStore } from '@/store/settings'
 
 export function PreferencesTab() {
   const router = useRouter()

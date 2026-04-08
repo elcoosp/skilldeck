@@ -1,6 +1,7 @@
 // src/components/settings/shortcuts-tab.tsx
-import { keyboardShortcuts } from '@/lib/keyboard-shortcuts'
+
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
+import { keyboardShortcuts } from '@/lib/keyboard-shortcuts'
 
 const categoryLabels: Record<string, string> = {
   navigation: 'Navigation',

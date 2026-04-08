@@ -5,6 +5,8 @@ import { writeTextFile } from '@tauri-apps/plugin-fs'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   AlertCircle,
+  Bookmark,
+  BookmarkCheck,
   Bot,
   Check,
   ChevronDown,
@@ -16,9 +18,7 @@ import {
   MoreHorizontal,
   Pencil,
   RotateCcw,
-  User,
-  Bookmark,
-  BookmarkCheck
+  User
 } from 'lucide-react'
 import React, {
   memo,
@@ -33,18 +33,6 @@ import { toast } from 'sonner'
 import { ContextChip } from '@/components/chat/context-chip'
 import { MarkdownView } from '@/components/markdown-view'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger
-} from '@/components/ui/tooltip'
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -54,8 +42,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from '@/components/ui/alert-dialog'
-import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from '@/components/ui/tooltip'
 import { useBookmarks, useToggleBookmark } from '@/hooks/use-bookmarks'
 import { useCreateBranch } from '@/hooks/use-branches'
 import { useEditMessage } from '@/hooks/use-edit-message'
@@ -127,27 +127,19 @@ const AssistantMessageActions = memo(
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-32">
-          <DropdownMenuItem
-            onClick={onCopy}
-          >
+          <DropdownMenuItem onClick={onCopy}>
             <Copy className="mr-2 h-4 w-4" />
             <span>Copy</span>
           </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={onDownload}
-          >
+          <DropdownMenuItem onClick={onDownload}>
             <Download className="mr-2 h-4 w-4" />
             <span>Download</span>
           </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={onBranch}
-          >
+          <DropdownMenuItem onClick={onBranch}>
             <GitBranch className="mr-2 h-4 w-4" />
             <span>Branch from here</span>
           </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={onBookmark}
-          >
+          <DropdownMenuItem onClick={onBookmark}>
             {isBookmarked ? (
               <BookmarkCheck className="mr-2 h-4 w-4 text-amber-400 fill-amber-400" />
             ) : (
@@ -581,7 +573,7 @@ function MessageBubbleInner({
       <SubagentCard
         stepName={subagentData.task || 'Subagent'}
         status="running"
-        onOpen={() => { }}
+        onOpen={() => {}}
       />
     )
   }

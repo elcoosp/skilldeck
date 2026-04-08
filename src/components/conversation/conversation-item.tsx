@@ -4,6 +4,7 @@ import { MoreHorizontal, Pencil, Pin, PinOff, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
+import { BouncingDots } from '@/components/ui/bouncing-dots'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -20,7 +21,6 @@ import {
 import type { ConversationSummary } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
-import { BouncingDots } from '@/components/ui/bouncing-dots'
 import { useUIEphemeralStore } from '@/store/ui-ephemeral'
 
 interface ConversationItemProps {

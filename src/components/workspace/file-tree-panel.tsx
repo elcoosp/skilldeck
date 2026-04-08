@@ -2,11 +2,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { invoke } from '@tauri-apps/api/core'
 import { openUrl } from '@tauri-apps/plugin-opener'
-import { ChevronRight, ChevronDown, File, Folder } from 'lucide-react'
+import { ChevronDown, ChevronRight, File, Folder } from 'lucide-react'
 import { useState } from 'react'
-import { useWorkspaceStore } from '@/store/workspace'
-import { useSettingsStore } from '@/store/settings'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { useSettingsStore } from '@/store/settings'
+import { useWorkspaceStore } from '@/store/workspace'
 
 interface FileEntry {
   name: string

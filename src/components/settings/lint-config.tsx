@@ -3,10 +3,10 @@
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { Settings2, ToggleLeft, ToggleRight } from 'lucide-react'
 import { useState } from 'react'
+import { SettingsSection } from '@/components/settings/settings-section'
 import { useDisableRule, useLintRules } from '@/hooks/use-lint'
 import { DOCS_LINT_URL } from '@/lib/config'
 import { cn } from '@/lib/utils'
-import { SettingsSection } from '@/components/settings/settings-section'
 
 const RULE_DESCRIPTIONS: Record<string, string> = {
   'fm-name-format': 'Skill name must be lowercase kebab-case',

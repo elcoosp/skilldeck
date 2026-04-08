@@ -7,17 +7,17 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
   AlertTriangle,
   AtSign,
-  Globe,
-  Hash,
-  Paperclip,
-  Send,
-  Square,
-  Timer,
-  Shield,
-  ShieldCheck,
   BrainCircuit,
   DollarSign,
-  Minimize2
+  Globe,
+  Hash,
+  Minimize2,
+  Paperclip,
+  Send,
+  Shield,
+  ShieldCheck,
+  Square,
+  Timer
 } from 'lucide-react'
 import {
   useCallback,
@@ -37,13 +37,13 @@ import { QueueHeader } from '@/components/conversation/queue/queue-header'
 import { QueueList } from '@/components/conversation/queue/queue-list'
 import { SuggestedPrompts } from '@/components/conversation/suggested-prompts'
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Tooltip,
   TooltipContent,
@@ -51,8 +51,7 @@ import {
   TooltipTrigger
 } from '@/components/ui/tooltip'
 import { useCreateConversation } from '@/hooks/use-conversations'
-import { useMessages } from '@/hooks/use-messages'
-import { useSendMessage } from '@/hooks/use-messages'
+import { useMessages, useSendMessage } from '@/hooks/use-messages'
 import { useProfiles } from '@/hooks/use-profiles'
 import { useProviderReady } from '@/hooks/use-provider-ready'
 import {
@@ -61,6 +60,7 @@ import {
 } from '@/hooks/use-queued-messages'
 import { useUnifiedSkills } from '@/hooks/use-unified-skills'
 import { useWorkspaces } from '@/hooks/use-workspaces'
+import { playSound } from '@/lib/audio'
 import type { ContextItem, RegistrySkillData } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
 import type { UUID } from '@/lib/types'
@@ -79,7 +79,6 @@ import type {
   TriggerState
 } from '@/types/chat-context'
 import type { UnifiedSkill } from '@/types/skills'
-import { playSound } from '@/lib/audio'
 
 interface MessageInputProps {
   conversationId: UUID
@@ -560,7 +559,9 @@ export function MessageInput({
       } else {
         toast.success('Conversation compacted successfully')
         // Invalidate messages to refresh the view
-        useQueryClient().invalidateQueries({ queryKey: ['messages', conversationId] })
+        useQueryClient().invalidateQueries({
+          queryKey: ['messages', conversationId]
+        })
       }
     } catch (err) {
       toast.error(`Failed to compact: ${err}`)

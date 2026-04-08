@@ -1,6 +1,7 @@
 // src/components/conversation/suggested-prompts.tsx
+
+import { Sparkles, X } from 'lucide-react'
 import { useState } from 'react'
-import { X, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,

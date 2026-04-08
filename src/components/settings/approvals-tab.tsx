@@ -1,6 +1,6 @@
+import { SettingsSection } from '@/components/settings/settings-section'
 import { cn } from '@/lib/utils'
 import { useSettingsStore } from '@/store/settings'
-import { SettingsSection } from '@/components/settings/settings-section'
 
 const APPROVAL_FIELDS: Array<{
   key: keyof ReturnType<typeof useSettingsStore.getState>['toolApprovals']

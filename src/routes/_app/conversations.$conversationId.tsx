@@ -38,8 +38,8 @@ import { useWorkspaces } from '@/hooks/use-workspaces'
 import type { MessageData } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
-import { useUIEphemeralStore } from '@/store/ui-ephemeral'
 import { useConversationStore } from '@/store/conversation'
+import { useUIEphemeralStore } from '@/store/ui-ephemeral'
 
 export const conversationSearchSchema = z.object({
   messageId: z.string().optional(),
@@ -59,7 +59,9 @@ export const Route = createFileRoute('/_app/conversations/$conversationId')({
 
 function ConversationView() {
   const { conversationId } = Route.useParams()
-  const setActiveConversation = useConversationStore((s) => s.setActiveConversation)
+  const setActiveConversation = useConversationStore(
+    (s) => s.setActiveConversation
+  )
 
   // Sync URL param to store
   useEffect(() => {
@@ -232,7 +234,7 @@ function ConversationView() {
   }, [markAllUnseenAsSeen])
 
   useEffect(() => {
-    let unsub = () => { }
+    let unsub = () => {}
     const t = setTimeout(() => {
       const thread = threadRef.current
       if (!thread) return

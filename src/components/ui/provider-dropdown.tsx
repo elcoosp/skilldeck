@@ -5,7 +5,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger,
+  DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { ProviderIcon } from './provider-icon'
 
@@ -15,8 +15,12 @@ interface ProviderDropdownProps {
   options: { id: string; label: string }[]
 }
 
-export function ProviderDropdown({ value, onValueChange, options }: ProviderDropdownProps) {
-  const selected = options.find(opt => opt.id === value)
+export function ProviderDropdown({
+  value,
+  onValueChange,
+  options
+}: ProviderDropdownProps) {
+  const selected = options.find((opt) => opt.id === value)
 
   return (
     <DropdownMenu>
@@ -32,10 +36,15 @@ export function ProviderDropdown({ value, onValueChange, options }: ProviderDrop
       </DropdownMenuTrigger>
 
       <DropdownMenuContent className="w-full min-w-[200px]">
-        {options.map(opt => (
+        {options.map((opt) => (
           <DropdownMenuItem key={opt.id} onClick={() => onValueChange(opt.id)}>
             {/* Passes 'ollama', 'claude', etc. directly - perfectly strict */}
-            <ProviderIcon colored provider={opt.id} size={16} className="mr-2" />
+            <ProviderIcon
+              colored
+              provider={opt.id}
+              size={16}
+              className="mr-2"
+            />
             {opt.label}
           </DropdownMenuItem>
         ))}
