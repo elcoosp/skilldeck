@@ -1,3 +1,4 @@
+// src-tauri/src/state.rs
 //! Application state management.
 
 use dashmap::DashMap;
@@ -18,7 +19,7 @@ use skilldeck_core::{
         SseTransport, StdioTransport,
         supervisor::{SupervisorCommand, SupervisorConfig, start_supervisor},
     },
-    providers::{ClaudeProvider, OllamaNativeProvider, OllamaProvider, OpenAiProvider},
+    providers::{ClaudeProvider, OllamaProvider, OpenAiProvider},
     skills::{scanner, watcher::start_registry_watcher},
     workspace::ContextLoader,
 };
@@ -231,11 +232,9 @@ impl AppState {
             Err(_) => warn!("No OpenAI API key stored — not registering"),
         }
 
+        // Register the native Ollama provider (now with ID "ollama")
         info!("Registering Ollama provider (port 11434)");
         registry.register_provider(OllamaProvider::new(11434));
-
-        info!("Registering Ollama native provider (port 11434)");
-        registry.register_provider(OllamaNativeProvider::new(11434));
 
         // Create the tool approval emitter
         let tool_approval_emitter = TauriToolApprovalEmitter {
@@ -457,7 +456,7 @@ impl AppState {
     async fn ensure_default_profile(&self) {
         use sea_orm::{ActiveModelTrait, ActiveValue::Set, EntityTrait};
         use skilldeck_core::providers::ollama::OllamaStatus;
-        use skilldeck_models::profiles; // <-- added
+        use skilldeck_models::profiles;
 
         let db = match self.registry.db.connection().await {
             Ok(db) => db,
@@ -509,6 +508,7 @@ impl AppState {
             }
         }
     }
+
     /// Actual spawn logic (called from the SpawnerWithContext in messages.rs).
     pub async fn do_spawn_subagent(
         &self,

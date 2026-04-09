@@ -743,18 +743,10 @@ async fn resolve_provider_and_model(state: &AppState, conversation_id: &str) -> 
         );
         (profile.model_provider, profile.model_id)
     } else {
-        tracing::warn!(
-            "Provider '{}' not registered (no API key?), falling back to {}",
+        panic!(
+            "Provider '{}' not registered (no API key?)",
             profile.model_provider,
-            FALLBACK_PROVIDER
         );
-        let model = skilldeck_core::providers::OllamaProvider::fetch_installed_models()
-            .await
-            .into_iter()
-            .next()
-            .map(|m| m.id)
-            .unwrap_or_else(|| FALLBACK_MODEL.into());
-        (FALLBACK_PROVIDER.into(), model)
     }
 }
 

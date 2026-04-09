@@ -178,8 +178,10 @@ pub async fn run_workflow_definition(
         .registry
         .get_provider(&provider_id)
         .ok_or_else(|| format!("Provider {} not available", provider_id))?;
-    let model_id = skilldeck_core::providers::OllamaProvider::fetch_installed_models()
-        .await
+
+    // Get the first available model or fallback
+    let models = provider.list_models().await.map_err(|e| e.to_string())?;
+    let model_id = models
         .into_iter()
         .next()
         .map(|m| m.id)

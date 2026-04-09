@@ -879,12 +879,6 @@ async listWorkspaces() : Promise<Result<WorkspaceData[], string>> {
     else return { status: "error", error: e  as any };
 }
 },
-/**
- * Return the list of models currently installed in Ollama.
- * 
- * Runs `ollama list` under the hood via `OllamaProvider::fetch_installed_models()`.
- * Falls back to a minimal default list if the `ollama` binary is not found.
- */
 async listOllamaModels() : Promise<Result<OllamaModelInfo[], string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("list_ollama_models") };
@@ -1288,9 +1282,6 @@ export type MessageExport = { role: string; content: string }
  */
 export type MessageMetadata = { from_queue?: boolean | null; queued_at?: string | null; tool_name?: string | null; tool_call_id?: string | null }
 export type NodeDocument = { stable_nodes: MdNode[]; draft_nodes: MdNode[]; toc_items: TocItem[]; artifact_specs: ArtifactSpec[] }
-/**
- * A minimal model descriptor returned to the frontend.
- */
 export type OllamaModelInfo = { id: string; name: string }
 export type PendingNudge = { id: string; message: string; cta_label: string | null; cta_action: string | null; created_at: string }
 export type PlatformPreferences = { email: string | null; email_verified: boolean; nudge_frequency: string; nudge_opt_out: boolean; notification_channels: string[]; theme_preference: string; timezone: string | null; analytics_opt_in: boolean }
