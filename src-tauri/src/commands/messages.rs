@@ -36,6 +36,7 @@ pub struct MessageData {
     pub role: String,
     pub content: String,
     pub created_at: String,
+    pub compacted: bool,
     pub context_items: Option<Vec<ContextItem>>,
     pub metadata: Option<MessageMetadata>,
     pub input_tokens: Option<i32>,
@@ -168,6 +169,7 @@ pub async fn list_messages(
                 id: m.id.to_string(),
                 conversation_id: m.conversation_id.to_string(),
                 role: m.role,
+                compacted: m.compacted,
                 content: m.content,
                 created_at: m.created_at.to_string(),
                 context_items,
@@ -891,6 +893,7 @@ fn run_agent_loop(
         };
         let history_rows = match Messages::find()
             .filter(messages::COLUMN.conversation_id.eq(conv_uuid))
+            .filter(messages::COLUMN.compacted.eq(false))
             .order_by_asc(messages::COLUMN.created_at)
             .all(db)
             .await
@@ -1667,16 +1670,16 @@ pub async fn compact_conversation(
         return Err("Failed to generate summary".to_string());
     }
 
-    // Delete old messages
-    let old_ids: Vec<Uuid> = old_messages.iter().map(|m| m.id).collect();
-    for id in old_ids {
-        Messages::delete_by_id(id)
-            .exec(db)
-            .await
-            .map_err(|e| e.to_string())?;
-    }
+    // --- FLAG OLD MESSAGES AS COMPACTED (INSTEAD OF DELETING) ---
+    use sea_orm::sea_query::Expr;
+    messages::Entity::update_many()
+        .col_expr(messages::Column::Compacted, Expr::value(true))
+        .filter(messages::Column::Id.is_in(old_messages.iter().map(|m| m.id)))
+        .exec(db)
+        .await
+        .map_err(|e| e.to_string())?;
 
-    // --- NEW: Render summary as markdown document ---
+    // Render summary as markdown document
     let node_document = {
         let doc = state.markdown.render_final(&summary);
         serde_json::to_value(doc).map_err(|e| e.to_string())?
@@ -1693,7 +1696,7 @@ pub async fn compact_conversation(
             "[Compacted summary of previous conversation]\n{}",
             summary
         )),
-        node_document: Set(Some(node_document)), // <-- Add this field
+        node_document: Set(Some(node_document)),
         created_at: Set(now),
         context_items: Set(Some(ContextItems(vec![]))),
         seen: Set(false),

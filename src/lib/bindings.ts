@@ -1272,7 +1272,7 @@ export type MdNode = { type: "paragraph"; id: string; html: string } | { type: "
 /**
  * Serialisable message returned to the frontend.
  */
-export type MessageData = { id: string; conversation_id: string; role: string; content: string; created_at: string; context_items: ContextItem[] | null; metadata: MessageMetadata | null; input_tokens: number | null; output_tokens: number | null; seen: boolean; node_document: NodeDocument | null; status: string; thinking_content: string | null; thinking_document: NodeDocument | null }
+export type MessageData = { id: string; conversation_id: string; role: string; content: string; created_at: string; compacted: boolean; context_items: ContextItem[] | null; metadata: MessageMetadata | null; input_tokens: number | null; output_tokens: number | null; seen: boolean; node_document: NodeDocument | null; status: string; thinking_content: string | null; thinking_document: NodeDocument | null }
 /**
  * Lightweight message representation used by the Markdown gist exporter.
  */

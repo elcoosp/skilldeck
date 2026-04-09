@@ -32,6 +32,7 @@ pub struct Model {
     pub branch_id: Option<Uuid>,
     pub seen: bool,
     pub role: String,
+    pub compacted: bool,
     #[sea_orm(column_type = "Text")]
     pub content: String,
     pub metadata: Option<MessageMetadata>,

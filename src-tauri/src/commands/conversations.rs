@@ -345,6 +345,7 @@ pub async fn hydrate_shared_conversation(
                 node_document: Set(None),
                 context_items: Set(None),
                 input_tokens: Set(None),
+                compacted: Set(false),
                 output_tokens: Set(None),
                 cache_read_tokens: Set(None),
                 cache_write_tokens: Set(None),

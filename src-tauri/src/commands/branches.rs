@@ -144,6 +144,7 @@ pub async fn get_branch_messages(
                 conversation_id: m.conversation_id.to_string(),
                 role: m.role,
                 content: m.content,
+                compacted: m.compacted,
                 created_at: m.created_at.to_string(),
                 context_items,
                 metadata: m.metadata,
