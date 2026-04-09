@@ -1,3 +1,4 @@
+// src/components/conversation/message-bubble.tsx
 import { save } from '@tauri-apps/plugin-dialog'
 import { writeTextFile } from '@tauri-apps/plugin-fs'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -12,6 +13,7 @@ import {
   Clock,
   Copy,
   Download,
+  FileText,
   GitBranch,
   MoreHorizontal,
   Pencil,
@@ -477,7 +479,7 @@ function MessageBubbleInner({
   }, [message.id, message.content])
 
   const collapsibleRef = useRef<CollapsibleHandle>(null)
-  const collapsedStateRef = useRef(false)
+  const collapsedStateRef = useRef(isSystem) // System messages start collapsed
   const [, forceUpdate] = useState(0)
   const isCollapsed = collapsedStateRef.current
   const canCollapseAssistant =
@@ -612,7 +614,8 @@ function MessageBubbleInner({
     )
   }
 
-  if (isAssistant || syntheticStreaming) {
+  // Assistant AND System messages share the same layout
+  if (isAssistant || isSystem || syntheticStreaming) {
     const nodeDocument = (message as any).node_document as
       | NodeDocument
       | null
@@ -640,7 +643,6 @@ function MessageBubbleInner({
 
     if (!contentElement && !showShimmer && !documentToRender) return null
 
-    // Safe date formatting
     const formatTime = (dateStr?: string) => {
       if (!dateStr) return 'just now'
       try {
@@ -652,6 +654,15 @@ function MessageBubbleInner({
       }
     }
     const timeString = formatTime(message.created_at)
+
+    // Avatar and role label
+    const avatarIcon = isSystem ? <FileText className="size-3.5" /> : <Bot className="size-3.5" />
+    const avatarClass = isSystem
+      ? 'bg-blue-500/20 text-blue-500'
+      : 'bg-muted text-foreground'
+    const roleLabel = isSystem
+      ? (message.content.startsWith('[Compacted summary of previous conversation]') ? 'System: Compacted summary' : 'System')
+      : 'Assistant'
 
     return (
       <motion.div
@@ -665,16 +676,16 @@ function MessageBubbleInner({
           <div
             className={cn(
               'flex-shrink-0 size-7 rounded-full flex items-center justify-center',
-              'bg-muted text-foreground'
+              avatarClass
             )}
             aria-hidden
           >
-            <Bot className="size-3.5" />
+            {avatarIcon}
           </div>
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1 text-muted-foreground">
-              <span className="text-xs font-medium">Assistant</span>
+              <span className="text-xs font-medium">{roleLabel}</span>
               {canCollapseAssistant && (
                 <motion.button
                   type="button"
@@ -697,6 +708,7 @@ function MessageBubbleInner({
                   </motion.div>
                 </motion.button>
               )}
+              {/* Only show actions for assistant messages, not system */}
               {isAssistant && !isStreaming && !syntheticStreaming && (
                 <AssistantMessageActions
                   message={message}
@@ -765,26 +777,28 @@ function MessageBubbleInner({
 
             <CollapsibleContent
               ref={collapsibleRef}
-              initialCollapsed={false}
+              initialCollapsed={isSystem} // System messages start collapsed
               messageId={message.id}
             >
-              {/* Thinking panel — renders above the main content */}
-              <ThinkingView
-                document={
-                  isStreaming
-                    ? thinkingDoc
-                    : (message as any).thinking_document ?? null
-                }
-                messageId={message.id}
-                conversationId={activeConversationId}
-                isStreaming={isStreaming && !!thinkingDoc}
-              />
+              {/* Thinking panel only for assistant */}
+              {isAssistant && (
+                <ThinkingView
+                  document={
+                    isStreaming
+                      ? thinkingDoc
+                      : (message as any).thinking_document ?? null
+                  }
+                  messageId={message.id}
+                  conversationId={activeConversationId}
+                  isStreaming={isStreaming && !!thinkingDoc}
+                />
+              )}
               {contentElement}
             </CollapsibleContent>
           </div>
         </div>
 
-        {/* Bottom row - fixed height, no layout shift, date replaced by actions on hover */}
+        {/* Bottom row - left-aligned for both assistant and system */}
         <div className="mt-1 relative h-5">
           <div className="absolute left-0 top-0 inline-flex items-center gap-2 group-hover:opacity-0 transition-opacity">
             <span className="text-xs text-muted-foreground whitespace-nowrap">
@@ -804,7 +818,8 @@ function MessageBubbleInner({
                 <Copy className="size-3" />
               )}
             </button>
-            {onRetry && (
+            {/* No edit button for system messages */}
+            {!isSystem && onRetry && (
               <button
                 type="button"
                 onClick={onRetry}
@@ -940,7 +955,7 @@ function MessageBubbleInner({
           isUser
             ? 'bg-primary text-primary-foreground mt-0.5'
             : isSystem
-              ? 'bg-destructive/20 text-destructive mt-0.5'
+              ? 'bg-blue-500/20 text-blue-500 mt-0.5'
               : 'bg-muted text-foreground mt-1.5'
         )}
         aria-hidden
@@ -948,7 +963,7 @@ function MessageBubbleInner({
         {isUser ? (
           <User className="size-3.5" />
         ) : isSystem ? (
-          <AlertCircle className="size-3.5" />
+          <FileText className="size-3.5" />
         ) : (
           <Bot className="size-3.5" />
         )}

@@ -1676,6 +1676,12 @@ pub async fn compact_conversation(
             .map_err(|e| e.to_string())?;
     }
 
+    // --- NEW: Render summary as markdown document ---
+    let node_document = {
+        let doc = state.markdown.render_final(&summary);
+        serde_json::to_value(doc).map_err(|e| e.to_string())?
+    };
+
     // Insert summary as a system message at the beginning
     let now = chrono::Utc::now().fixed_offset();
     let summary_msg = messages::ActiveModel {
@@ -1687,6 +1693,7 @@ pub async fn compact_conversation(
             "[Compacted summary of previous conversation]\n{}",
             summary
         )),
+        node_document: Set(Some(node_document)), // <-- Add this field
         created_at: Set(now),
         context_items: Set(Some(ContextItems(vec![]))),
         seen: Set(false),
@@ -1702,7 +1709,6 @@ pub async fn compact_conversation(
 
     Ok(summary)
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
