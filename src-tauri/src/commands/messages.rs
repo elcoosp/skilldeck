@@ -792,7 +792,6 @@ fn is_retryable_error(e: &skilldeck_core::CoreError) -> bool {
             | skilldeck_core::CoreError::ModelInternal { .. }
     )
 }
-
 /// Run the agent loop in a spawned task.
 #[allow(unused_variables)]
 fn run_agent_loop(
@@ -1127,12 +1126,19 @@ fn run_agent_loop(
         let mut accumulated_content = String::new();
         let mut saw_done = false;
 
-        // Ordered event relay using std::sync::mpsc – runs in a dedicated thread
-        let (emit_tx, emit_rx) = std::sync::mpsc::channel::<AgentEvent>();
+        // ─────────────────────────────────────────────────────────────────────
+        // FIXED: Use tokio::sync::mpsc instead of std::sync::mpsc to prevent blocking.
+        // ─────────────────────────────────────────────────────────────────────
+        let (emit_tx, mut emit_rx) = tokio::sync::mpsc::channel::<AgentEvent>(256);
         let app_emitter = app.clone();
-        std::thread::spawn(move || {
-            while let Ok(event) = emit_rx.recv() {
-                let _ = app_emitter.emit("agent-event", event);
+        tokio::spawn(async move {
+            while let Some(event) = emit_rx.recv().await {
+                let emitter = app_emitter.clone();
+                tokio::task::spawn_blocking(move || {
+                    let _ = emitter.emit("agent-event", event);
+                })
+                .await
+                .ok();
             }
         });
 
@@ -1149,10 +1155,13 @@ fn run_agent_loop(
                         conversation_id = %conversation_id,
                         "Provider not ready"
                     );
-                    let _ = emit_tx.send(AgentEvent::Error {
-                        conversation_id: conversation_id.clone(),
-                        message: format!("{}\nSuggested fix: {}", reason, fix_action),
-                    });
+                    // FIXED: .await the send
+                    let _ = emit_tx
+                        .send(AgentEvent::Error {
+                            conversation_id: conversation_id.clone(),
+                            message: format!("{}\nSuggested fix: {}", reason, fix_action),
+                        })
+                        .await;
                 }
                 Ok(AgentLoopEvent::ThinkingToken { delta }) => {
                     tracing::debug!(
@@ -1170,10 +1179,12 @@ fn run_agent_loop(
                                 draft_nodes = doc.draft_nodes.len(),
                                 "Thinking document updated"
                             );
-                            let _ = emit_tx.send(AgentEvent::ThinkingStreamUpdate {
-                                conversation_id: conversation_id.clone(),
-                                document: doc,
-                            });
+                            let _ = emit_tx
+                                .send(AgentEvent::ThinkingStreamUpdate {
+                                    conversation_id: conversation_id.clone(),
+                                    document: doc,
+                                })
+                                .await;
                         }
                     } else {
                         tracing::warn!(
@@ -1189,12 +1200,14 @@ fn run_agent_loop(
                     if let Some(doc) = streamer.push(&delta) {
                         let new_toc = streamer.drain_new_toc_items();
                         let new_artifacts = streamer.drain_new_artifact_specs();
-                        let _ = emit_tx.send(AgentEvent::StreamUpdate {
-                            conversation_id: conversation_id.clone(),
-                            document: doc,
-                            new_toc_items: new_toc,
-                            new_artifact_specs: new_artifacts,
-                        });
+                        let _ = emit_tx
+                            .send(AgentEvent::StreamUpdate {
+                                conversation_id: conversation_id.clone(),
+                                document: doc,
+                                new_toc_items: new_toc,
+                                new_artifact_specs: new_artifacts,
+                            })
+                            .await;
                     }
                 }
                 Ok(AgentLoopEvent::Cancelled) => {
@@ -1203,9 +1216,11 @@ fn run_agent_loop(
                         conversation_id = %conversation_id,
                         "Agent cancelled, finalizing thinking stream if any"
                     );
-                    let _ = emit_tx.send(AgentEvent::Cancelled {
-                        conversation_id: conversation_id.clone(),
-                    });
+                    let _ = emit_tx
+                        .send(AgentEvent::Cancelled {
+                            conversation_id: conversation_id.clone(),
+                        })
+                        .await;
                     if let Some(stream) = thinking_streamer.take() {
                         let t_doc = stream.finalize();
                         tracing::debug!(
@@ -1215,32 +1230,38 @@ fn run_agent_loop(
                             draft_nodes = t_doc.draft_nodes.len(),
                             "Thinking stream finalized (cancelled)"
                         );
-                        let _ = emit_tx.send(AgentEvent::ThinkingDone {
-                            conversation_id: conversation_id.clone(),
-                            document: t_doc,
-                        });
+                        let _ = emit_tx
+                            .send(AgentEvent::ThinkingDone {
+                                conversation_id: conversation_id.clone(),
+                                document: t_doc,
+                            })
+                            .await;
                     } else {
-                        let _ = emit_tx.send(AgentEvent::ThinkingDone {
-                            conversation_id: conversation_id.clone(),
-                            document: NodeDocument {
-                                stable_nodes: vec![],
-                                draft_nodes: vec![],
-                                toc_items: vec![],
-                                artifact_specs: vec![],
-                            },
-                        });
+                        let _ = emit_tx
+                            .send(AgentEvent::ThinkingDone {
+                                conversation_id: conversation_id.clone(),
+                                document: NodeDocument {
+                                    stable_nodes: vec![],
+                                    draft_nodes: vec![],
+                                    toc_items: vec![],
+                                    artifact_specs: vec![],
+                                },
+                            })
+                            .await;
                     }
                 }
                 Ok(AgentLoopEvent::ToolCall { tool_call }) => {
-                    let _ = emit_tx.send(AgentEvent::ToolCall {
-                        conversation_id: conversation_id.clone(),
-                        tool_call: crate::events::AgentToolCall {
-                            id: tool_call.id.clone(),
-                            name: tool_call.function.name.clone(),
-                            arguments: serde_json::from_str(&tool_call.function.arguments)
-                                .unwrap_or_default(),
-                        },
-                    });
+                    let _ = emit_tx
+                        .send(AgentEvent::ToolCall {
+                            conversation_id: conversation_id.clone(),
+                            tool_call: crate::events::AgentToolCall {
+                                id: tool_call.id.clone(),
+                                name: tool_call.function.name.clone(),
+                                arguments: serde_json::from_str(&tool_call.function.arguments)
+                                    .unwrap_or_default(),
+                            },
+                        })
+                        .await;
                 }
                 Ok(AgentLoopEvent::Done {
                     input_tokens,
@@ -1270,39 +1291,48 @@ fn run_agent_loop(
                             "Thinking stream finalized"
                         );
                         final_thinking_document = Some(t_doc.clone());
-                        let _ = emit_tx.send(AgentEvent::ThinkingDone {
-                            conversation_id: conversation_id.clone(),
-                            document: t_doc,
-                        });
+                        let _ = emit_tx
+                            .send(AgentEvent::ThinkingDone {
+                                conversation_id: conversation_id.clone(),
+                                document: t_doc,
+                            })
+                            .await;
                     } else {
                         tracing::debug!(
                             target: "agent::thinking",
                             conversation_id = %conversation_id,
                             "No thinking stream to finalize (thinking mode off or already finalized)"
                         );
-                        let _ = emit_tx.send(AgentEvent::ThinkingDone {
-                            conversation_id: conversation_id.clone(),
-                            document: NodeDocument {
-                                stable_nodes: vec![],
-                                draft_nodes: vec![],
-                                toc_items: vec![],
-                                artifact_specs: vec![],
-                            },
-                        });
+                        let _ = emit_tx
+                            .send(AgentEvent::ThinkingDone {
+                                conversation_id: conversation_id.clone(),
+                                document: NodeDocument {
+                                    stable_nodes: vec![],
+                                    draft_nodes: vec![],
+                                    toc_items: vec![],
+                                    artifact_specs: vec![],
+                                },
+                            })
+                            .await;
                     }
 
-                    let _ = emit_tx.send(AgentEvent::StreamUpdate {
-                        conversation_id: conversation_id.clone(),
-                        document: doc.clone(),
-                        new_toc_items: doc.toc_items.clone(),
-                        new_artifact_specs: doc.artifact_specs.clone(),
-                    });
-                    let _ = emit_tx.send(AgentEvent::Done {
-                        conversation_id: conversation_id.clone(),
-                        input_tokens,
-                        output_tokens,
-                    });
+                    let _ = emit_tx
+                        .send(AgentEvent::StreamUpdate {
+                            conversation_id: conversation_id.clone(),
+                            document: doc.clone(),
+                            new_toc_items: doc.toc_items.clone(),
+                            new_artifact_specs: doc.artifact_specs.clone(),
+                        })
+                        .await;
+                    let _ = emit_tx
+                        .send(AgentEvent::Done {
+                            conversation_id: conversation_id.clone(),
+                            input_tokens,
+                            output_tokens,
+                        })
+                        .await;
 
+                    // Keep the original break
                     break;
                 }
                 Err(e) => {
@@ -1314,10 +1344,12 @@ fn run_agent_loop(
                         "Agent loop stream error"
                     );
 
-                    let _ = emit_tx.send(AgentEvent::Error {
-                        conversation_id: conversation_id.clone(),
-                        message: e.to_string(),
-                    });
+                    let _ = emit_tx
+                        .send(AgentEvent::Error {
+                            conversation_id: conversation_id.clone(),
+                            message: e.to_string(),
+                        })
+                        .await;
                 }
             }
         }
@@ -1576,7 +1608,6 @@ fn run_agent_loop(
         }
     });
 }
-
 #[specta]
 #[tauri::command]
 pub async fn compact_conversation(
@@ -1712,6 +1743,7 @@ pub async fn compact_conversation(
 
     Ok(summary)
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
