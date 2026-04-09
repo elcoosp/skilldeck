@@ -79,6 +79,7 @@ import type {
   TriggerState
 } from '@/types/chat-context'
 import type { UnifiedSkill } from '@/types/skills'
+import { useQueryClient } from '@tanstack/react-query' // <-- ensure this import exists
 
 interface MessageInputProps {
   conversationId: UUID
@@ -549,6 +550,7 @@ export function MessageInput({
   const setThinkingEnabled = useSettingsStore((s) => s.setThinkingEnabled)
 
   // ── Compaction (F12) ───────────────────────────────────────────────────────
+  const queryClient = useQueryClient() // <-- FIX: use hook at top level
   const handleCompact = useCallback(async () => {
     if (!conversationId) return
     setCompacting(true)
@@ -559,7 +561,7 @@ export function MessageInput({
       } else {
         toast.success('Conversation compacted successfully')
         // Invalidate messages to refresh the view
-        useQueryClient().invalidateQueries({
+        queryClient.invalidateQueries({
           queryKey: ['messages', conversationId]
         })
       }
@@ -568,7 +570,7 @@ export function MessageInput({
     } finally {
       setCompacting(false)
     }
-  }, [conversationId])
+  }, [conversationId, queryClient])
 
   // ── Submit / Queue ────────────────────────────────────────────────────────
 
