@@ -37,13 +37,11 @@ interface InternalToastProps extends ToastOptions {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Text Generate Effect (Slowed down for clear visibility)            */
+/*  Text Generate Effect                                               */
 /* ------------------------------------------------------------------ */
 
 function ToastTextEffect({ words }: { words: string }) {
   const wordsArray = words.split(' ')
-
-  // Start halfway through Sonner's slide, with a long stagger per word
   const baseDelay = 0.15
   const stagger = 0.05
 
@@ -89,14 +87,14 @@ const typeConfig: Record<ToastType, { gradient: string; iconBg: string; iconColo
     iconColor: 'text-[var(--destructive)]',
   },
   info: {
-    gradient: 'from-[var(--info-bg)]/10 to-transparent',
-    iconBg: 'bg-[var(--info-bg)]/15',
-    iconColor: 'text-[var(--info-bg)]',
+    gradient: 'from-[#6c47ff]/10 dark:from-[#8f6eff]/10 to-transparent',
+    iconBg: 'bg-[#6c47ff]/15 dark:bg-[#8f6eff]/15',
+    iconColor: 'text-[#6c47ff] dark:text-[#8f6eff]',
   },
   warning: {
-    gradient: 'from-[var(--accent)]/10 to-transparent',
-    iconBg: 'bg-[var(--accent)]/15',
-    iconColor: 'text-[var(--accent)]',
+    gradient: 'from-[var(--brand-accent)]/10 to-transparent',
+    iconBg: 'bg-[var(--brand-accent)]/15',
+    iconColor: 'text-[var(--brand-accent)]',
   },
   loading: {
     gradient: 'from-[var(--brand-primary-light)]/5 to-transparent',
@@ -121,7 +119,7 @@ const typeIcons: Record<ToastType, React.ReactNode> = (
 ).reduce((acc, [key, icon]) => ({ ...acc, [key]: icon }), {}) as Record<ToastType, React.ReactNode>
 
 /* ------------------------------------------------------------------ */
-/*  Toast Component (Always Animated)                                  */
+/*  Toast Component                                                    */
 /* ------------------------------------------------------------------ */
 
 function Toast({
@@ -136,17 +134,9 @@ function Toast({
 
   return (
     <div
-      className={`
-        relative flex w-full max-w-[420px] items-center gap-3 overflow-hidden
-        rounded-xl border p-4
-        bg-white dark:bg-[var(--card)]
-        border-[var(--normal-border)] dark:border-[var(--border)]
-        shadow-sm ring-1 ring-black/[0.03] dark:ring-white/[0.05]
-        backdrop-blur-sm
-        bg-gradient-to-r ${config.gradient}
-      `}
+      className={`relative flex w-full max-w-[420px] items-center gap-3 overflow-hidden rounded-xl border p-4 bg-card text-foreground border-border shadow-sm ring-1 ring-black/[0.03] dark:ring-white/[0.05] backdrop-blur-sm bg-gradient-to-r ${config.gradient}`}
     >
-      {/* Icon Pill (Always Animates) */}
+      {/* Icon Pill */}
       <motion.div
         initial={{ opacity: 0, scale: 0.5 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -159,12 +149,12 @@ function Toast({
       </motion.div>
 
       {/* Body */}
-      <div className="min-w-0 flex-1 text-[var(--normal-text)]">
+      <div className="min-w-0 flex-1">
         <div className="text-sm font-semibold tracking-tight">
           <ToastTextEffect words={message} />
         </div>
         {description && (
-          <p className="mt-0.5 text-sm leading-relaxed text-[var(--muted-foreground)]">
+          <p className="mt-0.5 text-sm leading-relaxed text-muted-foreground">
             {description}
           </p>
         )}
@@ -177,13 +167,7 @@ function Toast({
             action.onClick()
             sonnerToast.dismiss(id)
           }}
-          className={`
-            shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold
-            transition-all duration-150
-            bg-[var(--brand-primary-light)]/10 text-[var(--brand-primary-light)]
-            hover:bg-[var(--brand-primary-light)]/20
-            focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-primary-light)]
-          `}
+          className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150 bg-[var(--brand-primary-light)]/10 text-[var(--brand-primary-light)] hover:bg-[var(--brand-primary-light)]/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-primary-light)]"
         >
           {action.label}
         </button>
@@ -193,13 +177,7 @@ function Toast({
       {dismissible && !action && (
         <button
           onClick={() => sonnerToast.dismiss(id)}
-          className={`
-            shrink-0 rounded-lg p-1.5
-            text-[var(--muted-foreground)]/60
-            hover:text-[var(--normal-text)] hover:bg-black/5 dark:hover:bg-white/5
-            transition-all duration-150
-            focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current
-          `}
+          className="shrink-0 rounded-lg p-1.5 text-muted-foreground/60 hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
           aria-label="Dismiss"
         >
           <X className="h-4 w-4" />
