@@ -9,7 +9,7 @@ import {
   usePlatformPreferences,
   usePlatformRegistration
 } from '@/hooks/use-platform'
-import { platformUrl } from '@/lib/config' // <-- import central URL
+import { platformUrl } from '@/lib/config'
 
 export function PlatformTab() {
   const { query, update } = usePlatformPreferences()
@@ -17,9 +17,7 @@ export function PlatformTab() {
   const prefs = query.data
 
   const [enabled, setEnabled] = useState(prefs?.platformEnabled ?? true)
-  const [url, setUrl] = useState(
-    prefs?.platformUrl ?? platformUrl('') // <-- use central URL
-  )
+  const [url, setUrl] = useState(prefs?.platformUrl ?? platformUrl(''))
 
   const save = () => {
     update.mutate(
@@ -35,17 +33,19 @@ export function PlatformTab() {
     )
   }
 
+  // Loading – centered
   if (query.isLoading) {
     return (
-      <div className="flex items-center justify-center h-40 text-muted-foreground text-sm">
+      <div className="flex items-center justify-center h-full min-h-[200px] text-muted-foreground text-sm">
         Loading platform preferences…
       </div>
     )
   }
 
+  // Not configured – centered
   if (isPlatformNotConfigured(query)) {
     return (
-      <div className="p-6 text-center space-y-3">
+      <div className="flex flex-col items-center justify-center h-full min-h-[200px] gap-3 p-6 text-center">
         <p className="text-sm text-muted-foreground">
           SkillDeck Platform is not yet set up for this device.
         </p>
@@ -76,9 +76,10 @@ export function PlatformTab() {
     )
   }
 
+  // Error – centered
   if (query.isError) {
     return (
-      <div className="p-4 text-sm text-destructive">
+      <div className="flex items-center justify-center h-full min-h-[200px] text-sm text-destructive">
         Could not load platform preferences.
       </div>
     )

@@ -1,3 +1,4 @@
+// src/components/settings/preferences-tab.tsx
 import { useRouter } from '@tanstack/react-router'
 import { open } from '@tauri-apps/plugin-dialog'
 import {
@@ -84,19 +85,20 @@ export function PreferencesTab() {
   // App version
   const version = useAppVersion()
 
+  // Loading state – centered
   if (query.isLoading || profilesLoading) {
     return (
-      <div className="flex items-center justify-center h-40 text-muted-foreground text-sm">
+      <div className="flex items-center justify-center h-full min-h-[200px] text-muted-foreground text-sm">
         Loading preferences…
       </div>
     )
   }
 
-  // Platform not configured – show registration prompt
+  // Platform not configured – centered
   if (isPlatformNotConfigured(query)) {
     return (
-      <div className="p-4 text-center">
-        <p className="text-sm text-muted-foreground mb-2">
+      <div className="flex flex-col items-center justify-center h-full min-h-[200px] gap-3 p-4 text-center">
+        <p className="text-sm text-muted-foreground">
           Platform not configured.
         </p>
         <Button
@@ -109,9 +111,10 @@ export function PreferencesTab() {
     )
   }
 
+  // Error state – centered
   if (query.isError) {
     return (
-      <div className="p-4 text-sm text-destructive">
+      <div className="flex items-center justify-center h-full min-h-[200px] text-sm text-destructive">
         Could not load platform preferences. Make sure you're connected.
       </div>
     )
