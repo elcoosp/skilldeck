@@ -1,9 +1,14 @@
-import { test as base, chromium } from '@playwright/test';
+import { test as base, chromium, Page } from '@playwright/test';
 
-export const test = base.extend({
+// Declare the custom fixture type
+type AppFixtures = {
+  appPage: Page;
+};
+
+export const test = base.extend<AppFixtures>({
   appPage: async ({ }, use) => {
     const cdpEndpoint = process.env.CDP_ENDPOINT || 'http://localhost:9222';
-    let page;
+    let page: Page;
     try {
       const browser = await chromium.connectOverCDP(cdpEndpoint);
       const context = browser.contexts()[0];
