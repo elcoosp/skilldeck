@@ -33,13 +33,16 @@ export function useSendMessage(
 
   return useMutation({
     mutationFn: async ({
+      thinking,
       content,
       contextItems
     }: {
+      thinking: boolean
       content: string
       contextItems?: ContextItem[]
     }) => {
       const res = await commands.sendMessage({
+        thinking,
         conversation_id: conversationId,
         content,
         branch_id: branchId, // <-- added

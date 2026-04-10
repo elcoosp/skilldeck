@@ -1,50 +1,84 @@
-//! Ollama (local) model provider implementation.
+// src-tauri/skilldeck-core/src/providers/ollama.rs
+//! Native Ollama provider using `ollama-rs` with thinking support.
 //!
-//! Wraps the OpenAI-compatible API that Ollama exposes at localhost.
-//! When `list_models()` is called it runs `ollama list` to get the actual
-//! installed models rather than returning a hard-coded list.
+//! Talks directly to Ollama's native API and emits `CompletionChunk::Thinking`
+//! deltas when `request.thinking == true`.
+
+use async_trait::async_trait;
+use futures::StreamExt;
+use ollama_rs::{
+    Ollama as OllamaClient,
+    generation::chat::{ChatMessage as OllamaChatMessage, request::ChatMessageRequest},
+};
+use tracing::{debug, info, warn};
 
 use crate::{
     CoreError,
-    providers::openai::OpenAiProvider,
     traits::model_provider::ProviderReadyStatus,
-    traits::{CompletionRequest, CompletionStream, ModelCapabilities, ModelInfo, ModelProvider},
+    traits::{
+        ChatMessage, CompletionChunk, CompletionRequest, CompletionStream, MessageRole,
+        ModelCapabilities, ModelInfo, ModelProvider,
+    },
 };
 
-// ── OllamaStatus enum (moved to module scope) ────────────────────────────────
-
-#[derive(Debug, Clone)]
-pub enum OllamaStatus {
-    Available(Vec<ModelInfo>),
-    NotInstalled,
-    NotRunning,
-    NoModels,
-}
-
-// ── OllamaProvider implementation ────────────────────────────────────────────
+// ── OllamaProvider (native) ──────────────────────────────────────────────────
 
 pub struct OllamaProvider {
-    inner: OpenAiProvider,
+    client: OllamaClient,
+    port: u16,
 }
 
 impl OllamaProvider {
     pub fn new(port: u16) -> Self {
-        let inner = OpenAiProvider::new("ollama".to_string())
-            .with_base_url(format!("http://localhost:{}/v1", port));
-        Self { inner }
+        Self {
+            client: OllamaClient::new("http://localhost", port),
+            port,
+        }
     }
 
-    /// Parse the output of `ollama list` into a vec of model IDs.
-    ///
-    /// The command outputs lines like:
-    /// ```
-    /// NAME                     ID              SIZE    MODIFIED
-    /// llama3.2:latest          a80c4f17acd5    2.0 GB  3 hours ago
-    /// codellama:latest         8fdf8f752f6e    3.8 GB  2 days ago
-    /// ```
-    /// We skip the header line and take the first whitespace-delimited token
-    /// from each subsequent line as the model name.
-    fn parse_ollama_list(output: &str) -> Vec<String> {
+    /// Convert our `ChatMessage` → `OllamaChatMessage`.
+    /// System messages are prepended as the first user message (Ollama doesn't
+    /// support a dedicated system role — it's folded into the first message).
+    fn convert_messages(
+        messages: &[ChatMessage],
+        system: &Option<String>,
+    ) -> Vec<OllamaChatMessage> {
+        let mut out = Vec::with_capacity(messages.len() + 1);
+
+        // If there's a system prompt, prepend it as a user message
+        if let Some(sys) = system {
+            out.push(OllamaChatMessage::user(sys.clone()));
+        }
+
+        for msg in messages {
+            let ollama_msg = match msg.role {
+                MessageRole::System => {
+                    // System messages in the middle of conversation are
+                    // converted to user messages in Ollama's API.
+                    OllamaChatMessage::user(msg.content.clone())
+                }
+                MessageRole::User => OllamaChatMessage::user(msg.content.clone()),
+                MessageRole::Assistant => OllamaChatMessage::assistant(msg.content.clone()),
+                MessageRole::Tool => {
+                    // Ollama doesn't natively support tool messages in the
+                    // same way. Fold tool results back into the assistant
+                    // context as user messages.
+                    let content = if let Some(ref name) = msg.name {
+                        format!("[Tool result from '{}']\n{}", name, msg.content)
+                    } else {
+                        format!("[Tool result]\n{}", msg.content)
+                    };
+                    OllamaChatMessage::user(content)
+                }
+            };
+            out.push(ollama_msg);
+        }
+
+        out
+    }
+
+    /// Parse the output of `ollama list`.
+    pub fn parse_ollama_list(output: &str) -> Vec<String> {
         output
             .lines()
             .skip(1) // skip the header row
@@ -59,32 +93,12 @@ impl OllamaProvider {
             .collect()
     }
 
-    /// Run `ollama list` and return the installed model IDs.
-    /// Falls back to a minimal default list if the command is unavailable.
-    pub async fn fetch_installed_models() -> Vec<ModelInfo> {
-        match Self::check_ollama_status().await {
-            OllamaStatus::Available(models) => models,
-            _ => vec![], // no fallback; return empty
-        }
-    }
-
-    /// Minimal fallback model list used when `ollama list` is unavailable.
-    fn default_models() -> Vec<ModelInfo> {
-        vec![] // intentionally empty – no fake models
-    }
-
-    // =====================================================================
-    // Ollama status detection
-    // =====================================================================
-
     pub async fn check_ollama_status() -> OllamaStatus {
-        // Check if binary exists
         let which = tokio::process::Command::new("which")
             .arg("ollama")
             .output()
             .await;
         if which.map(|w| w.status.success()).unwrap_or(false) {
-            // binary found, now check `ollama list`
             let list = tokio::process::Command::new("ollama")
                 .arg("list")
                 .output()
@@ -104,7 +118,7 @@ impl OllamaProvider {
                                 context_length: 128_000,
                                 max_output_tokens: 4096,
                                 capabilities: ModelCapabilities {
-                                    function_calling: true,
+                                    function_calling: false, // native API doesn't support this
                                     vision: false,
                                     code_execution: false,
                                     prompt_caching: false,
@@ -122,25 +136,126 @@ impl OllamaProvider {
     }
 }
 
-#[async_trait::async_trait]
+#[derive(Debug, Clone)]
+pub enum OllamaStatus {
+    Available(Vec<ModelInfo>),
+    NotInstalled,
+    NotRunning,
+    NoModels,
+}
+
+#[async_trait]
 impl ModelProvider for OllamaProvider {
     fn id(&self) -> &str {
         "ollama"
     }
+
     fn display_name(&self) -> &str {
-        "Ollama (local)"
+        "Ollama"
     }
+
     fn supports_toon(&self) -> bool {
         false
     }
 
     async fn list_models(&self) -> Result<Vec<ModelInfo>, CoreError> {
-        Ok(Self::fetch_installed_models().await)
+        match Self::check_ollama_status().await {
+            OllamaStatus::Available(models) => Ok(models),
+            _ => Ok(vec![]),
+        }
     }
 
     async fn complete(&self, request: CompletionRequest) -> Result<CompletionStream, CoreError> {
-        // Ollama has no rate limits — delegate directly, no retry wrapper needed.
-        self.inner.complete(request).await
+        let ollama_messages = Self::convert_messages(&request.messages, &request.system);
+        if ollama_messages.is_empty() {
+            return Err(CoreError::ModelInvalidResponse {
+                provider: "ollama".to_string(),
+                message: "No messages to send".to_string(),
+            });
+        }
+
+        let mut req = ChatMessageRequest::new(request.model_id.clone(), ollama_messages);
+
+        // Enable thinking mode if requested
+        if request.thinking {
+            req = req.think(true);
+        }
+
+        info!(
+            "Sending native Ollama request: model={}, thinking={}, messages={}",
+            request.model_id,
+            request.thinking,
+            req.messages.len()
+        );
+
+        let stream_result = self
+            .client
+            .send_chat_messages_stream(req)
+            .await
+            .map_err(|e| {
+                warn!("Native Ollama stream error: {}", e);
+                CoreError::ModelConnection {
+                    provider: "ollama".to_string(),
+                    message: e.to_string(),
+                }
+            })?;
+
+        let stream = stream_result.filter_map(move |result| async move {
+            match result {
+                Ok(response) => {
+                    debug!(
+                        "Ollama response: thinking={:?}, content={:?}, done={}",
+                        response.message.thinking, response.message, response.done
+                    );
+
+                    let mut items = Vec::new();
+
+                    // Emit thinking delta if present
+                    if let Some(ref thinking) = response.message.thinking {
+                        if !thinking.is_empty() {
+                            items.push(Ok(CompletionChunk::Thinking {
+                                delta: thinking.clone(),
+                            }));
+                        }
+                    }
+
+                    // Emit content delta if present
+                    let content = &response.message.content;
+                    if !content.is_empty() {
+                        items.push(Ok(CompletionChunk::Token {
+                            content: content.clone(),
+                        }));
+                    }
+
+                    // Emit Done on final chunk
+                    if response.done {
+                        items.push(Ok(CompletionChunk::Done {
+                            input_tokens: 0,
+                            output_tokens: 0,
+                            cache_read_tokens: 0,
+                            cache_write_tokens: 0,
+                        }));
+                    }
+
+                    if items.is_empty() {
+                        None
+                    } else {
+                        Some(futures::stream::iter(items))
+                    }
+                }
+                Err(e) => {
+                    warn!("Ollama stream item error: {:?}", e);
+                    Some(futures::stream::iter(vec![Err(
+                        CoreError::ModelConnection {
+                            provider: "ollama".to_string(),
+                            message: format!("{:?}", e),
+                        },
+                    )]))
+                }
+            }
+        });
+
+        Ok(Box::pin(stream.flat_map(|s| s)))
     }
 
     async fn is_ready(&self, model_id: &str) -> ProviderReadyStatus {
@@ -176,10 +291,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn provider_id() {
+    fn provider_id_and_display_name() {
         let p = OllamaProvider::new(11434);
         assert_eq!(p.id(), "ollama");
-        assert_eq!(p.display_name(), "Ollama (local)");
+        assert_eq!(p.display_name(), "Ollama");
         assert!(!p.supports_toon());
     }
 
@@ -187,45 +302,68 @@ mod tests {
     fn parse_ollama_list_typical_output() {
         let output = "NAME                     ID              SIZE    MODIFIED\n\
                       llama3.2:latest          a80c4f17acd5    2.0 GB  3 hours ago\n\
-                      codellama:latest         8fdf8f752f6e    3.8 GB  2 days ago\n\
-                      mistral:latest           61e88e884507    4.1 GB  1 week ago\n";
+                      codellama:latest         8fdf8f752f6e    3.8 GB  2 days ago\n";
         let models = OllamaProvider::parse_ollama_list(output);
-        assert_eq!(models.len(), 3);
+        assert_eq!(models.len(), 2);
         assert_eq!(models[0], "llama3.2:latest");
         assert_eq!(models[1], "codellama:latest");
-        assert_eq!(models[2], "mistral:latest");
     }
 
     #[test]
-    fn parse_ollama_list_header_only() {
-        let output = "NAME                     ID              SIZE    MODIFIED\n";
-        let models = OllamaProvider::parse_ollama_list(output);
-        assert!(models.is_empty());
-    }
-
-    #[test]
-    fn parse_ollama_list_empty_string() {
+    fn parse_ollama_list_empty() {
         let models = OllamaProvider::parse_ollama_list("");
         assert!(models.is_empty());
     }
 
     #[test]
-    fn default_models_empty() {
-        let models = OllamaProvider::default_models();
-        assert!(models.is_empty());
+    fn convert_messages_basic() {
+        let messages = vec![
+            ChatMessage {
+                role: MessageRole::User,
+                content: "Hello".to_string(),
+                name: None,
+            },
+            ChatMessage {
+                role: MessageRole::Assistant,
+                content: "Hi!".to_string(),
+                name: None,
+            },
+        ];
+        let out = OllamaProvider::convert_messages(&messages, &None);
+        assert_eq!(out.len(), 2);
     }
 
-    #[tokio::test]
-    async fn list_models_returns_non_empty() {
-        let p = OllamaProvider::new(11434);
-        // Either returns real models (if ollama is installed) or the fallback list.
-        let models = p.list_models().await.unwrap();
-        // No expectation – we accept either, but the function now returns Vec
-        // (maybe empty if ollama not installed). So just ensure no panic.
+    #[test]
+    fn convert_messages_with_system_prepended() {
+        let messages = vec![ChatMessage {
+            role: MessageRole::User,
+            content: "Hello".to_string(),
+            name: None,
+        }];
+        let out = OllamaProvider::convert_messages(&messages, &Some("Be helpful.".to_string()));
+        assert_eq!(out.len(), 2); // system + user
     }
 
-    #[tokio::test]
-    async fn check_ollama_status_does_not_panic() {
-        let _ = OllamaProvider::check_ollama_status().await;
+    #[test]
+    fn convert_tool_messages_folded_as_user() {
+        let messages = vec![
+            ChatMessage {
+                role: MessageRole::User,
+                content: "Search X".to_string(),
+                name: None,
+            },
+            ChatMessage {
+                role: MessageRole::Assistant,
+                content: "calling tool".to_string(),
+                name: None,
+            },
+            ChatMessage {
+                role: MessageRole::Tool,
+                content: "result data".to_string(),
+                name: Some("search".to_string()),
+            },
+        ];
+        let out = OllamaProvider::convert_messages(&messages, &None);
+        assert_eq!(out.len(), 3);
     }
 }

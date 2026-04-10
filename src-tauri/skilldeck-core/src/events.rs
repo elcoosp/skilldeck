@@ -1,4 +1,3 @@
-// src-tauri/skilldeck-core/src/events.rs
 //! Core event types (not Tauri-specific).
 
 use serde::{Deserialize, Serialize};
@@ -52,6 +51,14 @@ pub enum AgentEvent {
         conversation_id: String,
         reason: String,
         fix_action: String,
+    },
+    ThinkingStreamUpdate {
+        conversation_id: String,
+        document: NodeDocument,
+    },
+    ThinkingDone {
+        conversation_id: String,
+        document: NodeDocument,
     },
 }
 

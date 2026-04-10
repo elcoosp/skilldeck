@@ -65,6 +65,7 @@ pulldown-cmark = "0.13.3"
 slug = "0.1.6"
 html-escape = "0.2.13"
 regex = "1.12.3"
+ollama-rs = { version = "0.3.4", features = ["stream"] }
 [dev-dependencies]
 tempfile = "3.27.0"
 

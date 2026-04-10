@@ -1,4 +1,4 @@
-// src-tauri/src/commands/messages.rs
+// src/commands/messages.rs
 //! Message Tauri commands.
 
 use sea_orm::{
@@ -7,6 +7,7 @@ use sea_orm::{
 };
 use sea_query::Expr;
 use serde::{Deserialize, Serialize};
+use skilldeck_core::CoreError;
 use specta::{Type, specta};
 use std::sync::Arc;
 use tauri::{Emitter, State};
@@ -35,6 +36,7 @@ pub struct MessageData {
     pub role: String,
     pub content: String,
     pub created_at: String,
+    pub compacted: bool,
     pub context_items: Option<Vec<ContextItem>>,
     pub metadata: Option<MessageMetadata>,
     pub input_tokens: Option<i32>,
@@ -42,6 +44,8 @@ pub struct MessageData {
     pub seen: bool,
     pub node_document: Option<NodeDocument>,
     pub status: String,
+    pub thinking_content: Option<String>,
+    pub thinking_document: Option<NodeDocument>,
 }
 
 /// Request for searching messages within a conversation.
@@ -155,14 +159,17 @@ pub async fn list_messages(
         .into_iter()
         .map(|m| {
             let context_items = m.context_items.map(|c| c.0);
-            // Deserialize from JSON string
             let node_document = m
                 .node_document
-                .map(|x| serde_json::from_value::<NodeDocument>(x).unwrap());
+                .and_then(|x| serde_json::from_value::<NodeDocument>(x).ok());
+            let thinking_document = m
+                .thinking_document
+                .and_then(|x| serde_json::from_value::<NodeDocument>(x).ok());
             MessageData {
                 id: m.id.to_string(),
                 conversation_id: m.conversation_id.to_string(),
                 role: m.role,
+                compacted: m.compacted,
                 content: m.content,
                 created_at: m.created_at.to_string(),
                 context_items,
@@ -172,6 +179,8 @@ pub async fn list_messages(
                 seen: m.seen,
                 node_document,
                 status: m.status,
+                thinking_content: m.thinking_content,
+                thinking_document,
             }
         })
         .collect())
@@ -336,7 +345,7 @@ pub async fn send_message(
         req.context_items,
         app,
         None,
-        req.thinking.unwrap_or(false), // <-- pass thinking flag
+        req.thinking.unwrap_or(false),
     )
     .await
     .map(|_| ())
@@ -393,7 +402,7 @@ pub struct SendMessageRequest {
     pub content: String,
     pub branch_id: Option<String>,
     pub context_items: Option<Vec<ContextItem>>,
-    pub thinking: Option<bool>, // <-- ADDED
+    pub thinking: Option<bool>,
 }
 
 /// Get conversation bootstrap data (messages, branches, draft, queued, headings).
@@ -435,7 +444,7 @@ pub(crate) async fn send_message_internal(
     context_items: Option<Vec<ContextItem>>,
     app: tauri::AppHandle,
     metadata: Option<MessageMetadata>,
-    thinking: bool, // <-- ADDED
+    thinking: bool,
 ) -> Result<Uuid, String> {
     // Validate IDs synchronously – no DB call
     let conv_uuid = Uuid::parse_str(&conversation_id).map_err(|e| e.to_string())?;
@@ -452,6 +461,20 @@ pub(crate) async fn send_message_internal(
         "agent-event",
         AgentEvent::Started {
             conversation_id: conversation_id.clone(),
+        },
+    );
+
+    // Reset thinking panel before starting
+    let _ = app.emit(
+        "agent-event",
+        AgentEvent::ThinkingDone {
+            conversation_id: conversation_id.clone(),
+            document: NodeDocument {
+                stable_nodes: vec![],
+                draft_nodes: vec![],
+                toc_items: vec![],
+                artifact_specs: vec![],
+            },
         },
     );
 
@@ -526,7 +549,7 @@ pub(crate) async fn send_message_internal(
             msg_id,
             context_items_clone,
             app_clone,
-            thinking, // <-- pass thinking flag
+            thinking,
         );
     });
 
@@ -552,9 +575,29 @@ async fn persist_assistant_message(
     cache_read_tokens: i32,
     cache_write_tokens: i32,
     doc: NodeDocument,
+    thinking_content: Option<String>,
+    thinking_document: Option<NodeDocument>,
     now: chrono::DateTime<chrono::FixedOffset>,
 ) -> Result<Uuid, String> {
+    if let Some(ref tc) = thinking_content {
+        tracing::debug!(
+            target: "agent::thinking",
+            content_len = tc.len(),
+            "Persisting thinking content"
+        );
+    }
+    if let Some(ref td) = thinking_document {
+        tracing::debug!(
+            target: "agent::thinking",
+            stable_nodes = td.stable_nodes.len(),
+            draft_nodes = td.draft_nodes.len(),
+            "Persisting thinking document"
+        );
+    }
+
     let msg_id = Uuid::new_v4();
+
+    let thinking_doc_json = thinking_document.and_then(|td| serde_json::to_value(td).ok());
 
     // Insert the assistant message row
     let active = messages::ActiveModel {
@@ -571,6 +614,8 @@ async fn persist_assistant_message(
         output_tokens: Set(Some(output_tokens)),
         cache_read_tokens: Set(Some(cache_read_tokens)),
         cache_write_tokens: Set(Some(cache_write_tokens)),
+        thinking_content: Set(thinking_content),
+        thinking_document: Set(thinking_doc_json),
         ..Default::default()
     };
 
@@ -691,7 +736,6 @@ async fn resolve_provider_and_model(state: &AppState, conversation_id: &str) -> 
         .get_provider(&profile.model_provider)
         .is_some()
     {
-        // ── LOGGING: Provider resolution success ──
         tracing::info!(
             target: "agent::provider",
             provider_id = %profile.model_provider,
@@ -701,18 +745,10 @@ async fn resolve_provider_and_model(state: &AppState, conversation_id: &str) -> 
         );
         (profile.model_provider, profile.model_id)
     } else {
-        tracing::warn!(
-            "Provider '{}' not registered (no API key?), falling back to {}",
+        panic!(
+            "Provider '{}' not registered (no API key?)",
             profile.model_provider,
-            FALLBACK_PROVIDER
         );
-        let model = skilldeck_core::providers::OllamaProvider::fetch_installed_models()
-            .await
-            .into_iter()
-            .next()
-            .map(|m| m.id)
-            .unwrap_or_else(|| FALLBACK_MODEL.into());
-        (FALLBACK_PROVIDER.into(), model)
     }
 }
 
@@ -756,8 +792,8 @@ fn is_retryable_error(e: &skilldeck_core::CoreError) -> bool {
             | skilldeck_core::CoreError::ModelInternal { .. }
     )
 }
-
 /// Run the agent loop in a spawned task.
+#[allow(unused_variables)]
 fn run_agent_loop(
     state: Arc<AppState>,
     conversation_id: String,
@@ -766,7 +802,7 @@ fn run_agent_loop(
     current_msg_id: Uuid,
     context_items: Option<Vec<ContextItem>>,
     app: tauri::AppHandle,
-    thinking: bool, // <-- ADDED
+    thinking: bool,
 ) {
     use skilldeck_core::agent::tool_dispatcher::ToolDispatcher;
     use skilldeck_core::traits::ChatMessage;
@@ -778,7 +814,6 @@ fn run_agent_loop(
         let provider = match state.registry.get_provider(&provider_id) {
             Some(p) => p,
             None => {
-                // ── LOGGING: Provider lookup failure ──
                 tracing::error!(
                     target: "agent::provider",
                     provider_id = %provider_id,
@@ -857,6 +892,7 @@ fn run_agent_loop(
         };
         let history_rows = match Messages::find()
             .filter(messages::COLUMN.conversation_id.eq(conv_uuid))
+            .filter(messages::COLUMN.compacted.eq(false))
             .order_by_asc(messages::COLUMN.created_at)
             .all(db)
             .await
@@ -1068,24 +1104,46 @@ fn run_agent_loop(
         let mut streamer = IncrementalStream::new(Arc::clone(&state.markdown));
         let mut final_document: Option<NodeDocument> = None;
 
+        // ─── Create incremental streamer for thinking (only if thinking mode is enabled) ───
+        let mut thinking_streamer = if thinking {
+            tracing::debug!(
+                target: "agent::thinking",
+                conversation_id = %conversation_id,
+                "Thinking mode ENABLED for this turn"
+            );
+            Some(IncrementalStream::new(Arc::clone(&state.markdown)))
+        } else {
+            tracing::debug!(
+                target: "agent::thinking",
+                conversation_id = %conversation_id,
+                "Thinking mode DISABLED for this turn"
+            );
+            None
+        };
+        let mut final_thinking_document: Option<NodeDocument> = None;
+
         // Track accumulated content for error recovery
         let mut accumulated_content = String::new();
         let mut saw_done = false;
 
-        // Ordered event relay using std::sync::mpsc – runs in a dedicated thread
-        let (emit_tx, emit_rx) = std::sync::mpsc::channel::<AgentEvent>();
+        // ─────────────────────────────────────────────────────────────────────
+        // FIXED: Use tokio::sync::mpsc instead of std::sync::mpsc to prevent blocking.
+        // ─────────────────────────────────────────────────────────────────────
+        let (emit_tx, mut emit_rx) = tokio::sync::mpsc::channel::<AgentEvent>(256);
         let app_emitter = app.clone();
-        std::thread::spawn(move || {
-            while let Ok(event) = emit_rx.recv() {
-                let _ = app_emitter.emit("agent-event", event);
+        tokio::spawn(async move {
+            while let Some(event) = emit_rx.recv().await {
+                let emitter = app_emitter.clone();
+                tokio::task::spawn_blocking(move || {
+                    let _ = emitter.emit("agent-event", event);
+                })
+                .await
+                .ok();
             }
         });
 
-        let loop_handle = tokio::spawn(async move {
-            agent
-                .run(enriched_user_message, thinking) // <-- pass thinking flag
-                .await
-        });
+        let loop_handle =
+            tokio::spawn(async move { agent.run(enriched_user_message, thinking).await });
 
         while let Some(event) = rx.recv().await {
             match event {
@@ -1097,10 +1155,44 @@ fn run_agent_loop(
                         conversation_id = %conversation_id,
                         "Provider not ready"
                     );
-                    let _ = emit_tx.send(AgentEvent::Error {
-                        conversation_id: conversation_id.clone(),
-                        message: format!("{}\nSuggested fix: {}", reason, fix_action),
-                    });
+                    // FIXED: .await the send
+                    let _ = emit_tx
+                        .send(AgentEvent::Error {
+                            conversation_id: conversation_id.clone(),
+                            message: format!("{}\nSuggested fix: {}", reason, fix_action),
+                        })
+                        .await;
+                }
+                Ok(AgentLoopEvent::ThinkingToken { delta }) => {
+                    tracing::debug!(
+                        target: "agent::thinking",
+                        conversation_id = %conversation_id,
+                        delta_len = delta.len(),
+                        "Received thinking token chunk"
+                    );
+                    if let Some(stream) = thinking_streamer.as_mut() {
+                        if let Some(doc) = stream.push(&delta) {
+                            tracing::debug!(
+                                target: "agent::thinking",
+                                conversation_id = %conversation_id,
+                                stable_nodes = doc.stable_nodes.len(),
+                                draft_nodes = doc.draft_nodes.len(),
+                                "Thinking document updated"
+                            );
+                            let _ = emit_tx
+                                .send(AgentEvent::ThinkingStreamUpdate {
+                                    conversation_id: conversation_id.clone(),
+                                    document: doc,
+                                })
+                                .await;
+                        }
+                    } else {
+                        tracing::warn!(
+                            target: "agent::thinking",
+                            conversation_id = %conversation_id,
+                            "Received thinking token but thinking_streamer is None"
+                        );
+                    }
                 }
                 Ok(AgentLoopEvent::Token { delta }) => {
                     accumulated_content.push_str(&delta);
@@ -1108,29 +1200,68 @@ fn run_agent_loop(
                     if let Some(doc) = streamer.push(&delta) {
                         let new_toc = streamer.drain_new_toc_items();
                         let new_artifacts = streamer.drain_new_artifact_specs();
-                        let _ = emit_tx.send(AgentEvent::StreamUpdate {
-                            conversation_id: conversation_id.clone(),
-                            document: doc,
-                            new_toc_items: new_toc,
-                            new_artifact_specs: new_artifacts,
-                        });
+                        let _ = emit_tx
+                            .send(AgentEvent::StreamUpdate {
+                                conversation_id: conversation_id.clone(),
+                                document: doc,
+                                new_toc_items: new_toc,
+                                new_artifact_specs: new_artifacts,
+                            })
+                            .await;
                     }
                 }
                 Ok(AgentLoopEvent::Cancelled) => {
-                    let _ = emit_tx.send(AgentEvent::Cancelled {
-                        conversation_id: conversation_id.clone(),
-                    });
+                    tracing::debug!(
+                        target: "agent::thinking",
+                        conversation_id = %conversation_id,
+                        "Agent cancelled, finalizing thinking stream if any"
+                    );
+                    let _ = emit_tx
+                        .send(AgentEvent::Cancelled {
+                            conversation_id: conversation_id.clone(),
+                        })
+                        .await;
+                    if let Some(stream) = thinking_streamer.take() {
+                        let t_doc = stream.finalize();
+                        tracing::debug!(
+                            target: "agent::thinking",
+                            conversation_id = %conversation_id,
+                            stable_nodes = t_doc.stable_nodes.len(),
+                            draft_nodes = t_doc.draft_nodes.len(),
+                            "Thinking stream finalized (cancelled)"
+                        );
+                        let _ = emit_tx
+                            .send(AgentEvent::ThinkingDone {
+                                conversation_id: conversation_id.clone(),
+                                document: t_doc,
+                            })
+                            .await;
+                    } else {
+                        let _ = emit_tx
+                            .send(AgentEvent::ThinkingDone {
+                                conversation_id: conversation_id.clone(),
+                                document: NodeDocument {
+                                    stable_nodes: vec![],
+                                    draft_nodes: vec![],
+                                    toc_items: vec![],
+                                    artifact_specs: vec![],
+                                },
+                            })
+                            .await;
+                    }
                 }
                 Ok(AgentLoopEvent::ToolCall { tool_call }) => {
-                    let _ = emit_tx.send(AgentEvent::ToolCall {
-                        conversation_id: conversation_id.clone(),
-                        tool_call: crate::events::AgentToolCall {
-                            id: tool_call.id.clone(),
-                            name: tool_call.function.name.clone(),
-                            arguments: serde_json::from_str(&tool_call.function.arguments)
-                                .unwrap_or_default(),
-                        },
-                    });
+                    let _ = emit_tx
+                        .send(AgentEvent::ToolCall {
+                            conversation_id: conversation_id.clone(),
+                            tool_call: crate::events::AgentToolCall {
+                                id: tool_call.id.clone(),
+                                name: tool_call.function.name.clone(),
+                                arguments: serde_json::from_str(&tool_call.function.arguments)
+                                    .unwrap_or_default(),
+                            },
+                        })
+                        .await;
                 }
                 Ok(AgentLoopEvent::Done {
                     input_tokens,
@@ -1138,27 +1269,73 @@ fn run_agent_loop(
                     cache_read_tokens,
                     cache_write_tokens,
                 }) => {
+                    tracing::debug!(
+                        target: "agent::thinking",
+                        conversation_id = %conversation_id,
+                        "Agent loop done, finalizing thinking stream"
+                    );
                     saw_done = true;
 
                     let doc = streamer.finalize();
                     final_document = Some(doc.clone());
 
-                    let _ = emit_tx.send(AgentEvent::StreamUpdate {
-                        conversation_id: conversation_id.clone(),
-                        document: doc.clone(),
-                        new_toc_items: doc.toc_items.clone(),
-                        new_artifact_specs: doc.artifact_specs.clone(),
-                    });
-                    let _ = emit_tx.send(AgentEvent::Done {
-                        conversation_id: conversation_id.clone(),
-                        input_tokens,
-                        output_tokens,
-                    });
+                    // Finalize thinking stream if it exists
+                    if let Some(stream) = thinking_streamer.take() {
+                        let t_doc = stream.finalize();
+                        tracing::debug!(
+                            target: "agent::thinking",
+                            conversation_id = %conversation_id,
+                            stable_nodes = t_doc.stable_nodes.len(),
+                            draft_nodes = t_doc.draft_nodes.len(),
+                            toc_items = t_doc.toc_items.len(),
+                            "Thinking stream finalized"
+                        );
+                        final_thinking_document = Some(t_doc.clone());
+                        let _ = emit_tx
+                            .send(AgentEvent::ThinkingDone {
+                                conversation_id: conversation_id.clone(),
+                                document: t_doc,
+                            })
+                            .await;
+                    } else {
+                        tracing::debug!(
+                            target: "agent::thinking",
+                            conversation_id = %conversation_id,
+                            "No thinking stream to finalize (thinking mode off or already finalized)"
+                        );
+                        let _ = emit_tx
+                            .send(AgentEvent::ThinkingDone {
+                                conversation_id: conversation_id.clone(),
+                                document: NodeDocument {
+                                    stable_nodes: vec![],
+                                    draft_nodes: vec![],
+                                    toc_items: vec![],
+                                    artifact_specs: vec![],
+                                },
+                            })
+                            .await;
+                    }
 
+                    let _ = emit_tx
+                        .send(AgentEvent::StreamUpdate {
+                            conversation_id: conversation_id.clone(),
+                            document: doc.clone(),
+                            new_toc_items: doc.toc_items.clone(),
+                            new_artifact_specs: doc.artifact_specs.clone(),
+                        })
+                        .await;
+                    let _ = emit_tx
+                        .send(AgentEvent::Done {
+                            conversation_id: conversation_id.clone(),
+                            input_tokens,
+                            output_tokens,
+                        })
+                        .await;
+
+                    // Keep the original break
                     break;
                 }
                 Err(e) => {
-                    // ── LOGGING: Full error chain with {:?} not {} ──
                     tracing::error!(
                         target: "agent::loop",
                         error = ?e,
@@ -1167,10 +1344,12 @@ fn run_agent_loop(
                         "Agent loop stream error"
                     );
 
-                    let _ = emit_tx.send(AgentEvent::Error {
-                        conversation_id: conversation_id.clone(),
-                        message: e.to_string(),
-                    });
+                    let _ = emit_tx
+                        .send(AgentEvent::Error {
+                            conversation_id: conversation_id.clone(),
+                            message: e.to_string(),
+                        })
+                        .await;
                 }
             }
         }
@@ -1179,8 +1358,27 @@ fn run_agent_loop(
         let loop_result = loop_handle.await;
         state.agent_cancel_tokens.remove(&conversation_id);
 
-        match loop_result {
-            Ok(Ok(result)) => {
+        // Prepare thinking content and document for the last assistant message
+        let (result, thinking_content_str) = match loop_result {
+            Ok(Ok(res)) => {
+                let thinking = res.thinking_content.clone();
+                (Ok(res), Some(thinking))
+            }
+            Ok(Err(e)) => (Err(e), None),
+            Err(e) => (
+                Err(CoreError::Internal {
+                    message: format!("Task join error: {}", e),
+                }),
+                None,
+            ),
+        };
+
+        let thinking_content_to_save = thinking_content_str
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string());
+
+        match result {
+            Ok(result) => {
                 let db = match state.registry.db.connection().await {
                     Ok(conn) => conn,
                     Err(e) => {
@@ -1237,6 +1435,17 @@ fn run_agent_loop(
                             0
                         };
 
+                        let thinking_content_arg = if is_last {
+                            thinking_content_to_save.clone()
+                        } else {
+                            None
+                        };
+                        let thinking_doc_arg = if is_last {
+                            final_thinking_document.clone()
+                        } else {
+                            None
+                        };
+
                         if let Err(e) = persist_assistant_message(
                             db,
                             conv_uuid,
@@ -1248,6 +1457,8 @@ fn run_agent_loop(
                             cache_read_tokens,
                             cache_write_tokens,
                             doc,
+                            thinking_content_arg,
+                            thinking_doc_arg,
                             now,
                         )
                         .await
@@ -1315,8 +1526,7 @@ fn run_agent_loop(
 
                 queue::auto_send_next_queued(state.clone(), conversation_id.clone(), app.clone());
             }
-            Ok(Err(e)) => {
-                // ── LOGGING: Full error chain with {:?} not {} ──
+            Err(e) => {
                 tracing::error!(
                     target: "agent::loop",
                     error = ?e,
@@ -1344,60 +1554,22 @@ fn run_agent_loop(
                 if !accumulated_content.is_empty() {
                     if let Ok(db) = state.registry.db.connection().await {
                         let doc = state.markdown.render_final(&accumulated_content);
-                        match persist_assistant_message(
-                            db,
-                            conv_uuid,
-                            branch_uuid,
-                            accumulated_content,
-                            "incomplete",
-                            0,
-                            0,
-                            0,
-                            0,
-                            doc,
-                            chrono::Utc::now().fixed_offset(),
-                        )
-                        .await
+                        // For incomplete messages, we don't have thinking content, but we may have a final thinking document
+                        let incomplete_thinking_doc = if let Some(stream) = thinking_streamer.take()
                         {
-                            Ok(_) => {
-                                let _ = app.emit(
-                                    "agent-event",
-                                    AgentEvent::Persisted {
-                                        conversation_id: conversation_id.clone(),
-                                    },
-                                );
-                            }
-                            Err(persist_err) => {
-                                tracing::warn!(
-                                    "Failed to persist incomplete message: {}",
-                                    persist_err
-                                );
-                            }
-                        }
-                    }
-                }
-            }
-            Err(e) => {
-                // ── LOGGING: Full error chain with {:?} not {} ──
-                tracing::error!(
-                    target: "agent::loop",
-                    panic = ?e,
-                    conversation_id = %conversation_id,
-                    accumulated_tokens = accumulated_content.len(),
-                    "Agent loop task panicked"
-                );
+                            let t_doc = stream.finalize();
+                            tracing::debug!(
+                                target: "agent::thinking",
+                                conversation_id = %conversation_id,
+                                stable_nodes = t_doc.stable_nodes.len(),
+                                draft_nodes = t_doc.draft_nodes.len(),
+                                "Finalized incomplete thinking document in error path"
+                            );
+                            Some(t_doc)
+                        } else {
+                            final_thinking_document.clone()
+                        };
 
-                let _ = app.emit(
-                    "agent-event",
-                    AgentEvent::Error {
-                        conversation_id: conversation_id.clone(),
-                        message: format!("Agent loop panicked: {}", e),
-                    },
-                );
-
-                if !accumulated_content.is_empty() {
-                    if let Ok(db) = state.registry.db.connection().await {
-                        let doc = state.markdown.render_final(&accumulated_content);
                         match persist_assistant_message(
                             db,
                             conv_uuid,
@@ -1409,6 +1581,8 @@ fn run_agent_loop(
                             0,
                             0,
                             doc,
+                            None, // no thinking content for incomplete message
+                            incomplete_thinking_doc,
                             chrono::Utc::now().fixed_offset(),
                         )
                         .await
@@ -1434,7 +1608,6 @@ fn run_agent_loop(
         }
     });
 }
-
 #[specta]
 #[tauri::command]
 pub async fn compact_conversation(
@@ -1464,7 +1637,7 @@ pub async fn compact_conversation(
     // Split point: keep last 30% of messages
     let split_point = (messages.len() as f64 * 0.7) as usize;
     let old_messages = &messages[..split_point];
-    let keep_messages = &messages[split_point..];
+    let _keep_messages = &messages[split_point..];
 
     // Build summary prompt from old messages
     let mut summary_content = String::new();
@@ -1528,14 +1701,20 @@ pub async fn compact_conversation(
         return Err("Failed to generate summary".to_string());
     }
 
-    // Delete old messages
-    let old_ids: Vec<Uuid> = old_messages.iter().map(|m| m.id).collect();
-    for id in old_ids {
-        Messages::delete_by_id(id)
-            .exec(db)
-            .await
-            .map_err(|e| e.to_string())?;
-    }
+    // --- FLAG OLD MESSAGES AS COMPACTED (INSTEAD OF DELETING) ---
+    use sea_orm::sea_query::Expr;
+    messages::Entity::update_many()
+        .col_expr(messages::Column::Compacted, Expr::value(true))
+        .filter(messages::Column::Id.is_in(old_messages.iter().map(|m| m.id)))
+        .exec(db)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    // Render summary as markdown document
+    let node_document = {
+        let doc = state.markdown.render_final(&summary);
+        serde_json::to_value(doc).map_err(|e| e.to_string())?
+    };
 
     // Insert summary as a system message at the beginning
     let now = chrono::Utc::now().fixed_offset();
@@ -1548,6 +1727,7 @@ pub async fn compact_conversation(
             "[Compacted summary of previous conversation]\n{}",
             summary
         )),
+        node_document: Set(Some(node_document)),
         created_at: Set(now),
         context_items: Set(Some(ContextItems(vec![]))),
         seen: Set(false),
@@ -1563,6 +1743,7 @@ pub async fn compact_conversation(
 
     Ok(summary)
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -1,4 +1,3 @@
-// src-tauri/src/events.rs
 //! Typed IPC event payloads emitted from Rust to the React frontend.
 //!
 //! All event names use kebab-case and match the listeners in `src/lib/events.ts`.
@@ -61,6 +60,14 @@ pub enum AgentEvent {
         conversation_id: String,
         reason: String,
         fix_action: String,
+    },
+    ThinkingStreamUpdate {
+        conversation_id: String,
+        document: NodeDocument,
+    },
+    ThinkingDone {
+        conversation_id: String,
+        document: NodeDocument,
     },
 }
 

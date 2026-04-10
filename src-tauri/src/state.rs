@@ -1,3 +1,4 @@
+// src-tauri/src/state.rs
 //! Application state management.
 
 use dashmap::DashMap;
@@ -231,6 +232,7 @@ impl AppState {
             Err(_) => warn!("No OpenAI API key stored — not registering"),
         }
 
+        // Register the native Ollama provider (now with ID "ollama")
         info!("Registering Ollama provider (port 11434)");
         registry.register_provider(OllamaProvider::new(11434));
 
@@ -454,7 +456,7 @@ impl AppState {
     async fn ensure_default_profile(&self) {
         use sea_orm::{ActiveModelTrait, ActiveValue::Set, EntityTrait};
         use skilldeck_core::providers::ollama::OllamaStatus;
-        use skilldeck_models::profiles; // <-- added
+        use skilldeck_models::profiles;
 
         let db = match self.registry.db.connection().await {
             Ok(db) => db,
@@ -506,6 +508,7 @@ impl AppState {
             }
         }
     }
+
     /// Actual spawn logic (called from the SpawnerWithContext in messages.rs).
     pub async fn do_spawn_subagent(
         &self,

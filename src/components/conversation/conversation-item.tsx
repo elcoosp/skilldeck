@@ -4,7 +4,7 @@ import { MoreHorizontal, Pencil, Pin, PinOff, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
-import { BouncingDots } from '@/components/ui/bouncing-dots'
+import { StreamingPulse } from '@/components/ui/streaming-pulse'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -303,7 +303,7 @@ export function ConversationItem({
           )}
           {isStreaming ? (
             <div className="flex items-center gap-1">
-              <BouncingDots />
+              <StreamingPulse />
               <span className="text-[11px] text-muted-foreground/70">
                 Streaming...
               </span>

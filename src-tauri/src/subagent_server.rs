@@ -1,4 +1,4 @@
-// src-tauri/src/subagent_server.rs
+// src/subagent_server.rs
 
 use adk_rust::prelude::{InMemorySessionService, LlmAgentBuilder};
 use adk_rust::server::{ServerConfig, create_app_with_a2a};
@@ -32,7 +32,7 @@ impl Llm for LlmAdapter {
     async fn generate_content(
         &self,
         request: LlmRequest,
-        _stream: bool, // skilldeck‑core always streams, we ignore this flag.
+        _stream: bool,
     ) -> Result<LlmResponseStream, AdkError> {
         let provider = self.provider.clone();
         let model_id = self.model_id.clone();
@@ -50,24 +50,18 @@ impl Llm for LlmAdapter {
         // Map each chunk from skilldeck‑core to ADK LlmResponse.
         let mapped_stream = raw_stream.map(|chunk_result| match chunk_result {
             Ok(chunk) => match chunk {
-                CompletionChunk::Token { content } => {
-                    // A token chunk – produce a partial text response.
-                    Ok(LlmResponse {
-                        content: Some(Content {
-                            role: "model".to_string(),
-                            parts: vec![Part::Text { text: content }],
-                        }),
-                        partial: true,
-                        turn_complete: false,
-                        ..Default::default()
-                    })
-                }
+                CompletionChunk::Token { content } => Ok(LlmResponse {
+                    content: Some(Content {
+                        role: "model".to_string(),
+                        parts: vec![Part::Text { text: content }],
+                    }),
+                    partial: true,
+                    turn_complete: false,
+                    ..Default::default()
+                }),
                 CompletionChunk::ToolCall { tool_call } => {
-                    // A tool call chunk – map to a FunctionCall part.
-                    // The arguments are a JSON string inside tool_call.function.
                     let args: Value =
                         serde_json::from_str(&tool_call.function.arguments).unwrap_or(Value::Null);
-
                     let part = Part::FunctionCall {
                         name: tool_call.function.name,
                         args,
@@ -79,7 +73,7 @@ impl Llm for LlmAdapter {
                             role: "model".to_string(),
                             parts: vec![part],
                         }),
-                        partial: false, // tool calls are usually final
+                        partial: false,
                         turn_complete: true,
                         finish_reason: Some(FinishReason::Stop),
                         ..Default::default()
@@ -91,7 +85,6 @@ impl Llm for LlmAdapter {
                     cache_read_tokens: _,
                     cache_write_tokens: _,
                 } => {
-                    // Final chunk with usage metadata – no content, just usage.
                     let usage = UsageMetadata {
                         prompt_token_count: input_tokens as i32,
                         candidates_token_count: output_tokens as i32,
@@ -105,6 +98,11 @@ impl Llm for LlmAdapter {
                         finish_reason: Some(FinishReason::Stop),
                         ..Default::default()
                     })
+                }
+                CompletionChunk::Thinking { delta: _ } => {
+                    // Ignore thinking chunks for now; ADK doesn't have a dedicated field.
+                    // Return an empty response that won't affect the stream.
+                    Ok(LlmResponse::default())
                 }
             },
             Err(e) => Err(AdkError::model(format!("stream error: {e}"))),
@@ -139,7 +137,6 @@ fn convert_request(req: LlmRequest, model_id: String) -> Result<CompletionReques
 
         match role_str {
             "system" => {
-                // skilldeck‑core has a dedicated system field.
                 system = Some(content_str);
             }
             "user" | "model" | "assistant" | "tool" => {
@@ -147,7 +144,7 @@ fn convert_request(req: LlmRequest, model_id: String) -> Result<CompletionReques
                     "user" => MessageRole::User,
                     "model" | "assistant" => MessageRole::Assistant,
                     "tool" => MessageRole::Tool,
-                    _ => MessageRole::User, // fallback
+                    _ => MessageRole::User,
                 };
                 messages.push(ChatMessage {
                     role,
@@ -166,7 +163,6 @@ fn convert_request(req: LlmRequest, model_id: String) -> Result<CompletionReques
         .map(|cfg| (cfg.temperature, cfg.max_output_tokens))
         .unwrap_or((None, None));
 
-    // Build ModelParams, including required stop and top_p fields.
     let model_params = ModelParams {
         temperature,
         max_tokens: max_tokens.map(|t| t as u32),
@@ -174,7 +170,6 @@ fn convert_request(req: LlmRequest, model_id: String) -> Result<CompletionReques
         stop: Vec::new(),
     };
 
-    // Tools are not yet implemented in this adapter.
     let tools = Vec::new();
     let tools_toon = None;
 

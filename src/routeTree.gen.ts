@@ -10,107 +10,107 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
-import { Route as AppConversationsConversationIdRouteImport } from './routes/_app/conversations.$conversationId'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
-import { Route as AppSettingsAchievementsRouteImport } from './routes/_app/settings.achievements'
-import { Route as AppSettingsApiKeysRouteImport } from './routes/_app/settings.api-keys'
-import { Route as AppSettingsAppearanceRouteImport } from './routes/_app/settings.appearance'
-import { Route as AppSettingsApprovalsRouteImport } from './routes/_app/settings.approvals'
 import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings.index'
-import { Route as AppSettingsLintRouteImport } from './routes/_app/settings.lint'
-import { Route as AppSettingsPlatformRouteImport } from './routes/_app/settings.platform'
-import { Route as AppSettingsPreferencesRouteImport } from './routes/_app/settings.preferences'
-import { Route as AppSettingsProfilesRouteImport } from './routes/_app/settings.profiles'
-import { Route as AppSettingsReferralRouteImport } from './routes/_app/settings.referral'
-import { Route as AppSettingsShortcutsRouteImport } from './routes/_app/settings.shortcuts'
-import { Route as AppSettingsSourcesRouteImport } from './routes/_app/settings.sources'
 import { Route as AppSharedShareTokenRouteImport } from './routes/_app/shared.$shareToken'
+import { Route as AppSettingsSourcesRouteImport } from './routes/_app/settings.sources'
+import { Route as AppSettingsShortcutsRouteImport } from './routes/_app/settings.shortcuts'
+import { Route as AppSettingsReferralRouteImport } from './routes/_app/settings.referral'
+import { Route as AppSettingsProfilesRouteImport } from './routes/_app/settings.profiles'
+import { Route as AppSettingsPreferencesRouteImport } from './routes/_app/settings.preferences'
+import { Route as AppSettingsPlatformRouteImport } from './routes/_app/settings.platform'
+import { Route as AppSettingsLintRouteImport } from './routes/_app/settings.lint'
+import { Route as AppSettingsApprovalsRouteImport } from './routes/_app/settings.approvals'
+import { Route as AppSettingsAppearanceRouteImport } from './routes/_app/settings.appearance'
+import { Route as AppSettingsApiKeysRouteImport } from './routes/_app/settings.api-keys'
+import { Route as AppSettingsAchievementsRouteImport } from './routes/_app/settings.achievements'
+import { Route as AppConversationsConversationIdRouteImport } from './routes/_app/conversations.$conversationId'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
-  getParentRoute: () => rootRouteImport
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AppRoute
+  getParentRoute: () => AppRoute,
 } as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
-  getParentRoute: () => AppRoute
+  getParentRoute: () => AppRoute,
 } as any)
 const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AppSettingsRoute
+  getParentRoute: () => AppSettingsRoute,
 } as any)
 const AppSharedShareTokenRoute = AppSharedShareTokenRouteImport.update({
   id: '/shared/$shareToken',
   path: '/shared/$shareToken',
-  getParentRoute: () => AppRoute
+  getParentRoute: () => AppRoute,
 } as any)
 const AppSettingsSourcesRoute = AppSettingsSourcesRouteImport.update({
   id: '/sources',
   path: '/sources',
-  getParentRoute: () => AppSettingsRoute
+  getParentRoute: () => AppSettingsRoute,
 } as any)
 const AppSettingsShortcutsRoute = AppSettingsShortcutsRouteImport.update({
   id: '/shortcuts',
   path: '/shortcuts',
-  getParentRoute: () => AppSettingsRoute
+  getParentRoute: () => AppSettingsRoute,
 } as any)
 const AppSettingsReferralRoute = AppSettingsReferralRouteImport.update({
   id: '/referral',
   path: '/referral',
-  getParentRoute: () => AppSettingsRoute
+  getParentRoute: () => AppSettingsRoute,
 } as any)
 const AppSettingsProfilesRoute = AppSettingsProfilesRouteImport.update({
   id: '/profiles',
   path: '/profiles',
-  getParentRoute: () => AppSettingsRoute
+  getParentRoute: () => AppSettingsRoute,
 } as any)
 const AppSettingsPreferencesRoute = AppSettingsPreferencesRouteImport.update({
   id: '/preferences',
   path: '/preferences',
-  getParentRoute: () => AppSettingsRoute
+  getParentRoute: () => AppSettingsRoute,
 } as any)
 const AppSettingsPlatformRoute = AppSettingsPlatformRouteImport.update({
   id: '/platform',
   path: '/platform',
-  getParentRoute: () => AppSettingsRoute
+  getParentRoute: () => AppSettingsRoute,
 } as any)
 const AppSettingsLintRoute = AppSettingsLintRouteImport.update({
   id: '/lint',
   path: '/lint',
-  getParentRoute: () => AppSettingsRoute
+  getParentRoute: () => AppSettingsRoute,
 } as any)
 const AppSettingsApprovalsRoute = AppSettingsApprovalsRouteImport.update({
   id: '/approvals',
   path: '/approvals',
-  getParentRoute: () => AppSettingsRoute
+  getParentRoute: () => AppSettingsRoute,
 } as any)
 const AppSettingsAppearanceRoute = AppSettingsAppearanceRouteImport.update({
   id: '/appearance',
   path: '/appearance',
-  getParentRoute: () => AppSettingsRoute
+  getParentRoute: () => AppSettingsRoute,
 } as any)
 const AppSettingsApiKeysRoute = AppSettingsApiKeysRouteImport.update({
   id: '/api-keys',
   path: '/api-keys',
-  getParentRoute: () => AppSettingsRoute
+  getParentRoute: () => AppSettingsRoute,
 } as any)
 const AppSettingsAchievementsRoute = AppSettingsAchievementsRouteImport.update({
   id: '/achievements',
   path: '/achievements',
-  getParentRoute: () => AppSettingsRoute
+  getParentRoute: () => AppSettingsRoute,
 } as any)
 const AppConversationsConversationIdRoute =
   AppConversationsConversationIdRouteImport.update({
     id: '/conversations/$conversationId',
     path: '/conversations/$conversationId',
-    getParentRoute: () => AppRoute
+    getParentRoute: () => AppRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -380,11 +380,11 @@ const AppSettingsRouteChildren: AppSettingsRouteChildren = {
   AppSettingsReferralRoute: AppSettingsReferralRoute,
   AppSettingsShortcutsRoute: AppSettingsShortcutsRoute,
   AppSettingsSourcesRoute: AppSettingsSourcesRoute,
-  AppSettingsIndexRoute: AppSettingsIndexRoute
+  AppSettingsIndexRoute: AppSettingsIndexRoute,
 }
 
 const AppSettingsRouteWithChildren = AppSettingsRoute._addFileChildren(
-  AppSettingsRouteChildren
+  AppSettingsRouteChildren,
 )
 
 interface AppRouteChildren {
@@ -398,13 +398,13 @@ const AppRouteChildren: AppRouteChildren = {
   AppSettingsRoute: AppSettingsRouteWithChildren,
   AppIndexRoute: AppIndexRoute,
   AppConversationsConversationIdRoute: AppConversationsConversationIdRoute,
-  AppSharedShareTokenRoute: AppSharedShareTokenRoute
+  AppSharedShareTokenRoute: AppSharedShareTokenRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
-  AppRoute: AppRouteWithChildren
+  AppRoute: AppRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

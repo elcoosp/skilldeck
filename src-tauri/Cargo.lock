@@ -7952,6 +7952,7 @@ dependencies = [
  "migration",
  "notify",
  "notify-debouncer-mini",
+ "ollama-rs",
  "once_cell",
  "parking_lot",
  "petgraph",

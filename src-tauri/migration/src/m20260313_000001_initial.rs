@@ -267,6 +267,7 @@ impl MigrationTrait for Migration {
                     .col(uuid(Messages::ConversationId).not_null())
                     .col(uuid(Messages::ParentId).null())
                     .col(boolean(Messages::Seen).not_null())
+                    .col(boolean(Messages::Compacted).not_null().default(false))
                     .col(uuid(Messages::BranchId).null())
                     .col(text(Messages::StableHtml).null())
                     .col(string(Messages::Role).not_null())
@@ -280,6 +281,9 @@ impl MigrationTrait for Migration {
                     .col(integer(Messages::CacheWriteTokens).null())
                     // NEW: status column
                     .col(string(Messages::Status).not_null().default("active"))
+                    // NEW: Thinking integration columns
+                    .col(text(Messages::ThinkingContent).null())
+                    .col(json(Messages::ThinkingDocument).null())
                     .col(
                         timestamp_with_time_zone(Messages::CreatedAt)
                             .not_null()
@@ -1632,6 +1636,7 @@ enum Conversations {
 enum Messages {
     Table,
     Id,
+    Compacted,
     StableHtml,
     ContextItems,
     ConversationId,
@@ -1647,6 +1652,9 @@ enum Messages {
     CacheReadTokens,
     CacheWriteTokens,
     Status,
+    // New: Thinking integration columns
+    ThinkingContent,
+    ThinkingDocument,
     CreatedAt,
 }
 
