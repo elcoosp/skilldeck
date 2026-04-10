@@ -40,6 +40,27 @@ use tauri_specta::{Builder, collect_commands, collect_events};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // --- START CDP ENABLEMENT ---
+    #[cfg(debug_assertions)]
+    {
+        // Windows: WebView2
+        #[cfg(target_os = "windows")]
+        std::env::set_var(
+            "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
+            "--remote-debugging-port=0 --disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection",
+        );
+
+        // macOS / Linux: WebKit
+        #[cfg(any(target_os = "macos", target_os = "linux"))]
+        {
+            // Enable remote inspector and let OS assign a free port
+            unsafe {
+                std::env::set_var("WEBKIT_REMOTE_INSPECTOR", "1");
+            }
+            // The port will be written to DevToolsActivePort in the user data dir
+        }
+    }
+    // --- END CDP ENABLEMENT ---
     // #[cfg(not(debug_assertions))]
     // {
     use tracing_subscriber::{EnvFilter, fmt};

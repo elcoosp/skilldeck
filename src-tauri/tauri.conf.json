@@ -21,8 +21,7 @@
         "dragDropEnabled": true,
         "fullscreen": false,
         "hiddenTitle": true,
-        "titleBarStyle": "Overlay",
-        "additionalBrowserArgs": "--remote-debugging-port=9222"
+        "titleBarStyle": "Overlay"
       }
     ],
     "security": {

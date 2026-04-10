@@ -21,7 +21,7 @@ export default defineConfig({
   projects: [
     {
       name: 'marketing-assets',
-      testMatch: '**/*.marketing.spec.ts',
+      testMatch: 'tests/**/*.marketing.spec.ts',
     },
   ],
 });
