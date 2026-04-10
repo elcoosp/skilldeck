@@ -14,18 +14,18 @@ export function useWorkflowDefinitions() {
   return useQuery({
     queryKey: ['workflow-definitions'],
     queryFn: async (): Promise<WorkflowDefinition[]> => {
-      // FIXME: commands.listWorkflowDefinitions is not typed; cast to any
-      const res = await (commands as any).listWorkflowDefinitions()
+      const res = await commands.listWorkflowDefinitions()
       if (res.status === 'ok') return res.data
       throw new Error(res.error)
     }
   })
 }
+
 export function useRunWorkflowDefinition() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (id: string) => {
-      const res = await (commands as any).runWorkflowDefinition(id)
+      const res = await commands.runWorkflowDefinition(id, null)
       if (res.status === 'error') throw new Error(res.error)
       return res.data as string
     },
@@ -34,6 +34,7 @@ export function useRunWorkflowDefinition() {
     }
   })
 }
+
 export function useSaveWorkflowDefinition() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -44,7 +45,7 @@ export function useSaveWorkflowDefinition() {
       name: string
       definition: any
     }) => {
-      const res = await (commands as any).saveWorkflowDefinition({
+      const res = await commands.saveWorkflowDefinition({
         name,
         definition
       })
@@ -61,7 +62,7 @@ export function useDeleteWorkflowDefinition() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (id: string) => {
-      const res = await (commands as any).deleteWorkflowDefinition(id)
+      const res = await commands.deleteWorkflowDefinition(id)
       if (res.status === 'error') throw new Error(res.error)
       return res.data
     },

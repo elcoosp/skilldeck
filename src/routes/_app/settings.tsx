@@ -16,7 +16,8 @@ import {
   ShieldCheck,
   Sun,
   Trophy,
-  X
+  X,
+  GitBranch
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -31,7 +32,8 @@ const SETTINGS_TABS = [
   { id: 'lint', label: 'Lint Rules', Icon: AlertTriangle },
   { id: 'sources', label: 'Skill Sources', Icon: Folder },
   { id: 'shortcuts', label: 'Shortcuts', Icon: Keyboard },
-  { id: 'achievements', label: 'Achievements', Icon: Trophy }
+  { id: 'achievements', label: 'Achievements', Icon: Trophy },
+  { id: 'workflows', label: 'Workflows', Icon: GitBranch }
 ] as const
 
 export const Route = createFileRoute('/_app/settings')({
@@ -48,7 +50,6 @@ function SettingsLayout() {
   }
 
   const handleTabChange = (tabId: string) => {
-    // Use replace to avoid adding to history stack
     router.navigate({
       to: `/settings/${tabId}`,
       replace: true
@@ -56,9 +57,6 @@ function SettingsLayout() {
   }
 
   return (
-    // biome lint/a11y/noStaticElementInteractions: ok
-    // biome-ignore  lint/a11y/useKeyWithClickEvents:ok
-    // biome-ignore lint/a11y/noStaticElementInteractions: ok
     <div
       className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
       onClick={(e) => {
@@ -66,7 +64,6 @@ function SettingsLayout() {
       }}
     >
       <div className="w-full max-w-2xl h-[520px] rounded-xl border border-border bg-background shadow-2xl flex overflow-hidden">
-        {/* Sidebar */}
         <nav className="w-44 shrink-0 border-r border-border bg-muted/30 p-2 flex flex-col gap-0.5">
           <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
             Settings
@@ -100,7 +97,6 @@ function SettingsLayout() {
           </div>
         </nav>
 
-        {/* Content pane – wrapped in stacked-card container */}
         <div className="flex-1 overflow-y-auto text-left">
           <div className="mx-auto w-full max-w-2xl">
             <Outlet />

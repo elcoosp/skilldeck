@@ -1,4 +1,4 @@
-use sea_orm::{ActiveModelTrait, ActiveValue::Set, EntityTrait, QueryFilter};
+use sea_orm::{ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, QueryFilter};
 use serde::{Deserialize, Serialize};
 use specta::{Type, specta};
 use std::sync::Arc;
@@ -26,6 +26,30 @@ pub struct CreateBookmarkRequest {
     pub label: Option<String>,
 }
 
+async fn add_bookmark_internal(
+    db: &sea_orm::DatabaseConnection,
+    req: CreateBookmarkRequest,
+) -> Result<BookmarkData, String> {
+    let now = chrono::Utc::now().fixed_offset();
+    let id = Uuid::new_v4();
+    let model = bookmarks::ActiveModel {
+        id: Set(id),
+        message_id: Set(Uuid::parse_str(&req.message_id).map_err(|e| e.to_string())?),
+        heading_anchor: Set(req.heading_anchor.clone()),
+        label: Set(req.label.clone()),
+        note: Set(None),
+        created_at: Set(now),
+    };
+    model.insert(db).await.map_err(|e| e.to_string())?;
+    Ok(BookmarkData {
+        id: id.to_string(),
+        message_id: req.message_id,
+        heading_anchor: req.heading_anchor,
+        label: req.label,
+        created_at: now.to_rfc3339(),
+    })
+}
+
 #[specta]
 #[tauri::command]
 pub async fn add_bookmark(
@@ -38,24 +62,7 @@ pub async fn add_bookmark(
         .connection()
         .await
         .map_err(|e| e.to_string())?;
-    let now = chrono::Utc::now().fixed_offset();
-    let id = Uuid::new_v4();
-    let model = bookmarks::ActiveModel {
-        id: Set(id),
-        message_id: Set(Uuid::parse_str(&req.message_id).map_err(|e| e.to_string())?),
-        heading_anchor: Set(req.heading_anchor.clone()), // clone to avoid move
-        label: Set(req.label.clone()),                   // clone to avoid move
-        note: Set(None), // Adjust if your model requires a different default
-        created_at: Set(now),
-    };
-    model.insert(db).await.map_err(|e| e.to_string())?;
-    Ok(BookmarkData {
-        id: id.to_string(),
-        message_id: req.message_id,
-        heading_anchor: req.heading_anchor, // now usable because we cloned earlier
-        label: req.label,
-        created_at: now.to_rfc3339(),
-    })
+    add_bookmark_internal(&db, req).await
 }
 
 #[specta]
@@ -90,8 +97,8 @@ pub async fn list_bookmarks(
     let conv_uuid = Uuid::parse_str(&conversation_id).map_err(|e| e.to_string())?;
 
     let bookmarks = Bookmarks::find()
-        .inner_join(Messages) // Requires relation defined in entity
-        .filter(messages::COLUMN.conversation_id.eq(conv_uuid))
+        .inner_join(Messages)
+        .filter(messages::Column::ConversationId.eq(conv_uuid))
         .all(db)
         .await
         .map_err(|e| e.to_string())?;
@@ -128,8 +135,8 @@ pub async fn toggle_bookmark(
     let msg_uuid = Uuid::parse_str(&message_id).map_err(|e| e.to_string())?;
 
     let existing = Bookmarks::find()
-        .filter(bookmarks::COLUMN.message_id.eq(msg_uuid))
-        .filter(bookmarks::COLUMN.heading_anchor.eq(heading_anchor.clone()))
+        .filter(bookmarks::Column::MessageId.eq(msg_uuid))
+        .filter(bookmarks::Column::HeadingAnchor.eq(heading_anchor.clone()))
         .one(db)
         .await
         .map_err(|e| e.to_string())?;
@@ -147,7 +154,7 @@ pub async fn toggle_bookmark(
             heading_anchor,
             label,
         };
-        let data = add_bookmark(state, req).await?;
+        let data = add_bookmark_internal(db, req).await?;
         Ok(Some(data))
     }
 }

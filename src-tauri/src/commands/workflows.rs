@@ -152,8 +152,9 @@ pub async fn delete_workflow_definition(
 #[specta]
 #[tauri::command]
 pub async fn run_workflow_definition(
-    state: State<'_, std::sync::Arc<AppState>>,
+    state: State<'_, Arc<AppState>>,
     id: String,
+    provider_id: Option<String>,
 ) -> Result<String, String> {
     let db = state
         .registry
@@ -173,11 +174,25 @@ pub async fn run_workflow_definition(
 
     let (tx, mut rx) = tokio::sync::mpsc::channel::<skilldeck_core::workflow::WorkflowEvent>(128);
 
-    let provider_id = "ollama".to_string();
-    let provider = state
-        .registry
-        .get_provider(&provider_id)
-        .ok_or_else(|| format!("Provider {} not available", provider_id))?;
+    // Use provided provider_id or fall back to default profile's provider
+    let provider = if let Some(pid) = provider_id {
+        state
+            .registry
+            .get_provider(&pid)
+            .ok_or_else(|| format!("Provider {} not available", pid))?
+    } else {
+        // Get default profile's provider
+        let default_profile = skilldeck_models::profiles::Entity::find()
+            .filter(skilldeck_models::profiles::Column::IsDefault.eq(true))
+            .one(db)
+            .await
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| "No default profile found".to_string())?;
+        state
+            .registry
+            .get_provider(&default_profile.model_provider)
+            .ok_or_else(|| format!("Provider {} not available", default_profile.model_provider))?
+    };
 
     // Get the first available model or fallback
     let models = provider.list_models().await.map_err(|e| e.to_string())?;
@@ -249,4 +264,43 @@ pub async fn run_workflow_definition(
     });
 
     Ok(execution_id_str)
+}
+
+/// Update an existing workflow definition.
+#[specta]
+#[tauri::command]
+pub async fn update_workflow_definition(
+    state: State<'_, Arc<AppState>>,
+    id: String,
+    name: String,
+    definition: serde_json::Value,
+) -> Result<WorkflowDefinitionResponse, String> {
+    let db = state
+        .registry
+        .db
+        .connection()
+        .await
+        .map_err(|e| e.to_string())?;
+    let uuid = Uuid::parse_str(&id).map_err(|e| e.to_string())?;
+
+    let existing = WorkflowDefs::find_by_id(uuid)
+        .one(db)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("Workflow definition {} not found", id))?;
+
+    let now = chrono::Utc::now().fixed_offset();
+    let mut active: workflow_definitions::ActiveModel = existing.into();
+    active.name = Set(name.clone());
+    active.definition_json = Set(definition.clone());
+    active.updated_at = Set(now);
+    active.update(db).await.map_err(|e| e.to_string())?;
+
+    Ok(WorkflowDefinitionResponse {
+        id: uuid.to_string(),
+        name,
+        definition,
+        created_at: existing.created_at.to_rfc3339(),
+        updated_at: now.to_rfc3339(),
+    })
 }

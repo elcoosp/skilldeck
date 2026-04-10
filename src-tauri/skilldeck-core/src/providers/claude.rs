@@ -282,8 +282,7 @@ impl ModelProvider for ClaudeProvider {
             };
         }
 
-        // ── Thinking budget handling ──────────────────────────────────────────
-        let thinking = request.thinking; // already bool
+        let thinking = request.thinking;
         let thinking_config = if thinking {
             Some(ClaudeThinking {
                 type_: "enabled".to_string(),

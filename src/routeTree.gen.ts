@@ -14,6 +14,7 @@ import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings.index'
 import { Route as AppSharedShareTokenRouteImport } from './routes/_app/shared.$shareToken'
+import { Route as AppSettingsWorkflowsRouteImport } from './routes/_app/settings.workflows'
 import { Route as AppSettingsSourcesRouteImport } from './routes/_app/settings.sources'
 import { Route as AppSettingsShortcutsRouteImport } from './routes/_app/settings.shortcuts'
 import { Route as AppSettingsReferralRouteImport } from './routes/_app/settings.referral'
@@ -50,6 +51,11 @@ const AppSharedShareTokenRoute = AppSharedShareTokenRouteImport.update({
   id: '/shared/$shareToken',
   path: '/shared/$shareToken',
   getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsWorkflowsRoute = AppSettingsWorkflowsRouteImport.update({
+  id: '/workflows',
+  path: '/workflows',
+  getParentRoute: () => AppSettingsRoute,
 } as any)
 const AppSettingsSourcesRoute = AppSettingsSourcesRouteImport.update({
   id: '/sources',
@@ -128,6 +134,7 @@ export interface FileRoutesByFullPath {
   '/settings/referral': typeof AppSettingsReferralRoute
   '/settings/shortcuts': typeof AppSettingsShortcutsRoute
   '/settings/sources': typeof AppSettingsSourcesRoute
+  '/settings/workflows': typeof AppSettingsWorkflowsRoute
   '/shared/$shareToken': typeof AppSharedShareTokenRoute
   '/settings/': typeof AppSettingsIndexRoute
 }
@@ -145,6 +152,7 @@ export interface FileRoutesByTo {
   '/settings/referral': typeof AppSettingsReferralRoute
   '/settings/shortcuts': typeof AppSettingsShortcutsRoute
   '/settings/sources': typeof AppSettingsSourcesRoute
+  '/settings/workflows': typeof AppSettingsWorkflowsRoute
   '/shared/$shareToken': typeof AppSharedShareTokenRoute
   '/settings': typeof AppSettingsIndexRoute
 }
@@ -165,6 +173,7 @@ export interface FileRoutesById {
   '/_app/settings/referral': typeof AppSettingsReferralRoute
   '/_app/settings/shortcuts': typeof AppSettingsShortcutsRoute
   '/_app/settings/sources': typeof AppSettingsSourcesRoute
+  '/_app/settings/workflows': typeof AppSettingsWorkflowsRoute
   '/_app/shared/$shareToken': typeof AppSharedShareTokenRoute
   '/_app/settings/': typeof AppSettingsIndexRoute
 }
@@ -185,6 +194,7 @@ export interface FileRouteTypes {
     | '/settings/referral'
     | '/settings/shortcuts'
     | '/settings/sources'
+    | '/settings/workflows'
     | '/shared/$shareToken'
     | '/settings/'
   fileRoutesByTo: FileRoutesByTo
@@ -202,6 +212,7 @@ export interface FileRouteTypes {
     | '/settings/referral'
     | '/settings/shortcuts'
     | '/settings/sources'
+    | '/settings/workflows'
     | '/shared/$shareToken'
     | '/settings'
   id:
@@ -221,6 +232,7 @@ export interface FileRouteTypes {
     | '/_app/settings/referral'
     | '/_app/settings/shortcuts'
     | '/_app/settings/sources'
+    | '/_app/settings/workflows'
     | '/_app/shared/$shareToken'
     | '/_app/settings/'
   fileRoutesById: FileRoutesById
@@ -265,6 +277,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/shared/$shareToken'
       preLoaderRoute: typeof AppSharedShareTokenRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/_app/settings/workflows': {
+      id: '/_app/settings/workflows'
+      path: '/workflows'
+      fullPath: '/settings/workflows'
+      preLoaderRoute: typeof AppSettingsWorkflowsRouteImport
+      parentRoute: typeof AppSettingsRoute
     }
     '/_app/settings/sources': {
       id: '/_app/settings/sources'
@@ -365,6 +384,7 @@ interface AppSettingsRouteChildren {
   AppSettingsReferralRoute: typeof AppSettingsReferralRoute
   AppSettingsShortcutsRoute: typeof AppSettingsShortcutsRoute
   AppSettingsSourcesRoute: typeof AppSettingsSourcesRoute
+  AppSettingsWorkflowsRoute: typeof AppSettingsWorkflowsRoute
   AppSettingsIndexRoute: typeof AppSettingsIndexRoute
 }
 
@@ -380,6 +400,7 @@ const AppSettingsRouteChildren: AppSettingsRouteChildren = {
   AppSettingsReferralRoute: AppSettingsReferralRoute,
   AppSettingsShortcutsRoute: AppSettingsShortcutsRoute,
   AppSettingsSourcesRoute: AppSettingsSourcesRoute,
+  AppSettingsWorkflowsRoute: AppSettingsWorkflowsRoute,
   AppSettingsIndexRoute: AppSettingsIndexRoute,
 }
 

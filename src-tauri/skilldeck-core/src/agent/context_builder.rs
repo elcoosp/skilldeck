@@ -4,7 +4,7 @@
 //! construction so `AgentLoop` stays focused on control flow.
 
 use crate::{
-    CoreError,
+    CoreError, toon,
     traits::{ChatMessage, CompletionRequest, MessageRole, ModelParams, ToolDefinition},
 };
 
@@ -18,7 +18,8 @@ pub struct ContextBuilder {
     tools: Vec<ToolDefinition>,
     model_params: ModelParams,
     max_messages: usize,
-    thinking: bool, // <-- added
+    thinking: bool,
+    supports_toon: bool,
 }
 
 impl ContextBuilder {
@@ -26,7 +27,8 @@ impl ContextBuilder {
         Self {
             model_id: model_id.into(),
             max_messages: 100,
-            thinking: false, // default
+            thinking: false,
+            supports_toon: false,
             ..Default::default()
         }
     }
@@ -66,6 +68,11 @@ impl ContextBuilder {
         self
     }
 
+    pub fn supports_toon(mut self, supports: bool) -> Self {
+        self.supports_toon = supports;
+        self
+    }
+
     /// Build the [`CompletionRequest`].
     pub fn build(self) -> Result<CompletionRequest, CoreError> {
         // Assemble system prompt from base + injected skills.
@@ -74,14 +81,25 @@ impl ContextBuilder {
         // Trim message history to context window.
         let messages = trim_messages(self.messages, self.max_messages);
 
+        // Determine whether to send tools as TOON
+        let tools_toon = if self.supports_toon && !self.tools.is_empty() {
+            toon::encode_tools(&self.tools)
+        } else {
+            None
+        };
+
         Ok(CompletionRequest {
             model_id: self.model_id,
             messages,
             system,
-            tools: self.tools,
-            tools_toon: None,
+            tools: if tools_toon.is_some() {
+                vec![]
+            } else {
+                self.tools
+            },
+            tools_toon,
             model_params: self.model_params,
-            thinking: self.thinking, // <-- add thinking field
+            thinking: self.thinking,
         })
     }
 }
@@ -196,11 +214,13 @@ mod tests {
                 content: "hi".into(),
                 name: None,
             }])
+            .supports_toon(true)
             .build()
             .unwrap();
 
         assert_eq!(req.model_id, "claude-sonnet-4-5");
         assert!(req.system.is_some());
         assert_eq!(req.messages.len(), 1);
+        assert_eq!(req.tools_toon, None); // empty tools => None
     }
 }

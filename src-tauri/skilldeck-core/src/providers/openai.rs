@@ -242,14 +242,32 @@ impl ModelProvider for OpenAiProvider {
         let messages = Self::convert_messages(&request.messages);
         let tools = Self::convert_tools(&request.tools);
 
+        let mut openai_messages = messages;
+        let mut openai_tools = tools;
+
+        // If TOON tools are provided, inject them as a system message and clear native tools
+        if let Some(toon) = &request.tools_toon {
+            let system_content = format!("Available tools (TOON format):\n{}", toon);
+            openai_messages.insert(
+                0,
+                OpenAiMessage {
+                    role: "system".to_string(),
+                    content: Some(system_content),
+                    tool_calls: None,
+                    tool_call_id: None,
+                },
+            );
+            openai_tools.clear();
+        }
+
         let openai_request = OpenAiRequest {
             model: request.model_id.clone(),
-            messages,
+            messages: openai_messages,
             max_tokens: request.model_params.max_tokens,
             temperature: request.model_params.temperature,
             stream: true,
             stream_options: Some(json!({"include_usage": true})),
-            tools,
+            tools: openai_tools,
         };
 
         let client = self.client.clone();

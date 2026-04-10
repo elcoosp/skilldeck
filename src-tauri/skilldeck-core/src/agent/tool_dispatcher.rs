@@ -179,7 +179,7 @@ fn matches_any_prefix(s: &str, prefixes: &[&str]) -> bool {
 // ── Dispatcher ────────────────────────────────────────────────────────────────
 
 /// Built-in tool names that never require approval.
-const BUILTIN_TOOLS: &[&str] = &["loadSkill", "spawnSubagent", "mergeSubagentResults"];
+const BUILTIN_TOOLS: &[&str] = &["load_skill", "spawn_subagent", "merge_subagent_results"];
 
 pub struct ToolDispatcher {
     mcp_registry: Arc<McpRegistry>,
@@ -296,7 +296,7 @@ impl ToolDispatcher {
 
     async fn dispatch_builtin(&self, name: &str, args: &Value) -> Option<Result<Value, CoreError>> {
         match name {
-            "loadSkill" => {
+            "load_skill" => {
                 let skill_name = args["name"].as_str().unwrap_or("unknown");
                 match self.skill_registry.get_skill(skill_name).await {
                     Some(skill) => {
@@ -327,7 +327,7 @@ impl ToolDispatcher {
                     })),
                 }
             }
-            "spawnSubagent" => {
+            "spawn_subagent" => {
                 if let Some(spawner) = &self.subagent_spawner {
                     let task = args["task"].as_str().unwrap_or("").to_string();
                     let skills = args["skills"]
@@ -341,11 +341,11 @@ impl ToolDispatcher {
 
                     match spawner.spawn_subagent(task, skills).await {
                         Ok(subagent_id) => Some(Ok(serde_json::json!({
-                            "subagentId": subagent_id,
+                            "subagent_id": subagent_id,
                             "status": "spawned"
                         }))),
                         Err(e) => Some(Err(CoreError::McpToolExecution {
-                            tool_name: "spawnSubagent".into(),
+                            tool_name: "spawn_subagent".into(),
                             message: e,
                         })),
                     }
@@ -355,14 +355,14 @@ impl ToolDispatcher {
                     }))
                 }
             }
-            "mergeSubagentResults" => {
+            "merge_subagent_results" => {
                 if let Some(spawner) = &self.subagent_spawner {
-                    let subagent_id = match args["subagentId"].as_str() {
+                    let subagent_id = match args["subagent_id"].as_str() {
                         Some(id) => id,
                         None => {
                             return Some(Err(CoreError::McpToolExecution {
-                                tool_name: "mergeSubagentResults".into(),
-                                message: "Missing subagentId".into(),
+                                tool_name: "merge_subagent_results".into(),
+                                message: "Missing subagent_id".into(),
                             }));
                         }
                     };
@@ -370,7 +370,7 @@ impl ToolDispatcher {
                     match spawner.get_subagent_result(subagent_id).await {
                         Some(result) => Some(Ok(serde_json::json!({ "result": result }))),
                         None => Some(Err(CoreError::McpToolExecution {
-                            tool_name: "mergeSubagentResults".into(),
+                            tool_name: "merge_subagent_results".into(),
                             message: format!(
                                 "Subagent {} not found or not yet completed",
                                 subagent_id
@@ -446,9 +446,9 @@ mod tests {
     #[tokio::test]
     async fn builtin_tools_skip_approval() {
         let d = make_dispatcher();
-        assert!(!d.needs_approval("loadSkill").await);
-        assert!(!d.needs_approval("spawnSubagent").await);
-        assert!(!d.needs_approval("mergeSubagentResults").await);
+        assert!(!d.needs_approval("load_skill").await);
+        assert!(!d.needs_approval("spawn_subagent").await);
+        assert!(!d.needs_approval("merge_subagent_results").await);
     }
 
     #[tokio::test]
@@ -527,7 +527,7 @@ mod tests {
             id: "tc1".into(),
             r#type: "function".into(),
             function: crate::traits::FunctionCall {
-                name: "loadSkill".into(),
+                name: "load_skill".into(),
                 arguments: r#"{"name":"my-skill"}"#.into(),
             },
         };
