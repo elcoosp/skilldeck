@@ -62,7 +62,7 @@ jobs:
           pnpm capture
 
       - name: Upload screenshots and videos
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: marketing-assets-${{ matrix.os }}
           path: marketing-assets/test-results/
