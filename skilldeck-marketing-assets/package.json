@@ -1,0 +1,18 @@
+{
+  "name": "skilldeck-marketing-assets",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "capture": "playwright test --project=marketing-assets",
+    "capture:ui": "playwright test --project=marketing-assets --ui",
+    "postprocess": "tsx scripts/rename-videos.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "@types/node": "^22.0.0",
+    "playwright": "^1.49.0",
+    "sharp": "^0.33.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}
