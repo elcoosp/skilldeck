@@ -1,9 +1,10 @@
 // src/components/settings/platform-tab.tsx
 import { useState } from 'react'
-import { toast } from '@/components/ui/toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { PremiumError } from '@/components/ui/premium-error'
 import { Switch } from '@/components/ui/switch'
+import { toast } from '@/components/ui/toast'
 import {
   isPlatformNotConfigured,
   usePlatformPreferences,
@@ -42,46 +43,41 @@ export function PlatformTab() {
     )
   }
 
-  // Not configured – centered
+  // Not configured – show PremiumError with action
   if (isPlatformNotConfigured(query)) {
     return (
-      <div className="flex flex-col items-center justify-center h-full min-h-[200px] gap-3 p-6 text-center">
-        <p className="text-sm text-muted-foreground">
-          SkillDeck Platform is not yet set up for this device.
-        </p>
-        <Button
-          onClick={() => register.mutate()}
-          disabled={register.isPending}
-          size="sm"
-        >
-          {register.isPending ? 'Registering…' : 'Register with Platform'}
-        </Button>
-        {register.isError && (
-          <div className="text-destructive text-xs mt-2">
-            {register.error?.message.includes('Network')
-              ? 'Network error – check your connection'
-              : register.error?.message.includes('401')
-                ? 'Invalid API key – check your platform token'
-                : `Registration failed: ${register.error.message}`}
-            <button
-              type="button"
-              onClick={() => register.mutate()}
-              className="ml-2 underline"
-            >
-              Retry
-            </button>
-          </div>
-        )}
-      </div>
+      <PremiumError
+        code="🔌"
+        title="Platform not configured"
+        description="SkillDeck Platform is not yet set up for this device. Register to sync skills and receive updates."
+        action={{
+          label: register.isPending ? 'Registering…' : 'Register with Platform',
+          onClick: () => register.mutate()
+        }}
+        secondaryAction={{
+          label: 'Retry',
+          onClick: () => query.refetch()
+        }}
+      />
     )
   }
 
-  // Error – centered
+  // Error – show PremiumError
   if (query.isError) {
     return (
-      <div className="flex items-center justify-center h-full min-h-[200px] text-sm text-destructive">
-        Could not load platform preferences.
-      </div>
+      <PremiumError
+        code="⚠️"
+        title="Failed to load platform settings"
+        description="Could not load platform preferences. Make sure you're connected and try again."
+        action={{
+          label: 'Retry',
+          onClick: () => query.refetch()
+        }}
+        secondaryAction={{
+          label: 'Go back',
+          onClick: () => window.history.back()
+        }}
+      />
     )
   }
 

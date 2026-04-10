@@ -1,21 +1,12 @@
 // src/components/settings/preferences-tab.tsx
 import { useRouter } from '@tanstack/react-router'
 import { open } from '@tauri-apps/plugin-dialog'
-import {
-  AlertTriangle,
-  Bell,
-  Code,
-  Globe,
-  Mail,
-  Maximize2,
-  Palette,
-  Shield
-} from 'lucide-react'
+import { AlertTriangle } from 'lucide-react'
 import { useState } from 'react'
-import { toast } from '@/components/ui/toast'
 import { SettingsSection } from '@/components/settings/settings-section'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { PremiumError } from '@/components/ui/premium-error'
 import {
   Select,
   SelectContent,
@@ -24,228 +15,55 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { Textarea } from '@/components/ui/textarea'
+import { toast } from '@/components/ui/toast'
 import { useAppVersion } from '@/hooks/use-app-version'
 import {
   isPlatformNotConfigured,
   usePlatformPreferences
 } from '@/hooks/use-platform'
-import { useProfiles, useUpdateProfile } from '@/hooks/use-profiles'
-import { useProviderReady } from '@/hooks/use-provider-ready'
 import { commands } from '@/lib/bindings'
 import { loadLocale, locales } from '@/lib/i18n'
 import type { UpdatePreferencesPayload } from '@/lib/platform'
 import { useSettingsStore } from '@/store/settings'
 
-export function PreferencesTab() {
+// Component for platform-dependent settings (email, nudges, theme, analytics)
+function PlatformDependentSettings() {
   const router = useRouter()
   const { query, update, resendVerification } = usePlatformPreferences()
   const prefs = query.data
-
-  const { data: profiles = [], isLoading: profilesLoading } = useProfiles()
-  const updateProfile = useUpdateProfile()
-
-  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(
-    null
-  )
   const [emailDraft, setEmailDraft] = useState('')
-  const [systemPromptDraft, setSystemPromptDraft] = useState('')
-  const [syntaxTheme, setSyntaxTheme] = useState('base16-mocha')
 
-  const selectedProfile = profiles.find((p) => p.id === selectedProfileId)
-  const { data: readiness, isLoading: readinessLoading } = useProviderReady(
-    selectedProfileId ?? undefined
-  )
-
-  // Language preference
-  const settingsLanguage = useSettingsStore((s) => s.language)
-  const setLanguage = useSettingsStore((s) => s.setLanguage)
-  const defaultProvider = useSettingsStore((s) => s.defaultProvider)
-
-  // Code block max height
-  const codeBlockMaxHeight = useSettingsStore((s) => s.codeBlockMaxHeight)
-  const setCodeBlockMaxHeight = useSettingsStore((s) => s.setCodeBlockMaxHeight)
-
-  // Concierge UI: preferred editor
-  const preferredEditor = useSettingsStore((s) => s.preferredEditor)
-  const setPreferredEditor = useSettingsStore((s) => s.setPreferredEditor)
-
-  // Concierge UI: auto-compaction
-  const autoCompactionEnabled = useSettingsStore((s) => s.autoCompactionEnabled)
-  const setAutoCompactionEnabled = useSettingsStore(
-    (s) => s.setAutoCompactionEnabled
-  )
-  const compactionTokenThreshold = useSettingsStore(
-    (s) => s.compactionTokenThreshold
-  )
-  const setCompactionTokenThreshold = useSettingsStore(
-    (s) => s.setCompactionTokenThreshold
-  )
-
-  // App version
-  const version = useAppVersion()
-
-  // Loading state – centered
-  if (query.isLoading || profilesLoading) {
-    return (
-      <div className="flex items-center justify-center h-full min-h-[200px] text-muted-foreground text-sm">
-        Loading preferences…
-      </div>
-    )
-  }
-
-  // Platform not configured – centered
-  if (isPlatformNotConfigured(query)) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full min-h-[200px] gap-3 p-4 text-center">
-        <p className="text-sm text-muted-foreground">
-          Platform not configured.
-        </p>
-        <Button
-          size="sm"
-          onClick={() => router.navigate({ to: '/settings/platform' })}
-        >
-          Go to Platform Settings
-        </Button>
-      </div>
-    )
-  }
-
-  // Error state – centered
-  if (query.isError) {
-    return (
-      <div className="flex items-center justify-center h-full min-h-[200px] text-sm text-destructive">
-        Could not load platform preferences. Make sure you're connected.
-      </div>
-    )
-  }
-
-  function save(partial: UpdatePreferencesPayload) {
+  const save = (partial: UpdatePreferencesPayload) => {
     update.mutate(partial)
   }
 
-  const handleSaveSystemPrompt = () => {
-    if (!selectedProfile) return
-    updateProfile.mutate({
-      id: selectedProfile.id,
-      system_prompt: systemPromptDraft
-    })
+  if (query.isLoading) {
+    return (
+      <div className="py-8 text-center text-muted-foreground text-sm">
+        Loading platform settings…
+      </div>
+    )
   }
 
-  const handleThemeChange = async (value: string) => {
-    let css: string
-    if (value === 'custom') {
-      const selected = await open({
-        multiple: false,
-        filters: [{ name: 'Theme Files', extensions: ['tmTheme'] }]
-      })
-      if (!selected) return
-      const result = await commands.setThemeFromFile(selected as string)
-      if (result.status === 'error') {
-        toast.error(result.error)
-        return
-      }
-      css = result.data
-      setSyntaxTheme('custom')
-    } else {
-      const result = await commands.setBuiltInTheme(value)
-      if (result.status === 'error') {
-        toast.error(result.error)
-        return
-      }
-      css = result.data
-      setSyntaxTheme(value)
-    }
-    const style = document.getElementById('syntax-theme')
-    if (style) style.textContent = css
+  if (isPlatformNotConfigured(query) || query.isError) {
+    return (
+      <div className="my-4">
+        <PremiumError
+          code="☁️"
+          title="Platform features unavailable"
+          description="Email, nudges, and cloud sync require platform connection."
+          action={{
+            label: 'Go to Platform',
+            onClick: () => router.navigate({ to: '/settings/platform' })
+          }}
+          className="min-h-[200px]"
+        />
+      </div>
+    )
   }
 
   return (
-    <div className="divide-y divide-border">
-      {/* Profile selector */}
-      <SettingsSection
-        title="Profile"
-        description="Select a profile to edit its settings"
-      >
-        <Select
-          value={selectedProfileId ?? ''}
-          onValueChange={(id) => {
-            setSelectedProfileId(id)
-            const profile = profiles.find((p) => p.id === id)
-            setSystemPromptDraft(profile?.system_prompt ?? '')
-          }}
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Select a profile to edit" />
-          </SelectTrigger>
-          <SelectContent>
-            {profiles.map((p) => (
-              <SelectItem key={p.id} value={p.id}>
-                {p.name} {p.is_default ? '(default)' : ''}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </SettingsSection>
-
-      {/* System Prompt editor */}
-      {selectedProfile && (
-        <SettingsSection
-          title="System Prompt"
-          description="Base instructions for the model"
-        >
-          <Textarea
-            placeholder="You are a helpful assistant…"
-            value={systemPromptDraft}
-            onChange={(e) => setSystemPromptDraft(e.target.value)}
-            rows={6}
-          />
-          <div className="flex justify-end mt-2">
-            <Button
-              size="sm"
-              onClick={handleSaveSystemPrompt}
-              disabled={updateProfile.isPending}
-            >
-              Save Prompt
-            </Button>
-          </div>
-
-          {/* Provider Readiness Indicator */}
-          {!readinessLoading && readiness && (
-            <div className="mt-3">
-              {readiness.status.status === 'ready' ? (
-                <Badge
-                  variant="outline"
-                  className="bg-green-500/15 text-green-600 dark:text-green-400 border-green-500/20"
-                >
-                  ✓ Provider ready
-                </Badge>
-              ) : (
-                <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 text-sm">
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                    <span className="font-medium text-amber-800 dark:text-amber-300">
-                      Provider Not Ready
-                    </span>
-                  </div>
-                  <p className="text-amber-700 dark:text-amber-400 mt-1">
-                    {readiness.status.reason} {readiness.status.fix_action}
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-        </SettingsSection>
-      )}
-
-      {/* Local mode hint */}
-      {defaultProvider === 'ollama' && (
-        <div className="rounded-md bg-primary/5 p-3 text-xs text-muted-foreground border border-primary/20">
-          <span className="font-medium">🦙 Local mode</span> – Using Ollama on
-          your machine. No API key required. Change provider in Profiles.
-        </div>
-      )}
-
+    <>
       {/* Email & Verification */}
       <SettingsSection
         title="Email"
@@ -396,7 +214,85 @@ export function PreferencesTab() {
         </select>
       </SettingsSection>
 
-      {/* Syntax Theme (code highlighting) */}
+      {/* Analytics consent */}
+      <SettingsSection
+        title="Privacy"
+        description="SkillDeck never sells your data"
+      >
+        <p className="text-muted-foreground mb-3">
+          SkillDeck never sells your data. Anonymous usage analytics help us
+          improve the product — opt in only if you're comfortable.
+        </p>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={prefs?.analytics_opt_in ?? false}
+            onChange={(e) => save({ analytics_opt_in: e.target.checked })}
+            className="accent-primary"
+          />
+          <span>Share anonymous usage analytics</span>
+        </label>
+      </SettingsSection>
+    </>
+  )
+}
+
+export function PreferencesTab() {
+  const [syntaxTheme, setSyntaxTheme] = useState('base16-mocha')
+
+  // Local settings (not dependent on platform)
+  const settingsLanguage = useSettingsStore((s) => s.language)
+  const setLanguage = useSettingsStore((s) => s.setLanguage)
+  const codeBlockMaxHeight = useSettingsStore((s) => s.codeBlockMaxHeight)
+  const setCodeBlockMaxHeight = useSettingsStore((s) => s.setCodeBlockMaxHeight)
+  const preferredEditor = useSettingsStore((s) => s.preferredEditor)
+  const setPreferredEditor = useSettingsStore((s) => s.setPreferredEditor)
+  const autoCompactionEnabled = useSettingsStore((s) => s.autoCompactionEnabled)
+  const setAutoCompactionEnabled = useSettingsStore(
+    (s) => s.setAutoCompactionEnabled
+  )
+  const compactionTokenThreshold = useSettingsStore(
+    (s) => s.compactionTokenThreshold
+  )
+  const setCompactionTokenThreshold = useSettingsStore(
+    (s) => s.setCompactionTokenThreshold
+  )
+  const version = useAppVersion()
+
+  const handleThemeChange = async (value: string) => {
+    let css: string
+    if (value === 'custom') {
+      const selected = await open({
+        multiple: false,
+        filters: [{ name: 'Theme Files', extensions: ['tmTheme'] }]
+      })
+      if (!selected) return
+      const result = await commands.setThemeFromFile(selected as string)
+      if (result.status === 'error') {
+        toast.error(result.error)
+        return
+      }
+      css = result.data
+      setSyntaxTheme('custom')
+    } else {
+      const result = await commands.setBuiltInTheme(value)
+      if (result.status === 'error') {
+        toast.error(result.error)
+        return
+      }
+      css = result.data
+      setSyntaxTheme(value)
+    }
+    const style = document.getElementById('syntax-theme')
+    if (style) style.textContent = css
+  }
+
+  return (
+    <div className="divide-y divide-border">
+      {/* Platform-dependent settings (email, nudges, theme, analytics) */}
+      <PlatformDependentSettings />
+
+      {/* Syntax Theme */}
       <SettingsSection
         title="Syntax Theme"
         description="Theme for code blocks in messages"
@@ -458,7 +354,7 @@ export function PreferencesTab() {
         </p>
       </SettingsSection>
 
-      {/* Preferred Editor (F08) */}
+      {/* Preferred Editor */}
       <SettingsSection
         title="Preferred Editor"
         description="Choose which editor to open workspace folders in"
@@ -480,7 +376,7 @@ export function PreferencesTab() {
         </Select>
       </SettingsSection>
 
-      {/* Auto Compaction (F12) */}
+      {/* Auto Compaction */}
       <SettingsSection
         title="Context Management"
         description="Automatically compress long conversations to save context window space"
@@ -515,28 +411,8 @@ export function PreferencesTab() {
         )}
       </SettingsSection>
 
-      {/* Analytics consent */}
-      <SettingsSection
-        title="Privacy"
-        description="SkillDeck never sells your data"
-      >
-        <p className="text-muted-foreground mb-3">
-          SkillDeck never sells your data. Anonymous usage analytics help us
-          improve the product — opt in only if you're comfortable.
-        </p>
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={prefs?.analytics_opt_in ?? false}
-            onChange={(e) => save({ analytics_opt_in: e.target.checked })}
-            className="accent-primary"
-          />
-          <span>Share anonymous usage analytics</span>
-        </label>
-      </SettingsSection>
-
-      {/* App version */}
-      <p className="pt-6 text-center text-xs text-muted-foreground">
+      {/* App version – with bottom padding */}
+      <p className="pt-6 pb-6 text-center text-xs text-muted-foreground">
         SkillDeck v{version}
       </p>
     </div>

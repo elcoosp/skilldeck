@@ -8,6 +8,7 @@ import {
   AlertTriangle,
   Bell,
   Folder,
+  GitBranch,
   Globe,
   Key,
   Keyboard,
@@ -16,8 +17,7 @@ import {
   ShieldCheck,
   Sun,
   Trophy,
-  X,
-  GitBranch
+  X
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -98,7 +98,7 @@ function SettingsLayout() {
         </nav>
 
         {/* Content area - no extra padding needed because button floats above */}
-        <div className="flex-1 overflow-y-auto text-left">
+        <div className="flex-1 overflow-y-auto text-left thin-scrollbar">
           <div className="mx-auto w-full max-w-2xl">
             <Outlet />
           </div>
