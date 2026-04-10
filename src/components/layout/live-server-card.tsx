@@ -10,7 +10,7 @@ import {
   Unplug
 } from 'lucide-react'
 import { useState } from 'react'
-import { toast } from 'sonner'
+import { toast } from '@/components/ui/toast'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import type { McpServerResponse, McpToolResponse } from '@/lib/bindings'
@@ -34,7 +34,7 @@ function StatusBadge({ status }: { status: McpServerResponse['status'] }) {
       className={cn(
         'text-[10px] h-4 px-1.5 shrink-0',
         status === 'connected' &&
-          'bg-green-500/15 text-green-600 dark:text-green-400 border-green-500/20'
+        'bg-green-500/15 text-green-600 dark:text-green-400 border-green-500/20'
       )}
     >
       {status === 'connected' && (

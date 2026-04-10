@@ -3,7 +3,7 @@ import { useRouter } from '@tanstack/react-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { Group, type Layout, Panel, Separator } from 'react-resizable-panels'
-import { Toaster } from 'sonner'
+import { Toaster } from '@/components/ui/toast'
 import { GlobalDropZone } from '@/components/chat/global-drop-zone'
 import { CommandPalette } from '@/components/overlays/command-palette'
 import { LaunchNotificationBanner } from '@/components/overlays/launch-notification'
@@ -23,9 +23,9 @@ const PANEL_CENTER = 'center'
 const PANEL_RIGHT = 'right'
 
 const DEFAULT_LAYOUT: Layout = {
-  [PANEL_LEFT]: 20,
-  [PANEL_CENTER]: 60,
-  [PANEL_RIGHT]: 20
+  [PANEL_LEFT]: 25,
+  [PANEL_CENTER]: 50,
+  [PANEL_RIGHT]: 25
 }
 
 export function AppShell() {
@@ -48,7 +48,7 @@ export function AppShell() {
           return parsed as Layout
         }
       }
-    } catch {}
+    } catch { }
     return DEFAULT_LAYOUT
   })
 
@@ -172,7 +172,7 @@ export function AppShell() {
       <CommandPalette />
       <GlobalSearchModal />
       <GlobalDropZone />
-      <Toaster position="bottom-right" richColors closeButton />
+      <Toaster position="bottom-right" />
     </div>
   )
 }

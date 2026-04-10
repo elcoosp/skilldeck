@@ -12,7 +12,9 @@ pub struct Model {
     pub name: String,
     pub project_type: Option<String>,
     pub is_open: bool,
+    pub avatar_style: String,
     pub last_opened_at: Option<DateTimeWithTimeZone>,
+
     pub created_at: DateTimeWithTimeZone,
 
     // Reverse relation to conversations (optional)

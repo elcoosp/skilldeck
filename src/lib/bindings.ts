@@ -5,6 +5,14 @@
 
 
 export const commands = {
+async updateWorkspace(id: string, avatarStyle: string | null) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("update_workspace", { id, avatarStyle }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async unlockAchievement(id: string) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("unlock_achievement", { id }) };
@@ -1369,7 +1377,7 @@ export type WorkflowDefinitionResponse = { id: string; name: string; definition:
  * Payload for the `"workflow-event"` Tauri channel.
  */
 export type WorkflowEvent = { type: "started"; id: string } | { type: "step_started"; workflow_id: string; step_id: string } | { type: "step_completed"; workflow_id: string; step_id: string; result: string | null } | { type: "step_failed"; workflow_id: string; step_id: string; error: string } | { type: "completed"; id: string } | { type: "failed"; id: string; message: string }
-export type WorkspaceData = { id: string; path: string; name: string; project_type: string; is_open: boolean; context_files: string[]; indexed_file_count: string }
+export type WorkspaceData = { id: string; path: string; name: string; project_type: string; is_open: boolean; avatar_style: string; context_files: string[]; indexed_file_count: string }
 
 /** tauri-specta globals **/
 

@@ -30,6 +30,7 @@ impl MigrationTrait for Migration {
                     .col(uuid(Workspaces::Id).primary_key())
                     .col(string(Workspaces::Path).not_null().unique_key())
                     .col(string(Workspaces::Name).not_null())
+                    .col(string(Workspaces::AvatarStyle).not_null())
                     .col(string(Workspaces::ProjectType).null())
                     .col(boolean(Workspaces::IsOpen).not_null().default(false))
                     .col(timestamp_with_time_zone(Workspaces::LastOpenedAt).null())
@@ -1627,6 +1628,7 @@ enum Workspaces {
     Id,
     Path,
     Name,
+    AvatarStyle,
     ProjectType,
     IsOpen,
     LastOpenedAt,

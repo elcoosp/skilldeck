@@ -9,10 +9,12 @@
  * - Open in Editor button (F08): opens workspace in preferred editor
  * - Main area — fully responsive conversation list
  * - Conversations filtered by currently selected workspace only
+ * - Workspace avatars use customisable gradients with click‑edit card
  */
 
 import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 import { useRouter, useRouterState } from '@tanstack/react-router'
+import { useQueryClient } from '@tanstack/react-query'
 import { open } from '@tauri-apps/plugin-dialog'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -23,13 +25,16 @@ import {
   Folder,
   FolderOpen,
   FolderPlus,
+  Loader2,
+  Pencil,
   Plus,
   Search,
-  Settings
+  Settings,
+  X
 } from 'lucide-react'
 import { Collapsible } from 'radix-ui'
 import { useEffect, useState } from 'react'
-import { toast } from 'sonner'
+import { toast } from '@/components/ui/toast'
 import { ConversationItem } from '@/components/conversation/conversation-item'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -50,38 +55,21 @@ import { useCreateFolder, useFolders } from '@/hooks/use-folders'
 import { useLeftPanelSearch } from '@/hooks/use-left-panel-search'
 import { useProfileFilter } from '@/hooks/use-profile-filter'
 import { useProfiles } from '@/hooks/use-profiles'
-import { useOpenWorkspace, useWorkspaces } from '@/hooks/use-workspaces'
+import {
+  useOpenWorkspace,
+  useUpdateWorkspace,
+  useWorkspaces
+} from '@/hooks/use-workspaces'
 import { cn } from '@/lib/utils'
 import { useSettingsStore } from '@/store/settings'
 import { useUIOverlaysStore } from '@/store/ui-overlays'
 import { useWorkspaceStore } from '@/store/workspace'
 
 // ----------------------------------------------------------------------
-// Helper: deterministic color from workspace id
-// ----------------------------------------------------------------------
-function getWorkspaceColor(workspaceId: string): string {
-  const colors = [
-    'bg-red-500',
-    'bg-blue-500',
-    'bg-green-500',
-    'bg-yellow-500',
-    'bg-purple-500',
-    'bg-pink-500',
-    'bg-indigo-500',
-    'bg-orange-500'
-  ]
-  let hash = 0
-  for (let i = 0; i < workspaceId.length; i++) {
-    hash = (hash << 5) - hash + workspaceId.charCodeAt(i)
-    hash |= 0
-  }
-  return colors[Math.abs(hash) % colors.length]
-}
-
-// ----------------------------------------------------------------------
 // Date grouping helper
 // ----------------------------------------------------------------------
 import { isToday, isValid, isYesterday, parseISO, subDays } from 'date-fns'
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
 
 function getDateGroupKey(dateStr: string): string {
   const normalized = dateStr
@@ -140,11 +128,199 @@ function EmptyStateAnimation({ alt, className }: EmptyStateAnimationProps) {
 }
 
 // ----------------------------------------------------------------------
+// Gradient presets for workspace avatars
+// ----------------------------------------------------------------------
+const GRADIENT_PRESETS = [
+  { name: 'Sunset', value: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' },
+  { name: 'Ocean', value: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' },
+  { name: 'Forest', value: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)' },
+  { name: 'Lavender', value: 'linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)' },
+  { name: 'Peach', value: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)' },
+  { name: 'Night', value: 'linear-gradient(135deg, #2b5876 0%, #4e4376 100%)' },
+  { name: 'Citrus', value: 'linear-gradient(135deg, #f6d365 0%, #fda085 100%)' },
+  { name: 'Berry', value: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)' }
+]
+
+const DEFAULT_GRADIENT = 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)'
+
+// ----------------------------------------------------------------------
+// Helper: get avatar style from workspace
+// ----------------------------------------------------------------------
+function getWorkspaceAvatarStyle(workspace: { avatar_style?: string }): React.CSSProperties {
+  return { background: workspace.avatar_style || DEFAULT_GRADIENT }
+}
+
+// ----------------------------------------------------------------------
+// Helper: adjust hex color for custom gradient
+// ----------------------------------------------------------------------
+function adjustColor(hex: string, percent: number): string {
+  let R = parseInt(hex.substring(1, 3), 16)
+  let G = parseInt(hex.substring(3, 5), 16)
+  let B = parseInt(hex.substring(5, 7), 16)
+  R = Math.min(255, Math.max(0, R + percent))
+  G = Math.min(255, Math.max(0, G + percent))
+  B = Math.min(255, Math.max(0, B + percent))
+  return `#${((1 << 24) + (R << 16) + (G << 8) + B).toString(16).slice(1)}`
+}
+
+// ----------------------------------------------------------------------
+// Inline workspace avatar editor (card)
+// ----------------------------------------------------------------------
+interface WorkspaceAvatarEditorProps {
+  workspace: { id: string; avatar_style?: string }
+  onClose: () => void
+}
+
+function WorkspaceAvatarEditor({ workspace, onClose }: WorkspaceAvatarEditorProps) {
+  const updateWorkspace = useUpdateWorkspace()
+  const [customColor, setCustomColor] = useState('#6366f1')
+
+  const handleSelectGradient = (gradient: string) => {
+    updateWorkspace.mutate(
+      { id: workspace.id, avatar_style: gradient },
+      {
+        onSuccess: () => {
+          toast.success('Workspace appearance updated')
+          onClose()
+        }
+      }
+    )
+  }
+
+  const handleApplyCustom = () => {
+    const customGradient = `linear-gradient(135deg, ${customColor} 0%, ${adjustColor(customColor, 20)} 100%)`
+    updateWorkspace.mutate(
+      { id: workspace.id, avatar_style: customGradient },
+      {
+        onSuccess: () => {
+          toast.success('Workspace appearance updated')
+          onClose()
+        }
+      }
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h4 className="font-medium text-sm">Avatar style</h4>
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-muted-foreground hover:text-foreground"
+        >
+          <X className="size-3.5" />
+        </button>
+      </div>
+      <div className="grid grid-cols-4 gap-2">
+        {GRADIENT_PRESETS.map((preset) => (
+          <button
+            key={preset.name}
+            className="w-8 h-8 rounded-full border border-border hover:scale-110 transition-transform disabled:opacity-50"
+            style={{ background: preset.value }}
+            title={preset.name}
+            onClick={() => handleSelectGradient(preset.value)}
+            disabled={updateWorkspace.isPending}
+          />
+        ))}
+      </div>
+      <div className="flex items-center gap-2">
+        <Input
+          type="color"
+          value={customColor}
+          onChange={(e) => setCustomColor(e.target.value)}
+          className="w-8 h-8 p-1 rounded-full"
+          disabled={updateWorkspace.isPending}
+        />
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleApplyCustom}
+          disabled={updateWorkspace.isPending}
+          className="relative"
+        >
+          {updateWorkspace.isPending && (
+            <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+          )}
+          Apply custom
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+// ----------------------------------------------------------------------
+// Workspace avatar component (with edit button that opens card)
+// ----------------------------------------------------------------------
+interface WorkspaceAvatarProps {
+  workspace: { id: string; name: string; is_open: boolean; avatar_style?: string }
+  isActive: boolean
+  onSwitch: (workspace: { id: string; name: string; is_open: boolean }) => void
+}
+function WorkspaceAvatar({ workspace, isActive, onSwitch }: WorkspaceAvatarProps) {
+  const [isEditing, setIsEditing] = useState(false)
+  const [isHovered, setIsHovered] = useState(false)
+
+  const initials = workspace.name ? workspace.name.slice(0, 2).toUpperCase() : '??'
+  const avatarStyle = getWorkspaceAvatarStyle(workspace)
+
+  return (
+    <div
+      className="relative"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <button
+        type="button"
+        onClick={() => onSwitch(workspace)}
+        title={workspace.is_open ? workspace.name : `${workspace.name} (closed)`}
+        className={cn(
+          'w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-base shadow-sm transition-transform duration-150 ease-out hover:scale-105 focus:outline-none shrink-0',
+          isActive
+            ? 'ring-2 ring-primary ring-offset-2 ring-offset-background shadow-md'
+            : 'opacity-70 hover:opacity-100'
+        )}
+        style={avatarStyle}
+      >
+        {initials}
+      </button>
+
+      {/* Popover with edit button as trigger – always present, open state controlled */}
+      <Popover open={isEditing} onOpenChange={setIsEditing}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className={cn(
+              'absolute -top-1 -right-1 w-5 h-5 bg-background border border-border rounded-full flex items-center justify-center shadow-sm hover:bg-muted transition-colors z-10',
+              isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'
+            )}
+            aria-label="Edit workspace appearance"
+          >
+            <Pencil className="size-3 text-muted-foreground" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          side="right"
+          align="start"
+          className="w-64 p-3"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
+          <WorkspaceAvatarEditor
+            workspace={workspace}
+            onClose={() => setIsEditing(false)}
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
+  )
+}
+// ----------------------------------------------------------------------
 // Main component
 // ----------------------------------------------------------------------
 export function LeftPanel() {
   const router = useRouter()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
+  const queryClient = useQueryClient()
 
   // Store & UI state
   const setGlobalSearchOpen = useUIOverlaysStore((s) => s.setGlobalSearchOpen)
@@ -168,6 +344,7 @@ export function LeftPanel() {
   // Data hooks
   const { data: workspaces = [] } = useWorkspaces()
   const openWorkspace = useOpenWorkspace()
+  const updateWorkspace = useUpdateWorkspace()
   const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId)
 
   const { data: profiles = [] } = useProfiles(false)
@@ -249,6 +426,18 @@ export function LeftPanel() {
       if (!selected) return
       const workspace = await openWorkspace.mutateAsync(selected)
       setActiveWorkspace(workspace.id)
+
+      // Assign a random gradient from presets to the new workspace
+      const randomPreset = GRADIENT_PRESETS[Math.floor(Math.random() * GRADIENT_PRESETS.length)]
+      updateWorkspace.mutate(
+        { id: workspace.id, avatar_style: randomPreset.value },
+        {
+          onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['workspaces'] })
+          }
+        }
+      )
+
       toast.success(`Workspace opened: ${workspace.name}`)
     } catch (err) {
       toast.error(`Could not open workspace: ${err}`)
@@ -321,29 +510,14 @@ export function LeftPanel() {
         {/* Scrollable workspace avatar list */}
         <ScrollArea className="flex-1 min-h-0">
           <div className="flex flex-col items-center gap-2 px-2 pt-3 pb-3">
-            {workspaces.map((w) => {
-              const isActive = w.id === activeWorkspaceId
-              const initials = w.name ? w.name.slice(0, 2).toUpperCase() : '??'
-              const colorClass = getWorkspaceColor(w.id)
-
-              return (
-                <button
-                  key={w.id}
-                  type="button"
-                  onClick={() => handleSwitchWorkspace(w)}
-                  title={w.is_open ? w.name : `${w.name} (closed)`}
-                  className={cn(
-                    'w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-base shadow-sm transition-transform duration-150 ease-out hover:scale-105 focus:outline-none shrink-0',
-                    colorClass,
-                    isActive
-                      ? 'ring-2 ring-primary ring-offset-2 ring-offset-background shadow-md'
-                      : 'opacity-70 hover:opacity-100'
-                  )}
-                >
-                  {initials}
-                </button>
-              )
-            })}
+            {workspaces.map((w) => (
+              <WorkspaceAvatar
+                key={w.id}
+                workspace={w}
+                isActive={w.id === activeWorkspaceId}
+                onSwitch={handleSwitchWorkspace}
+              />
+            ))}
 
             {/* Add workspace button */}
             <button

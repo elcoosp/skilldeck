@@ -1,4 +1,4 @@
-import { toast } from 'sonner'
+import { toast } from '@/components/ui/toast'
 import { create } from 'zustand'
 import { type BookmarkData, commands } from '@/lib/bindings'
 

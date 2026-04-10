@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { Pin, PinOff } from 'lucide-react'
 import { useState } from 'react'
-import { toast } from 'sonner'
+import { toast } from '@/components/ui/toast'
 import { commands } from '@/lib/bindings'
 
 interface PinIconProps {

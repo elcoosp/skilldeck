@@ -1,7 +1,7 @@
 // src/hooks/use-queued-messages.ts
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
-import { toast } from 'sonner'
+import { toast } from '@/components/ui/toast'
 import type { ContextItem } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
 import { onQueueEvent, type QueueEvent } from '@/lib/events'

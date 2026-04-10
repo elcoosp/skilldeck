@@ -29,7 +29,7 @@ import React, {
   useRef,
   useState
 } from 'react'
-import { toast } from 'sonner'
+import { toast } from '@/components/ui/toast'
 import { ContextChip } from '@/components/chat/context-chip'
 import { MarkdownView } from '@/components/markdown-view'
 import {

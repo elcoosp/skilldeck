@@ -20,10 +20,37 @@ pub struct WorkspaceData {
     pub name: String,
     pub project_type: String,
     pub is_open: bool,
+    pub avatar_style: String,
     pub context_files: Vec<String>, // <-- new field
     pub indexed_file_count: u64,    // <-- new field
 }
+#[specta]
+#[tauri::command]
+pub async fn update_workspace(
+    state: State<'_, Arc<AppState>>,
+    id: Uuid,
+    avatar_style: Option<String>,
+) -> Result<(), String> {
+    let db = state
+        .registry
+        .db
+        .connection()
+        .await
+        .map_err(|e| e.to_string())?;
+    let workspace = Workspaces::find_by_id(id)
+        .one(db)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("Workspace {id} not found"))?;
 
+    let mut active: workspaces::ActiveModel = workspace.into();
+    if let Some(avatar_style) = avatar_style {
+        active.avatar_style = Set(avatar_style);
+    }
+    active.update(db).await.map_err(|e| e.to_string())?;
+
+    Ok(())
+}
 /// Detect and open a workspace at the given path.
 /// If the workspace already exists in the DB, it is reopened (updated) instead of inserted.
 #[specta]
@@ -54,17 +81,19 @@ pub async fn open_workspace(
         .await
         .map_err(|e| e.to_string())?;
 
-    let (id, _is_new) = if let Some(row) = existing {
+    let (id, avatar_style) = if let Some(row) = existing {
         let id = row.id;
+        let avatar_style = row.avatar_style.clone(); // Preserve existing style
         // Reopen: update is_open and last_opened_at
         let mut active: workspaces::ActiveModel = row.into();
         active.is_open = Set(true);
         active.last_opened_at = Set(Some(now));
         active.update(db).await.map_err(|e| e.to_string())?;
-        (id, false)
+        (id, avatar_style)
     } else {
         // Insert new workspace
         let id = Uuid::new_v4();
+        let default_style = "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)".to_string();
         let name = context
             .root
             .file_name()
@@ -80,9 +109,10 @@ pub async fn open_workspace(
             is_open: Set(true),
             created_at: Set(now),
             last_opened_at: Set(Some(now)),
+            avatar_style: Set(default_style.clone()),
         };
         model.insert(db).await.map_err(|e| e.to_string())?;
-        (id, true)
+        (id, default_style)
     };
 
     // Gather context files (first 10 for preview)
@@ -108,6 +138,7 @@ pub async fn open_workspace(
         is_open: true,
         context_files,
         indexed_file_count,
+        avatar_style, // Now correctly uses the stored style for existing workspaces
     })
 }
 
@@ -165,6 +196,7 @@ pub async fn list_workspaces(
             name: r.name,
             project_type: r.project_type.unwrap_or_else(|| "generic".to_string()),
             is_open: r.is_open,
+            avatar_style: r.avatar_style,
             context_files: Vec::new(),
             indexed_file_count: 0,
         });

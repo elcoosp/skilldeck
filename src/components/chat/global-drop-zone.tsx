@@ -1,7 +1,7 @@
 // src/components/chat/global-drop-zone.tsx
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { useEffect, useRef, useState } from 'react'
-import { toast } from 'sonner'
+import { toast } from '@/components/ui/toast'
 import { commands } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
 import { useChatContextStore } from '@/store/chat-context-store'

@@ -1,7 +1,7 @@
 import { useRouter } from '@tanstack/react-router'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { Copy, ExternalLink, Gift, Users } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/components/ui/toast'
 import { SettingsSection } from '@/components/settings/settings-section'
 import { usePlatformPreferences, useReferral } from '@/hooks/use-platform'
 import { PLATFORM_BASE_URL } from '@/lib/config'

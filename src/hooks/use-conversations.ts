@@ -4,7 +4,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { toast } from 'sonner'
+import { toast } from '@/components/ui/toast'
 import { commands } from '@/lib/bindings'
 import type { UUID } from '@/lib/types'
 import { useConversationStore } from '@/store/conversation'

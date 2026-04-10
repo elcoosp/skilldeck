@@ -9,7 +9,7 @@ import {
   X
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { toast } from 'sonner'
+import { toast } from '@/components/ui/toast'
 import { useDebounce } from 'use-debounce'
 import { z } from 'zod'
 import { BranchNav } from '@/components/conversation/branch-nav'
@@ -234,7 +234,7 @@ function ConversationView() {
   }, [markAllUnseenAsSeen])
 
   useEffect(() => {
-    let unsub = () => {}
+    let unsub = () => { }
     const t = setTimeout(() => {
       const thread = threadRef.current
       if (!thread) return

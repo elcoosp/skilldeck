@@ -1,6 +1,6 @@
 import { listen } from '@tauri-apps/api/event'
 import { useEffect } from 'react'
-import { toast } from 'sonner'
+import { toast } from '@/components/ui/toast'
 import { useChatContextStore } from '@/store/chat-context-store'
 
 export function useAttachFilesListener() {

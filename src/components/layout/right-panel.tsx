@@ -2,15 +2,8 @@
 /**
  * Right panel — tabbed session context: Session, Skills, MCP, Workflow, Analytics, Artifacts.
  *
- * Tab bar shows icons only. On hover the label fades in and smoothly pushes
- * sibling icons apart via a max-width transition (no layout jumps).
- *
- * Each tab uses flex-1 so all five tabs share the bar width equally and never
- * shift position when a label slides in — the icon stays centred in its
- * reserved slot at all times.
- *
- * Skills tab now renders the UnifiedSkillList — a virtualized marketplace that
- * merges local and registry skills into a single high-performance grid.
+ * Vertical icon rail on the right edge, always visible. Icons are grouped with a separator.
+ * Active tab shows a subtle background highlight. Content area fills the remaining space.
  */
 
 import { useQuery } from '@tanstack/react-query'
@@ -35,7 +28,7 @@ import {
   Zap
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { toast } from 'sonner'
+import { toast } from '@/components/ui/toast'
 import { ArtifactPanel } from '@/components/artifacts/artifact-panel'
 import { UnifiedSkillList } from '@/components/skills/unified-skill-list'
 import { BouncingDots } from '@/components/ui/bouncing-dots'
@@ -51,6 +44,12 @@ import {
 } from '@/components/ui/dialog'
 import { ModelSelectorWithIcon } from '@/components/ui/model-selector-with-icon'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from '@/components/ui/tooltip'
 import { WorkflowEditor } from '@/components/workflow/workflow-editor'
 import { WorkflowGraph } from '@/components/workflow/workflow-graph'
 import { FileTreePanel } from '@/components/workspace/file-tree-panel'
@@ -95,14 +94,18 @@ const TABS: {
   label: string
   Icon: React.FC<{ className?: string }>
 }[] = [
-  { id: 'session', label: 'Session', Icon: Cpu },
-  { id: 'skills', label: 'Skills', Icon: Layers },
-  { id: 'mcp', label: 'MCP', Icon: Zap },
-  { id: 'workflow', label: 'Workflow', Icon: GitBranch },
-  { id: 'analytics', label: 'Analytics', Icon: BarChart2 },
-  { id: 'artifacts', label: 'Artifacts', Icon: FileCode },
-  { id: 'files', label: 'Files', Icon: FolderTree }
-]
+    { id: 'session', label: 'Session', Icon: Cpu },
+    { id: 'skills', label: 'Skills', Icon: Layers },
+    { id: 'mcp', label: 'MCP', Icon: Zap },
+    { id: 'workflow', label: 'Workflow', Icon: GitBranch },
+    { id: 'analytics', label: 'Analytics', Icon: BarChart2 },
+    { id: 'artifacts', label: 'Artifacts', Icon: FileCode },
+    { id: 'files', label: 'Files', Icon: FolderTree }
+  ]
+
+// Group definitions for visual separation
+const PRIMARY_TAB_IDS: Tab[] = ['session', 'skills', 'mcp', 'artifacts', 'files']
+const SECONDARY_TAB_IDS: Tab[] = ['workflow', 'analytics']
 
 export function RightPanel() {
   const [activeTab, setActiveTab] = useState<Tab>('session')
@@ -122,66 +125,111 @@ export function RightPanel() {
     return true
   })
 
-  return (
-    <div className="flex flex-col h-full">
-      <div className="flex border-b border-border shrink-0">
-        {visibleTabs.map(({ id, label, Icon }) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setActiveTab(id)}
-            className={cn(
-              'group relative flex items-center justify-center',
-              'min-w-[2.25rem] px-2 py-2.5 text-xs font-medium',
-              'transition-[color,width] duration-200 ease-in-out',
-              activeTab === id
-                ? 'text-foreground border-b-2 border-primary -mb-px'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            <Icon className="size-3.5 shrink-0" />
-            <span
-              className={cn(
-                'whitespace-nowrap overflow-hidden pointer-events-none',
-                'max-w-0 group-hover:max-w-[6rem]',
-                'ml-0 group-hover:ml-1.5',
-                'opacity-0 group-hover:opacity-100',
-                'transition-[max-width,margin-left,opacity] duration-200 ease-in-out'
-              )}
-            >
-              {label}
-            </span>
-          </button>
-        ))}
-      </div>
+  // Split visible tabs into primary and secondary groups while preserving order
+  const primaryTabs = visibleTabs.filter((tab) =>
+    PRIMARY_TAB_IDS.includes(tab.id)
+  )
+  const secondaryTabs = visibleTabs.filter((tab) =>
+    SECONDARY_TAB_IDS.includes(tab.id)
+  )
 
-      {/* Tab content */}
-      {activeTab === 'mcp' ? (
-        <div className="flex-1 min-h-0 overflow-hidden w-full min-w-0">
-          <McpTab />
-        </div>
-      ) : activeTab === 'skills' ? (
-        <div className="flex-1 min-h-0 overflow-hidden w-full min-w-0">
-          <UnifiedSkillList />
-        </div>
-      ) : activeTab === 'artifacts' ? (
-        <div className="flex-1 min-h-0 overflow-hidden w-full min-w-0">
-          <ArtifactPanel />
-        </div>
-      ) : activeTab === 'files' ? (
-        <div className="flex-1 min-h-0 overflow-hidden w-full min-w-0">
-          <FileTreePanel />
-        </div>
-      ) : (
-        <ScrollArea className="flex-1 min-h-0">
-          {activeTab === 'session' && (
-            <SessionTab conversationId={conversationId} />
+  return (
+    <TooltipProvider delayDuration={300}>
+      <div className="flex flex-row h-full">
+        {/* Content area (left) */}
+        <div className="flex-1 min-w-0 overflow-hidden flex flex-col">
+          {activeTab === 'mcp' ? (
+            <div className="flex-1 min-h-0 overflow-hidden w-full min-w-0">
+              <McpTab />
+            </div>
+          ) : activeTab === 'skills' ? (
+            <div className="flex-1 min-h-0 overflow-hidden w-full min-w-0">
+              <UnifiedSkillList />
+            </div>
+          ) : activeTab === 'artifacts' ? (
+            <div className="flex-1 min-h-0 overflow-hidden w-full min-w-0">
+              <ArtifactPanel />
+            </div>
+          ) : activeTab === 'files' ? (
+            <div className="flex-1 min-h-0 overflow-hidden w-full min-w-0">
+              <FileTreePanel />
+            </div>
+          ) : (
+            <ScrollArea className="flex-1 min-h-0">
+              {activeTab === 'session' && (
+                <SessionTab conversationId={conversationId} />
+              )}
+              {activeTab === 'workflow' && <WorkflowTab />}
+              {activeTab === 'analytics' && <AnalyticsTab />}
+            </ScrollArea>
           )}
-          {activeTab === 'workflow' && <WorkflowTab />}
-          {activeTab === 'analytics' && <AnalyticsTab />}
-        </ScrollArea>
-      )}
-    </div>
+        </div>
+
+        {/* Vertical icon rail (right side) – always visible, narrower width */}
+        <div className="w-10 h-full shrink-0 border-l border-border bg-background flex flex-col items-center py-2">
+          {/* Primary group */}
+          <div className="flex flex-col items-center gap-1 w-full">
+            {primaryTabs.map(({ id, label, Icon }) => (
+              <Tooltip key={id}>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab(id)}
+                    className={cn(
+                      'relative flex items-center justify-center w-8 h-8 rounded-full',
+                      'transition-colors duration-150',
+                      'hover:bg-muted/60',
+                      activeTab === id
+                        ? 'text-primary bg-muted'
+                        : 'text-muted-foreground hover:text-foreground'
+                    )}
+                    aria-label={label}
+                  >
+                    <Icon className="size-4 shrink-0" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="left" align="center">
+                  {label}
+                </TooltipContent>
+              </Tooltip>
+            ))}
+          </div>
+
+          {/* Separator between groups */}
+          {secondaryTabs.length > 0 && (
+            <div className="w-6 h-px bg-border my-2 shrink-0" />
+          )}
+
+          {/* Secondary group (pushed to bottom with mt-auto) */}
+          <div className="flex flex-col items-center gap-1 w-full mt-auto">
+            {secondaryTabs.map(({ id, label, Icon }) => (
+              <Tooltip key={id}>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab(id)}
+                    className={cn(
+                      'relative flex items-center justify-center w-8 h-8 rounded-full',
+                      'transition-colors duration-150',
+                      'hover:bg-muted/60',
+                      activeTab === id
+                        ? 'text-primary bg-muted'
+                        : 'text-muted-foreground hover:text-foreground'
+                    )}
+                    aria-label={label}
+                  >
+                    <Icon className="size-4 shrink-0" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="left" align="center">
+                  {label}
+                </TooltipContent>
+              </Tooltip>
+            ))}
+          </div>
+        </div>
+      </div>
+    </TooltipProvider>
   )
 }
 
@@ -309,7 +357,6 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
         <div className="space-y-1">
           <span className="text-xs text-muted-foreground">Provider</span>
           <div className="text-xs font-medium px-2 py-1 rounded bg-muted/50 flex items-center gap-1.5">
-            {/* STRICTLY PROVIDER ICON */}
             <ProviderIcon
               provider={profile.model_provider}
               size={14}
@@ -336,7 +383,6 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
             Model{' '}
             {modelsLoading && <span className="opacity-50">(loading…)</span>}
           </label>
-          {/* STRICTLY MODEL ICONS INSIDE */}
           <ModelSelectorWithIcon
             value={safeSelectedModel}
             onValueChange={setSelectedModelId}
@@ -369,6 +415,7 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
     </div>
   )
 }
+
 // ── Workflow tab (unchanged) ──────────────────────────────────────────────────────────────
 
 function WorkflowTab() {

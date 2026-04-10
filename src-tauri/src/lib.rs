@@ -55,6 +55,7 @@ pub fn run() {
     // Build Tauri Specta builder with all commands and events
     let builder = Builder::<tauri::Wry>::new()
         .commands(collect_commands![
+            update_workspace,
             unlock_achievement,
             list_achievements,
             compact_conversation,

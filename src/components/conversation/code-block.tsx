@@ -4,7 +4,7 @@ import { Check, ChevronRight, Copy, Loader2 } from 'lucide-react'
 import type React from 'react'
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { toast } from 'sonner'
+import { toast } from '@/components/ui/toast'
 import { useArtifactContent } from '@/hooks/use-artifact-content'
 import { cn } from '@/lib/utils'
 

@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Loader2, Plus } from 'lucide-react'
 import { useState } from 'react'
-import { toast } from 'sonner'
+import { toast } from '@/components/ui/toast'
 import type { AddMcpServerPayload } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
 
@@ -49,12 +49,12 @@ export function CustomServerForm({ onSuccess }: CustomServerFormProps) {
 
   const setField =
     (key: keyof CustomFormState) =>
-    (
-      e: React.ChangeEvent<
-        HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-      >
-    ) =>
-      setForm((f) => ({ ...f, [key]: e.target.value }))
+      (
+        e: React.ChangeEvent<
+          HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+        >
+      ) =>
+        setForm((f) => ({ ...f, [key]: e.target.value }))
 
   const submit = () => {
     if (!form.name.trim()) {

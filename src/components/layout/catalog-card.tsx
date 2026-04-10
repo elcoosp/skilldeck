@@ -2,7 +2,7 @@
 
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { ExternalLink, Loader2, Package, Plus } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/components/ui/toast'
 import { cn } from '@/lib/utils'
 import type { CatalogEntry } from './mcp-tab'
 

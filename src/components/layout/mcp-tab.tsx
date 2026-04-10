@@ -15,7 +15,7 @@ import {
   Zap
 } from 'lucide-react'
 import { useState } from 'react'
-import { toast } from 'sonner'
+import { toast } from '@/components/ui/toast'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useActiveConversationWorkspaceId } from '@/hooks/use-conversations'
 import { useWorkspaces } from '@/hooks/use-workspaces'
@@ -37,13 +37,13 @@ export interface CatalogEntry {
   url?: string
   docsUrl: string
   category:
-    | 'filesystem'
-    | 'web'
-    | 'data'
-    | 'dev'
-    | 'productivity'
-    | 'cloud'
-    | 'observability'
+  | 'filesystem'
+  | 'web'
+  | 'data'
+  | 'dev'
+  | 'productivity'
+  | 'cloud'
+  | 'observability'
   tags: string[]
 }
 

@@ -26,7 +26,7 @@ import {
   useRef,
   useState
 } from 'react'
-import { toast } from 'sonner'
+import { toast } from '@/components/ui/toast'
 import { useDebouncedCallback } from 'use-debounce'
 import { AttachedItemsList } from '@/components/chat/attached-items-list'
 import { ChatCommandPalette } from '@/components/chat/chat-command-palette'

@@ -1,6 +1,6 @@
 import { useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { toast } from 'sonner'
+import { toast } from '@/components/ui/toast'
 import { ACHIEVEMENTS, type AchievementId } from '@/lib/achievements'
 import { commands } from '@/lib/bindings'
 

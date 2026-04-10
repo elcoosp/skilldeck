@@ -2,7 +2,7 @@
 import { formatDistanceToNow } from 'date-fns'
 import { MoreHorizontal, Pencil, Pin, PinOff, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { toast } from 'sonner'
+import { toast } from '@/components/ui/toast'
 import { Badge } from '@/components/ui/badge'
 import { StreamingPulse } from '@/components/ui/streaming-pulse'
 import { Button } from '@/components/ui/button'

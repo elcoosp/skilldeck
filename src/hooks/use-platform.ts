@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { listen } from '@tauri-apps/api/event'
 import { openUrl } from '@tauri-apps/plugin-opener' // <-- corrected import
 import { useEffect } from 'react'
-import { toast } from 'sonner'
+import { toast } from '@/components/ui/toast'
 import type { PlatformPreferences as ApiPlatformPreferences } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
 import { platformUrl } from '@/lib/config'
@@ -157,24 +157,24 @@ export function useNudgeListener() {
             action:
               cta_label && cta_action
                 ? {
-                    label: cta_label,
-                    onClick: async () => {
-                      if (cta_action.startsWith('open:')) {
-                        const target = cta_action.replace('open:', '')
-                        window.dispatchEvent(
-                          new CustomEvent('skilldeck:navigate', {
-                            detail: { target }
-                          })
-                        )
-                      } else if (cta_action.startsWith('http')) {
-                        try {
-                          await openUrl(cta_action) // <-- use openUrl
-                        } catch (error) {
-                          console.error('Failed to open URL:', error)
-                        }
+                  label: cta_label,
+                  onClick: async () => {
+                    if (cta_action.startsWith('open:')) {
+                      const target = cta_action.replace('open:', '')
+                      window.dispatchEvent(
+                        new CustomEvent('skilldeck:navigate', {
+                          detail: { target }
+                        })
+                      )
+                    } else if (cta_action.startsWith('http')) {
+                      try {
+                        await openUrl(cta_action) // <-- use openUrl
+                      } catch (error) {
+                        console.error('Failed to open URL:', error)
                       }
                     }
                   }
+                }
                 : undefined
           })
         })

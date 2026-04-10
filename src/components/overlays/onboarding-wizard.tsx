@@ -3,7 +3,7 @@
 import { useRouter } from '@tanstack/react-router'
 import { ArrowRight, Check, Key, Mail, Rocket, Shield } from 'lucide-react'
 import { useState } from 'react'
-import { toast } from 'sonner'
+import { toast } from '@/components/ui/toast'
 import { useCreateConversation } from '@/hooks/use-conversations'
 import { useProfiles } from '@/hooks/use-profiles'
 import { commands } from '@/lib/bindings'
