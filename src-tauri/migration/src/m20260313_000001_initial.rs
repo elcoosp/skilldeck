@@ -132,6 +132,22 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
+        // achievements (new)
+        manager
+            .create_table(
+                Table::create()
+                    .table(Achievements::Table)
+                    .if_not_exists()
+                    .col(string(Achievements::Id).primary_key())
+                    .col(
+                        timestamp_with_time_zone(Achievements::UnlockedAt)
+                            .not_null()
+                            .default(Expr::current_timestamp()),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
         // registry_skills cache
         manager
             .create_table(
@@ -1463,27 +1479,20 @@ impl MigrationTrait for Migration {
         }
 
         // 2. Model pricing
-        // Note: Pricing values are stored as integer cents per 1M tokens to avoid floating point issues.
-        // e.g., 300 represents $3.00 per 1M tokens.
         let pricing = [
-            // Claude (Anthropic)
             ("claude", "claude-opus-4.6", 500, 2500, 50, 625),
             ("claude", "claude-sonnet-4.6", 300, 1500, 30, 375),
             ("claude", "claude-haiku-4.5", 100, 500, 10, 125),
-            // OpenAI
             ("openai", "gpt-4.1", 200, 800, 100, 200),
             ("openai", "gpt-4.1-mini", 40, 160, 20, 40),
             ("openai", "gpt-4.1-nano", 20, 80, 10, 20),
             ("openai", "o1", 1500, 6000, 0, 0),
             ("openai", "o3", 200, 800, 0, 0),
             ("openai", "o4-mini", 110, 440, 0, 0),
-            // Google Gemini
             ("google", "gemini-2.5-pro", 125, 1000, 63, 500),
             ("google", "gemini-2.5-flash", 30, 250, 15, 125),
-            // DeepSeek (MIT licensed)
             ("deepseek", "deepseek-v3.2", 28, 42, 14, 21),
             ("deepseek", "deepseek-r1", 55, 219, 0, 0),
-            // Other open-source models
             ("zhipu", "glm-5", 100, 320, 0, 0),
             ("moonshot", "kimi-k2.5", 60, 250, 0, 0),
             ("minimax", "minimax-m2.5", 30, 120, 0, 0),
@@ -1511,7 +1520,6 @@ impl MigrationTrait for Migration {
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        // Drop in reverse FK dependency order (new tables inserted appropriately)
         let tables = [
             "sync_watermarks",
             "local_nudge_cache",
@@ -1553,6 +1561,7 @@ impl MigrationTrait for Migration {
             "messages",
             "message_headings",
             "conversations",
+            "achievements", // <-- added to drop list
             "user_preferences",
             "workspaces",
             "profiles",
@@ -1606,6 +1615,13 @@ enum UserPreferences {
 }
 
 #[derive(DeriveIden)]
+enum Achievements {
+    Table,
+    Id,
+    UnlockedAt,
+}
+
+#[derive(DeriveIden)]
 enum Workspaces {
     Table,
     Id,
@@ -1652,7 +1668,6 @@ enum Messages {
     CacheReadTokens,
     CacheWriteTokens,
     Status,
-    // New: Thinking integration columns
     ThinkingContent,
     ThinkingDocument,
     CreatedAt,

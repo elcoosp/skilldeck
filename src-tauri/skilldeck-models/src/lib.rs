@@ -3,6 +3,7 @@
 //! Uses `#[sea_orm::model]` with relations defined directly on the `Model`
 //! struct — no separate `Relation` enum needed (2.0 pattern).
 
+pub mod achievements;
 pub mod artifacts;
 pub mod attachments;
 pub mod bookmarks;

@@ -18,6 +18,7 @@ import { commands } from '@/lib/bindings'
 interface WorkflowEditorProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  id?: string
   initialDefinition?: any
   onSaved?: () => void
 }
@@ -25,23 +26,24 @@ interface WorkflowEditorProps {
 export function WorkflowEditor({
   open,
   onOpenChange,
+  id,
   initialDefinition,
   onSaved
 }: WorkflowEditorProps) {
-  const [name, setName] = useState('')
+  const [name, setName] = useState(initialDefinition?.name ?? '')
   const [definitionText, setDefinitionText] = useState(
     initialDefinition
       ? JSON.stringify(initialDefinition, null, 2)
       : JSON.stringify(
-          {
-            name: '',
-            pattern: 'sequential',
-            steps: [],
-            dependencies: []
-          },
-          null,
-          2
-        )
+        {
+          name: '',
+          pattern: 'sequential',
+          steps: [],
+          dependencies: []
+        },
+        null,
+        2
+      )
   )
   const [error, setError] = useState<string | null>(null)
 
@@ -58,17 +60,20 @@ export function WorkflowEditor({
         throw new Error(`Invalid JSON: ${msg}`)
       }
       setError(null)
-      // Cast to any if command missing
-      const res = await (commands as any).saveWorkflowDefinition({
-        name,
-        definition: parsed
-      })
-      if (res.status === 'error') throw new Error(res.error)
-      return res.data
+
+      if (id) {
+        const res = await commands.updateWorkflowDefinition(id, name, parsed)
+        if (res.status === 'error') throw new Error(res.error)
+        return res.data
+      } else {
+        const res = await commands.saveWorkflowDefinition({ name, definition: parsed })
+        if (res.status === 'error') throw new Error(res.error)
+        return res.data
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workflow-definitions'] })
-      toast.success('Workflow saved')
+      toast.success(id ? 'Workflow updated' : 'Workflow saved')
       onOpenChange(false)
       onSaved?.()
     },
@@ -81,7 +86,7 @@ export function WorkflowEditor({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Edit Workflow Definition</DialogTitle>
+          <DialogTitle>{id ? 'Edit Workflow' : 'New Workflow'}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div>

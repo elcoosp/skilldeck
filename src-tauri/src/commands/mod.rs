@@ -1,5 +1,6 @@
 // src-tauri/src/commands/mod.rs
 //! Tauri command modules.
+pub mod achievements;
 pub mod analytics;
 pub mod artifacts;
 pub mod attachments;
