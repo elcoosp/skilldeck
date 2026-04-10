@@ -526,6 +526,9 @@ importers:
       '@playwright/test':
         specifier: ^1.49.0
         version: 1.59.1
+      '@srsholmes/tauri-playwright':
+        specifier: ^0.2.2
+        version: 0.2.2(@playwright/test@1.59.1)
       '@types/node':
         specifier: ^22.0.0
         version: 22.19.17
@@ -4259,6 +4262,12 @@ packages:
 
   '@splinetool/runtime@0.9.526':
     resolution: {integrity: sha512-qznHbXA5aKwDbCgESAothCNm1IeEZcmNWG145p5aXj4w5uoqR1TZ9qkTHTKLTsUbHeitCwdhzmRqan1kxboLgQ==}
+
+  '@srsholmes/tauri-playwright@0.2.2':
+    resolution: {integrity: sha512-Q/6BrSInxePOsrxFR1wB0ALshZH92PjyF3JEcAqZumUuzwTchm4iffqa4y90XZKpVqIrLtVFMIGDdl9WmRuliQ==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@playwright/test': ^1.40.0
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
@@ -13823,6 +13832,10 @@ snapshots:
     dependencies:
       on-change: 4.0.2
       semver-compare: 1.0.0
+
+  '@srsholmes/tauri-playwright@0.2.2(@playwright/test@1.59.1)':
+    dependencies:
+      '@playwright/test': 1.59.1
 
   '@standard-schema/spec@1.1.0': {}
 

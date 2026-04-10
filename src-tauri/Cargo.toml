@@ -20,8 +20,10 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
-
+[features]
+e2e-testing = ["tauri-plugin-playwright"]
 [dependencies]
+tauri-plugin-playwright = { version = "0.2", optional = true }
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 tauri-plugin-shell = "2"
@@ -68,6 +70,3 @@ tauri-plugin-fs = "2"
 regex = "1.12.3"
 pulldown-cmark = "0.13.3"
 tauri-plugin-devtools = "2.1.0"
-
-
-

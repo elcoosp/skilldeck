@@ -40,29 +40,6 @@ use tauri_specta::{Builder, collect_commands, collect_events};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // --- START CDP ENABLEMENT ---
-    #[cfg(debug_assertions)]
-    {
-        // Windows: WebView2
-        #[cfg(target_os = "windows")]
-        std::env::set_var(
-            "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
-            "--remote-debugging-port=0 --disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection",
-        );
-
-        // macOS / Linux: WebKit
-        #[cfg(any(target_os = "macos", target_os = "linux"))]
-        {
-            // Enable remote inspector and let OS assign a free port
-            unsafe {
-                std::env::set_var("WEBKIT_REMOTE_INSPECTOR", "1");
-            }
-            // The port will be written to DevToolsActivePort in the user data dir
-        }
-    }
-    // --- END CDP ENABLEMENT ---
-    // #[cfg(not(debug_assertions))]
-    // {
     use tracing_subscriber::{EnvFilter, fmt};
     fmt()
         .with_env_filter(
@@ -76,6 +53,7 @@ pub fn run() {
     // Build Tauri Specta builder with all commands and events
     let builder = Builder::<tauri::Wry>::new()
         .commands(collect_commands![
+            list_workspace_files,
             update_workspace,
             unlock_achievement,
             list_achievements,
@@ -248,7 +226,11 @@ pub fn run() {
     let invoke_handler = builder.invoke_handler();
     // Start building the Tauri app
     let mut tauri_builder = tauri::Builder::default();
-
+    // Conditionally add the playwright plugin for E2E testing
+    #[cfg(feature = "e2e-testing")]
+    {
+        tauri_builder = tauri_builder.plugin(tauri_plugin_playwright::init());
+    }
     // Add single-instance plugin first (desktop only)
     #[cfg(desktop)]
     {

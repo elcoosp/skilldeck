@@ -1,12 +1,13 @@
 //! Workspace Tauri commands.
-
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, QueryFilter, QueryOrder,
 };
 use serde::{Deserialize, Serialize};
 use specta::{Type, specta};
+use std::pin::Pin;
 use std::{path::PathBuf, sync::Arc};
 use tauri::State;
+use tokio::fs;
 use uuid::Uuid;
 
 use crate::state::AppState;
@@ -248,4 +249,95 @@ pub async fn git_init(path: String) -> Result<(), String> {
         .output()
         .map_err(|e| format!("Failed to run git init: {}", e))?;
     Ok(())
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct FileEntry {
+    pub name: String,
+    pub path: String,
+    pub is_dir: bool,
+    pub children: Vec<FileEntry>,
+}
+
+/// Recursively read a directory up to a maximum depth.
+fn read_dir_recursive<'a>(
+    path: &'a std::path::Path,
+    max_depth: u32,
+    current_depth: u32,
+) -> Pin<Box<dyn Future<Output = Result<Vec<FileEntry>, String>> + Send + 'a>> {
+    Box::pin(async move {
+        if current_depth > max_depth {
+            return Ok(Vec::new());
+        }
+
+        let mut entries = Vec::new();
+
+        let mut dir_entries = fs::read_dir(path)
+            .await
+            .map_err(|e| format!("Failed to read directory {}: {}", path.display(), e))?;
+
+        while let Ok(Some(entry)) = dir_entries.next_entry().await {
+            let file_name = entry.file_name().to_string_lossy().to_string();
+
+            // Skip hidden files and directories (e.g., .git, .env, .vscode)
+            if file_name.starts_with('.') {
+                continue;
+            }
+
+            let entry_path = entry.path();
+            let metadata = entry.metadata().await.map_err(|e| {
+                format!(
+                    "Failed to read metadata for {}: {}",
+                    entry_path.display(),
+                    e
+                )
+            })?;
+
+            let is_dir = metadata.is_dir();
+
+            let children = if is_dir {
+                read_dir_recursive(&entry_path, max_depth, current_depth + 1).await?
+            } else {
+                Vec::new()
+            };
+
+            entries.push(FileEntry {
+                name: file_name,
+                path: entry_path.to_string_lossy().to_string(),
+                is_dir,
+                children,
+            });
+        }
+
+        // Sort: Folders first, then alphabetically case-insensitive
+        entries.sort_by(|a, b| {
+            if a.is_dir && !b.is_dir {
+                std::cmp::Ordering::Less
+            } else if !a.is_dir && b.is_dir {
+                std::cmp::Ordering::Greater
+            } else {
+                a.name.to_lowercase().cmp(&b.name.to_lowercase())
+            }
+        });
+
+        Ok(entries)
+    })
+}
+
+/// List files and folders in a workspace directory up to a specified depth.
+#[specta]
+#[tauri::command]
+pub async fn list_workspace_files(
+    workspace_path: String, // Tauri automatically maps from camelCase in TS
+    max_depth: Option<u32>,
+) -> Result<Vec<FileEntry>, String> {
+    let path = std::path::Path::new(&workspace_path);
+
+    if !path.exists() {
+        return Err(format!("Path does not exist: {}", workspace_path));
+    }
+
+    let max_depth = max_depth.unwrap_or(4);
+
+    read_dir_recursive(path, max_depth, 0).await
 }

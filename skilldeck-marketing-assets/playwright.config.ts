@@ -10,18 +10,15 @@ export default defineConfig({
   use: {
     viewport: { width: 1440, height: 900 },
     deviceScaleFactor: 2,
-    video: {
-      mode: 'on',
-      size: { width: 1440, height: 900 }
-    },
+    video: 'on',          // Playwright's own video (browser mode)
     screenshot: 'on',
   },
   outputDir: './test-results',
-  globalSetup: require.resolve('./global-setup'), // <-- ADD THIS
   projects: [
     {
       name: 'marketing-assets',
-      testMatch: '**/*.marketing.spec.ts',
+      testMatch: 'tests/**/*.marketing.spec.ts',
+      use: { mode: 'tauri' }, // Use the real Tauri app
     },
   ],
 });

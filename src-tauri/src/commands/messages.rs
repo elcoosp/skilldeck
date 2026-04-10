@@ -306,7 +306,7 @@ pub async fn search_all_messages(
             message_id,
             message_snippet: snippet,
             created_at: created_at.to_rfc3339(),
-        });
+        })
     }
     Ok(results)
 }

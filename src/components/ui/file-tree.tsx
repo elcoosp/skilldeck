@@ -6,7 +6,7 @@ import React, {
   useEffect,
   useState,
 } from "react"
-import * as AccordionPrimitive from "@radix-ui/react-accordion"
+import { Accordion as AccordionPrimitive } from "radix-ui"
 import { FileIcon, FolderIcon, FolderOpenIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"

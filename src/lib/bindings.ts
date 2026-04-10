@@ -5,6 +5,17 @@
 
 
 export const commands = {
+/**
+ * List files and folders in a workspace directory up to a specified depth.
+ */
+async listWorkspaceFiles(workspacePath: string, maxDepth: number | null) : Promise<Result<FileEntry[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_workspace_files", { workspacePath, maxDepth }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async updateWorkspace(id: string, avatarStyle: string | null) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("update_workspace", { id, avatarStyle }) };
@@ -1265,6 +1276,7 @@ export type ExportFormat = "markdown" | "json"
  * A single file or directory entry returned by `list_directory_contents`.
  */
 export type FileEntry = { name: string; path: string; is_dir: boolean; size: string | null }
+export type FileEntry = { name: string; path: string; is_dir: boolean; children: FileEntry[] }
 /**
  * Shallow vs deep file counts for a folder, used by `FolderScopeModal`.
  */
