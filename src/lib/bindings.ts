@@ -5,6 +5,22 @@
 
 
 export const commands = {
+async unlockAchievement(id: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("unlock_achievement", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async listAchievements() : Promise<Result<AchievementData[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_achievements") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async compactConversation(conversationId: string) : Promise<Result<string, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("compact_conversation", { conversationId }) };
@@ -331,6 +347,28 @@ async getWorkflowDefinition(id: string) : Promise<Result<WorkflowDefinitionRespo
 async deleteWorkflowDefinition(id: string) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("delete_workflow_definition", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Update an existing workflow definition.
+ */
+async updateWorkflowDefinition(id: string, name: string, definition: JsonValue) : Promise<Result<WorkflowDefinitionResponse, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("update_workflow_definition", { id, name, definition }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Run a workflow definition and emit events.
+ */
+async runWorkflowDefinition(id: string, providerId: string | null) : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("run_workflow_definition", { id, providerId }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -1182,6 +1220,7 @@ workflowEvent: "workflow-event"
 
 /** user-defined types **/
 
+export type AchievementData = { id: string; unlocked_at: string }
 export type ActivityEventRequest = { event_type: string; metadata: JsonValue }
 export type AddMcpServerPayload = { name: string; transport: string; command: string | null; args: string[] | null; url: string | null; env: Partial<{ [key in string]: string }> | null }
 export type AddQueuedMessageRequest = { conversation_id: string; content: string; context_items: ContextItem[] | null }

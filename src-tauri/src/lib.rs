@@ -17,8 +17,9 @@ mod platform_client;
 mod skills;
 mod state;
 mod subagent_monitor;
+mod subagent_registry;
 mod subagent_server;
-mod sync;
+mod sync; // NEW
 
 pub use subagent_server::SubagentServer;
 
@@ -94,6 +95,8 @@ pub fn run() {
             list_workflow_definitions,
             get_workflow_definition,
             delete_workflow_definition,
+            update_workflow_definition, // NEW
+            run_workflow_definition,    // NEW
             get_installed_skill_content,
             get_installed_skill_path,
             install_registry_skill,
@@ -201,7 +204,7 @@ pub fn run() {
             // new command for updating conversation workspace
             update_conversation_workspace,
             // headings
-            get_conversation_messages_headings, // <-- new
+            get_conversation_messages_headings,
         ])
         .events(collect_events![
             AgentEvent,

@@ -2,7 +2,7 @@
 //! Application state management.
 
 use dashmap::DashMap;
-use sea_orm::EntityTrait;
+use sea_orm::{ColumnTrait, EntityTrait, QueryFilter}; // Added imports
 use std::sync::Arc;
 use tauri::Emitter;
 use tauri::Manager;
@@ -27,17 +27,20 @@ use skilldeck_lint::LintConfig;
 use skilldeck_models::mcp_servers;
 
 use crate::subagent_monitor::monitor_subagent;
+use crate::subagent_registry::{SubagentHandle, SubagentRegistry};
 use crate::subagent_server::SubagentServer;
 use adk_rust::server::a2a::A2aClient;
 
-// Import the SkillEventEmitter trait
+// Import traits
+use async_trait::async_trait;
 use skilldeck_core::traits::SkillEventEmitter;
 use skilldeck_core::traits::ToolApprovalEmitter;
+use skilldeck_core::traits::subagent_spawner::SubagentSpawner;
 
 // Import core event types
 use skilldeck_core::events::McpEvent as CoreMcpEvent;
 
-// NEW: Import markdown pipeline
+// Import markdown pipeline
 use skilldeck_core::markdown::{renderer::MarkdownPipeline, theme::SharedTheme};
 
 const KEYRING_SERVICE: &str = "skilldeck";
@@ -117,6 +120,36 @@ impl ToolApprovalEmitter for TauriToolApprovalEmitter {
     }
 }
 
+/// Wrapper to implement SubagentSpawner for Arc<AppState> without orphan rule issues.
+pub struct AppStateSpawner {
+    pub state: Arc<AppState>,
+}
+
+#[async_trait]
+impl SubagentSpawner for AppStateSpawner {
+    async fn spawn_subagent(
+        &self,
+        task: String,
+        skill_names: Vec<String>,
+    ) -> Result<String, String> {
+        self.state.spawn_subagent_internal(task, skill_names).await
+    }
+
+    async fn get_subagent_result(&self, subagent_id: &str) -> Option<String> {
+        self.state.get_subagent_result_internal(subagent_id).await
+    }
+
+    async fn merge_subagent_result(
+        &self,
+        subagent_id: &str,
+        strategy: &str,
+    ) -> Result<String, String> {
+        self.state
+            .merge_subagent_result_internal(subagent_id, strategy)
+            .await
+    }
+}
+
 /// Top-level shared application state injected into every Tauri command.
 pub struct AppState {
     // ── Core Registry ──────────────────────────────────────────
@@ -145,6 +178,8 @@ pub struct AppState {
     pub subagent_results: Arc<DashMap<String, String>>,
     /// Subagent session manager.
     pub subagent_manager: Arc<tokio::sync::Mutex<SubagentManager>>,
+    /// Subagent registry (tracks active subagents for result merging).
+    pub subagent_registry: SubagentRegistry,
 
     // ── Database ───────────────────────────────────────────────
     /// Canonical SQLite path – e.g. "/Users/alice/Library/…/skilldeck.db".
@@ -320,6 +355,7 @@ impl AppState {
         let subagent_servers = Arc::new(DashMap::new());
         let subagent_clients = Arc::new(DashMap::new());
         let subagent_results = Arc::new(DashMap::new());
+        let subagent_registry = Arc::new(DashMap::new());
 
         // ─── Markdown pipeline ─────────────────────────────────────────────────
         // Load default theme (we can later load from user preferences)
@@ -340,12 +376,13 @@ impl AppState {
             subagent_semaphore,
             subagent_clients,
             subagent_results,
+            subagent_registry,
             app_handle: app.clone(),
             auto_send_paused,
             global_auto_approve: Arc::new(RwLock::new(AutoApproveConfig::default())),
             subagent_manager: Arc::new(tokio::sync::Mutex::new(SubagentManager::new())),
-            theme,    // <-- new
-            markdown, // <-- new
+            theme,
+            markdown,
         };
 
         state.ensure_default_profile().await;
@@ -538,23 +575,116 @@ impl AppState {
         let url = server.url.clone();
         let subagent_id = uuid::Uuid::new_v4().to_string();
 
-        // Store server
-        self.subagent_servers.insert(subagent_id.clone(), server);
-
-        // Create A2A client
         let client = A2aClient::from_url(&url).await.map_err(|e| e.to_string())?;
         let client_arc = Arc::new(client);
-        self.subagent_clients
-            .insert(subagent_id.clone(), client_arc.clone());
+        let results_map = Arc::new(DashMap::new());
 
         // Spawn monitor task
         let app_handle = self.app_handle.clone();
         let subagent_id_clone = subagent_id.clone();
-        let results_map = self.subagent_results.clone();
-        tokio::spawn(async move {
-            monitor_subagent(subagent_id_clone, client_arc, app_handle, results_map).await;
+        let results_map_clone = results_map.clone();
+        let client_arc_clone = client_arc.clone();
+        let monitor_task = tokio::spawn(async move {
+            monitor_subagent(
+                subagent_id_clone,
+                client_arc_clone,
+                app_handle,
+                results_map_clone,
+            )
+            .await;
         });
 
+        // Register handle
+        let handle = SubagentHandle {
+            server,
+            client: client_arc,
+            results: results_map,
+            monitor_task,
+        };
+        self.subagent_registry.insert(subagent_id.clone(), handle);
+
         Ok(subagent_id)
+    }
+
+    // Internal methods for SubagentSpawner implementation
+    async fn spawn_subagent_internal(
+        &self,
+        task: String,
+        skill_names: Vec<String>,
+    ) -> Result<String, String> {
+        let db = self
+            .registry
+            .db
+            .connection()
+            .await
+            .map_err(|e| e.to_string())?;
+        let default_profile = skilldeck_models::profiles::Entity::find()
+            .filter(skilldeck_models::profiles::Column::IsDefault.eq(true))
+            .one(db)
+            .await
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| "No default profile found".to_string())?;
+        let provider = self
+            .registry
+            .get_provider(&default_profile.model_provider)
+            .ok_or_else(|| format!("Provider {} not available", default_profile.model_provider))?;
+        let model_id = default_profile.model_id;
+        self.do_spawn_subagent(task, skill_names, provider, model_id)
+            .await
+    }
+
+    async fn get_subagent_result_internal(&self, subagent_id: &str) -> Option<String> {
+        if let Some(handle) = self.subagent_registry.get(subagent_id) {
+            handle
+                .results
+                .iter()
+                .next()
+                .map(|entry| entry.value().clone())
+        } else {
+            None
+        }
+    }
+
+    async fn merge_subagent_result_internal(
+        &self,
+        subagent_id: &str,
+        strategy: &str,
+    ) -> Result<String, String> {
+        let handle = self
+            .subagent_registry
+            .get(subagent_id)
+            .ok_or_else(|| format!("Subagent {} not found", subagent_id))?;
+
+        let results: Vec<String> = handle.results.iter().map(|e| e.value().clone()).collect();
+
+        if results.is_empty() {
+            return Err("No results available".to_string());
+        }
+
+        let merged = match strategy {
+            "concat" => results.join("\n\n---\n\n"),
+            "summarize" => {
+                format!("[Summary of {} results]\n{}", results.len(), results[0])
+            }
+            "vote" => {
+                use std::collections::HashMap;
+                let mut counts = HashMap::new();
+                for r in &results {
+                    *counts.entry(r).or_insert(0) += 1;
+                }
+                counts
+                    .into_iter()
+                    .max_by_key(|(_, count)| *count)
+                    .map(|(r, _)| r.clone())
+                    .unwrap_or_else(|| results[0].clone())
+            }
+            _ => return Err(format!("Unknown strategy: {}", strategy)),
+        };
+
+        // Clean up handle after merge
+        drop(handle);
+        self.subagent_registry.remove(subagent_id);
+
+        Ok(merged)
     }
 }

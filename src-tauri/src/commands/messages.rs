@@ -765,6 +765,7 @@ impl SubagentSpawner for SpawnerWithContext {
         task: String,
         skill_names: Vec<String>,
     ) -> Result<String, String> {
+        // existing implementation
         self.state
             .do_spawn_subagent(
                 task,
@@ -776,13 +777,55 @@ impl SubagentSpawner for SpawnerWithContext {
     }
 
     async fn get_subagent_result(&self, subagent_id: &str) -> Option<String> {
+        // existing implementation
         self.state
             .subagent_results
             .get(subagent_id)
             .map(|r| r.clone())
     }
-}
 
+    // NEW: Add this method
+    async fn merge_subagent_result(
+        &self,
+        subagent_id: &str,
+        strategy: &str,
+    ) -> Result<String, String> {
+        let handle = self
+            .state
+            .subagent_registry
+            .get(subagent_id)
+            .ok_or_else(|| format!("Subagent {} not found", subagent_id))?;
+
+        let results: Vec<String> = handle.results.iter().map(|e| e.value().clone()).collect();
+
+        if results.is_empty() {
+            return Err("No results available".to_string());
+        }
+
+        let merged = match strategy {
+            "concat" => results.join("\n\n---\n\n"),
+            "summarize" => format!("[Summary of {} results]\n{}", results.len(), results[0]),
+            "vote" => {
+                use std::collections::HashMap;
+                let mut counts = HashMap::new();
+                for r in &results {
+                    *counts.entry(r).or_insert(0) += 1;
+                }
+                counts
+                    .into_iter()
+                    .max_by_key(|(_, count)| *count)
+                    .map(|(r, _)| r.clone())
+                    .unwrap_or_else(|| results[0].clone())
+            }
+            _ => return Err(format!("Unknown strategy: {}", strategy)),
+        };
+
+        drop(handle);
+        self.state.subagent_registry.remove(subagent_id);
+
+        Ok(merged)
+    }
+}
 fn is_retryable_error(e: &skilldeck_core::CoreError) -> bool {
     matches!(
         e,

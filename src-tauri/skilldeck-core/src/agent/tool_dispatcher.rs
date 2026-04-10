@@ -124,7 +124,6 @@ impl AutoApproveConfig {
     pub fn is_auto_approved(&self, tool_name: &str) -> bool {
         let n = tool_name.to_lowercase();
 
-        // Fix C: Added describe_, stat_, check_ to the read prefixes
         if self.reads
             && matches_any_prefix(
                 &n,
@@ -208,7 +207,6 @@ impl ToolDispatcher {
             mcp_registry,
             approval_gate,
             skill_registry,
-            // Fix A: auto‑approve reads by default
             auto_approve: Arc::new(tokio::sync::RwLock::new(AutoApproveConfig {
                 reads: true,
                 ..Default::default()
@@ -242,14 +240,12 @@ impl ToolDispatcher {
 
         // 2. Check if this tool needs approval.
         if self.needs_approval(name).await {
-            // Fix B: log that we are waiting for user approval
             tracing::info!(
                 "Tool '{}' (id={}) is waiting for user approval",
                 name,
                 tool_call.id
             );
 
-            // Fix B: add a timeout to prevent hanging forever
             let approval = match tokio::time::timeout(
                 Duration::from_secs(120),
                 self.approval_gate.request_approval(
@@ -366,15 +362,13 @@ impl ToolDispatcher {
                             }));
                         }
                     };
+                    let strategy = args["strategy"].as_str().unwrap_or("concat");
 
-                    match spawner.get_subagent_result(subagent_id).await {
-                        Some(result) => Some(Ok(serde_json::json!({ "result": result }))),
-                        None => Some(Err(CoreError::McpToolExecution {
+                    match spawner.merge_subagent_result(subagent_id, strategy).await {
+                        Ok(result) => Some(Ok(serde_json::json!({ "result": result }))),
+                        Err(e) => Some(Err(CoreError::McpToolExecution {
                             tool_name: "merge_subagent_results".into(),
-                            message: format!(
-                                "Subagent {} not found or not yet completed",
-                                subagent_id
-                            ),
+                            message: e,
                         })),
                     }
                 } else {
@@ -454,8 +448,6 @@ mod tests {
     #[tokio::test]
     async fn external_tools_need_approval_by_default() {
         let d = make_dispatcher();
-        // Since reads is now true by default, we expect some reads tools to be auto-approved.
-        // So we test a write tool which still requires approval.
         assert!(d.needs_approval("write_file").await);
         assert!(d.needs_approval("execute_shell").await);
     }
@@ -470,7 +462,6 @@ mod tests {
         .await;
         assert!(!d.needs_approval("read_file").await);
         assert!(!d.needs_approval("get_contents").await);
-        // Writes still need approval.
         assert!(d.needs_approval("write_file").await);
     }
 
@@ -501,7 +492,6 @@ mod tests {
 
     #[tokio::test]
     async fn builtin_load_skill_returns_json() {
-        // Create a registry with a pre‑loaded skill
         let lint_config = Arc::new(RwLock::new(LintConfig::default()));
         let skill_registry = Arc::new(SkillRegistry::new(lint_config));
         let skill = Skill::new(
@@ -543,7 +533,7 @@ mod tests {
             r#type: "function".into(),
             function: crate::traits::FunctionCall {
                 name: "some_tool".into(),
-                arguments: r#"{invalid json"#.into(), // malformed
+                arguments: r#"{invalid json"#.into(),
             },
         };
         let result = d.dispatch(&tc).await;

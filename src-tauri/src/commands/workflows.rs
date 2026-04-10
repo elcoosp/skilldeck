@@ -1,7 +1,9 @@
 // src-tauri/src/commands/workflows.rs
 //! Workflow definition Tauri commands.
 
-use sea_orm::{ActiveModelTrait, ActiveValue::Set, EntityTrait, QueryOrder};
+use sea_orm::{
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, QueryFilter, QueryOrder,
+};
 use serde::{Deserialize, Serialize};
 use skilldeck_core::workflow::{WorkflowDefinition, WorkflowExecutor};
 use specta::{Type, specta};
@@ -11,6 +13,7 @@ use uuid::Uuid;
 
 use crate::events::WorkflowEvent;
 use crate::state::AppState;
+use skilldeck_models::profiles::{self, Entity as Profiles};
 use skilldeck_models::workflow_definitions::{self, Entity as WorkflowDefs};
 
 #[derive(Debug, Deserialize, Type)]
@@ -163,7 +166,7 @@ pub async fn run_workflow_definition(
         .await
         .map_err(|e| e.to_string())?;
     let uuid = Uuid::parse_str(&id).map_err(|e| e.to_string())?;
-    let def = skilldeck_models::workflow_definitions::Entity::find_by_id(uuid)
+    let def = WorkflowDefs::find_by_id(uuid)
         .one(db)
         .await
         .map_err(|e| e.to_string())?
@@ -182,8 +185,8 @@ pub async fn run_workflow_definition(
             .ok_or_else(|| format!("Provider {} not available", pid))?
     } else {
         // Get default profile's provider
-        let default_profile = skilldeck_models::profiles::Entity::find()
-            .filter(skilldeck_models::profiles::Column::IsDefault.eq(true))
+        let default_profile = Profiles::find()
+            .filter(profiles::Column::IsDefault.eq(true))
             .one(db)
             .await
             .map_err(|e| e.to_string())?
@@ -219,7 +222,6 @@ pub async fn run_workflow_definition(
     tokio::spawn(async move {
         let _ = executor.execute(definition).await;
         while let Some(event) = rx.recv().await {
-            // Convert core event to Tauri event with proper string conversions
             let tauri_event = match event {
                 skilldeck_core::workflow::WorkflowEvent::Started { id } => {
                     WorkflowEvent::Started { id: id.to_string() }
@@ -289,6 +291,10 @@ pub async fn update_workflow_definition(
         .map_err(|e| e.to_string())?
         .ok_or_else(|| format!("Workflow definition {} not found", id))?;
 
+    // Clone fields we need before moving `existing`
+    let created_at = existing.created_at.clone();
+    let created_at_str = created_at.to_rfc3339();
+
     let now = chrono::Utc::now().fixed_offset();
     let mut active: workflow_definitions::ActiveModel = existing.into();
     active.name = Set(name.clone());
@@ -300,7 +306,7 @@ pub async fn update_workflow_definition(
         id: uuid.to_string(),
         name,
         definition,
-        created_at: existing.created_at.to_rfc3339(),
+        created_at: created_at_str,
         updated_at: now.to_rfc3339(),
     })
 }
