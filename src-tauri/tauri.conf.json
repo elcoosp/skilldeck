@@ -21,7 +21,8 @@
         "dragDropEnabled": true,
         "fullscreen": false,
         "hiddenTitle": true,
-        "titleBarStyle": "Overlay"
+        "titleBarStyle": "Overlay",
+        "additionalBrowserArgs": "--remote-debugging-port=9222"
       }
     ],
     "security": {
@@ -42,11 +43,15 @@
   "plugins": {
     "deep-link": {
       "desktop": {
-        "schemes": ["skilldeck"]
+        "schemes": [
+          "skilldeck"
+        ]
       },
       "mobile": [
         {
-          "scheme": ["skilldeck"],
+          "scheme": [
+            "skilldeck"
+          ],
           "appLink": false
         }
       ]

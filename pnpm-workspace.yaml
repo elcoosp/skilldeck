@@ -7,3 +7,4 @@ packages:
   - '.'
   - "./skilldeck-user-docs"
   - "./skilldeck-landing"
+  - "./skilldeck-marketing-assets"
