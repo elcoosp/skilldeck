@@ -2,7 +2,6 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests',
-  timeout: 120000,
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: 0,
@@ -18,10 +17,11 @@ export default defineConfig({
     screenshot: 'on',
   },
   outputDir: './test-results',
+  globalSetup: require.resolve('./global-setup'), // <-- ADD THIS
   projects: [
     {
       name: 'marketing-assets',
-      testMatch: 'tests/**/*.marketing.spec.ts',
+      testMatch: '**/*.marketing.spec.ts',
     },
   ],
 });

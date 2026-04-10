@@ -26,52 +26,60 @@ function getUserDataDir(): string {
 }
 
 /**
- * Read the DevToolsActivePort file to get the actual debugging port.
+ * Try to read the actual port from DevToolsActivePort file (macOS/Linux fallback).
  */
-function readDevToolsPort(userDataDir: string): number | null {
-  const portFile = path.join(userDataDir, 'DevToolsActivePort');
+function readDevToolsPort(): number | null {
   try {
-    const content = fs.readFileSync(portFile, 'utf-8');
-    const lines = content.split('\n');
-    if (lines.length > 0) {
-      const port = parseInt(lines[0].trim(), 10);
-      return isNaN(port) ? null : port;
+    const userDataDir = getUserDataDir();
+    const portFile = path.join(userDataDir, 'DevToolsActivePort');
+    if (fs.existsSync(portFile)) {
+      const content = fs.readFileSync(portFile, 'utf-8');
+      const lines = content.split('\n');
+      if (lines.length > 0) {
+        const port = parseInt(lines[0].trim(), 10);
+        return isNaN(port) ? null : port;
+      }
     }
   } catch {
-    // File doesn't exist yet
+    // ignore
   }
   return null;
 }
 
 async function connectToTauri(): Promise<Page> {
   const maxRetries = 30;
-  const retryDelay = 1000; // ms
-  const userDataDir = getUserDataDir();
-
-  console.log(`Looking for DevToolsActivePort in: ${userDataDir}`);
+  const retryDelay = 1000;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    let port = process.env.CDP_ENDPOINT
-      ? parseInt(new URL(process.env.CDP_ENDPOINT).port, 10)
-      : null;
-
-    if (!port) {
-      port = readDevToolsPort(userDataDir);
-    }
-
-    if (port) {
+    // 1. Try the environment variable (explicit port)
+    let endpoint = process.env.CDP_ENDPOINT_URL;
+    if (endpoint) {
       try {
-        const browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`);
+        const browser = await chromium.connectOverCDP(endpoint);
         const context = browser.contexts()[0];
         const page = context.pages()[0] || await context.newPage();
         await page.bringToFront();
-        console.log(`Connected to Tauri app on port ${port}`);
+        console.log(`Connected to Tauri app via ${endpoint}`);
         return page;
       } catch (e) {
-        console.log(`Attempt ${attempt}: CDP connection to port ${port} failed, retrying...`);
+        console.log(`Attempt ${attempt}: CDP connection to ${endpoint} failed, trying fallback...`);
       }
-    } else {
-      console.log(`Attempt ${attempt}: DevToolsActivePort not found yet...`);
+    }
+
+    // 2. Fallback: read DevToolsActivePort (dynamic port)
+    const port = readDevToolsPort();
+    if (port) {
+      const fallbackEndpoint = `http://127.0.0.1:${port}`;
+      try {
+        const browser = await chromium.connectOverCDP(fallbackEndpoint);
+        const context = browser.contexts()[0];
+        const page = context.pages()[0] || await context.newPage();
+        await page.bringToFront();
+        console.log(`Connected to Tauri app via dynamic port ${port}`);
+        return page;
+      } catch (e) {
+        console.log(`Attempt ${attempt}: CDP connection to ${fallbackEndpoint} failed, retrying...`);
+      }
     }
 
     await new Promise((resolve) => setTimeout(resolve, retryDelay));
@@ -79,7 +87,7 @@ async function connectToTauri(): Promise<Page> {
 
   throw new Error(
     `Failed to connect to Tauri app after ${maxRetries} attempts. ` +
-    `Ensure the app is running with --remote-debugging-port=0.`
+    `Ensure the app is running in debug mode (pnpm tauri:dev).`
   );
 }
 
