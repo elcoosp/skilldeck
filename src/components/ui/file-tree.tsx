@@ -158,6 +158,8 @@ type TreeViewProps = {
   openIcon?: React.ReactNode
   closeIcon?: React.ReactNode
   sort?: TreeSortMode
+  expanded?: string[]
+  onExpandedChange?: (ids: string[]) => void
 } & Omit<
   React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Root>,
   "defaultValue" | "onValueChange" | "type" | "value"
@@ -176,6 +178,8 @@ const Tree = forwardRef<HTMLDivElement, TreeViewProps>(
       closeIcon,
       sort = "default",
       dir,
+      expanded: controlledExpanded,
+      onExpandedChange,
       ...props
     },
     ref
@@ -187,18 +191,21 @@ const Tree = forwardRef<HTMLDivElement, TreeViewProps>(
       initialExpandedItems
     )
 
+    const effectiveExpanded = controlledExpanded ?? expandedItems
+    const setEffectiveExpanded = onExpandedChange ?? setExpandedItems
+
     const selectItem = useCallback((id: string) => {
       setSelectedId(id)
     }, [])
 
     const handleExpand = useCallback((id: string) => {
-      setExpandedItems((prev) => {
+      setEffectiveExpanded((prev) => {
         if (prev?.includes(id)) {
           return prev.filter((item) => item !== id)
         }
         return [...(prev ?? []), id]
       })
-    }, [])
+    }, [setEffectiveExpanded])
 
     const expandSpecificTargetedElements = useCallback(
       (elements?: TreeViewElement[], selectId?: string) => {
@@ -211,11 +218,11 @@ const Tree = forwardRef<HTMLDivElement, TreeViewProps>(
           const newPath = [...currentPath, currentElement.id]
           if (currentElement.id === selectId) {
             if (isSelectable) {
-              setExpandedItems((prev) => mergeExpandedItems(prev, newPath))
+              setEffectiveExpanded((prev) => mergeExpandedItems(prev, newPath))
             } else {
               if (newPath.includes(currentElement.id)) {
                 newPath.pop()
-                setExpandedItems((prev) => mergeExpandedItems(prev, newPath))
+                setEffectiveExpanded((prev) => mergeExpandedItems(prev, newPath))
               }
             }
             return
@@ -233,7 +240,7 @@ const Tree = forwardRef<HTMLDivElement, TreeViewProps>(
           findParent(element)
         })
       },
-      []
+      [setEffectiveExpanded]
     )
 
     useEffect(() => {
@@ -250,10 +257,10 @@ const Tree = forwardRef<HTMLDivElement, TreeViewProps>(
       <TreeContext.Provider
         value={{
           selectedId,
-          expandedItems,
+          expandedItems: effectiveExpanded,
           handleExpand,
           selectItem,
-          setExpandedItems,
+          setExpandedItems: setEffectiveExpanded,
           indicator,
           openIcon,
           closeIcon,
@@ -269,7 +276,8 @@ const Tree = forwardRef<HTMLDivElement, TreeViewProps>(
             <AccordionPrimitive.Root
               {...props}
               type="multiple"
-              value={expandedItems}
+              value={effectiveExpanded}
+              onValueChange={setEffectiveExpanded}
               className="flex flex-col gap-1"
               dir={dir as Direction}
             >
@@ -310,6 +318,7 @@ type FolderProps = {
   element: string
   isSelectable?: boolean
   isSelect?: boolean
+  isFocused?: boolean
 } & React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Item>
 
 const Folder = forwardRef<
@@ -323,6 +332,7 @@ const Folder = forwardRef<
       value,
       isSelectable = true,
       isSelect,
+      isFocused,
       children,
       ...props
     },
@@ -355,6 +365,7 @@ const Folder = forwardRef<
               "bg-muted rounded-md": isSelected && isSelectable,
               "cursor-pointer": isSelectable,
               "cursor-not-allowed opacity-50": !isSelectable,
+              "ring-2 ring-ring": isFocused,
             }
           )}
           disabled={!isSelectable}
@@ -362,6 +373,10 @@ const Folder = forwardRef<
             selectItem(value)
             handleExpand(value)
           }}
+          data-tree-item-id={value}
+          role="treeitem"
+          aria-expanded={expandedItems?.includes(value)}
+          aria-selected={isSelected}
         >
           {expandedItems?.includes(value)
             ? (openIcon ?? <DefaultFolderOpenedIcon width={16} height={16} />)
@@ -394,6 +409,7 @@ const File = forwardRef<
     isSelectable?: boolean
     isSelect?: boolean
     fileIcon?: React.ReactNode
+    isFocused?: boolean
   } & React.ButtonHTMLAttributes<HTMLButtonElement>
 >(
   (
@@ -406,6 +422,7 @@ const File = forwardRef<
       isSelect,
       fileIcon,
       children,
+      isFocused,
       ...props
     },
     ref
@@ -425,6 +442,7 @@ const File = forwardRef<
           "flex w-fit items-center gap-1 rounded-md pr-1 text-sm duration-200 ease-in-out rtl:pr-0 rtl:pl-1",
           {
             "bg-muted": isSelected && isSelectable,
+            "ring-2 ring-ring": isFocused,
           },
           isSelectable ? "cursor-pointer" : "cursor-not-allowed opacity-50",
           direction === "rtl" ? "rtl" : "ltr",
@@ -435,6 +453,9 @@ const File = forwardRef<
           handleSelect?.(value)
           onClick?.(event)
         }}
+        data-tree-item-id={value}
+        role="treeitem"
+        aria-selected={isSelected}
         {...props}
       >
         {fileIcon ?? <FileIcon fileName={fileName} width={16} height={16} />}
