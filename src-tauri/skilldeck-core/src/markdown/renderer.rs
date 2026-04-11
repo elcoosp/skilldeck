@@ -7,21 +7,11 @@ use pulldown_cmark::{CodeBlockKind, Event, HeadingLevel, Options, Parser, Tag, T
 use regex::Regex;
 use syntect::{
     html::{ClassStyle, ClassedHTMLGenerator},
-    parsing::{SyntaxDefinition, SyntaxSet, SyntaxSetBuilder},
+    parsing::{SyntaxDefinition, SyntaxSet},
 };
 use uuid::Uuid;
-
 static SYNTAX_SET: Lazy<SyntaxSet> = Lazy::new(|| {
     let mut builder = SyntaxSet::load_defaults_newlines().into_builder();
-
-    // Load TypeScript syntax
-    let ts_def = SyntaxDefinition::load_from_str(
-        include_str!("./TypeScriptReact.sublime-syntax"),
-        false,
-        Some("typescript"),
-    )
-    .expect("Failed to load TypeScript.sublime-syntax");
-    builder.add(ts_def);
 
     // Load TypeScriptReact (TSX) syntax
     let tsx_def = SyntaxDefinition::load_from_str(
@@ -31,6 +21,12 @@ static SYNTAX_SET: Lazy<SyntaxSet> = Lazy::new(|| {
     )
     .expect("Failed to load TypeScriptReact.sublime-syntax");
     builder.add(tsx_def);
+
+    // Load TOML syntax
+    let toml_def =
+        SyntaxDefinition::load_from_str(include_str!("./TOML.sublime-syntax"), false, Some("toml"))
+            .expect("Failed to load TOML.sublime-syntax");
+    builder.add(toml_def);
 
     builder.build()
 });
@@ -266,11 +262,17 @@ impl MarkdownPipeline {
     }
 
     fn highlight(&self, code: &str, lang: &str) -> String {
-        let syntax = SYNTAX_SET.find_syntax_by_token(lang).unwrap_or_else(|| {
-            SYNTAX_SET
-                .find_syntax_by_first_line(code)
-                .unwrap_or_else(|| SYNTAX_SET.find_syntax_plain_text())
-        });
+        let normalized_lang = match lang {
+            "typescript" | "ts" | "typescriptreact" => "tsx",
+            _ => lang,
+        };
+        let syntax = SYNTAX_SET
+            .find_syntax_by_token(normalized_lang)
+            .unwrap_or_else(|| {
+                SYNTAX_SET
+                    .find_syntax_by_first_line(code)
+                    .unwrap_or_else(|| SYNTAX_SET.find_syntax_plain_text())
+            });
         let mut css_gen =
             ClassedHTMLGenerator::new_with_class_style(syntax, &SYNTAX_SET, ClassStyle::Spaced);
         for line in syntect::util::LinesWithEndings::from(code) {
