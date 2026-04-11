@@ -7,7 +7,11 @@ import React, {
   useState,
 } from "react"
 import { Accordion as AccordionPrimitive } from "radix-ui"
-import { FileIcon, FolderIcon, FolderOpenIcon } from "lucide-react"
+import {
+  FileIcon,
+  FolderIcon,
+  DefaultFolderOpenedIcon,
+} from "@react-symbols/icons/utils"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -360,8 +364,8 @@ const Folder = forwardRef<
           }}
         >
           {expandedItems?.includes(value)
-            ? (openIcon ?? <FolderOpenIcon className="size-4" />)
-            : (closeIcon ?? <FolderIcon className="size-4" />)}
+            ? (openIcon ?? <DefaultFolderOpenedIcon width={16} height={16} />)
+            : (closeIcon ?? <FolderIcon folderName={element} width={16} height={16} />)}
           <span>{element}</span>
         </AccordionPrimitive.Trigger>
         <AccordionPrimitive.Content className="data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down relative h-full overflow-hidden text-sm">
@@ -408,6 +412,10 @@ const File = forwardRef<
   ) => {
     const { direction, selectedId, selectItem } = useTree()
     const isSelected = isSelect ?? selectedId === value
+
+    // Extract filename from the full path
+    const fileName = value.split('/').pop() || value
+
     return (
       <button
         ref={ref}
@@ -429,7 +437,7 @@ const File = forwardRef<
         }}
         {...props}
       >
-        {fileIcon ?? <FileIcon className="size-4" />}
+        {fileIcon ?? <FileIcon fileName={fileName} width={16} height={16} />}
         {children}
       </button>
     )
