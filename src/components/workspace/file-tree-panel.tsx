@@ -1,6 +1,6 @@
 // src/components/workspace/file-tree-panel.tsx
 import { useQuery } from '@tanstack/react-query'
-import { openUrl } from '@tauri-apps/plugin-opener'
+import { openUrl, revealItemInDir } from '@tauri-apps/plugin-opener'
 import {
   Tree,
   File as TreeFile,
@@ -10,6 +10,8 @@ import {
 import { commands } from '@/lib/bindings'
 import { useSettingsStore } from '@/store/settings'
 import { useWorkspaceStore } from '@/store/workspace'
+import { useConversationStore } from '@/store/conversation'
+import { useChatContextStore } from '@/store/chat-context-store'
 import { useWorkspaces } from '@/hooks/use-workspaces'
 import { FileIcon } from '@react-symbols/icons/utils'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -17,6 +19,7 @@ import { useDebounce } from 'use-debounce'
 import { flattenTree, getNextVisibleItem, getPrevVisibleItem, findIndexById, type FlattenedNode } from '@/lib/keyboard-tree-navigation'
 import { filterTree } from '@/lib/filter-tree'
 import { Input } from '@/components/ui/input'
+import { toast } from '@/components/ui/toast'
 import { Search } from 'lucide-react'
 
 interface FileEntry {
@@ -30,6 +33,8 @@ export function FileTreePanel() {
   const { data: workspaces = [] } = useWorkspaces()
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId)
   const preferredEditor = useSettingsStore((s) => s.preferredEditor)
+  const activeConversationId = useConversationStore((s) => s.activeConversationId)
+  const addFile = useChatContextStore((s) => s.addFile)
 
   const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId)
 
@@ -58,14 +63,13 @@ export function FileTreePanel() {
     const result: Record<string, string> = {}
     const base = activeWorkspace.path.replace(/\/$/, '')
     for (const [relPath, status] of Object.entries(rawGitStatusMap)) {
-      // Normalize path separators and join
       const absPath = `${base}/${relPath}`.replace(/\/+/g, '/')
       result[absPath] = status
     }
     return result
   }, [activeWorkspace?.path, rawGitStatusMap])
 
-  const handleFileClick = useCallback(async (filePath: string) => {
+  const handleOpenFile = useCallback(async (filePath: string) => {
     const schemes: Record<string, string> = {
       vscode: 'vscode://file/',
       cursor: 'cursor://file/',
@@ -78,6 +82,47 @@ export function FileTreePanel() {
       openUrl(`file://${filePath}`)
     })
   }, [preferredEditor])
+
+  const handleRevealInFinder = useCallback(async (filePath: string) => {
+    try {
+      await revealItemInDir(filePath)
+    } catch (error) {
+      toast.error('Could not reveal in file explorer')
+    }
+  }, [])
+
+  const handleCopyPath = useCallback(async (filePath: string) => {
+    try {
+      await navigator.clipboard.writeText(filePath)
+      toast.success('Absolute path copied')
+    } catch {
+      toast.error('Failed to copy path')
+    }
+  }, [])
+
+  const handleCopyRelativePath = useCallback(async (filePath: string) => {
+    try {
+      await navigator.clipboard.writeText(filePath)
+      toast.success('Relative path copied')
+    } catch {
+      toast.error('Failed to copy path')
+    }
+  }, [])
+
+  const handleAttachToConversation = useCallback((filePath: string) => {
+    if (!activeConversationId) {
+      toast.error('No active conversation')
+      return
+    }
+    const name = filePath.split('/').pop() || filePath
+    addFile(activeConversationId, {
+      id: filePath,
+      name,
+      path: filePath,
+      size: undefined,
+    })
+    toast.success(`Attached ${name} to conversation`)
+  }, [activeConversationId, addFile])
 
   const { data: files, isLoading } = useQuery({
     queryKey: ['workspace-files', activeWorkspace?.path],
@@ -188,7 +233,7 @@ export function FileTreePanel() {
           if (node.type === 'folder') {
             toggleExpand(node.id)
           } else {
-            handleFileClick(node.id)
+            handleOpenFile(node.id)
           }
         }
         break
@@ -212,7 +257,7 @@ export function FileTreePanel() {
         element.scrollIntoView({ block: 'nearest' })
       }
     }
-  }, [flatNodes, focusedId, expanded, toggleExpand, handleFileClick])
+  }, [flatNodes, focusedId, expanded, toggleExpand, handleOpenFile])
 
   useEffect(() => {
     if (flatNodes.length > 0 && !focusedId) {
@@ -238,7 +283,7 @@ export function FileTreePanel() {
         <TreeFile
           key={element.id}
           value={element.id}
-          onClick={() => handleFileClick(element.id)}
+          onClick={() => handleOpenFile(element.id)}
           className="w-full min-w-0"
           fileIcon={<FileIcon fileName={element.name} width={16} height={16} />}
           isFocused={focusedId === element.id}
@@ -247,7 +292,7 @@ export function FileTreePanel() {
         </TreeFile>
       )
     })
-  }, [focusedId, handleFileClick])
+  }, [focusedId, handleOpenFile])
 
   if (!activeWorkspace) {
     return <div className="flex h-full items-center justify-center p-4 text-sm text-muted-foreground">No workspace open</div>
@@ -286,6 +331,12 @@ export function FileTreePanel() {
           expanded={expanded}
           onExpandedChange={setExpanded}
           gitStatusMap={gitStatusMap}
+          onOpenFile={handleOpenFile}
+          onRevealInFinder={handleRevealInFinder}
+          onCopyPath={handleCopyPath}
+          onCopyRelativePath={handleCopyRelativePath}
+          onAttachToConversation={handleAttachToConversation}
+          workspaceRoot={activeWorkspace?.path}
         >
           {treeElements.length > 0 ? (
             renderTree(treeElements)

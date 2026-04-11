@@ -18,6 +18,13 @@ import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu"
 
 type TreeViewElement = {
   id: string
@@ -43,6 +50,13 @@ type TreeContextProps = {
   closeIcon?: React.ReactNode
   direction: "rtl" | "ltr"
   gitStatusMap?: Record<string, string>
+  // Context menu actions
+  onOpenFile?: (path: string) => void
+  onRevealInFinder?: (path: string) => void
+  onCopyPath?: (path: string) => void
+  onCopyRelativePath?: (path: string) => void
+  onAttachToConversation?: (path: string) => void
+  workspaceRoot?: string
 }
 
 const TreeContext = createContext<TreeContextProps | null>(null)
@@ -164,6 +178,12 @@ type TreeViewProps = {
   expanded?: string[]
   onExpandedChange?: (ids: string[]) => void
   gitStatusMap?: Record<string, string>
+  onOpenFile?: (path: string) => void
+  onRevealInFinder?: (path: string) => void
+  onCopyPath?: (path: string) => void
+  onCopyRelativePath?: (path: string) => void
+  onAttachToConversation?: (path: string) => void
+  workspaceRoot?: string
 } & Omit<
   React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Root>,
   "defaultValue" | "onValueChange" | "type" | "value"
@@ -185,6 +205,12 @@ const Tree = forwardRef<HTMLDivElement, TreeViewProps>(
       expanded: controlledExpanded,
       onExpandedChange,
       gitStatusMap,
+      onOpenFile,
+      onRevealInFinder,
+      onCopyPath,
+      onCopyRelativePath,
+      onAttachToConversation,
+      workspaceRoot,
       ...props
     },
     ref
@@ -271,6 +297,12 @@ const Tree = forwardRef<HTMLDivElement, TreeViewProps>(
           closeIcon,
           direction,
           gitStatusMap,
+          onOpenFile,
+          onRevealInFinder,
+          onCopyPath,
+          onCopyRelativePath,
+          onAttachToConversation,
+          workspaceRoot,
         }}
       >
         <div className={cn("size-full", className)}>
@@ -355,8 +387,53 @@ const Folder = forwardRef<
       selectItem,
       openIcon,
       closeIcon,
+      onOpenFile,
+      onRevealInFinder,
+      onCopyPath,
+      onCopyRelativePath,
+      onAttachToConversation,
+      workspaceRoot,
     } = useTree()
     const isSelected = isSelect ?? selectedId === value
+
+    const relativePath = workspaceRoot
+      ? value.replace(workspaceRoot, '').replace(/^\//, '')
+      : value
+
+    const trigger = (
+      <MotionTrigger
+        className={cn(
+          `flex items-center gap-1 rounded-md text-sm w-full px-1.5 py-0.5 my-0.5 outline-none focus:outline-none`,
+          className,
+          {
+            "bg-muted rounded-md": isSelected && isSelectable,
+            "cursor-pointer": isSelectable,
+            "cursor-not-allowed opacity-50": !isSelectable,
+          }
+        )}
+        disabled={!isSelectable}
+        onClick={() => {
+          selectItem(value)
+          handleExpand(value)
+        }}
+        data-tree-item-id={value}
+        role="treeitem"
+        aria-expanded={expandedItems?.includes(value)}
+        aria-selected={isSelected}
+        animate={{
+          backgroundColor: isFocused
+            ? "rgba(59, 130, 246, 0.15)"
+            : "transparent",
+          color: isFocused ? "var(--primary)" : "inherit",
+        }}
+        transition={{ duration: 0.15 }}
+      >
+        {expandedItems?.includes(value)
+          ? (openIcon ?? <DefaultFolderOpenedIcon width={16} height={16} />)
+          : (closeIcon ?? <FolderIcon folderName={element} width={16} height={16} />)}
+        <span className="truncate text-left flex-1">{element}</span>
+      </MotionTrigger>
+    )
 
     return (
       <AccordionPrimitive.Item
@@ -365,38 +442,28 @@ const Folder = forwardRef<
         value={value}
         className="relative h-full overflow-hidden"
       >
-        <MotionTrigger
-          className={cn(
-            `flex items-center gap-1 rounded-md text-sm w-full px-1.5 py-0.5 my-0.5 outline-none focus:outline-none`,
-            className,
-            {
-              "bg-muted rounded-md": isSelected && isSelectable,
-              "cursor-pointer": isSelectable,
-              "cursor-not-allowed opacity-50": !isSelectable,
-            }
-          )}
-          disabled={!isSelectable}
-          onClick={() => {
-            selectItem(value)
-            handleExpand(value)
-          }}
-          data-tree-item-id={value}
-          role="treeitem"
-          aria-expanded={expandedItems?.includes(value)}
-          aria-selected={isSelected}
-          animate={{
-            backgroundColor: isFocused
-              ? "rgba(59, 130, 246, 0.15)"
-              : "transparent",
-            color: isFocused ? "var(--primary)" : "inherit",
-          }}
-          transition={{ duration: 0.15 }}
-        >
-          {expandedItems?.includes(value)
-            ? (openIcon ?? <DefaultFolderOpenedIcon width={16} height={16} />)
-            : (closeIcon ?? <FolderIcon folderName={element} width={16} height={16} />)}
-          <span className="truncate text-left flex-1">{element}</span>
-        </MotionTrigger>
+        <ContextMenu>
+          <ContextMenuTrigger asChild>{trigger}</ContextMenuTrigger>
+          <ContextMenuContent className="w-48">
+            <ContextMenuItem onClick={() => onOpenFile?.(value)}>
+              Open in Editor
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => onRevealInFinder?.(value)}>
+              Reveal in Finder
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+            <ContextMenuItem onClick={() => onCopyPath?.(value)}>
+              Copy Absolute Path
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => onCopyRelativePath?.(relativePath)}>
+              Copy Relative Path
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+            <ContextMenuItem onClick={() => onAttachToConversation?.(value)}>
+              Attach to Conversation
+            </ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenu>
         <AccordionPrimitive.Content className="data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down relative h-full overflow-hidden text-sm">
           {element && indicator && <TreeIndicator aria-hidden="true" />}
           <AccordionPrimitive.Root
@@ -455,14 +522,28 @@ const File = forwardRef<
     },
     ref
   ) => {
-    const { direction, selectedId, selectItem, gitStatusMap } = useTree()
+    const {
+      direction,
+      selectedId,
+      selectItem,
+      gitStatusMap,
+      onOpenFile,
+      onRevealInFinder,
+      onCopyPath,
+      onCopyRelativePath,
+      onAttachToConversation,
+      workspaceRoot,
+    } = useTree()
     const isSelected = isSelect ?? selectedId === value
     const gitStatus = gitStatusMap?.[value]
     const statusConfig = gitStatus ? gitStatusConfig[gitStatus] : null
 
     const fileName = value.split('/').pop() || value
+    const relativePath = workspaceRoot
+      ? value.replace(workspaceRoot, '').replace(/^\//, '')
+      : value
 
-    return (
+    const button = (
       <MotionButton
         ref={ref}
         type="button"
@@ -502,6 +583,31 @@ const File = forwardRef<
           />
         )}
       </MotionButton>
+    )
+
+    return (
+      <ContextMenu>
+        <ContextMenuTrigger asChild>{button}</ContextMenuTrigger>
+        <ContextMenuContent className="w-48">
+          <ContextMenuItem onClick={() => onOpenFile?.(value)}>
+            Open in Editor
+          </ContextMenuItem>
+          <ContextMenuItem onClick={() => onRevealInFinder?.(value)}>
+            Reveal in Finder
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem onClick={() => onCopyPath?.(value)}>
+            Copy Absolute Path
+          </ContextMenuItem>
+          <ContextMenuItem onClick={() => onCopyRelativePath?.(relativePath)}>
+            Copy Relative Path
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem onClick={() => onAttachToConversation?.(value)}>
+            Attach to Conversation
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
     )
   }
 )
