@@ -10,6 +10,7 @@ import { loadLocale, type locales } from '@/lib/i18n'
 import { useSettingsStore } from '@/store/settings'
 import { router } from './router'
 import './App.css'
+import { commands } from './lib/bindings'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -19,7 +20,20 @@ const queryClient = new QueryClient({
     }
   }
 })
+function SyntaxThemeSync() {
+  useEffect(() => {
+    commands.getSyntaxCss().then((res) => {
+      if (res.status === 'ok') {
+        const style = document.getElementById('syntax-theme') || document.createElement('style')
+        style.id = 'syntax-theme'
+        style.textContent = res.data
+        document.head.appendChild(style)
+      }
+    })
+  }, [])
 
+  return null
+}
 function ThemeSync() {
   const theme = useSettingsStore((s) => s.theme)
   useEffect(() => {
@@ -87,6 +101,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <ThemeSync />
           <FontSizeSync />
           <LanguageSync />
+          <SyntaxThemeSync />
           <RouterProvider router={router} />
         </TooltipProvider>
       </QueryClientProvider>

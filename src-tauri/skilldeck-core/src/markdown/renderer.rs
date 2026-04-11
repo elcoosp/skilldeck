@@ -7,11 +7,23 @@ use pulldown_cmark::{CodeBlockKind, Event, HeadingLevel, Options, Parser, Tag, T
 use regex::Regex;
 use syntect::{
     html::{ClassStyle, ClassedHTMLGenerator},
-    parsing::SyntaxSet,
+    parsing::{SyntaxDefinition, SyntaxSet, SyntaxSetBuilder},
 };
 use uuid::Uuid;
 
-static SYNTAX_SET: Lazy<SyntaxSet> = Lazy::new(SyntaxSet::load_defaults_newlines);
+// Build a custom SyntaxSet that includes TypeScriptReact
+static SYNTAX_SET: Lazy<SyntaxSet> = Lazy::new(|| {
+    let mut builder = SyntaxSet::load_defaults_newlines().into_builder();
+    // Load TypeScriptReact syntax definition from embedded file
+    let ts_def = SyntaxDefinition::load_from_str(
+        include_str!("./TypeScriptReact.sublime-syntax"),
+        false,
+        None,
+    )
+    .expect("Failed to load TypeScriptReact.sublime-syntax");
+    builder.add(ts_def);
+    builder.build()
+});
 
 // compiled regex for link rewriting
 static LINK_RE: Lazy<Regex> =
@@ -89,7 +101,7 @@ impl MarkdownPipeline {
                     if code_buf.trim().is_empty() {
                         in_code = false;
                         code_lang.clear();
-                        last_inline_code = None; // clear any stale state
+                        last_inline_code = None;
                         continue;
                     }
 
@@ -122,16 +134,13 @@ impl MarkdownPipeline {
                         });
                     }
 
-                    // Reset state for next block
                     last_inline_code = None;
                     in_code = false;
                 }
 
                 // ─── Inline code ────────────────────────────────────────────
                 Event::Code(ref text) => {
-                    // Capture the content as a potential file path for the next code block
                     last_inline_code = Some(text.to_string());
-                    // Still push to HTML output
                     if !in_code && !in_heading {
                         html_buf.push_str(&event_to_html(&event));
                     }
@@ -359,7 +368,6 @@ fn comment_prefix_for_lang(lang: &str) -> Option<&'static str> {
 /// Checks whether a string looks like a file path ending with an extension
 /// that plausibly matches the language.
 fn is_plausible_filename(s: &str, lang: &str) -> bool {
-    // Must contain at least a dot or a slash to be considered a path/filename.
     if !(s.contains('/') || s.contains('\\') || s.contains('.')) {
         return false;
     }
@@ -369,7 +377,6 @@ fn is_plausible_filename(s: &str, lang: &str) -> bool {
         .and_then(|e| e.to_str())
         .unwrap_or("");
 
-    // Use a match to handle language-extension pairs with a fallback.
     match (lang.to_lowercase().as_str(), ext) {
         ("rust", "rs")
         | ("rs", "rs")
@@ -379,6 +386,8 @@ fn is_plausible_filename(s: &str, lang: &str) -> bool {
         | ("js", "js")
         | ("typescript", "ts")
         | ("ts", "ts")
+        | ("typescript", "tsx")
+        | ("tsx", "tsx")
         | ("html", "html")
         | ("htm", "html")
         | ("css", "css")
@@ -402,7 +411,6 @@ fn is_plausible_filename(s: &str, lang: &str) -> bool {
         | ("lua", "lua")
         | ("haskell", "hs")
         | ("hs", "hs") => true,
-        // Fallback: any plausible extension (2‑5 letters) is accepted
         _ => ext.len() >= 2 && ext.len() <= 5,
     }
 }
