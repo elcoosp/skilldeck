@@ -1,3 +1,4 @@
+// src/components/ui/scroll-area.tsx
 import { ScrollArea as ScrollAreaPrimitive } from 'radix-ui'
 import * as React from 'react'
 import { cn } from '@/lib/utils'
@@ -40,7 +41,7 @@ function ScrollBar({
         'transition-opacity duration-300 ease-in-out',
         'data-[state=visible]:opacity-100 data-[state=hidden]:opacity-0',
         orientation === 'vertical'
-          ? 'h-full w-2.5 border-l border-l-transparent' // increased from w-1.5 to w-2.5
+          ? 'h-full w-2.5 border-l border-l-transparent'
           : 'h-1.5 flex-col border-t border-t-transparent',
         className
       )}

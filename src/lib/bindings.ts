@@ -6,7 +6,8 @@
 
 export const commands = {
 /**
- * List files and folders in a workspace directory up to a specified depth.
+ * List files and folders in a workspace directory up to a specified depth,
+ * respecting .gitignore and other ignore files.
  */
 async listWorkspaceFiles(workspacePath: string, maxDepth: number | null) : Promise<Result<FileEntry[], string>> {
     try {

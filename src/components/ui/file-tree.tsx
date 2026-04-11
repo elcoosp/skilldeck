@@ -1,3 +1,4 @@
+// src/components/ui/file-tree.tsx
 import React, {
   createContext,
   forwardRef,
@@ -12,6 +13,7 @@ import {
   FolderIcon,
   DefaultFolderOpenedIcon,
 } from "@react-symbols/icons/utils"
+import { motion } from "framer-motion"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -270,15 +272,16 @@ const Tree = forwardRef<HTMLDivElement, TreeViewProps>(
         <div className={cn("size-full", className)}>
           <ScrollArea
             ref={ref}
-            className="relative h-full px-2"
+            className="relative h-full"
             dir={dir as Direction}
+            viewportClassName="overflow-auto"
           >
             <AccordionPrimitive.Root
               {...props}
               type="multiple"
               value={effectiveExpanded}
               onValueChange={setEffectiveExpanded}
-              className="flex flex-col gap-1"
+              className="flex flex-col gap-0.5 min-w-max"
               dir={dir as Direction}
             >
               {treeChildren}
@@ -303,7 +306,7 @@ const TreeIndicator = forwardRef<
       dir={direction}
       ref={ref}
       className={cn(
-        "bg-muted absolute left-1.5 h-full w-px rounded-md py-3 duration-300 ease-in-out hover:bg-slate-300 rtl:right-1.5",
+        "bg-muted absolute left-[11px] h-full w-px rounded-md py-3 duration-300 ease-in-out hover:bg-slate-300 rtl:right-[11px]",
         className
       )}
       {...props}
@@ -320,6 +323,8 @@ type FolderProps = {
   isSelect?: boolean
   isFocused?: boolean
 } & React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Item>
+
+const MotionTrigger = motion(AccordionPrimitive.Trigger)
 
 const Folder = forwardRef<
   HTMLDivElement,
@@ -357,15 +362,14 @@ const Folder = forwardRef<
         value={value}
         className="relative h-full overflow-hidden"
       >
-        <AccordionPrimitive.Trigger
+        <MotionTrigger
           className={cn(
-            `flex items-center gap-1 rounded-md text-sm`,
+            `flex items-center gap-1 rounded-md text-sm w-full px-1.5 py-0.5 my-0.5 outline-none focus:outline-none`,
             className,
             {
               "bg-muted rounded-md": isSelected && isSelectable,
               "cursor-pointer": isSelectable,
               "cursor-not-allowed opacity-50": !isSelectable,
-              "ring-2 ring-ring": isFocused,
             }
           )}
           disabled={!isSelectable}
@@ -377,18 +381,25 @@ const Folder = forwardRef<
           role="treeitem"
           aria-expanded={expandedItems?.includes(value)}
           aria-selected={isSelected}
+          animate={{
+            backgroundColor: isFocused
+              ? "rgba(59, 130, 246, 0.15)"
+              : "transparent",
+            color: isFocused ? "var(--primary)" : "inherit",
+          }}
+          transition={{ duration: 0.15 }}
         >
           {expandedItems?.includes(value)
             ? (openIcon ?? <DefaultFolderOpenedIcon width={16} height={16} />)
             : (closeIcon ?? <FolderIcon folderName={element} width={16} height={16} />)}
-          <span>{element}</span>
-        </AccordionPrimitive.Trigger>
+          <span className="truncate text-left flex-1">{element}</span>
+        </MotionTrigger>
         <AccordionPrimitive.Content className="data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down relative h-full overflow-hidden text-sm">
           {element && indicator && <TreeIndicator aria-hidden="true" />}
           <AccordionPrimitive.Root
             dir={direction}
             type="multiple"
-            className="ml-5 flex flex-col gap-1 py-1 rtl:mr-5"
+            className="ml-5 flex flex-col gap-0.5 py-1 rtl:mr-5"
             value={expandedItems}
           >
             {children}
@@ -400,6 +411,8 @@ const Folder = forwardRef<
 )
 
 Folder.displayName = "Folder"
+
+const MotionButton = motion.button
 
 const File = forwardRef<
   HTMLButtonElement,
@@ -430,19 +443,17 @@ const File = forwardRef<
     const { direction, selectedId, selectItem } = useTree()
     const isSelected = isSelect ?? selectedId === value
 
-    // Extract filename from the full path
     const fileName = value.split('/').pop() || value
 
     return (
-      <button
+      <MotionButton
         ref={ref}
         type="button"
         disabled={!isSelectable}
         className={cn(
-          "flex w-fit items-center gap-1 rounded-md pr-1 text-sm duration-200 ease-in-out rtl:pr-0 rtl:pl-1",
+          "flex w-fit items-center gap-1 rounded-md text-sm px-1.5 py-0.5 my-0.5 outline-none focus:outline-none whitespace-nowrap",
           {
             "bg-muted": isSelected && isSelectable,
-            "ring-2 ring-ring": isFocused,
           },
           isSelectable ? "cursor-pointer" : "cursor-not-allowed opacity-50",
           direction === "rtl" ? "rtl" : "ltr",
@@ -456,11 +467,18 @@ const File = forwardRef<
         data-tree-item-id={value}
         role="treeitem"
         aria-selected={isSelected}
+        animate={{
+          backgroundColor: isFocused
+            ? "rgba(59, 130, 246, 0.15)"
+            : "transparent",
+          color: isFocused ? "var(--primary)" : "inherit",
+        }}
+        transition={{ duration: 0.15 }}
         {...props}
       >
         {fileIcon ?? <FileIcon fileName={fileName} width={16} height={16} />}
-        {children}
-      </button>
+        <span className="truncate">{children}</span>
+      </MotionButton>
     )
   }
 )

@@ -13,7 +13,11 @@ import { useWorkspaceStore } from '@/store/workspace'
 import { useWorkspaces } from '@/hooks/use-workspaces'
 import { FileIcon } from '@react-symbols/icons/utils'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useDebounce } from 'use-debounce'
 import { flattenTree, getNextVisibleItem, getPrevVisibleItem, findIndexById, type FlattenedNode } from '@/lib/keyboard-tree-navigation'
+import { filterTree } from '@/lib/filter-tree'
+import { Input } from '@/components/ui/input'
+import { Search } from 'lucide-react'
 
 interface FileEntry {
   name: string
@@ -29,12 +33,14 @@ export function FileTreePanel() {
 
   const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId)
 
-  // Keyboard navigation state
   const [focusedId, setFocusedId] = useState<string | null>(null)
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
+  const [expanded, setExpanded] = useState<string[]>([])
   const containerRef = useRef<HTMLDivElement>(null)
 
-  const handleFileClick = async (filePath: string) => {
+  const [searchInput, setSearchInput] = useState('')
+  const [searchQuery] = useDebounce(searchInput, 200)
+
+  const handleFileClick = useCallback(async (filePath: string) => {
     const schemes: Record<string, string> = {
       vscode: 'vscode://file/',
       cursor: 'cursor://file/',
@@ -46,7 +52,7 @@ export function FileTreePanel() {
     await openUrl(url).catch(() => {
       openUrl(`file://${filePath}`)
     })
-  }
+  }, [preferredEditor])
 
   const { data: files, isLoading } = useQuery({
     queryKey: ['workspace-files', activeWorkspace?.path],
@@ -55,7 +61,6 @@ export function FileTreePanel() {
         activeWorkspace!.path,
         4,
       )
-
       if (res.status === 'ok') return res.data
       throw new Error(res.error)
     },
@@ -63,43 +68,59 @@ export function FileTreePanel() {
     staleTime: 30_000,
   })
 
-  const transformFiles = (entries: FileEntry[]): TreeViewElement[] => {
+  const transformFiles = useCallback((entries: FileEntry[]): TreeViewElement[] => {
     const sorted = entries.sort((a, b) => {
       if (a.is_dir !== b.is_dir) return a.is_dir ? -1 : 1
       return a.name.localeCompare(b.name)
     })
-
     return sorted.map((entry) => ({
       id: entry.path,
       name: entry.name,
-      type: entry.is_dir ? ("folder" as const) : ("file" as const),
-      children:
-        entry.is_dir && entry.children?.length
-          ? transformFiles(entry.children)
-          : undefined,
+      type: entry.is_dir ? "folder" as const : "file" as const,
+      children: entry.is_dir && entry.children?.length ? transformFiles(entry.children) : undefined,
     }))
-  }
+  }, [])
 
-  const treeElements = files ? transformFiles(files) : []
+  const rawTreeElements = useMemo(() => {
+    return files ? transformFiles(files) : []
+  }, [files, transformFiles])
 
-  // Flatten tree for keyboard navigation
+  const { treeElements, expandedIdsForSearch } = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return { treeElements: rawTreeElements, expandedIdsForSearch: [] }
+    }
+    const filtered = filterTree(rawTreeElements, searchQuery)
+    const idsToExpand: string[] = []
+    const markExpanded = (elements: TreeViewElement[]) => {
+      for (const el of elements) {
+        if (el.type === 'folder' && el.children && el.children.length > 0) {
+          idsToExpand.push(el.id)
+          markExpanded(el.children)
+        }
+      }
+    }
+    markExpanded(filtered)
+    return { treeElements: filtered, expandedIdsForSearch: idsToExpand }
+  }, [rawTreeElements, searchQuery])
+
+  useEffect(() => {
+    if (searchQuery) {
+      setExpanded(expandedIdsForSearch)
+    }
+  }, [searchQuery, expandedIdsForSearch])
+
+  const expandedSet = useMemo(() => new Set(expanded), [expanded])
   const flatNodes = useMemo(() => {
     if (!treeElements.length) return []
-    return flattenTree(treeElements, expandedIds)
-  }, [treeElements, expandedIds])
+    return flattenTree(treeElements, expandedSet)
+  }, [treeElements, expandedSet])
 
   const toggleExpand = useCallback((id: string) => {
-    setExpandedIds(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
+    setExpanded(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id])
   }, [])
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
     if (!flatNodes.length) return
-
     const currentIndex = focusedId ? findIndexById(flatNodes, focusedId) : -1
     let nextFocused: FlattenedNode | undefined
 
@@ -115,10 +136,10 @@ export function FileTreePanel() {
       case 'ArrowRight': {
         e.preventDefault()
         const node = flatNodes[currentIndex]
-        if (node && node.type === 'folder' && !expandedIds.has(node.id)) {
+        if (node && node.type === 'folder' && !expanded.includes(node.id)) {
           toggleExpand(node.id)
           return
-        } else if (node && node.type === 'folder' && expandedIds.has(node.id)) {
+        } else if (node && node.type === 'folder' && expanded.includes(node.id)) {
           nextFocused = getNextVisibleItem(flatNodes, currentIndex)
         }
         break
@@ -126,7 +147,7 @@ export function FileTreePanel() {
       case 'ArrowLeft': {
         e.preventDefault()
         const node = flatNodes[currentIndex]
-        if (node && node.type === 'folder' && expandedIds.has(node.id)) {
+        if (node && node.type === 'folder' && expanded.includes(node.id)) {
           toggleExpand(node.id)
           return
         } else if (node && node.parentId) {
@@ -155,26 +176,26 @@ export function FileTreePanel() {
         e.preventDefault()
         nextFocused = flatNodes[flatNodes.length - 1]
         break
+      default:
+        return
     }
 
     if (nextFocused) {
       setFocusedId(nextFocused.id)
-      // Scroll into view
       const element = document.querySelector(`[data-tree-item-id="${nextFocused.id}"]`)
       if (element) {
         element.scrollIntoView({ block: 'nearest' })
       }
     }
-  }, [flatNodes, focusedId, expandedIds, toggleExpand, handleFileClick])
+  }, [flatNodes, focusedId, expanded, toggleExpand, handleFileClick])
 
-  // Auto-focus first item when tree loads
   useEffect(() => {
     if (flatNodes.length > 0 && !focusedId) {
       setFocusedId(flatNodes[0].id)
     }
   }, [flatNodes, focusedId])
 
-  const renderTree = (elements: TreeViewElement[]) => {
+  const renderTree = useCallback((elements: TreeViewElement[]) => {
     return elements.map((element) => {
       if (element.type === "folder") {
         return (
@@ -188,7 +209,6 @@ export function FileTreePanel() {
           </TreeFolder>
         )
       }
-
       return (
         <TreeFile
           key={element.id}
@@ -202,48 +222,54 @@ export function FileTreePanel() {
         </TreeFile>
       )
     })
-  }
+  }, [focusedId, handleFileClick])
 
   if (!activeWorkspace) {
-    return (
-      <div className="flex h-full items-center justify-center p-4 text-sm text-muted-foreground">
-        No workspace open
-      </div>
-    )
+    return <div className="flex h-full items-center justify-center p-4 text-sm text-muted-foreground">No workspace open</div>
   }
 
   if (isLoading) {
-    return (
-      <div className="flex h-full items-center justify-center p-4">
-        <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
-    )
+    return <div className="flex h-full items-center justify-center p-4"><div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" /></div>
   }
 
   return (
-    <div
-      ref={containerRef}
-      tabIndex={0}
-      onKeyDown={handleKeyDown}
-      className="h-full outline-none focus:ring-2 focus:ring-ring rounded-md"
-      role="tree"
-      aria-label="Workspace files"
-      aria-activedescendant={focusedId ?? undefined}
-    >
-      <Tree
-        className="h-full pt-2"
-        indicator
-        expanded={Array.from(expandedIds)}
-        onExpandedChange={(ids) => setExpandedIds(new Set(ids))}
+    <div className="flex flex-col h-full">
+      <div className="p-2 border-b shrink-0">
+        <div className="relative">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+          <Input
+            placeholder="Filter files..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            className="pl-7 h-7 text-xs"
+          />
+        </div>
+      </div>
+
+      <div
+        ref={containerRef}
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
+        className="flex-1 overflow-auto outline-none"
+        role="tree"
+        aria-label="Workspace files"
+        aria-activedescendant={focusedId ?? undefined}
       >
-        {treeElements.length > 0 ? (
-          renderTree(treeElements)
-        ) : (
-          <div className="p-4 text-center text-sm text-muted-foreground">
-            No files found in workspace
-          </div>
-        )}
-      </Tree>
+        <Tree
+          className="h-full"
+          indicator
+          expanded={expanded}
+          onExpandedChange={setExpanded}
+        >
+          {treeElements.length > 0 ? (
+            renderTree(treeElements)
+          ) : (
+            <div className="p-4 text-center text-sm text-muted-foreground">
+              {searchQuery ? 'No matching files' : 'No files found in workspace'}
+            </div>
+          )}
+        </Tree>
+      </div>
     </div>
   )
 }

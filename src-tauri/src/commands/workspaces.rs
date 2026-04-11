@@ -1,11 +1,11 @@
 //! Workspace Tauri commands.
+use ignore::WalkBuilder;
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, QueryFilter, QueryOrder,
 };
 use serde::{Deserialize, Serialize};
 use specta::{Type, specta};
-use std::pin::Pin;
-use std::{path::PathBuf, sync::Arc};
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tauri::State;
 use tokio::fs;
 use uuid::Uuid;
@@ -22,9 +22,10 @@ pub struct WorkspaceData {
     pub project_type: String,
     pub is_open: bool,
     pub avatar_style: String,
-    pub context_files: Vec<String>, // <-- new field
-    pub indexed_file_count: u64,    // <-- new field
+    pub context_files: Vec<String>,
+    pub indexed_file_count: u64,
 }
+
 #[specta]
 #[tauri::command]
 pub async fn update_workspace(
@@ -52,6 +53,7 @@ pub async fn update_workspace(
 
     Ok(())
 }
+
 /// Detect and open a workspace at the given path.
 /// If the workspace already exists in the DB, it is reopened (updated) instead of inserted.
 #[specta]
@@ -139,7 +141,7 @@ pub async fn open_workspace(
         is_open: true,
         context_files,
         indexed_file_count,
-        avatar_style, // Now correctly uses the stored style for existing workspaces
+        avatar_style,
     })
 }
 
@@ -204,8 +206,6 @@ pub async fn list_workspaces(
     }
     Ok(result)
 }
-// src-tauri/src/commands/workspace.rs
-// Add this new command at the end of the file, before the closing of the module
 
 #[derive(Debug, Serialize, Deserialize, Type)]
 pub struct GitStatus {
@@ -240,6 +240,7 @@ pub async fn check_git_status(workspace_path: String) -> Result<GitStatus, Strin
         has_uncommitted,
     })
 }
+
 #[specta]
 #[tauri::command]
 pub async fn git_init(path: String) -> Result<(), String> {
@@ -259,58 +260,120 @@ pub struct FileEntry {
     pub children: Vec<FileEntry>,
 }
 
-/// Recursively read a directory up to a maximum depth.
-fn read_dir_recursive<'a>(
-    path: &'a std::path::Path,
-    max_depth: u32,
-    current_depth: u32,
-) -> Pin<Box<dyn Future<Output = Result<Vec<FileEntry>, String>> + Send + 'a>> {
-    Box::pin(async move {
-        if current_depth > max_depth {
-            return Ok(Vec::new());
-        }
+/// List files and folders in a workspace directory up to a specified depth,
+/// respecting .gitignore and other ignore files.
+#[specta]
+#[tauri::command]
+pub async fn list_workspace_files(
+    workspace_path: String,
+    max_depth: Option<u32>,
+) -> Result<Vec<FileEntry>, String> {
+    let max_depth = max_depth.unwrap_or(4);
 
-        let mut entries = Vec::new();
+    // Run the blocking walk on a dedicated thread pool.
+    tauri::async_runtime::spawn_blocking(move || {
+        // Canonicalize to an absolute path to avoid relative‑path pitfalls.
+        let canonical_root = std::fs::canonicalize(&workspace_path)
+            .map_err(|e| format!("Invalid workspace path '{}': {}", workspace_path, e))?;
 
-        let mut dir_entries = fs::read_dir(path)
-            .await
-            .map_err(|e| format!("Failed to read directory {}: {}", path.display(), e))?;
+        // Build the walker with .gitignore / .ignore support.
+        let walker = WalkBuilder::new(&canonical_root)
+            .standard_filters(true) // Respect .gitignore, .ignore, etc.
+            .hidden(true) // Skip hidden files/directories
+            .max_depth(Some(max_depth as usize))
+            .build();
 
-        while let Ok(Some(entry)) = dir_entries.next_entry().await {
-            let file_name = entry.file_name().to_string_lossy().to_string();
+        // Collect all entries, skipping the root directory itself.
+        let mut all_entries: Vec<FileEntry> = Vec::new();
+        for result in walker {
+            match result {
+                Ok(entry) => {
+                    // Skip the root directory; we only want its children.
+                    if entry.path() == canonical_root {
+                        continue;
+                    }
+                    let entry_path = entry.path();
+                    let name = entry.file_name().to_string_lossy().to_string();
+                    let is_dir = entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false);
 
-            // Skip hidden files and directories (e.g., .git, .env, .vscode)
-            if file_name.starts_with('.') {
-                continue;
+                    all_entries.push(FileEntry {
+                        name,
+                        path: entry_path.to_string_lossy().to_string(),
+                        is_dir,
+                        children: Vec::new(),
+                    });
+                }
+                Err(err) => {
+                    eprintln!("Walk error: {}", err);
+                }
             }
-
-            let entry_path = entry.path();
-            let metadata = entry.metadata().await.map_err(|e| {
-                format!(
-                    "Failed to read metadata for {}: {}",
-                    entry_path.display(),
-                    e
-                )
-            })?;
-
-            let is_dir = metadata.is_dir();
-
-            let children = if is_dir {
-                read_dir_recursive(&entry_path, max_depth, current_depth + 1).await?
-            } else {
-                Vec::new()
-            };
-
-            entries.push(FileEntry {
-                name: file_name,
-                path: entry_path.to_string_lossy().to_string(),
-                is_dir,
-                children,
-            });
         }
 
-        // Sort: Folders first, then alphabetically case-insensitive
-        entries.sort_by(|a, b| {
+        // Build a map from path to index in `all_entries`.
+        let mut path_to_index: HashMap<String, usize> = HashMap::new();
+        for (idx, entry) in all_entries.iter().enumerate() {
+            path_to_index.insert(entry.path.clone(), idx);
+        }
+
+        // Group children by parent index.
+        let root_path_str = canonical_root.to_string_lossy().to_string();
+        let mut root_children_indices: Vec<usize> = Vec::new();
+        let mut parent_to_children: HashMap<usize, Vec<usize>> = HashMap::new();
+
+        for (idx, entry) in all_entries.iter().enumerate() {
+            let entry_path = std::path::Path::new(&entry.path);
+            if let Some(parent_path) = entry_path.parent() {
+                let parent_path_str = parent_path.to_string_lossy().to_string();
+                if parent_path_str == root_path_str {
+                    // Direct child of the workspace root.
+                    root_children_indices.push(idx);
+                } else if let Some(&parent_idx) = path_to_index.get(&parent_path_str) {
+                    parent_to_children.entry(parent_idx).or_default().push(idx);
+                } else {
+                    // Parent not in our entries (e.g., ignored or above max depth).
+                    // Treat as a root child to avoid losing the entry.
+                    root_children_indices.push(idx);
+                }
+            } else {
+                // Entry has no parent (should not happen for a valid file path).
+                root_children_indices.push(idx);
+            }
+        }
+
+        // Recursively assemble the tree.
+        fn assemble_tree(
+            idx: usize,
+            all_entries: &mut Vec<FileEntry>,
+            parent_to_children: &HashMap<usize, Vec<usize>>,
+        ) -> FileEntry {
+            let mut entry = all_entries[idx].clone();
+            if let Some(child_indices) = parent_to_children.get(&idx) {
+                let mut children: Vec<FileEntry> = child_indices
+                    .iter()
+                    .map(|&child_idx| assemble_tree(child_idx, all_entries, parent_to_children))
+                    .collect();
+                // Sort each level: directories first, then alphabetically.
+                children.sort_by(|a, b| {
+                    if a.is_dir && !b.is_dir {
+                        std::cmp::Ordering::Less
+                    } else if !a.is_dir && b.is_dir {
+                        std::cmp::Ordering::Greater
+                    } else {
+                        a.name.to_lowercase().cmp(&b.name.to_lowercase())
+                    }
+                });
+                entry.children = children;
+            }
+            entry
+        }
+
+        let mut root_entries: Vec<FileEntry> = root_children_indices
+            .into_iter()
+            .map(|idx| assemble_tree(idx, &mut all_entries, &parent_to_children))
+            .collect();
+
+        // Sort the root level as well.
+        root_entries.sort_by(|a, b| {
             if a.is_dir && !b.is_dir {
                 std::cmp::Ordering::Less
             } else if !a.is_dir && b.is_dir {
@@ -320,24 +383,8 @@ fn read_dir_recursive<'a>(
             }
         });
 
-        Ok(entries)
+        Ok(root_entries)
     })
-}
-
-/// List files and folders in a workspace directory up to a specified depth.
-#[specta]
-#[tauri::command]
-pub async fn list_workspace_files(
-    workspace_path: String, // Tauri automatically maps from camelCase in TS
-    max_depth: Option<u32>,
-) -> Result<Vec<FileEntry>, String> {
-    let path = std::path::Path::new(&workspace_path);
-
-    if !path.exists() {
-        return Err(format!("Path does not exist: {}", workspace_path));
-    }
-
-    let max_depth = max_depth.unwrap_or(4);
-
-    read_dir_recursive(path, max_depth, 0).await
+    .await
+    .map_err(|e| e.to_string())?
 }
