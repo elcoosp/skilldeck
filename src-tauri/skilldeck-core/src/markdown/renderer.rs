@@ -11,20 +11,29 @@ use syntect::{
 };
 use uuid::Uuid;
 
-// Build a custom SyntaxSet that includes TypeScriptReact
 static SYNTAX_SET: Lazy<SyntaxSet> = Lazy::new(|| {
     let mut builder = SyntaxSet::load_defaults_newlines().into_builder();
-    // Load TypeScriptReact syntax definition from embedded file
+
+    // Load TypeScript syntax
     let ts_def = SyntaxDefinition::load_from_str(
         include_str!("./TypeScriptReact.sublime-syntax"),
         false,
-        None,
+        Some("typescript"),
+    )
+    .expect("Failed to load TypeScript.sublime-syntax");
+    builder.add(ts_def);
+
+    // Load TypeScriptReact (TSX) syntax
+    let tsx_def = SyntaxDefinition::load_from_str(
+        include_str!("./TypeScriptReact.sublime-syntax"),
+        false,
+        Some("typescriptreact"),
     )
     .expect("Failed to load TypeScriptReact.sublime-syntax");
-    builder.add(ts_def);
+    builder.add(tsx_def);
+
     builder.build()
 });
-
 // compiled regex for link rewriting
 static LINK_RE: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"<a((?:\s[^>]*)?)\s*href=(")([^"]+)""#).unwrap());

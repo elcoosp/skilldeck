@@ -1170,18 +1170,15 @@ fn run_agent_loop(
         let mut saw_done = false;
 
         // ─────────────────────────────────────────────────────────────────────
-        // FIXED: Use tokio::sync::mpsc instead of std::sync::mpsc to prevent blocking.
+        // FIXED: Use tokio::sync::mpsc and remove spawn_blocking to avoid
+        // blocking the main thread.
         // ─────────────────────────────────────────────────────────────────────
         let (emit_tx, mut emit_rx) = tokio::sync::mpsc::channel::<AgentEvent>(256);
         let app_emitter = app.clone();
         tokio::spawn(async move {
             while let Some(event) = emit_rx.recv().await {
-                let emitter = app_emitter.clone();
-                tokio::task::spawn_blocking(move || {
-                    let _ = emitter.emit("agent-event", event);
-                })
-                .await
-                .ok();
+                // Emit directly on the async task — AppHandle::emit is not blocking.
+                let _ = app_emitter.emit("agent-event", event);
             }
         });
 
@@ -1397,7 +1394,9 @@ fn run_agent_loop(
             }
         }
 
+        // FIXED: Drop the sender and yield to allow the emitter task to drain.
         drop(emit_tx);
+        tokio::task::yield_now().await;
         let loop_result = loop_handle.await;
         state.agent_cancel_tokens.remove(&conversation_id);
 
