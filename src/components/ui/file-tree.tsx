@@ -1,4 +1,3 @@
-// src/components/ui/file-tree.tsx
 import React, {
   createContext,
   forwardRef,
@@ -6,6 +5,7 @@ import React, {
   useContext,
   useEffect,
   useState,
+  useRef,
 } from "react"
 import { Accordion as AccordionPrimitive } from "radix-ui"
 import {
@@ -13,7 +13,13 @@ import {
   FolderIcon,
   DefaultFolderOpenedIcon,
 } from "@react-symbols/icons/utils"
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
+import {
+  ExternalLink,
+  FolderOpen,
+  Copy,
+  Paperclip,
+} from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -25,6 +31,12 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 type TreeViewElement = {
   id: string
@@ -50,7 +62,6 @@ type TreeContextProps = {
   closeIcon?: React.ReactNode
   direction: "rtl" | "ltr"
   gitStatusMap?: Record<string, string>
-  // Context menu actions
   onOpenFile?: (path: string) => void
   onRevealInFinder?: (path: string) => void
   onCopyPath?: (path: string) => void
@@ -72,10 +83,7 @@ const useTree = () => {
 type Direction = "rtl" | "ltr" | undefined
 
 const isFolderElement = (element: TreeViewElement) => {
-  if (element.type) {
-    return element.type === "folder"
-  }
-
+  if (element.type) return element.type === "folder"
   return Array.isArray(element.children)
 }
 
@@ -92,23 +100,13 @@ const treeCollator = new Intl.Collator("en", {
 const defaultTreeComparator = (a: TreeViewElement, b: TreeViewElement) => {
   const aIsFolder = isFolderElement(a)
   const bIsFolder = isFolderElement(b)
-
-  if (aIsFolder !== bIsFolder) {
-    return aIsFolder ? -1 : 1
-  }
-
+  if (aIsFolder !== bIsFolder) return aIsFolder ? -1 : 1
   return treeCollator.compare(a.name, b.name)
 }
 
 const getTreeComparator = (sort: TreeSortMode) => {
-  if (sort === "none") {
-    return undefined
-  }
-
-  if (sort === "default") {
-    return defaultTreeComparator
-  }
-
+  if (sort === "none") return undefined
+  if (sort === "default") return defaultTreeComparator
   return sort
 }
 
@@ -117,22 +115,13 @@ const sortTreeElements = (
   sort: TreeSortMode
 ): TreeViewElement[] => {
   const comparator = getTreeComparator(sort)
-
-  const nextElements = elements.map((element) => {
-    if (!Array.isArray(element.children)) {
-      return element
-    }
-
-    return {
-      ...element,
-      children: sortTreeElements(element.children, sort),
-    }
-  })
-
-  if (!comparator) {
-    return nextElements
-  }
-
+  const nextElements = elements.map((element) => ({
+    ...element,
+    children: element.children
+      ? sortTreeElements(element.children, sort)
+      : undefined,
+  }))
+  if (!comparator) return nextElements
   return [...nextElements].sort(comparator)
 }
 
@@ -149,21 +138,17 @@ const renderTreeElements = (
           element={element.name}
           isSelectable={element.isSelectable}
         >
-          {Array.isArray(element.children)
-            ? renderTreeElements(element.children, sort)
-            : null}
+          {element.children ? renderTreeElements(element.children, sort) : null}
         </Folder>
       )
     }
-
     return (
       <File
         key={element.id}
         value={element.id}
+        fileName={element.name}
         isSelectable={element.isSelectable}
-      >
-        <span>{element.name}</span>
-      </File>
+      />
     )
   })
 
@@ -225,51 +210,37 @@ const Tree = forwardRef<HTMLDivElement, TreeViewProps>(
     const effectiveExpanded = controlledExpanded ?? expandedItems
     const setEffectiveExpanded = onExpandedChange ?? setExpandedItems
 
-    const selectItem = useCallback((id: string) => {
-      setSelectedId(id)
-    }, [])
+    const selectItem = useCallback((id: string) => setSelectedId(id), [])
 
-    const handleExpand = useCallback((id: string) => {
-      setEffectiveExpanded((prev) => {
-        if (prev?.includes(id)) {
-          return prev.filter((item) => item !== id)
-        }
-        return [...(prev ?? []), id]
-      })
-    }, [setEffectiveExpanded])
+    const handleExpand = useCallback(
+      (id: string) => {
+        setEffectiveExpanded((prev) => {
+          if (prev?.includes(id)) return prev.filter((item) => item !== id)
+          return [...(prev ?? []), id]
+        })
+      },
+      [setEffectiveExpanded]
+    )
 
     const expandSpecificTargetedElements = useCallback(
       (elements?: TreeViewElement[], selectId?: string) => {
         if (!elements || !selectId) return
-        const findParent = (
-          currentElement: TreeViewElement,
-          currentPath: string[] = []
-        ) => {
-          const isSelectable = currentElement.isSelectable ?? true
-          const newPath = [...currentPath, currentElement.id]
-          if (currentElement.id === selectId) {
-            if (isSelectable) {
+        const findParent = (element: TreeViewElement, path: string[] = []) => {
+          const newPath = [...path, element.id]
+          if (element.id === selectId) {
+            if (element.isSelectable !== false) {
               setEffectiveExpanded((prev) => mergeExpandedItems(prev, newPath))
-            } else {
-              if (newPath.includes(currentElement.id)) {
-                newPath.pop()
-                setEffectiveExpanded((prev) => mergeExpandedItems(prev, newPath))
-              }
+            } else if (newPath.includes(element.id)) {
+              newPath.pop()
+              setEffectiveExpanded((prev) => mergeExpandedItems(prev, newPath))
             }
             return
           }
-          if (
-            Array.isArray(currentElement.children) &&
-            currentElement.children.length > 0
-          ) {
-            currentElement.children.forEach((child) => {
-              findParent(child, newPath)
-            })
+          if (element.children) {
+            element.children.forEach((child) => findParent(child, newPath))
           }
         }
-        elements.forEach((element) => {
-          findParent(element)
-        })
+        elements.forEach((el) => findParent(el))
       },
       [setEffectiveExpanded]
     )
@@ -327,32 +298,47 @@ const Tree = forwardRef<HTMLDivElement, TreeViewProps>(
     )
   }
 )
-
 Tree.displayName = "Tree"
 
-const TreeIndicator = forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => {
-  const { direction } = useTree()
+// Tooltip only when text is truncated
+const TruncatedSpan = ({
+  text,
+  className,
+}: {
+  text: string
+  className?: string
+}) => {
+  const ref = useRef<HTMLSpanElement>(null)
+  const [isTruncated, setIsTruncated] = useState(false)
+
+  useEffect(() => {
+    const el = ref.current
+    if (el) {
+      setIsTruncated(el.scrollWidth > el.clientWidth)
+    }
+  }, [text])
+
+  const content = (
+    <span ref={ref} className={className}>
+      {text}
+    </span>
+  )
+
+  if (!isTruncated) return content
 
   return (
-    <div
-      dir={direction}
-      ref={ref}
-      className={cn(
-        "bg-muted absolute left-[11px] h-full w-px rounded-md py-3 duration-300 ease-in-out hover:bg-slate-300 rtl:right-[11px]",
-        className
-      )}
-      {...props}
-    />
+    <TooltipProvider delayDuration={500}>
+      <Tooltip>
+        <TooltipTrigger asChild>{content}</TooltipTrigger>
+        <TooltipContent side="right" align="start">
+          <p className="text-xs">{text}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   )
-})
-
-TreeIndicator.displayName = "TreeIndicator"
+}
 
 type FolderProps = {
-  expandedItems?: string[]
   element: string
   isSelectable?: boolean
   isSelect?: boolean
@@ -395,15 +381,16 @@ const Folder = forwardRef<
       workspaceRoot,
     } = useTree()
     const isSelected = isSelect ?? selectedId === value
+    const isExpanded = expandedItems?.includes(value) ?? false
 
     const relativePath = workspaceRoot
-      ? value.replace(workspaceRoot, '').replace(/^\//, '')
+      ? value.replace(workspaceRoot, "").replace(/^\//, "")
       : value
 
     const trigger = (
       <MotionTrigger
         className={cn(
-          `flex items-center gap-1 rounded-md text-sm w-full px-1.5 py-0.5 my-0.5 outline-none focus:outline-none`,
+          "flex items-center gap-1 rounded-md text-sm w-full px-1.5 py-0.5 my-0.5 outline-none focus:outline-none",
           className,
           {
             "bg-muted rounded-md": isSelected && isSelectable,
@@ -418,7 +405,7 @@ const Folder = forwardRef<
         }}
         data-tree-item-id={value}
         role="treeitem"
-        aria-expanded={expandedItems?.includes(value)}
+        aria-expanded={isExpanded}
         aria-selected={isSelected}
         animate={{
           backgroundColor: isFocused
@@ -428,10 +415,10 @@ const Folder = forwardRef<
         }}
         transition={{ duration: 0.15 }}
       >
-        {expandedItems?.includes(value)
-          ? (openIcon ?? <DefaultFolderOpenedIcon width={16} height={16} />)
-          : (closeIcon ?? <FolderIcon folderName={element} width={16} height={16} />)}
-        <span className="truncate text-left flex-1">{element}</span>
+        {isExpanded
+          ? openIcon ?? <DefaultFolderOpenedIcon width={16} height={16} />
+          : closeIcon ?? <FolderIcon folderName={element} width={16} height={16} />}
+        <TruncatedSpan text={element} className="truncate text-left flex-1" />
       </MotionTrigger>
     )
 
@@ -440,66 +427,93 @@ const Folder = forwardRef<
         ref={ref}
         {...props}
         value={value}
-        className="relative h-full overflow-hidden"
+        className="relative"
       >
         <ContextMenu>
           <ContextMenuTrigger asChild>{trigger}</ContextMenuTrigger>
           <ContextMenuContent className="w-48">
             <ContextMenuItem onClick={() => onOpenFile?.(value)}>
+              <ExternalLink className="mr-2 h-4 w-4" />
               Open in Editor
             </ContextMenuItem>
             <ContextMenuItem onClick={() => onRevealInFinder?.(value)}>
+              <FolderOpen className="mr-2 h-4 w-4" />
               Reveal in Finder
             </ContextMenuItem>
             <ContextMenuSeparator />
             <ContextMenuItem onClick={() => onCopyPath?.(value)}>
+              <Copy className="mr-2 h-4 w-4" />
               Copy Absolute Path
             </ContextMenuItem>
             <ContextMenuItem onClick={() => onCopyRelativePath?.(relativePath)}>
+              <Copy className="mr-2 h-4 w-4" />
               Copy Relative Path
             </ContextMenuItem>
             <ContextMenuSeparator />
             <ContextMenuItem onClick={() => onAttachToConversation?.(value)}>
+              <Paperclip className="mr-2 h-4 w-4" />
               Attach to Conversation
             </ContextMenuItem>
           </ContextMenuContent>
         </ContextMenu>
-        <AccordionPrimitive.Content className="data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down relative h-full overflow-hidden text-sm">
-          {element && indicator && <TreeIndicator aria-hidden="true" />}
-          <AccordionPrimitive.Root
-            dir={direction}
-            type="multiple"
-            className="ml-5 flex flex-col gap-0.5 py-1 rtl:mr-5"
-            value={expandedItems}
-          >
-            {children}
-          </AccordionPrimitive.Root>
+
+        {/* Animated content with indentation bar */}
+        <AccordionPrimitive.Content forceMount asChild>
+          <div className="overflow-hidden">
+            <AnimatePresence initial={false}>
+              {isExpanded && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  style={{ overflow: "hidden" }}
+                >
+                  <div
+                    className={cn(
+                      "pl-4",
+                      indicator && "border-l border-muted"
+                    )}
+                  >
+                    <AccordionPrimitive.Root
+                      dir={direction}
+                      type="multiple"
+                      className="flex flex-col gap-0.5"
+                      value={expandedItems}
+                      onValueChange={handleExpand}
+                    >
+                      {children}
+                    </AccordionPrimitive.Root>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </AccordionPrimitive.Content>
       </AccordionPrimitive.Item>
     )
   }
 )
-
 Folder.displayName = "Folder"
 
 const MotionButton = motion.button
 
-// Map git status letters to colors and labels
 const gitStatusConfig: Record<string, { color: string; label: string }> = {
-  'M': { color: 'bg-yellow-500', label: 'Modified' },
-  'A': { color: 'bg-green-500', label: 'Added' },
-  'D': { color: 'bg-red-500', label: 'Deleted' },
-  'R': { color: 'bg-purple-500', label: 'Renamed' },
-  'C': { color: 'bg-blue-500', label: 'Copied' },
-  'U': { color: 'bg-red-500', label: 'Updated but unmerged' },
-  '?': { color: 'bg-gray-400', label: 'Untracked' },
-  '!': { color: 'bg-red-500', label: 'Ignored' },
+  M: { color: "bg-yellow-500", label: "Modified" },
+  A: { color: "bg-green-500", label: "Added" },
+  D: { color: "bg-red-500", label: "Deleted" },
+  R: { color: "bg-purple-500", label: "Renamed" },
+  C: { color: "bg-blue-500", label: "Copied" },
+  U: { color: "bg-red-500", label: "Updated but unmerged" },
+  "?": { color: "bg-gray-400", label: "Untracked" },
+  "!": { color: "bg-red-500", label: "Ignored" },
 }
 
 const File = forwardRef<
   HTMLButtonElement,
   {
     value: string
+    fileName: string
     handleSelect?: (id: string) => void
     isSelectable?: boolean
     isSelect?: boolean
@@ -510,13 +524,13 @@ const File = forwardRef<
   (
     {
       value,
+      fileName,
       className,
       handleSelect,
       onClick,
       isSelectable = true,
       isSelect,
       fileIcon,
-      children,
       isFocused,
       ...props
     },
@@ -538,9 +552,8 @@ const File = forwardRef<
     const gitStatus = gitStatusMap?.[value]
     const statusConfig = gitStatus ? gitStatusConfig[gitStatus] : null
 
-    const fileName = value.split('/').pop() || value
     const relativePath = workspaceRoot
-      ? value.replace(workspaceRoot, '').replace(/^\//, '')
+      ? value.replace(workspaceRoot, "").replace(/^\//, "")
       : value
 
     const button = (
@@ -549,7 +562,7 @@ const File = forwardRef<
         type="button"
         disabled={!isSelectable}
         className={cn(
-          "flex w-fit items-center gap-1 rounded-md text-sm px-1.5 py-0.5 my-0.5 outline-none focus:outline-none whitespace-nowrap",
+          "flex w-full min-w-0 items-center gap-1 rounded-md text-sm px-1.5 py-0.5 my-0.5 outline-none focus:outline-none",
           {
             "bg-muted": isSelected && isSelectable,
           },
@@ -575,10 +588,13 @@ const File = forwardRef<
         {...props}
       >
         {fileIcon ?? <FileIcon fileName={fileName} width={16} height={16} />}
-        <span className="truncate">{children}</span>
+        <TruncatedSpan text={fileName} className="flex-1 truncate text-left" />
         {statusConfig && (
           <span
-            className={cn("ml-1 h-1.5 w-1.5 rounded-full shrink-0", statusConfig.color)}
+            className={cn(
+              "ml-1 h-1.5 w-1.5 rounded-full shrink-0",
+              statusConfig.color
+            )}
             title={statusConfig.label}
           />
         )}
@@ -590,20 +606,25 @@ const File = forwardRef<
         <ContextMenuTrigger asChild>{button}</ContextMenuTrigger>
         <ContextMenuContent className="w-48">
           <ContextMenuItem onClick={() => onOpenFile?.(value)}>
+            <ExternalLink className="mr-2 h-4 w-4" />
             Open in Editor
           </ContextMenuItem>
           <ContextMenuItem onClick={() => onRevealInFinder?.(value)}>
+            <FolderOpen className="mr-2 h-4 w-4" />
             Reveal in Finder
           </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem onClick={() => onCopyPath?.(value)}>
+            <Copy className="mr-2 h-4 w-4" />
             Copy Absolute Path
           </ContextMenuItem>
           <ContextMenuItem onClick={() => onCopyRelativePath?.(relativePath)}>
+            <Copy className="mr-2 h-4 w-4" />
             Copy Relative Path
           </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem onClick={() => onAttachToConversation?.(value)}>
+            <Paperclip className="mr-2 h-4 w-4" />
             Attach to Conversation
           </ContextMenuItem>
         </ContextMenuContent>
@@ -611,7 +632,6 @@ const File = forwardRef<
     )
   }
 )
-
 File.displayName = "File"
 
 const CollapseButton = forwardRef<
@@ -625,37 +645,26 @@ const CollapseButton = forwardRef<
 
   const expendAllTree = useCallback((elements: TreeViewElement[]) => {
     const expandedElementIds: string[] = []
-
     const expandTree = (element: TreeViewElement) => {
       const isSelectable = element.isSelectable ?? true
       if (isSelectable && element.children && element.children.length > 0) {
         expandedElementIds.push(element.id)
-        for (const child of element.children) {
-          expandTree(child)
-        }
+        element.children.forEach(expandTree)
       }
     }
-
-    for (const element of elements) {
-      expandTree(element)
-    }
-
+    elements.forEach(expandTree)
     return [...new Set(expandedElementIds)]
   }, [])
 
-  const closeAll = useCallback(() => {
-    setExpandedItems?.([])
-  }, [setExpandedItems])
+  const closeAll = useCallback(() => setExpandedItems?.([]), [setExpandedItems])
 
   useEffect(() => {
-    if (expandAll) {
-      setExpandedItems?.(expendAllTree(elements))
-    }
+    if (expandAll) setExpandedItems?.(expendAllTree(elements))
   }, [expandAll, elements, expendAllTree, setExpandedItems])
 
   return (
     <Button
-      variant={"ghost"}
+      variant="ghost"
       className={cn("absolute right-2 bottom-1 h-8 w-fit p-1", className)}
       onClick={
         expandedItems && expandedItems.length > 0
@@ -670,7 +679,6 @@ const CollapseButton = forwardRef<
     </Button>
   )
 })
-
 CollapseButton.displayName = "CollapseButton"
 
 export { CollapseButton, File, Folder, Tree, type TreeViewElement }

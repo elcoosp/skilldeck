@@ -62,6 +62,7 @@
     "@tauri-apps/plugin-dialog": "^2.6.0",
     "@tauri-apps/plugin-fs": "~2.5.0",
     "@tauri-apps/plugin-opener": "~2",
+    "@tauri-apps/plugin-shell": "^2.3.5",
     "@uiw/react-heat-map": "^2.3.3",
     "@xyflow/react": "^12.10.1",
     "change-case": "^5.4.4",

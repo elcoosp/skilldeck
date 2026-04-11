@@ -6,6 +6,7 @@
     "main"
   ],
   "permissions": [
+    "shell:allow-open",
     "deep-link:allow-get-current",
     "deep-link:default",
     "core:default",
@@ -13,16 +14,7 @@
       "identifier": "opener:allow-open-path",
       "allow": [
         {
-          "path": "$HOME/.agents/skills"
-        },
-        {
-          "path": "$HOME/.agents/skills/**"
-        },
-        {
-          "path": "**/.skilldeck/skills"
-        },
-        {
-          "path": "**/.skilldeck/skills/**"
+          "path": "**"
         }
       ]
     },

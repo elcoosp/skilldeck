@@ -1,6 +1,6 @@
 // src/components/workspace/file-tree-panel.tsx
 import { useQuery } from '@tanstack/react-query'
-import { openUrl, revealItemInDir } from '@tauri-apps/plugin-opener'
+import { openUrl, openPath, revealItemInDir } from '@tauri-apps/plugin-opener'
 import {
   Tree,
   File as TreeFile,
@@ -13,6 +13,7 @@ import { useWorkspaceStore } from '@/store/workspace'
 import { useConversationStore } from '@/store/conversation'
 import { useChatContextStore } from '@/store/chat-context-store'
 import { useWorkspaces } from '@/hooks/use-workspaces'
+import { useUIPersistentStore } from '@/store/ui-state'
 import { FileIcon } from '@react-symbols/icons/utils'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useDebounce } from 'use-debounce'
@@ -36,6 +37,9 @@ export function FileTreePanel() {
   const activeConversationId = useConversationStore((s) => s.activeConversationId)
   const addFile = useChatContextStore((s) => s.addFile)
 
+  const workspaceExpandedFolders = useUIPersistentStore((s) => s.workspaceExpandedFolders)
+  const setWorkspaceExpandedFolders = useUIPersistentStore((s) => s.setWorkspaceExpandedFolders)
+
   const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId)
 
   const [focusedId, setFocusedId] = useState<string | null>(null)
@@ -45,7 +49,26 @@ export function FileTreePanel() {
   const [searchInput, setSearchInput] = useState('')
   const [searchQuery] = useDebounce(searchInput, 200)
 
-  // Fetch git status map (relative paths) and convert to absolute
+  useEffect(() => {
+    if (activeWorkspaceId) {
+      const saved = workspaceExpandedFolders[activeWorkspaceId] ?? []
+      setExpanded(saved)
+    }
+  }, [activeWorkspaceId, workspaceExpandedFolders])
+
+  const handleExpandedChange = useCallback((ids: string[]) => {
+    setExpanded(ids)
+    if (activeWorkspaceId) {
+      setWorkspaceExpandedFolders(activeWorkspaceId, ids)
+    }
+  }, [activeWorkspaceId, setWorkspaceExpandedFolders])
+
+  useEffect(() => {
+    if (containerRef.current) {
+      containerRef.current.focus()
+    }
+  }, [])
+
   const { data: rawGitStatusMap = {} } = useQuery({
     queryKey: ['git-status-list', activeWorkspace?.path],
     queryFn: async () => {
@@ -74,19 +97,39 @@ export function FileTreePanel() {
       vscode: 'vscode://file/',
       cursor: 'cursor://file/',
     }
-    const url = schemes[preferredEditor]
-      ? `${schemes[preferredEditor]}${filePath}`
-      : `file://${filePath}`
 
-    await openUrl(url).catch(() => {
-      openUrl(`file://${filePath}`)
-    })
+    const editorUrl = schemes[preferredEditor]
+      ? `${schemes[preferredEditor]}${filePath}`
+      : null
+
+    if (editorUrl) {
+      try {
+        await openUrl(editorUrl)
+        return
+      } catch (e) {
+        console.warn(`Failed to open with ${preferredEditor}:`, e)
+      }
+    }
+
+    try {
+      await openPath(filePath)
+      return
+    } catch (e) {
+      console.warn('Failed to open with system default:', e)
+    }
+
+    try {
+      await revealItemInDir(filePath)
+      toast.info('Could not open file directly. Revealed in file explorer.')
+    } catch {
+      toast.error('Could not open or reveal file')
+    }
   }, [preferredEditor])
 
   const handleRevealInFinder = useCallback(async (filePath: string) => {
     try {
       await revealItemInDir(filePath)
-    } catch (error) {
+    } catch {
       toast.error('Could not reveal in file explorer')
     }
   }, [])
@@ -186,8 +229,14 @@ export function FileTreePanel() {
   }, [treeElements, expandedSet])
 
   const toggleExpand = useCallback((id: string) => {
-    setExpanded(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id])
-  }, [])
+    setExpanded(prev => {
+      const next = prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+      if (activeWorkspaceId) {
+        setWorkspaceExpandedFolders(activeWorkspaceId, next)
+      }
+      return next
+    })
+  }, [activeWorkspaceId, setWorkspaceExpandedFolders])
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
     if (!flatNodes.length) return
@@ -283,13 +332,12 @@ export function FileTreePanel() {
         <TreeFile
           key={element.id}
           value={element.id}
+          fileName={element.name}
           onClick={() => handleOpenFile(element.id)}
           className="w-full min-w-0"
           fileIcon={<FileIcon fileName={element.name} width={16} height={16} />}
           isFocused={focusedId === element.id}
-        >
-          <span className="truncate">{element.name}</span>
-        </TreeFile>
+        />
       )
     })
   }, [focusedId, handleOpenFile])
@@ -329,7 +377,7 @@ export function FileTreePanel() {
           className="h-full"
           indicator
           expanded={expanded}
-          onExpandedChange={setExpanded}
+          onExpandedChange={handleExpandedChange}
           gitStatusMap={gitStatusMap}
           onOpenFile={handleOpenFile}
           onRevealInFinder={handleRevealInFinder}
