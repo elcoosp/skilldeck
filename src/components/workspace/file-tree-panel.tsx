@@ -40,6 +40,31 @@ export function FileTreePanel() {
   const [searchInput, setSearchInput] = useState('')
   const [searchQuery] = useDebounce(searchInput, 200)
 
+  // Fetch git status map (relative paths) and convert to absolute
+  const { data: rawGitStatusMap = {} } = useQuery({
+    queryKey: ['git-status-list', activeWorkspace?.path],
+    queryFn: async () => {
+      if (!activeWorkspace?.path) return {}
+      const res = await commands.listGitStatus(activeWorkspace.path)
+      if (res.status === 'ok') return res.data
+      return {}
+    },
+    enabled: !!activeWorkspace?.path,
+    staleTime: 30_000,
+  })
+
+  const gitStatusMap = useMemo(() => {
+    if (!activeWorkspace?.path || !rawGitStatusMap) return {}
+    const result: Record<string, string> = {}
+    const base = activeWorkspace.path.replace(/\/$/, '')
+    for (const [relPath, status] of Object.entries(rawGitStatusMap)) {
+      // Normalize path separators and join
+      const absPath = `${base}/${relPath}`.replace(/\/+/g, '/')
+      result[absPath] = status
+    }
+    return result
+  }, [activeWorkspace?.path, rawGitStatusMap])
+
   const handleFileClick = useCallback(async (filePath: string) => {
     const schemes: Record<string, string> = {
       vscode: 'vscode://file/',
@@ -260,6 +285,7 @@ export function FileTreePanel() {
           indicator
           expanded={expanded}
           onExpandedChange={setExpanded}
+          gitStatusMap={gitStatusMap}
         >
           {treeElements.length > 0 ? (
             renderTree(treeElements)

@@ -5,6 +5,14 @@
 
 
 export const commands = {
+async listGitStatus(workspacePath: string) : Promise<Result<Partial<{ [key in string]: string }>, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_git_status", { workspacePath }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 /**
  * List files and folders in a workspace directory up to a specified depth,
  * respecting .gitignore and other ignore files.

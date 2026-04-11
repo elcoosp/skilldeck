@@ -42,6 +42,7 @@ type TreeContextProps = {
   openIcon?: React.ReactNode
   closeIcon?: React.ReactNode
   direction: "rtl" | "ltr"
+  gitStatusMap?: Record<string, string>
 }
 
 const TreeContext = createContext<TreeContextProps | null>(null)
@@ -162,6 +163,7 @@ type TreeViewProps = {
   sort?: TreeSortMode
   expanded?: string[]
   onExpandedChange?: (ids: string[]) => void
+  gitStatusMap?: Record<string, string>
 } & Omit<
   React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Root>,
   "defaultValue" | "onValueChange" | "type" | "value"
@@ -182,6 +184,7 @@ const Tree = forwardRef<HTMLDivElement, TreeViewProps>(
       dir,
       expanded: controlledExpanded,
       onExpandedChange,
+      gitStatusMap,
       ...props
     },
     ref
@@ -267,6 +270,7 @@ const Tree = forwardRef<HTMLDivElement, TreeViewProps>(
           openIcon,
           closeIcon,
           direction,
+          gitStatusMap,
         }}
       >
         <div className={cn("size-full", className)}>
@@ -274,7 +278,6 @@ const Tree = forwardRef<HTMLDivElement, TreeViewProps>(
             ref={ref}
             className="relative h-full"
             dir={dir as Direction}
-            viewportClassName="overflow-auto"
           >
             <AccordionPrimitive.Root
               {...props}
@@ -414,6 +417,18 @@ Folder.displayName = "Folder"
 
 const MotionButton = motion.button
 
+// Map git status letters to colors and labels
+const gitStatusConfig: Record<string, { color: string; label: string }> = {
+  'M': { color: 'bg-yellow-500', label: 'Modified' },
+  'A': { color: 'bg-green-500', label: 'Added' },
+  'D': { color: 'bg-red-500', label: 'Deleted' },
+  'R': { color: 'bg-purple-500', label: 'Renamed' },
+  'C': { color: 'bg-blue-500', label: 'Copied' },
+  'U': { color: 'bg-red-500', label: 'Updated but unmerged' },
+  '?': { color: 'bg-gray-400', label: 'Untracked' },
+  '!': { color: 'bg-red-500', label: 'Ignored' },
+}
+
 const File = forwardRef<
   HTMLButtonElement,
   {
@@ -440,8 +455,10 @@ const File = forwardRef<
     },
     ref
   ) => {
-    const { direction, selectedId, selectItem } = useTree()
+    const { direction, selectedId, selectItem, gitStatusMap } = useTree()
     const isSelected = isSelect ?? selectedId === value
+    const gitStatus = gitStatusMap?.[value]
+    const statusConfig = gitStatus ? gitStatusConfig[gitStatus] : null
 
     const fileName = value.split('/').pop() || value
 
@@ -478,6 +495,12 @@ const File = forwardRef<
       >
         {fileIcon ?? <FileIcon fileName={fileName} width={16} height={16} />}
         <span className="truncate">{children}</span>
+        {statusConfig && (
+          <span
+            className={cn("ml-1 h-1.5 w-1.5 rounded-full shrink-0", statusConfig.color)}
+            title={statusConfig.label}
+          />
+        )}
       </MotionButton>
     )
   }

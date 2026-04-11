@@ -388,3 +388,53 @@ pub async fn list_workspace_files(
     .await
     .map_err(|e| e.to_string())?
 }
+#[specta]
+#[tauri::command]
+pub async fn list_git_status(workspace_path: String) -> Result<HashMap<String, String>, String> {
+    let output = tokio::process::Command::new("git")
+        .args(["status", "--porcelain", "-z"])
+        .current_dir(&workspace_path)
+        .output()
+        .await
+        .map_err(|e| format!("Failed to run git: {}", e))?;
+
+    if !output.status.success() {
+        return Err("Git command failed".to_string());
+    }
+
+    // Parse null-delimited porcelain output
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut map = HashMap::new();
+
+    // Format: XY PATH\0  (for renames: XY ORIG\0 RENAMED\0)
+    let mut parts = stdout.split('\0');
+    while let Some(entry) = parts.next() {
+        if entry.is_empty() {
+            continue;
+        }
+
+        // First two chars are status codes
+        if entry.len() < 3 {
+            continue;
+        }
+        let status = &entry[..2];
+        let path = entry[3..].trim();
+
+        // Handle renames: next part is the new path
+        if status.starts_with('R') {
+            if let Some(new_path) = parts.next() {
+                map.insert(new_path.to_string(), "R".to_string());
+            }
+        } else {
+            // Use the first non-space status char
+            let code = if status.chars().next() == Some(' ') {
+                status.chars().nth(1).unwrap().to_string()
+            } else {
+                status.chars().next().unwrap().to_string()
+            };
+            map.insert(path.to_string(), code);
+        }
+    }
+
+    Ok(map)
+}
