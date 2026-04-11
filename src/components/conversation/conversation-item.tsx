@@ -2,6 +2,7 @@
 import { formatDistanceToNow } from 'date-fns'
 import { MoreHorizontal, Pencil, Pin, PinOff, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useDroppable } from '@dnd-kit/react'
 import { toast } from '@/components/ui/toast'
 import { Badge } from '@/components/ui/badge'
 import { StreamingPulse } from '@/components/ui/streaming-pulse'
@@ -70,14 +71,42 @@ export function ConversationItem({
   const agentRunning = useUIEphemeralStore((s) => s.agentRunning)
   const isStreaming = agentRunning[conversation.id] ?? false
 
-  // ── Listen to the custom drag-drop event from GlobalDropZone ──────────────
+  // ── @dnd-kit/react droppable ──────────────────────────────────────────────
+  const { ref: droppableRef, isDropTarget } = useDroppable({
+    id: conversation.id,
+    data: {
+      conversationId: conversation.id,
+    },
+  })
+
+  console.log(`[ConversationItem] useDroppable for ${conversation.id}`, {
+    isDropTarget,
+    title: conversation.title,
+  })
+
+  // Combine refs: droppableRef is a callback ref, call it directly
+  const combinedRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      console.log(`[ConversationItem] combinedRef called for ${conversation.id}`, { node })
+      containerRef.current = node
+      droppableRef(node)
+    },
+    [droppableRef, conversation.id]
+  )
+
+  // Log when isDropTarget changes
+  useEffect(() => {
+    console.log(`[ConversationItem] isDropTarget changed for ${conversation.id}:`, isDropTarget)
+  }, [isDropTarget, conversation.id])
+
+  // ── Listen to the custom drag-drop event from GlobalDropZone (external files) ──
   useEffect(() => {
     const onDragDrop = (e: Event) => {
       const { type, paths, targetConversationId } = (
         e as CustomEvent<SkilldeckDragDropDetail>
       ).detail
 
-      const isOver = targetConversationId === conversation.id
+      const isOverExternal = targetConversationId === conversation.id
 
       if (type === 'leave') {
         if (isDragTargetRef.current) {
@@ -88,7 +117,7 @@ export function ConversationItem({
       }
 
       if (type === 'enter' || type === 'over') {
-        const next = isOver
+        const next = isOverExternal
         if (next !== isDragTargetRef.current) {
           isDragTargetRef.current = next
           setIsDragTarget(next)
@@ -96,7 +125,7 @@ export function ConversationItem({
         return
       }
 
-      if (type === 'drop' && isOver && isDragTargetRef.current) {
+      if (type === 'drop' && isOverExternal && isDragTargetRef.current) {
         isDragTargetRef.current = false
         setIsDragTarget(false)
         if (paths.length === 0) return
@@ -192,11 +221,13 @@ export function ConversationItem({
     }
   })()
 
+  const isDragTargetCombined = isDragTarget || isDropTarget
+
   return (
     // biome-ignore lint/a11y/useSemanticElements:ok
     <div
       role="button"
-      ref={containerRef}
+      ref={combinedRef}
       data-conversation-id={conversation.id}
       tabIndex={0}
       onClick={() => !isRenaming && !isDeleting && onClick()}
@@ -207,9 +238,9 @@ export function ConversationItem({
           ? 'bg-primary/10 text-foreground'
           : 'hover:bg-muted/70 text-muted-foreground hover:text-foreground',
         isDeleting && 'pointer-events-none opacity-50',
-        isDragTarget && 'ring-2 ring-inset ring-primary',
-        isDragTarget && isActive && 'bg-primary/20',
-        isDragTarget && !isActive && 'bg-primary/5 text-foreground'
+        isDragTargetCombined && 'ring-2 ring-inset ring-primary',
+        isDragTargetCombined && isActive && 'bg-primary/20',
+        isDragTargetCombined && !isActive && 'bg-primary/5 text-foreground'
       )}
     >
       <div className="flex-1 min-w-0 relative z-10">

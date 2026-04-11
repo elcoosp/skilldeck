@@ -14,10 +14,21 @@ import { useUIOverlaysStore } from '@/store/ui-overlays'
 import { CenterPanel } from './center-panel'
 import { LeftPanel } from './left-panel'
 import { RightPanel } from './right-panel'
+import {
+  DragDropProvider,
+  DragOverlay,
+  KeyboardSensor,
+  PointerSensor,
+  type DragDropManager,
+} from '@dnd-kit/react'
+import { useChatContextStore } from '@/store/chat-context-store'
+import { useConversationStore } from '@/store/conversation'
+import { commands } from '@/lib/bindings'
+import { toast } from '@/components/ui/toast'
+import { FileIcon } from '@react-symbols/icons/utils'
 
 const LAYOUT_STORAGE_KEY = 'skilldeck-panel-layout'
 
-// Panel IDs – stable strings used as keys in the Layout map
 const PANEL_LEFT = 'left'
 const PANEL_CENTER = 'center'
 const PANEL_RIGHT = 'right'
@@ -52,7 +63,6 @@ export function AppShell() {
     return DEFAULT_LAYOUT
   })
 
-  // Sync pixel sizes on mount (one-time read, no ResizeObserver)
   useEffect(() => {
     const panels = document.querySelectorAll('[data-panel]')
     const left = panels[0] as HTMLDivElement
@@ -65,25 +75,15 @@ export function AppShell() {
     })
   }, [setPanelSizesPx])
 
-  // Debounce ref for localStorage persistence
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // ⚠️ Use onLayoutChanged (fires once on pointer release) instead of
-  // onLayoutChange (fires on every pointer move). This eliminates lag.
   const handleLayoutChanged = useCallback(
     (newLayout: Layout) => {
       setLayout(newLayout)
 
-      // Derive pixel sizes from percentages – pure arithmetic, zero DOM reads
       const totalWidth = window.innerWidth
-      const leftPx = Math.round(
-        ((newLayout[PANEL_LEFT] ?? 20) / 100) * totalWidth
-      )
-      const rightPx = Math.round(
-        ((newLayout[PANEL_RIGHT] ?? 20) / 100) * totalWidth
-      )
-
-      // Center width = total minus left/right panels minus 2px for the two separators
+      const leftPx = Math.round(((newLayout[PANEL_LEFT] ?? 20) / 100) * totalWidth)
+      const rightPx = Math.round(((newLayout[PANEL_RIGHT] ?? 20) / 100) * totalWidth)
       const centerPx = Math.max(35, totalWidth - leftPx - rightPx - 2)
 
       setPanelSizesPx({
@@ -92,7 +92,6 @@ export function AppShell() {
         right: rightPx
       })
 
-      // Debounce the write just in case
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
       saveTimerRef.current = setTimeout(() => {
         localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(newLayout))
@@ -101,78 +100,177 @@ export function AppShell() {
     [setPanelSizesPx]
   )
 
-  const setCommandPaletteOpen = useUIOverlaysStore(
-    (s) => s.setCommandPaletteOpen
-  )
+  const setCommandPaletteOpen = useUIOverlaysStore((s) => s.setCommandPaletteOpen)
   const setGlobalSearchOpen = useUIOverlaysStore((s) => s.setGlobalSearchOpen)
 
   usePlatformRegistration()
   useNudgeListener()
 
-  // Command palette: Cmd+K / Ctrl+K
-  useHotkeys('meta+k, ctrl+k', () => {
-    setCommandPaletteOpen(true)
-  })
+  useHotkeys('meta+k, ctrl+k', () => setCommandPaletteOpen(true))
+  useHotkeys(['meta+,', 'ctrl+,'], () => router.navigate({ to: '/settings/api-keys' }))
+  useHotkeys('meta+shift+f, ctrl+shift+f', () => setGlobalSearchOpen(true))
 
-  // Settings: Cmd+, / Ctrl+, (comma)
-  useHotkeys(['meta+,', 'ctrl+,'], () => {
-    router.navigate({ to: '/settings/api-keys' })
-  })
+  const [activeDragItem, setActiveDragItem] = useState<{
+    type: 'file'
+    path: string
+    name: string
+  } | null>(null)
 
-  // Global search: Cmd+Shift+F / Ctrl+Shift+F
-  useHotkeys('meta+shift+f, ctrl+shift+f', () => {
-    setGlobalSearchOpen(true)
-  })
+  const handleDragStart = (
+    event: { operation: { source: any } },
+    _manager: DragDropManager
+  ) => {
+    console.log('[AppShell] onDragStart', {
+      source: event.operation?.source,
+      sourceData: event.operation?.source?.data,
+    })
+    const source = event.operation?.source
+    if (source?.data?.type === 'file') {
+      setActiveDragItem({
+        type: 'file',
+        path: source.data.path,
+        name: source.data.name,
+      })
+      console.log('[AppShell] Active drag item set:', source.data)
+    } else {
+      console.warn('[AppShell] Source is not a file:', source?.data)
+    }
+  }
 
+  const handleDragEnd = (
+    event: { operation: { source: any; target: any }; canceled: boolean },
+    _manager: DragDropManager
+  ) => {
+    console.log('[AppShell] onDragEnd', {
+      source: event.operation?.source,
+      target: event.operation?.target,
+      canceled: event.canceled,
+    })
+    const { source, target } = event.operation
+    setActiveDragItem(null)
+
+    if (event.canceled) {
+      console.log('[AppShell] Drag canceled')
+      return
+    }
+    if (!target) {
+      console.log('[AppShell] No drop target')
+      return
+    }
+
+    const conversationId = target.data?.conversationId
+    if (!conversationId) {
+      console.warn('[AppShell] Target has no conversationId:', target.data)
+      return
+    }
+
+    const sourceData = source?.data
+    if (sourceData?.type !== 'file') {
+      console.warn('[AppShell] Source is not a file:', sourceData)
+      return
+    }
+
+    const filePath = sourceData.path
+    if (!filePath) return
+
+    console.log('[AppShell] Dropped file on conversation:', {
+      filePath,
+      conversationId,
+    })
+
+    commands
+      .attachFilesToConversation(conversationId, [filePath])
+      .then((res) => {
+        if (res.status === 'error') {
+          toast.error(res.error)
+        } else {
+          toast.success(`Attached "${sourceData.name}" to conversation`)
+
+          const addFile = useChatContextStore.getState().addFile
+          addFile(conversationId, {
+            id: filePath,
+            name: sourceData.name,
+            path: filePath,
+            size: undefined,
+          })
+
+          const activeConvId = useConversationStore.getState().activeConversationId
+          if (activeConvId !== conversationId) {
+            useConversationStore.getState().setActiveConversation(conversationId)
+          }
+        }
+      })
+      .catch(() => toast.error('Failed to attach file'))
+  }
+
+  const handleDragMove = (event: any) => {
+    console.log('[AppShell] onDragMove', event)
+  }
   return (
-    <div className="h-screen w-screen overflow-hidden bg-background text-foreground flex flex-col">
-      <LaunchNotificationBanner />
+    <DragDropProvider
 
-      <div className="flex-1 overflow-hidden">
-        <Group
-          orientation="horizontal"
-          defaultLayout={layout}
-          onLayoutChanged={handleLayoutChanged}
-        >
-          <Panel
-            id={PANEL_LEFT}
-            minSize={'15%'}
-            maxSize={'30%'}
-            className="border-r border-border"
-            data-panel
+      onDragMove={handleDragMove} sensors={[PointerSensor, KeyboardSensor]}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
+      <div className="h-screen w-screen overflow-hidden bg-background text-foreground flex flex-col">
+        <LaunchNotificationBanner />
+
+        <div className="flex-1 overflow-hidden">
+          <Group
+            orientation="horizontal"
+            defaultLayout={layout}
+            onLayoutChanged={handleLayoutChanged}
           >
-            <LeftPanel />
-          </Panel>
+            <Panel
+              id={PANEL_LEFT}
+              minSize={'15%'}
+              maxSize={'30%'}
+              className="border-r border-border"
+              data-panel
+            >
+              <LeftPanel />
+            </Panel>
 
-          <Separator className="w-px bg-border hover:bg-primary/30 transition-colors cursor-col-resize" />
+            <Separator className="w-px bg-border hover:bg-primary/30 transition-colors cursor-col-resize" />
 
-          <Panel
-            id={PANEL_CENTER}
-            minSize={35}
-            className="overflow-hidden"
-            data-panel
-          >
-            <CenterPanel />
-          </Panel>
+            <Panel
+              id={PANEL_CENTER}
+              minSize={35}
+              className="overflow-hidden"
+              data-panel
+            >
+              <CenterPanel />
+            </Panel>
 
-          <Separator className="w-px bg-border hover:bg-primary/30 transition-colors cursor-col-resize" />
+            <Separator className="w-px bg-border hover:bg-primary/30 transition-colors cursor-col-resize" />
 
-          <Panel
-            id={PANEL_RIGHT}
-            minSize={'18%'}
-            maxSize={'35%'}
-            className="border-l border-border"
-            data-panel
-          >
-            <RightPanel />
-          </Panel>
-        </Group>
+            <Panel
+              id={PANEL_RIGHT}
+              minSize={'18%'}
+              maxSize={'35%'}
+              className="border-l border-border"
+              data-panel
+            >
+              <RightPanel />
+            </Panel>
+          </Group>
+        </div>
+
+        <CommandPalette />
+        <GlobalSearchModal />
+        <GlobalDropZone />
+        <Toaster position="bottom-right" />
       </div>
 
-      <CommandPalette />
-      <GlobalSearchModal />
-      <GlobalDropZone />
-      <Toaster position="bottom-right" />
-    </div>
+      <DragOverlay>
+        {activeDragItem ? (
+          <div className="flex items-center gap-2 rounded-md bg-background border border-border shadow-lg px-3 py-2 text-sm">
+            <FileIcon fileName={activeDragItem.name} width={16} height={16} />
+            <span>{activeDragItem.name}</span>
+          </div>
+        ) : null}
+      </DragOverlay>
+    </DragDropProvider>
   )
 }

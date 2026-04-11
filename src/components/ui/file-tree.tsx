@@ -20,6 +20,7 @@ import {
   Copy,
   Paperclip,
 } from "lucide-react"
+import { useDraggable } from '@dnd-kit/react'
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -462,7 +463,6 @@ const gitStatusConfig: Record<string, { color: string; label: string }> = {
   "?": { color: "bg-gray-400", label: "Untracked" },
   "!": { color: "bg-red-500", label: "Ignored" },
 }
-
 const File = forwardRef<
   HTMLButtonElement,
   {
@@ -501,93 +501,131 @@ const File = forwardRef<
       onCopyRelativePath,
       onAttachToConversation,
       workspaceRoot,
-    } = useTree()
-    const isSelected = isSelect ?? selectedId === value
-    const gitStatus = gitStatusMap?.[value]
-    const statusConfig = gitStatus ? gitStatusConfig[gitStatus] : null
+    } = useTree();
 
+    const isSelected = isSelect ?? selectedId === value;
+    const gitStatus = gitStatusMap?.[value];
+    const statusConfig = gitStatus ? gitStatusConfig[gitStatus] : null;
     const relativePath = workspaceRoot
-      ? value.replace(workspaceRoot, "").replace(/^\//, "")
-      : value
+      ? value.replace(workspaceRoot, '').replace(/^\//, '')
+      : value;
 
-    const button = (
-      <button
-        ref={ref}
-        type="button"
-        disabled={!isSelectable}
-        className={cn(
-          "flex w-full min-w-0 items-center gap-1 rounded-md text-sm px-1.5 py-0.5 my-0.5 outline-none focus:outline-none transition-colors duration-150",
-          {
-            "bg-muted": isSelected && isSelectable,
-            "cursor-pointer": isSelectable,
-            "cursor-not-allowed opacity-50": !isSelectable,
-            "bg-blue-500/15 text-primary": isFocused,
-          },
-          direction === "rtl" ? "rtl" : "ltr",
-          className
-        )}
-        onClick={(event) => {
-          selectItem(value)
-          handleSelect?.(value)
-          onClick?.(event)
-        }}
-        data-tree-item-id={value}
-        role="treeitem"
-        aria-selected={isSelected}
-        {...props}
-      >
-        {fileIcon ?? <FileIcon fileName={fileName} width={16} height={16} />}
-        <span
-          className="flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-left"
-          title={fileName}
-        >
-          {fileName}
-        </span>
-        {statusConfig && (
-          <span
-            className={cn(
-              "ml-1 h-1.5 w-1.5 rounded-full shrink-0",
-              statusConfig.color
-            )}
-            title={statusConfig.label}
-          />
-        )}
-      </button>
-    )
+    const { ref: draggableRef, isDragging } = useDraggable({
+      id: value,
+      data: { type: 'file', path: value, name: fileName },
+    });
+
+    const combinedRef = useCallback(
+      (node: HTMLButtonElement | null) => {
+        draggableRef(node);
+        if (typeof ref === 'function') ref(node);
+        else if (ref) ref.current = node;
+      },
+      [draggableRef, ref]
+    );
+
+    const [menuOpen, setMenuOpen] = useState(false);
+    const [menuPos, setMenuPos] = useState({ x: 0, y: 0 });
+    const handleContextMenu = (e: React.MouseEvent) => {
+      e.preventDefault();
+      setMenuPos({ x: e.clientX, y: e.clientY });
+      setMenuOpen(true);
+    };
 
     return (
-      <ContextMenu>
-        <ContextMenuTrigger asChild>{button}</ContextMenuTrigger>
-        <ContextMenuContent className="w-48">
-          <ContextMenuItem onClick={() => onOpenFile?.(value)}>
-            <ExternalLink className="mr-2 h-4 w-4" />
-            Open in Editor
-          </ContextMenuItem>
-          <ContextMenuItem onClick={() => onRevealInFinder?.(value)}>
-            <FolderOpen className="mr-2 h-4 w-4" />
-            Reveal in Finder
-          </ContextMenuItem>
-          <ContextMenuSeparator />
-          <ContextMenuItem onClick={() => onCopyPath?.(value)}>
-            <Copy className="mr-2 h-4 w-4" />
-            Copy Absolute Path
-          </ContextMenuItem>
-          <ContextMenuItem onClick={() => onCopyRelativePath?.(relativePath)}>
-            <Copy className="mr-2 h-4 w-4" />
-            Copy Relative Path
-          </ContextMenuItem>
-          <ContextMenuSeparator />
-          <ContextMenuItem onClick={() => onAttachToConversation?.(value)}>
-            <Paperclip className="mr-2 h-4 w-4" />
-            Attach to Conversation
-          </ContextMenuItem>
-        </ContextMenuContent>
-      </ContextMenu>
-    )
-  }
-)
-File.displayName = "File"
+      <>
+        <button
+          ref={combinedRef}
+          type="button"
+          disabled={!isSelectable}
+          className={cn(
+            // 添加 select-none 防止文本选择干扰拖拽
+            'select-none flex w-full items-center gap-1 rounded-md text-sm px-1.5 py-0.5 my-0.5 outline-none focus:outline-none transition-colors duration-150',
+            {
+              'bg-muted': isSelected && isSelectable,
+              'cursor-grab': isSelectable && !isDragging,
+              'cursor-grabbing': isSelectable && isDragging,
+              'cursor-not-allowed opacity-50': !isSelectable,
+              'opacity-50': isDragging,
+              'bg-blue-500/15 text-primary': isFocused && isSelectable,
+              // Git 状态边框（可选）
+              'border-l-4 border-yellow-500': statusConfig?.color === 'bg-yellow-500',
+              'border-l-4 border-green-500': statusConfig?.color === 'bg-green-500',
+              'border-l-4 border-red-500': statusConfig?.color === 'bg-red-500',
+              'border-l-4 border-purple-500': statusConfig?.color === 'bg-purple-500',
+              'border-l-4 border-blue-500': statusConfig?.color === 'bg-blue-500',
+              'border-l-4 border-gray-400': statusConfig?.color === 'bg-gray-400',
+            },
+            direction === 'rtl' ? 'rtl' : 'ltr',
+            className
+          )}
+          onClick={(event) => {
+            if (!isSelectable) return;
+            selectItem(value);
+            handleSelect?.(value);
+            onClick?.(event);
+          }}
+          onContextMenu={handleContextMenu}
+          data-tree-item-id={value}
+          role="treeitem"
+          aria-selected={isSelected}
+          {...props}
+        >
+          {/* 图标容器：强制穿透 */}
+          <span
+            style={{ pointerEvents: 'none' }}
+            className="inline-flex items-center justify-center shrink-0"
+            aria-hidden="true"
+          >
+            {fileIcon ?? <FileIcon fileName={fileName} width={16} height={16} />}
+          </span>
+          {/* 文件名：同样强制穿透，让按钮处理所有事件 */}
+          <span
+            style={{ pointerEvents: 'none' }}
+            className="flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-left"
+          >
+            {fileName}
+          </span>
+          {/* Git 状态点 */}
+          {statusConfig && (
+            <span
+              style={{ pointerEvents: 'none' }}
+              className={cn('ml-1 h-1.5 w-1.5 rounded-full shrink-0', statusConfig.color)}
+              aria-hidden="true"
+            />
+          )}
+        </button>
 
+        {/* 右键菜单（Portal 方式） */}
+        <ContextMenu open={menuOpen} onOpenChange={setMenuOpen}>
+          <ContextMenuContent
+            className="w-48"
+            style={{ position: 'fixed', left: menuPos.x, top: menuPos.y }}
+            onCloseAutoFocus={(e) => e.preventDefault()}
+          >
+            <ContextMenuItem onClick={() => { setMenuOpen(false); onOpenFile?.(value); }}>
+              <ExternalLink className="mr-2 h-4 w-4" /> Open in Editor
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => { setMenuOpen(false); onRevealInFinder?.(value); }}>
+              <FolderOpen className="mr-2 h-4 w-4" /> Reveal in Finder
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+            <ContextMenuItem onClick={() => { setMenuOpen(false); onCopyPath?.(value); }}>
+              <Copy className="mr-2 h-4 w-4" /> Copy Absolute Path
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => { setMenuOpen(false); onCopyRelativePath?.(relativePath); }}>
+              <Copy className="mr-2 h-4 w-4" /> Copy Relative Path
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+            <ContextMenuItem onClick={() => { setMenuOpen(false); onAttachToConversation?.(value); }}>
+              <Paperclip className="mr-2 h-4 w-4" /> Attach to Conversation
+            </ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenu>
+      </>
+    );
+  }
+);
 const CollapseButton = forwardRef<
   HTMLButtonElement,
   {
