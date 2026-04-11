@@ -1,3 +1,4 @@
+// src/components/ui/file-tree.tsx
 import React, {
   createContext,
   forwardRef,
@@ -5,7 +6,6 @@ import React, {
   useContext,
   useEffect,
   useState,
-  useRef,
 } from "react"
 import { Accordion as AccordionPrimitive } from "radix-ui"
 import {
@@ -23,7 +23,6 @@ import {
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   ContextMenu,
   ContextMenuContent,
@@ -31,12 +30,6 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
 
 type TreeViewElement = {
   id: string
@@ -74,9 +67,7 @@ const TreeContext = createContext<TreeContextProps | null>(null)
 
 const useTree = () => {
   const context = useContext(TreeContext)
-  if (!context) {
-    throw new Error("useTree must be used within a TreeProvider")
-  }
+  if (!context) throw new Error("useTree must be used within a TreeProvider")
   return context
 }
 
@@ -203,23 +194,31 @@ const Tree = forwardRef<HTMLDivElement, TreeViewProps>(
     const [selectedId, setSelectedId] = useState<string | undefined>(
       initialSelectedId
     )
-    const [expandedItems, setExpandedItems] = useState<string[] | undefined>(
+    const [internalExpanded, setInternalExpanded] = useState<string[] | undefined>(
       initialExpandedItems
     )
 
-    const effectiveExpanded = controlledExpanded ?? expandedItems
-    const setEffectiveExpanded = onExpandedChange ?? setExpandedItems
+    const effectiveExpanded = controlledExpanded ?? internalExpanded
+    const setEffectiveExpanded = onExpandedChange ?? setInternalExpanded
 
     const selectItem = useCallback((id: string) => setSelectedId(id), [])
 
-    const handleExpand = useCallback(
-      (id: string) => {
-        setEffectiveExpanded((prev) => {
-          if (prev?.includes(id)) return prev.filter((item) => item !== id)
-          return [...(prev ?? []), id]
-        })
+    const handleValueChange = useCallback(
+      (newExpanded: string[]) => {
+        setEffectiveExpanded(newExpanded)
       },
       [setEffectiveExpanded]
+    )
+
+    const handleExpand = useCallback(
+      (id: string) => {
+        const isExpanded = effectiveExpanded?.includes(id) ?? false
+        const newExpanded = isExpanded
+          ? effectiveExpanded?.filter((item) => item !== id) ?? []
+          : [...(effectiveExpanded ?? []), id]
+        handleValueChange(newExpanded)
+      },
+      [effectiveExpanded, handleValueChange]
     )
 
     const expandSpecificTargetedElements = useCallback(
@@ -229,10 +228,12 @@ const Tree = forwardRef<HTMLDivElement, TreeViewProps>(
           const newPath = [...path, element.id]
           if (element.id === selectId) {
             if (element.isSelectable !== false) {
-              setEffectiveExpanded((prev) => mergeExpandedItems(prev, newPath))
+              const newExpanded = mergeExpandedItems(effectiveExpanded, newPath)
+              handleValueChange(newExpanded)
             } else if (newPath.includes(element.id)) {
               newPath.pop()
-              setEffectiveExpanded((prev) => mergeExpandedItems(prev, newPath))
+              const newExpanded = mergeExpandedItems(effectiveExpanded, newPath)
+              handleValueChange(newExpanded)
             }
             return
           }
@@ -242,7 +243,7 @@ const Tree = forwardRef<HTMLDivElement, TreeViewProps>(
         }
         elements.forEach((el) => findParent(el))
       },
-      [setEffectiveExpanded]
+      [effectiveExpanded, handleValueChange]
     )
 
     useEffect(() => {
@@ -276,23 +277,24 @@ const Tree = forwardRef<HTMLDivElement, TreeViewProps>(
           workspaceRoot,
         }}
       >
-        <div className={cn("size-full", className)}>
-          <ScrollArea
+        <div className={cn("size-full overflow-hidden", className)}>
+          <div
             ref={ref}
-            className="relative h-full"
-            dir={dir as Direction}
+            className="relative h-full w-full overflow-auto min-w-0 thin-scrollbar"
           >
-            <AccordionPrimitive.Root
-              {...props}
-              type="multiple"
-              value={effectiveExpanded}
-              onValueChange={setEffectiveExpanded}
-              className="flex flex-col gap-0.5 min-w-max"
-              dir={dir as Direction}
-            >
-              {treeChildren}
-            </AccordionPrimitive.Root>
-          </ScrollArea>
+            <div className="w-full min-w-0">
+              <AccordionPrimitive.Root
+                {...props}
+                type="multiple"
+                value={effectiveExpanded}
+                onValueChange={handleValueChange}
+                className="flex flex-col gap-0.5 w-full"
+                dir={dir as Direction}
+              >
+                {treeChildren}
+              </AccordionPrimitive.Root>
+            </div>
+          </div>
         </div>
       </TreeContext.Provider>
     )
@@ -300,52 +302,12 @@ const Tree = forwardRef<HTMLDivElement, TreeViewProps>(
 )
 Tree.displayName = "Tree"
 
-// Tooltip only when text is truncated
-const TruncatedSpan = ({
-  text,
-  className,
-}: {
-  text: string
-  className?: string
-}) => {
-  const ref = useRef<HTMLSpanElement>(null)
-  const [isTruncated, setIsTruncated] = useState(false)
-
-  useEffect(() => {
-    const el = ref.current
-    if (el) {
-      setIsTruncated(el.scrollWidth > el.clientWidth)
-    }
-  }, [text])
-
-  const content = (
-    <span ref={ref} className={className}>
-      {text}
-    </span>
-  )
-
-  if (!isTruncated) return content
-
-  return (
-    <TooltipProvider delayDuration={500}>
-      <Tooltip>
-        <TooltipTrigger asChild>{content}</TooltipTrigger>
-        <TooltipContent side="right" align="start">
-          <p className="text-xs">{text}</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  )
-}
-
 type FolderProps = {
   element: string
   isSelectable?: boolean
   isSelect?: boolean
   isFocused?: boolean
 } & React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Item>
-
-const MotionTrigger = motion(AccordionPrimitive.Trigger)
 
 const Folder = forwardRef<
   HTMLDivElement,
@@ -388,14 +350,15 @@ const Folder = forwardRef<
       : value
 
     const trigger = (
-      <MotionTrigger
+      <AccordionPrimitive.Trigger
         className={cn(
-          "flex items-center gap-1 rounded-md text-sm w-full px-1.5 py-0.5 my-0.5 outline-none focus:outline-none",
+          "flex items-center gap-1 rounded-md text-sm w-full min-w-0 px-1.5 py-0.5 my-0.5 outline-none focus:outline-none transition-colors duration-150",
           className,
           {
             "bg-muted rounded-md": isSelected && isSelectable,
             "cursor-pointer": isSelectable,
             "cursor-not-allowed opacity-50": !isSelectable,
+            "bg-blue-500/15 text-primary": isFocused,
           }
         )}
         disabled={!isSelectable}
@@ -407,19 +370,17 @@ const Folder = forwardRef<
         role="treeitem"
         aria-expanded={isExpanded}
         aria-selected={isSelected}
-        animate={{
-          backgroundColor: isFocused
-            ? "rgba(59, 130, 246, 0.15)"
-            : "transparent",
-          color: isFocused ? "var(--primary)" : "inherit",
-        }}
-        transition={{ duration: 0.15 }}
       >
         {isExpanded
           ? openIcon ?? <DefaultFolderOpenedIcon width={16} height={16} />
           : closeIcon ?? <FolderIcon folderName={element} width={16} height={16} />}
-        <TruncatedSpan text={element} className="truncate text-left flex-1" />
-      </MotionTrigger>
+        <span
+          className="flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-left"
+          title={element}
+        >
+          {element}
+        </span>
+      </AccordionPrimitive.Trigger>
     )
 
     return (
@@ -427,7 +388,7 @@ const Folder = forwardRef<
         ref={ref}
         {...props}
         value={value}
-        className="relative"
+        className="relative w-full"
       >
         <ContextMenu>
           <ContextMenuTrigger asChild>{trigger}</ContextMenuTrigger>
@@ -457,9 +418,8 @@ const Folder = forwardRef<
           </ContextMenuContent>
         </ContextMenu>
 
-        {/* Animated content with indentation bar */}
         <AccordionPrimitive.Content forceMount asChild>
-          <div className="overflow-hidden">
+          <div className="overflow-hidden w-full">
             <AnimatePresence initial={false}>
               {isExpanded && (
                 <motion.div
@@ -467,20 +427,16 @@ const Folder = forwardRef<
                   animate={{ height: "auto", opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: 0.2, ease: "easeOut" }}
-                  style={{ overflow: "hidden" }}
+                  className="overflow-hidden"
                 >
                   <div
-                    className={cn(
-                      "pl-4",
-                      indicator && "border-l border-muted"
-                    )}
+                    className={cn("pl-4 w-full", indicator && "border-l border-muted")}
                   >
                     <AccordionPrimitive.Root
                       dir={direction}
                       type="multiple"
-                      className="flex flex-col gap-0.5"
+                      className="flex flex-col gap-0.5 w-full"
                       value={expandedItems}
-                      onValueChange={handleExpand}
                     >
                       {children}
                     </AccordionPrimitive.Root>
@@ -495,8 +451,6 @@ const Folder = forwardRef<
   }
 )
 Folder.displayName = "Folder"
-
-const MotionButton = motion.button
 
 const gitStatusConfig: Record<string, { color: string; label: string }> = {
   M: { color: "bg-yellow-500", label: "Modified" },
@@ -557,16 +511,18 @@ const File = forwardRef<
       : value
 
     const button = (
-      <MotionButton
+      <button
         ref={ref}
         type="button"
         disabled={!isSelectable}
         className={cn(
-          "flex w-full min-w-0 items-center gap-1 rounded-md text-sm px-1.5 py-0.5 my-0.5 outline-none focus:outline-none",
+          "flex w-full min-w-0 items-center gap-1 rounded-md text-sm px-1.5 py-0.5 my-0.5 outline-none focus:outline-none transition-colors duration-150",
           {
             "bg-muted": isSelected && isSelectable,
+            "cursor-pointer": isSelectable,
+            "cursor-not-allowed opacity-50": !isSelectable,
+            "bg-blue-500/15 text-primary": isFocused,
           },
-          isSelectable ? "cursor-pointer" : "cursor-not-allowed opacity-50",
           direction === "rtl" ? "rtl" : "ltr",
           className
         )}
@@ -578,17 +534,15 @@ const File = forwardRef<
         data-tree-item-id={value}
         role="treeitem"
         aria-selected={isSelected}
-        animate={{
-          backgroundColor: isFocused
-            ? "rgba(59, 130, 246, 0.15)"
-            : "transparent",
-          color: isFocused ? "var(--primary)" : "inherit",
-        }}
-        transition={{ duration: 0.15 }}
         {...props}
       >
         {fileIcon ?? <FileIcon fileName={fileName} width={16} height={16} />}
-        <TruncatedSpan text={fileName} className="flex-1 truncate text-left" />
+        <span
+          className="flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-left"
+          title={fileName}
+        >
+          {fileName}
+        </span>
         {statusConfig && (
           <span
             className={cn(
@@ -598,7 +552,7 @@ const File = forwardRef<
             title={statusConfig.label}
           />
         )}
-      </MotionButton>
+      </button>
     )
 
     return (

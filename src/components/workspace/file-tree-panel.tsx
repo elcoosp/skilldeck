@@ -49,6 +49,7 @@ export function FileTreePanel() {
   const [searchInput, setSearchInput] = useState('')
   const [searchQuery] = useDebounce(searchInput, 200)
 
+  // Load saved expanded state when workspace changes
   useEffect(() => {
     if (activeWorkspaceId) {
       const saved = workspaceExpandedFolders[activeWorkspaceId] ?? []
@@ -56,6 +57,7 @@ export function FileTreePanel() {
     }
   }, [activeWorkspaceId, workspaceExpandedFolders])
 
+  // Save expanded state when it changes (via Tree component)
   const handleExpandedChange = useCallback((ids: string[]) => {
     setExpanded(ids)
     if (activeWorkspaceId) {
