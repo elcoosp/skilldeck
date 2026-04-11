@@ -1,5 +1,6 @@
 // src/components/layout/catalog-card.tsx
 
+import { useEffect, useRef, useState } from 'react'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { ExternalLink, Loader2, Package, Plus } from 'lucide-react'
 import { toast } from '@/components/ui/toast'
@@ -19,6 +20,30 @@ export function CatalogCard({
   adding,
   onAdd
 }: CatalogCardProps) {
+  const measureRef = useRef<HTMLDivElement>(null)
+  const [collapsed, setCollapsed] = useState(false)
+
+  useEffect(() => {
+    const measure = measureRef.current
+    const parent = measure?.parentElement
+    if (!measure || !parent) return
+
+    const check = () => {
+      const fullWidth = measure.scrollWidth
+      const availableWidth = parent.clientWidth
+
+      // If we need to show "+x", account for its width (~30px)
+      const requiredWidth = entry.tags.length > 1 ? fullWidth + 30 : fullWidth
+
+      setCollapsed(requiredWidth > availableWidth)
+    }
+
+    check()
+    const observer = new ResizeObserver(check)
+    observer.observe(parent)
+    return () => observer.disconnect()
+  }, [entry.tags])
+
   const handleDocsClick = async (e: React.MouseEvent) => {
     e.stopPropagation()
     try {
@@ -31,43 +56,70 @@ export function CatalogCard({
   return (
     <div
       className={cn(
-        'flex items-start gap-2 px-3 py-2.5 rounded-lg border transition-colors overflow-hidden',
+        'flex flex-col gap-1 px-2.5 py-2 rounded-lg border transition-colors min-w-0',
         alreadyAdded
           ? 'border-green-500/20 bg-green-500/5 opacity-70'
           : 'border-border hover:border-primary/30 hover:bg-muted/30'
       )}
     >
-      <Package className="size-3.5 text-muted-foreground shrink-0 mt-0.5" />
+      {/* Top row: Icon + Name + Transport | Docs */}
+      <div className="flex items-center gap-1.5 min-w-0">
+        <Package className="size-3.5 text-muted-foreground shrink-0" />
 
-      <div className="flex-1 min-w-0 overflow-hidden">
-        <div className="flex items-center gap-1.5 mb-0.5">
+        <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
           <span className="text-xs font-medium truncate">{entry.name}</span>
-          <span className="text-[10px] text-muted-foreground font-mono bg-muted px-1 rounded shrink-0">
+          <span className="text-[9px] text-muted-foreground font-mono bg-muted px-1 py-0.5 rounded shrink-0">
             {entry.transport}
           </span>
         </div>
-        <p className="text-[11px] text-muted-foreground leading-relaxed w-full break-words">
-          {entry.description}
-        </p>
-        <div className="flex flex-wrap gap-1 mt-1.5">
-          {entry.tags.slice(0, 3).map((tag) => (
-            <span
-              key={tag}
-              className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground"
-            >
-              {tag}
-            </span>
-          ))}
-        </div>
+
+        <button
+          type="button"
+          onClick={handleDocsClick}
+          className="flex items-center gap-0.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors shrink-0 ml-1"
+        >
+          Docs
+          <ExternalLink className="size-2.5" />
+        </button>
       </div>
 
-      <div className="flex flex-col gap-1 shrink-0 items-end w-14">
+      {/* Description */}
+      <p className="text-[11px] text-muted-foreground leading-snug line-clamp-2 break-words">
+        {entry.description}
+      </p>
+
+      {/* Bottom row: Tags | Add Button */}
+      <div className="flex items-center justify-between gap-1.5 min-w-0 relative">
+        {/* Visible tags area */}
+        <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
+          <div className="flex gap-1 min-w-0">
+            {entry.tags.map((tag, i) => (
+              <span
+                key={tag}
+                className={cn(
+                  'text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground whitespace-nowrap shrink-0',
+                  collapsed && i > 0 ? 'hidden' : ''
+                )}
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+
+          {/* The +x pill only renders if collapsed state is true */}
+          {collapsed && entry.tags.length > 1 && (
+            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground whitespace-nowrap shrink-0">
+              +{entry.tags.length - 1}
+            </span>
+          )}
+        </div>
+
         <button
           type="button"
           onClick={() => !alreadyAdded && onAdd(entry)}
           disabled={alreadyAdded || adding}
           className={cn(
-            'flex items-center justify-center gap-0.5 w-full px-1.5 py-1 rounded text-[11px] font-medium transition-colors',
+            'flex items-center justify-center gap-0.5 px-2 py-0.5 rounded text-[11px] font-medium transition-colors shrink-0',
             alreadyAdded
               ? 'text-green-600 dark:text-green-400 cursor-default'
               : 'bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50'
@@ -84,14 +136,22 @@ export function CatalogCard({
             </>
           )}
         </button>
-        <button
-          type="button"
-          onClick={handleDocsClick}
-          className="flex items-center gap-0.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+
+        {/*
+          Hidden measurement div: Renders all tags invisibly to calculate
+          their true combined width without affecting layout.
+        */}
+        <div
+          ref={measureRef}
+          className="invisible absolute top-0 left-0 flex gap-1 overflow-hidden pointer-events-none h-0"
+          aria-hidden="true"
         >
-          Docs
-          <ExternalLink className="size-2.5 shrink-0" />
-        </button>
+          {entry.tags.map(tag => (
+            <span key={tag} className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground whitespace-nowrap shrink-0">
+              {tag}
+            </span>
+          ))}
+        </div>
       </div>
     </div>
   )

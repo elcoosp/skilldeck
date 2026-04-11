@@ -135,25 +135,22 @@ export function RightPanel() {
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="flex flex-row h-full">
-        {/* Content area (left) */}
-        <div className="flex-1 min-w-0 overflow-hidden flex flex-col">
+      {/*
+        CRITICAL: basis-0 forces flex items to size from available space,
+        not content. min-w-0 allows shrinking below content size.
+        overflow-hidden clips any overflow.
+      */}
+      <div className="flex flex-row h-full w-full overflow-hidden">
+        {/* Content area (left) - basis-0 is the key fix */}
+        <div className="flex-1 basis-0 min-w-0 overflow-hidden flex flex-col">
           {activeTab === 'mcp' ? (
-            <div className="flex-1 min-h-0 overflow-hidden w-full min-w-0">
-              <McpTab />
-            </div>
+            <McpTab />
           ) : activeTab === 'skills' ? (
-            <div className="flex-1 min-h-0 overflow-hidden w-full min-w-0">
-              <UnifiedSkillList />
-            </div>
+            <UnifiedSkillList />
           ) : activeTab === 'artifacts' ? (
-            <div className="flex-1 min-h-0 overflow-hidden w-full min-w-0">
-              <ArtifactPanel />
-            </div>
+            <ArtifactPanel />
           ) : activeTab === 'files' ? (
-            <div className="flex-1 min-h-0 overflow-hidden w-full min-w-0">
-              <FileTreePanel />
-            </div>
+            <FileTreePanel />
           ) : (
             <ScrollArea className="flex-1 min-h-0">
               {activeTab === 'session' && (
@@ -165,8 +162,8 @@ export function RightPanel() {
           )}
         </div>
 
-        {/* Vertical icon rail (right side) – always visible, narrower width */}
-        <div className="w-10 h-full shrink-0 border-l border-border bg-background flex flex-col items-center py-2">
+        {/* Vertical icon rail (right side) – fixed width, never shrinks */}
+        <div className="w-10 shrink-0 border-l border-border bg-background flex flex-col items-center py-2">
           {/* Primary group */}
           <div className="flex flex-col items-center gap-1 w-full">
             {primaryTabs.map(({ id, label, Icon }) => (
@@ -233,7 +230,7 @@ export function RightPanel() {
   )
 }
 
-// ── Session tab (updated with provider readiness) ───────────────────────────────────────────────
+// ── Session tab ───────────────────────────────────────────────────────────────
 
 function useAvailableModels(provider: string) {
   return useQuery({
@@ -293,7 +290,7 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
 
   if (!conversationId) {
     return (
-      <div className="p-4 text-sm text-muted-foreground">
+      <div className="p-3 text-sm text-muted-foreground">
         No active conversation.
       </div>
     )
@@ -301,16 +298,16 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
 
   if (conversationsLoading) {
     return (
-      <div className="p-4 text-xs text-muted-foreground flex items-center gap-2">
+      <div className="p-3 text-xs text-muted-foreground flex items-center gap-2">
         <div className="size-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-        Loading conversations...
+        Loading...
       </div>
     )
   }
 
   if (!conversation) {
     return (
-      <div className="p-4 space-y-3">
+      <div className="p-3 space-y-3">
         <p className="text-xs text-muted-foreground">Conversation not found.</p>
         <Button size="xs" variant="outline" onClick={() => refetch()}>
           Refresh
@@ -321,7 +318,7 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
 
   if (!profile) {
     return (
-      <div className="p-4 space-y-3">
+      <div className="p-3 space-y-3">
         <p className="text-xs text-muted-foreground">Profile not found.</p>
         <Button size="xs" variant="outline" onClick={() => refetch()}>
           Refresh
@@ -339,7 +336,7 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
     : displayModels[0]
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="p-3 space-y-4">
       <section>
         <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
           Active Conversation
@@ -356,7 +353,7 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
 
         <div className="space-y-1">
           <span className="text-xs text-muted-foreground">Provider</span>
-          <div className="text-xs font-medium px-2 py-1 rounded bg-muted/50 flex items-center gap-1.5">
+          <div className="text-xs font-medium px-2 py-1 rounded bg-muted/50 flex items-center gap-1.5 min-w-0">
             <ProviderIcon
               provider={profile.model_provider}
               size={14}
@@ -395,18 +392,18 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
 
       <section className="space-y-2">
         <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-          Token Usage (Current Session)
+          Token Usage
         </h3>
         <div className="grid grid-cols-2 gap-2 text-sm">
-          <div className="rounded border border-border p-2">
-            <span className="text-muted-foreground">Input</span>
-            <div className="font-mono text-base">
+          <div className="rounded border border-border p-2 min-w-0">
+            <span className="text-muted-foreground text-xs">Input</span>
+            <div className="font-mono text-sm truncate">
               {inputTokens.toLocaleString()}
             </div>
           </div>
-          <div className="rounded border border-border p-2">
-            <span className="text-muted-foreground">Output</span>
-            <div className="font-mono text-base">
+          <div className="rounded border border-border p-2 min-w-0">
+            <span className="text-muted-foreground text-xs">Output</span>
+            <div className="font-mono text-sm truncate">
               {outputTokens.toLocaleString()}
             </div>
           </div>
@@ -416,7 +413,7 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
   )
 }
 
-// ── Workflow tab (unchanged) ──────────────────────────────────────────────────────────────
+// ── Workflow tab ──────────────────────────────────────────────────────────────
 
 function WorkflowTab() {
   const { progress } = useWorkflowEvents()
@@ -438,16 +435,15 @@ function WorkflowTab() {
 
   return (
     <div className="p-3 space-y-4">
-      {/* Active workflow (running) */}
       {progress && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider truncate">
               Active Workflow
             </h3>
             <span
               className={cn(
-                'text-xs font-medium',
+                'text-xs font-medium shrink-0 ml-2',
                 progress.status === 'running'
                   ? 'text-blue-500'
                   : progress.status === 'completed'
@@ -486,7 +482,7 @@ function WorkflowTab() {
                 >
                   <button
                     type="button"
-                    className="flex items-center gap-2 w-full p-2 text-left hover:bg-muted/50 transition-colors"
+                    className="flex items-center gap-2 w-full p-2 text-left hover:bg-muted/50 transition-colors min-w-0"
                     onClick={() =>
                       setExpanded((prev) => ({
                         ...prev,
@@ -500,12 +496,12 @@ function WorkflowTab() {
                     <span className="text-xs font-medium flex-1 truncate">
                       {step.stepId}
                     </span>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-xs text-muted-foreground shrink-0">
                       {step.status}
                     </span>
                     <ChevronRight
                       className={cn(
-                        'size-3 text-muted-foreground transition-transform',
+                        'size-3 text-muted-foreground transition-transform shrink-0',
                         isOpen && 'rotate-90'
                       )}
                     />
@@ -524,16 +520,16 @@ function WorkflowTab() {
         </div>
       )}
 
-      {/* Saved workflows */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider truncate">
             Saved Workflows
           </h3>
           <Button
             size="xs"
             variant="outline"
             onClick={() => setEditorOpen(true)}
+            className="shrink-0 ml-2"
           >
             <Plus className="size-3 mr-1" />
             New
@@ -549,21 +545,19 @@ function WorkflowTab() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.3, ease: 'easeOut' }}
-            className="flex flex-col items-center justify-center py-8 px-4 text-center"
+            className="flex flex-col items-center justify-center py-6 px-2 text-center"
           >
-            <div className="w-40 h-40 mb-4 overflow-hidden rounded-3xl">
-              <img
-                src="/illustrations/empty-workflows.jpeg"
-                alt="No workflows"
-                className="w-full h-full object-cover opacity-90"
-              />
-            </div>
-            <h3 className="text-base font-semibold text-foreground mb-1">
-              Ready to orchestrate something brilliant?
+            {/* Responsive image - uses percentage width */}
+            <img
+              src="/illustrations/empty-workflows.jpeg"
+              alt="No workflows"
+              className="w-24 h-24 object-contain mb-3 rounded-2xl opacity-90"
+            />
+            <h3 className="text-sm font-semibold text-foreground mb-1">
+              Ready to automate?
             </h3>
-            <p className="text-sm text-muted-foreground max-w-xs">
-              Design a workflow that turns complex tasks into elegant
-              automation.
+            <p className="text-xs text-muted-foreground">
+              Design workflows for elegant automation.
             </p>
           </motion.div>
         ) : (
@@ -571,40 +565,21 @@ function WorkflowTab() {
             {savedWorkflows.map((wf) => (
               <div
                 key={wf.id}
-                className="flex items-center gap-2 p-2 rounded-md border border-border hover:bg-muted/30 transition-colors"
+                className="flex items-center gap-1 p-2 rounded-md border border-border hover:bg-muted/30 transition-colors min-w-0"
               >
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium truncate">{wf.name}</p>
-                  <p className="text-[10px] text-muted-foreground">
-                    Updated {new Date(wf.updated_at).toLocaleDateString()}
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    {new Date(wf.updated_at).toLocaleDateString()}
                   </p>
                 </div>
-                <Button
-                  size="icon-xs"
-                  variant="ghost"
-                  onClick={() => {
-                    setSelectedWorkflow(wf.definition)
-                    setEditorOpen(true)
-                  }}
-                  title="Edit workflow"
-                >
+                <Button size="icon-xs" variant="ghost" onClick={() => { setSelectedWorkflow(wf.definition); setEditorOpen(true) }} title="Edit" className="shrink-0">
                   <ChevronRight className="size-3" />
                 </Button>
-                <Button
-                  size="icon-xs"
-                  variant="ghost"
-                  onClick={() => runMutation.mutate(wf.id)}
-                  disabled={runMutation.isPending}
-                  title="Run workflow"
-                >
+                <Button size="icon-xs" variant="ghost" onClick={() => runMutation.mutate(wf.id)} disabled={runMutation.isPending} title="Run" className="shrink-0">
                   <Play className="size-3" />
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  onClick={() => handleDelete(wf.id, wf.name)}
-                  className="text-muted-foreground hover:text-destructive"
-                >
+                <Button variant="ghost" size="icon-xs" onClick={() => handleDelete(wf.id, wf.name)} className="text-muted-foreground hover:text-destructive shrink-0">
                   <Trash2 className="size-3" />
                 </Button>
               </div>
@@ -613,11 +588,10 @@ function WorkflowTab() {
         )}
       </div>
 
-      {/* Workflow graph visualization */}
       {selectedWorkflow && (
         <div className="mt-4 border-t pt-3">
           <h4 className="text-xs font-medium mb-2">Visualization</h4>
-          <div className="h-64 border rounded-md bg-muted/20 p-1">
+          <div className="h-64 border rounded-md bg-muted/20 p-1 overflow-hidden">
             <WorkflowGraph definition={selectedWorkflow} stepStatuses={{}} />
           </div>
         </div>
@@ -641,15 +615,11 @@ function AnalyticsTab() {
   const currentMonthStart = useMemo(() => startOfMonth(new Date()), [])
   const currentMonthEnd = useMemo(() => endOfMonth(new Date()), [])
 
-  // Filter to current month for compact view
   const currentMonthMessages = useMemo(() => {
     if (!analytics) return []
     return analytics.messages_per_day.filter((item) => {
       const date = new Date(item.date)
-      return isWithinInterval(date, {
-        start: currentMonthStart,
-        end: currentMonthEnd
-      })
+      return isWithinInterval(date, { start: currentMonthStart, end: currentMonthEnd })
     })
   }, [analytics, currentMonthStart, currentMonthEnd])
 
@@ -657,20 +627,13 @@ function AnalyticsTab() {
     if (!analytics) return []
     return analytics.conversations_per_day.filter((item) => {
       const date = new Date(item.date)
-      return isWithinInterval(date, {
-        start: currentMonthStart,
-        end: currentMonthEnd
-      })
+      return isWithinInterval(date, { start: currentMonthStart, end: currentMonthEnd })
     })
   }, [analytics, currentMonthStart, currentMonthEnd])
 
-  // Full year range: from start of the year of the earliest date to end of the year of the latest date
   const fullYearStart = useMemo(() => {
     if (!analytics) return startOfMonth(new Date())
-    const allDates = [
-      ...analytics.messages_per_day,
-      ...analytics.conversations_per_day
-    ]
+    const allDates = [...analytics.messages_per_day, ...analytics.conversations_per_day]
       .map((d) => new Date(d.date))
       .filter((d) => !Number.isNaN(d.getTime()))
     if (allDates.length === 0) return startOfMonth(new Date())
@@ -680,10 +643,7 @@ function AnalyticsTab() {
 
   const fullYearEnd = useMemo(() => {
     if (!analytics) return endOfMonth(new Date())
-    const allDates = [
-      ...analytics.messages_per_day,
-      ...analytics.conversations_per_day
-    ]
+    const allDates = [...analytics.messages_per_day, ...analytics.conversations_per_day]
       .map((d) => new Date(d.date))
       .filter((d) => !Number.isNaN(d.getTime()))
     if (allDates.length === 0) return endOfMonth(new Date())
@@ -691,11 +651,10 @@ function AnalyticsTab() {
     return new Date(maxDate.getFullYear(), 11, 31)
   }, [analytics])
 
-  // Compute the width needed for the full‑year heatmap (same as in AnalyticsHeatmap)
   const fullYearWidth = useMemo(() => {
     const weeks = Math.max(1, differenceInWeeks(fullYearEnd, fullYearStart) + 1)
-    const computedWidth = (12 + 2) * weeks + 40 // rectSize=12, space=2
-    return Math.min(computedWidth, 1200) // cap at 1200px
+    const computedWidth = (12 + 2) * weeks + 40
+    return Math.min(computedWidth, 1200)
   }, [fullYearStart, fullYearEnd])
 
   if (isLoading) {
@@ -708,70 +667,50 @@ function AnalyticsTab() {
 
   if (error || !analytics) {
     return (
-      <div className="p-4 text-sm text-destructive">
+      <div className="p-3 text-sm text-destructive">
         Failed to load analytics: {String(error)}
       </div>
     )
   }
 
   return (
-    <div className="p-4 space-y-5">
-      {/* Overview stats */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-lg border border-border p-3 min-w-0">
-          <p className="text-xs text-muted-foreground truncate">
-            Conversations
-          </p>
-          <p className="text-xl font-semibold truncate">
-            {analytics.total_conversations}
-          </p>
+    <div className="p-3 space-y-4">
+      <div className="grid grid-cols-2 gap-2">
+        <div className="rounded-lg border border-border p-2 min-w-0">
+          <p className="text-[10px] text-muted-foreground truncate">Conversations</p>
+          <p className="text-lg font-semibold truncate">{analytics.total_conversations}</p>
         </div>
-        <div className="rounded-lg border border-border p-3 min-w-0">
-          <p className="text-xs text-muted-foreground truncate">Messages</p>
-          <p className="text-xl font-semibold truncate">
-            {analytics.total_messages}
-          </p>
+        <div className="rounded-lg border border-border p-2 min-w-0">
+          <p className="text-[10px] text-muted-foreground truncate">Messages</p>
+          <p className="text-lg font-semibold truncate">{analytics.total_messages}</p>
         </div>
       </div>
 
-      {/* Token usage */}
-      <div className="rounded-lg border border-border p-3 space-y-2">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-          Token Usage
-        </p>
-        <div className="flex justify-between text-sm">
+      <div className="rounded-lg border border-border p-2 space-y-1">
+        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Token Usage</p>
+        <div className="flex justify-between text-xs">
           <span>Input</span>
-          <span className="font-mono">
-            {analytics.token_usage.input_tokens.toLocaleString()}
-          </span>
+          <span className="font-mono">{analytics.token_usage.input_tokens.toLocaleString()}</span>
         </div>
-        <div className="flex justify-between text-sm">
+        <div className="flex justify-between text-xs">
           <span>Output</span>
-          <span className="font-mono">
-            {analytics.token_usage.output_tokens.toLocaleString()}
-          </span>
+          <span className="font-mono">{analytics.token_usage.output_tokens.toLocaleString()}</span>
         </div>
-        <div className="flex justify-between text-sm font-medium pt-1 border-t">
+        <div className="flex justify-between text-xs font-medium pt-1 border-t">
           <span>Total</span>
-          <span className="font-mono">
-            {analytics.token_usage.total_tokens.toLocaleString()}
-          </span>
+          <span className="font-mono">{analytics.token_usage.total_tokens.toLocaleString()}</span>
         </div>
       </div>
 
-      {/* Compact month heatmap */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            Activity (current month)
+          <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider truncate">
+            Activity
           </h3>
-          <Dialog
-            open={fullYearDialogOpen}
-            onOpenChange={setFullYearDialogOpen}
-          >
+          <Dialog open={fullYearDialogOpen} onOpenChange={setFullYearDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="ghost" size="sm" className="text-xs h-6 px-2">
-                View full year
+              <Button variant="ghost" size="sm" className="text-[10px] h-5 px-1.5 shrink-0 ml-1">
+                Full year
               </Button>
             </DialogTrigger>
             <DialogContent
@@ -786,8 +725,7 @@ function AnalyticsTab() {
               <DialogHeader>
                 <DialogTitle>Activity heatmap – full year</DialogTitle>
                 <DialogDescription>
-                  Daily activity from the start of the year of the earliest data
-                  to the end of the year of the latest data.
+                  Daily activity from the start of the year of the earliest data to the end of the year of the latest data.
                 </DialogDescription>
               </DialogHeader>
               <div className="py-4">
@@ -800,14 +738,12 @@ function AnalyticsTab() {
                 />
               </div>
               <DialogFooter>
-                <Button onClick={() => setFullYearDialogOpen(false)}>
-                  Close
-                </Button>
+                <Button onClick={() => setFullYearDialogOpen(false)}>Close</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
         </div>
-        <div>
+        <div className="overflow-x-auto">
           <AnalyticsHeatmap
             messagesData={currentMonthMessages}
             conversationsData={currentMonthConversations}
@@ -818,16 +754,15 @@ function AnalyticsTab() {
         </div>
       </div>
 
-      {/* Skills used */}
       {analytics.skills_used.length > 0 && (
-        <div className="space-y-2">
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            Most Used Skills
+        <div className="space-y-1">
+          <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+            Top Skills
           </h3>
           {analytics.skills_used.slice(0, 5).map(({ name, count }) => (
-            <div key={name} className="flex justify-between text-sm">
+            <div key={name} className="flex justify-between text-xs min-w-0">
               <span className="truncate">{name}</span>
-              <span className="font-mono">{count}</span>
+              <span className="font-mono shrink-0 ml-2">{count}</span>
             </div>
           ))}
         </div>

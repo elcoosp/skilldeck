@@ -1,5 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Copy, FileCode, FileText, GitCompare, Pin, PinOff } from 'lucide-react'
+import { formatDistance } from 'date-fns'
+import { Copy, GitCompare, MoreHorizontal, Pin, PinOff } from 'lucide-react'
+import { FileIcon } from '@react-symbols/icons/utils'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { toast } from '@/components/ui/toast'
@@ -20,35 +22,26 @@ export function ArtifactItem({
   compact = false,
   onPinChange
 }: ArtifactItemProps) {
-  const Icon = artifact.type === 'code' ? FileCode : FileText
+  const displayName = artifact.file_path || artifact.name || 'Untitled'
+
   const qc = useQueryClient()
-  const activeConversationId = useConversationStore(
-    (s) => s.activeConversationId
-  )
+  const activeConversationId = useConversationStore((s) => s.activeConversationId)
   const activeBranchId = useConversationStore((s) => s.activeBranchId)
 
   const [showBranchPicker, setShowBranchPicker] = useState(false)
   const [copying, setCopying] = useState(false)
   const [showDiff, setShowDiff] = useState(false)
 
-  // State for the consolidated pin dropdown
-  const [showPinMenu, setShowPinMenu] = useState(false)
-  const [pinMenuPos, setPinMenuPos] = useState<{
-    top: number
-    left: number
-  } | null>(null)
-  const pinButtonRef = useRef<HTMLButtonElement>(null)
-  const pinMenuRef = useRef<HTMLDivElement>(null)
+  const [showActionsMenu, setShowActionsMenu] = useState(false)
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null)
+  const menuButtonRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
 
-  // Fetch pinned status for this artifact in current branch
   const { data: branchPins, refetch: refetchBranchPins } = useQuery({
     queryKey: ['pinned-artifacts', activeConversationId, activeBranchId],
     queryFn: async () => {
       if (!activeConversationId) return []
-      const res = await commands.listPinnedArtifacts(
-        activeConversationId,
-        activeBranchId
-      )
+      const res = await commands.listPinnedArtifacts(activeConversationId, activeBranchId)
       if (res.status === 'ok') return res.data
       throw new Error(res.error)
     },
@@ -56,7 +49,6 @@ export function ArtifactItem({
   })
   const isBranchPinned = branchPins?.some((p) => p.id === artifact.id) ?? false
 
-  // Fetch global pinned status
   const { data: globalPins, refetch: refetchGlobalPins } = useQuery({
     queryKey: ['global-pins', activeConversationId],
     queryFn: async () => {
@@ -69,25 +61,6 @@ export function ArtifactItem({
   })
   const isGlobalPinned = globalPins?.some((p) => p.id === artifact.id) ?? false
 
-  // Close pin menu when clicking outside
-  useEffect(() => {
-    if (!showPinMenu) return
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        pinMenuRef.current &&
-        !pinMenuRef.current.contains(e.target as Node) &&
-        pinButtonRef.current &&
-        !pinButtonRef.current.contains(e.target as Node)
-      ) {
-        setShowPinMenu(false)
-        setPinMenuPos(null)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [showPinMenu])
-
-  // Fetch versions for diff
   const { data: versions } = useQuery({
     queryKey: ['artifact-versions', artifact.id],
     queryFn: async () => {
@@ -97,6 +70,27 @@ export function ArtifactItem({
     },
     enabled: !!artifact.logical_key
   })
+
+  const relativeTime = formatDistance(new Date(artifact.created_at), new Date(), {
+    addSuffix: true
+  })
+
+  useEffect(() => {
+    if (!showActionsMenu) return
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(e.target as Node) &&
+        menuButtonRef.current &&
+        !menuButtonRef.current.contains(e.target as Node)
+      ) {
+        setShowActionsMenu(false)
+        setMenuPos(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showActionsMenu])
 
   const handleCopy = async (branchId: string) => {
     setCopying(true)
@@ -149,135 +143,64 @@ export function ArtifactItem({
     }
   }
 
-  const isPinned = isBranchPinned || isGlobalPinned
-
-  const handlePinClick = useCallback(() => {
-    if (showPinMenu) {
-      setShowPinMenu(false)
-      setPinMenuPos(null)
+  const handleMenuClick = useCallback(() => {
+    if (showActionsMenu) {
+      setShowActionsMenu(false)
+      setMenuPos(null)
       return
     }
 
-    const btn = pinButtonRef.current
+    const btn = menuButtonRef.current
     if (!btn) return
 
     const rect = btn.getBoundingClientRect()
-    setPinMenuPos({
-      top: rect.top,
-      left: rect.right + 4 // Position to the right with a small gap
+    setMenuPos({
+      top: rect.bottom + 4,
+      left: rect.right - 120
     })
-    setShowPinMenu(true)
-  }, [showPinMenu])
+    setShowActionsMenu(true)
+  }, [showActionsMenu])
 
   return (
     <div className="w-full min-w-0 rounded-lg border border-border p-2 hover:bg-muted/30 transition-colors overflow-hidden">
       <div className="flex items-start gap-2">
-        <Icon className="size-4 text-muted-foreground mt-0.5 shrink-0" />
+        {artifact.file_path ? (
+          <FileIcon fileName={artifact.file_path} className="size-4 text-muted-foreground mt-0.5 shrink-0" />
+        ) : (
+          <div className="size-4 mt-0.5 shrink-0 bg-muted rounded-sm flex items-center justify-center text-[10px] text-muted-foreground">
+            {artifact.type === 'code' ? '</>' : 'T'}
+          </div>
+        )}
+
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1 flex-wrap">
-            <p className="text-xs font-medium truncate">{artifact.name}</p>
+          <div className="flex items-start gap-1">
+            <span
+              className={cn(
+                "text-xs font-medium break-all",
+                artifact.file_path && "font-mono text-primary"
+              )}
+              title={displayName}
+            >
+              {displayName}
+            </span>
             {!compact && (
-              <>
-                <button
-                  type="button"
-                  className="text-muted-foreground hover:text-foreground shrink-0"
-                  onClick={() => setShowBranchPicker(!showBranchPicker)}
-                  disabled={copying}
-                  title="Copy to branch"
-                >
-                  <Copy className="size-3" />
-                </button>
-                {versions && versions.length >= 2 && (
-                  <button
-                    type="button"
-                    className="text-muted-foreground hover:text-foreground shrink-0"
-                    onClick={() => setShowDiff(true)}
-                    title="Compare versions"
-                  >
-                    <GitCompare className="size-3" />
-                  </button>
-                )}
-
-                {/* Single Pin button with portal dropdown opening on the right */}
-                <div className="relative shrink-0">
-                  <button
-                    type="button"
-                    ref={pinButtonRef}
-                    className={cn(
-                      'text-muted-foreground hover:text-foreground transition-colors',
-                      isPinned && 'text-primary'
-                    )}
-                    onClick={handlePinClick}
-                    title={isPinned ? 'Manage pins' : 'Pin artifact'}
-                  >
-                    {isPinned ? (
-                      <Pin className="size-3 fill-current" />
-                    ) : (
-                      <PinOff className="size-3" />
-                    )}
-                  </button>
-
-                  {showPinMenu &&
-                    pinMenuPos &&
-                    createPortal(
-                      <div
-                        ref={pinMenuRef}
-                        className="fixed z-50 w-40 bg-popover border border-border rounded-md shadow-md py-1 text-xs"
-                        style={{
-                          top: `${pinMenuPos.top}px`,
-                          left: `${pinMenuPos.left}px`
-                        }}
-                      >
-                        <button
-                          type="button"
-                          className="w-full text-left px-2 py-1.5 hover:bg-muted/50 flex items-center justify-between transition-colors whitespace-nowrap"
-                          onClick={() => {
-                            handlePinBranch()
-                            setShowPinMenu(false)
-                            setPinMenuPos(null)
-                          }}
-                        >
-                          <span>Pin to Branch</span>
-                          {isBranchPinned && (
-                            <span className="text-primary font-semibold ml-2">
-                              ✓
-                            </span>
-                          )}
-                        </button>
-                        <button
-                          type="button"
-                          className="w-full text-left px-2 py-1.5 hover:bg-muted/50 flex items-center justify-between transition-colors whitespace-nowrap"
-                          onClick={() => {
-                            handlePinGlobal()
-                            setShowPinMenu(false)
-                            setPinMenuPos(null)
-                          }}
-                        >
-                          <span>Pin Globally</span>
-                          {isGlobalPinned && (
-                            <span className="text-primary font-semibold ml-2">
-                              ✓
-                            </span>
-                          )}
-                        </button>
-                      </div>,
-                      document.body
-                    )}
-                </div>
-              </>
+              <button
+                ref={menuButtonRef}
+                className="text-muted-foreground hover:text-foreground shrink-0 ml-auto"
+                onClick={handleMenuClick}
+                title="Actions"
+              >
+                <MoreHorizontal className="size-3.5" />
+              </button>
             )}
           </div>
-          <p className="text-[11px] text-muted-foreground truncate">
-            {artifact.language ? `${artifact.language} · ` : ''}
-            {new Date(artifact.created_at).toLocaleString()}
+          <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+            {relativeTime}
+            {artifact.language && ` · ${artifact.language}`}
           </p>
-          {!compact && (
-            <pre className="mt-1 text-[10px] text-muted-foreground bg-muted/30 p-1 rounded truncate max-h-12 overflow-hidden w-full min-w-0">
-              {artifact.content.slice(0, 100)}...
-            </pre>
-          )}
         </div>
       </div>
+
       {showBranchPicker && (
         <div className="mt-2">
           <BranchPicker
@@ -287,12 +210,86 @@ export function ArtifactItem({
           />
         </div>
       )}
+
       {showDiff && versions && (
         <VersionDiffModal
           open={showDiff}
           onClose={() => setShowDiff(false)}
           versions={versions}
         />
+      )}
+
+      {showActionsMenu && menuPos && createPortal(
+        <div
+          ref={menuRef}
+          className="fixed z-50 w-48 bg-popover border border-border rounded-md shadow-md py-1 text-xs"
+          style={{ top: `${menuPos.top}px`, left: `${menuPos.left}px` }}
+        >
+          <button
+            type="button"
+            className="w-full text-left px-3 py-1.5 hover:bg-muted/50 transition-colors flex items-center gap-2"
+            onClick={() => {
+              setShowBranchPicker(true)
+              setShowActionsMenu(false)
+              setMenuPos(null)
+            }}
+            disabled={copying}
+          >
+            <Copy className="size-3.5" />
+            <span>Copy to branch...</span>
+          </button>
+          <button
+            type="button"
+            className="w-full text-left px-3 py-1.5 hover:bg-muted/50 transition-colors flex items-center gap-2"
+            onClick={() => {
+              handlePinBranch()
+              setShowActionsMenu(false)
+              setMenuPos(null)
+            }}
+          >
+            {isBranchPinned ? (
+              <PinOff className="size-3.5" />
+            ) : (
+              <Pin className="size-3.5" />
+            )}
+            <span className="flex-1">
+              {isBranchPinned ? 'Unpin from this branch' : 'Pin to this branch'}
+            </span>
+          </button>
+          <button
+            type="button"
+            className="w-full text-left px-3 py-1.5 hover:bg-muted/50 transition-colors flex items-center gap-2"
+            onClick={() => {
+              handlePinGlobal()
+              setShowActionsMenu(false)
+              setMenuPos(null)
+            }}
+          >
+            {isGlobalPinned ? (
+              <PinOff className="size-3.5" />
+            ) : (
+              <Pin className="size-3.5" />
+            )}
+            <span className="flex-1">
+              {isGlobalPinned ? 'Unpin globally' : 'Pin globally'}
+            </span>
+          </button>
+          {versions && versions.length >= 2 && (
+            <button
+              type="button"
+              className="w-full text-left px-3 py-1.5 hover:bg-muted/50 transition-colors flex items-center gap-2"
+              onClick={() => {
+                setShowDiff(true)
+                setShowActionsMenu(false)
+                setMenuPos(null)
+              }}
+            >
+              <GitCompare className="size-3.5" />
+              <span>Compare versions...</span>
+            </button>
+          )}
+        </div>,
+        document.body
       )}
     </div>
   )

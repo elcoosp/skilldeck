@@ -23,6 +23,7 @@ pub struct ArtifactData {
     pub content: String,
     pub language: Option<String>,
     pub logical_key: Option<String>,
+    pub file_path: Option<String>, // <-- new field
     pub created_at: String,
 }
 
@@ -44,10 +45,12 @@ impl ArtifactData {
             content,
             language: a.language,
             logical_key: a.logical_key,
+            file_path: a.file_path, // <-- pass through
             created_at: a.created_at.to_rfc3339(),
         })
     }
 }
+
 #[specta]
 #[tauri::command]
 pub async fn list_artifact_versions(
@@ -73,8 +76,8 @@ pub async fn list_artifact_versions(
         .ok_or_else(|| "Artifact has no logical key".to_string())?;
 
     let versions = Artifacts::find()
-        .filter(artifacts::COLUMN.logical_key.eq(logical_key))
-        .order_by_desc(artifacts::COLUMN.created_at)
+        .filter(artifacts::Column::LogicalKey.eq(logical_key))
+        .order_by_desc(artifacts::Column::CreatedAt)
         .all(db)
         .await
         .map_err(|e| e.to_string())?;
@@ -85,6 +88,7 @@ pub async fn list_artifact_versions(
     }
     Ok(result)
 }
+
 #[specta]
 #[tauri::command]
 pub async fn pin_artifact(
@@ -230,6 +234,7 @@ pub async fn list_pinned_artifacts(
     }
     Ok(result)
 }
+
 #[specta]
 #[tauri::command]
 pub async fn list_artifacts(
@@ -251,16 +256,16 @@ pub async fn list_artifacts(
 
     let mut query = Artifacts::find()
         .inner_join(Messages)
-        .filter(messages::COLUMN.conversation_id.eq(conv_uuid));
+        .filter(messages::Column::ConversationId.eq(conv_uuid));
 
     if let Some(branch_uuid) = branch_uuid {
-        query = query.filter(artifacts::COLUMN.branch_id.eq(branch_uuid));
+        query = query.filter(artifacts::Column::BranchId.eq(branch_uuid));
     } else {
-        query = query.filter(artifacts::COLUMN.branch_id.is_null());
+        query = query.filter(artifacts::Column::BranchId.is_null());
     }
 
     let rows = query
-        .order_by_desc(artifacts::COLUMN.created_at)
+        .order_by_desc(artifacts::Column::CreatedAt)
         .all(db)
         .await
         .map_err(|e| e.to_string())?;

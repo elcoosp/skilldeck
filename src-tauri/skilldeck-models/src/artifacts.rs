@@ -8,6 +8,7 @@ pub struct Model {
     pub id: Uuid,
     pub message_id: Uuid,
     pub branch_id: Option<Uuid>,
+    pub file_path: Option<String>,
     pub parent_artifact_id: Option<Uuid>,
     pub logical_key: Option<String>,
     pub storage_path: Option<String>,

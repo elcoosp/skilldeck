@@ -1253,8 +1253,12 @@ export type AnalyticsData = { total_conversations: string; total_messages: strin
  * Whether a given provider has a stored key.
  */
 export type ApiKeyStatus = { provider: string; has_key: boolean }
-export type ArtifactData = { id: string; message_id: string; branch_id: string | null; type: string; name: string; content: string; language: string | null; logical_key: string | null; created_at: string }
-export type ArtifactSpec = { id: string; language: string; raw_code: string; slot_index: number }
+export type ArtifactData = { id: string; message_id: string; branch_id: string | null; type: string; name: string; content: string; language: string | null; logical_key: string | null; file_path: string | null; created_at: string }
+export type ArtifactSpec = { id: string; language: string; raw_code: string; slot_index: number; 
+/**
+ * Optional file path extracted from a first-line comment or preceding inline code.
+ */
+file_path: string | null }
 export type AssembleFolderRequest = { path: string; deep: boolean; max_bytes: string | null }
 export type AssembleFolderResponse = { assembled_content: string; file_count: string }
 export type AutoApproveConfigDto = { auto_approve_reads: boolean; auto_approve_writes: boolean; auto_approve_shell: boolean; auto_approve_http_requests: boolean; auto_approve_selects: boolean; auto_approve_mutations: boolean }

@@ -910,6 +910,7 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Artifacts::BranchId).uuid())
                     .col(ColumnDef::new(Artifacts::ParentArtifactId).uuid())
                     .col(ColumnDef::new(Artifacts::LogicalKey).string())
+                    .col(ColumnDef::new(Artifacts::FilePath).string())
                     .col(ColumnDef::new(Artifacts::StoragePath).string())
                     .col(ColumnDef::new(Artifacts::Type).string().not_null())
                     .col(ColumnDef::new(Artifacts::Name).string().not_null())
@@ -1908,6 +1909,7 @@ enum Artifacts {
     Table,
     Id,
     MessageId,
+    FilePath,
     BranchId,
     ParentArtifactId,
     LogicalKey,

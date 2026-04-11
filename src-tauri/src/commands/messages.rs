@@ -677,6 +677,7 @@ async fn persist_assistant_message(
             parent_artifact_id: Set(None),
             logical_key: Set(Some(logical_key)),
             storage_path: Set(storage_path),
+            file_path: Set(spec.file_path.clone()), // <-- ADD THIS LINE
             r#type: Set("code".to_string()),
             name: Set(spec.language.clone()),
             content: Set(db_content),
@@ -688,7 +689,6 @@ async fn persist_assistant_message(
             tracing::warn!("Failed to insert artifact {}: {}", spec.id, e);
         }
     }
-
     Ok(msg_id)
 }
 

@@ -4,7 +4,7 @@ use super::{
 };
 use once_cell::sync::Lazy;
 use pulldown_cmark::{CodeBlockKind, Event, HeadingLevel, Options, Parser, Tag, TagEnd, html};
-use regex::Regex; // ADD: regex dependency
+use regex::Regex;
 use syntect::{
     html::{ClassStyle, ClassedHTMLGenerator},
     parsing::SyntaxSet,
@@ -13,9 +13,10 @@ use uuid::Uuid;
 
 static SYNTAX_SET: Lazy<SyntaxSet> = Lazy::new(SyntaxSet::load_defaults_newlines);
 
-// ADD: compiled regex for link rewriting
+// compiled regex for link rewriting
 static LINK_RE: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"<a((?:\s[^>]*)?)\s*href=(")([^"]+)""#).unwrap());
+
 pub struct MarkdownPipeline {
     theme: SharedTheme,
 }
@@ -57,6 +58,9 @@ impl MarkdownPipeline {
         let mut heading_level = 1;
         let mut heading_text = String::new();
 
+        // State for capturing preceding inline code
+        let mut last_inline_code: Option<String> = None;
+
         let flush_html = |buf: &mut String, id_counter: &mut u32, nodes: &mut Vec<MdNode>| {
             if !buf.is_empty() {
                 let raw = std::mem::take(buf);
@@ -85,8 +89,17 @@ impl MarkdownPipeline {
                     if code_buf.trim().is_empty() {
                         in_code = false;
                         code_lang.clear();
+                        last_inline_code = None; // clear any stale state
                         continue;
                     }
+
+                    // Attempt to extract file path from first-line comment or preceding inline code
+                    let file_path = extract_file_path(&code_lang, &code_buf).or_else(|| {
+                        last_inline_code
+                            .take()
+                            .filter(|s| is_plausible_filename(s, &code_lang))
+                    });
+
                     let id = format!("cb-{}", id_counter);
                     id_counter += 1;
                     let highlighted = self.highlight(&code_buf, &code_lang);
@@ -105,9 +118,23 @@ impl MarkdownPipeline {
                             language: code_lang.clone(),
                             raw_code: raw,
                             slot_index: id_counter - 1,
+                            file_path,
                         });
                     }
+
+                    // Reset state for next block
+                    last_inline_code = None;
                     in_code = false;
+                }
+
+                // ─── Inline code ────────────────────────────────────────────
+                Event::Code(ref text) => {
+                    // Capture the content as a potential file path for the next code block
+                    last_inline_code = Some(text.to_string());
+                    // Still push to HTML output
+                    if !in_code && !in_heading {
+                        html_buf.push_str(&event_to_html(&event));
+                    }
                 }
 
                 // ─── Headings ────────────────────────────────────────────────
@@ -290,4 +317,92 @@ fn event_to_html(event: &Event) -> String {
     let mut buf = String::new();
     html::push_html(&mut buf, std::iter::once(event.clone()));
     buf
+}
+
+// -----------------------------------------------------------------------------
+// File path extraction helpers
+// -----------------------------------------------------------------------------
+
+/// Attempts to extract a file path from the first non‑empty line of a code block
+/// if it starts with a comment token appropriate for the language.
+fn extract_file_path(lang: &str, code: &str) -> Option<String> {
+    let first_line = code.lines().find(|l| !l.trim().is_empty())?;
+    let trimmed = first_line.trim();
+
+    let comment_prefix = comment_prefix_for_lang(lang)?;
+    if trimmed.starts_with(comment_prefix) {
+        let after_comment = trimmed[comment_prefix.len()..].trim();
+        if is_plausible_filename(after_comment, lang) {
+            return Some(after_comment.to_string());
+        }
+    }
+    None
+}
+
+/// Returns the single‑line comment prefix for a given language name.
+fn comment_prefix_for_lang(lang: &str) -> Option<&'static str> {
+    match lang.to_lowercase().as_str() {
+        "rust" | "rs" | "c" | "cpp" | "c++" | "java" | "javascript" | "js" | "typescript"
+        | "ts" | "go" | "swift" | "kotlin" | "scala" => Some("//"),
+        "python" | "py" | "ruby" | "rb" | "perl" | "sh" | "bash" | "yaml" | "yml" | "toml" => {
+            Some("#")
+        }
+        "html" | "xml" | "md" | "markdown" => Some("<!--"),
+        "css" | "scss" | "sass" | "less" => Some("/*"),
+        "sql" => Some("--"),
+        "lua" => Some("--"),
+        "haskell" | "hs" => Some("--"),
+        _ => None,
+    }
+}
+
+/// Checks whether a string looks like a file path ending with an extension
+/// that plausibly matches the language.
+fn is_plausible_filename(s: &str, lang: &str) -> bool {
+    // Must contain at least a dot or a slash to be considered a path/filename.
+    if !(s.contains('/') || s.contains('\\') || s.contains('.')) {
+        return false;
+    }
+
+    let ext = std::path::Path::new(s)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("");
+
+    // Use a match to handle language-extension pairs with a fallback.
+    match (lang.to_lowercase().as_str(), ext) {
+        ("rust", "rs")
+        | ("rs", "rs")
+        | ("python", "py")
+        | ("py", "py")
+        | ("javascript", "js")
+        | ("js", "js")
+        | ("typescript", "ts")
+        | ("ts", "ts")
+        | ("html", "html")
+        | ("htm", "html")
+        | ("css", "css")
+        | ("json", "json")
+        | ("toml", "toml")
+        | ("yaml", "yaml")
+        | ("yml", "yaml")
+        | ("c", "c")
+        | ("cpp", "cpp")
+        | ("c++", "cpp")
+        | ("java", "java")
+        | ("go", "go")
+        | ("swift", "swift")
+        | ("kotlin", "kt")
+        | ("scala", "scala")
+        | ("ruby", "rb")
+        | ("rb", "rb")
+        | ("sh", "sh")
+        | ("bash", "sh")
+        | ("sql", "sql")
+        | ("lua", "lua")
+        | ("haskell", "hs")
+        | ("hs", "hs") => true,
+        // Fallback: any plausible extension (2‑5 letters) is accepted
+        _ => ext.len() >= 2 && ext.len() <= 5,
+    }
 }
