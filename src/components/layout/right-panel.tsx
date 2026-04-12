@@ -301,126 +301,113 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
     profile?.model_id || ''
   )
 
-  if (!conversationId) {
-    return (
-      <EmptyState
-        icon={Cpu}
-        title="No active conversation"
-        description="Select or start a conversation to see session details."
-      />
-    )
-  }
-
-  if (conversationsLoading) {
-    return <LoadingState message="Loading conversation…" />
-  }
-
-  if (!conversation) {
-    return (
-      <div className="p-3 space-y-3">
-        <p className="text-xs text-muted-foreground">Conversation not found.</p>
-        <Button size="xs" variant="outline" onClick={() => refetch()}>
-          Refresh
-        </Button>
-      </div>
-    )
-  }
-
-  if (!profile) {
-    return (
-      <div className="p-3 space-y-3">
-        <p className="text-xs text-muted-foreground">Profile not found.</p>
-        <Button size="xs" variant="outline" onClick={() => refetch()}>
-          Refresh
-        </Button>
-      </div>
-    )
-  }
-
-  const hasKey =
-    keyStatuses.find((k) => k.provider === profile.model_provider)?.has_key ??
-    false
-  const displayModels = models.length > 0 ? models : [profile.model_id]
-  const safeSelectedModel = displayModels.includes(selectedModelId)
-    ? selectedModelId
-    : displayModels[0]
-
+  // Always render header, content varies based on state
   return (
     <div className="flex flex-col h-full">
       <RightPanelHeader title="Session" />
-      <div className="flex-1 p-3 space-y-4">
-        <section>
-          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-            Active Conversation
-          </h3>
-          <p className="text-xs font-mono text-muted-foreground break-all">
-            {conversationId}
-          </p>
-        </section>
-
-        <section className="space-y-3">
-          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            Profile & Model
-          </h3>
-
-          <div className="space-y-1">
-            <span className="text-xs text-muted-foreground">Provider</span>
-            <div className="text-xs font-medium px-2 py-1 rounded bg-muted/50 flex items-center gap-1.5 min-w-0">
-              <ProviderIcon
-                provider={profile.model_provider}
-                size={14}
-                className="shrink-0"
-              />
-              <span className="truncate">{profile.model_provider}</span>
-              {!hasKey &&
-                !readinessLoading &&
-                readiness?.status.status !== 'ready' && (
-                  <span className="text-[10px] text-amber-500 font-normal shrink-0">
-                    (not configured)
-                  </span>
-                )}
-            </div>
-            {!readinessLoading && readiness?.status.status === 'not_ready' && (
-              <div className="mt-1 text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/20 p-2 rounded">
-                Can't connect to provider – {readiness.status.reason.toLowerCase()}. {readiness.status.fix_action}
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">
-              Model{' '}
-              {modelsLoading && <span className="opacity-50">(loading…)</span>}
-            </label>
-            <ModelSelectorWithIcon
-              value={safeSelectedModel}
-              onValueChange={setSelectedModelId}
-              models={displayModels}
-              placeholder="Select model"
-              disabled={modelsLoading}
+      <div className="flex-1 min-h-0">
+        {!conversationId ? (
+          <div className="flex items-center justify-center h-full">
+            <EmptyState
+              icon={Cpu}
+              title="No active conversation"
+              description="Select or start a conversation to see session details."
             />
           </div>
-        </section>
-
-        <section className="space-y-2">
-          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            Token Usage
-          </h3>
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <div className="rounded border border-border p-2 min-w-0">
-              <span className="text-muted-foreground text-xs">Input</span>
-              <div className="font-mono text-sm truncate">
-                {inputTokens.toLocaleString()}
-              </div>
-            </div>
-            <div className="rounded border border-border p-2 min-w-0">
-              <span className="text-muted-foreground text-xs">Output</span>
-              <div className="font-mono text-sm truncate">
-                {outputTokens.toLocaleString()}
-              </div>
-            </div>
+        ) : conversationsLoading ? (
+          <LoadingState message="Loading conversation…" />
+        ) : !conversation ? (
+          <div className="p-3 space-y-3">
+            <p className="text-xs text-muted-foreground">Conversation not found.</p>
+            <Button size="xs" variant="outline" onClick={() => refetch()}>
+              Refresh
+            </Button>
           </div>
-        </section>
+        ) : !profile ? (
+          <div className="p-3 space-y-3">
+            <p className="text-xs text-muted-foreground">Profile not found.</p>
+            <Button size="xs" variant="outline" onClick={() => refetch()}>
+              Refresh
+            </Button>
+          </div>
+        ) : (
+          <ScrollArea className="h-full">
+            <div className="p-3 space-y-4">
+              <section>
+                <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                  Active Conversation
+                </h3>
+                <p className="text-xs font-mono text-muted-foreground break-all">
+                  {conversationId}
+                </p>
+              </section>
+
+              <section className="space-y-3">
+                <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Profile & Model
+                </h3>
+
+                <div className="space-y-1">
+                  <span className="text-xs text-muted-foreground">Provider</span>
+                  <div className="text-xs font-medium px-2 py-1 rounded bg-muted/50 flex items-center gap-1.5 min-w-0">
+                    <ProviderIcon
+                      provider={profile.model_provider}
+                      size={14}
+                      className="shrink-0"
+                    />
+                    <span className="truncate">{profile.model_provider}</span>
+                    {!hasKey &&
+                      !readinessLoading &&
+                      readiness?.status.status !== 'ready' && (
+                        <span className="text-[10px] text-amber-500 font-normal shrink-0">
+                          (not configured)
+                        </span>
+                      )}
+                  </div>
+                  {!readinessLoading && readiness?.status.status === 'not_ready' && (
+                    <div className="mt-1 text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/20 p-2 rounded">
+                      Can't connect to provider – {readiness.status.reason.toLowerCase()}. {readiness.status.fix_action}
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">
+                    Model{' '}
+                    {modelsLoading && <span className="opacity-50">(loading…)</span>}
+                  </label>
+                  <ModelSelectorWithIcon
+                    value={safeSelectedModel}
+                    onValueChange={setSelectedModelId}
+                    models={displayModels}
+                    placeholder="Select model"
+                    disabled={modelsLoading}
+                  />
+                </div>
+              </section>
+
+              <section className="space-y-2">
+                <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Token Usage
+                </h3>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="rounded border border-border p-2 min-w-0">
+                    <span className="text-muted-foreground text-xs">Input</span>
+                    <div className="font-mono text-sm truncate">
+                      {inputTokens.toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="rounded border border-border p-2 min-w-0">
+                    <span className="text-muted-foreground text-xs">Output</span>
+                    <div className="font-mono text-sm truncate">
+                      {outputTokens.toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </ScrollArea>
+        )}
       </div>
     </div>
   )
