@@ -1,5 +1,3 @@
-// src/components/layout/live-server-card.tsx
-
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ChevronRight,
@@ -32,12 +30,12 @@ function StatusBadge({ status }: { status: McpServerResponse['status'] }) {
             : 'secondary'
       }
       className={cn(
-        'text-[10px] h-4 px-1.5 shrink-0',
+        'text-[10px] h-4 px-1.5 min-w-0 overflow-hidden',
         status === 'connected' &&
         'bg-green-500/15 text-green-600 dark:text-green-400 border-green-500/20'
       )}
     >
-      <span className="flex items-center gap-1 min-w-0">
+      <span className="flex items-center gap-1 min-w-0 overflow-hidden">
         {status === 'connected' && (
           <span className="size-1.5 rounded-full bg-green-500 shrink-0" />
         )}
@@ -95,8 +93,8 @@ export function LiveServerCard({ server }: LiveServerCardProps) {
     connectMut.isPending || disconnectMut.isPending || removeMut.isPending
 
   return (
-    <div className="rounded-lg border border-border bg-card overflow-hidden">
-      <div className="flex items-center gap-2 px-3 py-2">
+    <div className="rounded-lg border border-border bg-card overflow-hidden min-w-0">
+      <div className="flex items-center gap-2 px-3 py-2 min-w-0">
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
@@ -113,7 +111,8 @@ export function LiveServerCard({ server }: LiveServerCardProps) {
         <Server className="size-3.5 text-muted-foreground shrink-0" />
 
         <div className="flex-1 min-w-0 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-          <span className="text-xs font-medium truncate min-w-[80px] max-w-full">
+          {/* REMOVED min-w-[80px] and max-w-full. Just truncate and min-w-0 */}
+          <span className="text-xs font-medium truncate min-w-0">
             {server.name}
           </span>
           <StatusBadge status={server.status} />

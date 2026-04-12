@@ -357,7 +357,8 @@ export function McpTab() {
         }
       />
       <ScrollArea className="flex-1 min-h-0">
-        <div className="px-2.5 pb-2.5 space-y-2 mt-2">
+        {/* ↓ overflow-hidden creates a new BFC, breaking out of ScrollArea's internal display:table */}
+        <div className="w-full min-w-0 overflow-hidden px-2.5 pb-2.5 space-y-2 mt-2">
           {isLoading ? (
             <LoadingState message="Discovering available tools…" />
           ) : servers.length === 0 ? (
