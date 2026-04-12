@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from '@tanstack/react-router'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { motion } from 'framer-motion'
-import { AlertCircle, RefreshCw, Search } from 'lucide-react'
+import { AlertCircle, RefreshCw, Search, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from '@/components/ui/toast'
 import { useDebounce } from 'use-debounce'
@@ -26,6 +26,7 @@ import { UnifiedSkillCard } from './unified-skill-card'
 import { RightPanelHeader } from '@/components/layout/right-panel-header'
 import { EmptyState } from '@/components/ui/empty-state'
 import { FolderOpen, Globe } from 'lucide-react'
+import { Input } from '@/components/ui/input'
 
 // Responsive column count based on container width
 const BREAKPOINTS = {
@@ -74,6 +75,8 @@ export function UnifiedSkillList() {
   const [lastSynced, setLastSynced] = useState<Date | null>(null)
   const [isBatchUpdating, setIsBatchUpdating] = useState(false)
   const [registrationNeeded, setRegistrationNeeded] = useState(false)
+  const [showSearch, setShowSearch] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const columns = useColumnCount(containerRef)
@@ -325,6 +328,18 @@ export function UnifiedSkillList() {
     })
   }, [syncMutation, router])
 
+  const toggleSearch = useCallback(() => {
+    setShowSearch((prev) => !prev)
+    if (!showSearch) {
+      setTimeout(() => searchInputRef.current?.focus(), 50)
+    }
+  }, [showSearch])
+
+  const clearSearch = useCallback(() => {
+    setSearch('')
+    searchInputRef.current?.focus()
+  }, [])
+
   return (
     <div className="flex h-full min-h-0">
       <div className="flex flex-col flex-1 min-w-0 h-full" ref={containerRef}>
@@ -360,6 +375,17 @@ export function UnifiedSkillList() {
               )}
               <button
                 type="button"
+                onClick={toggleSearch}
+                className={cn(
+                  'p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors',
+                  showSearch && 'text-primary bg-muted'
+                )}
+                title="Search skills"
+              >
+                <Search className="h-3 w-3" />
+              </button>
+              <button
+                type="button"
                 onClick={() => handleSync()}
                 disabled={!platformFeaturesEnabled || syncMutation.isPending}
                 title={
@@ -378,6 +404,32 @@ export function UnifiedSkillList() {
           }
         />
 
+        {/* Expandable search bar */}
+        {showSearch && (
+          <div className="px-3 py-2 border-b border-border/50 shrink-0">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+              <Input
+                ref={searchInputRef}
+                type="text"
+                placeholder="Search skills…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-8 pr-8 h-8 text-sm"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={clearSearch}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Tabs */}
         <Tabs
           value={activeTab}
@@ -394,20 +446,6 @@ export function UnifiedSkillList() {
             className="flex-1 min-h-0 overflow-hidden flex flex-col"
           >
             <div className="px-3 py-2 flex gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder="Search skills…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className={cn(
-                    'w-full h-8 pl-8 pr-3 rounded-md border border-input bg-background',
-                    'text-sm placeholder:text-muted-foreground',
-                    'focus:outline-none focus:ring-1 focus:ring-ring'
-                  )}
-                />
-              </div>
               {activeTab === 'registry' && categories.length > 1 && (
                 <Select value={category} onValueChange={setCategory}>
                   <SelectTrigger className="w-[140px] h-8">
@@ -445,20 +483,6 @@ export function UnifiedSkillList() {
               )}
             </div>
             <div className="px-3 py-2 flex gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder="Search skills…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className={cn(
-                    'w-full h-8 pl-8 pr-3 rounded-md border border-input bg-background',
-                    'text-sm placeholder:text-muted-foreground',
-                    'focus:outline-none focus:ring-1 focus:ring-ring'
-                  )}
-                />
-              </div>
               {activeTab === 'registry' && categories.length > 1 && (
                 <Select value={category} onValueChange={setCategory}>
                   <SelectTrigger className="w-[140px] h-8">
