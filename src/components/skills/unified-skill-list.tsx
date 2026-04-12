@@ -28,6 +28,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { FolderOpen, Globe } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { LoadingState } from '@/components/ui/loading-state'
+import { AnimatedSuccessIcon } from '@/components/ui/animated-success-icon'
 
 // Responsive column count based on container width
 const BREAKPOINTS = {
@@ -78,6 +79,9 @@ export function UnifiedSkillList() {
   const [registrationNeeded, setRegistrationNeeded] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const [showInstallSuccess, setShowInstallSuccess] = useState(false)
+  const [showUpdateSuccess, setShowUpdateSuccess] = useState(false)
+  const [showSyncSuccess, setShowSyncSuccess] = useState(false)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const columns = useColumnCount(containerRef)
@@ -160,6 +164,7 @@ export function UnifiedSkillList() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['registry_skills'] })
       qc.invalidateQueries({ queryKey: ['local_skills'] })
+      setShowSyncSuccess(true)
     }
   })
 
@@ -178,6 +183,7 @@ export function UnifiedSkillList() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['local_skills'] })
       toast.success('Skill installed')
+      setShowInstallSuccess(true)
     },
     onError: (err) => toast.error(`Install failed: ${err}`)
   })
@@ -197,6 +203,7 @@ export function UnifiedSkillList() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['local_skills'] })
       toast.success('Skill updated')
+      setShowUpdateSuccess(true)
     },
     onError: (err) => toast.error(`Update failed: ${err}`)
   })
@@ -235,6 +242,7 @@ export function UnifiedSkillList() {
         const { successCount, failCount } = result
         if (failCount === 0) {
           toast.success(`Updated ${successCount} skill(s)`)
+          setShowUpdateSuccess(true)
         } else {
           toast.warning(`Updated ${successCount}, ${failCount} failed`)
         }
@@ -323,7 +331,7 @@ export function UnifiedSkillList() {
             }
           })
         } else {
-          toast.error(`Sync failed: ${err.message}`)
+          toast.error(`Couldn't sync skills – ${err.message.toLowerCase()}`)
         }
       }
     })
@@ -348,6 +356,15 @@ export function UnifiedSkillList() {
           title="Skills"
           actions={
             <div className="flex items-center gap-1">
+              {showInstallSuccess && (
+                <AnimatedSuccessIcon onComplete={() => setShowInstallSuccess(false)} />
+              )}
+              {showUpdateSuccess && (
+                <AnimatedSuccessIcon onComplete={() => setShowUpdateSuccess(false)} />
+              )}
+              {showSyncSuccess && (
+                <AnimatedSuccessIcon onComplete={() => setShowSyncSuccess(false)} />
+              )}
               {localWithIssues > 0 && (
                 <span
                   className="text-xs text-amber-500 font-medium"
@@ -663,7 +680,7 @@ function SkillsEmptyState({
       <EmptyState
         icon={FolderOpen}
         title="No local skills"
-        description="Install skills from the registry or create your own"
+        description="No local skills installed. Browse the registry to add capabilities."
       />
     )
   }
@@ -709,7 +726,7 @@ function SkillsEmptyState({
     <EmptyState
       icon={Globe}
       title="No registry skills"
-      description="Sync with the platform to discover new skills"
+      description="Nothing here yet. Sync with the platform to discover skills."
       action={
         onSync
           ? {
