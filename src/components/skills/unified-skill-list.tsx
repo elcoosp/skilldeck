@@ -30,13 +30,12 @@ import { Input } from '@/components/ui/input'
 import { LoadingState } from '@/components/ui/loading-state'
 import { AnimatedSuccessIcon } from '@/components/ui/animated-success-icon'
 
-// UPDATED: Only 1 or 2 columns, never 3. Breakpoints lowered.
 const BREAKPOINTS = {
-  single: 260, // <260px -> 1 column (list variant)
+  single: 260,
 }
 
 function useColumnCount(ref: React.RefObject<HTMLElement | null>) {
-  const [columns, setColumns] = useState(1) // default to 1, not 3
+  const [columns, setColumns] = useState(1)
 
   useEffect(() => {
     if (!ref.current) return
@@ -48,7 +47,7 @@ function useColumnCount(ref: React.RefObject<HTMLElement | null>) {
       if (width < BREAKPOINTS.single) {
         setColumns(1)
       } else {
-        setColumns(2) // max 2 columns
+        setColumns(2)
       }
     })
 
@@ -93,7 +92,6 @@ export function UnifiedSkillList() {
     search: debouncedSearch || undefined
   })
 
-  // Filter skills based on active tab
   const filteredSkillsByTab = useMemo(() => {
     if (activeTab === 'local') {
       return unifiedSkills.filter(
@@ -107,7 +105,6 @@ export function UnifiedSkillList() {
     }
   }, [unifiedSkills, activeTab])
 
-  // Apply category filter (only meaningful for registry skills)
   const filteredSkills = useMemo(() => {
     if (category === 'all') return filteredSkillsByTab
     return filteredSkillsByTab.filter(
@@ -115,7 +112,6 @@ export function UnifiedSkillList() {
     )
   }, [filteredSkillsByTab, category])
 
-  // Update lastSynced whenever registry data appears or after a successful sync
   useEffect(() => {
     if (!registryError && unifiedSkills.some((s) => s.registryData)) {
       setLastSynced(new Date())
@@ -190,7 +186,7 @@ export function UnifiedSkillList() {
         skill.registryData.name,
         skill.registryData.content,
         'personal',
-        true // overwrite
+        true
       )
       if (res.status === 'error') throw new Error(res.error)
       return res.data
@@ -260,7 +256,6 @@ export function UnifiedSkillList() {
 
   const rowCount = Math.ceil(filteredSkills.length / columns)
 
-  // Dynamic row height estimate based on card variant
   const ROW_HEIGHT_ESTIMATE = columns === 1 ? 56 : 104
 
   const measureElement = useCallback((el: Element | null) => {
@@ -281,7 +276,6 @@ export function UnifiedSkillList() {
     overscan: 2
   })
 
-  // Capture stable values for dependencies
   const totalSize = rowVirtualizer.getTotalSize()
 
   useEffect(() => {
@@ -347,179 +341,180 @@ export function UnifiedSkillList() {
     searchInputRef.current?.focus()
   }, [])
 
-  return (
-    <div className="relative flex h-full min-h-0 overflow-hidden">
-      <div className="flex flex-col flex-1 min-w-0 h-full" ref={containerRef}>
-        <RightPanelHeader
-          title="Skills"
-          actions={
-            <div className="flex items-center gap-1">
-              {showInstallSuccess && (
-                <AnimatedSuccessIcon onComplete={() => setShowInstallSuccess(false)} />
-              )}
-              {showUpdateSuccess && (
-                <AnimatedSuccessIcon onComplete={() => setShowUpdateSuccess(false)} />
-              )}
-              {showSyncSuccess && (
-                <AnimatedSuccessIcon onComplete={() => setShowSyncSuccess(false)} />
-              )}
-              {localWithIssues > 0 && (
-                <span
-                  className="text-xs text-amber-500 font-medium"
-                  title={`${localWithIssues} local skill(s) have lint issues`}
-                >
-                  {localWithIssues} ⚠
-                </span>
-              )}
-              {activeTab === 'local' && updateAvailableCount > 0 && (
-                <Button
-                  size="xs"
-                  variant="outline"
-                  onClick={() => batchUpdateMutation.mutate()}
-                  disabled={isBatchUpdating || batchUpdateMutation.isPending}
-                  className="h-6 px-2 text-xs"
-                >
-                  {isBatchUpdating ? (
-                    <>
-                      <RefreshCw className="size-3 mr-1 animate-spin" />
-                      Updating...
-                    </>
-                  ) : (
-                    <>Update all ({updateAvailableCount})</>
-                  )}
-                </Button>
-              )}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-8"
-                onClick={toggleSearch}
-                title="Search skills"
-              >
-                <Search className="size-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-8"
-                onClick={() => handleSync()}
-                disabled={!platformFeaturesEnabled || syncMutation.isPending}
-                title={!platformFeaturesEnabled ? 'Enable platform to sync' : 'Refresh'}
-              >
-                <RefreshCw className={cn('size-4', syncMutation.isPending && 'animate-spin')} />
-              </Button>
-            </div>
-          }
+  // Drill‑down replace: detail panel takes over the whole view
+  if (resolvedSelected) {
+    return (
+      <div className="flex flex-col h-full w-full min-w-0 overflow-hidden bg-background">
+        <SkillDetailPanel
+          skill={resolvedSelected}
+          onClose={() => setSelected(null)}
         />
-
-        {/* Expandable search bar */}
-        {showSearch && (
-          <div className="px-3 py-2 border-b border-border/50 shrink-0">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-              <Input
-                ref={searchInputRef}
-                type="text"
-                placeholder="Search skills…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-8 pr-8 h-8 text-sm"
-              />
-              {search && (
-                <button
-                  type="button"
-                  onClick={clearSearch}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Tabs */}
-        <Tabs
-          value={activeTab}
-          onValueChange={(v) => setActiveTab(v as any)}
-          className="flex flex-col flex-1 min-h-0"
-        >
-          <TabsList className="mx-3 mt-2 w-fit">
-            <TabsTrigger value="local">Local</TabsTrigger>
-            <TabsTrigger value="registry">Registry</TabsTrigger>
-          </TabsList>
-
-          <TabsContent
-            value="local"
-            className="flex-1 min-h-0 overflow-hidden flex flex-col"
-          >
-            <div className="px-3 py-2 flex gap-2">
-              {activeTab === 'registry' && categories.length > 1 && (
-                <Select value={category} onValueChange={setCategory}>
-                  <SelectTrigger className="w-[140px] h-8">
-                    <SelectValue placeholder="Category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat} value={cat} className="text-xs">
-                        {cat === 'all' ? 'All categories' : cat}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-
-            {renderContent()}
-          </TabsContent>
-
-          <TabsContent
-            value="registry"
-            className="flex-1 min-h-0 overflow-hidden flex flex-col"
-          >
-            <div className="mb-2">
-              {!platformFeaturesEnabled && (
-                <PlatformStatusBanner
-                  variant="disabled"
-                  onEnable={handleEnablePlatform}
-                />
-              )}
-              {lastSynced && platformFeaturesEnabled && (
-                <div className="text-right text-[10px] text-muted-foreground px-3 pt-1">
-                  Last synced: {lastSynced.toLocaleTimeString()}
-                </div>
-              )}
-            </div>
-            <div className="px-3 py-2 flex gap-2">
-              {activeTab === 'registry' && categories.length > 1 && (
-                <Select value={category} onValueChange={setCategory}>
-                  <SelectTrigger className="w-[140px] h-8">
-                    <SelectValue placeholder="Category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat} value={cat} className="text-xs">
-                        {cat === 'all' ? 'All categories' : cat}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-
-            {renderContent()}
-          </TabsContent>
-        </Tabs>
       </div>
+    )
+  }
 
-      {resolvedSelected && (
-        <div className="z-10">
-          <SkillDetailPanel
-            skill={resolvedSelected}
-            onClose={() => setSelected(null)}
-          />
+  return (
+    <div className="flex flex-col h-full min-h-0 overflow-hidden w-full min-w-0" ref={containerRef}>
+      <RightPanelHeader
+        title="Skills"
+        actions={
+          <div className="flex items-center gap-1">
+            {showInstallSuccess && (
+              <AnimatedSuccessIcon onComplete={() => setShowInstallSuccess(false)} />
+            )}
+            {showUpdateSuccess && (
+              <AnimatedSuccessIcon onComplete={() => setShowUpdateSuccess(false)} />
+            )}
+            {showSyncSuccess && (
+              <AnimatedSuccessIcon onComplete={() => setShowSyncSuccess(false)} />
+            )}
+            {localWithIssues > 0 && (
+              <span
+                className="text-xs text-amber-500 font-medium"
+                title={`${localWithIssues} local skill(s) have lint issues`}
+              >
+                {localWithIssues} ⚠
+              </span>
+            )}
+            {activeTab === 'local' && updateAvailableCount > 0 && (
+              <Button
+                size="xs"
+                variant="outline"
+                onClick={() => batchUpdateMutation.mutate()}
+                disabled={isBatchUpdating || batchUpdateMutation.isPending}
+                className="h-6 px-2 text-xs"
+              >
+                {isBatchUpdating ? (
+                  <>
+                    <RefreshCw className="size-3 mr-1 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  <>Update all ({updateAvailableCount})</>
+                )}
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8"
+              onClick={toggleSearch}
+              title="Search skills"
+            >
+              <Search className="size-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8"
+              onClick={() => handleSync()}
+              disabled={!platformFeaturesEnabled || syncMutation.isPending}
+              title={!platformFeaturesEnabled ? 'Enable platform to sync' : 'Refresh'}
+            >
+              <RefreshCw className={cn('size-4', syncMutation.isPending && 'animate-spin')} />
+            </Button>
+          </div>
+        }
+      />
+
+      {/* Expandable search bar */}
+      {showSearch && (
+        <div className="px-3 py-2 border-b border-border/50 shrink-0">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+            <Input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search skills…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-8 pr-8 h-8 text-sm"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={clearSearch}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
         </div>
       )}
+
+      {/* Tabs */}
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => setActiveTab(v as any)}
+        className="flex flex-col flex-1 min-h-0"
+      >
+        <TabsList className="mx-3 mt-2 w-fit">
+          <TabsTrigger value="local">Local</TabsTrigger>
+          <TabsTrigger value="registry">Registry</TabsTrigger>
+        </TabsList>
+
+        <TabsContent
+          value="local"
+          className="flex-1 min-h-0 overflow-hidden flex flex-col"
+        >
+          <div className="px-3 py-2 flex gap-2">
+            {activeTab === 'registry' && categories.length > 1 && (
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger className="w-[140px] h-8">
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat} value={cat} className="text-xs">
+                      {cat === 'all' ? 'All categories' : cat}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+
+          {renderContent()}
+        </TabsContent>
+
+        <TabsContent
+          value="registry"
+          className="flex-1 min-h-0 overflow-hidden flex flex-col"
+        >
+          <div className="mb-2">
+            {!platformFeaturesEnabled && (
+              <PlatformStatusBanner
+                variant="disabled"
+                onEnable={handleEnablePlatform}
+              />
+            )}
+            {lastSynced && platformFeaturesEnabled && (
+              <div className="text-right text-[10px] text-muted-foreground px-3 pt-1">
+                Last synced: {lastSynced.toLocaleTimeString()}
+              </div>
+            )}
+          </div>
+          <div className="px-3 py-2 flex gap-2">
+            {activeTab === 'registry' && categories.length > 1 && (
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger className="w-[140px] h-8">
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat} value={cat} className="text-xs">
+                      {cat === 'all' ? 'All categories' : cat}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+
+          {renderContent()}
+        </TabsContent>
+      </Tabs>
     </div>
   )
 

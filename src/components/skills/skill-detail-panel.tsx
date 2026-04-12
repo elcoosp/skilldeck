@@ -7,13 +7,13 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { openUrl, revealItemInDir } from '@tauri-apps/plugin-opener'
 import {
   AlertTriangle,
+  ChevronLeft,
   Download,
   ExternalLink,
   Loader2,
   RefreshCw,
   Share2,
-  Trash2,
-  X
+  Trash2
 } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { toast } from '@/components/ui/toast'
@@ -301,14 +301,22 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
     skill.localData?.quality_score ?? skill.registryData?.qualityScore ?? 5
 
   return (
-    <div className="flex flex-col h-full bg-background">
-      {/* Header */}
-      <div className="p-4 border-b flex items-start gap-3 shrink-0">
+    <div className="flex flex-col h-full w-full min-w-0 bg-background overflow-hidden">
+      {/* Header with back button on the left */}
+      <div className="p-4 border-b flex items-center gap-2 shrink-0">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="shrink-0 h-7 w-7 -ml-1"
+          onClick={onClose}
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
         <div className="flex-1 min-w-0">
-          <h2 className="font-bold text-base leading-snug truncate">
+          <h2 className="font-semibold text-sm leading-snug truncate">
             {skill.name}
           </h2>
-          <p className="text-xs text-muted-foreground mt-0.5 capitalize flex items-center gap-2">
+          <p className="text-xs text-muted-foreground truncate capitalize flex items-center gap-2">
             <span>{skill.status.replace('_', ' ')}</span>
             {skill.registryData?.version && (
               <span className="ml-1.5 opacity-70 font-mono">
@@ -321,10 +329,16 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
               </Badge>
             )}
           </p>
-          {/* Source info */}
-          {activeSource !== 'unknown' && (
-            <div className="text-xs mt-1 flex items-center gap-1">
-              <span className="text-muted-foreground">Source:</span>
+        </div>
+      </div>
+
+      {/* Body — now includes actions at the bottom */}
+      <div className="flex-1 overflow-y-auto p-4 min-w-0 space-y-5 text-sm thin-scrollbar">
+        {/* Source info */}
+        {activeSource !== 'unknown' && (
+          <div>
+            <SectionLabel>Source</SectionLabel>
+            <div className="text-xs flex items-center gap-1">
               <span className="font-medium capitalize">{activeSource}</span>
               {shadowedSource && (
                 <span className="text-muted-foreground text-[10px]">
@@ -332,32 +346,22 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
                 </span>
               )}
             </div>
-          )}
-          {/* Trust badge with click handler */}
-          <div className="mt-2">
-            <TrustBadge
-              securityScore={securityScore}
-              qualityScore={qualityScore}
-              onClick={scrollToLint}
-            />
           </div>
-        </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="shrink-0 -mr-1 -mt-1 h-7 w-7"
-          onClick={onClose}
-        >
-          <X className="h-3.5 w-3.5" />
-        </Button>
-      </div>
+        )}
 
-      {/* Body */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-5 text-sm">
+        {/* Trust badge with click handler */}
+        <div>
+          <TrustBadge
+            securityScore={securityScore}
+            qualityScore={qualityScore}
+            onClick={scrollToLint}
+          />
+        </div>
+
         {/* Description */}
         <div>
           <SectionLabel>Description</SectionLabel>
-          <p className="text-sm leading-relaxed text-foreground/90">
+          <p className="text-sm leading-relaxed text-foreground/90 break-words">
             {skill.description || (
               <span className="text-muted-foreground italic">
                 No description provided
@@ -470,7 +474,7 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
         {/* Registry source */}
         {skill.registryData?.sourceUrl && (
           <div>
-            <SectionLabel>Source</SectionLabel>
+            <SectionLabel>Source URL</SectionLabel>
             <a
               href={skill.registryData.sourceUrl}
               target="_blank"
@@ -488,100 +492,99 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
             {actionError}
           </div>
         )}
-      </div>
 
-      {/* Actions */}
-      <div className="p-4 border-t space-y-2 shrink-0">
-        {canInstall && (
-          <Button
-            className="w-full"
-            onClick={handleInstallClick}
-            disabled={isBusy}
-          >
-            <Download className="mr-2 h-3.5 w-3.5" />
-            {install.isPending ? 'Installing…' : 'Install Skill'}
-          </Button>
-        )}
+        <div className="pt-4 border-t space-y-2">
+          {canInstall && (
+            <Button
+              className="w-full"
+              onClick={handleInstallClick}
+              disabled={isBusy}
+            >
+              <Download className="mr-2 h-3.5 w-3.5" />
+              {install.isPending ? 'Installing…' : 'Install Skill'}
+            </Button>
+          )}
 
-        {canUpdate && (
-          <Button
-            className="w-full"
-            onClick={handleUpdateClick}
-            disabled={isBusy}
-          >
-            <RefreshCw className="mr-2 h-3.5 w-3.5" />
-            {diffMutation.isPending ? 'Checking…' : 'Update Skill'}
-          </Button>
-        )}
+          {canUpdate && (
+            <Button
+              className="w-full"
+              onClick={handleUpdateClick}
+              disabled={isBusy}
+            >
+              <RefreshCw className="mr-2 h-3.5 w-3.5" />
+              {diffMutation.isPending ? 'Checking…' : 'Update Skill'}
+            </Button>
+          )}
 
-        {skill.localData?.path && (
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={() => relint.mutate()}
-            disabled={isBusy || relint.isPending}
-          >
-            <RefreshCw
-              className={`mr-2 h-3.5 w-3.5 ${relint.isPending ? 'animate-spin' : ''}`}
-            />
-            {relint.isPending ? 'Linting…' : 'Re-lint'}
-          </Button>
-        )}
+          {skill.localData?.path && (
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => relint.mutate()}
+              disabled={isBusy || relint.isPending}
+            >
+              <RefreshCw
+                className={`mr-2 h-3.5 w-3.5 ${relint.isPending ? 'animate-spin' : ''}`}
+              />
+              {relint.isPending ? 'Linting…' : 'Re-lint'}
+            </Button>
+          )}
 
-        {isInstalled && skill.localData?.path && (
-          <Button
-            variant="outline"
-            className="w-full"
-            disabled={isBusy}
-            onClick={handleOpenFolder}
-          >
-            <ExternalLink className="mr-2 h-3.5 w-3.5" />
-            Open Folder
-          </Button>
-        )}
+          {isInstalled && skill.localData?.path && (
+            <Button
+              variant="outline"
+              className="w-full"
+              disabled={isBusy}
+              onClick={handleOpenFolder}
+            >
+              <ExternalLink className="mr-2 h-3.5 w-3.5" />
+              Open Folder
+            </Button>
+          )}
 
-        {isInstalled && (
-          <Button
-            variant="destructive"
-            className="w-full"
-            onClick={() => uninstall.mutate()}
-            disabled={isBusy}
-          >
-            <Trash2 className="mr-2 h-3.5 w-3.5" />
-            {uninstall.isPending ? 'Uninstalling…' : 'Uninstall'}
-          </Button>
-        )}
+          {isInstalled && (
+            <Button
+              variant="destructive"
+              className="w-full"
+              onClick={() => uninstall.mutate()}
+              disabled={isBusy}
+            >
+              <Trash2 className="mr-2 h-3.5 w-3.5" />
+              {uninstall.isPending ? 'Uninstalling…' : 'Uninstall'}
+            </Button>
+          )}
 
-        {(skill.registryData || skill.status !== 'local_only') && (
-          <Button
-            variant="ghost"
-            className="w-full text-xs text-muted-foreground"
-            onClick={() => sync.mutate()}
-            disabled={!platformFeaturesEnabled || isBusy}
-          >
-            <RefreshCw
-              className={`mr-1.5 h-3 w-3 ${sync.isPending ? 'animate-spin' : ''}`}
-            />
-            {sync.isPending ? 'Syncing registry…' : 'Sync registry'}
-          </Button>
-        )}
+          {(skill.registryData || skill.status !== 'local_only') && (
+            <Button
+              variant="ghost"
+              className="w-full text-xs text-muted-foreground"
+              onClick={() => sync.mutate()}
+              disabled={!platformFeaturesEnabled || isBusy}
+            >
+              <RefreshCw
+                className={`mr-1.5 h-3 w-3 ${sync.isPending ? 'animate-spin' : ''}`}
+              />
+              {sync.isPending ? 'Syncing registry…' : 'Sync registry'}
+            </Button>
+          )}
 
-        {/* Share button */}
-        {skill.localData?.path && (
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={handleShareClick}
-            disabled={isBusy}
-          >
-            {loadingContent ? (
-              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Share2 className="mr-2 h-3.5 w-3.5" />
-            )}
-            Share as Gist
-          </Button>
-        )}
+          {/* Share button */}
+          {skill.localData?.path && (
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={handleShareClick}
+              disabled={isBusy}
+            >
+              {loadingContent ? (
+                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Share2 className="mr-2 h-3.5 w-3.5" />
+              )}
+              Share as Gist
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Dialogs */}

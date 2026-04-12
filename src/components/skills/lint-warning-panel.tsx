@@ -116,7 +116,7 @@ function WarningRow({
   return (
     <div
       className={cn(
-        'rounded-md border border-border bg-background pl-3 pr-2 py-2.5',
+        'relative group rounded-md border border-border bg-background pl-3 pr-2 py-2.5',
         'border-l-2', // left accent strip
         isSecurity && warning.severity === 'error' && 'border-l-red-500',
         !isSecurity && warning.severity === 'error' && 'border-l-destructive',
@@ -124,21 +124,24 @@ function WarningRow({
         warning.severity === 'info' && 'border-l-border'
       )}
     >
-      {/* Top row: icon + message + action buttons */}
+      {/* Top row: icon + message — full width, no reserved space for buttons */}
       <div className="flex items-start gap-2">
         <SeverityIcon severity={warning.severity} isSecure={isSecurity} />
         <p className="flex-1 text-xs leading-snug break-words min-w-0">
           {warning.message}
         </p>
-        <div className="flex items-center gap-0.5 shrink-0 ml-1">
-          {/* Copy fix button – only if suggested_fix exists */}
+      </div>
+
+      {/* Floating action pill — only visible on hover/focus, doesn't affect layout */}
+      <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+        <div className="flex items-center gap-0.5 bg-background/90 backdrop-blur-sm rounded-full shadow-sm border border-border/50 px-0.5 py-0.5">
           {warning.suggested_fix && onCopyFix && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                  className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground rounded-full"
                   onClick={onCopyFix}
                 >
                   {copied ? (
@@ -151,14 +154,13 @@ function WarningRow({
               <TooltipContent side="top">Copy fix</TooltipContent>
             </Tooltip>
           )}
-          {/* Ignore button */}
           {onIgnore && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                  className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground rounded-full"
                   onClick={onIgnore}
                 >
                   <X className="size-3.5" />
@@ -171,13 +173,13 @@ function WarningRow({
       </div>
 
       {/* Sub-row: rule_id + file path */}
-      <div className="flex items-center gap-1.5 mt-1 ml-6 min-w-0">
-        <code className="text-[10px] text-muted-foreground font-mono shrink-0">
+      <div className="flex items-center gap-1.5 mt-1 ml-6 min-w-0 overflow-hidden">
+        <code className="text-[10px] text-muted-foreground font-mono truncate max-w-[8rem]">
           {warning.rule_id}
         </code>
         {displayPath && (
           <>
-            <span className="text-[10px] text-border">·</span>
+            <span className="text-[10px] text-border shrink-0">·</span>
             <span className="text-[10px] text-muted-foreground font-mono truncate">
               {displayPath}
               {warning.location?.line != null && `:${warning.location.line}`}
