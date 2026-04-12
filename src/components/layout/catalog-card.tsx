@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, ReactNode } from 'react'
 import { openUrl } from '@tauri-apps/plugin-opener'
-import { ExternalLink, Loader2, Package, Plus } from 'lucide-react'
+import { Check, ExternalLink, Loader2, Package, Plus } from 'lucide-react'
 import { toast } from '@/components/ui/toast'
 import { cn } from '@/lib/utils'
 import type { CatalogEntry } from './mcp-tab'
@@ -12,7 +12,7 @@ interface CatalogCardProps {
   alreadyAdded: boolean
   adding: boolean
   onAdd: (entry: CatalogEntry) => void
-  icon?: ReactNode // Simple Icons component or fallback
+  icon?: ReactNode
 }
 
 export function CatalogCard({
@@ -33,10 +33,7 @@ export function CatalogCard({
     const check = () => {
       const fullWidth = measure.scrollWidth
       const availableWidth = parent.clientWidth
-
-      // If we need to show "+x", account for its width (~30px)
       const requiredWidth = entry.tags.length > 1 ? fullWidth + 30 : fullWidth
-
       setCollapsed(requiredWidth > availableWidth)
     }
 
@@ -66,7 +63,6 @@ export function CatalogCard({
     >
       {/* Top row: Icon + Name + Transport | Docs */}
       <div className="flex items-center gap-1.5 min-w-0">
-        {/* Icon container - use provided icon or fallback to Package */}
         <div className="shrink-0 text-muted-foreground">
           {icon ?? <Package className="size-3.5" />}
         </div>
@@ -95,7 +91,6 @@ export function CatalogCard({
 
       {/* Bottom row: Tags | Add Button */}
       <div className="flex items-center justify-between gap-1.5 min-w-0 relative">
-        {/* Visible tags area */}
         <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
           <div className="flex gap-1 min-w-0">
             {entry.tags.map((tag, i) => (
@@ -111,7 +106,6 @@ export function CatalogCard({
             ))}
           </div>
 
-          {/* The +x pill only renders if collapsed state is true */}
           {collapsed && entry.tags.length > 1 && (
             <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground whitespace-nowrap shrink-0">
               +{entry.tags.length - 1}
@@ -133,7 +127,7 @@ export function CatalogCard({
           {adding ? (
             <Loader2 className="size-3 animate-spin" />
           ) : alreadyAdded ? (
-            '✓'
+            <Check className="size-3" />
           ) : (
             <>
               <Plus className="size-2.5" />
@@ -142,10 +136,7 @@ export function CatalogCard({
           )}
         </button>
 
-        {/*
-          Hidden measurement div: Renders all tags invisibly to calculate
-          their true combined width without affecting layout.
-        */}
+        {/* Hidden measurement div */}
         <div
           ref={measureRef}
           className="invisible absolute top-0 left-0 flex gap-1 overflow-hidden pointer-events-none h-0"

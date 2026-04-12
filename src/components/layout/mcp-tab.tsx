@@ -32,10 +32,14 @@ import { AnimatedSuccessIcon } from '@/components/ui/animated-success-icon'
 
 // Simple Icons
 import {
+  SiBrave,
+  SiFirebase,
   SiGithub,
+  SiGit,
   SiGitlab,
   SiPostgresql,
   SiSqlite,
+  SiSupabase,
   SiMongodb,
   SiCloudflare,
   SiDatadog,
@@ -124,11 +128,15 @@ type McpView = 'servers' | 'catalog' | 'custom'
 // Helper to get Simple Icon component for a catalog entry
 const getIconForEntry = (entryId: string): React.ReactNode => {
   const iconMap: Record<string, React.ElementType> = {
+    git: SiGit,
     github: SiGithub,
     gitlab: SiGitlab,
+    'brave-search': SiBrave,
     postgres: SiPostgresql,
     sqlite: SiSqlite,
     mongodb: SiMongodb,
+    firebase: SiFirebase,
+    supabase: SiSupabase,
     'cloudflare-workers': SiCloudflare,
     'cloudflare-docs': SiCloudflare,
     'cloudflare-observability': SiCloudflare,

@@ -24,7 +24,7 @@ importers:
         specifier: ^5.2.7
         version: 5.2.7
       '@icons-pack/react-simple-icons':
-        specifier: ^13.12.0
+        specifier: ^13.13.0
         version: 13.13.0(react@19.2.5)
       '@lingui/core':
         specifier: ^5.9.2

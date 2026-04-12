@@ -48,7 +48,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@fontsource/poppins": "^5.2.7",
-    "@icons-pack/react-simple-icons": "^13.12.0",
+    "@icons-pack/react-simple-icons": "^13.13.0",
     "@lingui/core": "^5.9.2",
     "@lingui/react": "^5.9.2",
     "@lobehub/icons": "^5.2.0",
