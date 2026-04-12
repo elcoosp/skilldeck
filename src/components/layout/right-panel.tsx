@@ -25,6 +25,7 @@ import {
   Play,
   Plus,
   Trash2,
+  Workflow,
   Zap
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -74,6 +75,7 @@ import { AnalyticsHeatmap } from '../analytics/analytics-heatmap'
 import { ProviderIcon } from '../ui/provider-icon'
 import { McpTab } from './mcp-tab'
 import { RightPanelHeader } from './right-panel-header'
+import { EmptyState } from '../ui/empty-state'
 
 // Feature gate selectors remain unchanged
 const selectHasSkillsUnlocked = (state: UIPersistentState) =>
@@ -548,25 +550,15 @@ function WorkflowTab() {
               <BouncingDots />
             </div>
           ) : savedWorkflows.length === 0 ? (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.3, ease: 'easeOut' }}
-              className="flex flex-col items-center justify-center py-6 px-2 text-center"
-            >
-              {/* Responsive image - uses percentage width */}
-              <img
-                src="/illustrations/empty-workflows.jpeg"
-                alt="No workflows"
-                className="w-24 h-24 object-contain mb-3 rounded-2xl opacity-90"
-              />
-              <h3 className="text-sm font-semibold text-foreground mb-1">
-                Ready to automate?
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                Design workflows for elegant automation.
-              </p>
-            </motion.div>
+            <EmptyState
+              icon={Workflow}
+              title="No workflows"
+              description="Create your first workflow to automate tasks"
+              action={{
+                label: 'New Workflow',
+                onClick: () => setEditorOpen(true)
+              }}
+            />
           ) : (
             <div className="space-y-1">
               {savedWorkflows.map((wf) => (
@@ -614,7 +606,6 @@ function WorkflowTab() {
     </div>
   )
 }
-
 // ── Analytics tab ─────────────────────────────────────────────────────────────
 function AnalyticsTab() {
   const { data: analytics, isLoading, error } = useAnalytics()
