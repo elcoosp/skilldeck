@@ -1,17 +1,23 @@
 import { useQuery } from '@tanstack/react-query'
 import { FileCode } from 'lucide-react'
+import { useEffect, useRef } from 'react'
 import { commands } from '@/lib/bindings'
 import { useConversationStore } from '@/store/conversation'
 import { ArtifactItem } from './artifact-item'
 import { RightPanelHeader } from '@/components/layout/right-panel-header'
 import { EmptyState } from '@/components/ui/empty-state'
 import { LoadingState } from '@/components/ui/loading-state'
+import { useUIEphemeralStore } from '@/store/ui-ephemeral'
 
 export function ArtifactPanel() {
   const activeConversationId = useConversationStore(
     (s) => s.activeConversationId
   )
   const activeBranchId = useConversationStore((s) => s.activeBranchId)
+
+  const selectedArtifactId = useUIEphemeralStore((s) => s.selectedArtifactId)
+  const setSelectedArtifactId = useUIEphemeralStore((s) => s.setSelectedArtifactId)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   const { data: artifacts, isLoading } = useQuery({
     queryKey: ['artifacts', activeConversationId, activeBranchId],
@@ -26,6 +32,17 @@ export function ArtifactPanel() {
     },
     enabled: !!activeConversationId
   })
+
+  useEffect(() => {
+    if (selectedArtifactId && containerRef.current) {
+      const element = document.getElementById(`artifact-${selectedArtifactId}`)
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        // Clear selection after scrolling to avoid interfering with future clicks
+        setTimeout(() => setSelectedArtifactId(null), 2000)
+      }
+    }
+  }, [selectedArtifactId, setSelectedArtifactId])
 
   if (!activeConversationId) {
     return (
@@ -66,6 +83,7 @@ export function ArtifactPanel() {
     <div className="h-full flex flex-col min-h-0 min-w-0 overflow-hidden">
       <RightPanelHeader title="Artifacts" />
       <div
+        ref={containerRef}
         className="flex-1 overflow-y-auto overflow-x-hidden p-3 thin-scrollbar"
         style={{ scrollbarGutter: 'stable' }}
       >

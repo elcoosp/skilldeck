@@ -13,6 +13,8 @@ import { listen } from '@tauri-apps/api/event'
 import type { RunCodeEvent } from '@/lib/events'
 import { useQuery } from '@tanstack/react-query'
 import { VersionDiffModal } from '@/components/artifacts/version-diff-modal'
+import { useUILayoutStore } from '@/store/ui-layout'
+import { useUIEphemeralStore } from '@/store/ui-ephemeral'
 
 const SUPPORTED_RUN_LANGUAGES = new Set(['python', 'py', 'javascript', 'js', 'bash', 'sh', 'ruby', 'rb'])
 
@@ -24,7 +26,7 @@ interface CodeBlockProps {
   scrollContainerRef?: React.RefObject<HTMLElement>
   lineCount: number
   filePath?: string | null
-  tokenCount: number                   // new
+  tokenCount: number
 }
 
 export const CodeBlock: React.FC<CodeBlockProps> = memo(
@@ -64,6 +66,17 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
     const [showDiff, setShowDiff] = useState(false)
 
     const canRun = SUPPORTED_RUN_LANGUAGES.has(language)
+
+    // Store hooks for artifact linking
+    const setRightTab = useUILayoutStore((s) => s.setRightTab)
+    const setSelectedArtifactId = useUIEphemeralStore((s) => s.setSelectedArtifactId)
+
+    const handleOpenArtifact = useCallback(() => {
+      if (artifactId) {
+        setRightTab('artifacts')
+        setSelectedArtifactId(artifactId)
+      }
+    }, [artifactId, setRightTab, setSelectedArtifactId])
 
     // Query artifact versions for diff
     const { data: versions } = useQuery({
@@ -301,15 +314,17 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
           <span className="text-[10px] text-muted-foreground mr-2">
             {lineCount} lines · {displayTokenCount}
           </span>
-          {/* Filename pill */}
-          {filePath && (
-            <span
-              className="text-[10px] font-mono text-muted-foreground truncate max-w-[150px]"
-              title={filePath}
+          {/* Filename pill - now clickable */}
+          {filePath ? (
+            <button
+              type="button"
+              onClick={handleOpenArtifact}
+              className="text-[10px] font-mono text-primary hover:underline truncate max-w-[150px]"
+              title={`Open ${filePath} in artifacts`}
             >
               {filePath.split('/').pop()}
-            </span>
-          )}
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={handleSaveToFile}
