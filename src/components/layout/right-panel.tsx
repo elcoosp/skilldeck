@@ -34,7 +34,6 @@ import { useMemo, useState, useCallback, useRef } from 'react'
 import { toast } from '@/components/ui/toast'
 import { ArtifactPanel } from '@/components/artifacts/artifact-panel'
 import { UnifiedSkillList } from '@/components/skills/unified-skill-list'
-import { BouncingDots } from '@/components/ui/bouncing-dots'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -79,7 +78,7 @@ import { McpTab } from './mcp-tab'
 import { RightPanelHeader } from './right-panel-header'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Input } from '@/components/ui/input'
-import { LoadingState } from '../ui/loading-state'
+import { LoadingState } from '@/components/ui/loading-state'
 
 // Feature gate selectors remain unchanged
 const selectHasSkillsUnlocked = (state: UIPersistentState) =>
@@ -176,7 +175,7 @@ export function RightPanel() {
             {primaryTabs.map(({ id, label, Icon }) => (
               <Tooltip key={id}>
                 <TooltipTrigger asChild>
-                  <button
+                  <motion.button
                     type="button"
                     onClick={() => setActiveTab(id)}
                     className={cn(
@@ -188,9 +187,12 @@ export function RightPanel() {
                         : 'text-muted-foreground hover:text-foreground'
                     )}
                     aria-label={label}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 17 }}
                   >
                     <Icon className="size-4 shrink-0" />
-                  </button>
+                  </motion.button>
                 </TooltipTrigger>
                 <TooltipContent side="left" align="center">
                   {label}
@@ -209,7 +211,7 @@ export function RightPanel() {
             {secondaryTabs.map(({ id, label, Icon }) => (
               <Tooltip key={id}>
                 <TooltipTrigger asChild>
-                  <button
+                  <motion.button
                     type="button"
                     onClick={() => setActiveTab(id)}
                     className={cn(
@@ -221,9 +223,12 @@ export function RightPanel() {
                         : 'text-muted-foreground hover:text-foreground'
                     )}
                     aria-label={label}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 17 }}
                   >
                     <Icon className="size-4 shrink-0" />
-                  </button>
+                  </motion.button>
                 </TooltipTrigger>
                 <TooltipContent side="left" align="center">
                   {label}
@@ -297,19 +302,16 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
 
   if (!conversationId) {
     return (
-      <div className="p-3 text-sm text-muted-foreground">
-        No active conversation.
-      </div>
+      <EmptyState
+        icon={Cpu}
+        title="No active conversation"
+        description="Select or start a conversation to see session details."
+      />
     )
   }
 
   if (conversationsLoading) {
-    return (
-      <div className="p-3 text-xs text-muted-foreground flex items-center gap-2">
-        <div className="size-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-        Loading...
-      </div>
-    )
+    return <LoadingState message="Loading conversation…" />
   }
 
   if (!conversation) {
@@ -379,7 +381,7 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
             </div>
             {!readinessLoading && readiness?.status.status === 'not_ready' && (
               <div className="mt-1 text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/20 p-2 rounded">
-                {readiness.status.reason} {readiness.status.fix_action}
+                Can't connect to provider – {readiness.status.reason.toLowerCase()}. {readiness.status.fix_action}
               </div>
             )}
           </div>
@@ -545,7 +547,7 @@ function WorkflowTab() {
 
             {progress.error && (
               <div className="p-2 rounded-md bg-red-500/10 text-xs text-red-500">
-                {progress.error}
+                Workflow encountered an error: {progress.error}
               </div>
             )}
 
@@ -618,7 +620,7 @@ function WorkflowTab() {
               description={
                 searchQuery
                   ? 'Try a different search term'
-                  : 'Create your first workflow to automate tasks'
+                  : "You haven't created any workflows yet. Build one to automate tasks."
               }
               action={
                 !searchQuery
@@ -676,6 +678,7 @@ function WorkflowTab() {
     </div>
   )
 }
+
 // ── Analytics tab ─────────────────────────────────────────────────────────────
 function AnalyticsTab() {
   const { data: analytics, isLoading, error } = useAnalytics()
@@ -727,11 +730,7 @@ function AnalyticsTab() {
   }, [fullYearStart, fullYearEnd])
 
   if (isLoading) {
-    return (
-      <div className="p-8 flex justify-center">
-        <BouncingDots />
-      </div>
-    )
+    return <LoadingState message="Crunching usage data…" />
   }
 
   if (error || !analytics) {

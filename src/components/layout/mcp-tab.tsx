@@ -10,7 +10,6 @@ import { motion } from 'framer-motion'
 import {
   ChevronRight,
   ExternalLink,
-  Loader2,
   RefreshCw,
   Server,
   Zap
@@ -28,6 +27,7 @@ import { CustomServerForm } from './custom-server-form'
 import { LiveServerCard } from './live-server-card'
 import { RightPanelHeader } from './right-panel-header'
 import { Button } from '@/components/ui/button'
+import { LoadingState } from '@/components/ui/loading-state'
 
 export interface CatalogEntry {
   id: string
@@ -289,9 +289,7 @@ export function McpTab() {
       <ScrollArea className="flex-1 min-h-0">
         <div className="px-2.5 pb-2.5 space-y-2">
           {isLoading ? (
-            <div className="flex justify-center py-6">
-              <Loader2 className="size-4 animate-spin text-muted-foreground" />
-            </div>
+            <LoadingState message="Discovering available tools…" />
           ) : servers.length === 0 ? (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
