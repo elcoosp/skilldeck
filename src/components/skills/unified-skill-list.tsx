@@ -346,7 +346,7 @@ export function UnifiedSkillList() {
         <RightPanelHeader
           title="Skills"
           actions={
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
               {localWithIssues > 0 && (
                 <span
                   className="text-xs text-amber-500 font-medium"
@@ -373,33 +373,25 @@ export function UnifiedSkillList() {
                   )}
                 </Button>
               )}
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8"
                 onClick={toggleSearch}
-                className={cn(
-                  'p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors',
-                  showSearch && 'text-primary bg-muted'
-                )}
                 title="Search skills"
               >
-                <Search className="h-3 w-3" />
-              </button>
-              <button
-                type="button"
+                <Search className="size-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8"
                 onClick={() => handleSync()}
                 disabled={!platformFeaturesEnabled || syncMutation.isPending}
-                title={
-                  !platformFeaturesEnabled
-                    ? 'Enable platform to sync'
-                    : 'Refresh'
-                }
-                className={cn(
-                  'p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40',
-                  syncMutation.isPending && 'animate-spin'
-                )}
+                title={!platformFeaturesEnabled ? 'Enable platform to sync' : 'Refresh'}
               >
-                <RefreshCw className="h-3 w-3" />
-              </button>
+                <RefreshCw className={cn('size-4', syncMutation.isPending && 'animate-spin')} />
+              </Button>
             </div>
           }
         />

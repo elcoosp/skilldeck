@@ -27,6 +27,7 @@ import { CatalogCard } from './catalog-card'
 import { CustomServerForm } from './custom-server-form'
 import { LiveServerCard } from './live-server-card'
 import { RightPanelHeader } from './right-panel-header'
+import { Button } from '@/components/ui/button'
 
 export interface CatalogEntry {
   id: string
@@ -273,15 +274,16 @@ export function McpTab() {
       <RightPanelHeader
         title="MCP Servers"
         actions={
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8"
             onClick={() => refetch()}
             disabled={isFetching}
             title="Refresh"
-            className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 shrink-0 ml-1"
           >
-            <RefreshCw className={cn('size-3', isFetching && 'animate-spin')} />
-          </button>
+            <RefreshCw className={cn('size-4', isFetching && 'animate-spin')} />
+          </Button>
         }
       />
       <ScrollArea className="flex-1 min-h-0">

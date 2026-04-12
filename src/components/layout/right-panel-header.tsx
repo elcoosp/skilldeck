@@ -15,7 +15,7 @@ export function RightPanelHeader({
   return (
     <div
       className={cn(
-        'flex items-center justify-between px-3 py-2 border-b border-border/50 shrink-0',
+        'flex items-center justify-between px-3 h-10 border-b border-border/50 shrink-0',
         className
       )}
     >

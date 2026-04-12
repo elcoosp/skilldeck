@@ -24,11 +24,13 @@ import {
   Layers,
   Play,
   Plus,
+  Search,
   Trash2,
   Workflow,
+  X,
   Zap
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useCallback, useRef } from 'react'
 import { toast } from '@/components/ui/toast'
 import { ArtifactPanel } from '@/components/artifacts/artifact-panel'
 import { UnifiedSkillList } from '@/components/skills/unified-skill-list'
@@ -75,7 +77,8 @@ import { AnalyticsHeatmap } from '../analytics/analytics-heatmap'
 import { ProviderIcon } from '../ui/provider-icon'
 import { McpTab } from './mcp-tab'
 import { RightPanelHeader } from './right-panel-header'
-import { EmptyState } from '../ui/empty-state'
+import { EmptyState } from '@/components/ui/empty-state'
+import { Input } from '@/components/ui/input'
 
 // Feature gate selectors remain unchanged
 const selectHasSkillsUnlocked = (state: UIPersistentState) =>
@@ -429,6 +432,28 @@ function WorkflowTab() {
   const [editorOpen, setEditorOpen] = useState(false)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [selectedWorkflow, setSelectedWorkflow] = useState<any | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [showSearch, setShowSearch] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  const filteredWorkflows = useMemo(() => {
+    if (!searchQuery.trim()) return savedWorkflows
+    return savedWorkflows.filter((wf) =>
+      wf.name.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+  }, [savedWorkflows, searchQuery])
+
+  const toggleSearch = useCallback(() => {
+    setShowSearch((prev) => !prev)
+    if (!showSearch) {
+      setTimeout(() => searchInputRef.current?.focus(), 50)
+    }
+  }, [showSearch])
+
+  const clearSearch = useCallback(() => {
+    setSearchQuery('')
+    searchInputRef.current?.focus()
+  }, [])
 
   const handleDelete = (id: string, name: string) => {
     if (confirm(`Delete workflow "${name}"?`)) {
@@ -444,16 +469,54 @@ function WorkflowTab() {
       <RightPanelHeader
         title="Workflow"
         actions={
-          <Button
-            size="xs"
-            variant="outline"
-            onClick={() => setEditorOpen(true)}
-          >
-            <Plus className="size-3 mr-1" />
-            New
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8"
+              onClick={toggleSearch}
+              title="Search workflows"
+            >
+              <Search className="size-4" />
+            </Button>
+            <Button
+              size="xs"
+              variant="outline"
+              onClick={() => setEditorOpen(true)}
+            >
+              <Plus className="size-3 mr-1" />
+              New
+            </Button>
+          </div>
         }
       />
+
+      {/* Expandable search bar */}
+      {showSearch && (
+        <div className="px-3 py-2 border-b border-border/50 shrink-0">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+            <Input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Filter workflows…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8 pr-8 h-8 text-sm"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={clearSearch}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 p-3 space-y-4">
         {progress && (
           <div className="space-y-2">
@@ -549,19 +612,27 @@ function WorkflowTab() {
             <div className="flex justify-center py-4">
               <BouncingDots />
             </div>
-          ) : savedWorkflows.length === 0 ? (
+          ) : filteredWorkflows.length === 0 ? (
             <EmptyState
               icon={Workflow}
-              title="No workflows"
-              description="Create your first workflow to automate tasks"
-              action={{
-                label: 'New Workflow',
-                onClick: () => setEditorOpen(true)
-              }}
+              title={searchQuery ? 'No matching workflows' : 'No workflows'}
+              description={
+                searchQuery
+                  ? 'Try a different search term'
+                  : 'Create your first workflow to automate tasks'
+              }
+              action={
+                !searchQuery
+                  ? {
+                    label: 'New Workflow',
+                    onClick: () => setEditorOpen(true)
+                  }
+                  : undefined
+              }
             />
           ) : (
             <div className="space-y-1">
-              {savedWorkflows.map((wf) => (
+              {filteredWorkflows.map((wf) => (
                 <div
                   key={wf.id}
                   className="flex items-center gap-1 p-2 rounded-md border border-border hover:bg-muted/30 transition-colors min-w-0"
@@ -606,6 +677,7 @@ function WorkflowTab() {
     </div>
   )
 }
+
 // ── Analytics tab ─────────────────────────────────────────────────────────────
 function AnalyticsTab() {
   const { data: analytics, isLoading, error } = useAnalytics()
