@@ -1,12 +1,14 @@
 // src/components/conversation/code-block.tsx
 
-import { Check, ChevronRight, Copy, Loader2, Hash } from 'lucide-react'
+import { Check, ChevronRight, Copy, Hash, Loader2, Save } from 'lucide-react'
 import type React from 'react'
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { toast } from '@/components/ui/toast'
 import { useArtifactContent } from '@/hooks/use-artifact-content'
 import { cn } from '@/lib/utils'
+import { save } from '@tauri-apps/plugin-dialog'
+import { commands } from '@/lib/bindings'
 
 interface CodeBlockProps {
   language: string
@@ -14,8 +16,8 @@ interface CodeBlockProps {
   highlightedHtml: string
   isStreaming?: boolean
   scrollContainerRef?: React.RefObject<HTMLElement>
-  lineCount: number        // new
-  filePath?: string | null // new
+  lineCount: number
+  filePath?: string | null
 }
 
 export const CodeBlock: React.FC<CodeBlockProps> = memo(
@@ -183,6 +185,24 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
       }
     }, [rawCode, highlightedHtml])
 
+    const handleSaveToFile = useCallback(async () => {
+      try {
+        let path = filePath ?? undefined
+        if (!path) {
+          const selected = await save({
+            defaultPath: `artifact.${language}`,
+            filters: [{ name: 'All Files', extensions: ['*'] }],
+          })
+          if (!selected) return
+          path = selected
+        }
+        await commands.writeArtifactToFile(artifactId, path)
+        toast.success(`Saved to ${path}`)
+      } catch (err) {
+        toast.error(`Failed to save: ${err}`)
+      }
+    }, [artifactId, filePath, language])
+
     const headerContent = (
       <>
         <button
@@ -200,6 +220,23 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
           <span>{language || 'code'}</span>
         </button>
         <div className="flex items-center gap-1">
+          {/* Filename pill */}
+          {filePath && (
+            <span
+              className="text-[10px] font-mono text-muted-foreground truncate max-w-[150px]"
+              title={filePath}
+            >
+              {filePath.split('/').pop()}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={handleSaveToFile}
+            className="p-1 text-muted-foreground hover:text-foreground"
+            title="Save to file"
+          >
+            <Save className="size-3.5" />
+          </button>
           <button
             type="button"
             onClick={() => setShowLineNumbers(v => !v)}

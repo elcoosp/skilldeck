@@ -96,8 +96,8 @@ pub fn run() {
             list_workflow_definitions,
             get_workflow_definition,
             delete_workflow_definition,
-            update_workflow_definition, // NEW
-            run_workflow_definition,    // NEW
+            update_workflow_definition,
+            run_workflow_definition,
             get_installed_skill_content,
             get_installed_skill_path,
             install_registry_skill,
@@ -206,6 +206,8 @@ pub fn run() {
             update_conversation_workspace,
             // headings
             get_conversation_messages_headings,
+            // NEW: artifact save to file
+            write_artifact_to_file,
         ])
         .events(collect_events![
             AgentEvent,
