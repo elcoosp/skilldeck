@@ -331,8 +331,10 @@ const NodeRenderer = memo(
             language={node.language}
             artifactId={node.artifact_id}
             highlightedHtml={node.highlighted_html}
-            isStreaming={isDraft}
+            isStreaming={isStreaming}
             scrollContainerRef={scrollContainerRef}
+            lineCount={node.line_count}
+            filePath={node.file_path}
           />
         )
       case 'list': {

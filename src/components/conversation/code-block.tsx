@@ -1,6 +1,6 @@
 // src/components/conversation/code-block.tsx
 
-import { Check, ChevronRight, Copy, Loader2 } from 'lucide-react'
+import { Check, ChevronRight, Copy, Loader2, Hash } from 'lucide-react'
 import type React from 'react'
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -14,6 +14,8 @@ interface CodeBlockProps {
   highlightedHtml: string
   isStreaming?: boolean
   scrollContainerRef?: React.RefObject<HTMLElement>
+  lineCount: number        // new
+  filePath?: string | null // new
 }
 
 export const CodeBlock: React.FC<CodeBlockProps> = memo(
@@ -22,7 +24,9 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
     artifactId,
     highlightedHtml,
     isStreaming = false,
-    scrollContainerRef
+    scrollContainerRef,
+    lineCount,
+    filePath,
   }) => {
     const [collapsed, setCollapsed] = useState(false)
     const [copied, setCopied] = useState(false)
@@ -36,6 +40,19 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
 
     const isUserScrolledUp = useRef(false)
     const isProgrammaticScroll = useRef(false)
+
+    const [showLineNumbers, setShowLineNumbers] = useState(() => lineCount > 3)
+
+    // Apply/remove the line‑number class whenever toggled or when the HTML changes.
+    useEffect(() => {
+      const pre = preRef.current
+      if (!pre) return
+      if (showLineNumbers) {
+        pre.classList.add('code-with-lines')
+      } else {
+        pre.classList.remove('code-with-lines')
+      }
+    }, [showLineNumbers, highlightedHtml])
 
     // ─── Detect user scroll within the code block ────────────────────────────
     useEffect(() => {
@@ -79,7 +96,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
       return () => observer.disconnect()
     }, [isStreaming, collapsed])
 
-    // ─── Floating header: portal + getBoundingClientRect ─────────────────────
+    // ─── Floating header: portal + getBoundingClientRect (mirrors CodePre) ───
     useEffect(() => {
       const root = scrollContainerRef?.current
       const container = containerRef.current
@@ -96,7 +113,9 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
       }
 
       const sync = () => {
-        if (collapsed) {
+        // Only show floating header when content actually overflows
+        const codeOverflows = scrollable.scrollHeight > scrollable.clientHeight
+        if (collapsed || !codeOverflows) {
           hide()
           return
         }
@@ -104,6 +123,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
         const rootRect = root.getBoundingClientRect()
         const containerRect = container.getBoundingClientRect()
 
+        // Guard against invisible/unmeasured containers
         if (rootRect.width === 0 || rootRect.height === 0) {
           hide()
           return
@@ -113,12 +133,15 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
         const bottomVisible = containerRect.bottom > rootRect.top + 32
 
         if (topGone && bottomVisible) {
+          // Position the portal element to sit at the top of the scroll container,
+          // spanning the exact width of the code block container
           floating.style.top = `${rootRect.top}px`
           floating.style.left = `${containerRect.left}px`
           floating.style.width = `${containerRect.width}px`
           floating.style.opacity = '1'
           floating.style.pointerEvents = 'auto'
-          floating.style.boxShadow = '0 2px 8px 0 rgb(0 0 0 / 0.08)'
+          floating.style.borderRadius = '0'
+          floating.style.boxShadow = '0 4px 12px 0 rgb(0 0 0 / 0.15)'
           header.style.visibility = 'hidden'
         } else {
           hide()
@@ -143,6 +166,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
         root.removeEventListener('scroll', sync)
         ro.disconnect()
         cancelAnimationFrame(rafId)
+        // Always restore visibility on cleanup
         if (header) header.style.visibility = 'visible'
       }
     }, [scrollContainerRef, collapsed])
@@ -173,14 +197,17 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
               !collapsed && 'rotate-90'
             )}
           />
-          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-background/60 text-muted-foreground border border-border/40">
-            {language || 'code'}
-          </span>
+          <span>{language || 'code'}</span>
         </button>
         <div className="flex items-center gap-1">
-          {isStreaming && (
-            <span className="size-1.5 rounded-full bg-primary animate-pulse mr-1" />
-          )}
+          <button
+            type="button"
+            onClick={() => setShowLineNumbers(v => !v)}
+            className="p-1 text-muted-foreground hover:text-foreground"
+            title="Toggle line numbers"
+          >
+            <Hash className="size-3.5" />
+          </button>
           <button
             type="button"
             onClick={copy}
@@ -202,17 +229,19 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
 
     return (
       <>
-        {/* Floating header portal */}
+        {/* Floating header portal — rendered into document.body so it escapes
+          any overflow:hidden / scroll containers and can be positioned freely */}
         {createPortal(
           <div
             ref={floatingRef}
-            className="fixed z-50 flex items-center justify-between px-3 py-1.5 border border-border/70 bg-muted text-xs font-mono"
+            className="fixed z-50 flex items-center justify-between px-3 py-1.5 border border-border bg-muted text-xs font-mono"
             style={{
               opacity: 0,
               pointerEvents: 'none',
-              borderRadius: '0',
+              // Initial radius matches the code block; overridden to 0 when active
+              borderRadius: 'var(--radius)',
               boxShadow: '0 0 0 0 transparent',
-              transition: 'opacity 120ms ease, box-shadow 150ms ease'
+              transition: 'border-radius 200ms ease, box-shadow 200ms ease'
             }}
           >
             {headerContent}
@@ -220,45 +249,44 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
           document.body
         )}
 
-        {/* Main container */}
         <div
           ref={containerRef}
-          className="my-3 rounded-xl border border-border/70 font-mono text-xs overflow-hidden"
+          className="my-3 rounded-lg border border-border font-mono text-xs"
         >
-          {/* Static header */}
+          {/* Static header — hidden (visibility:hidden) when floating is active
+            so layout is preserved but no double header is shown */}
           <div
             ref={headerRef}
-            className="flex items-center justify-between px-3 py-1.5 border-b border-border/50 bg-muted"
+            className={cn(
+              'flex items-center justify-between px-3 py-1.5 border-b border-border bg-muted',
+              collapsed ? 'rounded-lg' : 'rounded-t-lg'
+            )}
           >
             {headerContent}
           </div>
 
-          {/* Collapsible body with grid animation */}
+          {/* Collapse wrapper — height transition, no overflow:hidden on scrollable */}
           <div
-            className="overflow-hidden"
+            className="overflow-hidden rounded-b-lg"
             style={{
-              display: 'grid',
-              gridTemplateRows: collapsed ? '0fr' : '1fr',
-              transition: 'grid-template-rows 0.18s ease'
+              maxHeight: collapsed ? 0 : 384,
+              transition: 'max-height 0.18s ease'
             }}
           >
-            <div className="min-h-0">
-              <div
-                ref={scrollableRef}
-                className="overflow-auto max-h-96 thin-scrollbar"
-              >
-                <pre
-                  ref={preRef}
-                  // mt-0 mb-0 are super important m-0 does not suffice, DO NOT REMOVE
-                  className="p-4 m-0 mt-0 mb-0 text-xs leading-relaxed"
-                  style={{
-                    fontSize: 13,
-                    whiteSpace: 'pre',
-                    fontFamily: 'inherit'
-                  }}
-                  dangerouslySetInnerHTML={{ __html: highlightedHtml }}
-                />
-              </div>
+            <div
+              ref={scrollableRef}
+              className="overflow-auto max-h-96 thin-scrollbar"
+            >
+              <pre
+                ref={preRef}
+                className="p-3 m-0 mt-0 mb-0 text-xs leading-relaxed"
+                style={{
+                  fontSize: 14,
+                  whiteSpace: 'pre',
+                  fontFamily: 'inherit'
+                }}
+                dangerouslySetInnerHTML={{ __html: highlightedHtml }}
+              />
             </div>
           </div>
         </div>
@@ -270,5 +298,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
     prev.artifactId === next.artifactId &&
     prev.language === next.language &&
     prev.isStreaming === next.isStreaming &&
-    prev.scrollContainerRef === next.scrollContainerRef
+    prev.scrollContainerRef === next.scrollContainerRef &&
+    prev.lineCount === next.lineCount &&
+    prev.filePath === next.filePath
 )
