@@ -26,6 +26,7 @@ import { cn } from '@/lib/utils'
 import { CatalogCard } from './catalog-card'
 import { CustomServerForm } from './custom-server-form'
 import { LiveServerCard } from './live-server-card'
+import { RightPanelHeader } from './right-panel-header'
 
 export interface CatalogEntry {
   id: string
@@ -269,23 +270,20 @@ export function McpTab() {
   // ── Server list view (default) ─────────────────────────────────────────────
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex items-center justify-between px-2.5 pt-2.5 pb-2 shrink-0 min-w-0">
-        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider truncate">
-          MCP Servers
-        </span>
-        <button
-          type="button"
-          onClick={() => refetch()}
-          disabled={isFetching}
-          title="Refresh"
-          className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 shrink-0 ml-1"
-        >
-          <RefreshCw className={cn('size-3', isFetching && 'animate-spin')} />
-        </button>
-      </div>
-
-      {/* Content */}
+      <RightPanelHeader
+        title="MCP Servers"
+        actions={
+          <button
+            type="button"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            title="Refresh"
+            className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 shrink-0 ml-1"
+          >
+            <RefreshCw className={cn('size-3', isFetching && 'animate-spin')} />
+          </button>
+        }
+      />
       <ScrollArea className="flex-1 min-h-0">
         <div className="px-2.5 pb-2.5 space-y-2">
           {isLoading ? (
