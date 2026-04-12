@@ -76,8 +76,8 @@ export function UnifiedSkillCard({
       onKeyDown={handleKeyDown}
       className={cn(
         'group relative w-full text-left p-4 border rounded-lg cursor-pointer',
-        'transition-all duration-200',
-        'hover:border-primary/40 hover:shadow-md',
+        'transition-colors duration-200',
+        'hover:border-primary/40',
         'flex flex-col h-full min-h-[140px] focus-visible:outline-none',
         'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
         isSelected
