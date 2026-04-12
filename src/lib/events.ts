@@ -150,3 +150,12 @@ export function onQueueEvent(
 ): Promise<UnlistenFn> {
   return listen<QueueEvent>('queue-event', (e) => callback(e.payload))
 }
+export type RunCodeEventType = 'stdout' | 'stderr' | 'exit'
+
+export interface RunCodeEvent {
+  type: RunCodeEventType
+  run_id: string
+  line: string
+  code?: number
+  elapsed_ms?: number
+}

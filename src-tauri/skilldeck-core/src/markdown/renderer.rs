@@ -6,7 +6,7 @@ use once_cell::sync::Lazy;
 use pulldown_cmark::{CodeBlockKind, Event, HeadingLevel, Options, Parser, Tag, TagEnd, html};
 use regex::Regex;
 use syntect::{
-    html::{ClassStyle, ClassedHTMLGenerator},
+    html::highlighted_html_for_string,
     parsing::{SyntaxDefinition, SyntaxSet},
 };
 use uuid::Uuid;
@@ -31,6 +31,7 @@ static SYNTAX_SET: Lazy<SyntaxSet> = Lazy::new(|| {
 
     builder.build()
 });
+
 // compiled regex for link rewriting
 static LINK_RE: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"<a((?:\s[^>]*)?)\s*href=(")([^"]+)""#).unwrap());
@@ -283,13 +284,14 @@ impl MarkdownPipeline {
         let lines: Vec<&str> = code.lines().collect();
         let line_count = lines.len() as u32;
 
-        let theme_guard = self.theme.0.read();
         let mut wrapped = String::new();
-        for line in lines {
-            let highlighted =
-                syntect::html::highlighted_html_for_string(line, &SYNTAX_SET, syntax, &theme_guard);
-            wrapped.push_str(&format!("<span class=\"line\">{}</span>", highlighted));
-        }
+        self.theme.with_theme(|theme| {
+            for line in lines {
+                let highlighted = highlighted_html_for_string(line, &SYNTAX_SET, syntax, theme)
+                    .unwrap_or_else(|_| line.replace('<', "&lt;").replace('>', "&gt;"));
+                wrapped.push_str(&format!("<span class=\"line\">{}</span>", highlighted));
+            }
+        });
         (wrapped, line_count)
     }
 }

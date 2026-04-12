@@ -150,3 +150,21 @@ pub enum QueueEvent {
         message_id: String,
     },
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum RunCodeEvent {
+    Stdout {
+        run_id: String,
+        line: String,
+    },
+    Stderr {
+        run_id: String,
+        line: String,
+    },
+    Exit {
+        run_id: String,
+        code: i32,
+        elapsed_ms: u64,
+    },
+}

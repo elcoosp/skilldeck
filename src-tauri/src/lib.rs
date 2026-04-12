@@ -27,9 +27,9 @@ use commands::{
     achievements::*, analytics::*, artifacts::*, attachments::*, bookmarks::*, branches::*,
     conversations::*, drafts::*, export::*, files::*, folders::*, gist::*, headings::*,
     home_dir::*, mcp::*, messages::*, ollama::*, platform::*, profiles::*, provider_ready::*,
-    queue::*, settings::*, skills::*, theme::*, workflows::*, workspaces::*,
+    queue::*, run_code::*, settings::*, skills::*, theme::*, workflows::*, workspaces::*,
 };
-use events::{AgentEvent, McpEvent, SkillEvent, WorkflowEvent};
+use events::{AgentEvent, McpEvent, RunCodeEvent, SkillEvent, WorkflowEvent};
 use state::AppState;
 use std::sync::Arc;
 use tauri::Manager;
@@ -208,8 +208,10 @@ pub fn run() {
             get_conversation_messages_headings,
             // NEW: artifact save to file
             write_artifact_to_file,
+            run_code_snippet,
         ])
         .events(collect_events![
+            RunCodeEvent,
             AgentEvent,
             McpEvent,
             WorkflowEvent,

@@ -1224,6 +1224,14 @@ async getConversationMessagesHeadings(conversationId: string) : Promise<Result<H
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+async writeArtifactToFile(artifactId: string, targetPath: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("write_artifact_to_file", { artifactId, targetPath }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
@@ -1267,7 +1275,7 @@ export type ArtifactSpec = { id: string; language: string; raw_code: string; slo
 /**
  * Optional file path extracted from a first-line comment or preceding inline code.
  */
-file_path: string | null }
+file_path: string | null; line_count: number }
 export type AssembleFolderRequest = { path: string; deep: boolean; max_bytes: string | null }
 export type AssembleFolderResponse = { assembled_content: string; file_count: string }
 export type AutoApproveConfigDto = { auto_approve_reads: boolean; auto_approve_writes: boolean; auto_approve_shell: boolean; auto_approve_http_requests: boolean; auto_approve_selects: boolean; auto_approve_mutations: boolean }
@@ -1340,7 +1348,7 @@ export type McpEvent = { type: "server_connected"; name: string } | { type: "ser
 export type McpServerResponse = { id: string; name: string; transport: string; status: string; tools: McpToolResponse[] }
 export type McpToolInfo = { name: string; description: string }
 export type McpToolResponse = { name: string; description: string; input_schema: JsonValue }
-export type MdNode = { type: "paragraph"; id: string; html: string } | { type: "heading"; id: string; level: number; text: string; slug: string; toc_index: number } | { type: "code_block"; id: string; language: string; raw_code: string; highlighted_html: string; artifact_id: string } | { type: "list"; id: string; ordered: boolean; html: string } | { type: "blockquote"; id: string; html: string } | { type: "horizontal_rule"; id: string } | { type: "html_block"; id: string; html: string }
+export type MdNode = { type: "paragraph"; id: string; html: string } | { type: "heading"; id: string; level: number; text: string; slug: string; toc_index: number } | { type: "code_block"; id: string; language: string; raw_code: string; highlighted_html: string; artifact_id: string; line_count: number; file_path: string | null } | { type: "list"; id: string; ordered: boolean; html: string } | { type: "blockquote"; id: string; html: string } | { type: "horizontal_rule"; id: string } | { type: "html_block"; id: string; html: string }
 /**
  * Serialisable message returned to the frontend.
  */

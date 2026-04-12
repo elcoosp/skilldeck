@@ -1,6 +1,6 @@
 // src/components/conversation/code-block.tsx
 
-import { Check, ChevronRight, Copy, Hash, Loader2, Save } from 'lucide-react'
+import { Check, ChevronRight, Copy, Hash, Loader2, Play, Save } from 'lucide-react'
 import type React from 'react'
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -9,6 +9,10 @@ import { useArtifactContent } from '@/hooks/use-artifact-content'
 import { cn } from '@/lib/utils'
 import { save } from '@tauri-apps/plugin-dialog'
 import { commands } from '@/lib/bindings'
+import { listen } from '@tauri-apps/api/event'
+import type { RunCodeEvent } from '@/lib/events'
+
+const SUPPORTED_RUN_LANGUAGES = new Set(['python', 'py', 'javascript', 'js', 'bash', 'sh', 'ruby', 'rb'])
 
 interface CodeBlockProps {
   language: string
@@ -44,6 +48,54 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
     const isProgrammaticScroll = useRef(false)
 
     const [showLineNumbers, setShowLineNumbers] = useState(() => lineCount > 3)
+
+    // Run code state
+    const [isRunning, setIsRunning] = useState(false)
+    const [runOutput, setRunOutput] = useState<string[]>([])
+    const [runError, setRunError] = useState<string[]>([])
+    const [runId, setRunId] = useState<string | null>(null)
+    const [showOutput, setShowOutput] = useState(false)
+
+    const canRun = SUPPORTED_RUN_LANGUAGES.has(language)
+
+    useEffect(() => {
+      if (!runId) return
+      const unlisten = listen<RunCodeEvent>('run-code-event', (event) => {
+        if (event.payload.run_id !== runId) return
+        if (event.payload.type === 'stdout') {
+          setRunOutput(prev => [...prev, event.payload.line])
+        } else if (event.payload.type === 'stderr') {
+          setRunError(prev => [...prev, event.payload.line])
+        } else if (event.payload.type === 'exit') {
+          setIsRunning(false)
+          setRunId(null)
+          if (event.payload.code !== 0) {
+            setRunError(prev => [...prev, `Process exited with code ${event.payload.code} in ${event.payload.elapsed_ms}ms`])
+          }
+        }
+      })
+      return () => { unlisten.then(fn => fn()) }
+    }, [runId])
+
+    const handleRun = useCallback(async () => {
+      if (isRunning) return
+      if (!rawCode) {
+        toast.error('Code content not loaded')
+        return
+      }
+      setIsRunning(true)
+      setRunOutput([])
+      setRunError([])
+      setShowOutput(true)
+      try {
+        const id = await commands.runCodeSnippet(language, rawCode, null)
+        setRunId(id)
+      } catch (err) {
+        toast.error(`Failed to run: ${err}`)
+        setIsRunning(false)
+        setShowOutput(false)
+      }
+    }, [isRunning, rawCode, language])
 
     // Apply/remove the line‑number class whenever toggled or when the HTML changes.
     useEffect(() => {
@@ -237,6 +289,17 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
           >
             <Save className="size-3.5" />
           </button>
+          {canRun && (
+            <button
+              type="button"
+              onClick={handleRun}
+              disabled={isRunning || !rawCode}
+              className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-50"
+              title="Run code snippet"
+            >
+              {isRunning ? <Loader2 className="size-3.5 animate-spin" /> : <Play className="size-3.5" />}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setShowLineNumbers(v => !v)}
@@ -326,6 +389,25 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
               />
             </div>
           </div>
+
+          {/* Output panel */}
+          {showOutput && (
+            <div className="border-t border-border bg-muted/30 p-2 max-h-48 overflow-auto thin-scrollbar">
+              {runOutput.map((line, i) => (
+                <div key={`out-${i}`} className="text-xs font-mono whitespace-pre-wrap break-all">
+                  {line}
+                </div>
+              ))}
+              {runError.map((line, i) => (
+                <div key={`err-${i}`} className="text-xs font-mono text-destructive whitespace-pre-wrap break-all">
+                  {line}
+                </div>
+              ))}
+              {!isRunning && runOutput.length === 0 && runError.length === 0 && (
+                <div className="text-xs text-muted-foreground">No output</div>
+              )}
+            </div>
+          )}
         </div>
       </>
     )

@@ -21,6 +21,7 @@ pub mod platform;
 pub mod profiles;
 pub mod provider_ready;
 pub mod queue;
+pub mod run_code;
 pub mod settings;
 pub mod skills;
 pub mod theme;
