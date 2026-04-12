@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils'
+import { motion } from 'framer-motion'
 import React from 'react'
 
 interface RightPanelHeaderProps {
@@ -19,9 +20,14 @@ export function RightPanelHeader({
         className
       )}
     >
-      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+      <motion.span
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.2, ease: 'easeOut' }}
+        className="text-xs font-medium text-muted-foreground uppercase tracking-wider"
+      >
         {title}
-      </span>
+      </motion.span>
       {actions && <div className="flex items-center gap-1">{actions}</div>}
     </div>
   )
