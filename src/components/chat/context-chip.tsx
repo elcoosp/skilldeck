@@ -1,6 +1,6 @@
 // src/components/chat/context-chip.tsx
-
-import { AlertTriangle, File, Folder, X, Zap } from 'lucide-react'
+import { AlertTriangle, X, Zap } from 'lucide-react'
+import { FileIcon, FolderIcon } from '@react-symbols/icons/utils'
 import type React from 'react'
 import { useState } from 'react'
 import { TrustBadge } from '@/components/skills/trust-badge'
@@ -52,13 +52,15 @@ export const ContextChip: React.FC<ContextChipProps> = ({
     hasWarnings && lintWarnings.some((w: any) => w.severity === 'error')
 
   const variant = hasError ? 'destructive' : 'secondary'
+
+  // 根据类型选择图标：技能使用 Zap，文件和文件夹使用 React Symbols
   const icon =
     type === 'skill' ? (
       <Zap className="w-3 h-3" />
     ) : type === 'folder' ? (
-      <Folder className="w-3 h-3" />
+      <FolderIcon folderName={name} width={12} height={12} />
     ) : (
-      <File className="w-3 h-3" />
+      <FileIcon fileName={name} width={12} height={12} />
     )
 
   const showTrustBadge =
@@ -71,8 +73,8 @@ export const ContextChip: React.FC<ContextChipProps> = ({
       className={cn(
         'flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium group relative transition-all cursor-default',
         hasWarnings &&
-          !hasError &&
-          'bg-yellow-100 border-yellow-500 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+        !hasError &&
+        'bg-yellow-100 border-yellow-500 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
       )}
     >
       {isLoading ? (

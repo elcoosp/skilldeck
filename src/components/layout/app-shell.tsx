@@ -202,7 +202,6 @@ export function AppShell() {
       })
       .catch(() => toast.error('Failed to attach file'))
   }
-
   const handleDragMove = (event: any) => {
     console.log('[AppShell] onDragMove', event)
   }

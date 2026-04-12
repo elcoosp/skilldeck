@@ -1,3 +1,4 @@
+// src/routes/_app/conversations.$conversationId.tsx
 import { useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, useRouter } from '@tanstack/react-router'
 import {
@@ -12,6 +13,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from '@/components/ui/toast'
 import { useDebounce } from 'use-debounce'
 import { z } from 'zod'
+import { useDroppable } from '@dnd-kit/react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { BranchNav } from '@/components/conversation/branch-nav'
 import { MessageInput } from '@/components/conversation/message-input'
 import {
@@ -63,12 +66,12 @@ function ConversationView() {
     (s) => s.setActiveConversation
   )
 
-  // Sync URL param to store
   useEffect(() => {
     if (conversationId) {
       setActiveConversation(conversationId)
     }
   }, [conversationId, setActiveConversation])
+
   const searchQuery = useUIEphemeralStore((s) => s.conversationSearchQuery)
   const setSearchQuery = useUIEphemeralStore(
     (s) => s.setConversationSearchQuery
@@ -115,13 +118,11 @@ function ConversationView() {
     useConversationBootstrap(conversationId)
   const headings = bootstrap?.headings ?? []
   const { data: branches = [] } = useBranches(conversationId)
-  const activeBranchId = null // TODO: from URL
+  const activeBranchId = null
   const currentBranch = branches.find((b) => b.id === activeBranchId)
   const branchParentMessageId = currentBranch?.parent_message_id ?? null
   const scrollToMessageId = useScrollToMessage()
 
-  // All hooks are now at the top, before any conditional return.
-  // Now we can conditionally render based on loading/not found.
   const showNotFound = !bootstrapLoading && !bootstrap
 
   useEffect(() => {
@@ -429,12 +430,44 @@ function ConversationView() {
     }
   }
 
+  const { ref: droppableRef, isDropTarget } = useDroppable({
+    id: `conversation-${conversationId}`,
+    data: {
+      conversationId,
+    },
+    disabled: !conversationId || showNotFound,
+  })
+
   if (showNotFound) {
     return <ConversationNotFound />
   }
 
   return (
-    <div className="relative flex flex-col h-full">
+    <div
+      ref={droppableRef}
+      className={cn(
+        'relative flex flex-col h-full transition-all duration-200',
+        isDropTarget && 'ring-2 ring-primary ring-inset bg-primary/5'
+      )}
+    >
+      <AnimatePresence>
+        {isDropTarget && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.15, ease: 'easeOut' }}
+            className="absolute inset-0 flex items-center justify-center pointer-events-none z-50"
+          >
+            <div className="bg-background/80 backdrop-blur-sm border-2 border-dashed border-primary rounded-lg px-4 py-2 shadow-lg">
+              <p className="text-sm font-medium text-primary">
+                Drop to attach to current conversation
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <BranchNav conversationId={conversationId} />
 
       <div className="px-4 py-2 border-b border-border flex items-center gap-2">

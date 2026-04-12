@@ -79,7 +79,7 @@ import type {
   TriggerState
 } from '@/types/chat-context'
 import type { UnifiedSkill } from '@/types/skills'
-import { useQueryClient } from '@tanstack/react-query' // <-- ensure this import exists
+import { useQueryClient } from '@tanstack/react-query'
 
 interface MessageInputProps {
   conversationId: UUID
@@ -176,6 +176,7 @@ export function MessageInput({
   const addFile = useChatContextStore((s) => s.addFile)
   const addFolder = useChatContextStore((s) => s.addFolder)
   const addSkill = useChatContextStore((s) => s.addSkill)
+  const removeItem = useChatContextStore((s) => s.removeItem)
   const clearItems = useChatContextStore((s) => s.clearItems)
 
   const currentItems = itemsMap[conversationId] ?? []
@@ -550,7 +551,7 @@ export function MessageInput({
   const setThinkingEnabled = useSettingsStore((s) => s.setThinkingEnabled)
 
   // ── Compaction (F12) ───────────────────────────────────────────────────────
-  const queryClient = useQueryClient() // <-- FIX: use hook at top level
+  const queryClient = useQueryClient()
   const handleCompact = useCallback(async () => {
     if (!conversationId) return
     setCompacting(true)
@@ -560,7 +561,6 @@ export function MessageInput({
         toast.error(res.error)
       } else {
         toast.success('Conversation compacted successfully')
-        // Invalidate messages to refresh the view
         queryClient.invalidateQueries({
           queryKey: ['messages', conversationId]
         })
@@ -668,7 +668,6 @@ export function MessageInput({
     thinkingEnabled
   ])
 
-  // Get messages count for suggested prompts
   const messages = useMessages(conversationId)
   const hasMessages = (messages.data?.length ?? 0) > 0
 
@@ -684,7 +683,6 @@ export function MessageInput({
         </div>
       )}
 
-      {/* Provider readiness banner */}
       {!readinessLoading && readiness?.status.status === 'not_ready' && (
         <div className="mb-2 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-2 text-sm">
           <div className="flex items-center gap-2">
@@ -699,7 +697,6 @@ export function MessageInput({
         </div>
       )}
 
-      {/* Selected files with animated chips */}
       <AnimatePresence>
         {selectedFiles.length > 0 && (
           <motion.div
@@ -747,7 +744,6 @@ export function MessageInput({
           'focus-within:ring-2 focus-within:ring-ring/50'
         )}
       >
-        {/* Skill picker – rendered inline, anchored above the input */}
         {triggerState?.type === 'skill' && (
           <ChatCommandPalette
             type="skill"
@@ -762,7 +758,6 @@ export function MessageInput({
           />
         )}
 
-        {/* File picker – rendered inline, anchored above the input */}
         {triggerState?.type === 'file' && (
           <FileMentionPicker
             open
@@ -780,9 +775,35 @@ export function MessageInput({
           />
         )}
 
-        <AttachedItemsList />
+        <AnimatePresence mode="popLayout">
+          {currentItems.length > 0 && (
+            <motion.div
+              key="attached-items"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.15 }}
+              className="flex flex-wrap gap-1 px-3 pt-2"
+            >
+              {currentItems.map((item) => (
+                <motion.div
+                  key={item.data.id}
+                  layout
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ duration: 0.15 }}
+                >
+                  <ContextChip
+                    item={item}
+                    onRemove={() => removeItem(conversationId, item.data.id)}
+                  />
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        {/* Suggested prompts (F03) */}
         <SuggestedPrompts
           conversationId={conversationId}
           hasMessages={hasMessages}
@@ -792,7 +813,6 @@ export function MessageInput({
           }}
         />
 
-        {/* URL chips */}
         {detectedUrls.length > 0 && (
           <div className="flex flex-wrap gap-1 px-1 pb-1">
             {detectedUrls.map((url) => (
@@ -842,7 +862,6 @@ export function MessageInput({
             />
           </motion.div>
 
-          {/* Button group with animations */}
           <div className="flex items-center gap-2 shrink-0">
             <AnimatePresence mode="wait">
               {!isRunning ? (
@@ -913,7 +932,6 @@ export function MessageInput({
           </div>
         </div>
 
-        {/* Thinking, Tool Approval & Compaction bubble – sits above center of bottom border */}
         <div className="absolute -bottom-3.5 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 bg-background border border-input rounded-full px-2 py-1 shadow-sm">
           <TooltipProvider delayDuration={300}>
             <Tooltip>
