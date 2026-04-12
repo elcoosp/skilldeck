@@ -510,3 +510,9 @@ code[data-inline-code]:hover {
   padding-right: 1rem;
   border-right: 1px solid var(--border);
 }
+
+.search-highlight {
+  background-color: var(--highlight-inline);
+  color: inherit;
+  border-radius: 2px;
+}

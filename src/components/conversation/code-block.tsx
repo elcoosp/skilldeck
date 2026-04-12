@@ -1,6 +1,6 @@
 // src/components/conversation/code-block.tsx
 
-import { Check, ChevronRight, Copy, GitCompare, Hash, Loader2, Play, Save } from 'lucide-react'
+import { Check, ChevronRight, Copy, GitCompare, Hash, Loader2, Play, Save, Search, X } from 'lucide-react'
 import type React from 'react'
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -17,6 +17,11 @@ import { useUILayoutStore } from '@/store/ui-layout'
 import { useUIEphemeralStore } from '@/store/ui-ephemeral'
 
 const SUPPORTED_RUN_LANGUAGES = new Set(['python', 'py', 'javascript', 'js', 'bash', 'sh', 'ruby', 'rb'])
+
+// Helper to escape regex special characters
+function escapeRegExp(string: string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
 
 interface CodeBlockProps {
   language: string
@@ -65,6 +70,11 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
     // Diff view state
     const [showDiff, setShowDiff] = useState(false)
 
+    // Search state
+    const [searchQuery, setSearchQuery] = useState('')
+    const [showSearch, setShowSearch] = useState(false)
+    const searchInputRef = useRef<HTMLInputElement>(null)
+
     const canRun = SUPPORTED_RUN_LANGUAGES.has(language)
 
     // Store hooks for artifact linking
@@ -95,6 +105,87 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
     const displayTokenCount = tokenCount > 0
       ? `${tokenCount} tok`
       : `~${Math.ceil((rawCode?.length ?? 0) / 4)} tok`
+
+    // ─── Search: keyboard shortcut ─────────────────────────────────────────
+    useEffect(() => {
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (!containerRef.current?.contains(document.activeElement)) return
+        if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+          e.preventDefault()
+          setShowSearch(true)
+          setTimeout(() => searchInputRef.current?.focus(), 50)
+        }
+        if (e.key === 'Escape' && showSearch) {
+          setShowSearch(false)
+          setSearchQuery('')
+          clearHighlights()
+        }
+      }
+      window.addEventListener('keydown', handleKeyDown)
+      return () => window.removeEventListener('keydown', handleKeyDown)
+    }, [showSearch])
+
+    const clearHighlights = useCallback(() => {
+      const pre = preRef.current
+      if (!pre) return
+      pre.querySelectorAll('.search-highlight').forEach(el => {
+        const parent = el.parentNode
+        if (parent) {
+          parent.replaceChild(document.createTextNode(el.textContent || ''), el)
+          parent.normalize()
+        }
+      })
+    }, [])
+
+    const highlightMatches = useCallback((query: string) => {
+      const pre = preRef.current
+      if (!pre || !query.trim()) {
+        clearHighlights()
+        return
+      }
+      clearHighlights()
+
+      const regex = new RegExp(escapeRegExp(query), 'gi')
+      const walker = document.createTreeWalker(pre, NodeFilter.SHOW_TEXT, {
+        acceptNode: (node) =>
+          regex.test(node.textContent || '') ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT,
+      })
+
+      const textNodes: Text[] = []
+      let node = walker.nextNode()
+      while (node) {
+        textNodes.push(node as Text)
+        node = walker.nextNode()
+      }
+
+      for (const textNode of textNodes) {
+        const text = textNode.textContent || ''
+        const frag = document.createDocumentFragment()
+        let lastIdx = 0
+        let match
+        regex.lastIndex = 0
+        while ((match = regex.exec(text)) !== null) {
+          if (match.index > lastIdx) {
+            frag.appendChild(document.createTextNode(text.slice(lastIdx, match.index)))
+          }
+          const mark = document.createElement('mark')
+          mark.className = 'search-highlight'
+          mark.textContent = match[0]
+          frag.appendChild(mark)
+          lastIdx = regex.lastIndex
+          if (match[0].length === 0) regex.lastIndex++ // avoid infinite loop on zero-width matches
+        }
+        if (lastIdx < text.length) {
+          frag.appendChild(document.createTextNode(text.slice(lastIdx)))
+        }
+        textNode.parentNode?.replaceChild(frag, textNode)
+      }
+    }, [clearHighlights])
+
+    // Reapply highlights when query or HTML changes
+    useEffect(() => {
+      highlightMatches(searchQuery)
+    }, [searchQuery, highlightedHtml, highlightMatches])
 
     useEffect(() => {
       if (!runId) return
@@ -377,6 +468,42 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
               <Copy className="size-3.5" />
             )}
           </button>
+          {/* Search toggle button */}
+          {!showSearch && (
+            <button
+              type="button"
+              onClick={() => setShowSearch(true)}
+              className="p-1 text-muted-foreground hover:text-foreground"
+              title="Find in code (Cmd+F)"
+            >
+              <Search className="size-3.5" />
+            </button>
+          )}
+          {/* Inline search input */}
+          {showSearch && (
+            <>
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder="Find in code..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-6 px-2 text-xs border rounded bg-background"
+                onKeyDown={(e) => e.stopPropagation()}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSearch(false)
+                  setSearchQuery('')
+                  clearHighlights()
+                }}
+                className="p-1 text-muted-foreground hover:text-foreground"
+              >
+                <X className="size-3.5" />
+              </button>
+            </>
+          )}
         </div>
       </>
     )
