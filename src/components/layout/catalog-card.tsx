@@ -1,6 +1,6 @@
 // src/components/layout/catalog-card.tsx
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, ReactNode } from 'react'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { ExternalLink, Loader2, Package, Plus } from 'lucide-react'
 import { toast } from '@/components/ui/toast'
@@ -12,13 +12,15 @@ interface CatalogCardProps {
   alreadyAdded: boolean
   adding: boolean
   onAdd: (entry: CatalogEntry) => void
+  icon?: ReactNode // Simple Icons component or fallback
 }
 
 export function CatalogCard({
   entry,
   alreadyAdded,
   adding,
-  onAdd
+  onAdd,
+  icon
 }: CatalogCardProps) {
   const measureRef = useRef<HTMLDivElement>(null)
   const [collapsed, setCollapsed] = useState(false)
@@ -64,7 +66,10 @@ export function CatalogCard({
     >
       {/* Top row: Icon + Name + Transport | Docs */}
       <div className="flex items-center gap-1.5 min-w-0">
-        <Package className="size-3.5 text-muted-foreground shrink-0" />
+        {/* Icon container - use provided icon or fallback to Package */}
+        <div className="shrink-0 text-muted-foreground">
+          {icon ?? <Package className="size-3.5" />}
+        </div>
 
         <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
           <span className="text-xs font-medium truncate">{entry.name}</span>
