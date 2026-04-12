@@ -11,6 +11,7 @@ pub struct ArtifactSpec {
     pub slot_index: u32,
     /// Optional file path extracted from a first-line comment or preceding inline code.
     pub file_path: Option<String>,
+    pub line_count: u32, // new
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type, PartialEq)]
@@ -42,6 +43,8 @@ pub enum MdNode {
         raw_code: String,
         highlighted_html: String,
         artifact_id: Uuid,
+        line_count: u32,           // new
+        file_path: Option<String>, // new
     },
     List {
         id: String,

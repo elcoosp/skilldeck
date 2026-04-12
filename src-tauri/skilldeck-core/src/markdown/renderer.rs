@@ -10,6 +10,7 @@ use syntect::{
     parsing::{SyntaxDefinition, SyntaxSet},
 };
 use uuid::Uuid;
+
 static SYNTAX_SET: Lazy<SyntaxSet> = Lazy::new(|| {
     let mut builder = SyntaxSet::load_defaults_newlines().into_builder();
 
@@ -119,15 +120,17 @@ impl MarkdownPipeline {
 
                     let id = format!("cb-{}", id_counter);
                     id_counter += 1;
-                    let highlighted = self.highlight(&code_buf, &code_lang);
+                    let (highlighted_html, line_count) = self.highlight(&code_buf, &code_lang);
                     let artifact_id = Uuid::new_v4();
                     let raw = std::mem::take(&mut code_buf);
                     nodes.push(MdNode::CodeBlock {
                         id,
                         language: code_lang.clone(),
                         raw_code: raw.clone(),
-                        highlighted_html: highlighted,
+                        highlighted_html,
                         artifact_id,
+                        line_count,
+                        file_path: file_path.clone(),
                     });
                     if emit_artifacts {
                         artifact_specs.push(ArtifactSpec {
@@ -136,6 +139,7 @@ impl MarkdownPipeline {
                             raw_code: raw,
                             slot_index: id_counter - 1,
                             file_path,
+                            line_count,
                         });
                     }
 
@@ -261,7 +265,9 @@ impl MarkdownPipeline {
         }
     }
 
-    fn highlight(&self, code: &str, lang: &str) -> String {
+    /// Highlight code and wrap each line in a `<span class="line">`.
+    /// Returns (html, line_count).
+    fn highlight(&self, code: &str, lang: &str) -> (String, u32) {
         let normalized_lang = match lang {
             "typescript" | "ts" | "typescriptreact" => "tsx",
             _ => lang,
@@ -273,12 +279,18 @@ impl MarkdownPipeline {
                     .find_syntax_by_first_line(code)
                     .unwrap_or_else(|| SYNTAX_SET.find_syntax_plain_text())
             });
-        let mut css_gen =
-            ClassedHTMLGenerator::new_with_class_style(syntax, &SYNTAX_SET, ClassStyle::Spaced);
-        for line in syntect::util::LinesWithEndings::from(code) {
-            let _ = css_gen.parse_html_for_line_which_includes_newline(line);
+
+        let lines: Vec<&str> = code.lines().collect();
+        let line_count = lines.len() as u32;
+
+        let theme_guard = self.theme.0.read();
+        let mut wrapped = String::new();
+        for line in lines {
+            let highlighted =
+                syntect::html::highlighted_html_for_string(line, &SYNTAX_SET, syntax, &theme_guard);
+            wrapped.push_str(&format!("<span class=\"line\">{}</span>", highlighted));
         }
-        css_gen.finalize()
+        (wrapped, line_count)
     }
 }
 
