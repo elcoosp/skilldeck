@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
-import { FileCode, Loader2 } from 'lucide-react'
+import { FileCode } from 'lucide-react'
 import { commands } from '@/lib/bindings'
 import { useConversationStore } from '@/store/conversation'
 import { ArtifactItem } from './artifact-item'
 import { RightPanelHeader } from '@/components/layout/right-panel-header'
 import { EmptyState } from '@/components/ui/empty-state'
+import { LoadingState } from '@/components/ui/loading-state'
 
 export function ArtifactPanel() {
   const activeConversationId = useConversationStore(
@@ -43,9 +44,7 @@ export function ArtifactPanel() {
     return (
       <div className="flex flex-col h-full">
         <RightPanelHeader title="Artifacts" />
-        <div className="flex-1 flex justify-center p-3">
-          <Loader2 className="animate-spin size-4 text-muted-foreground" />
-        </div>
+        <LoadingState message="Fetching generated files…" />
       </div>
     )
   }
@@ -57,7 +56,7 @@ export function ArtifactPanel() {
         <EmptyState
           icon={FileCode}
           title="No artifacts"
-          description="Artifacts generated during conversations will appear here"
+          description="No artifacts generated yet. Ask the agent to create something!"
         />
       </div>
     )
