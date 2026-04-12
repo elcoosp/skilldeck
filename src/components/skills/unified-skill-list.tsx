@@ -27,6 +27,7 @@ import { RightPanelHeader } from '@/components/layout/right-panel-header'
 import { EmptyState } from '@/components/ui/empty-state'
 import { FolderOpen, Globe } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+import { LoadingState } from '@/components/ui/loading-state'
 
 // Responsive column count based on container width
 const BREAKPOINTS = {
@@ -507,29 +508,11 @@ export function UnifiedSkillList() {
 
   function renderContent() {
     if (isLoading) {
-      return (
-        <div className="flex-1 flex items-center justify-center p-3">
-          <div className="text-center space-y-2">
-            <div className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-xs text-muted-foreground">
-              Loading marketplace…
-            </p>
-          </div>
-        </div>
-      )
+      return <LoadingState message="Loading skill registry…" />
     }
 
     if (!isMeasured) {
-      return (
-        <div className="flex-1 flex items-center justify-center p-3">
-          <div className="text-center space-y-2">
-            <div className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-xs text-muted-foreground">
-              Preparing marketplace…
-            </p>
-          </div>
-        </div>
-      )
+      return <LoadingState message="Preparing marketplace…" />
     }
 
     if (filteredSkills.length === 0) {
