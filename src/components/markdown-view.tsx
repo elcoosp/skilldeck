@@ -335,6 +335,7 @@ const NodeRenderer = memo(
             scrollContainerRef={scrollContainerRef}
             lineCount={node.line_count}
             filePath={node.file_path}
+            tokenCount={node.token_count}
           />
         )
       case 'list': {

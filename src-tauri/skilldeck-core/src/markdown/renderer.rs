@@ -7,7 +7,7 @@ use pulldown_cmark::{CodeBlockKind, Event, HeadingLevel, Options, Parser, Tag, T
 use regex::Regex;
 use syntect::{
     html::highlighted_html_for_string,
-    parsing::{SyntaxDefinition, SyntaxSet},
+    parsing::{ParseState, SyntaxDefinition, SyntaxSet},
 };
 use uuid::Uuid;
 
@@ -121,7 +121,8 @@ impl MarkdownPipeline {
 
                     let id = format!("cb-{}", id_counter);
                     id_counter += 1;
-                    let (highlighted_html, line_count) = self.highlight(&code_buf, &code_lang);
+                    let (highlighted_html, line_count, token_count) =
+                        self.highlight(&code_buf, &code_lang);
                     let artifact_id = Uuid::new_v4();
                     let raw = std::mem::take(&mut code_buf);
                     nodes.push(MdNode::CodeBlock {
@@ -132,6 +133,7 @@ impl MarkdownPipeline {
                         artifact_id,
                         line_count,
                         file_path: file_path.clone(),
+                        token_count,
                     });
                     if emit_artifacts {
                         artifact_specs.push(ArtifactSpec {
@@ -141,6 +143,7 @@ impl MarkdownPipeline {
                             slot_index: id_counter - 1,
                             file_path,
                             line_count,
+                            token_count,
                         });
                     }
 
@@ -267,8 +270,8 @@ impl MarkdownPipeline {
     }
 
     /// Highlight code and wrap each line in a `<span class="line">`.
-    /// Returns (html, line_count).
-    fn highlight(&self, code: &str, lang: &str) -> (String, u32) {
+    /// Returns (html, line_count, token_count).
+    fn highlight(&self, code: &str, lang: &str) -> (String, u32, u32) {
         let normalized_lang = match lang {
             "typescript" | "ts" | "typescriptreact" => "tsx",
             _ => lang,
@@ -284,6 +287,15 @@ impl MarkdownPipeline {
         let lines: Vec<&str> = code.lines().collect();
         let line_count = lines.len() as u32;
 
+        // Compute token count by parsing each line and counting syntax tokens
+        let mut token_count = 0u32;
+        for line in &lines {
+            let ops = ParseState::new(syntax)
+                .parse_line(line, &SYNTAX_SET)
+                .unwrap_or_default();
+            token_count += ops.len() as u32;
+        }
+
         let mut wrapped = String::new();
         self.theme.with_theme(|theme| {
             for line in lines {
@@ -292,7 +304,7 @@ impl MarkdownPipeline {
                 wrapped.push_str(&format!("<span class=\"line\">{}</span>", highlighted));
             }
         });
-        (wrapped, line_count)
+        (wrapped, line_count, token_count)
     }
 }
 

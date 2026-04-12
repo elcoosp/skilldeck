@@ -24,6 +24,7 @@ interface CodeBlockProps {
   scrollContainerRef?: React.RefObject<HTMLElement>
   lineCount: number
   filePath?: string | null
+  tokenCount: number                   // new
 }
 
 export const CodeBlock: React.FC<CodeBlockProps> = memo(
@@ -35,6 +36,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
     scrollContainerRef,
     lineCount,
     filePath,
+    tokenCount,
   }) => {
     const [collapsed, setCollapsed] = useState(false)
     const [copied, setCopied] = useState(false)
@@ -75,6 +77,11 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
     })
 
     const canDiff = (versions?.length ?? 0) > 1
+
+    // Rough heuristic fallback if token count is zero (e.g., legacy artifacts)
+    const displayTokenCount = tokenCount > 0
+      ? `${tokenCount} tok`
+      : `~${Math.ceil((rawCode?.length ?? 0) / 4)} tok`
 
     useEffect(() => {
       if (!runId) return
@@ -290,6 +297,10 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
           <span>{language || 'code'}</span>
         </button>
         <div className="flex items-center gap-1">
+          {/* Line count + token badge */}
+          <span className="text-[10px] text-muted-foreground mr-2">
+            {lineCount} lines · {displayTokenCount}
+          </span>
           {/* Filename pill */}
           {filePath && (
             <span
@@ -453,5 +464,6 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
     prev.isStreaming === next.isStreaming &&
     prev.scrollContainerRef === next.scrollContainerRef &&
     prev.lineCount === next.lineCount &&
-    prev.filePath === next.filePath
+    prev.filePath === next.filePath &&
+    prev.tokenCount === next.tokenCount
 )
