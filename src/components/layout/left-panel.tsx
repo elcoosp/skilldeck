@@ -131,16 +131,27 @@ function EmptyStateAnimation({ alt, className }: EmptyStateAnimationProps) {
 // Gradient presets for workspace avatars
 // ----------------------------------------------------------------------
 const GRADIENT_PRESETS = [
-  { name: 'Sunset', value: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' },
-  { name: 'Ocean', value: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' },
-  { name: 'Forest', value: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)' },
-  { name: 'Lavender', value: 'linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)' },
-  { name: 'Peach', value: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)' },
-  { name: 'Night', value: 'linear-gradient(135deg, #2b5876 0%, #4e4376 100%)' },
-  { name: 'Citrus', value: 'linear-gradient(135deg, #f6d365 0%, #fda085 100%)' },
-  { name: 'Berry', value: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)' }
+  { name: 'Instagram', value: 'linear-gradient(115deg, #f9ce34, #ee2a7b, #6228d7)' },
+  { name: 'Midnight Splash', value: 'linear-gradient(115deg, #004ff9, #000000)' },
+  { name: 'Blue Sky', value: 'linear-gradient(115deg, #62cff4, #2c67f2)' },
+  { name: 'Dreamscape Delight', value: 'linear-gradient(115deg, #fa8bff, #2bd2ff, #2bff88)' },
+  { name: 'Pastel Dream', value: 'linear-gradient(115deg, #d16ba5, #86a8e7, #5ffbf1)' },
+  { name: 'Almond Breeze', value: 'linear-gradient(115deg, #fdfcfb, #e2d1c3)' },
+  { name: 'Mars', value: 'linear-gradient(115deg, #2c3e52, #fd746a)' },
+  { name: 'Sunset Glow', value: 'linear-gradient(115deg, #4158d0, #c850c0, #ffcc70)' },
+  { name: 'Purple Dreams', value: 'linear-gradient(115deg, #fab2ff, #1904e5)' },
+  { name: 'Autumn Blaze', value: 'linear-gradient(115deg, #fec163, #de4313)' },
+  { name: 'Mint Night', value: 'linear-gradient(115deg, #92ffc0, #002661)' },
+  { name: 'Midnight Rain', value: 'linear-gradient(115deg, #12063b, #09555c)' },
+  { name: 'Amber Eclipse', value: 'linear-gradient(115deg, #ffa600, #ff6361, #003f5c)' },
+  { name: 'Deep Space', value: 'linear-gradient(115deg, #000000, #444444)' },
+  { name: 'Aqua Reef', value: 'linear-gradient(115deg, #3cc5d7, #47d794)' },
+  { name: 'Sunset Coral', value: 'linear-gradient(115deg, #fe5f75, #fc9840)' },
+  { name: 'Spring Meadow', value: 'linear-gradient(115deg, #c5f9d7, #f7d486, #f27a7d)' },
+  { name: 'Lemon Lime', value: 'linear-gradient(115deg, #16a085, #f4d03f)' },
+  { name: 'Ocean Depth', value: 'linear-gradient(115deg, #2c3e50, #58b8c7)' },
+  { name: 'Neon Fusion', value: 'linear-gradient(115deg, #5efce8, #736efe)' },
 ]
-
 const DEFAULT_GRADIENT = 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)'
 
 // ----------------------------------------------------------------------
