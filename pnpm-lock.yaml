@@ -145,7 +145,7 @@ importers:
         version: 4.2.0(@types/node@25.5.2)(babel-plugin-macros@3.1.0)(typescript@6.0.2)
       shimmer-from-structure:
         specifier: ^2.4.1
-        version: 2.4.2(@angular/common@21.2.8(@angular/core@21.2.8(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.8(rxjs@7.8.2))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(solid-js@1.9.12)(svelte@5.55.2(@typescript-eslint/types@8.58.1))(vue@3.5.32(typescript@6.0.2))
+        version: 2.5.0(@angular/common@21.2.8(@angular/core@21.2.8(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.8(rxjs@7.8.2))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(solid-js@1.9.12)(svelte@5.55.2(@typescript-eslint/types@8.58.1))(vue@3.5.32(typescript@6.0.2))
       sonner:
         specifier: ^2.0.7
         version: 2.0.7(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
@@ -2622,8 +2622,8 @@ packages:
     resolution: {integrity: sha512-tmmZ3lQxAe/k/+rNnXQRawJ4NjxO2hqiOLTHvWchtGZULp4RyFeh6aU4XdOYBFe2KE1oShQTv4AblOs2iOrNnQ==}
     engines: {node: '>= 10.0.0'}
 
-  '@pierre/diffs@1.1.13':
-    resolution: {integrity: sha512-lnX9Fy5eC+07b8g+D8krC3txOY6LRN5VNR1qr9bph9XEyLxbwwfGN7SFRu4HGozpkDdA76JARgxgWHN+uAihmg==}
+  '@pierre/diffs@1.1.14':
+    resolution: {integrity: sha512-tJPGllQh/egNZDGjGKVxyOKzkbFwb57CKHAtkWNbqjgkIW2Up/yq1R1cMpKNfb3zVPevIQmTRcbONvqR2uTtQw==}
     peerDependencies:
       react: ^18.3.1 || ^19.0.0
       react-dom: ^18.3.1 || ^19.0.0
@@ -4101,33 +4101,33 @@ packages:
   '@shikijs/vscode-textmate@10.0.2':
     resolution: {integrity: sha512-83yeghZ2xxin3Nj8z1NMd/NCuca+gsYXswywDy5bHvwlWL8tpTQmzGeUuHd9FC3E/SBEMvzJRwWEOz5gGes9Qg==}
 
-  '@shimmer-from-structure/angular@2.4.3':
-    resolution: {integrity: sha512-5Uog/c9Z1oufb8FXROkaxKf+qh4XNNyQccRjPNLASdAbOJTtBaqrXbVEPP+EaG1KtMDdRglkoy2Z1Thus+s2mg==}
+  '@shimmer-from-structure/angular@2.4.5':
+    resolution: {integrity: sha512-qJUQqDb45WJXJgryUkh8i1BoqU0qy//1yHG970HNFbkoqQNvO2aS+wBOyc9NOEyDt4Go0HyEtVN5JnHZJColrw==}
     peerDependencies:
       '@angular/common': ^19.0.0 || ^20.0.0 || ^21.0.0
       '@angular/core': ^19.0.0 || ^20.0.0 || ^21.0.0
 
-  '@shimmer-from-structure/core@2.4.4':
-    resolution: {integrity: sha512-VeLAzIe1OAGPDk+fu3jjBRHQzeBG5lR+mUqI502vlaLf2vqw4sas1D5hy0qQIOkhRSd0chmBeWp93h8+24A33A==}
+  '@shimmer-from-structure/core@2.4.5':
+    resolution: {integrity: sha512-SenOK0gKhXw7vz0mPjRZXkl0Bf11Yp/ATEG2wK5T0zrbZQQzUX9RssZIq+Xdx6G7+4fZAhoCioRpqjhE/6H93g==}
 
-  '@shimmer-from-structure/react@2.4.2':
-    resolution: {integrity: sha512-XcQfO8ll5qp9DC5ggrhJZPmztxX3JcRWi07RBEWrBUH3ZbTOXNhGUqdUowgXNhb/S+l4OXY6njze4GgCJlD/lQ==}
+  '@shimmer-from-structure/react@2.4.5':
+    resolution: {integrity: sha512-bam2NIcieFvzNm5TIIhTIX6Q+fW3jkoSnVjGGDqxg0FWgJpM8DD/175/b4GS4ZwBMq/KBaCuivaVvWhD8IU3kQ==}
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
       react-dom: ^18.0.0 || ^19.0.0
 
-  '@shimmer-from-structure/solid@2.4.2':
-    resolution: {integrity: sha512-3xuI85KqFFu6zz9OinDsnTCvE3CsNrnt36j2cSAkT51EfebAHLMPescLsDMzQ9qgG65mQxiONsmSa3ovH3mloA==}
+  '@shimmer-from-structure/solid@2.4.5':
+    resolution: {integrity: sha512-avcLjxDWRPCBxM6x717K5+/uZBr52tSMAV5tvUWdKk1Y3ixSvy65UcrbVTGo0sYCf5QGMlAXfly0mCJ3eU3DDw==}
     peerDependencies:
       solid-js: ^1.9.0
 
-  '@shimmer-from-structure/svelte@2.4.2':
-    resolution: {integrity: sha512-wlFrU1mCfEDh9nZ4sHTiY2d4EtHFYfDLird2pBZjf/VnQAiJiLTGUmjdlN/G8wr7T55qPWYOCaYkaUr5dEDIEg==}
+  '@shimmer-from-structure/svelte@2.4.5':
+    resolution: {integrity: sha512-342b9i7KOZ4E61ttA4kmO/yexSjXa+gPSpP6CspmDex9fQyB2KvJ+sMrq9EHznZyEgBdSfCesQc/NrC79Ur1fg==}
     peerDependencies:
       svelte: ^5.53.5
 
-  '@shimmer-from-structure/vue@2.4.2':
-    resolution: {integrity: sha512-krCanvISUECghlyj11GrVX9rjfquP1Jvj1Y3tkr/cZBBtst8KKiNcAP/L2wNxhpC2/MA3p9NtWIT3P3pbE5szQ==}
+  '@shimmer-from-structure/vue@2.4.5':
+    resolution: {integrity: sha512-mNnE4xLMvJeX+IUkjjjE73yn7MitnltiDyWRVfhr9RiUnLLQ/gJQqVmBOEeodUrDvdqvptHJfoTIGOIQFhG82A==}
     peerDependencies:
       vue: ^3.3.0
 
@@ -8552,8 +8552,8 @@ packages:
     resolution: {integrity: sha512-eAVKTMedR5ckPo4xne/PjYQYrU3qx78gtJZ+sHlXEg5IHhhoQhMfZVzetTYuaJS0L2Ef3AcCRzCHV8T0WI6nIQ==}
     engines: {node: '>=20'}
 
-  shimmer-from-structure@2.4.2:
-    resolution: {integrity: sha512-dzVI16FWQbA5lgk+YS+yJAbDKYsVV978TFXY95X37B/BDBMUW1MLW156PMEj8S3DPbZZGSJakPBOqvBQmmXFSg==}
+  shimmer-from-structure@2.5.0:
+    resolution: {integrity: sha512-wZttxq8zRPbFTQDY/2LN9jGwVUNgGNqRJhFQXRX+FfDNQu3JXMbYCZ85iuySkpYWcN8kcCIQOpsbTjPm5JqxIw==}
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
       react-dom: ^18.0.0 || ^19.0.0
@@ -11689,7 +11689,7 @@ snapshots:
       '@lobehub/icons': 5.4.0(@lobehub/ui@5.6.5)(@types/react@19.2.14)(antd@6.3.5(date-fns@4.1.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       '@mdx-js/mdx': 3.1.1
       '@mdx-js/react': 3.1.1(@types/react@19.2.14)(react@19.2.5)
-      '@pierre/diffs': 1.1.13(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      '@pierre/diffs': 1.1.14(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       '@radix-ui/react-slot': 1.2.4(@types/react@19.2.14)(react@19.2.5)
       '@shikijs/core': 4.0.2
       '@shikijs/transformers': 4.0.2
@@ -12068,7 +12068,7 @@ snapshots:
       '@parcel/watcher-win32-ia32': 2.5.6
       '@parcel/watcher-win32-x64': 2.5.6
 
-  '@pierre/diffs@1.1.13(react-dom@19.2.5(react@19.2.5))(react@19.2.5)':
+  '@pierre/diffs@1.1.14(react-dom@19.2.5(react@19.2.5))(react@19.2.5)':
     dependencies:
       '@pierre/theme': 0.0.28
       '@shikijs/transformers': 3.23.0
@@ -13555,34 +13555,33 @@ snapshots:
 
   '@shikijs/vscode-textmate@10.0.2': {}
 
-  '@shimmer-from-structure/angular@2.4.3(@angular/common@21.2.8(@angular/core@21.2.8(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.8(rxjs@7.8.2))':
+  '@shimmer-from-structure/angular@2.4.5(@angular/common@21.2.8(@angular/core@21.2.8(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.8(rxjs@7.8.2))':
     dependencies:
       '@angular/common': 21.2.8(@angular/core@21.2.8(rxjs@7.8.2))(rxjs@7.8.2)
       '@angular/core': 21.2.8(rxjs@7.8.2)
-      '@shimmer-from-structure/core': 2.4.4
-      tslib: 2.8.1
+      '@shimmer-from-structure/core': 2.4.5
 
-  '@shimmer-from-structure/core@2.4.4': {}
+  '@shimmer-from-structure/core@2.4.5': {}
 
-  '@shimmer-from-structure/react@2.4.2(react-dom@19.2.5(react@19.2.5))(react@19.2.5)':
+  '@shimmer-from-structure/react@2.4.5(react-dom@19.2.5(react@19.2.5))(react@19.2.5)':
     dependencies:
-      '@shimmer-from-structure/core': 2.4.4
+      '@shimmer-from-structure/core': 2.4.5
       react: 19.2.5
       react-dom: 19.2.5(react@19.2.5)
 
-  '@shimmer-from-structure/solid@2.4.2(solid-js@1.9.12)':
+  '@shimmer-from-structure/solid@2.4.5(solid-js@1.9.12)':
     dependencies:
-      '@shimmer-from-structure/core': 2.4.4
+      '@shimmer-from-structure/core': 2.4.5
       solid-js: 1.9.12
 
-  '@shimmer-from-structure/svelte@2.4.2(svelte@5.55.2(@typescript-eslint/types@8.58.1))':
+  '@shimmer-from-structure/svelte@2.4.5(svelte@5.55.2(@typescript-eslint/types@8.58.1))':
     dependencies:
-      '@shimmer-from-structure/core': 2.4.4
+      '@shimmer-from-structure/core': 2.4.5
       svelte: 5.55.2(@typescript-eslint/types@8.58.1)
 
-  '@shimmer-from-structure/vue@2.4.2(vue@3.5.32(typescript@6.0.2))':
+  '@shimmer-from-structure/vue@2.4.5(vue@3.5.32(typescript@6.0.2))':
     dependencies:
-      '@shimmer-from-structure/core': 2.4.4
+      '@shimmer-from-structure/core': 2.4.5
       vue: 3.5.32(typescript@6.0.2)
 
   '@simple-libs/child-process-utils@1.0.2':
@@ -18998,13 +18997,13 @@ snapshots:
       '@shikijs/vscode-textmate': 10.0.2
       '@types/hast': 3.0.4
 
-  shimmer-from-structure@2.4.2(@angular/common@21.2.8(@angular/core@21.2.8(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.8(rxjs@7.8.2))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(solid-js@1.9.12)(svelte@5.55.2(@typescript-eslint/types@8.58.1))(vue@3.5.32(typescript@6.0.2)):
+  shimmer-from-structure@2.5.0(@angular/common@21.2.8(@angular/core@21.2.8(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.8(rxjs@7.8.2))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(solid-js@1.9.12)(svelte@5.55.2(@typescript-eslint/types@8.58.1))(vue@3.5.32(typescript@6.0.2)):
     dependencies:
-      '@shimmer-from-structure/angular': 2.4.3(@angular/common@21.2.8(@angular/core@21.2.8(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.8(rxjs@7.8.2))
-      '@shimmer-from-structure/react': 2.4.2(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
-      '@shimmer-from-structure/solid': 2.4.2(solid-js@1.9.12)
-      '@shimmer-from-structure/svelte': 2.4.2(svelte@5.55.2(@typescript-eslint/types@8.58.1))
-      '@shimmer-from-structure/vue': 2.4.2(vue@3.5.32(typescript@6.0.2))
+      '@shimmer-from-structure/angular': 2.4.5(@angular/common@21.2.8(@angular/core@21.2.8(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.8(rxjs@7.8.2))
+      '@shimmer-from-structure/react': 2.4.5(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      '@shimmer-from-structure/solid': 2.4.5(solid-js@1.9.12)
+      '@shimmer-from-structure/svelte': 2.4.5(svelte@5.55.2(@typescript-eslint/types@8.58.1))
+      '@shimmer-from-structure/vue': 2.4.5(vue@3.5.32(typescript@6.0.2))
     optionalDependencies:
       react: 19.2.5
       react-dom: 19.2.5(react@19.2.5)
