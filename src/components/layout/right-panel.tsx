@@ -79,6 +79,7 @@ import { McpTab } from './mcp-tab'
 import { RightPanelHeader } from './right-panel-header'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Input } from '@/components/ui/input'
+import { LoadingState } from '../ui/loading-state'
 
 // Feature gate selectors remain unchanged
 const selectHasSkillsUnlocked = (state: UIPersistentState) =>
@@ -609,9 +610,7 @@ function WorkflowTab() {
           </h3>
 
           {isLoading ? (
-            <div className="flex justify-center py-4">
-              <BouncingDots />
-            </div>
+            <LoadingState message="Loading saved workflows…" />
           ) : filteredWorkflows.length === 0 ? (
             <EmptyState
               icon={Workflow}
@@ -677,7 +676,6 @@ function WorkflowTab() {
     </div>
   )
 }
-
 // ── Analytics tab ─────────────────────────────────────────────────────────────
 function AnalyticsTab() {
   const { data: analytics, isLoading, error } = useAnalytics()
