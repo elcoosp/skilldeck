@@ -10,7 +10,6 @@ import {
   Info,
   Lightbulb,
   ShieldAlert,
-  Wrench,
   X
 } from 'lucide-react'
 import { useState } from 'react'
@@ -47,12 +46,12 @@ export function LintWarningPanel({
     return (
       <div
         className={cn(
-          'flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-muted-foreground',
+          'flex items-center gap-1.5 py-1 text-xs text-muted-foreground',
           className
         )}
       >
-        <CheckCircle2 className="size-4 shrink-0 text-green-500" />
-        No lint issues found.
+        <CheckCircle2 className="size-3.5 text-teal-500 shrink-0" />
+        No lint issues
       </div>
     )
   }
@@ -117,41 +116,21 @@ function WarningRow({
   return (
     <div
       className={cn(
-        'rounded-md border px-3 py-2 text-sm',
-        warning.severity === 'error' &&
-        isSecurity &&
-        'border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/20',
-        warning.severity === 'error' &&
-        !isSecurity &&
-        'border-destructive/30 bg-destructive/5',
-        warning.severity === 'warning' &&
-        'border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/20',
-        warning.severity === 'info' && 'border-border bg-muted/30'
+        'rounded-md border border-border bg-background pl-3 pr-2 py-2.5',
+        'border-l-2', // left accent strip
+        isSecurity && warning.severity === 'error' && 'border-l-red-500',
+        !isSecurity && warning.severity === 'error' && 'border-l-destructive',
+        warning.severity === 'warning' && 'border-l-amber-400',
+        warning.severity === 'info' && 'border-l-border'
       )}
     >
-      {/* Top row: icon + severity + rule code + actions */}
+      {/* Top row: icon + message + action buttons */}
       <div className="flex items-start gap-2">
         <SeverityIcon severity={warning.severity} isSecure={isSecurity} />
-        <div className="flex flex-wrap items-center gap-1.5 min-w-0 flex-1">
-          <span
-            className={cn(
-              'font-medium text-xs uppercase tracking-wide',
-              warning.severity === 'error' &&
-              isSecurity &&
-              'text-red-600 dark:text-red-400',
-              warning.severity === 'error' && !isSecurity && 'text-destructive',
-              warning.severity === 'warning' &&
-              'text-amber-600 dark:text-amber-400',
-              warning.severity === 'info' && 'text-muted-foreground'
-            )}
-          >
-            {isSecurity ? 'Security' : warning.severity}
-          </span>
-          <code className="text-[10px] bg-muted/60 px-1 py-0.5 rounded text-muted-foreground font-mono break-all">
-            {warning.rule_id}
-          </code>
-        </div>
-        <div className="flex items-center gap-0.5 shrink-0">
+        <p className="flex-1 text-xs leading-snug break-words min-w-0">
+          {warning.message}
+        </p>
+        <div className="flex items-center gap-0.5 shrink-0 ml-1">
           {/* Copy fix button – only if suggested_fix exists */}
           {warning.suggested_fix && onCopyFix && (
             <Tooltip>
@@ -191,35 +170,38 @@ function WarningRow({
         </div>
       </div>
 
-      {/* Message and fix suggestion */}
-      <div className="mt-2 space-y-1">
-        <p className="text-sm leading-snug break-words">{warning.message}</p>
-        {warning.suggested_fix && (
-          <p className="text-xs text-muted-foreground flex items-start gap-1.5 break-words">
-            <Lightbulb className="size-3 shrink-0 mt-0.5 text-amber-500" />
-            <span>{warning.suggested_fix}</span>
-          </p>
-        )}
+      {/* Sub-row: rule_id + file path */}
+      <div className="flex items-center gap-1.5 mt-1 ml-6 min-w-0">
+        <code className="text-[10px] text-muted-foreground font-mono shrink-0">
+          {warning.rule_id}
+        </code>
         {displayPath && (
-          <p className="text-[10px] text-muted-foreground font-mono truncate">
-            {displayPath}
-            {warning.location?.line != null && `:${warning.location.line}`}
-          </p>
+          <>
+            <span className="text-[10px] text-border">·</span>
+            <span className="text-[10px] text-muted-foreground font-mono truncate">
+              {displayPath}
+              {warning.location?.line != null && `:${warning.location.line}`}
+            </span>
+          </>
         )}
       </div>
 
-      {/* Apply fix button (if provided) – placed below */}
-      {warning.suggested_fix && onFix && (
-        <div className="flex justify-end mt-2">
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-6 text-xs px-2"
-            onClick={onFix}
-          >
-            <Wrench className="size-3 mr-1" />
-            Apply fix
-          </Button>
+      {/* Fix suggestion — inline with Apply button */}
+      {warning.suggested_fix && (
+        <div className="flex items-start gap-1 mt-1.5 ml-6 min-w-0">
+          <Lightbulb className="size-3 shrink-0 mt-0.5 text-amber-500" />
+          <p className="text-[11px] text-muted-foreground leading-snug flex-1 min-w-0 break-words">
+            {warning.suggested_fix}
+          </p>
+          {onFix && (
+            <button
+              type="button"
+              onClick={onFix}
+              className="shrink-0 text-[10px] text-primary hover:underline ml-1 whitespace-nowrap"
+            >
+              Apply
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -233,11 +215,12 @@ function SeverityIcon({
   severity: LintWarning['severity']
   isSecure: boolean
 }) {
+  const iconClass = 'size-3.5 shrink-0 mt-0.5'
   if (severity === 'error' && isSecure)
-    return <ShieldAlert className="size-4 text-red-500" />
+    return <ShieldAlert className={cn(iconClass, 'text-red-500')} />
   if (severity === 'error')
-    return <AlertTriangle className="size-4 text-destructive" />
+    return <AlertTriangle className={cn(iconClass, 'text-destructive')} />
   if (severity === 'warning')
-    return <AlertTriangle className="size-4 text-amber-500" />
-  return <Info className="size-4 text-muted-foreground" />
+    return <AlertTriangle className={cn(iconClass, 'text-amber-500')} />
+  return <Info className={cn(iconClass, 'text-muted-foreground')} />
 }
