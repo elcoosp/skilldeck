@@ -77,6 +77,9 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
     const [showSearch, setShowSearch] = useState(false)
     const searchInputRef = useRef<HTMLInputElement>(null)
 
+    // Minimap state
+    const [scrollTop, setScrollTop] = useState(0)
+
     const canRun = SUPPORTED_RUN_LANGUAGES.has(language)
 
     // Store hooks for artifact linking
@@ -274,6 +277,25 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
       }
       scrollable.addEventListener('scroll', handleScroll, { passive: true })
       return () => scrollable.removeEventListener('scroll', handleScroll)
+    }, [])
+
+    // ─── Track scroll position for minimap ────────────────────────────────────
+    useEffect(() => {
+      const el = scrollableRef.current
+      if (!el) return
+      const handleScroll = () => setScrollTop(el.scrollTop)
+      el.addEventListener('scroll', handleScroll)
+      handleScroll() // initial
+      return () => el.removeEventListener('scroll', handleScroll)
+    }, [highlightedHtml]) // reattach when content changes
+
+    const handleMinimapClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+      const el = scrollableRef.current
+      if (!el) return
+      const rect = e.currentTarget.getBoundingClientRect()
+      const y = e.clientY - rect.top
+      const ratio = y / rect.height
+      el.scrollTop = ratio * el.scrollHeight
     }, [])
 
     // ─── Auto-scroll via MutationObserver during streaming ───────────────────
@@ -552,6 +574,14 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
       </>
     )
 
+    // Minimap calculations
+    const minimapHeight = scrollableRef.current?.clientHeight || 0
+    const scrollHeight = scrollableRef.current?.scrollHeight || 1
+    const scrollRatio = minimapHeight > 0 ? scrollTop / scrollHeight : 0
+    const thumbHeight = Math.max(20, (minimapHeight / scrollHeight) * minimapHeight)
+    const thumbTop = scrollRatio * minimapHeight
+    const showMinimap = lineCount > 60 && !collapsed
+
     return (
       <>
         {/* Floating header portal */}
@@ -595,20 +625,35 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
               transition: 'max-height 0.18s ease'
             }}
           >
-            <div
-              ref={scrollableRef}
-              className="overflow-auto max-h-96 thin-scrollbar"
-            >
-              <pre
-                ref={preRef}
-                className="p-3 m-0 mt-0 mb-0 text-xs leading-relaxed"
-                style={{
-                  fontSize: 14,
-                  whiteSpace: 'pre',
-                  fontFamily: 'inherit'
-                }}
-                dangerouslySetInnerHTML={{ __html: highlightedHtml }}
-              />
+            <div className="relative">
+              <div
+                ref={scrollableRef}
+                className="overflow-auto max-h-96 thin-scrollbar"
+              >
+                <pre
+                  ref={preRef}
+                  className="p-3 m-0 mt-0 mb-0 text-xs leading-relaxed"
+                  style={{
+                    fontSize: 14,
+                    whiteSpace: 'pre',
+                    fontFamily: 'inherit'
+                  }}
+                  dangerouslySetInnerHTML={{ __html: highlightedHtml }}
+                />
+              </div>
+              {/* Minimap scroll thumb */}
+              {showMinimap && (
+                <div
+                  className="absolute right-0 top-0 w-1.5 h-full cursor-pointer opacity-60 hover:opacity-100 transition-opacity"
+                  onClick={handleMinimapClick}
+                  style={{ backgroundColor: 'var(--border)' }}
+                >
+                  <div
+                    className="absolute w-full bg-primary/40 rounded-full"
+                    style={{ height: thumbHeight, top: thumbTop }}
+                  />
+                </div>
+              )}
             </div>
           </div>
 
