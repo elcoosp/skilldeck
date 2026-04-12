@@ -1,6 +1,6 @@
 // src/components/layout/catalog-card.tsx
 
-import { useEffect, useRef, useState, ReactNode } from 'react'
+import { ReactNode, useState } from 'react'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { Check, ExternalLink, Loader2, Package, Plus } from 'lucide-react'
 import { toast } from '@/components/ui/toast'
@@ -22,26 +22,7 @@ export function CatalogCard({
   onAdd,
   icon
 }: CatalogCardProps) {
-  const measureRef = useRef<HTMLDivElement>(null)
-  const [collapsed, setCollapsed] = useState(false)
-
-  useEffect(() => {
-    const measure = measureRef.current
-    const parent = measure?.parentElement
-    if (!measure || !parent) return
-
-    const check = () => {
-      const fullWidth = measure.scrollWidth
-      const availableWidth = parent.clientWidth
-      const requiredWidth = entry.tags.length > 1 ? fullWidth + 30 : fullWidth
-      setCollapsed(requiredWidth > availableWidth)
-    }
-
-    check()
-    const observer = new ResizeObserver(check)
-    observer.observe(parent)
-    return () => observer.disconnect()
-  }, [entry.tags])
+  const [expanded, setExpanded] = useState(false)
 
   const handleDocsClick = async (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -52,101 +33,100 @@ export function CatalogCard({
     }
   }
 
+  const toggleDescription = () => setExpanded((prev) => !prev)
+
   return (
-    <div
-      className={cn(
-        'flex flex-col gap-1 px-2.5 py-2 rounded-lg border transition-colors min-w-0',
-        alreadyAdded
-          ? 'border-green-500/20 bg-green-500/5 opacity-70'
-          : 'border-border hover:border-primary/30 hover:bg-muted/30'
-      )}
-    >
-      {/* Top row: Icon + Name + Transport | Docs */}
-      <div className="flex items-center gap-1.5 min-w-0">
-        <div className="shrink-0 text-muted-foreground">
-          {icon ?? <Package className="size-3.5" />}
+    <div className="@container/card w-full min-w-0">
+      <div
+        className={cn(
+          'flex flex-col gap-1 p-2 rounded-md border transition-colors w-full min-w-0',
+          alreadyAdded
+            ? 'border-green-500/20 bg-green-500/5 opacity-70'
+            : 'border-border hover:border-primary/30 hover:bg-muted/30'
+        )}
+      >
+        {/* Header: Icon + Name + Transport + Docs */}
+        <div className="flex items-center gap-1 min-w-0">
+          <div className="shrink-0 text-muted-foreground">
+            {icon ?? <Package className="size-3.5" />}
+          </div>
+
+          <div className="flex items-center gap-1 min-w-0 flex-1">
+            <span className="text-sm @[180px]/card:text-base font-medium truncate">
+              {entry.name}
+            </span>
+            <span className="text-[10px] leading-none text-muted-foreground font-mono bg-muted/50 px-1.5 py-0.5 rounded-sm shrink-0 uppercase tracking-wide">
+              {entry.transport}
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleDocsClick}
+            className="text-[11px] @[180px]/card:text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0 flex items-center gap-0.5"
+            aria-label="Open documentation"
+          >
+            <span className="hidden @[160px]/card:inline">Docs</span>
+            <ExternalLink className="size-3" />
+          </button>
         </div>
 
-        <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
-          <span className="text-xs font-medium truncate">{entry.name}</span>
-          <span className="text-[9px] text-muted-foreground font-mono bg-muted px-1 py-0.5 rounded shrink-0">
-            {entry.transport}
-          </span>
-        </div>
-
+        {/* Description — click to expand/collapse, no animation */}
         <button
           type="button"
-          onClick={handleDocsClick}
-          className="flex items-center gap-0.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors shrink-0 ml-1"
+          onClick={toggleDescription}
+          className="text-left cursor-pointer group/desc w-full"
+          aria-expanded={expanded}
         >
-          Docs
-          <ExternalLink className="size-2.5" />
+          <p
+            className={cn(
+              'text-xs @[200px]/card:text-sm text-muted-foreground leading-snug break-words',
+              expanded ? 'line-clamp-none' : 'line-clamp-1',
+              'group-hover/desc:text-foreground/80'
+            )}
+          >
+            {entry.description}
+          </p>
         </button>
-      </div>
 
-      {/* Description */}
-      <p className="text-[11px] text-muted-foreground leading-snug line-clamp-2 break-words">
-        {entry.description}
-      </p>
-
-      {/* Bottom row: Tags | Add Button */}
-      <div className="flex items-center justify-between gap-1.5 min-w-0 relative">
-        <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
-          <div className="flex gap-1 min-w-0">
-            {entry.tags.map((tag, i) => (
+        {/* Footer: All tags + Add button */}
+        <div className="flex items-start justify-between gap-1.5 mt-0.5">
+          <div className="flex flex-wrap gap-1 min-w-0 flex-1">
+            {entry.tags.map((tag) => (
               <span
                 key={tag}
-                className={cn(
-                  'text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground whitespace-nowrap shrink-0',
-                  collapsed && i > 0 ? 'hidden' : ''
-                )}
+                className="text-[10px] @[180px]/card:text-xs px-1 @[180px]/card:px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground whitespace-nowrap shrink-0"
               >
                 {tag}
               </span>
             ))}
           </div>
 
-          {collapsed && entry.tags.length > 1 && (
-            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground whitespace-nowrap shrink-0">
-              +{entry.tags.length - 1}
-            </span>
-          )}
-        </div>
-
-        <button
-          type="button"
-          onClick={() => !alreadyAdded && onAdd(entry)}
-          disabled={alreadyAdded || adding}
-          className={cn(
-            'flex items-center justify-center gap-0.5 px-2 py-0.5 rounded text-[11px] font-medium transition-colors shrink-0',
-            alreadyAdded
-              ? 'text-green-600 dark:text-green-400 cursor-default'
-              : 'bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50'
-          )}
-        >
-          {adding ? (
-            <Loader2 className="size-3 animate-spin" />
-          ) : alreadyAdded ? (
-            <Check className="size-3" />
-          ) : (
-            <>
-              <Plus className="size-2.5" />
-              Add
-            </>
-          )}
-        </button>
-
-        {/* Hidden measurement div */}
-        <div
-          ref={measureRef}
-          className="invisible absolute top-0 left-0 flex gap-1 overflow-hidden pointer-events-none h-0"
-          aria-hidden="true"
-        >
-          {entry.tags.map(tag => (
-            <span key={tag} className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground whitespace-nowrap shrink-0">
-              {tag}
-            </span>
-          ))}
+          <button
+            type="button"
+            onClick={() => !alreadyAdded && onAdd(entry)}
+            disabled={alreadyAdded || adding}
+            className={cn(
+              'flex items-center justify-center rounded font-medium transition-colors shrink-0',
+              alreadyAdded
+                ? 'text-green-600 dark:text-green-400 cursor-default'
+                : 'bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50',
+              'p-1 w-6 h-6 text-[0px]',
+              '@[200px]/card:w-auto @[200px]/card:h-auto @[200px]/card:px-2 @[200px]/card:py-1 @[200px]/card:text-xs @[200px]/card:gap-1'
+            )}
+            aria-label={alreadyAdded ? 'Added' : 'Add'}
+          >
+            {adding ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : alreadyAdded ? (
+              <Check className="size-3.5" />
+            ) : (
+              <>
+                <Plus className="size-3.5" />
+                <span className="hidden @[200px]/card:inline">Add</span>
+              </>
+            )}
+          </button>
         </div>
       </div>
     </div>

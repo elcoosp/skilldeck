@@ -13,7 +13,6 @@ import {
   isWithinInterval,
   startOfMonth
 } from 'date-fns'
-import { motion } from 'framer-motion'
 import {
   BarChart2,
   ChevronRight,
@@ -176,7 +175,7 @@ export function RightPanel() {
             {primaryTabs.map(({ id, label, Icon }) => (
               <Tooltip key={id}>
                 <TooltipTrigger asChild>
-                  <motion.button
+                  <button
                     type="button"
                     onClick={() => setActiveTab(id)}
                     className={cn(
@@ -188,12 +187,9 @@ export function RightPanel() {
                         : 'text-muted-foreground hover:text-foreground'
                     )}
                     aria-label={label}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    transition={{ type: 'spring', stiffness: 400, damping: 17 }}
                   >
                     <Icon className="size-4 shrink-0" />
-                  </motion.button>
+                  </button>
                 </TooltipTrigger>
                 <TooltipContent side="left" align="center">
                   {label}
@@ -212,7 +208,7 @@ export function RightPanel() {
             {secondaryTabs.map(({ id, label, Icon }) => (
               <Tooltip key={id}>
                 <TooltipTrigger asChild>
-                  <motion.button
+                  <button
                     type="button"
                     onClick={() => setActiveTab(id)}
                     className={cn(
@@ -224,12 +220,9 @@ export function RightPanel() {
                         : 'text-muted-foreground hover:text-foreground'
                     )}
                     aria-label={label}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    transition={{ type: 'spring', stiffness: 400, damping: 17 }}
                   >
                     <Icon className="size-4 shrink-0" />
-                  </motion.button>
+                  </button>
                 </TooltipTrigger>
                 <TooltipContent side="left" align="center">
                   {label}
@@ -300,6 +293,20 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
   const [selectedModelId, setSelectedModelId] = useState(
     profile?.model_id || ''
   )
+
+  // Determine if an API key exists for the current provider
+  const hasKey = useMemo(() => {
+    if (!profile) return false
+    const provider = profile.model_provider
+    return keyStatuses.some((k) => k.provider === provider)
+  }, [keyStatuses, profile])
+
+  // Fallback model display values
+  const safeSelectedModel = selectedModelId || profile?.model_id || ''
+  const displayModels = useMemo(() => {
+    if (models.length > 0) return models
+    return profile?.model_id ? [profile.model_id] : []
+  }, [models, profile])
 
   // Always render header, content varies based on state
   return (
@@ -412,9 +419,7 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
     </div>
   )
 }
-
 // ── Workflow tab ──────────────────────────────────────────────────────────────
-
 
 function WorkflowTab() {
   const { progress } = useWorkflowEvents()
@@ -601,6 +606,7 @@ function WorkflowTab() {
     </div>
   )
 }
+
 // ── Analytics tab ─────────────────────────────────────────────────────────────
 function AnalyticsTab() {
   const { data: analytics, isLoading, error } = useAnalytics()

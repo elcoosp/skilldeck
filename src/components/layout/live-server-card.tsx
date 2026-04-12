@@ -37,10 +37,12 @@ function StatusBadge({ status }: { status: McpServerResponse['status'] }) {
         'bg-green-500/15 text-green-600 dark:text-green-400 border-green-500/20'
       )}
     >
-      {status === 'connected' && (
-        <span className="size-1.5 rounded-full bg-green-500 mr-1 shrink-0 inline-block" />
-      )}
-      {status}
+      <span className="flex items-center gap-1 min-w-0">
+        {status === 'connected' && (
+          <span className="size-1.5 rounded-full bg-green-500 shrink-0" />
+        )}
+        <span className="truncate">{status}</span>
+      </span>
     </Badge>
   )
 }
@@ -94,23 +96,28 @@ export function LiveServerCard({ server }: LiveServerCardProps) {
 
   return (
     <div className="rounded-lg border border-border bg-card overflow-hidden">
-      <div className="flex items-center gap-2 px-3 py-2 min-w-0">
+      <div className="flex items-center gap-2 px-3 py-2">
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="flex items-center gap-1.5 flex-1 min-w-0 text-left overflow-hidden"
+          className="shrink-0"
         >
           <ChevronRight
             className={cn(
-              'size-3 text-muted-foreground shrink-0 transition-transform duration-150',
+              'size-3 text-muted-foreground transition-transform duration-150',
               expanded && 'rotate-90'
             )}
           />
-          <Server className="size-3.5 text-muted-foreground shrink-0" />
-          <span className="text-xs font-medium truncate">{server.name}</span>
         </button>
 
-        <StatusBadge status={server.status} />
+        <Server className="size-3.5 text-muted-foreground shrink-0" />
+
+        <div className="flex-1 min-w-0 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+          <span className="text-xs font-medium truncate min-w-[80px] max-w-full">
+            {server.name}
+          </span>
+          <StatusBadge status={server.status} />
+        </div>
 
         <div className="flex items-center gap-0.5 shrink-0">
           {isConnected ? (

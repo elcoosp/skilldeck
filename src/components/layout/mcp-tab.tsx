@@ -258,9 +258,17 @@ export function McpTab() {
           </button>
         </div>
 
-        {/* Category filters - scrollable */}
-        <div className="shrink-0 overflow-hidden">
-          <div className="flex gap-1 overflow-x-auto px-2.5 py-1.5 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+        {/* Category filters – scrollable with CSS mask fade (no extra padding) */}
+        <div className="shrink-0 py-1.5">
+          <div
+            className="flex gap-1 overflow-x-auto thin-scrollbar px-2.5 pb-1"
+            style={{
+              WebkitMaskImage:
+                'linear-gradient(to right, black calc(100% - 40px), transparent)',
+              maskImage:
+                'linear-gradient(to right, black calc(100% - 40px), transparent)',
+            }}
+          >
             {(['all', ...CATEGORY_ORDER] as const).map((cat) => (
               <button
                 type="button"
@@ -279,11 +287,7 @@ export function McpTab() {
           </div>
         </div>
 
-        {/*
-          CRITICAL: The outer div with overflow-hidden forces the ScrollArea
-          viewport to never exceed the container width. Each card is wrapped
-          in a div with min-w-0 overflow-hidden to clip any internal overflow.
-        */}
+        {/* Catalog cards */}
         <div className="flex-1 min-h-0 overflow-hidden">
           <ScrollArea className="h-full">
             <div className="px-2.5 pb-2.5 space-y-1">
@@ -304,6 +308,7 @@ export function McpTab() {
       </div>
     )
   }
+
   // ── Custom server view ─────────────────────────────────────────────────────
   if (view === 'custom') {
     return (
@@ -352,7 +357,7 @@ export function McpTab() {
         }
       />
       <ScrollArea className="flex-1 min-h-0">
-        <div className="px-2.5 pb-2.5 space-y-2">
+        <div className="px-2.5 pb-2.5 space-y-2 mt-2">
           {isLoading ? (
             <LoadingState message="Discovering available tools…" />
           ) : servers.length === 0 ? (
@@ -362,7 +367,6 @@ export function McpTab() {
               transition={{ duration: 0.3, ease: 'easeOut' }}
               className="flex flex-col items-center py-6 text-center"
             >
-              {/* Small responsive image that won't overflow */}
               <img
                 src="/illustrations/empty-mcp.jpeg"
                 alt="No MCP servers"
@@ -395,7 +399,6 @@ export function McpTab() {
 
           <div className="border-t border-border/50 my-1" />
 
-          {/* Action buttons - compact for narrow panel */}
           <button
             type="button"
             onClick={() => setView('catalog')}
