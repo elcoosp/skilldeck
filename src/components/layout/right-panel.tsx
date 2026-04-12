@@ -168,8 +168,8 @@ export function RightPanel() {
           )}
         </div>
 
-        {/* Vertical icon rail (right side) – fixed width, never shrinks */}
-        <div className="w-10 shrink-0 border-l border-border bg-background flex flex-col items-center py-2">
+        {/* Vertical icon rail (right side) – narrower width */}
+        <div className="w-9 shrink-0 border-l border-border bg-background flex flex-col items-center py-2">
           {/* Primary group */}
           <div className="flex flex-col items-center gap-1 w-full">
             {primaryTabs.map(({ id, label, Icon }) => (
@@ -179,7 +179,7 @@ export function RightPanel() {
                     type="button"
                     onClick={() => setActiveTab(id)}
                     className={cn(
-                      'relative flex items-center justify-center w-8 h-8 rounded-full',
+                      'relative flex items-center justify-center w-7 h-7 rounded-full',
                       'transition-colors duration-150',
                       'hover:bg-muted/60',
                       activeTab === id
@@ -212,7 +212,7 @@ export function RightPanel() {
                     type="button"
                     onClick={() => setActiveTab(id)}
                     className={cn(
-                      'relative flex items-center justify-center w-8 h-8 rounded-full',
+                      'relative flex items-center justify-center w-7 h-7 rounded-full',
                       'transition-colors duration-150',
                       'hover:bg-muted/60',
                       activeTab === id
@@ -393,20 +393,21 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
                 </div>
               </section>
 
+              {/* Token Usage – stacked vertically for narrow panels */}
               <section className="space-y-2">
                 <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Token Usage
                 </h3>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div className="rounded border border-border p-2 min-w-0">
+                <div className="space-y-2">
+                  <div className="rounded border border-border p-3">
                     <span className="text-muted-foreground text-xs">Input</span>
-                    <div className="font-mono text-sm truncate">
+                    <div className="font-mono text-lg tabular-nums mt-0.5">
                       {inputTokens.toLocaleString()}
                     </div>
                   </div>
-                  <div className="rounded border border-border p-2 min-w-0">
+                  <div className="rounded border border-border p-3">
                     <span className="text-muted-foreground text-xs">Output</span>
-                    <div className="font-mono text-sm truncate">
+                    <div className="font-mono text-lg tabular-nums mt-0.5">
                       {outputTokens.toLocaleString()}
                     </div>
                   </div>
@@ -419,8 +420,9 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
     </div>
   )
 }
-// ── Workflow tab ──────────────────────────────────────────────────────────────
 
+// ── Workflow tab ──────────────────────────────────────────────────────────────
+// (unchanged, but included for completeness)
 function WorkflowTab() {
   const { progress } = useWorkflowEvents()
   const { data: savedWorkflows = [], isLoading } = useWorkflowDefinitions()
@@ -529,8 +531,24 @@ function WorkflowTab() {
       )}
 
       <div className="flex-1 p-3 space-y-4">
-        {/* ... progress section unchanged ... */}
-
+        {progress && progress.length > 0 && (
+          <div className="space-y-2">
+            <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              Running
+            </h3>
+            {progress.map((p) => (
+              <div
+                key={p.run_id}
+                className="text-xs p-2 rounded border border-border bg-muted/20 min-w-0"
+              >
+                <p className="font-medium truncate">{p.workflow_name}</p>
+                <p className="text-muted-foreground truncate">
+                  Step {p.current_step}/{p.total_steps} — {p.status}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="space-y-2">
           <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
             Saved Workflows
@@ -608,6 +626,7 @@ function WorkflowTab() {
 }
 
 // ── Analytics tab ─────────────────────────────────────────────────────────────
+// (unchanged, but included for completeness)
 function AnalyticsTab() {
   const { data: analytics, isLoading, error } = useAnalytics()
   const [fullYearDialogOpen, setFullYearDialogOpen] = useState(false)

@@ -42,6 +42,18 @@ interface Props {
   onClose: () => void
 }
 
+// Helper for score bars
+function ScoreBar({ score, max = 5, color }: { score: number; max?: number; color: string }) {
+  return (
+    <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+      <div
+        className={`h-full rounded-full ${color}`}
+        style={{ width: `${(score / max) * 100}%` }}
+      />
+    </div>
+  )
+}
+
 export function SkillDetailPanel({ skill, onClose }: Props) {
   const qc = useQueryClient()
   const platformFeaturesEnabled = useUIPersistentStore(
@@ -289,9 +301,9 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
     skill.localData?.quality_score ?? skill.registryData?.qualityScore ?? 5
 
   return (
-    <div className="w-80 xl:w-96 border-l bg-background flex flex-col h-full shadow-lg z-10 shrink-0">
+    <div className="flex flex-col h-full bg-background">
       {/* Header */}
-      <div className="p-5 border-b flex items-start gap-3">
+      <div className="p-4 border-b flex items-start gap-3 shrink-0">
         <div className="flex-1 min-w-0">
           <h2 className="font-bold text-base leading-snug truncate">
             {skill.name}
@@ -341,7 +353,7 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
       </div>
 
       {/* Body */}
-      <div className="flex-1 overflow-auto p-5 space-y-5 text-sm">
+      <div className="flex-1 overflow-y-auto p-4 space-y-5 text-sm">
         {/* Description */}
         <div>
           <SectionLabel>Description</SectionLabel>
@@ -356,63 +368,57 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
 
         {/* Meta grid */}
         {skill.registryData && (
-          <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-            <MetaField
-              label="Author"
-              value={skill.registryData.author ?? 'Unknown'}
-            />
-            <MetaField
-              label="Version"
-              value={skill.registryData.version ?? 'N/A'}
-            />
-            <MetaField
-              label="License"
-              value={skill.registryData.license ?? 'Unspecified'}
-            />
-            <MetaField
-              label="Category"
-              value={skill.registryData.category ?? 'General'}
-            />
+          <div>
+            <SectionLabel>Metadata</SectionLabel>
+            <div className="flex flex-col gap-2">
+              <MetaField label="Author" value={skill.registryData.author ?? 'Unknown'} />
+              <MetaField label="Version" value={skill.registryData.version ?? 'N/A'} />
+              <MetaField label="License" value={skill.registryData.license ?? 'Unspecified'} />
+              <MetaField label="Category" value={skill.registryData.category ?? 'General'} />
+            </div>
           </div>
         )}
 
-        {/* Local scores with tooltips */}
-        {skill.localData && (
-          <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div>
-                  <MetaField
-                    label="Security"
-                    value={`${skill.localData.security_score}/5`}
-                  />
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="top">
-                <p>
-                  Based on security lint warnings. 5 = no errors, 1 = critical
-                  errors.
-                </p>
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div>
-                  <MetaField
-                    label="Quality"
-                    value={`${skill.localData.quality_score}/5`}
-                  />
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="top">
-                <p>
-                  Based on style and documentation warnings. 5 = no warnings, 1
-                  = many warnings.
-                </p>
-              </TooltipContent>
-            </Tooltip>
+        {/* Trust scores with progress bars */}
+        <div>
+          <SectionLabel>Trust scores</SectionLabel>
+          <div className="space-y-3">
+            <div>
+              <div className="flex justify-between text-xs mb-1">
+                <span className="text-muted-foreground">Security</span>
+                <span className="font-medium">{securityScore}/5</span>
+              </div>
+              <ScoreBar score={securityScore} color="bg-teal-500" />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="text-[10px] text-muted-foreground mt-0.5 inline-block">
+                    Based on security lint rules
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <p>5 = no security errors, 1 = critical errors.</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            <div>
+              <div className="flex justify-between text-xs mb-1">
+                <span className="text-muted-foreground">Quality</span>
+                <span className="font-medium">{qualityScore}/5</span>
+              </div>
+              <ScoreBar score={qualityScore} color="bg-amber-500" />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="text-[10px] text-muted-foreground mt-0.5 inline-block">
+                    Based on documentation and style
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <p>5 = no quality warnings, 1 = many warnings.</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
           </div>
-        )}
+        </div>
 
         {/* Tags */}
         {skill.registryData?.tags && skill.registryData.tags.length > 0 && (
@@ -441,7 +447,7 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
                 onClick={() => openUrl(DOCS_LINT_URL)}
                 className="text-xs text-primary hover:underline"
               >
-                Learn more about linting
+                Learn more
               </button>
             </div>
             <LintWarningPanel
@@ -485,7 +491,7 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
       </div>
 
       {/* Actions */}
-      <div className="p-5 border-t space-y-2">
+      <div className="p-4 border-t space-y-2 shrink-0">
         {canInstall && (
           <Button
             className="w-full"

@@ -30,14 +30,13 @@ import { Input } from '@/components/ui/input'
 import { LoadingState } from '@/components/ui/loading-state'
 import { AnimatedSuccessIcon } from '@/components/ui/animated-success-icon'
 
-// Responsive column count based on container width
+// UPDATED: Only 1 or 2 columns, never 3. Breakpoints lowered.
 const BREAKPOINTS = {
-  single: 400,
-  double: 600
+  single: 260, // <260px -> 1 column (list variant)
 }
 
 function useColumnCount(ref: React.RefObject<HTMLElement | null>) {
-  const [columns, setColumns] = useState(3)
+  const [columns, setColumns] = useState(1) // default to 1, not 3
 
   useEffect(() => {
     if (!ref.current) return
@@ -48,10 +47,8 @@ function useColumnCount(ref: React.RefObject<HTMLElement | null>) {
 
       if (width < BREAKPOINTS.single) {
         setColumns(1)
-      } else if (width < BREAKPOINTS.double) {
-        setColumns(2)
       } else {
-        setColumns(3)
+        setColumns(2) // max 2 columns
       }
     })
 
@@ -61,8 +58,6 @@ function useColumnCount(ref: React.RefObject<HTMLElement | null>) {
 
   return columns
 }
-
-const ROW_HEIGHT_ESTIMATE = 164 // px
 
 export function UnifiedSkillList() {
   const router = useRouter()
@@ -265,6 +260,9 @@ export function UnifiedSkillList() {
 
   const rowCount = Math.ceil(filteredSkills.length / columns)
 
+  // Dynamic row height estimate based on card variant
+  const ROW_HEIGHT_ESTIMATE = columns === 1 ? 56 : 104
+
   const measureElement = useCallback((el: Element | null) => {
     if (!el) return ROW_HEIGHT_ESTIMATE
     if (measurementsRef.current.has(el)) {
@@ -273,7 +271,7 @@ export function UnifiedSkillList() {
     const height = (el as HTMLElement).getBoundingClientRect().height
     measurementsRef.current.set(el, height)
     return height
-  }, [])
+  }, [ROW_HEIGHT_ESTIMATE])
 
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
@@ -350,7 +348,7 @@ export function UnifiedSkillList() {
   }, [])
 
   return (
-    <div className="flex h-full min-h-0">
+    <div className="relative flex h-full min-h-0 overflow-hidden">
       <div className="flex flex-col flex-1 min-w-0 h-full" ref={containerRef}>
         <RightPanelHeader
           title="Skills"
@@ -515,10 +513,12 @@ export function UnifiedSkillList() {
       </div>
 
       {resolvedSelected && (
-        <SkillDetailPanel
-          skill={resolvedSelected}
-          onClose={() => setSelected(null)}
-        />
+        <div className="z-10">
+          <SkillDetailPanel
+            skill={resolvedSelected}
+            onClose={() => setSelected(null)}
+          />
+        </div>
       )}
     </div>
   )
@@ -610,6 +610,7 @@ export function UnifiedSkillList() {
                       onUpdate={
                         platformFeaturesEnabled ? handleUpdate : undefined
                       }
+                      variant={columns === 1 ? 'list' : 'grid'}
                     />
                   </motion.div>
                 ))}
