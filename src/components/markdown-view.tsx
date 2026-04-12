@@ -331,7 +331,7 @@ const NodeRenderer = memo(
             language={node.language}
             artifactId={node.artifact_id}
             highlightedHtml={node.highlighted_html}
-            isStreaming={isStreaming}
+            isStreaming={isDraft}
             scrollContainerRef={scrollContainerRef}
           />
         )
