@@ -1,6 +1,6 @@
 // src/components/conversation/code-block.tsx
 
-import { Check, ChevronRight, Copy, Hash, Loader2, Play, Save } from 'lucide-react'
+import { Check, ChevronRight, Copy, GitCompare, Hash, Loader2, Play, Save } from 'lucide-react'
 import type React from 'react'
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -11,6 +11,8 @@ import { save } from '@tauri-apps/plugin-dialog'
 import { commands } from '@/lib/bindings'
 import { listen } from '@tauri-apps/api/event'
 import type { RunCodeEvent } from '@/lib/events'
+import { useQuery } from '@tanstack/react-query'
+import { VersionDiffModal } from '@/components/artifacts/version-diff-modal'
 
 const SUPPORTED_RUN_LANGUAGES = new Set(['python', 'py', 'javascript', 'js', 'bash', 'sh', 'ruby', 'rb'])
 
@@ -56,7 +58,23 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
     const [runId, setRunId] = useState<string | null>(null)
     const [showOutput, setShowOutput] = useState(false)
 
+    // Diff view state
+    const [showDiff, setShowDiff] = useState(false)
+
     const canRun = SUPPORTED_RUN_LANGUAGES.has(language)
+
+    // Query artifact versions for diff
+    const { data: versions } = useQuery({
+      queryKey: ['artifact-versions', artifactId],
+      queryFn: async () => {
+        const res = await commands.listArtifactVersions(artifactId)
+        if (res.status === 'ok') return res.data
+        throw new Error(res.error)
+      },
+      enabled: !!artifactId,
+    })
+
+    const canDiff = (versions?.length ?? 0) > 1
 
     useEffect(() => {
       if (!runId) return
@@ -300,6 +318,16 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
               {isRunning ? <Loader2 className="size-3.5 animate-spin" /> : <Play className="size-3.5" />}
             </button>
           )}
+          {canDiff && (
+            <button
+              type="button"
+              onClick={() => setShowDiff(true)}
+              className="p-1 text-muted-foreground hover:text-foreground"
+              title="Compare with previous versions"
+            >
+              <GitCompare className="size-3.5" />
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setShowLineNumbers(v => !v)}
@@ -329,8 +357,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
 
     return (
       <>
-        {/* Floating header portal — rendered into document.body so it escapes
-          any overflow:hidden / scroll containers and can be positioned freely */}
+        {/* Floating header portal */}
         {createPortal(
           <div
             ref={floatingRef}
@@ -338,7 +365,6 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
             style={{
               opacity: 0,
               pointerEvents: 'none',
-              // Initial radius matches the code block; overridden to 0 when active
               borderRadius: 'var(--radius)',
               boxShadow: '0 0 0 0 transparent',
               transition: 'border-radius 200ms ease, box-shadow 200ms ease'
@@ -353,8 +379,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
           ref={containerRef}
           className="my-3 rounded-lg border border-border font-mono text-xs"
         >
-          {/* Static header — hidden (visibility:hidden) when floating is active
-            so layout is preserved but no double header is shown */}
+          {/* Static header */}
           <div
             ref={headerRef}
             className={cn(
@@ -365,7 +390,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
             {headerContent}
           </div>
 
-          {/* Collapse wrapper — height transition, no overflow:hidden on scrollable */}
+          {/* Collapse wrapper */}
           <div
             className="overflow-hidden rounded-b-lg"
             style={{
@@ -409,6 +434,15 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
             </div>
           )}
         </div>
+
+        {/* Diff Modal */}
+        {showDiff && versions && (
+          <VersionDiffModal
+            open={showDiff}
+            onClose={() => setShowDiff(false)}
+            versions={versions}
+          />
+        )}
       </>
     )
   },
