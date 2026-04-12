@@ -1,6 +1,5 @@
 // src/components/skills/unified-skill-card.tsx
 import { AlertTriangle, ArrowUp } from 'lucide-react'
-import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import type { LintWarning } from '@/lib/bindings'
@@ -69,129 +68,124 @@ export function UnifiedSkillCard({
   }
 
   return (
-    <motion.div
-      whileHover={{ y: -2, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-      transition={{ duration: 0.2 }}
-      className="h-full"
+    // biome-ignore lint/a11y/useSemanticElements: ok
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onClick(skill)}
+      onKeyDown={handleKeyDown}
+      className={cn(
+        'group relative w-full text-left p-4 border rounded-lg cursor-pointer',
+        'transition-all duration-200',
+        'hover:border-primary/40 hover:shadow-md',
+        'flex flex-col h-full min-h-[140px] focus-visible:outline-none',
+        'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
+        isSelected
+          ? 'ring-2 ring-primary ring-offset-1 ring-offset-background border-border'
+          : 'border-border bg-card'
+      )}
     >
-      {/* biome-ignore lint/a11y/useSemanticElements: ok */}
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={() => onClick(skill)}
-        onKeyDown={handleKeyDown}
-        className={cn(
-          'group relative w-full text-left p-4 border rounded-lg cursor-pointer',
-          'transition-all duration-150 hover:border-primary/50',
-          'flex flex-col h-full min-h-[140px] focus-visible:outline-none',
-          'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
-          isSelected
-            ? 'ring-2 ring-primary ring-offset-1 ring-offset-background border-border'
-            : 'border-border bg-card'
+      {/* Header row */}
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <h3 className="font-semibold text-sm leading-tight truncate flex-1 min-w-0">
+          {skill.name}
+        </h3>
+        {skill.status === 'update_available' ? (
+          <Badge
+            variant="destructive"
+            className="shrink-0 text-[10px] px-1.5 py-0 bg-amber-500/10 text-amber-600 border-amber-500/20 flex items-center gap-0.5"
+          >
+            <ArrowUp className="size-2.5" />
+            Update available
+          </Badge>
+        ) : (
+          <Badge
+            variant={STATUS_BADGE_VARIANT[skill.status]}
+            className={cn(
+              'shrink-0 text-[10px] px-1.5 py-0',
+              skill.status === 'installed' &&
+              'bg-primary/10 text-primary border-primary/20',
+              skill.status === 'local_only' &&
+              'bg-secondary text-secondary-foreground'
+            )}
+          >
+            {STATUS_LABEL[skill.status]}
+          </Badge>
         )}
-      >
-        {/* Header row */}
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <h3 className="font-semibold text-sm leading-tight truncate flex-1 min-w-0">
-            {skill.name}
-          </h3>
-          {skill.status === 'update_available' ? (
-            <Badge
-              variant="destructive"
-              className="shrink-0 text-[10px] px-1.5 py-0 bg-amber-500/10 text-amber-600 border-amber-500/20 flex items-center gap-0.5"
+      </div>
+
+      {/* Description */}
+      <p className="text-xs text-muted-foreground line-clamp-3 flex-1 leading-relaxed">
+        {skill.description || (
+          <span className="italic opacity-60">No description</span>
+        )}
+      </p>
+
+      {/* Footer row */}
+      <div className="mt-3 pt-2 border-t border-dashed border-border/60 flex items-center justify-between text-[10px] text-muted-foreground">
+        <span className="truncate">
+          {hasRegistryData ? skill.registryData?.author : '—'}
+        </span>
+        <div className="flex items-center gap-2 shrink-0 ml-2">
+          {/* Lint warning counts */}
+          {errorCount > 0 && (
+            <span
+              className="text-destructive font-medium inline-flex items-center gap-0.5"
+              title={`${errorCount} error${errorCount > 1 ? 's' : ''}`}
             >
-              <ArrowUp className="size-2.5" />
-              Update available
-            </Badge>
-          ) : (
-            <Badge
-              variant={STATUS_BADGE_VARIANT[skill.status]}
-              className={cn(
-                'shrink-0 text-[10px] px-1.5 py-0',
-                skill.status === 'installed' &&
-                'bg-primary/10 text-primary border-primary/20',
-                skill.status === 'local_only' &&
-                'bg-secondary text-secondary-foreground'
-              )}
+              {errorCount} <AlertTriangle className="size-3" />
+            </span>
+          )}
+          {warningCount > 0 && errorCount === 0 && (
+            <span
+              className="text-amber-500 font-medium inline-flex items-center gap-0.5"
+              title={`${warningCount} warning${warningCount > 1 ? 's' : ''}`}
             >
-              {STATUS_LABEL[skill.status]}
-            </Badge>
+              {warningCount} <AlertTriangle className="size-3" />
+            </span>
           )}
-        </div>
-
-        {/* Description */}
-        <p className="text-xs text-muted-foreground line-clamp-3 flex-1 leading-relaxed">
-          {skill.description || (
-            <span className="italic opacity-60">No description</span>
-          )}
-        </p>
-
-        {/* Footer row */}
-        <div className="mt-3 pt-2 border-t border-dashed border-border/60 flex items-center justify-between text-[10px] text-muted-foreground">
-          <span className="truncate">
-            {hasRegistryData ? skill.registryData?.author : '—'}
-          </span>
-          <div className="flex items-center gap-2 shrink-0 ml-2">
-            {/* Lint warning counts */}
-            {errorCount > 0 && (
-              <span
-                className="text-destructive font-medium inline-flex items-center gap-0.5"
-                title={`${errorCount} error${errorCount > 1 ? 's' : ''}`}
-              >
-                {errorCount} <AlertTriangle className="size-3" />
-              </span>
-            )}
-            {warningCount > 0 && errorCount === 0 && (
-              <span
-                className="text-amber-500 font-medium inline-flex items-center gap-0.5"
-                title={`${warningCount} warning${warningCount > 1 ? 's' : ''}`}
-              >
-                {warningCount} <AlertTriangle className="size-3" />
-              </span>
-            )}
-            {/* Trust badge */}
-            <TrustBadge
-              securityScore={securityScore}
-              qualityScore={qualityScore}
-              className="scale-75 origin-right"
-            />
-          </div>
-        </div>
-
-        {/* Action buttons */}
-        <div className="absolute bottom-3 right-3 flex gap-1">
-          {skill.status === 'available' &&
-            platformFeaturesEnabled &&
-            onInstall && (
-              <Button
-                size="xs"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onInstall(skill)
-                }}
-              >
-                Install
-              </Button>
-            )}
-
-          {skill.status === 'update_available' &&
-            platformFeaturesEnabled &&
-            onUpdate && (
-              <Button
-                size="xs"
-                variant="outline"
-                className="border-amber-500/30 text-amber-600 hover:bg-amber-500/10"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onUpdate(skill)
-                }}
-              >
-                <ArrowUp className="size-3 mr-1" />
-                Update
-              </Button>
-            )}
+          {/* Trust badge */}
+          <TrustBadge
+            securityScore={securityScore}
+            qualityScore={qualityScore}
+            className="scale-75 origin-right"
+          />
         </div>
       </div>
-    </motion.div>
+
+      {/* Action buttons */}
+      <div className="absolute bottom-3 right-3 flex gap-1">
+        {skill.status === 'available' &&
+          platformFeaturesEnabled &&
+          onInstall && (
+            <Button
+              size="xs"
+              onClick={(e) => {
+                e.stopPropagation()
+                onInstall(skill)
+              }}
+            >
+              Install
+            </Button>
+          )}
+
+        {skill.status === 'update_available' &&
+          platformFeaturesEnabled &&
+          onUpdate && (
+            <Button
+              size="xs"
+              variant="outline"
+              className="border-amber-500/30 text-amber-600 hover:bg-amber-500/10"
+              onClick={(e) => {
+                e.stopPropagation()
+                onUpdate(skill)
+              }}
+            >
+              <ArrowUp className="size-3 mr-1" />
+              Update
+            </Button>
+          )}
+      </div>
+    </div>
   )
 }

@@ -30,6 +30,26 @@ import { Button } from '@/components/ui/button'
 import { LoadingState } from '@/components/ui/loading-state'
 import { AnimatedSuccessIcon } from '@/components/ui/animated-success-icon'
 
+// Simple Icons
+import {
+  SiGithub,
+  SiGitlab,
+  SiPostgresql,
+  SiSqlite,
+  SiMongodb,
+  SiCloudflare,
+  SiDatadog,
+  SiGrafana,
+  SiSentry,
+  SiKubernetes,
+  SiTerraform,
+  SiNotion,
+  SiJira,
+  SiFigma,
+  SiStripe,
+  SiVercel,
+} from '@icons-pack/react-simple-icons'
+
 export interface CatalogEntry {
   id: string
   name: string
@@ -100,6 +120,34 @@ const CATEGORY_ORDER: CatalogEntry['category'][] = [
 ]
 
 type McpView = 'servers' | 'catalog' | 'custom'
+
+// Helper to get Simple Icon component for a catalog entry
+const getIconForEntry = (entryId: string): React.ReactNode => {
+  const iconMap: Record<string, React.ElementType> = {
+    github: SiGithub,
+    gitlab: SiGitlab,
+    postgres: SiPostgresql,
+    sqlite: SiSqlite,
+    mongodb: SiMongodb,
+    'cloudflare-workers': SiCloudflare,
+    'cloudflare-docs': SiCloudflare,
+    'cloudflare-observability': SiCloudflare,
+    'cloudflare-radar': SiCloudflare,
+    datadog: SiDatadog,
+    grafana: SiGrafana,
+    sentry: SiSentry,
+    kubernetes: SiKubernetes,
+    terraform: SiTerraform,
+    notion: SiNotion,
+    jira: SiJira,
+    figma: SiFigma,
+    stripe: SiStripe,
+    vercel: SiVercel,
+  }
+
+  const IconComponent = iconMap[entryId]
+  return IconComponent ? <IconComponent className="size-4" /> : null
+}
 
 export function McpTab() {
   const [view, setView] = useState<McpView>('servers')
@@ -238,6 +286,7 @@ export function McpTab() {
                     alreadyAdded={isAdded(entry)}
                     onAdd={addFromCatalog}
                     adding={addingId === entry.id && addMut.isPending}
+                    icon={getIconForEntry(entry.id)}
                   />
                 </div>
               ))}
