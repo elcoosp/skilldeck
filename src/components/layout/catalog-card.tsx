@@ -36,10 +36,10 @@ export function CatalogCard({
   const toggleDescription = () => setExpanded((prev) => !prev)
 
   return (
-    <div className="@container/card w-full min-w-0">
+    <div className="@container/card w-full min-w-0 overflow-hidden">
       <div
         className={cn(
-          'flex flex-col gap-1 p-2 rounded-md border transition-colors w-full min-w-0',
+          'flex flex-col gap-1 p-2 rounded-md border transition-colors w-full min-w-0 overflow-hidden',
           alreadyAdded
             ? 'border-green-500/20 bg-green-500/5 opacity-70'
             : 'border-border hover:border-primary/30 hover:bg-muted/30'

@@ -258,8 +258,8 @@ export function McpTab() {
           </button>
         </div>
 
-        {/* Category filters – scrollable with CSS mask fade (no extra padding) */}
-        <div className="shrink-0 py-1.5">
+        {/* Category filters – scrollable with CSS mask fade */}
+        <div className="shrink-0 py-1.5 min-w-0 overflow-hidden">
           <div
             className="flex gap-1 overflow-x-auto thin-scrollbar px-2.5 pb-1"
             style={{
@@ -357,7 +357,6 @@ export function McpTab() {
         }
       />
       <ScrollArea className="flex-1 min-h-0">
-        {/* ↓ overflow-hidden creates a new BFC, breaking out of ScrollArea's internal display:table */}
         <div className="w-full min-w-0 overflow-hidden px-2.5 pb-2.5 space-y-2 mt-2">
           {isLoading ? (
             <LoadingState message="Discovering available tools…" />
@@ -403,7 +402,7 @@ export function McpTab() {
           <button
             type="button"
             onClick={() => setView('catalog')}
-            className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg border border-dashed border-border hover:border-primary/40 hover:bg-muted/30 text-left transition-colors group"
+            className="w-full max-w-full flex items-center gap-2 px-2.5 py-2 rounded-lg border border-dashed border-border hover:border-primary/40 hover:bg-muted/30 text-left transition-colors group"
           >
             <div className="size-6 rounded-md bg-muted flex items-center justify-center shrink-0 group-hover:bg-primary/10 transition-colors">
               <Zap className="size-3 text-muted-foreground group-hover:text-primary transition-colors" />
@@ -420,7 +419,7 @@ export function McpTab() {
           <button
             type="button"
             onClick={() => setView('custom')}
-            className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg border border-dashed border-border hover:border-primary/40 hover:bg-muted/30 text-left transition-colors group"
+            className="w-full max-w-full flex items-center gap-2 px-2.5 py-2 rounded-lg border border-dashed border-border hover:border-primary/40 hover:bg-muted/30 text-left transition-colors group"
           >
             <div className="size-6 rounded-md bg-muted flex items-center justify-center shrink-0 group-hover:bg-primary/10 transition-colors">
               <Server className="size-3 text-muted-foreground group-hover:text-primary transition-colors" />
