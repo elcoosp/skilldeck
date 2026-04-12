@@ -23,6 +23,9 @@ import type { UnifiedSkill } from '@/types/skills'
 import { PlatformStatusBanner } from './platform-status-banner'
 import { SkillDetailPanel } from './skill-detail-panel'
 import { UnifiedSkillCard } from './unified-skill-card'
+import { RightPanelHeader } from '@/components/layout/right-panel-header'
+import { EmptyState } from '@/components/ui/empty-state'
+import { FolderOpen, Globe } from 'lucide-react'
 
 // Responsive column count based on container width
 const BREAKPOINTS = {
@@ -325,54 +328,55 @@ export function UnifiedSkillList() {
   return (
     <div className="flex h-full min-h-0">
       <div className="flex flex-col flex-1 min-w-0 h-full" ref={containerRef}>
-        {/* Header – padding matches MCP tab */}
-        <div className="flex items-center justify-between px-3 pt-3 pb-2 shrink-0">
-          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            Skill Registry
-          </span>
-          <div className="flex items-center gap-2">
-            {localWithIssues > 0 && (
-              <span
-                className="text-xs text-amber-500 font-medium"
-                title={`${localWithIssues} local skill(s) have lint issues`}
-              >
-                {localWithIssues} ⚠
-              </span>
-            )}
-            {activeTab === 'local' && updateAvailableCount > 0 && (
-              <Button
-                size="xs"
-                variant="outline"
-                onClick={() => batchUpdateMutation.mutate()}
-                disabled={isBatchUpdating || batchUpdateMutation.isPending}
-                className="h-6 px-2 text-xs"
-              >
-                {isBatchUpdating ? (
-                  <>
-                    <RefreshCw className="size-3 mr-1 animate-spin" />
-                    Updating...
-                  </>
-                ) : (
-                  <>Update all ({updateAvailableCount})</>
-                )}
-              </Button>
-            )}
-            <button
-              type="button"
-              onClick={() => handleSync()}
-              disabled={!platformFeaturesEnabled || syncMutation.isPending}
-              title={
-                !platformFeaturesEnabled ? 'Enable platform to sync' : 'Refresh'
-              }
-              className={cn(
-                'p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40',
-                syncMutation.isPending && 'animate-spin'
+        <RightPanelHeader
+          title="Skills"
+          actions={
+            <div className="flex items-center gap-2">
+              {localWithIssues > 0 && (
+                <span
+                  className="text-xs text-amber-500 font-medium"
+                  title={`${localWithIssues} local skill(s) have lint issues`}
+                >
+                  {localWithIssues} ⚠
+                </span>
               )}
-            >
-              <RefreshCw className="h-3 w-3" />
-            </button>
-          </div>
-        </div>
+              {activeTab === 'local' && updateAvailableCount > 0 && (
+                <Button
+                  size="xs"
+                  variant="outline"
+                  onClick={() => batchUpdateMutation.mutate()}
+                  disabled={isBatchUpdating || batchUpdateMutation.isPending}
+                  className="h-6 px-2 text-xs"
+                >
+                  {isBatchUpdating ? (
+                    <>
+                      <RefreshCw className="size-3 mr-1 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    <>Update all ({updateAvailableCount})</>
+                  )}
+                </Button>
+              )}
+              <button
+                type="button"
+                onClick={() => handleSync()}
+                disabled={!platformFeaturesEnabled || syncMutation.isPending}
+                title={
+                  !platformFeaturesEnabled
+                    ? 'Enable platform to sync'
+                    : 'Refresh'
+                }
+                className={cn(
+                  'p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40',
+                  syncMutation.isPending && 'animate-spin'
+                )}
+              >
+                <RefreshCw className="h-3 w-3" />
+              </button>
+            </div>
+          }
+        />
 
         {/* Tabs */}
         <Tabs
@@ -380,7 +384,7 @@ export function UnifiedSkillList() {
           onValueChange={(v) => setActiveTab(v as any)}
           className="flex flex-col flex-1 min-h-0"
         >
-          <TabsList className="mx-3 w-fit">
+          <TabsList className="mx-3 mt-2 w-fit">
             <TabsTrigger value="local">Local</TabsTrigger>
             <TabsTrigger value="registry">Registry</TabsTrigger>
           </TabsList>
@@ -389,7 +393,7 @@ export function UnifiedSkillList() {
             value="local"
             className="flex-1 min-h-0 overflow-hidden flex flex-col"
           >
-            <div className="px-3 pb-3 flex gap-2">
+            <div className="px-3 py-2 flex gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                 <input
@@ -440,7 +444,7 @@ export function UnifiedSkillList() {
                 </div>
               )}
             </div>
-            <div className="px-3 pb-3 flex gap-2">
+            <div className="px-3 py-2 flex gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                 <input
@@ -514,7 +518,7 @@ export function UnifiedSkillList() {
 
     if (filteredSkills.length === 0) {
       return (
-        <EmptyState
+        <SkillsEmptyState
           search={search}
           hasRegistryError={!!registryError}
           tab={activeTab}
@@ -608,7 +612,7 @@ export function UnifiedSkillList() {
   }
 }
 
-function EmptyState({
+function SkillsEmptyState({
   search,
   hasRegistryError,
   tab,
@@ -629,121 +633,92 @@ function EmptyState({
 }) {
   if (hasRegistryError) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center gap-4">
-        <img
-          src="/illustrations/empty-skills.jpeg"
-          alt="No skills"
-          className="w-48 h-48 mb-2 opacity-90 rounded-3xl"
-        />
-        <AlertCircle className="h-8 w-8 text-amber-500" />
-        <p className="text-sm font-medium">Registry unavailable</p>
-        <p className="text-xs text-muted-foreground max-w-xs">
-          Could not reach the skill registry. Local skills are still shown.
-          Check your network or platform configuration.
-        </p>
-      </div>
+      <EmptyState
+        icon={AlertCircle}
+        title="Registry unavailable"
+        description="Could not reach the skill registry. Local skills are still shown."
+        action={
+          onSync
+            ? {
+              label: 'Retry',
+              onClick: onSync
+            }
+            : undefined
+        }
+      />
     )
   }
 
   if (search) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center gap-4">
-        <img
-          src="/illustrations/empty-skills.jpeg"
-          alt="No skills"
-          className="w-48 h-48 mb-2 opacity-90 rounded-3xl"
-        />
-        <div className="flex items-center justify-center gap-2">
-          <Search className="h-4 w-4 text-muted-foreground" />
-          <p className="text-sm font-medium">No skills match "{search}"</p>
-        </div>
-        <p className="text-xs text-muted-foreground max-w-xs">
-          Try a different search term or clear the filter.
-        </p>
-      </div>
+      <EmptyState
+        icon={Search}
+        title={`No skills match "${search}"`}
+        description="Try a different search term or clear the filter"
+      />
     )
   }
 
   if (tab === 'local') {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center gap-4">
-        <img
-          src="/illustrations/empty-skills.jpeg"
-          alt="No local skills"
-          className="w-48 h-48 mb-2 opacity-90 rounded-3xl"
-        />
-        <h3 className="text-base font-semibold text-foreground mb-1">
-          No local skills
-        </h3>
-        <p className="text-sm text-muted-foreground max-w-xs">
-          Install skills from the registry or create your own.
-        </p>
-      </div>
+      <EmptyState
+        icon={FolderOpen}
+        title="No local skills"
+        description="Install skills from the registry or create your own"
+      />
     )
   }
 
   // Registry tab empty state
   if (!platformEnabled) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center gap-4">
-        <img
-          src="/illustrations/empty-skills.jpeg"
-          alt="Platform not connected"
-          className="w-48 h-48 mb-2 opacity-90 rounded-3xl"
-        />
-        <h3 className="text-base font-semibold text-foreground mb-1">
-          Connect to Platform
-        </h3>
-        <p className="text-sm text-muted-foreground max-w-xs mb-2">
-          Enable platform features to discover and install community skills.
-        </p>
-        <Button size="sm" onClick={onEnablePlatform}>
-          Connect Platform
-        </Button>
-      </div>
+      <EmptyState
+        icon={Globe}
+        title="Connect to Platform"
+        description="Enable platform features to discover and install community skills"
+        action={
+          onEnablePlatform
+            ? {
+              label: 'Connect Platform',
+              onClick: onEnablePlatform
+            }
+            : undefined
+        }
+      />
     )
   }
 
   if (registrationNeeded) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center gap-4">
-        <img
-          src="/illustrations/empty-skills.jpeg"
-          alt="Platform not registered"
-          className="w-48 h-48 mb-2 opacity-90 rounded-3xl"
-        />
-        <h3 className="text-base font-semibold text-foreground mb-1">
-          Platform not registered
-        </h3>
-        <p className="text-sm text-muted-foreground max-w-xs mb-2">
-          You need to register with the platform to sync skills.
-        </p>
-        <Button size="sm" onClick={onEnablePlatform}>
-          Register Now
-        </Button>
-      </div>
+      <EmptyState
+        icon={Globe}
+        title="Platform not registered"
+        description="Register with the platform to sync skills"
+        action={
+          onEnablePlatform
+            ? {
+              label: 'Register Now',
+              onClick: onEnablePlatform
+            }
+            : undefined
+        }
+      />
     )
   }
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-6 text-center gap-4">
-      <img
-        src="/illustrations/empty-skills.jpeg"
-        alt="No registry skills"
-        className="w-48 h-48 mb-2 opacity-90 rounded-3xl"
-      />
-      <h3 className="text-base font-semibold text-foreground mb-1">
-        No registry skills
-      </h3>
-      <p className="text-sm text-muted-foreground max-w-xs mb-2">
-        Sync with the platform to discover new skills.
-      </p>
-      <Button size="sm" onClick={onSync} disabled={isSyncing}>
-        <RefreshCw
-          className={`size-3.5 mr-1.5 ${isSyncing ? 'animate-spin' : ''}`}
-        />
-        Sync now
-      </Button>
-    </div>
+    <EmptyState
+      icon={Globe}
+      title="No registry skills"
+      description="Sync with the platform to discover new skills"
+      action={
+        onSync
+          ? {
+            label: isSyncing ? 'Syncing…' : 'Sync now',
+            onClick: onSync
+          }
+          : undefined
+      }
+    />
   )
 }
