@@ -349,7 +349,7 @@ export function FileTreePanel() {
     return (
       <div className="flex flex-col h-full">
         <RightPanelHeader title="Files" />
-        <div className="flex-1 flex items-center justify-center p-3 text-sm text-muted-foreground">
+        <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
           No workspace open
         </div>
       </div>
@@ -360,7 +360,7 @@ export function FileTreePanel() {
     return (
       <div className="flex flex-col h-full">
         <RightPanelHeader title="Files" />
-        <div className="flex-1 flex items-center justify-center p-3">
+        <div className="flex-1 flex items-center justify-center">
           <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
         </div>
       </div>
@@ -370,7 +370,7 @@ export function FileTreePanel() {
   return (
     <div className="flex flex-col h-full">
       <RightPanelHeader title="Files" />
-      <div className="p-3 border-b shrink-0">
+      <div className="p-2 border-b shrink-0">
         <div className="relative">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
           <Input
@@ -386,7 +386,7 @@ export function FileTreePanel() {
         ref={containerRef}
         tabIndex={0}
         onKeyDown={handleKeyDown}
-        className="flex-1 overflow-auto outline-none p-3"
+        className="flex-1 overflow-auto outline-none"
         role="tree"
         aria-label="Workspace files"
         aria-activedescendant={focusedId ?? undefined}
@@ -407,7 +407,7 @@ export function FileTreePanel() {
           {treeElements.length > 0 ? (
             renderTree(treeElements)
           ) : (
-            <div className="text-center text-sm text-muted-foreground py-4">
+            <div className="p-4 text-center text-sm text-muted-foreground">
               {searchQuery ? 'No matching files' : 'No files found in workspace'}
             </div>
           )}
