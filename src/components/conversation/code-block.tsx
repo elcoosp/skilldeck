@@ -1,6 +1,6 @@
 // src/components/conversation/code-block.tsx
 
-import { Check, ChevronRight, Copy, GitCompare, Hash, Loader2, Play, Save, Search, X } from 'lucide-react'
+import { Check, ChevronRight, Copy, GitCompare, Hash, HelpCircle, Loader2, Play, Save, Search, Wrench, X } from 'lucide-react'
 import type React from 'react'
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -15,6 +15,8 @@ import { useQuery } from '@tanstack/react-query'
 import { VersionDiffModal } from '@/components/artifacts/version-diff-modal'
 import { useUILayoutStore } from '@/store/ui-layout'
 import { useUIEphemeralStore } from '@/store/ui-ephemeral'
+import { useSendMessage } from '@/hooks/use-messages'
+import { useConversationStore } from '@/store/conversation'
 
 const SUPPORTED_RUN_LANGUAGES = new Set(['python', 'py', 'javascript', 'js', 'bash', 'sh', 'ruby', 'rb'])
 
@@ -81,12 +83,35 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
     const setRightTab = useUILayoutStore((s) => s.setRightTab)
     const setSelectedArtifactId = useUIEphemeralStore((s) => s.setSelectedArtifactId)
 
+    // Conversation and message hooks for Explain/Fix
+    const activeConversationId = useConversationStore((s) => s.activeConversationId)
+    const activeBranchId = useConversationStore((s) => s.activeBranchId)
+    const sendMessage = useSendMessage(activeConversationId!, activeBranchId)
+
     const handleOpenArtifact = useCallback(() => {
       if (artifactId) {
         setRightTab('artifacts')
         setSelectedArtifactId(artifactId)
       }
     }, [artifactId, setRightTab, setSelectedArtifactId])
+
+    const handleExplain = useCallback(() => {
+      if (!activeConversationId) {
+        toast.error('No active conversation')
+        return
+      }
+      const prompt = `Explain this ${language} code:\n\`\`\`${language}\n${rawCode}\n\`\`\``
+      sendMessage.mutate({ content: prompt, thinking: false })
+    }, [activeConversationId, language, rawCode, sendMessage])
+
+    const handleFix = useCallback(() => {
+      if (!activeConversationId) {
+        toast.error('No active conversation')
+        return
+      }
+      const prompt = `The following ${language} code has an issue. Please fix it and explain the changes:\n\`\`\`${language}\n${rawCode}\n\`\`\``
+      sendMessage.mutate({ content: prompt, thinking: false })
+    }, [activeConversationId, language, rawCode, sendMessage])
 
     // Query artifact versions for diff
     const { data: versions } = useQuery({
@@ -504,6 +529,25 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
               </button>
             </>
           )}
+          {/* Explain and Fix buttons with hover opacity */}
+          <div className="flex items-center gap-1 opacity-0 group-hover/code-header:opacity-100 transition-opacity">
+            <button
+              type="button"
+              onClick={handleExplain}
+              className="p-1 text-muted-foreground hover:text-foreground"
+              title="Explain this code"
+            >
+              <HelpCircle className="size-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={handleFix}
+              className="p-1 text-muted-foreground hover:text-foreground"
+              title="Ask AI to fix"
+            >
+              <Wrench className="size-3.5" />
+            </button>
+          </div>
         </div>
       </>
     )
@@ -530,7 +574,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
 
         <div
           ref={containerRef}
-          className="my-3 rounded-lg border border-border font-mono text-xs"
+          className="my-3 rounded-lg border border-border font-mono text-xs group/code-header"
         >
           {/* Static header */}
           <div
