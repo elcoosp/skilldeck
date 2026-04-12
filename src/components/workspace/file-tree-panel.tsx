@@ -22,6 +22,7 @@ import { filterTree } from '@/lib/filter-tree'
 import { Input } from '@/components/ui/input'
 import { toast } from '@/components/ui/toast'
 import { Search } from 'lucide-react'
+import { RightPanelHeader } from '@/components/layout/right-panel-header'
 
 interface FileEntry {
   name: string
@@ -345,16 +346,31 @@ export function FileTreePanel() {
   }, [focusedId, handleOpenFile])
 
   if (!activeWorkspace) {
-    return <div className="flex h-full items-center justify-center p-4 text-sm text-muted-foreground">No workspace open</div>
+    return (
+      <div className="flex flex-col h-full">
+        <RightPanelHeader title="Files" />
+        <div className="flex-1 flex items-center justify-center p-3 text-sm text-muted-foreground">
+          No workspace open
+        </div>
+      </div>
+    )
   }
 
   if (isLoading) {
-    return <div className="flex h-full items-center justify-center p-4"><div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" /></div>
+    return (
+      <div className="flex flex-col h-full">
+        <RightPanelHeader title="Files" />
+        <div className="flex-1 flex items-center justify-center p-3">
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="flex flex-col h-full">
-      <div className="p-2 border-b shrink-0">
+      <RightPanelHeader title="Files" />
+      <div className="p-3 border-b shrink-0">
         <div className="relative">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
           <Input
@@ -370,7 +386,7 @@ export function FileTreePanel() {
         ref={containerRef}
         tabIndex={0}
         onKeyDown={handleKeyDown}
-        className="flex-1 overflow-auto outline-none"
+        className="flex-1 overflow-auto outline-none p-3"
         role="tree"
         aria-label="Workspace files"
         aria-activedescendant={focusedId ?? undefined}
@@ -391,7 +407,7 @@ export function FileTreePanel() {
           {treeElements.length > 0 ? (
             renderTree(treeElements)
           ) : (
-            <div className="p-4 text-center text-sm text-muted-foreground">
+            <div className="text-center text-sm text-muted-foreground py-4">
               {searchQuery ? 'No matching files' : 'No files found in workspace'}
             </div>
           )}

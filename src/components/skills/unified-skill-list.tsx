@@ -488,7 +488,7 @@ export function UnifiedSkillList() {
   function renderContent() {
     if (isLoading) {
       return (
-        <div className="flex-1 flex items-center justify-center">
+        <div className="flex-1 flex items-center justify-center p-3">
           <div className="text-center space-y-2">
             <div className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
             <p className="text-xs text-muted-foreground">
@@ -501,7 +501,7 @@ export function UnifiedSkillList() {
 
     if (!isMeasured) {
       return (
-        <div className="flex-1 flex items-center justify-center">
+        <div className="flex-1 flex items-center justify-center p-3">
           <div className="text-center space-y-2">
             <div className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
             <p className="text-xs text-muted-foreground">
@@ -530,7 +530,7 @@ export function UnifiedSkillList() {
     return (
       <div
         ref={parentRef}
-        className="h-full overflow-auto px-4 py-4 overflow-x-hidden thin-scrollbar"
+        className="h-full overflow-auto px-3 py-3 overflow-x-hidden thin-scrollbar"
         style={{ scrollbarGutter: 'stable' }}
       >
         <div
@@ -629,7 +629,7 @@ function EmptyState({
 }) {
   if (hasRegistryError) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-4">
+      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center gap-4">
         <img
           src="/illustrations/empty-skills.jpeg"
           alt="No skills"
@@ -647,7 +647,7 @@ function EmptyState({
 
   if (search) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-4">
+      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center gap-4">
         <img
           src="/illustrations/empty-skills.jpeg"
           alt="No skills"
@@ -666,7 +666,7 @@ function EmptyState({
 
   if (tab === 'local') {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-4">
+      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center gap-4">
         <img
           src="/illustrations/empty-skills.jpeg"
           alt="No local skills"
@@ -685,7 +685,7 @@ function EmptyState({
   // Registry tab empty state
   if (!platformEnabled) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-4">
+      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center gap-4">
         <img
           src="/illustrations/empty-skills.jpeg"
           alt="Platform not connected"
@@ -706,7 +706,7 @@ function EmptyState({
 
   if (registrationNeeded) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-4">
+      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center gap-4">
         <img
           src="/illustrations/empty-skills.jpeg"
           alt="Platform not registered"
@@ -726,7 +726,7 @@ function EmptyState({
   }
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-4">
+    <div className="flex-1 flex flex-col items-center justify-center p-6 text-center gap-4">
       <img
         src="/illustrations/empty-skills.jpeg"
         alt="No registry skills"
