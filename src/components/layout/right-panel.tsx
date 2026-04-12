@@ -73,6 +73,7 @@ import { type UIPersistentState, useUIPersistentStore } from '@/store/ui-state'
 import { AnalyticsHeatmap } from '../analytics/analytics-heatmap'
 import { ProviderIcon } from '../ui/provider-icon'
 import { McpTab } from './mcp-tab'
+import { RightPanelHeader } from './right-panel-header'
 
 // Feature gate selectors remain unchanged
 const selectHasSkillsUnlocked = (state: UIPersistentState) =>
@@ -336,79 +337,82 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
     : displayModels[0]
 
   return (
-    <div className="p-3 space-y-4">
-      <section>
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-          Active Conversation
-        </h3>
-        <p className="text-xs font-mono text-muted-foreground break-all">
-          {conversationId}
-        </p>
-      </section>
+    <div className="flex flex-col h-full">
+      <RightPanelHeader title="Session" />
+      <div className="flex-1 p-3 space-y-4">
+        <section>
+          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+            Active Conversation
+          </h3>
+          <p className="text-xs font-mono text-muted-foreground break-all">
+            {conversationId}
+          </p>
+        </section>
 
-      <section className="space-y-3">
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-          Profile & Model
-        </h3>
+        <section className="space-y-3">
+          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            Profile & Model
+          </h3>
 
-        <div className="space-y-1">
-          <span className="text-xs text-muted-foreground">Provider</span>
-          <div className="text-xs font-medium px-2 py-1 rounded bg-muted/50 flex items-center gap-1.5 min-w-0">
-            <ProviderIcon
-              provider={profile.model_provider}
-              size={14}
-              className="shrink-0"
+          <div className="space-y-1">
+            <span className="text-xs text-muted-foreground">Provider</span>
+            <div className="text-xs font-medium px-2 py-1 rounded bg-muted/50 flex items-center gap-1.5 min-w-0">
+              <ProviderIcon
+                provider={profile.model_provider}
+                size={14}
+                className="shrink-0"
+              />
+              <span className="truncate">{profile.model_provider}</span>
+              {!hasKey &&
+                !readinessLoading &&
+                readiness?.status.status !== 'ready' && (
+                  <span className="text-[10px] text-amber-500 font-normal shrink-0">
+                    (not configured)
+                  </span>
+                )}
+            </div>
+            {!readinessLoading && readiness?.status.status === 'not_ready' && (
+              <div className="mt-1 text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/20 p-2 rounded">
+                {readiness.status.reason} {readiness.status.fix_action}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">
+              Model{' '}
+              {modelsLoading && <span className="opacity-50">(loading…)</span>}
+            </label>
+            <ModelSelectorWithIcon
+              value={safeSelectedModel}
+              onValueChange={setSelectedModelId}
+              models={displayModels}
+              placeholder="Select model"
+              disabled={modelsLoading}
             />
-            <span className="truncate">{profile.model_provider}</span>
-            {!hasKey &&
-              !readinessLoading &&
-              readiness?.status.status !== 'ready' && (
-                <span className="text-[10px] text-amber-500 font-normal shrink-0">
-                  (not configured)
-                </span>
-              )}
           </div>
-          {!readinessLoading && readiness?.status.status === 'not_ready' && (
-            <div className="mt-1 text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/20 p-2 rounded">
-              {readiness.status.reason} {readiness.status.fix_action}
-            </div>
-          )}
-        </div>
+        </section>
 
-        <div className="space-y-1">
-          <label className="text-xs text-muted-foreground">
-            Model{' '}
-            {modelsLoading && <span className="opacity-50">(loading…)</span>}
-          </label>
-          <ModelSelectorWithIcon
-            value={safeSelectedModel}
-            onValueChange={setSelectedModelId}
-            models={displayModels}
-            placeholder="Select model"
-            disabled={modelsLoading}
-          />
-        </div>
-      </section>
-
-      <section className="space-y-2">
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-          Token Usage
-        </h3>
-        <div className="grid grid-cols-2 gap-2 text-sm">
-          <div className="rounded border border-border p-2 min-w-0">
-            <span className="text-muted-foreground text-xs">Input</span>
-            <div className="font-mono text-sm truncate">
-              {inputTokens.toLocaleString()}
+        <section className="space-y-2">
+          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            Token Usage
+          </h3>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="rounded border border-border p-2 min-w-0">
+              <span className="text-muted-foreground text-xs">Input</span>
+              <div className="font-mono text-sm truncate">
+                {inputTokens.toLocaleString()}
+              </div>
+            </div>
+            <div className="rounded border border-border p-2 min-w-0">
+              <span className="text-muted-foreground text-xs">Output</span>
+              <div className="font-mono text-sm truncate">
+                {outputTokens.toLocaleString()}
+              </div>
             </div>
           </div>
-          <div className="rounded border border-border p-2 min-w-0">
-            <span className="text-muted-foreground text-xs">Output</span>
-            <div className="font-mono text-sm truncate">
-              {outputTokens.toLocaleString()}
-            </div>
-          </div>
-        </div>
-      </section>
+        </section>
+      </div>
     </div>
   )
 }
@@ -434,175 +438,179 @@ function WorkflowTab() {
   }
 
   return (
-    <div className="p-3 space-y-4">
-      {progress && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider truncate">
-              Active Workflow
-            </h3>
-            <span
-              className={cn(
-                'text-xs font-medium shrink-0 ml-2',
-                progress.status === 'running'
-                  ? 'text-blue-500'
-                  : progress.status === 'completed'
-                    ? 'text-green-500'
-                    : 'text-red-500'
-              )}
-            >
-              {progress.status}
-            </span>
-          </div>
-
-          <p className="text-xs font-mono text-muted-foreground break-all">
-            {progress.workflowId}
-          </p>
-
-          {progress.error && (
-            <div className="p-2 rounded-md bg-red-500/10 text-xs text-red-500">
-              {progress.error}
-            </div>
-          )}
-
-          <div className="space-y-1">
-            {Object.values(progress.steps).map((step) => {
-              const isOpen = expanded[step.stepId]
-              const stepColor = {
-                pending: 'bg-muted-foreground/30',
-                running: 'bg-blue-500 animate-pulse',
-                completed: 'bg-green-500',
-                failed: 'bg-red-500'
-              }[step.status]
-
-              return (
-                <div
-                  key={step.stepId}
-                  className="rounded-md border border-border overflow-hidden"
-                >
-                  <button
-                    type="button"
-                    className="flex items-center gap-2 w-full p-2 text-left hover:bg-muted/50 transition-colors min-w-0"
-                    onClick={() =>
-                      setExpanded((prev) => ({
-                        ...prev,
-                        [step.stepId]: !isOpen
-                      }))
-                    }
-                  >
-                    <div
-                      className={cn('size-2 rounded-full shrink-0', stepColor)}
-                    />
-                    <span className="text-xs font-medium flex-1 truncate">
-                      {step.stepId}
-                    </span>
-                    <span className="text-xs text-muted-foreground shrink-0">
-                      {step.status}
-                    </span>
-                    <ChevronRight
-                      className={cn(
-                        'size-3 text-muted-foreground transition-transform shrink-0',
-                        isOpen && 'rotate-90'
-                      )}
-                    />
-                  </button>
-                  {isOpen && step.result && (
-                    <div className="px-3 pb-2 pt-0">
-                      <p className="text-xs text-muted-foreground font-mono break-words whitespace-pre-wrap line-clamp-6">
-                        {step.result}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider truncate">
-            Saved Workflows
-          </h3>
+    <div className="flex flex-col h-full">
+      <RightPanelHeader
+        title="Workflow"
+        actions={
           <Button
             size="xs"
             variant="outline"
             onClick={() => setEditorOpen(true)}
-            className="shrink-0 ml-2"
           >
             <Plus className="size-3 mr-1" />
             New
           </Button>
-        </div>
-
-        {isLoading ? (
-          <div className="flex justify-center py-4">
-            <BouncingDots />
-          </div>
-        ) : savedWorkflows.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.3, ease: 'easeOut' }}
-            className="flex flex-col items-center justify-center py-6 px-2 text-center"
-          >
-            {/* Responsive image - uses percentage width */}
-            <img
-              src="/illustrations/empty-workflows.jpeg"
-              alt="No workflows"
-              className="w-24 h-24 object-contain mb-3 rounded-2xl opacity-90"
-            />
-            <h3 className="text-sm font-semibold text-foreground mb-1">
-              Ready to automate?
-            </h3>
-            <p className="text-xs text-muted-foreground">
-              Design workflows for elegant automation.
-            </p>
-          </motion.div>
-        ) : (
-          <div className="space-y-1">
-            {savedWorkflows.map((wf) => (
-              <div
-                key={wf.id}
-                className="flex items-center gap-1 p-2 rounded-md border border-border hover:bg-muted/30 transition-colors min-w-0"
+        }
+      />
+      <div className="flex-1 p-3 space-y-4">
+        {progress && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider truncate">
+                Active Workflow
+              </h3>
+              <span
+                className={cn(
+                  'text-xs font-medium shrink-0 ml-2',
+                  progress.status === 'running'
+                    ? 'text-blue-500'
+                    : progress.status === 'completed'
+                      ? 'text-green-500'
+                      : 'text-red-500'
+                )}
               >
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium truncate">{wf.name}</p>
-                  <p className="text-[10px] text-muted-foreground truncate">
-                    {new Date(wf.updated_at).toLocaleDateString()}
-                  </p>
-                </div>
-                <Button size="icon-xs" variant="ghost" onClick={() => { setSelectedWorkflow(wf.definition); setEditorOpen(true) }} title="Edit" className="shrink-0">
-                  <ChevronRight className="size-3" />
-                </Button>
-                <Button size="icon-xs" variant="ghost" onClick={() => runMutation.mutate(wf.id)} disabled={runMutation.isPending} title="Run" className="shrink-0">
-                  <Play className="size-3" />
-                </Button>
-                <Button variant="ghost" size="icon-xs" onClick={() => handleDelete(wf.id, wf.name)} className="text-muted-foreground hover:text-destructive shrink-0">
-                  <Trash2 className="size-3" />
-                </Button>
+                {progress.status}
+              </span>
+            </div>
+
+            <p className="text-xs font-mono text-muted-foreground break-all">
+              {progress.workflowId}
+            </p>
+
+            {progress.error && (
+              <div className="p-2 rounded-md bg-red-500/10 text-xs text-red-500">
+                {progress.error}
               </div>
-            ))}
+            )}
+
+            <div className="space-y-1">
+              {Object.values(progress.steps).map((step) => {
+                const isOpen = expanded[step.stepId]
+                const stepColor = {
+                  pending: 'bg-muted-foreground/30',
+                  running: 'bg-blue-500 animate-pulse',
+                  completed: 'bg-green-500',
+                  failed: 'bg-red-500'
+                }[step.status]
+
+                return (
+                  <div
+                    key={step.stepId}
+                    className="rounded-md border border-border overflow-hidden"
+                  >
+                    <button
+                      type="button"
+                      className="flex items-center gap-2 w-full p-2 text-left hover:bg-muted/50 transition-colors min-w-0"
+                      onClick={() =>
+                        setExpanded((prev) => ({
+                          ...prev,
+                          [step.stepId]: !isOpen
+                        }))
+                      }
+                    >
+                      <div
+                        className={cn('size-2 rounded-full shrink-0', stepColor)}
+                      />
+                      <span className="text-xs font-medium flex-1 truncate">
+                        {step.stepId}
+                      </span>
+                      <span className="text-xs text-muted-foreground shrink-0">
+                        {step.status}
+                      </span>
+                      <ChevronRight
+                        className={cn(
+                          'size-3 text-muted-foreground transition-transform shrink-0',
+                          isOpen && 'rotate-90'
+                        )}
+                      />
+                    </button>
+                    {isOpen && step.result && (
+                      <div className="px-3 pb-2 pt-0">
+                        <p className="text-xs text-muted-foreground font-mono break-words whitespace-pre-wrap line-clamp-6">
+                          {step.result}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
           </div>
         )}
-      </div>
 
-      {selectedWorkflow && (
-        <div className="mt-4 border-t pt-3">
-          <h4 className="text-xs font-medium mb-2">Visualization</h4>
-          <div className="h-64 border rounded-md bg-muted/20 p-1 overflow-hidden">
-            <WorkflowGraph definition={selectedWorkflow} stepStatuses={{}} />
-          </div>
+        <div className="space-y-2">
+          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            Saved Workflows
+          </h3>
+
+          {isLoading ? (
+            <div className="flex justify-center py-4">
+              <BouncingDots />
+            </div>
+          ) : savedWorkflows.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+              className="flex flex-col items-center justify-center py-6 px-2 text-center"
+            >
+              {/* Responsive image - uses percentage width */}
+              <img
+                src="/illustrations/empty-workflows.jpeg"
+                alt="No workflows"
+                className="w-24 h-24 object-contain mb-3 rounded-2xl opacity-90"
+              />
+              <h3 className="text-sm font-semibold text-foreground mb-1">
+                Ready to automate?
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Design workflows for elegant automation.
+              </p>
+            </motion.div>
+          ) : (
+            <div className="space-y-1">
+              {savedWorkflows.map((wf) => (
+                <div
+                  key={wf.id}
+                  className="flex items-center gap-1 p-2 rounded-md border border-border hover:bg-muted/30 transition-colors min-w-0"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium truncate">{wf.name}</p>
+                    <p className="text-[10px] text-muted-foreground truncate">
+                      {new Date(wf.updated_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <Button size="icon-xs" variant="ghost" onClick={() => { setSelectedWorkflow(wf.definition); setEditorOpen(true) }} title="Edit" className="shrink-0">
+                    <ChevronRight className="size-3" />
+                  </Button>
+                  <Button size="icon-xs" variant="ghost" onClick={() => runMutation.mutate(wf.id)} disabled={runMutation.isPending} title="Run" className="shrink-0">
+                    <Play className="size-3" />
+                  </Button>
+                  <Button variant="ghost" size="icon-xs" onClick={() => handleDelete(wf.id, wf.name)} className="text-muted-foreground hover:text-destructive shrink-0">
+                    <Trash2 className="size-3" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      )}
 
-      <WorkflowEditor
-        open={editorOpen}
-        onOpenChange={setEditorOpen}
-        initialDefinition={selectedWorkflow}
-        onSaved={() => setSelectedWorkflow(null)}
-      />
+        {selectedWorkflow && (
+          <div className="mt-4 border-t pt-3">
+            <h4 className="text-xs font-medium mb-2">Visualization</h4>
+            <div className="h-64 border rounded-md bg-muted/20 p-1 overflow-hidden">
+              <WorkflowGraph definition={selectedWorkflow} stepStatuses={{}} />
+            </div>
+          </div>
+        )}
+
+        <WorkflowEditor
+          open={editorOpen}
+          onOpenChange={setEditorOpen}
+          initialDefinition={selectedWorkflow}
+          onSaved={() => setSelectedWorkflow(null)}
+        />
+      </div>
     </div>
   )
 }
@@ -674,42 +682,13 @@ function AnalyticsTab() {
   }
 
   return (
-    <div className="p-3 space-y-4">
-      <div className="grid grid-cols-2 gap-2">
-        <div className="rounded-lg border border-border p-2 min-w-0">
-          <p className="text-[10px] text-muted-foreground truncate">Conversations</p>
-          <p className="text-lg font-semibold truncate">{analytics.total_conversations}</p>
-        </div>
-        <div className="rounded-lg border border-border p-2 min-w-0">
-          <p className="text-[10px] text-muted-foreground truncate">Messages</p>
-          <p className="text-lg font-semibold truncate">{analytics.total_messages}</p>
-        </div>
-      </div>
-
-      <div className="rounded-lg border border-border p-2 space-y-1">
-        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Token Usage</p>
-        <div className="flex justify-between text-xs">
-          <span>Input</span>
-          <span className="font-mono">{analytics.token_usage.input_tokens.toLocaleString()}</span>
-        </div>
-        <div className="flex justify-between text-xs">
-          <span>Output</span>
-          <span className="font-mono">{analytics.token_usage.output_tokens.toLocaleString()}</span>
-        </div>
-        <div className="flex justify-between text-xs font-medium pt-1 border-t">
-          <span>Total</span>
-          <span className="font-mono">{analytics.token_usage.total_tokens.toLocaleString()}</span>
-        </div>
-      </div>
-
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider truncate">
-            Activity
-          </h3>
+    <div className="flex flex-col h-full">
+      <RightPanelHeader
+        title="Analytics"
+        actions={
           <Dialog open={fullYearDialogOpen} onOpenChange={setFullYearDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="ghost" size="sm" className="text-[10px] h-5 px-1.5 shrink-0 ml-1">
+              <Button variant="ghost" size="sm" className="text-[10px] h-5 px-1.5">
                 Full year
               </Button>
             </DialogTrigger>
@@ -742,31 +721,62 @@ function AnalyticsTab() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+        }
+      />
+      <div className="flex-1 p-3 space-y-4">
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-lg border border-border p-2 min-w-0">
+            <p className="text-[10px] text-muted-foreground truncate">Conversations</p>
+            <p className="text-lg font-semibold truncate">{analytics.total_conversations}</p>
+          </div>
+          <div className="rounded-lg border border-border p-2 min-w-0">
+            <p className="text-[10px] text-muted-foreground truncate">Messages</p>
+            <p className="text-lg font-semibold truncate">{analytics.total_messages}</p>
+          </div>
         </div>
-        <div className="overflow-x-auto">
-          <AnalyticsHeatmap
-            messagesData={currentMonthMessages}
-            conversationsData={currentMonthConversations}
-            startDate={currentMonthStart}
-            endDate={currentMonthEnd}
-            compact={true}
-          />
-        </div>
-      </div>
 
-      {analytics.skills_used.length > 0 && (
-        <div className="space-y-1">
-          <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-            Top Skills
-          </h3>
-          {analytics.skills_used.slice(0, 5).map(({ name, count }) => (
-            <div key={name} className="flex justify-between text-xs min-w-0">
-              <span className="truncate">{name}</span>
-              <span className="font-mono shrink-0 ml-2">{count}</span>
-            </div>
-          ))}
+        <div className="rounded-lg border border-border p-2 space-y-1">
+          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Token Usage</p>
+          <div className="flex justify-between text-xs">
+            <span>Input</span>
+            <span className="font-mono">{analytics.token_usage.input_tokens.toLocaleString()}</span>
+          </div>
+          <div className="flex justify-between text-xs">
+            <span>Output</span>
+            <span className="font-mono">{analytics.token_usage.output_tokens.toLocaleString()}</span>
+          </div>
+          <div className="flex justify-between text-xs font-medium pt-1 border-t">
+            <span>Total</span>
+            <span className="font-mono">{analytics.token_usage.total_tokens.toLocaleString()}</span>
+          </div>
         </div>
-      )}
+
+        <div>
+          <div className="overflow-x-auto">
+            <AnalyticsHeatmap
+              messagesData={currentMonthMessages}
+              conversationsData={currentMonthConversations}
+              startDate={currentMonthStart}
+              endDate={currentMonthEnd}
+              compact={true}
+            />
+          </div>
+        </div>
+
+        {analytics.skills_used.length > 0 && (
+          <div className="space-y-1">
+            <h3 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+              Top Skills
+            </h3>
+            {analytics.skills_used.slice(0, 5).map(({ name, count }) => (
+              <div key={name} className="flex justify-between text-xs min-w-0">
+                <span className="truncate">{name}</span>
+                <span className="font-mono shrink-0 ml-2">{count}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
