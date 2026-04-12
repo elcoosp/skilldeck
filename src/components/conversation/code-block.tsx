@@ -79,7 +79,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
       return () => observer.disconnect()
     }, [isStreaming, collapsed])
 
-    // ─── Floating header: portal + getBoundingClientRect (mirrors CodePre) ───
+    // ─── Floating header: portal + getBoundingClientRect ─────────────────────
     useEffect(() => {
       const root = scrollContainerRef?.current
       const container = containerRef.current
@@ -96,9 +96,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
       }
 
       const sync = () => {
-        // Only show floating header when content actually overflows
-        const codeOverflows = scrollable.scrollHeight > scrollable.clientHeight
-        if (collapsed || !codeOverflows) {
+        if (collapsed) {
           hide()
           return
         }
@@ -106,7 +104,6 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
         const rootRect = root.getBoundingClientRect()
         const containerRect = container.getBoundingClientRect()
 
-        // Guard against invisible/unmeasured containers
         if (rootRect.width === 0 || rootRect.height === 0) {
           hide()
           return
@@ -116,15 +113,12 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
         const bottomVisible = containerRect.bottom > rootRect.top + 32
 
         if (topGone && bottomVisible) {
-          // Position the portal element to sit at the top of the scroll container,
-          // spanning the exact width of the code block container
           floating.style.top = `${rootRect.top}px`
           floating.style.left = `${containerRect.left}px`
           floating.style.width = `${containerRect.width}px`
           floating.style.opacity = '1'
           floating.style.pointerEvents = 'auto'
-          floating.style.borderRadius = '0'
-          floating.style.boxShadow = '0 4px 12px 0 rgb(0 0 0 / 0.15)'
+          floating.style.boxShadow = '0 2px 8px 0 rgb(0 0 0 / 0.08)'
           header.style.visibility = 'hidden'
         } else {
           hide()
@@ -149,7 +143,6 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
         root.removeEventListener('scroll', sync)
         ro.disconnect()
         cancelAnimationFrame(rafId)
-        // Always restore visibility on cleanup
         if (header) header.style.visibility = 'visible'
       }
     }, [scrollContainerRef, collapsed])
@@ -180,41 +173,46 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
               !collapsed && 'rotate-90'
             )}
           />
-          <span>{language || 'code'}</span>
+          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-background/60 text-muted-foreground border border-border/40">
+            {language || 'code'}
+          </span>
         </button>
-        <button
-          type="button"
-          onClick={copy}
-          disabled={isLoading}
-          className="p-1 text-muted-foreground hover:text-foreground transition-colors rounded"
-          aria-label="Copy code"
-        >
-          {copied ? (
-            <Check className="size-3.5 text-green-500" />
-          ) : isLoading ? (
-            <Loader2 className="size-3.5 animate-spin" />
-          ) : (
-            <Copy className="size-3.5" />
+        <div className="flex items-center gap-1">
+          {isStreaming && (
+            <span className="size-1.5 rounded-full bg-primary animate-pulse mr-1" />
           )}
-        </button>
+          <button
+            type="button"
+            onClick={copy}
+            disabled={isLoading}
+            className="p-1 text-muted-foreground hover:text-foreground transition-colors rounded"
+            aria-label="Copy code"
+          >
+            {copied ? (
+              <Check className="size-3.5 text-green-500" />
+            ) : isLoading ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Copy className="size-3.5" />
+            )}
+          </button>
+        </div>
       </>
     )
 
     return (
       <>
-        {/* Floating header portal — rendered into document.body so it escapes
-          any overflow:hidden / scroll containers and can be positioned freely */}
+        {/* Floating header portal */}
         {createPortal(
           <div
             ref={floatingRef}
-            className="fixed z-50 flex items-center justify-between px-3 py-1.5 border border-border bg-muted text-xs font-mono"
+            className="fixed z-50 flex items-center justify-between px-3 py-1.5 border border-border/70 bg-muted text-xs font-mono"
             style={{
               opacity: 0,
               pointerEvents: 'none',
-              // Initial radius matches the code block; overridden to 0 when active
-              borderRadius: 'var(--radius)',
+              borderRadius: '0',
               boxShadow: '0 0 0 0 transparent',
-              transition: 'border-radius 200ms ease, box-shadow 200ms ease'
+              transition: 'opacity 120ms ease, box-shadow 150ms ease'
             }}
           >
             {headerContent}
@@ -222,44 +220,45 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
           document.body
         )}
 
+        {/* Main container */}
         <div
           ref={containerRef}
-          className="my-3 rounded-lg border border-border font-mono text-xs"
+          className="my-3 rounded-xl border border-border/70 font-mono text-xs overflow-hidden"
         >
-          {/* Static header — hidden (visibility:hidden) when floating is active
-            so layout is preserved but no double header is shown */}
+          {/* Static header */}
           <div
             ref={headerRef}
-            className={cn(
-              'flex items-center justify-between px-3 py-1.5 border-b border-border bg-muted',
-              collapsed ? 'rounded-lg' : 'rounded-t-lg'
-            )}
+            className="flex items-center justify-between px-3 py-1.5 border-b border-border/50 bg-muted"
           >
             {headerContent}
           </div>
 
-          {/* Collapse wrapper — height transition, no overflow:hidden on scrollable */}
+          {/* Collapsible body with grid animation */}
           <div
-            className="overflow-hidden rounded-b-lg"
+            className="overflow-hidden"
             style={{
-              maxHeight: collapsed ? 0 : 384,
-              transition: 'max-height 0.18s ease'
+              display: 'grid',
+              gridTemplateRows: collapsed ? '0fr' : '1fr',
+              transition: 'grid-template-rows 0.18s ease'
             }}
           >
-            <div
-              ref={scrollableRef}
-              className="overflow-auto max-h-96 thin-scrollbar"
-            >
-              <pre
-                ref={preRef}
-                className="p-3 m-0 mt-0 mb-0 text-xs leading-relaxed"
-                style={{
-                  fontSize: 14,
-                  whiteSpace: 'pre',
-                  fontFamily: 'inherit'
-                }}
-                dangerouslySetInnerHTML={{ __html: highlightedHtml }}
-              />
+            <div className="min-h-0">
+              <div
+                ref={scrollableRef}
+                className="overflow-auto max-h-96 thin-scrollbar"
+              >
+                <pre
+                  ref={preRef}
+                  // mt-0 mb-0 are super important m-0 does not suffice, DO NOT REMOVE
+                  className="p-4 m-0 mt-0 mb-0 text-xs leading-relaxed"
+                  style={{
+                    fontSize: 13,
+                    whiteSpace: 'pre',
+                    fontFamily: 'inherit'
+                  }}
+                  dangerouslySetInnerHTML={{ __html: highlightedHtml }}
+                />
+              </div>
             </div>
           </div>
         </div>
