@@ -34,6 +34,7 @@ interface CodeBlockProps {
   lineCount: number
   filePath?: string | null
   tokenCount: number
+  highlightedLines?: number[]
 }
 
 export const CodeBlock: React.FC<CodeBlockProps> = memo(
@@ -46,6 +47,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
     lineCount,
     filePath,
     tokenCount,
+    highlightedLines,
   }) => {
     const [collapsed, setCollapsed] = useState(false)
     const [copied, setCopied] = useState(false)
@@ -56,6 +58,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
     const floatingRef = useRef<HTMLDivElement>(null)
     const scrollableRef = useRef<HTMLDivElement>(null)
     const preRef = useRef<HTMLPreElement>(null)
+    const minimapThumbRef = useRef<HTMLDivElement>(null)
 
     const isUserScrolledUp = useRef(false)
     const isProgrammaticScroll = useRef(false)
@@ -77,8 +80,8 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
     const [showSearch, setShowSearch] = useState(false)
     const searchInputRef = useRef<HTMLInputElement>(null)
 
-    // Minimap state
-    const [scrollTop, setScrollTop] = useState(0)
+    // Timeout ref for run
+    const timeoutRef = useRef<ReturnType<typeof setTimeout>>()
 
     const canRun = SUPPORTED_RUN_LANGUAGES.has(language)
 
@@ -92,9 +95,13 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
     const sendMessage = useSendMessage(activeConversationId!, activeBranchId)
 
     const handleOpenArtifact = useCallback(() => {
+      console.log('[CodeBlock] Opening artifact:', artifactId)
       if (artifactId) {
         setRightTab('artifacts')
-        setSelectedArtifactId(artifactId)
+        // Delay to allow the ArtifactPanel to mount and render its list
+        setTimeout(() => {
+          setSelectedArtifactId(artifactId)
+        }, 150)
       }
     }, [artifactId, setRightTab, setSelectedArtifactId])
 
@@ -134,23 +141,35 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
       ? `${tokenCount} tok`
       : `~${Math.ceil((rawCode?.length ?? 0) / 4)} tok`
 
-    // ─── Search: keyboard shortcut ─────────────────────────────────────────
+    // ─── Search: keyboard shortcut (capture phase to beat global) ───────────
     useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
-        if (!containerRef.current?.contains(document.activeElement)) return
+        const container = containerRef.current
+        if (!container) return
+
+        const activeElement = document.activeElement
+        const isFocused = container === activeElement || container.contains(activeElement)
+
+        if (!isFocused) return
+
         if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
           e.preventDefault()
+          e.stopPropagation()
           setShowSearch(true)
           setTimeout(() => searchInputRef.current?.focus(), 50)
         }
+
         if (e.key === 'Escape' && showSearch) {
+          e.preventDefault()
+          e.stopPropagation()
           setShowSearch(false)
           setSearchQuery('')
           clearHighlights()
         }
       }
-      window.addEventListener('keydown', handleKeyDown)
-      return () => window.removeEventListener('keydown', handleKeyDown)
+
+      window.addEventListener('keydown', handleKeyDown, true) // capture phase
+      return () => window.removeEventListener('keydown', handleKeyDown, true)
     }, [showSearch])
 
     const clearHighlights = useCallback(() => {
@@ -215,23 +234,70 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
       highlightMatches(searchQuery)
     }, [searchQuery, highlightedHtml, highlightMatches])
 
+    // Apply line highlighting when highlightedLines changes
     useEffect(() => {
-      if (!runId) return
-      const unlisten = listen<RunCodeEvent>('run-code-event', (event) => {
-        if (event.payload.run_id !== runId) return
-        if (event.payload.type === 'stdout') {
-          setRunOutput(prev => [...prev, event.payload.line])
-        } else if (event.payload.type === 'stderr') {
-          setRunError(prev => [...prev, event.payload.line])
-        } else if (event.payload.type === 'exit') {
-          setIsRunning(false)
-          setRunId(null)
-          if (event.payload.code !== 0) {
-            setRunError(prev => [...prev, `Process exited with code ${event.payload.code} in ${event.payload.elapsed_ms}ms`])
-          }
+      const pre = preRef.current
+      if (!pre || !highlightedLines?.length) return
+      const lines = pre.querySelectorAll('.line')
+      lines.forEach((line, index) => {
+        const lineNumber = index + 1
+        if (highlightedLines.includes(lineNumber)) {
+          line.classList.add('highlighted-line')
+        } else {
+          line.classList.remove('highlighted-line')
         }
       })
-      return () => { unlisten.then(fn => fn()) }
+    }, [highlightedLines, highlightedHtml])
+
+    // ─── Run code event listener with error handling and logging ────────────
+    useEffect(() => {
+      if (!runId) return
+
+      console.log(`[CodeBlock] Setting up listener for runId: ${runId}`)
+      let unlistenFn: (() => void) | undefined
+
+      const setup = async () => {
+        try {
+          unlistenFn = await listen<RunCodeEvent>('run-code-event', (event) => {
+            console.log('[CodeBlock] run-code-event received:', event.payload)
+            if (event.payload.run_id !== runId) {
+              console.log('[CodeBlock] run_id mismatch, ignoring')
+              return
+            }
+            if (event.payload.type === 'stdout') {
+              setRunOutput(prev => [...prev, event.payload.line])
+            } else if (event.payload.type === 'stderr') {
+              setRunError(prev => [...prev, event.payload.line])
+            } else if (event.payload.type === 'exit') {
+              console.log('[CodeBlock] Received exit event, code:', event.payload.code)
+              if (timeoutRef.current) {
+                clearTimeout(timeoutRef.current)
+                timeoutRef.current = undefined
+              }
+              setIsRunning(false)
+              setRunId(null)
+              if (event.payload.code !== 0) {
+                setRunError(prev => [...prev, `Process exited with code ${event.payload.code} in ${event.payload.elapsed_ms}ms`])
+              }
+            }
+          })
+          console.log('[CodeBlock] Listener registered successfully')
+        } catch (err) {
+          console.error('[CodeBlock] Failed to listen to run-code-event:', err)
+          toast.error('Failed to listen to code execution events')
+          setIsRunning(false)
+          setRunId(null)
+        }
+      }
+
+      setup()
+
+      return () => {
+        if (unlistenFn) {
+          console.log('[CodeBlock] Cleaning up listener')
+          unlistenFn()
+        }
+      }
     }, [runId])
 
     const handleRun = useCallback(async () => {
@@ -244,13 +310,27 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
       setRunOutput([])
       setRunError([])
       setShowOutput(true)
+
+      const timeoutId = setTimeout(() => {
+        console.warn('[CodeBlock] Run timed out')
+        setIsRunning(false)
+        setRunId(null)
+        setRunError(prev => [...prev, 'Execution timed out after 30 seconds'])
+      }, 30000)
+      timeoutRef.current = timeoutId
+
       try {
         const id = await commands.runCodeSnippet(language, rawCode, null)
+        console.log('[CodeBlock] Got runId:', id)
         setRunId(id)
       } catch (err) {
         toast.error(`Failed to run: ${err}`)
         setIsRunning(false)
         setShowOutput(false)
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current)
+          timeoutRef.current = undefined
+        }
       }
     }, [isRunning, rawCode, language])
 
@@ -265,29 +345,33 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
       }
     }, [showLineNumbers, highlightedHtml])
 
-    // ─── Detect user scroll within the code block ────────────────────────────
-    useEffect(() => {
-      const scrollable = scrollableRef.current
-      if (!scrollable) return
-      const handleScroll = () => {
-        if (isProgrammaticScroll.current) return
-        const { scrollTop, scrollHeight, clientHeight } = scrollable
-        isUserScrolledUp.current =
-          Math.abs(scrollHeight - clientHeight - scrollTop) >= 10
-      }
-      scrollable.addEventListener('scroll', handleScroll, { passive: true })
-      return () => scrollable.removeEventListener('scroll', handleScroll)
-    }, [])
-
-    // ─── Track scroll position for minimap ────────────────────────────────────
+    // ─── Merged scroll listener: user scroll detection + minimap thumb update ───
     useEffect(() => {
       const el = scrollableRef.current
       if (!el) return
-      const handleScroll = () => setScrollTop(el.scrollTop)
-      el.addEventListener('scroll', handleScroll)
-      handleScroll() // initial
+
+      const handleScroll = () => {
+        // User scroll detection (no state update)
+        if (!isProgrammaticScroll.current) {
+          const { scrollTop, scrollHeight, clientHeight } = el
+          isUserScrolledUp.current = Math.abs(scrollHeight - clientHeight - scrollTop) >= 10
+        }
+
+        // Minimap thumb update (direct DOM manipulation)
+        const thumb = minimapThumbRef.current
+        if (thumb) {
+          const { scrollTop, scrollHeight, clientHeight } = el
+          const ratio = scrollHeight > 0 ? scrollTop / scrollHeight : 0
+          const thumbH = Math.max(20, (clientHeight / scrollHeight) * clientHeight)
+          thumb.style.height = `${thumbH}px`
+          thumb.style.top = `${ratio * clientHeight}px`
+        }
+      }
+
+      el.addEventListener('scroll', handleScroll, { passive: true })
+      handleScroll() // initial position
       return () => el.removeEventListener('scroll', handleScroll)
-    }, [highlightedHtml]) // reattach when content changes
+    }, [highlightedHtml]) // re-attach when content changes
 
     const handleMinimapClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
       const el = scrollableRef.current
@@ -415,21 +499,20 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
 
     const handleSaveToFile = useCallback(async () => {
       try {
-        let path = filePath ?? undefined
-        if (!path) {
-          const selected = await save({
-            defaultPath: `artifact.${language}`,
-            filters: [{ name: 'All Files', extensions: ['*'] }],
-          })
-          if (!selected) return
-          path = selected
-        }
-        await commands.writeArtifactToFile(artifactId, path)
-        toast.success(`Saved to ${path}`)
+        const defaultPath = filePath ?? `artifact.${language}`
+        const selected = await save({
+          defaultPath,
+          filters: [{ name: 'All Files', extensions: ['*'] }],
+        })
+        if (!selected) return
+        await commands.writeArtifactToFile(artifactId, selected)
+        toast.success(`Saved to ${selected}`)
       } catch (err) {
         toast.error(`Failed to save: ${err}`)
       }
     }, [artifactId, filePath, language])
+
+    const showMinimap = lineCount > 60 && !collapsed
 
     const headerContent = (
       <>
@@ -551,8 +634,8 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
               </button>
             </>
           )}
-          {/* Explain and Fix buttons with hover opacity */}
-          <div className="flex items-center gap-1 opacity-0 group-hover/code-header:opacity-100 transition-opacity">
+          {/* Explain and Fix buttons — always visible at low opacity, works in both static and floating */}
+          <div className="flex items-center gap-1 opacity-40 hover:opacity-100 transition-opacity">
             <button
               type="button"
               onClick={handleExplain}
@@ -573,14 +656,6 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
         </div>
       </>
     )
-
-    // Minimap calculations
-    const minimapHeight = scrollableRef.current?.clientHeight || 0
-    const scrollHeight = scrollableRef.current?.scrollHeight || 1
-    const scrollRatio = minimapHeight > 0 ? scrollTop / scrollHeight : 0
-    const thumbHeight = Math.max(20, (minimapHeight / scrollHeight) * minimapHeight)
-    const thumbTop = scrollRatio * minimapHeight
-    const showMinimap = lineCount > 60 && !collapsed
 
     return (
       <>
@@ -604,7 +679,8 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
 
         <div
           ref={containerRef}
-          className="my-3 rounded-lg border border-border font-mono text-xs group/code-header"
+          tabIndex={0}
+          className="my-3 rounded-lg border border-border font-mono text-xs group/code-header focus:outline-none focus:ring-2 focus:ring-primary/50"
         >
           {/* Static header */}
           <div
@@ -625,10 +701,13 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
               transition: 'max-height 0.18s ease'
             }}
           >
-            <div className="relative">
+            <div className="relative bg-transparent">
               <div
                 ref={scrollableRef}
-                className="overflow-auto max-h-96 thin-scrollbar"
+                className={cn(
+                  'overflow-auto max-h-96 thin-scrollbar code-scroll-area',
+                  showMinimap && 'hide-y-scrollbar'
+                )}
               >
                 <pre
                   ref={preRef}
@@ -644,13 +723,16 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
               {/* Minimap scroll thumb */}
               {showMinimap && (
                 <div
-                  className="absolute right-0 top-0 w-1.5 h-full cursor-pointer opacity-60 hover:opacity-100 transition-opacity"
+                  className="absolute right-0 top-0 w-1.5 h-full cursor-pointer minimap-strip"
+                  style={{ backgroundColor: 'var(--border)', opacity: 0.4 }}
                   onClick={handleMinimapClick}
-                  style={{ backgroundColor: 'var(--border)' }}
+                  onMouseEnter={e => (e.currentTarget.style.opacity = '0.8')}
+                  onMouseLeave={e => (e.currentTarget.style.opacity = '0.4')}
                 >
                   <div
-                    className="absolute w-full bg-primary/40 rounded-full"
-                    style={{ height: thumbHeight, top: thumbTop }}
+                    ref={minimapThumbRef}
+                    className="absolute w-full bg-primary/50 rounded-sm"
+                    style={{ height: 20, top: 0 }}
                   />
                 </div>
               )}
@@ -696,5 +778,6 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
     prev.scrollContainerRef === next.scrollContainerRef &&
     prev.lineCount === next.lineCount &&
     prev.filePath === next.filePath &&
-    prev.tokenCount === next.tokenCount
+    prev.tokenCount === next.tokenCount &&
+    prev.highlightedLines === next.highlightedLines
 )

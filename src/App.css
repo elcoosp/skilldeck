@@ -287,6 +287,10 @@
   border-radius: 4px;
 }
 
+.thin-scrollbar::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 .message-highlight {
   animation: highlight-flash 600ms ease-out forwards;
 }
@@ -484,15 +488,25 @@ code[data-inline-code]:hover {
   color: var(--inline-code-hover-color);
 }
 
-/* Line numbers styling for code blocks */
+/* ============================================ */
+/* Code block line numbers styling              */
+/* ============================================ */
 .code-with-lines {
   counter-reset: line;
 }
 
+/* Only apply block/padding when line numbers are enabled */
 .code-with-lines .line {
   display: block;
   position: relative;
   padding-left: 3.5rem;
+  line-height: 1.5;
+  min-height: 1.5em;
+}
+
+/* Without line numbers, lines are inline (no extra spacing) */
+.line {
+  /* intentionally empty — default inline behavior */
 }
 
 .code-with-lines .line::before {
@@ -509,10 +523,87 @@ code[data-inline-code]:hover {
   -webkit-user-select: none;
   padding-right: 1rem;
   border-right: 1px solid var(--border);
+  line-height: inherit;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
 }
 
+/* Reset any pre tags that might appear inside highlighted lines */
+.code-with-lines .line pre {
+  margin: 0;
+  padding: 0;
+  display: inline;
+  background-color: transparent !important;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  white-space: pre-wrap;
+}
+
+/* Highlighted line in code block */
+.code-with-lines .line.highlighted-line {
+  background: var(--highlight-inline);
+  border-left: 3px solid var(--primary);
+}
+
+/* Search highlight for code block */
 .search-highlight {
   background-color: var(--highlight-inline);
   color: inherit;
   border-radius: 2px;
+}
+
+/* Artifact highlight pulse animation */
+.artifact-highlight {
+  animation: artifact-pulse 2s ease-out;
+}
+
+@keyframes artifact-pulse {
+  0% {
+    background-color: rgba(var(--primary), 0.1);
+  }
+
+  50% {
+    background-color: rgba(var(--primary), 0.2);
+  }
+
+  100% {
+    background-color: transparent;
+  }
+}
+
+/* ============================================ */
+/* Code block scroll / minimap adjustments      */
+/* ============================================ */
+.code-scroll-area {
+  scrollbar-gutter: stable;
+  background: transparent;
+}
+
+/* Explicit track background for code blocks — prevents white background */
+.code-scroll-area::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.code-scroll-area::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Hide vertical scrollbar when minimap is shown */
+.hide-y-scrollbar {
+  scrollbar-width: none;
+  /* Firefox */
+}
+
+.hide-y-scrollbar::-webkit-scrollbar:vertical {
+  display: none;
+  width: 0;
+}
+
+/* Keep horizontal scrollbar for code that overflows horizontally */
+.hide-y-scrollbar::-webkit-scrollbar:horizontal {
+  height: 4px;
 }

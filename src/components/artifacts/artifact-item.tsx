@@ -1,3 +1,4 @@
+// src/components/artifacts/artifact-item.tsx
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { formatDistance } from 'date-fns'
 import { Copy, GitCompare, MoreHorizontal, Pin, PinOff } from 'lucide-react'
@@ -162,7 +163,10 @@ export function ArtifactItem({
   }, [showActionsMenu])
 
   return (
-    <div id={`artifact-${artifact.id}`} className="w-full min-w-0 rounded-lg border border-border p-2 hover:bg-muted/30 transition-colors overflow-hidden">
+    <div
+      id={`artifact-${artifact.id}`}
+      className="w-full min-w-0 rounded-lg border border-border p-2 hover:bg-muted/30 transition-colors overflow-hidden"
+    >
       <div className="flex items-start gap-2">
         {artifact.file_path ? (
           <FileIcon fileName={artifact.file_path} className="size-4 text-muted-foreground mt-0.5 shrink-0" />

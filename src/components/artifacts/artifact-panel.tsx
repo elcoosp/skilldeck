@@ -34,13 +34,35 @@ export function ArtifactPanel() {
   })
 
   useEffect(() => {
-    if (selectedArtifactId && containerRef.current) {
+    if (!selectedArtifactId || !containerRef.current) return
+
+    console.log('[ArtifactPanel] Attempting to scroll to:', selectedArtifactId)
+
+    // Try to scroll immediately
+    const tryScroll = (): boolean => {
       const element = document.getElementById(`artifact-${selectedArtifactId}`)
       if (element) {
         element.scrollIntoView({ behavior: 'smooth', block: 'center' })
-        // Clear selection after scrolling to avoid interfering with future clicks
-        setTimeout(() => setSelectedArtifactId(null), 2000)
+        element.classList.add('artifact-highlight')
+        setTimeout(() => {
+          element.classList.remove('artifact-highlight')
+          setSelectedArtifactId(null)
+        }, 2000)
+        return true
       }
+      return false
+    }
+
+    if (!tryScroll()) {
+      // Retry after a short delay (artifacts might still be loading)
+      console.log('[ArtifactPanel] Element not found, retrying after 500ms...')
+      const timer = setTimeout(() => {
+        if (!tryScroll()) {
+          console.warn('[ArtifactPanel] Element still not found after retry')
+        }
+        setSelectedArtifactId(null)
+      }, 500)
+      return () => clearTimeout(timer)
     }
   }, [selectedArtifactId, setSelectedArtifactId])
 
