@@ -506,7 +506,6 @@ pre {
 /* Each line container (used for both virtual and non-virtual) */
 .code-with-lines .line {
   display: block;
-  position: relative;
   padding-left: 3.5rem;
   line-height: 1.5;
   min-height: 1.5em;

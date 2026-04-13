@@ -304,22 +304,29 @@ impl MarkdownPipeline {
         let mut token_count = 0u32;
 
         self.theme.with_theme(|theme| {
-            // Use HighlightLines to get styled regions per line
+            // Count tokens using HighlightLines (still needed)
             let mut highlighter = HighlightLines::new(syntax_ref, theme);
-
             for line in &lines {
-                // Append newline to satisfy newlines-mode syntax definitions
                 let line_with_nl = format!("{}\n", line);
-                let regions = highlighter
-                    .highlight_line(&line_with_nl, &SYNTAX_SET)
-                    .unwrap_or_default();
+                if let Ok(regions) = highlighter.highlight_line(&line_with_nl, &SYNTAX_SET) {
+                    token_count += regions.len() as u32;
+                }
+            }
 
-                token_count += regions.len() as u32;
+            // Generate class-based HTML per line (no block wrapper)
+            for line in lines.iter() {
+                let highlighted = syntect::html::highlighted_html_for_string(
+                    line,
+                    &SYNTAX_SET,
+                    syntax_ref,
+                    theme,
+                )
+                .unwrap_or_else(|_| line.replace('<', "&lt;").replace('>', "&gt;"));
 
-                // Convert regions to inline HTML spans (no block wrapper)
-                let inline_html = styled_line_to_highlighted_html(&regions, IncludeBackground::No)
-                    .unwrap_or_else(|_| line.replace('<', "&lt;").replace('>', "&gt;"));
-                highlighted_lines.push(inline_html);
+                // `highlighted_html_for_string` returns a full <pre>…</pre> block.
+                // We need to strip the outer <pre> and keep only the inner spans.
+                let inner = strip_pre_tag(&highlighted);
+                highlighted_lines.push(inner);
             }
 
             // Generate minimap (unchanged)
@@ -550,4 +557,12 @@ fn is_plausible_filename(s: &str, lang: &str) -> bool {
         | ("hs", "hs") => true,
         _ => ext.len() >= 2 && ext.len() <= 5,
     }
+}
+fn strip_pre_tag(html: &str) -> String {
+    let open = html.find("<pre").unwrap_or(0);
+    let close = html.rfind("</pre>").unwrap_or(html.len());
+    html[open..close].to_string()
+        .trim_start_matches(|c| c != '>')
+        .trim_start_matches('>')
+        .to_string()
 }
