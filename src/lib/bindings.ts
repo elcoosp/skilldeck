@@ -1233,9 +1233,9 @@ async writeArtifactToFile(artifactId: string, targetPath: string) : Promise<Resu
     else return { status: "error", error: e  as any };
 }
 },
-async runCodeSnippet(language: string, code: string, workingDir: string | null, runId: string | null) : Promise<Result<string, string>> {
+async runCodeSnippet(channel: TAURI_CHANNEL<RunOutput>, language: string, code: string, workingDir: string | null) : Promise<Result<null, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("run_code_snippet", { language, code, workingDir, runId }) };
+    return { status: "ok", data: await TAURI_INVOKE("run_code_snippet", { channel, language, code, workingDir }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -1385,6 +1385,7 @@ export type ReferralCode = { id: string; code: string; uses: number; max_uses: n
 export type ReferralStats = { code: ReferralCode; total_signups: string; total_conversions: string; rewards_earned: string }
 export type RegistrySkillData = { id: string; name: string; description: string; source: string; sourceUrl: string | null; version: string | null; author: string | null; license: string | null; tags: string[]; category: string | null; lintWarnings: JsonValue[]; securityScore: number; qualityScore: number; metadataSource: string; content: string; createdAt: string; updatedAt: string }
 export type RunCodeEvent = { type: "stdout"; run_id: string; line: string } | { type: "stderr"; run_id: string; line: string } | { type: "exit"; run_id: string; code: number; elapsed_ms: string }
+export type RunOutput = { type: "stdout"; line: string } | { type: "stderr"; line: string } | { type: "exit"; code: number; elapsed_ms: string }
 export type SaveWorkflowDefinitionRequest = { name: string; definition: JsonValue }
 /**
  * Request for searching messages within a conversation.

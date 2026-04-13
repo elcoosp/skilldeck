@@ -43,6 +43,7 @@
     "issues:sync": "pnpx @elcoosp-ai/seedling sync --repo elcoosp/skilldeck --dir ./docs/issues"
   },
   "dependencies": {
+    "@curvenote/ansi-to-react": "^7.0.0",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/react": "^0.3.2",
     "@dnd-kit/sortable": "^10.0.0",

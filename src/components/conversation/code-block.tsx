@@ -9,19 +9,34 @@ import { useArtifactContent } from '@/hooks/use-artifact-content'
 import { cn } from '@/lib/utils'
 import { save } from '@tauri-apps/plugin-dialog'
 import { commands } from '@/lib/bindings'
-import { listen } from '@tauri-apps/api/event'
-import type { RunCodeEvent } from '@/lib/events'
+import { Channel } from '@tauri-apps/api/core'
 import { useQuery } from '@tanstack/react-query'
 import { VersionDiffModal } from '@/components/artifacts/version-diff-modal'
 import { useUILayoutStore } from '@/store/ui-layout'
 import { useUIEphemeralStore } from '@/store/ui-ephemeral'
 import { useSendMessage } from '@/hooks/use-messages'
 import { useConversationStore } from '@/store/conversation'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import Ansi from '@curvenote/ansi-to-react'
 
 const SUPPORTED_RUN_LANGUAGES = new Set(['python', 'py', 'javascript', 'js', 'bash', 'sh', 'ruby', 'rb'])
 
 function escapeRegExp(string: string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+interface RunOutput {
+  type: 'stdout' | 'stderr' | 'exit'
+  line?: string
+  code?: number
+  elapsed_ms?: number
 }
 
 interface CodeBlockProps {
@@ -67,7 +82,6 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
     const [isRunning, setIsRunning] = useState(false)
     const [runOutput, setRunOutput] = useState<string[]>([])
     const [runError, setRunError] = useState<string[]>([])
-    const [runId, setRunId] = useState<string | null>(null)
     const [showOutput, setShowOutput] = useState(false)
 
     const [showDiff, setShowDiff] = useState(false)
@@ -77,7 +91,6 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
     const searchInputRef = useRef<HTMLInputElement>(null)
 
     const timeoutRef = useRef<ReturnType<typeof setTimeout>>()
-    const unlistenRef = useRef<(() => void) | null>(null)
 
     const canRun = SUPPORTED_RUN_LANGUAGES.has(language)
 
@@ -89,12 +102,9 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
     const sendMessage = useSendMessage(activeConversationId!, activeBranchId)
 
     const handleOpenArtifact = useCallback(() => {
-      console.log('[CodeBlock] Opening artifact:', artifactId)
       if (artifactId) {
         setRightTab('artifacts')
-        setTimeout(() => {
-          setSelectedArtifactId(artifactId)
-        }, 150)
+        setTimeout(() => setSelectedArtifactId(artifactId), 150)
       }
     }, [artifactId, setRightTab, setSelectedArtifactId])
 
@@ -137,10 +147,8 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
       const handleKeyDown = (e: KeyboardEvent) => {
         const container = containerRef.current
         if (!container) return
-
         const activeElement = document.activeElement
         const isFocused = container === activeElement || container.contains(activeElement)
-
         if (!isFocused) return
 
         if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
@@ -149,7 +157,6 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
           setShowSearch(true)
           setTimeout(() => searchInputRef.current?.focus(), 50)
         }
-
         if (e.key === 'Escape' && showSearch) {
           e.preventDefault()
           e.stopPropagation()
@@ -158,7 +165,6 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
           clearHighlights()
         }
       }
-
       window.addEventListener('keydown', handleKeyDown, true)
       return () => window.removeEventListener('keydown', handleKeyDown, true)
     }, [showSearch])
@@ -182,20 +188,17 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
         return
       }
       clearHighlights()
-
       const regex = new RegExp(escapeRegExp(query), 'gi')
       const walker = document.createTreeWalker(pre, NodeFilter.SHOW_TEXT, {
         acceptNode: (node) =>
           regex.test(node.textContent || '') ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT,
       })
-
       const textNodes: Text[] = []
       let node = walker.nextNode()
       while (node) {
         textNodes.push(node as Text)
         node = walker.nextNode()
       }
-
       for (const textNode of textNodes) {
         const text = textNode.textContent || ''
         const frag = document.createDocumentFragment()
@@ -238,64 +241,6 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
       })
     }, [highlightedLines, highlightedHtml])
 
-    // Run event listener
-    useEffect(() => {
-      if (!runId) return
-
-      console.log(`[CodeBlock] Setting up listener for runId: ${runId}`)
-
-      if (unlistenRef.current) {
-        unlistenRef.current()
-        unlistenRef.current = null
-      }
-
-      const setup = async () => {
-        try {
-          const unlisten = await listen<RunCodeEvent>('run-code-event', (event) => {
-            console.log('[CodeBlock] run-code-event received:', event.payload)
-            if (event.payload.run_id !== runId) {
-              console.log('[CodeBlock] run_id mismatch, ignoring')
-              return
-            }
-            if (event.payload.type === 'stdout') {
-              setRunOutput(prev => [...prev, event.payload.line])
-            } else if (event.payload.type === 'stderr') {
-              setRunError(prev => [...prev, event.payload.line])
-            } else if (event.payload.type === 'exit') {
-              console.log('[CodeBlock] Received exit event, code:', event.payload.code)
-              if (timeoutRef.current) {
-                clearTimeout(timeoutRef.current)
-                timeoutRef.current = undefined
-              }
-              setIsRunning(false)
-              setRunId(null)
-              if (event.payload.code !== 0) {
-                setRunError(prev => [...prev, `Process exited with code ${event.payload.code} in ${event.payload.elapsed_ms}ms`])
-              }
-            }
-          })
-          unlistenRef.current = unlisten
-          console.log('[CodeBlock] Listener registered successfully')
-        } catch (err) {
-          console.error('[CodeBlock] Failed to listen to run-code-event:', err)
-          toast.error('Failed to listen to code execution events')
-          setIsRunning(false)
-          setRunId(null)
-        }
-      }
-
-      const timer = setTimeout(setup, 10)
-
-      return () => {
-        clearTimeout(timer)
-        if (unlistenRef.current) {
-          console.log('[CodeBlock] Cleaning up listener')
-          unlistenRef.current()
-          unlistenRef.current = null
-        }
-      }
-    }, [runId])
-
     const handleRun = useCallback(async () => {
       if (isRunning) return
       if (!rawCode) {
@@ -303,34 +248,51 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
         return
       }
 
-      // Generate runId on frontend to ensure listener is ready before backend emits
-      const newRunId = crypto.randomUUID()
-
+      console.log('[CodeBlock] Starting run via channel')
       setIsRunning(true)
       setRunOutput([])
       setRunError([])
       setShowOutput(true)
-      setRunId(newRunId)
 
       const timeoutId = setTimeout(() => {
         console.warn('[CodeBlock] Run timed out')
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current)
+          timeoutRef.current = undefined
+        }
         setIsRunning(false)
-        setRunId(null)
         setRunError(prev => [...prev, 'Execution timed out after 30 seconds'])
       }, 30000)
       timeoutRef.current = timeoutId
 
       try {
-        const res = await commands.runCodeSnippet(language, rawCode, null, newRunId)
-        if (res.status === 'error') {
-          throw new Error(res.error)
+        const channel = new Channel<RunOutput>()
+        channel.onmessage = (message) => {
+          console.log('[CodeBlock] Channel message:', message)
+          if (message.type === 'stdout' && message.line) {
+            setRunOutput(prev => [...prev, message.line!])
+          } else if (message.type === 'stderr' && message.line) {
+            setRunError(prev => [...prev, message.line!])
+          } else if (message.type === 'exit') {
+            console.log('[CodeBlock] Received exit, code:', message.code)
+            if (timeoutRef.current) {
+              clearTimeout(timeoutRef.current)
+              timeoutRef.current = undefined
+            }
+            setIsRunning(false)
+            if (message.code !== 0) {
+              setRunError(prev => [...prev, `Process exited with code ${message.code} in ${message.elapsed_ms}ms`])
+            }
+          }
         }
-        console.log('[CodeBlock] Run started with runId:', newRunId)
+
+        await commands.runCodeSnippet(channel, language, rawCode, null)
+        console.log('[CodeBlock] Command completed')
       } catch (err) {
+        console.error('[CodeBlock] Run command failed:', err)
         toast.error(`Failed to run: ${err}`)
         setIsRunning(false)
         setShowOutput(false)
-        setRunId(null)
         if (timeoutRef.current) {
           clearTimeout(timeoutRef.current)
           timeoutRef.current = undefined
@@ -338,7 +300,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
       }
     }, [isRunning, rawCode, language])
 
-    // Line numbers toggle effect
+    // Line numbers toggle
     useEffect(() => {
       const pre = preRef.current
       if (!pre) return
@@ -359,7 +321,6 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
           const { scrollTop, scrollHeight, clientHeight } = el
           isUserScrolledUp.current = Math.abs(scrollHeight - clientHeight - scrollTop) >= 10
         }
-
         const thumb = minimapThumbRef.current
         if (thumb) {
           const { scrollTop, scrollHeight, clientHeight } = el
@@ -402,13 +363,8 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
       }
 
       const observer = new MutationObserver(scrollToBottom)
-      observer.observe(pre, {
-        childList: true,
-        subtree: true,
-        characterData: true
-      })
+      observer.observe(pre, { childList: true, subtree: true, characterData: true })
       scrollToBottom()
-
       return () => observer.disconnect()
     }, [isStreaming, collapsed])
 
@@ -434,18 +390,14 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
           hide()
           return
         }
-
         const rootRect = root.getBoundingClientRect()
         const containerRect = container.getBoundingClientRect()
-
         if (rootRect.width === 0 || rootRect.height === 0) {
           hide()
           return
         }
-
         const topGone = containerRect.top < rootRect.top
         const bottomVisible = containerRect.bottom > rootRect.top + 32
-
         if (topGone && bottomVisible) {
           floating.style.top = `${rootRect.top}px`
           floating.style.left = `${containerRect.left}px`
@@ -467,11 +419,9 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
       }
 
       root.addEventListener('scroll', sync, { passive: true })
-
       const ro = new ResizeObserver(syncRaf)
       ro.observe(container)
       ro.observe(scrollable)
-
       rafId = requestAnimationFrame(sync)
 
       return () => {
@@ -520,10 +470,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
           aria-label={collapsed ? 'Expand' : 'Collapse'}
         >
           <ChevronRight
-            className={cn(
-              'size-3.5 transition-transform duration-150',
-              !collapsed && 'rotate-90'
-            )}
+            className={cn('size-3.5 transition-transform duration-150', !collapsed && 'rotate-90')}
           />
           <span>{language || 'code'}</span>
         </button>
@@ -726,26 +673,53 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
               )}
             </div>
           </div>
-
-          {showOutput && (
-            <div className="border-t border-border bg-muted/30 p-2 max-h-48 overflow-auto thin-scrollbar">
-              {runOutput.map((line, i) => (
-                <div key={`out-${i}`} className="text-xs font-mono whitespace-pre-wrap break-all">
-                  {line}
-                </div>
-              ))}
-              {runError.map((line, i) => (
-                <div key={`err-${i}`} className="text-xs font-mono text-destructive whitespace-pre-wrap break-all">
-                  {line}
-                </div>
-              ))}
-              {!isRunning && runOutput.length === 0 && runError.length === 0 && (
-                <div className="text-xs text-muted-foreground">No output</div>
-              )}
-            </div>
-          )}
         </div>
 
+        {/* Run Output Modal */}
+        <Dialog open={showOutput} onOpenChange={setShowOutput}>
+          <DialogContent className="max-w-3xl h-[500px] flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <span>Code Execution Output</span>
+                {isRunning && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
+              </DialogTitle>
+            </DialogHeader>
+            <Tabs defaultValue="stdout" className="flex-1 flex flex-col min-h-0 mt-2">
+              <TabsList className="w-full justify-start">
+                <TabsTrigger value="stdout" className="flex-1">
+                  stdout {runOutput.length > 0 && `(${runOutput.length})`}
+                </TabsTrigger>
+                <TabsTrigger value="stderr" className="flex-1">
+                  stderr {runError.length > 0 && `(${runError.length})`}
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="stdout" className="flex-1 min-h-0 mt-2">
+                <ScrollArea className="h-full rounded-md border bg-muted/30 p-3">
+                  {runOutput.length === 0 ? (
+                    <p className="text-muted-foreground text-sm italic">No output</p>
+                  ) : (
+                    <pre className="text-xs font-mono whitespace-pre-wrap break-all">
+                      <Ansi>{runOutput.join('\n')}</Ansi>
+                    </pre>
+                  )}
+                </ScrollArea>
+              </TabsContent>
+              <TabsContent value="stderr" className="flex-1 min-h-0 mt-2">
+                <ScrollArea className="h-full rounded-md border bg-muted/30 p-3">
+                  {runError.length === 0 ? (
+                    <p className="text-muted-foreground text-sm italic">No errors</p>
+                  ) : (
+                    <pre className="text-xs font-mono whitespace-pre-wrap break-all text-destructive">
+                      <Ansi>{runError.join('\n')}</Ansi>
+                    </pre>
+                  )}
+                </ScrollArea>
+              </TabsContent>
+            </Tabs>
+          </DialogContent>
+        </Dialog>
+
+        {/* Diff Modal */}
         {showDiff && versions && (
           <VersionDiffModal
             open={showDiff}
