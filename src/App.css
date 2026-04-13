@@ -552,8 +552,7 @@ pre {
 
 .current-search-match {
   background-color: rgba(255, 165, 0, 0.2);
-  /* or rgba(255, 165, 0, 0.2) */
-  box-shadow: inset 2px 0 0 orange;
+  box-shadow: inset 2px 0 0 var(--color-accent);
 }
 
 /* Search highlight marks */
