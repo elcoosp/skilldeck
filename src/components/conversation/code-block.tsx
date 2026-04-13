@@ -26,8 +26,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import Ansi from '@curvenote/ansi-to-react'
 import { useVirtualizer } from '@tanstack/react-virtual'
+import { FileIcon } from '@react-symbols/icons/utils'
 
-const SUPPORTED_RUN_LANGUAGES = new Set(['python', 'py', 'javascript', 'js', 'bash', 'sh', 'ruby', 'rb'])
+const SUPPORTED_RUN_LANGUAGES = new Set([
+  'python', 'py',
+  'javascript', 'js',
+  'bash', 'sh',
+  'ruby', 'rb',
+  'rust', 'rs'
+])
 
 function escapeRegExp(string: string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -56,7 +63,7 @@ interface CodeBlockProps {
 }
 
 // ---------------------------------------------------------------------------
-// Header subcomponent (unchanged)
+// Header subcomponent (input shrinks, chevrons inside input)
 // ---------------------------------------------------------------------------
 const CodeBlockHeader = memo(function CodeBlockHeader({
   language,
@@ -123,168 +130,254 @@ const CodeBlockHeader = memo(function CodeBlockHeader({
   onNextMatch: () => void
   onPrevMatch: () => void
 }) {
+  const handleOpenSearch = useCallback(() => {
+    setShowSearch(true)
+    setTimeout(() => searchInputRef.current?.focus(), 50)
+  }, [setShowSearch, searchInputRef])
+
   return (
-    <>
-      <button
-        type="button"
-        onClick={toggle}
-        className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
-        aria-label={collapsed ? 'Expand' : 'Collapse'}
-      >
-        <ChevronRight
-          className={cn('size-3.5 transition-transform duration-150', !collapsed && 'rotate-90')}
-        />
-        <span>{language || 'code'}</span>
-      </button>
-      <div className="flex items-center gap-1">
-        <span className="text-[10px] text-muted-foreground mr-2">
-          {lineCount} lines · {displayTokenCount}
-        </span>
-        {filePath ? (
+    <div className="w-full min-w-0 space-y-1.5">
+      {/* Row 1: collapse + language + badge | primary actions */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
           <button
             type="button"
-            onClick={handleOpenArtifact}
-            className="text-[10px] font-mono text-primary hover:underline truncate max-w-[150px]"
-            title={`Open ${filePath} in artifacts`}
+            onClick={toggle}
+            className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors group flex-shrink-0"
+            aria-label={collapsed ? 'Expand' : 'Collapse'}
           >
-            {filePath.split('/').pop()}
-          </button>
-        ) : null}
-        <button
-          type="button"
-          onClick={handleSaveToFile}
-          className="p-1 text-muted-foreground hover:text-foreground"
-          title="Save to file"
-        >
-          <Save className="size-3.5" />
-        </button>
-        {canRun && (
-          <button
-            type="button"
-            onClick={handleRun}
-            disabled={isRunning || !rawCode}
-            className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-50"
-            title="Run code snippet"
-          >
-            {isRunning ? <Loader2 className="size-3.5 animate-spin" /> : <Play className="size-3.5" />}
-          </button>
-        )}
-        {canDiff && (
-          <button
-            type="button"
-            onClick={() => setShowDiff(true)}
-            className="p-1 text-muted-foreground hover:text-foreground"
-            title="Compare with previous versions"
-          >
-            <GitCompare className="size-3.5" />
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={() => setShowLineNumbers(!showLineNumbers)}
-          className="p-1 text-muted-foreground hover:text-foreground"
-          title="Toggle line numbers"
-        >
-          <Hash className="size-3.5" />
-        </button>
-        <button
-          type="button"
-          onClick={copy}
-          disabled={isLoading}
-          className="p-1 text-muted-foreground hover:text-foreground transition-colors rounded"
-          aria-label="Copy code"
-        >
-          {copied ? (
-            <Check className="size-3.5 text-green-500" />
-          ) : isLoading ? (
-            <Loader2 className="size-3.5 animate-spin" />
-          ) : (
-            <Copy className="size-3.5" />
-          )}
-        </button>
-        {!showSearch && (
-          <button
-            type="button"
-            onClick={() => setShowSearch(true)}
-            className="p-1 text-muted-foreground hover:text-foreground"
-            title="Find in code (Cmd+F)"
-          >
-            <Search className="size-3.5" />
-          </button>
-        )}
-        {showSearch && (
-          <>
-            <input
-              ref={searchInputRef}
-              type="text"
-              placeholder="Find in code..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-6 px-2 text-xs border rounded bg-background w-32"
-              onKeyDown={(e) => e.stopPropagation()}
+            <ChevronRight
+              className={cn(
+                'size-4 transition-transform duration-200 ease-out',
+                !collapsed && 'rotate-90'
+              )}
             />
-            {matchCount > 0 && (
-              <span className="text-[10px] text-muted-foreground">
-                {currentMatchIndex + 1}/{matchCount}
-              </span>
+          </button>
+          <span className="text-xs lowercase truncate max-w-[100px] font-medium">
+            {language || 'code'}
+          </span>
+          <span className="text-[10px] text-muted-foreground bg-muted-foreground/5 px-2 py-0.5 rounded-full whitespace-nowrap">
+            {lineCount} lines · {displayTokenCount}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-0.5">
+            <button
+              type="button"
+              onClick={handleSaveToFile}
+              className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10 rounded-md transition-all"
+              title="Save to file"
+            >
+              <Save className="size-3.5" />
+            </button>
+
+            {canRun && (
+              <button
+                type="button"
+                onClick={handleRun}
+                disabled={isRunning || !rawCode}
+                className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10 rounded-md transition-all disabled:opacity-50"
+                title="Run code snippet"
+              >
+                {isRunning ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Play className="size-3.5" />
+                )}
+              </button>
             )}
+
+            {canDiff && (
+              <button
+                type="button"
+                onClick={() => setShowDiff(true)}
+                className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10 rounded-md transition-all"
+                title="Compare with previous versions"
+              >
+                <GitCompare className="size-3.5" />
+              </button>
+            )}
+
             <button
               type="button"
-              onClick={onPrevMatch}
-              disabled={matchCount === 0}
-              className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
-              title="Previous match"
+              onClick={() => setShowLineNumbers(!showLineNumbers)}
+              className={cn(
+                'p-1.5 rounded-md transition-all',
+                showLineNumbers
+                  ? 'text-primary bg-primary/10'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10'
+              )}
+              title="Toggle line numbers"
             >
-              <ChevronUp className="size-3.5" />
+              <Hash className="size-3.5" />
             </button>
+
             <button
               type="button"
-              onClick={onNextMatch}
-              disabled={matchCount === 0}
-              className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
-              title="Next match"
+              onClick={copy}
+              disabled={isLoading}
+              className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10 rounded-md transition-all"
+              aria-label="Copy code"
             >
-              <ChevronDown className="size-3.5" />
+              {copied ? (
+                <Check className="size-3.5 text-green-500" />
+              ) : isLoading ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Copy className="size-3.5" />
+              )}
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                setShowSearch(false)
-                setSearchQuery('')
-                clearHighlights()
-                setMatchLineIndices([])
-              }}
-              className="p-1 text-muted-foreground hover:text-foreground"
-            >
-              <X className="size-3.5" />
-            </button>
-          </>
-        )}
-        <div className="flex items-center gap-1 opacity-40 hover:opacity-100 transition-opacity">
-          <button
-            type="button"
-            onClick={handleExplain}
-            className="p-1 text-muted-foreground hover:text-foreground"
-            title="Explain this code"
-          >
-            <HelpCircle className="size-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={handleFix}
-            className="p-1 text-muted-foreground hover:text-foreground"
-            title="Ask AI to fix"
-          >
-            <Wrench className="size-3.5" />
-          </button>
+          </div>
         </div>
       </div>
-    </>
+
+      {/* Row 2: file path | search + AI actions */}
+      <div className="flex items-center justify-between gap-2">
+        {/* Left: file icon + path */}
+        {filePath ? (
+          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+            <FileIcon fileName={filePath} className="size-3.5 flex-shrink-0 text-muted-foreground" />
+            <button
+              type="button"
+              onClick={handleOpenArtifact}
+              className="text-[10px] font-mono text-muted-foreground hover:text-foreground truncate transition-colors"
+              title={`Open ${filePath} in artifacts`}
+            >
+              {filePath}
+            </button>
+          </div>
+        ) : (
+          <div className="flex-1" />
+        )}
+
+        {/* Right: search + AI */}
+        <div className="flex items-center gap-2 min-w-0 flex-shrink">
+          {/* Search area with shrinkable input */}
+          <div className="flex items-center gap-1 h-7 min-w-0 flex-shrink">
+            {!showSearch ? (
+              <button
+                type="button"
+                onClick={handleOpenSearch}
+                className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10 rounded-md transition-all h-full aspect-square flex items-center justify-center flex-shrink-0"
+                title="Find in code (Cmd+F)"
+              >
+                <Search className="size-3.5" />
+              </button>
+            ) : (
+              <>
+                <div
+                  className="relative h-full min-w-0 flex-shrink"
+                  style={{ width: 'clamp(60px, 15vw, 200px)' }}
+                >
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    placeholder="Find..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="h-full w-full px-2 text-xs border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                    style={{
+                      paddingRight: matchCount > 0
+                        ? searchQuery ? '56px' : '40px'  // space for X + chevrons or just chevrons
+                        : searchQuery ? '28px' : '8px'   // space for X or minimal
+                    }}
+                    onKeyDown={(e) => e.stopPropagation()}
+                  />
+
+                  {/* Absolute buttons inside input */}
+                  <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
+                    {searchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSearchQuery('')
+                          clearHighlights()
+                          setMatchLineIndices([])
+                          searchInputRef.current?.focus()
+                        }}
+                        className="p-0.5 text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="size-3" />
+                      </button>
+                    )}
+
+                    {matchCount > 0 && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={onPrevMatch}
+                          className="p-0.5 text-muted-foreground hover:text-foreground"
+                          title="Previous match"
+                        >
+                          <ChevronUp className="size-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={onNextMatch}
+                          className="p-0.5 text-muted-foreground hover:text-foreground"
+                          title="Next match"
+                        >
+                          <ChevronDown className="size-3" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Match count (outside but adjacent) */}
+                {matchCount > 0 && (
+                  <span className="hidden sm:inline text-[10px] text-muted-foreground bg-muted-foreground/5 px-1.5 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">
+                    {currentMatchIndex + 1}/{matchCount}
+                  </span>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowSearch(false)
+                    setSearchQuery('')
+                    clearHighlights()
+                    setMatchLineIndices([])
+                  }}
+                  className="p-1 text-muted-foreground hover:text-foreground rounded flex-shrink-0"
+                >
+                  <X className="size-3.5" />
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* Divider */}
+          <div className="w-px h-4 bg-border/50 hidden sm:block flex-shrink-0" />
+
+          {/* AI actions */}
+          <div className="flex items-center gap-0.5 flex-shrink-0">
+            <button
+              type="button"
+              onClick={handleExplain}
+              className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10 rounded-md transition-all"
+              title="Explain this code"
+            >
+              <HelpCircle className="size-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={handleFix}
+              className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10 rounded-md transition-all"
+              title="Ask AI to fix"
+            >
+              <Wrench className="size-3.5" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 })
 
 // ---------------------------------------------------------------------------
-// Main CodeBlock
+// Main CodeBlock (unchanged except for using updated header)
 // ---------------------------------------------------------------------------
 export const CodeBlock: React.FC<CodeBlockProps> = memo(
   ({
@@ -316,6 +409,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
     // Virtualization
     const parentRef = useRef<HTMLDivElement>(null)
     const preRef = useRef<HTMLPreElement>(null)
+    const [showLineNumbers, setShowLineNumbers] = useState(() => lineCount > 3)
     const virtualizer = useVirtualizer({
       count: highlightedLines.length,
       getScrollElement: () => scrollableRef.current,
@@ -325,8 +419,6 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
 
     const isUserScrolledUp = useRef(false)
     const isProgrammaticScroll = useRef(false)
-
-    const [showLineNumbers, setShowLineNumbers] = useState(() => lineCount > 3)
 
     const [isRunning, setIsRunning] = useState(false)
     const [runOutput, setRunOutput] = useState<string[]>([])
@@ -888,13 +980,12 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
         {createPortal(
           <div
             ref={floatingRef}
-            className="fixed z-50 flex items-center justify-between px-3 py-1.5 border border-border bg-muted text-xs font-mono"
+            className="fixed z-50 flex items-center justify-between gap-4 px-4 py-2 border border-border/60 bg-gradient-to-b from-muted/95 to-muted/90 backdrop-blur-md text-xs font-mono shadow-lg"
             style={{
               opacity: 0,
               pointerEvents: 'none',
               borderRadius: 'var(--radius)',
-              boxShadow: '0 0 0 0 transparent',
-              transition: 'border-radius 200ms ease, box-shadow 200ms ease'
+              transition: 'border-radius 200ms ease, box-shadow 200ms ease, opacity 150ms ease',
             }}
           >
             <CodeBlockHeader {...headerProps} />
@@ -910,7 +1001,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
           <div
             ref={headerRef}
             className={cn(
-              'flex items-center justify-between px-3 py-1.5 border-b border-border bg-muted',
+              'px-4 py-2 border-b border-border/60 bg-gradient-to-b from-muted/50 to-muted/30 backdrop-blur-sm',
               collapsed ? 'rounded-lg' : 'rounded-t-lg'
             )}
           >
@@ -921,7 +1012,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
             className="overflow-hidden rounded-b-lg"
             style={{
               maxHeight: collapsed ? 0 : 384,
-              transition: 'max-height 0.18s ease'
+              transition: 'max-height 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
             }}
           >
             <div className="relative bg-transparent">
@@ -934,8 +1025,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
               >
                 <pre
                   ref={preRef}
-                  className={cn('p-3 mt-0 mb-0', showLineNumbers && 'code-with-lines')}
-                  data-line-start={firstVisibleIndex + 1}
+                  className="p-3 mt-0 mb-0"
                   style={{ fontSize: 14, fontFamily: 'inherit' }}
                 >
                   <div
@@ -946,6 +1036,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
                       const line = highlightedLines[virtualRow.index]
                       const isHighlighted = highlightedLineNumbers?.includes(virtualRow.index + 1)
                       const isCurrentMatch = matchLineIndices[currentMatchIndex] === virtualRow.index
+                      const lineNumber = virtualRow.index + 1
                       return (
                         <div
                           key={virtualRow.key}
@@ -954,17 +1045,28 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
                           ref={virtualizer.measureElement}
                           className={cn(
                             'absolute top-0 left-0 w-full',
-                            showLineNumbers && 'line',
                             isHighlighted && 'highlighted-line',
                             isCurrentMatch && 'current-search-match'
                           )}
                           style={{
                             transform: `translateY(${virtualRow.start}px)`,
+                            display: 'flex',
                           }}
                         >
+                          {showLineNumbers && (
+                            <span
+                              className="select-none text-muted-foreground/50 text-right pr-4"
+                              style={{
+                                minWidth: `${String(lineCount).length + 2}ch`,
+                                userSelect: 'none',
+                              }}
+                            >
+                              {lineNumber}
+                            </span>
+                          )}
                           <span
                             dangerouslySetInnerHTML={{ __html: line }}
-                            style={{ display: 'inline', whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}
+                            style={{ display: 'inline', whiteSpace: 'pre-wrap', fontFamily: 'inherit', flex: 1 }}
                           />
                         </div>
                       )
