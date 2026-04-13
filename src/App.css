@@ -550,10 +550,10 @@ pre {
   border-left: 3px solid var(--primary);
 }
 
-/* Current search match */
 .current-search-match {
   background-color: rgba(255, 165, 0, 0.2);
-  border-left: 2px solid orange;
+  /* or rgba(255, 165, 0, 0.2) */
+  box-shadow: inset 2px 0 0 orange;
 }
 
 /* Search highlight marks */
