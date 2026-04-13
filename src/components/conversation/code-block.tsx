@@ -20,7 +20,6 @@ import { useConversationStore } from '@/store/conversation'
 
 const SUPPORTED_RUN_LANGUAGES = new Set(['python', 'py', 'javascript', 'js', 'bash', 'sh', 'ruby', 'rb'])
 
-// Helper to escape regex special characters
 function escapeRegExp(string: string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
@@ -65,31 +64,26 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
 
     const [showLineNumbers, setShowLineNumbers] = useState(() => lineCount > 3)
 
-    // Run code state
     const [isRunning, setIsRunning] = useState(false)
     const [runOutput, setRunOutput] = useState<string[]>([])
     const [runError, setRunError] = useState<string[]>([])
     const [runId, setRunId] = useState<string | null>(null)
     const [showOutput, setShowOutput] = useState(false)
 
-    // Diff view state
     const [showDiff, setShowDiff] = useState(false)
 
-    // Search state
     const [searchQuery, setSearchQuery] = useState('')
     const [showSearch, setShowSearch] = useState(false)
     const searchInputRef = useRef<HTMLInputElement>(null)
 
-    // Timeout ref for run
     const timeoutRef = useRef<ReturnType<typeof setTimeout>>()
+    const unlistenRef = useRef<(() => void) | null>(null)
 
     const canRun = SUPPORTED_RUN_LANGUAGES.has(language)
 
-    // Store hooks for artifact linking
     const setRightTab = useUILayoutStore((s) => s.setRightTab)
     const setSelectedArtifactId = useUIEphemeralStore((s) => s.setSelectedArtifactId)
 
-    // Conversation and message hooks for Explain/Fix
     const activeConversationId = useConversationStore((s) => s.activeConversationId)
     const activeBranchId = useConversationStore((s) => s.activeBranchId)
     const sendMessage = useSendMessage(activeConversationId!, activeBranchId)
@@ -98,7 +92,6 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
       console.log('[CodeBlock] Opening artifact:', artifactId)
       if (artifactId) {
         setRightTab('artifacts')
-        // Delay to allow the ArtifactPanel to mount and render its list
         setTimeout(() => {
           setSelectedArtifactId(artifactId)
         }, 150)
@@ -123,7 +116,6 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
       sendMessage.mutate({ content: prompt, thinking: false })
     }, [activeConversationId, language, rawCode, sendMessage])
 
-    // Query artifact versions for diff
     const { data: versions } = useQuery({
       queryKey: ['artifact-versions', artifactId],
       queryFn: async () => {
@@ -136,12 +128,11 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
 
     const canDiff = (versions?.length ?? 0) > 1
 
-    // Rough heuristic fallback if token count is zero (e.g., legacy artifacts)
     const displayTokenCount = tokenCount > 0
       ? `${tokenCount} tok`
       : `~${Math.ceil((rawCode?.length ?? 0) / 4)} tok`
 
-    // ─── Search: keyboard shortcut (capture phase to beat global) ───────────
+    // Search keyboard shortcut
     useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
         const container = containerRef.current
@@ -168,7 +159,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
         }
       }
 
-      window.addEventListener('keydown', handleKeyDown, true) // capture phase
+      window.addEventListener('keydown', handleKeyDown, true)
       return () => window.removeEventListener('keydown', handleKeyDown, true)
     }, [showSearch])
 
@@ -220,7 +211,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
           mark.textContent = match[0]
           frag.appendChild(mark)
           lastIdx = regex.lastIndex
-          if (match[0].length === 0) regex.lastIndex++ // avoid infinite loop on zero-width matches
+          if (match[0].length === 0) regex.lastIndex++
         }
         if (lastIdx < text.length) {
           frag.appendChild(document.createTextNode(text.slice(lastIdx)))
@@ -229,12 +220,10 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
       }
     }, [clearHighlights])
 
-    // Reapply highlights when query or HTML changes
     useEffect(() => {
       highlightMatches(searchQuery)
     }, [searchQuery, highlightedHtml, highlightMatches])
 
-    // Apply line highlighting when highlightedLines changes
     useEffect(() => {
       const pre = preRef.current
       if (!pre || !highlightedLines?.length) return
@@ -249,16 +238,20 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
       })
     }, [highlightedLines, highlightedHtml])
 
-    // ─── Run code event listener with error handling and logging ────────────
+    // Run event listener
     useEffect(() => {
       if (!runId) return
 
       console.log(`[CodeBlock] Setting up listener for runId: ${runId}`)
-      let unlistenFn: (() => void) | undefined
+
+      if (unlistenRef.current) {
+        unlistenRef.current()
+        unlistenRef.current = null
+      }
 
       const setup = async () => {
         try {
-          unlistenFn = await listen<RunCodeEvent>('run-code-event', (event) => {
+          const unlisten = await listen<RunCodeEvent>('run-code-event', (event) => {
             console.log('[CodeBlock] run-code-event received:', event.payload)
             if (event.payload.run_id !== runId) {
               console.log('[CodeBlock] run_id mismatch, ignoring')
@@ -281,6 +274,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
               }
             }
           })
+          unlistenRef.current = unlisten
           console.log('[CodeBlock] Listener registered successfully')
         } catch (err) {
           console.error('[CodeBlock] Failed to listen to run-code-event:', err)
@@ -290,12 +284,14 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
         }
       }
 
-      setup()
+      const timer = setTimeout(setup, 10)
 
       return () => {
-        if (unlistenFn) {
+        clearTimeout(timer)
+        if (unlistenRef.current) {
           console.log('[CodeBlock] Cleaning up listener')
-          unlistenFn()
+          unlistenRef.current()
+          unlistenRef.current = null
         }
       }
     }, [runId])
@@ -306,10 +302,15 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
         toast.error('Code content not loaded')
         return
       }
+
+      // Generate runId on frontend to ensure listener is ready before backend emits
+      const newRunId = crypto.randomUUID()
+
       setIsRunning(true)
       setRunOutput([])
       setRunError([])
       setShowOutput(true)
+      setRunId(newRunId)
 
       const timeoutId = setTimeout(() => {
         console.warn('[CodeBlock] Run timed out')
@@ -320,13 +321,16 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
       timeoutRef.current = timeoutId
 
       try {
-        const id = await commands.runCodeSnippet(language, rawCode, null)
-        console.log('[CodeBlock] Got runId:', id)
-        setRunId(id)
+        const res = await commands.runCodeSnippet(language, rawCode, null, newRunId)
+        if (res.status === 'error') {
+          throw new Error(res.error)
+        }
+        console.log('[CodeBlock] Run started with runId:', newRunId)
       } catch (err) {
         toast.error(`Failed to run: ${err}`)
         setIsRunning(false)
         setShowOutput(false)
+        setRunId(null)
         if (timeoutRef.current) {
           clearTimeout(timeoutRef.current)
           timeoutRef.current = undefined
@@ -334,7 +338,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
       }
     }, [isRunning, rawCode, language])
 
-    // Apply/remove the line‑number class whenever toggled or when the HTML changes.
+    // Line numbers toggle effect
     useEffect(() => {
       const pre = preRef.current
       if (!pre) return
@@ -345,19 +349,17 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
       }
     }, [showLineNumbers, highlightedHtml])
 
-    // ─── Merged scroll listener: user scroll detection + minimap thumb update ───
+    // Merged scroll listener
     useEffect(() => {
       const el = scrollableRef.current
       if (!el) return
 
       const handleScroll = () => {
-        // User scroll detection (no state update)
         if (!isProgrammaticScroll.current) {
           const { scrollTop, scrollHeight, clientHeight } = el
           isUserScrolledUp.current = Math.abs(scrollHeight - clientHeight - scrollTop) >= 10
         }
 
-        // Minimap thumb update (direct DOM manipulation)
         const thumb = minimapThumbRef.current
         if (thumb) {
           const { scrollTop, scrollHeight, clientHeight } = el
@@ -369,9 +371,9 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
       }
 
       el.addEventListener('scroll', handleScroll, { passive: true })
-      handleScroll() // initial position
+      handleScroll()
       return () => el.removeEventListener('scroll', handleScroll)
-    }, [highlightedHtml]) // re-attach when content changes
+    }, [highlightedHtml])
 
     const handleMinimapClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
       const el = scrollableRef.current
@@ -382,7 +384,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
       el.scrollTop = ratio * el.scrollHeight
     }, [])
 
-    // ─── Auto-scroll via MutationObserver during streaming ───────────────────
+    // Auto-scroll during streaming
     useEffect(() => {
       if (!isStreaming || collapsed) return
 
@@ -410,7 +412,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
       return () => observer.disconnect()
     }, [isStreaming, collapsed])
 
-    // ─── Floating header: portal + getBoundingClientRect (mirrors CodePre) ───
+    // Floating header
     useEffect(() => {
       const root = scrollContainerRef?.current
       const container = containerRef.current
@@ -427,7 +429,6 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
       }
 
       const sync = () => {
-        // Only show floating header when content actually overflows
         const codeOverflows = scrollable.scrollHeight > scrollable.clientHeight
         if (collapsed || !codeOverflows) {
           hide()
@@ -437,7 +438,6 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
         const rootRect = root.getBoundingClientRect()
         const containerRect = container.getBoundingClientRect()
 
-        // Guard against invisible/unmeasured containers
         if (rootRect.width === 0 || rootRect.height === 0) {
           hide()
           return
@@ -447,8 +447,6 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
         const bottomVisible = containerRect.bottom > rootRect.top + 32
 
         if (topGone && bottomVisible) {
-          // Position the portal element to sit at the top of the scroll container,
-          // spanning the exact width of the code block container
           floating.style.top = `${rootRect.top}px`
           floating.style.left = `${containerRect.left}px`
           floating.style.width = `${containerRect.width}px`
@@ -480,7 +478,6 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
         root.removeEventListener('scroll', sync)
         ro.disconnect()
         cancelAnimationFrame(rafId)
-        // Always restore visibility on cleanup
         if (header) header.style.visibility = 'visible'
       }
     }, [scrollContainerRef, collapsed])
@@ -531,11 +528,9 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
           <span>{language || 'code'}</span>
         </button>
         <div className="flex items-center gap-1">
-          {/* Line count + token badge */}
           <span className="text-[10px] text-muted-foreground mr-2">
             {lineCount} lines · {displayTokenCount}
           </span>
-          {/* Filename pill - now clickable */}
           {filePath ? (
             <button
               type="button"
@@ -598,7 +593,6 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
               <Copy className="size-3.5" />
             )}
           </button>
-          {/* Search toggle button */}
           {!showSearch && (
             <button
               type="button"
@@ -609,7 +603,6 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
               <Search className="size-3.5" />
             </button>
           )}
-          {/* Inline search input */}
           {showSearch && (
             <>
               <input
@@ -634,7 +627,6 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
               </button>
             </>
           )}
-          {/* Explain and Fix buttons — always visible at low opacity, works in both static and floating */}
           <div className="flex items-center gap-1 opacity-40 hover:opacity-100 transition-opacity">
             <button
               type="button"
@@ -659,7 +651,6 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
 
     return (
       <>
-        {/* Floating header portal */}
         {createPortal(
           <div
             ref={floatingRef}
@@ -682,7 +673,6 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
           tabIndex={0}
           className="my-3 rounded-lg border border-border font-mono text-xs group/code-header focus:outline-none focus:ring-2 focus:ring-primary/50"
         >
-          {/* Static header */}
           <div
             ref={headerRef}
             className={cn(
@@ -693,7 +683,6 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
             {headerContent}
           </div>
 
-          {/* Collapse wrapper */}
           <div
             className="overflow-hidden rounded-b-lg"
             style={{
@@ -720,7 +709,6 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
                   dangerouslySetInnerHTML={{ __html: highlightedHtml }}
                 />
               </div>
-              {/* Minimap scroll thumb */}
               {showMinimap && (
                 <div
                   className="absolute right-0 top-0 w-1.5 h-full cursor-pointer minimap-strip"
@@ -739,7 +727,6 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
             </div>
           </div>
 
-          {/* Output panel */}
           {showOutput && (
             <div className="border-t border-border bg-muted/30 p-2 max-h-48 overflow-auto thin-scrollbar">
               {runOutput.map((line, i) => (
@@ -759,7 +746,6 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
           )}
         </div>
 
-        {/* Diff Modal */}
         {showDiff && versions && (
           <VersionDiffModal
             open={showDiff}

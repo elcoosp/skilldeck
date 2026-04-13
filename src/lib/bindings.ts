@@ -1233,9 +1233,9 @@ async writeArtifactToFile(artifactId: string, targetPath: string) : Promise<Resu
     else return { status: "error", error: e  as any };
 }
 },
-async runCodeSnippet(language: string, code: string, workingDir: string | null) : Promise<Result<string, string>> {
+async runCodeSnippet(language: string, code: string, workingDir: string | null, runId: string | null) : Promise<Result<string, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("run_code_snippet", { language, code, workingDir }) };
+    return { status: "ok", data: await TAURI_INVOKE("run_code_snippet", { language, code, workingDir, runId }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
