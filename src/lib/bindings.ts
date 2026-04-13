@@ -1358,7 +1358,7 @@ export type McpEvent = { type: "server_connected"; name: string } | { type: "ser
 export type McpServerResponse = { id: string; name: string; transport: string; status: string; tools: McpToolResponse[] }
 export type McpToolInfo = { name: string; description: string }
 export type McpToolResponse = { name: string; description: string; input_schema: JsonValue }
-export type MdNode = { type: "paragraph"; id: string; html: string } | { type: "heading"; id: string; level: number; text: string; slug: string; toc_index: number } | { type: "code_block"; id: string; language: string; raw_code: string; highlighted_html: string; artifact_id: string; line_count: number; file_path: string | null; token_count: number } | { type: "list"; id: string; ordered: boolean; html: string } | { type: "blockquote"; id: string; html: string } | { type: "horizontal_rule"; id: string } | { type: "html_block"; id: string; html: string }
+export type MdNode = { type: "paragraph"; id: string; html: string } | { type: "heading"; id: string; level: number; text: string; slug: string; toc_index: number } | { type: "code_block"; id: string; language: string; raw_code: string; highlighted_lines: string[]; artifact_id: string; line_count: number; file_path: string | null; token_count: number; minimap_rgba: number[]; minimap_width: number; minimap_height: number } | { type: "list"; id: string; ordered: boolean; html: string } | { type: "blockquote"; id: string; html: string } | { type: "horizontal_rule"; id: string } | { type: "html_block"; id: string; html: string }
 /**
  * Serialisable message returned to the frontend.
  */

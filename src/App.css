@@ -491,26 +491,30 @@ code[data-inline-code]:hover {
 /* ============================================ */
 /* Code block line numbers styling              */
 /* ============================================ */
+
+/* Base pre styles */
+pre {
+  font-family: inherit;
+  tab-size: 2;
+}
+
+/* When line numbers are enabled */
 .code-with-lines {
   counter-reset: line;
 }
 
-/* Only apply block/padding when line numbers are enabled */
+/* Each line container (used for both virtual and non-virtual) */
 .code-with-lines .line {
   display: block;
   position: relative;
   padding-left: 3.5rem;
   line-height: 1.5;
   min-height: 1.5em;
-}
-
-/* Without line numbers, lines are inline (no extra spacing) */
-.line {
-  /* intentionally empty — default inline behavior */
-}
-
-.code-with-lines .line::before {
   counter-increment: line;
+}
+
+/* Line number pseudo-element */
+.code-with-lines .line::before {
   content: counter(line);
   position: absolute;
   left: 0;
@@ -531,6 +535,41 @@ code[data-inline-code]:hover {
   justify-content: flex-end;
 }
 
+/* Reset counter for virtual container based on first visible line */
+.code-with-lines[data-line-start] {
+  counter-reset: line calc(attr(data-line-start, number, 1) - 1);
+}
+
+/* Remove conflicting counter reset rules */
+[data-line-start] {
+  counter-reset: none;
+}
+
+/* Highlighted line */
+.highlighted-line {
+  background: var(--highlight-inline);
+  border-left: 3px solid var(--primary);
+}
+
+/* Current search match */
+.current-search-match {
+  background-color: rgba(255, 165, 0, 0.2);
+  border-left: 2px solid orange;
+}
+
+/* Search highlight marks */
+.search-highlight {
+  background-color: var(--highlight-inline);
+  color: inherit;
+  border-radius: 2px;
+}
+
+/* Inline code inside lines (ensure it doesn't break layout) */
+.code-with-lines .line code {
+  font-size: inherit;
+  line-height: inherit;
+}
+
 /* Reset any pre tags that might appear inside highlighted lines */
 .code-with-lines .line pre {
   margin: 0;
@@ -541,19 +580,6 @@ code[data-inline-code]:hover {
   font-size: inherit;
   line-height: inherit;
   white-space: pre-wrap;
-}
-
-/* Highlighted line in code block */
-.code-with-lines .line.highlighted-line {
-  background: var(--highlight-inline);
-  border-left: 3px solid var(--primary);
-}
-
-/* Search highlight for code block */
-.search-highlight {
-  background-color: var(--highlight-inline);
-  color: inherit;
-  border-radius: 2px;
 }
 
 /* Artifact highlight pulse animation */

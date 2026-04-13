@@ -12,7 +12,7 @@ pub struct ArtifactSpec {
     /// Optional file path extracted from a first-line comment or preceding inline code.
     pub file_path: Option<String>,
     pub line_count: u32,
-    pub token_count: u32, // new
+    pub token_count: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type, PartialEq)]
@@ -42,11 +42,14 @@ pub enum MdNode {
         id: String,
         language: String,
         raw_code: String,
-        highlighted_html: String,
+        highlighted_lines: Vec<String>,   // ← changed from highlighted_html
         artifact_id: Uuid,
         line_count: u32,
         file_path: Option<String>,
-        token_count: u32, // new
+        token_count: u32,
+        minimap_rgba: Vec<u8>,
+        minimap_width: u32,
+        minimap_height: u32,
     },
     List {
         id: String,

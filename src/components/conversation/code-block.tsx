@@ -1,8 +1,8 @@
 // src/components/conversation/code-block.tsx
 
-import { Check, ChevronRight, Copy, GitCompare, Hash, HelpCircle, Loader2, Play, Save, Search, Wrench, X } from 'lucide-react'
+import { Check, ChevronDown, ChevronRight, ChevronUp, Copy, GitCompare, Hash, HelpCircle, Loader2, Play, Save, Search, Wrench, X } from 'lucide-react'
 import type React from 'react'
-import { memo, useCallback, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { toast } from '@/components/ui/toast'
 import { useArtifactContent } from '@/hooks/use-artifact-content'
@@ -25,6 +25,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import Ansi from '@curvenote/ansi-to-react'
+import { useVirtualizer } from '@tanstack/react-virtual'
 
 const SUPPORTED_RUN_LANGUAGES = new Set(['python', 'py', 'javascript', 'js', 'bash', 'sh', 'ruby', 'rb'])
 
@@ -42,26 +43,263 @@ interface RunOutput {
 interface CodeBlockProps {
   language: string
   artifactId: string
-  highlightedHtml: string
+  highlightedLines: string[]
   isStreaming?: boolean
   scrollContainerRef?: React.RefObject<HTMLElement>
   lineCount: number
   filePath?: string | null
   tokenCount: number
-  highlightedLines?: number[]
+  highlightedLineNumbers?: number[]
+  minimapRgba?: number[] | Uint8Array
+  minimapWidth?: number
+  minimapHeight?: number
 }
 
+// ---------------------------------------------------------------------------
+// Header subcomponent (unchanged)
+// ---------------------------------------------------------------------------
+const CodeBlockHeader = memo(function CodeBlockHeader({
+  language,
+  collapsed,
+  toggle,
+  lineCount,
+  displayTokenCount,
+  filePath,
+  handleOpenArtifact,
+  handleSaveToFile,
+  canRun,
+  isRunning,
+  handleRun,
+  rawCode,
+  canDiff,
+  setShowDiff,
+  showLineNumbers,
+  setShowLineNumbers,
+  isLoading,
+  copy,
+  copied,
+  showSearch,
+  setShowSearch,
+  searchQuery,
+  setSearchQuery,
+  clearHighlights,
+  searchInputRef,
+  handleExplain,
+  handleFix,
+  matchCount,
+  currentMatchIndex,
+  onNextMatch,
+  onPrevMatch,
+}: {
+  language: string
+  collapsed: boolean
+  toggle: () => void
+  lineCount: number
+  displayTokenCount: string
+  filePath?: string | null
+  handleOpenArtifact: () => void
+  handleSaveToFile: () => Promise<void>
+  canRun: boolean
+  isRunning: boolean
+  handleRun: () => Promise<void>
+  rawCode?: string
+  canDiff: boolean
+  setShowDiff: (show: boolean) => void
+  showLineNumbers: boolean
+  setShowLineNumbers: (show: boolean) => void
+  isLoading: boolean
+  copy: () => Promise<void>
+  copied: boolean
+  showSearch: boolean
+  setShowSearch: (show: boolean) => void
+  searchQuery: string
+  setSearchQuery: (q: string) => void
+  clearHighlights: () => void
+  searchInputRef: React.RefObject<HTMLInputElement>
+  handleExplain: () => void
+  handleFix: () => void
+  matchCount: number
+  currentMatchIndex: number
+  onNextMatch: () => void
+  onPrevMatch: () => void
+}) {
+  return (
+    <>
+      <button
+        type="button"
+        onClick={toggle}
+        className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
+        aria-label={collapsed ? 'Expand' : 'Collapse'}
+      >
+        <ChevronRight
+          className={cn('size-3.5 transition-transform duration-150', !collapsed && 'rotate-90')}
+        />
+        <span>{language || 'code'}</span>
+      </button>
+      <div className="flex items-center gap-1">
+        <span className="text-[10px] text-muted-foreground mr-2">
+          {lineCount} lines · {displayTokenCount}
+        </span>
+        {filePath ? (
+          <button
+            type="button"
+            onClick={handleOpenArtifact}
+            className="text-[10px] font-mono text-primary hover:underline truncate max-w-[150px]"
+            title={`Open ${filePath} in artifacts`}
+          >
+            {filePath.split('/').pop()}
+          </button>
+        ) : null}
+        <button
+          type="button"
+          onClick={handleSaveToFile}
+          className="p-1 text-muted-foreground hover:text-foreground"
+          title="Save to file"
+        >
+          <Save className="size-3.5" />
+        </button>
+        {canRun && (
+          <button
+            type="button"
+            onClick={handleRun}
+            disabled={isRunning || !rawCode}
+            className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-50"
+            title="Run code snippet"
+          >
+            {isRunning ? <Loader2 className="size-3.5 animate-spin" /> : <Play className="size-3.5" />}
+          </button>
+        )}
+        {canDiff && (
+          <button
+            type="button"
+            onClick={() => setShowDiff(true)}
+            className="p-1 text-muted-foreground hover:text-foreground"
+            title="Compare with previous versions"
+          >
+            <GitCompare className="size-3.5" />
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => setShowLineNumbers(!showLineNumbers)}
+          className="p-1 text-muted-foreground hover:text-foreground"
+          title="Toggle line numbers"
+        >
+          <Hash className="size-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={copy}
+          disabled={isLoading}
+          className="p-1 text-muted-foreground hover:text-foreground transition-colors rounded"
+          aria-label="Copy code"
+        >
+          {copied ? (
+            <Check className="size-3.5 text-green-500" />
+          ) : isLoading ? (
+            <Loader2 className="size-3.5 animate-spin" />
+          ) : (
+            <Copy className="size-3.5" />
+          )}
+        </button>
+        {!showSearch && (
+          <button
+            type="button"
+            onClick={() => setShowSearch(true)}
+            className="p-1 text-muted-foreground hover:text-foreground"
+            title="Find in code (Cmd+F)"
+          >
+            <Search className="size-3.5" />
+          </button>
+        )}
+        {showSearch && (
+          <>
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Find in code..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-6 px-2 text-xs border rounded bg-background w-32"
+              onKeyDown={(e) => e.stopPropagation()}
+            />
+            {matchCount > 0 && (
+              <span className="text-[10px] text-muted-foreground">
+                {currentMatchIndex + 1}/{matchCount}
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={onPrevMatch}
+              disabled={matchCount === 0}
+              className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
+              title="Previous match"
+            >
+              <ChevronUp className="size-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={onNextMatch}
+              disabled={matchCount === 0}
+              className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
+              title="Next match"
+            >
+              <ChevronDown className="size-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowSearch(false)
+                setSearchQuery('')
+                clearHighlights()
+                setMatchLineIndices([])
+              }}
+              className="p-1 text-muted-foreground hover:text-foreground"
+            >
+              <X className="size-3.5" />
+            </button>
+          </>
+        )}
+        <div className="flex items-center gap-1 opacity-40 hover:opacity-100 transition-opacity">
+          <button
+            type="button"
+            onClick={handleExplain}
+            className="p-1 text-muted-foreground hover:text-foreground"
+            title="Explain this code"
+          >
+            <HelpCircle className="size-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={handleFix}
+            className="p-1 text-muted-foreground hover:text-foreground"
+            title="Ask AI to fix"
+          >
+            <Wrench className="size-3.5" />
+          </button>
+        </div>
+      </div>
+    </>
+  )
+})
+
+// ---------------------------------------------------------------------------
+// Main CodeBlock
+// ---------------------------------------------------------------------------
 export const CodeBlock: React.FC<CodeBlockProps> = memo(
   ({
     language,
     artifactId,
-    highlightedHtml,
+    highlightedLines,
     isStreaming = false,
     scrollContainerRef,
     lineCount,
     filePath,
     tokenCount,
-    highlightedLines,
+    highlightedLineNumbers,
+    minimapRgba: minimapRgbaProp,
+    minimapWidth,
+    minimapHeight,
   }) => {
     const [collapsed, setCollapsed] = useState(false)
     const [copied, setCopied] = useState(false)
@@ -71,8 +309,19 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
     const headerRef = useRef<HTMLDivElement>(null)
     const floatingRef = useRef<HTMLDivElement>(null)
     const scrollableRef = useRef<HTMLDivElement>(null)
+    const minimapCanvasRef = useRef<HTMLCanvasElement>(null)
+    const thumbCanvasRef = useRef<HTMLCanvasElement>(null)
+    const minimapImageDataRef = useRef<ImageData | null>(null)
+
+    // Virtualization
+    const parentRef = useRef<HTMLDivElement>(null)
     const preRef = useRef<HTMLPreElement>(null)
-    const minimapThumbRef = useRef<HTMLDivElement>(null)
+    const virtualizer = useVirtualizer({
+      count: highlightedLines.length,
+      getScrollElement: () => scrollableRef.current,
+      estimateSize: () => showLineNumbers ? 24 : 21,
+      overscan: 15,
+    })
 
     const isUserScrolledUp = useRef(false)
     const isProgrammaticScroll = useRef(false)
@@ -83,6 +332,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
     const [runOutput, setRunOutput] = useState<string[]>([])
     const [runError, setRunError] = useState<string[]>([])
     const [showOutput, setShowOutput] = useState(false)
+    const timeoutRef = useRef<ReturnType<typeof setTimeout>>()
 
     const [showDiff, setShowDiff] = useState(false)
 
@@ -90,13 +340,19 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
     const [showSearch, setShowSearch] = useState(false)
     const searchInputRef = useRef<HTMLInputElement>(null)
 
-    const timeoutRef = useRef<ReturnType<typeof setTimeout>>()
+    // Search navigation state
+    const [matchLineIndices, setMatchLineIndices] = useState<number[]>([])
+    const [currentMatchIndex, setCurrentMatchIndex] = useState(0)
+
+    const [thumbTop, setThumbTop] = useState(0)
+    const [thumbHeight, setThumbHeight] = useState(20)
+    const [isDragging, setIsDragging] = useState(false)
+    const [minimapHovered, setMinimapHovered] = useState(false)
 
     const canRun = SUPPORTED_RUN_LANGUAGES.has(language)
 
     const setRightTab = useUILayoutStore((s) => s.setRightTab)
     const setSelectedArtifactId = useUIEphemeralStore((s) => s.setSelectedArtifactId)
-
     const activeConversationId = useConversationStore((s) => s.activeConversationId)
     const activeBranchId = useConversationStore((s) => s.activeBranchId)
     const sendMessage = useSendMessage(activeConversationId!, activeBranchId)
@@ -142,6 +398,68 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
       ? `${tokenCount} tok`
       : `~${Math.ceil((rawCode?.length ?? 0) / 4)} tok`
 
+    const minimapRgba = minimapRgbaProp
+      ? minimapRgbaProp instanceof Uint8Array
+        ? minimapRgbaProp
+        : new Uint8Array(minimapRgbaProp)
+      : null
+
+    // Draw minimap base image (only once)
+    useEffect(() => {
+      const canvas = minimapCanvasRef.current
+      if (!canvas) return
+
+      if (minimapRgba && minimapRgba.length > 0 && minimapWidth && minimapHeight) {
+        canvas.width = minimapWidth
+        canvas.height = minimapHeight
+        const ctx = canvas.getContext('2d')
+        if (!ctx) return
+        const imageData = new ImageData(
+          new Uint8ClampedArray(minimapRgba),
+          minimapWidth,
+          minimapHeight
+        )
+        ctx.putImageData(imageData, 0, 0)
+        minimapImageDataRef.current = imageData
+      } else {
+        canvas.width = 200
+        canvas.height = lineCount * 2
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+          ctx.fillStyle = '#333'
+          ctx.fillRect(0, 0, canvas.width, canvas.height)
+          ctx.fillStyle = '#666'
+          for (let i = 0; i < lineCount; i++) {
+            if (i % 2 === 0) {
+              ctx.fillRect(0, i * 2, canvas.width, 2)
+            }
+          }
+          minimapImageDataRef.current = ctx.getImageData(0, 0, canvas.width, canvas.height)
+        }
+      }
+    }, [minimapRgba, minimapWidth, minimapHeight, lineCount])
+
+    // Draw thumb overlay on separate canvas (always visible)
+    const drawThumb = useCallback(() => {
+      const baseCanvas = minimapCanvasRef.current
+      const thumbCanvas = thumbCanvasRef.current
+      if (!baseCanvas || !thumbCanvas) return
+
+      thumbCanvas.width = baseCanvas.width
+      thumbCanvas.height = baseCanvas.height
+
+      const ctx = thumbCanvas.getContext('2d')
+      if (!ctx) return
+
+      ctx.clearRect(0, 0, thumbCanvas.width, thumbCanvas.height)
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.4)'
+      ctx.fillRect(0, thumbTop, baseCanvas.width, thumbHeight)
+    }, [thumbTop, thumbHeight])
+
+    useEffect(() => {
+      drawThumb()
+    }, [drawThumb])
+
     // Search keyboard shortcut
     useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
@@ -163,6 +481,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
           setShowSearch(false)
           setSearchQuery('')
           clearHighlights()
+          setMatchLineIndices([])
         }
       }
       window.addEventListener('keydown', handleKeyDown, true)
@@ -170,9 +489,9 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
     }, [showSearch])
 
     const clearHighlights = useCallback(() => {
-      const pre = preRef.current
-      if (!pre) return
-      pre.querySelectorAll('.search-highlight').forEach(el => {
+      const container = parentRef.current
+      if (!container) return
+      container.querySelectorAll('.search-highlight').forEach(el => {
         const parent = el.parentNode
         if (parent) {
           parent.replaceChild(document.createTextNode(el.textContent || ''), el)
@@ -181,15 +500,23 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
       })
     }, [])
 
-    const highlightMatches = useCallback((query: string) => {
-      const pre = preRef.current
-      if (!pre || !query.trim()) {
+    // Highlight matches and collect line indices
+    const applyHighlights = useCallback((query: string) => {
+      const container = parentRef.current
+      if (!container || !query.trim()) {
         clearHighlights()
+        setMatchLineIndices([])
+        setCurrentMatchIndex(0)
         return
       }
+
+      // Clear existing highlights
       clearHighlights()
+
       const regex = new RegExp(escapeRegExp(query), 'gi')
-      const walker = document.createTreeWalker(pre, NodeFilter.SHOW_TEXT, {
+      const matchLinesSet = new Set<number>()
+
+      const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
         acceptNode: (node) =>
           regex.test(node.textContent || '') ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT,
       })
@@ -199,6 +526,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
         textNodes.push(node as Text)
         node = walker.nextNode()
       }
+
       for (const textNode of textNodes) {
         const text = textNode.textContent || ''
         const frag = document.createDocumentFragment()
@@ -215,31 +543,74 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
           frag.appendChild(mark)
           lastIdx = regex.lastIndex
           if (match[0].length === 0) regex.lastIndex++
+
+          const lineElement = textNode.parentElement?.closest('[data-line-index]')
+          if (lineElement) {
+            const lineIndex = parseInt(lineElement.getAttribute('data-line-index') || '0', 10)
+            matchLinesSet.add(lineIndex)
+          }
         }
         if (lastIdx < text.length) {
           frag.appendChild(document.createTextNode(text.slice(lastIdx)))
         }
         textNode.parentNode?.replaceChild(frag, textNode)
       }
+
+      const sortedMatches = Array.from(matchLinesSet).sort((a, b) => a - b)
+      setMatchLineIndices(sortedMatches)
+      setCurrentMatchIndex(prev => sortedMatches.length > 0 ? Math.min(prev, sortedMatches.length - 1) : 0)
     }, [clearHighlights])
 
-    useEffect(() => {
-      highlightMatches(searchQuery)
-    }, [searchQuery, highlightedHtml, highlightMatches])
+    // Apply highlights after each render when search is active
+    useLayoutEffect(() => {
+      if (!showSearch || !searchQuery) return
+      const timeout = setTimeout(() => applyHighlights(searchQuery), 0)
+      return () => clearTimeout(timeout)
+    }, [highlightedLines, searchQuery, showSearch, applyHighlights])
 
+    // Debounced typing effect
     useEffect(() => {
-      const pre = preRef.current
-      if (!pre || !highlightedLines?.length) return
-      const lines = pre.querySelectorAll('.line')
-      lines.forEach((line, index) => {
-        const lineNumber = index + 1
-        if (highlightedLines.includes(lineNumber)) {
-          line.classList.add('highlighted-line')
+      if (!showSearch) return
+      const timer = setTimeout(() => {
+        applyHighlights(searchQuery)
+      }, 150)
+      return () => clearTimeout(timer)
+    }, [searchQuery, applyHighlights, showSearch])
+
+    // Improved scroll to match with retry to ensure element is rendered
+    const scrollToMatchIndex = useCallback((index: number) => {
+      const lineIndex = matchLineIndices[index]
+      if (lineIndex === undefined) return
+
+      // Force virtualizer to calculate the range for this index
+      virtualizer.scrollToIndex(lineIndex, { align: 'center' })
+
+      // Retry scrolling in case the element wasn't fully rendered
+      const checkAndScroll = () => {
+        const targetEl = document.querySelector(`[data-line-index="${lineIndex}"]`)
+        if (targetEl) {
+          targetEl.scrollIntoView({ block: 'center', behavior: 'auto' })
         } else {
-          line.classList.remove('highlighted-line')
+          // If not found, try again after a short delay
+          setTimeout(checkAndScroll, 20)
         }
-      })
-    }, [highlightedLines, highlightedHtml])
+      }
+      setTimeout(checkAndScroll, 30)
+    }, [matchLineIndices, virtualizer])
+
+    const onNextMatch = useCallback(() => {
+      if (matchLineIndices.length === 0) return
+      const next = (currentMatchIndex + 1) % matchLineIndices.length
+      setCurrentMatchIndex(next)
+      scrollToMatchIndex(next)
+    }, [currentMatchIndex, matchLineIndices, scrollToMatchIndex])
+
+    const onPrevMatch = useCallback(() => {
+      if (matchLineIndices.length === 0) return
+      const prev = (currentMatchIndex - 1 + matchLineIndices.length) % matchLineIndices.length
+      setCurrentMatchIndex(prev)
+      scrollToMatchIndex(prev)
+    }, [currentMatchIndex, matchLineIndices, scrollToMatchIndex])
 
     const handleRun = useCallback(async () => {
       if (isRunning) return
@@ -248,14 +619,12 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
         return
       }
 
-      console.log('[CodeBlock] Starting run via channel')
       setIsRunning(true)
       setRunOutput([])
       setRunError([])
       setShowOutput(true)
 
       const timeoutId = setTimeout(() => {
-        console.warn('[CodeBlock] Run timed out')
         if (timeoutRef.current) {
           clearTimeout(timeoutRef.current)
           timeoutRef.current = undefined
@@ -268,13 +637,11 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
       try {
         const channel = new Channel<RunOutput>()
         channel.onmessage = (message) => {
-          console.log('[CodeBlock] Channel message:', message)
           if (message.type === 'stdout' && message.line) {
             setRunOutput(prev => [...prev, message.line!])
           } else if (message.type === 'stderr' && message.line) {
             setRunError(prev => [...prev, message.line!])
           } else if (message.type === 'exit') {
-            console.log('[CodeBlock] Received exit, code:', message.code)
             if (timeoutRef.current) {
               clearTimeout(timeoutRef.current)
               timeoutRef.current = undefined
@@ -287,9 +654,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
         }
 
         await commands.runCodeSnippet(channel, language, rawCode, null)
-        console.log('[CodeBlock] Command completed')
       } catch (err) {
-        console.error('[CodeBlock] Run command failed:', err)
         toast.error(`Failed to run: ${err}`)
         setIsRunning(false)
         setShowOutput(false)
@@ -300,73 +665,94 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
       }
     }, [isRunning, rawCode, language])
 
-    // Line numbers toggle
-    useEffect(() => {
-      const pre = preRef.current
-      if (!pre) return
-      if (showLineNumbers) {
-        pre.classList.add('code-with-lines')
-      } else {
-        pre.classList.remove('code-with-lines')
-      }
-    }, [showLineNumbers, highlightedHtml])
-
-    // Merged scroll listener
+    // Scroll handling + thumb position
     useEffect(() => {
       const el = scrollableRef.current
       if (!el) return
 
       const handleScroll = () => {
+        const { scrollTop, scrollHeight, clientHeight } = el
         if (!isProgrammaticScroll.current) {
-          const { scrollTop, scrollHeight, clientHeight } = el
           isUserScrolledUp.current = Math.abs(scrollHeight - clientHeight - scrollTop) >= 10
         }
-        const thumb = minimapThumbRef.current
-        if (thumb) {
-          const { scrollTop, scrollHeight, clientHeight } = el
-          const ratio = scrollHeight > 0 ? scrollTop / scrollHeight : 0
-          const thumbH = Math.max(20, (clientHeight / scrollHeight) * clientHeight)
-          thumb.style.height = `${thumbH}px`
-          thumb.style.top = `${ratio * clientHeight}px`
+        const ratio = scrollHeight > 0 ? scrollTop / scrollHeight : 0
+        const visibleRatio = clientHeight / scrollHeight
+        const baseCanvas = minimapCanvasRef.current
+        if (baseCanvas) {
+          const canvasHeight = baseCanvas.height
+          setThumbTop(ratio * canvasHeight)
+          setThumbHeight(Math.max(20, visibleRatio * canvasHeight))
         }
       }
 
       el.addEventListener('scroll', handleScroll, { passive: true })
       handleScroll()
       return () => el.removeEventListener('scroll', handleScroll)
-    }, [highlightedHtml])
+    }, [])
 
     const handleMinimapClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-      const el = scrollableRef.current
-      if (!el) return
-      const rect = e.currentTarget.getBoundingClientRect()
+      const canvas = minimapCanvasRef.current
+      if (!canvas) return
+      const rect = canvas.getBoundingClientRect()
       const y = e.clientY - rect.top
-      const ratio = y / rect.height
-      el.scrollTop = ratio * el.scrollHeight
+      const ratio = Math.min(1, Math.max(0, y / rect.height))
+      const scrollable = scrollableRef.current
+      if (scrollable) {
+        scrollable.scrollTop = ratio * scrollable.scrollHeight
+      }
     }, [])
+
+    const onMouseDown = useCallback((e: React.MouseEvent) => {
+      setIsDragging(true)
+      handleMinimapClick(e)
+    }, [handleMinimapClick])
+
+    useEffect(() => {
+      if (!isDragging) return
+      const onMouseMove = (e: MouseEvent) => {
+        const canvas = minimapCanvasRef.current
+        if (!canvas) return
+        const rect = canvas.getBoundingClientRect()
+        const y = e.clientY - rect.top
+        const ratio = Math.min(1, Math.max(0, y / rect.height))
+        const scrollable = scrollableRef.current
+        if (scrollable) {
+          scrollable.scrollTop = ratio * scrollable.scrollHeight
+        }
+      }
+      const onMouseUp = () => setIsDragging(false)
+      window.addEventListener('mousemove', onMouseMove)
+      window.addEventListener('mouseup', onMouseUp)
+      return () => {
+        window.removeEventListener('mousemove', onMouseMove)
+        window.removeEventListener('mouseup', onMouseUp)
+      }
+    }, [isDragging])
 
     // Auto-scroll during streaming
     useEffect(() => {
       if (!isStreaming || collapsed) return
 
       const scrollable = scrollableRef.current
-      const pre = preRef.current
-      if (!scrollable || !pre) return
+      if (!scrollable) return
 
+      let rafPending = false
       const scrollToBottom = () => {
-        if (isUserScrolledUp.current) return
-        isProgrammaticScroll.current = true
-        scrollable.scrollTop = scrollable.scrollHeight
+        if (isUserScrolledUp.current || rafPending) return
+        rafPending = true
         requestAnimationFrame(() => {
-          isProgrammaticScroll.current = false
+          isProgrammaticScroll.current = true
+          scrollable.scrollTop = scrollable.scrollHeight
+          requestAnimationFrame(() => {
+            isProgrammaticScroll.current = false
+            rafPending = false
+          })
         })
       }
 
-      const observer = new MutationObserver(scrollToBottom)
-      observer.observe(pre, { childList: true, subtree: true, characterData: true })
-      scrollToBottom()
-      return () => observer.disconnect()
-    }, [isStreaming, collapsed])
+      const interval = setInterval(scrollToBottom, 100)
+      return () => clearInterval(interval)
+    }, [isStreaming, collapsed, highlightedLines.length])
 
     // Floating header
     useEffect(() => {
@@ -435,14 +821,14 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
     const toggle = useCallback(() => setCollapsed((c) => !c), [])
 
     const copy = useCallback(async () => {
-      const text = rawCode || highlightedHtml.replace(/<[^>]+>/g, '')
+      const text = rawCode || highlightedLines.join('\n')
       if (text) {
         await navigator.clipboard.writeText(text)
         setCopied(true)
         toast.success('Copied')
         setTimeout(() => setCopied(false), 2000)
       }
-    }, [rawCode, highlightedHtml])
+    }, [rawCode, highlightedLines])
 
     const handleSaveToFile = useCallback(async () => {
       try {
@@ -461,140 +847,41 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
 
     const showMinimap = lineCount > 60 && !collapsed
 
-    const headerContent = (
-      <>
-        <button
-          type="button"
-          onClick={toggle}
-          className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
-          aria-label={collapsed ? 'Expand' : 'Collapse'}
-        >
-          <ChevronRight
-            className={cn('size-3.5 transition-transform duration-150', !collapsed && 'rotate-90')}
-          />
-          <span>{language || 'code'}</span>
-        </button>
-        <div className="flex items-center gap-1">
-          <span className="text-[10px] text-muted-foreground mr-2">
-            {lineCount} lines · {displayTokenCount}
-          </span>
-          {filePath ? (
-            <button
-              type="button"
-              onClick={handleOpenArtifact}
-              className="text-[10px] font-mono text-primary hover:underline truncate max-w-[150px]"
-              title={`Open ${filePath} in artifacts`}
-            >
-              {filePath.split('/').pop()}
-            </button>
-          ) : null}
-          <button
-            type="button"
-            onClick={handleSaveToFile}
-            className="p-1 text-muted-foreground hover:text-foreground"
-            title="Save to file"
-          >
-            <Save className="size-3.5" />
-          </button>
-          {canRun && (
-            <button
-              type="button"
-              onClick={handleRun}
-              disabled={isRunning || !rawCode}
-              className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-50"
-              title="Run code snippet"
-            >
-              {isRunning ? <Loader2 className="size-3.5 animate-spin" /> : <Play className="size-3.5" />}
-            </button>
-          )}
-          {canDiff && (
-            <button
-              type="button"
-              onClick={() => setShowDiff(true)}
-              className="p-1 text-muted-foreground hover:text-foreground"
-              title="Compare with previous versions"
-            >
-              <GitCompare className="size-3.5" />
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => setShowLineNumbers(v => !v)}
-            className="p-1 text-muted-foreground hover:text-foreground"
-            title="Toggle line numbers"
-          >
-            <Hash className="size-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={copy}
-            disabled={isLoading}
-            className="p-1 text-muted-foreground hover:text-foreground transition-colors rounded"
-            aria-label="Copy code"
-          >
-            {copied ? (
-              <Check className="size-3.5 text-green-500" />
-            ) : isLoading ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <Copy className="size-3.5" />
-            )}
-          </button>
-          {!showSearch && (
-            <button
-              type="button"
-              onClick={() => setShowSearch(true)}
-              className="p-1 text-muted-foreground hover:text-foreground"
-              title="Find in code (Cmd+F)"
-            >
-              <Search className="size-3.5" />
-            </button>
-          )}
-          {showSearch && (
-            <>
-              <input
-                ref={searchInputRef}
-                type="text"
-                placeholder="Find in code..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-6 px-2 text-xs border rounded bg-background"
-                onKeyDown={(e) => e.stopPropagation()}
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  setShowSearch(false)
-                  setSearchQuery('')
-                  clearHighlights()
-                }}
-                className="p-1 text-muted-foreground hover:text-foreground"
-              >
-                <X className="size-3.5" />
-              </button>
-            </>
-          )}
-          <div className="flex items-center gap-1 opacity-40 hover:opacity-100 transition-opacity">
-            <button
-              type="button"
-              onClick={handleExplain}
-              className="p-1 text-muted-foreground hover:text-foreground"
-              title="Explain this code"
-            >
-              <HelpCircle className="size-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={handleFix}
-              className="p-1 text-muted-foreground hover:text-foreground"
-              title="Ask AI to fix"
-            >
-              <Wrench className="size-3.5" />
-            </button>
-          </div>
-        </div>
-      </>
-    )
+    const firstVisibleIndex = virtualizer.getVirtualItems()[0]?.index ?? 0
+
+    const headerProps = {
+      language,
+      collapsed,
+      toggle,
+      lineCount,
+      displayTokenCount,
+      filePath,
+      handleOpenArtifact,
+      handleSaveToFile,
+      canRun,
+      isRunning,
+      handleRun,
+      rawCode,
+      canDiff,
+      setShowDiff,
+      showLineNumbers,
+      setShowLineNumbers,
+      isLoading,
+      copy,
+      copied,
+      showSearch,
+      setShowSearch,
+      searchQuery,
+      setSearchQuery,
+      clearHighlights,
+      searchInputRef,
+      handleExplain,
+      handleFix,
+      matchCount: matchLineIndices.length,
+      currentMatchIndex,
+      onNextMatch,
+      onPrevMatch,
+    }
 
     return (
       <>
@@ -610,7 +897,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
               transition: 'border-radius 200ms ease, box-shadow 200ms ease'
             }}
           >
-            {headerContent}
+            <CodeBlockHeader {...headerProps} />
           </div>,
           document.body
         )}
@@ -627,7 +914,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
               collapsed ? 'rounded-lg' : 'rounded-t-lg'
             )}
           >
-            {headerContent}
+            <CodeBlockHeader {...headerProps} />
           </div>
 
           <div
@@ -647,28 +934,88 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
               >
                 <pre
                   ref={preRef}
-                  className="p-3 m-0 mt-0 mb-0 text-xs leading-relaxed"
-                  style={{
-                    fontSize: 14,
-                    whiteSpace: 'pre',
-                    fontFamily: 'inherit'
-                  }}
-                  dangerouslySetInnerHTML={{ __html: highlightedHtml }}
-                />
+                  className={cn('p-3 mt-0 mb-0', showLineNumbers && 'code-with-lines')}
+                  data-line-start={firstVisibleIndex + 1}
+                  style={{ fontSize: 14, fontFamily: 'inherit' }}
+                >
+                  <div
+                    ref={parentRef}
+                    style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative' }}
+                  >
+                    {virtualizer.getVirtualItems().map((virtualRow) => {
+                      const line = highlightedLines[virtualRow.index]
+                      const isHighlighted = highlightedLineNumbers?.includes(virtualRow.index + 1)
+                      const isCurrentMatch = matchLineIndices[currentMatchIndex] === virtualRow.index
+                      return (
+                        <div
+                          key={virtualRow.key}
+                          data-index={virtualRow.index}
+                          data-line-index={virtualRow.index}
+                          ref={virtualizer.measureElement}
+                          className={cn(
+                            'absolute top-0 left-0 w-full',
+                            showLineNumbers && 'line',
+                            isHighlighted && 'highlighted-line',
+                            isCurrentMatch && 'current-search-match'
+                          )}
+                          style={{
+                            transform: `translateY(${virtualRow.start}px)`,
+                          }}
+                        >
+                          <span
+                            dangerouslySetInnerHTML={{ __html: line }}
+                            style={{ display: 'inline', whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}
+                          />
+                        </div>
+                      )
+                    })}
+                  </div>
+                </pre>
               </div>
               {showMinimap && (
                 <div
-                  className="absolute right-0 top-0 w-1.5 h-full cursor-pointer minimap-strip"
-                  style={{ backgroundColor: 'var(--border)', opacity: 0.4 }}
-                  onClick={handleMinimapClick}
-                  onMouseEnter={e => (e.currentTarget.style.opacity = '0.8')}
-                  onMouseLeave={e => (e.currentTarget.style.opacity = '0.4')}
+                  className="absolute right-0 top-0 h-full"
+                  style={{ width: '12px', cursor: 'pointer' }}
+                  onMouseEnter={() => setMinimapHovered(true)}
+                  onMouseLeave={() => setMinimapHovered(false)}
                 >
                   <div
-                    ref={minimapThumbRef}
-                    className="absolute w-full bg-primary/50 rounded-sm"
-                    style={{ height: 20, top: 0 }}
-                  />
+                    style={{
+                      position: 'absolute',
+                      right: 0,
+                      top: 0,
+                      width: minimapHovered ? '200px' : '12px',
+                      height: '100%',
+                      transition: 'width 0.15s ease',
+                      pointerEvents: minimapHovered ? 'auto' : 'none',
+                      overflow: 'hidden',
+                    }}
+                    onClick={handleMinimapClick}
+                    onMouseDown={onMouseDown}
+                  >
+                    <canvas
+                      ref={minimapCanvasRef}
+                      style={{
+                        display: 'block',
+                        width: '200px',
+                        height: '100%',
+                        imageRendering: 'pixelated',
+                        position: 'absolute',
+                        right: 0,
+                      }}
+                    />
+                    <canvas
+                      ref={thumbCanvasRef}
+                      style={{
+                        display: 'block',
+                        width: '200px',
+                        height: '100%',
+                        position: 'absolute',
+                        right: 0,
+                        pointerEvents: 'none',
+                      }}
+                    />
+                  </div>
                 </div>
               )}
             </div>
@@ -731,7 +1078,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
     )
   },
   (prev, next) =>
-    prev.highlightedHtml === next.highlightedHtml &&
+    prev.highlightedLines === next.highlightedLines &&
     prev.artifactId === next.artifactId &&
     prev.language === next.language &&
     prev.isStreaming === next.isStreaming &&
@@ -739,5 +1086,8 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
     prev.lineCount === next.lineCount &&
     prev.filePath === next.filePath &&
     prev.tokenCount === next.tokenCount &&
-    prev.highlightedLines === next.highlightedLines
+    prev.highlightedLineNumbers === next.highlightedLineNumbers &&
+    prev.minimapRgba === next.minimapRgba &&
+    prev.minimapWidth === next.minimapWidth &&
+    prev.minimapHeight === next.minimapHeight
 )

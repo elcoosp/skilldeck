@@ -330,12 +330,15 @@ const NodeRenderer = memo(
           <CodeBlock
             language={node.language}
             artifactId={node.artifact_id}
-            highlightedHtml={node.highlighted_html}
+            highlightedLines={node.highlighted_lines}   // ← changed from highlightedHtml
             isStreaming={isStreaming}
             scrollContainerRef={scrollContainerRef}
             lineCount={node.line_count}
             filePath={node.file_path}
             tokenCount={node.token_count}
+            minimapRgba={node.minimap_rgba}
+            minimapWidth={node.minimap_width}
+            minimapHeight={node.minimap_height}
           />
         )
       case 'list': {
