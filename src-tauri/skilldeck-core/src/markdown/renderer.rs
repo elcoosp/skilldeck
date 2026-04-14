@@ -559,10 +559,8 @@ fn is_plausible_filename(s: &str, lang: &str) -> bool {
     }
 }
 fn strip_pre_tag(html: &str) -> String {
-    let open = html.find("<pre").unwrap_or(0);
-    let close = html.rfind("</pre>").unwrap_or(html.len());
-    html[open..close].to_string()
-        .trim_start_matches(|c| c != '>')
-        .trim_start_matches('>')
-        .to_string()
+    let open_end = html.find('>').map(|i| i + 1).unwrap_or(0);
+    let close_start = html.rfind("</pre>").unwrap_or(html.len());
+    let inner = &html[open_end..close_start];
+    inner.trim_matches('\n').to_string()
 }
