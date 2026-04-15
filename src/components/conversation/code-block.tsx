@@ -63,7 +63,7 @@ interface CodeBlockProps {
 }
 
 // ---------------------------------------------------------------------------
-// Header subcomponent (input shrinks, chevrons inside input)
+// Header subcomponent (with container query fixes)
 // ---------------------------------------------------------------------------
 const CodeBlockHeader = memo(function CodeBlockHeader({
   language,
@@ -136,7 +136,8 @@ const CodeBlockHeader = memo(function CodeBlockHeader({
   }, [setShowSearch, searchInputRef])
 
   return (
-    <div className="w-full min-w-0 space-y-1.5">
+    // 👇 Added @container to enable container queries
+    <div className="w-full min-w-0 space-y-1.5 @container">
       {/* Row 1: collapse + language + badge | primary actions */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
@@ -279,8 +280,8 @@ const CodeBlockHeader = memo(function CodeBlockHeader({
                     className="h-full w-full px-2 text-xs border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-primary"
                     style={{
                       paddingRight: matchCount > 0
-                        ? searchQuery ? '56px' : '40px'  // space for X + chevrons or just chevrons
-                        : searchQuery ? '28px' : '8px'   // space for X or minimal
+                        ? searchQuery ? '56px' : '40px'
+                        : searchQuery ? '28px' : '8px'
                     }}
                     onKeyDown={(e) => e.stopPropagation()}
                   />
@@ -325,9 +326,9 @@ const CodeBlockHeader = memo(function CodeBlockHeader({
                   </div>
                 </div>
 
-                {/* Match count (outside but adjacent) */}
+                {/* 👇 Changed sm: to @[320px]: */}
                 {matchCount > 0 && (
-                  <span className="hidden sm:inline text-[10px] text-muted-foreground bg-muted-foreground/5 px-1.5 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">
+                  <span className="hidden @[320px]:inline text-[10px] text-muted-foreground bg-muted-foreground/5 px-1.5 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">
                     {currentMatchIndex + 1}/{matchCount}
                   </span>
                 )}
@@ -348,8 +349,8 @@ const CodeBlockHeader = memo(function CodeBlockHeader({
             )}
           </div>
 
-          {/* Divider */}
-          <div className="w-px h-4 bg-border/50 hidden sm:block flex-shrink-0" />
+          {/* 👇 Changed sm:block to @[280px]:block */}
+          <div className="w-px h-4 bg-border/50 hidden @[280px]:block flex-shrink-0" />
 
           {/* AI actions */}
           <div className="flex items-center gap-0.5 flex-shrink-0">
@@ -377,7 +378,7 @@ const CodeBlockHeader = memo(function CodeBlockHeader({
 })
 
 // ---------------------------------------------------------------------------
-// Main CodeBlock (unchanged except for using updated header)
+// Main CodeBlock
 // ---------------------------------------------------------------------------
 export const CodeBlock: React.FC<CodeBlockProps> = memo(
   ({
@@ -413,7 +414,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
     const virtualizer = useVirtualizer({
       count: highlightedLines.length,
       getScrollElement: () => scrollableRef.current,
-      estimateSize: () => showLineNumbers ? 24 : 21,
+      estimateSize: () => 21,      // 👈 14px * 1.5 = 21px
       overscan: 15,
     })
 
@@ -592,7 +593,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
       })
     }, [])
 
-    // Highlight matches and collect line indices
+    // Highlight matches and collect line indices (scoped to current block)
     const applyHighlights = useCallback((query: string) => {
       const container = parentRef.current
       if (!container || !query.trim()) {
@@ -602,7 +603,6 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
         return
       }
 
-      // Clear existing highlights
       clearHighlights()
 
       const regex = new RegExp(escapeRegExp(query), 'gi')
@@ -669,21 +669,21 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
       return () => clearTimeout(timer)
     }, [searchQuery, applyHighlights, showSearch])
 
-    // Improved scroll to match with retry to ensure element is rendered
+    // Improved scroll to match with retry, SCOPED TO CURRENT BLOCK
     const scrollToMatchIndex = useCallback((index: number) => {
       const lineIndex = matchLineIndices[index]
       if (lineIndex === undefined) return
 
-      // Force virtualizer to calculate the range for this index
       virtualizer.scrollToIndex(lineIndex, { align: 'center' })
 
-      // Retry scrolling in case the element wasn't fully rendered
+      const container = parentRef.current
+      if (!container) return
+
       const checkAndScroll = () => {
-        const targetEl = document.querySelector(`[data-line-index="${lineIndex}"]`)
+        const targetEl = container.querySelector(`[data-line-index="${lineIndex}"]`)
         if (targetEl) {
           targetEl.scrollIntoView({ block: 'center', behavior: 'auto' })
         } else {
-          // If not found, try again after a short delay
           setTimeout(checkAndScroll, 20)
         }
       }
@@ -1026,7 +1026,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
                 <pre
                   ref={preRef}
                   className="p-3 mt-0 mb-0"
-                  style={{ fontSize: 14, fontFamily: 'inherit' }}
+                  style={{ fontSize: 14, fontFamily: 'inherit', lineHeight: '21px' }}  // 👈 critical fix
                 >
                   <div
                     ref={parentRef}
@@ -1037,6 +1037,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
                       const isHighlighted = highlightedLineNumbers?.includes(virtualRow.index + 1)
                       const isCurrentMatch = matchLineIndices[currentMatchIndex] === virtualRow.index
                       const lineNumber = virtualRow.index + 1
+
                       return (
                         <div
                           key={virtualRow.key}
@@ -1051,6 +1052,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
                           style={{
                             transform: `translateY(${virtualRow.start}px)`,
                             display: 'flex',
+                            alignItems: 'flex-start',    // 👈 prevents stretch
                           }}
                         >
                           {showLineNumbers && (
@@ -1059,6 +1061,8 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
                               style={{
                                 minWidth: `${String(lineCount).length + 2}ch`,
                                 userSelect: 'none',
+                                flexShrink: 0,            // 👈 prevent shrinking
+                                lineHeight: '21px',       // 👈 match pre line-height
                               }}
                             >
                               {lineNumber}
@@ -1066,7 +1070,13 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
                           )}
                           <span
                             dangerouslySetInnerHTML={{ __html: line }}
-                            style={{ display: 'inline', whiteSpace: 'pre-wrap', fontFamily: 'inherit', flex: 1 }}
+                            style={{
+                              display: 'block',           // 👈 block, not inline
+                              whiteSpace: 'pre-wrap',
+                              fontFamily: 'inherit',
+                              flex: 1,
+                              minWidth: 0,
+                            }}
                           />
                         </div>
                       )

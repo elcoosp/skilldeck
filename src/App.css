@@ -496,6 +496,8 @@ code[data-inline-code]:hover {
 pre {
   font-family: inherit;
   tab-size: 2;
+  line-height: 1.5;
+  margin: 0;
 }
 
 /* When line numbers are enabled */
