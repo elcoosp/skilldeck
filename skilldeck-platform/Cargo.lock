@@ -3264,9 +3264,9 @@ dependencies = [
 
 [[package]]
 name = "resend-rs"
-version = "0.22.0"
+version = "0.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "74a2ab87359cf8042f1c3b6226e68b79aa6ee8fde92901ff6ee425144ef5b60f"
+checksum = "100beeb00af06efc33b2e2fe110f369e9ef659554def0ff9ea2092207b75aa57"
 dependencies = [
  "ecow",
  "getrandom 0.4.2",
@@ -4406,7 +4406,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.2",
  "once_cell",
  "rustix",
  "windows-sys 0.61.2",
@@ -5189,7 +5189,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
