@@ -19,9 +19,9 @@ dependencies = [
 
 [[package]]
 name = "adk-agent"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b5efa2eb987552fa32e9de78051a7d7cc14388e1765cea5f45199708d1ee3137"
+checksum = "10783a487833434aea57e24e52b0cec5b403c35e69cc0fb678acc8c13430e80b"
 dependencies = [
  "adk-core",
  "adk-skill",
@@ -38,9 +38,9 @@ dependencies = [
 
 [[package]]
 name = "adk-anthropic"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73e3edc789550d1a71aef872d1362aa3c4e0c5a28b6bc100fe75440d91f9e986"
+checksum = "80ae2978db3b11236b0bf12bbd2fcef7a70b09c49b7c0166caceb960c930222c"
 dependencies = [
  "base64 0.22.1",
  "bytes",
@@ -56,9 +56,9 @@ dependencies = [
 
 [[package]]
 name = "adk-artifact"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "51740eb6a77909b4bfc9b0cfea9dae9fbf668cffbe1f340c4b047e8c7b0bf818"
+checksum = "dd3e2c84ee9474cf2f6f9f2c86f45872f5b053131fe8d16c4aeedca2ed0476d6"
 dependencies = [
  "adk-core",
  "async-trait",
@@ -68,9 +68,9 @@ dependencies = [
 
 [[package]]
 name = "adk-auth"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "01971c1a399c19a80cf8cdba941f06cb9ce886db6ab3ec95eeecaeb2eb408beb"
+checksum = "d010aacbcfef50686ac7814d64d9af9f74e23df63c826e40188111971836207c"
 dependencies = [
  "adk-core",
  "async-trait",
@@ -84,9 +84,9 @@ dependencies = [
 
 [[package]]
 name = "adk-cli"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "892eb583f3833d6376fe8a9f554c9583bfbafdf6dc4b6a32a7df3bcbf46a615e"
+checksum = "51a274c50a1ed77631b30beda5a48662913f339c3f0233f8526cccbc015e68d8"
 dependencies = [
  "adk-agent",
  "adk-artifact",
@@ -116,9 +116,9 @@ dependencies = [
 
 [[package]]
 name = "adk-core"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "219e406012be3573a3c2949936300a6b02bccda0f49243fec3438246f9e555c7"
+checksum = "01a2959f62973dfd9a2e33604fb9e36ad0a0dcffa36f32485c259010c0a34ec9"
 dependencies = [
  "async-trait",
  "chrono",
@@ -126,14 +126,15 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.18",
+ "tokio",
  "uuid",
 ]
 
 [[package]]
 name = "adk-deploy"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71ae8782aa2125441f2713f90228b7f86c209e2367b956b0800cdce57f47799e"
+checksum = "907086ac409e49612899d18f19885d4cb9ce25104f607167588cecd80bab96ec"
 dependencies = [
  "anyhow",
  "chrono",
@@ -154,9 +155,9 @@ dependencies = [
 
 [[package]]
 name = "adk-gemini"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f1830198d7267080936b961e837d83f7c77e5f23fe8f6820e2d8bb07cb221546"
+checksum = "047eed54893cdf80874cb482e0d25cf22dc971416168d1b0c865e6979f58aa24"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -181,9 +182,9 @@ dependencies = [
 
 [[package]]
 name = "adk-guardrail"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eb2d4a5e59f388d413de579c6c28a8545e6da367bce834f7a42ca81512f9678b"
+checksum = "17cd7ee4a486af8a604c9f24708b84700133d61141fe6b4236feabf6153edc63"
 dependencies = [
  "adk-core",
  "async-trait",
@@ -198,9 +199,9 @@ dependencies = [
 
 [[package]]
 name = "adk-memory"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "598d89ab5eb484db7c9291583d3a1b9b0d00c0deff57ed30449d8f57b656ae53"
+checksum = "e447389bb0b7dae61e654357f743a0b915a2e9a405533b92ab753bfa99aa7922"
 dependencies = [
  "adk-core",
  "async-trait",
@@ -212,9 +213,9 @@ dependencies = [
 
 [[package]]
 name = "adk-model"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "69df5f91666a2b3f3b92da22fccac105138ca3db884c9c504b16b52ce626a9f2"
+checksum = "47a37294838451899aa30add26dcfb68473a4b47fdf8513e6d2489846b1e70e3"
 dependencies = [
  "adk-anthropic",
  "adk-core",
@@ -227,7 +228,7 @@ dependencies = [
  "aws-config",
  "aws-sdk-bedrockruntime",
  "aws-smithy-types",
- "base64 0.21.7",
+ "base64 0.22.1",
  "chrono",
  "futures",
  "ollama-rs",
@@ -241,9 +242,9 @@ dependencies = [
 
 [[package]]
 name = "adk-plugin"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4aa96d52f4b13b8e888f1eb92d321b0299a2a580ecd79fed24da6b49b381e03f"
+checksum = "5cc171e621450ffcf9e01ec0e5abbbcd85a8041cbc72adf8a0a45536cd653a70"
 dependencies = [
  "adk-core",
  "serde_json",
@@ -253,9 +254,9 @@ dependencies = [
 
 [[package]]
 name = "adk-runner"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4f931416dc586d03630731d9d5d43235f69c4b8b009f8e0d6ca143ddd79104ea"
+checksum = "9a61c91918c5ae14d7cf6d2f724e35a3536ae7280e18ccc81b231a8536d8b80b"
 dependencies = [
  "adk-artifact",
  "adk-core",
@@ -275,9 +276,9 @@ dependencies = [
 
 [[package]]
 name = "adk-rust"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5651471d57aed253dbe23ad1e7fd94bbf551afa6e9922932ad15acedac476f7e"
+checksum = "e232410872eff78c4891163c478a7fb4496b2ba6809bc5ccff3c43854c9a4a55"
 dependencies = [
  "adk-agent",
  "adk-anthropic",
@@ -305,9 +306,9 @@ dependencies = [
 
 [[package]]
 name = "adk-rust-macros"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2782699bb794593903945fcbf54d8379940b5333c6bf12776eb1ba9fad4d5e6c"
+checksum = "8056954b4c39ce67cb6e352b8ab59b37e407e45cbe435ce3673e0252a74cf801"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -316,9 +317,9 @@ dependencies = [
 
 [[package]]
 name = "adk-server"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5fab54a8bf6b4b39298b8f8b830b36e6e0f2154725050398497356a57a21016f"
+checksum = "8feeeaeebe0f46ebc8f66484ab2bee084023bf377f741604c33f1431c3770f13"
 dependencies = [
  "adk-agent",
  "adk-artifact",
@@ -350,9 +351,9 @@ dependencies = [
 
 [[package]]
 name = "adk-session"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1bde3882167412a98e1b00b2a2ece1a4d705947c4518c805c389cc9f3561c359"
+checksum = "0106ebfc2059674dc35b8fe2e1b69e2aa3b812a0caaa11104ad6bcbe7f0f6350"
 dependencies = [
  "adk-core",
  "async-trait",
@@ -365,9 +366,9 @@ dependencies = [
 
 [[package]]
 name = "adk-skill"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad7de3492d401f4621309fc848056836a02585bedc093468dd71cf3e0ce90bd4"
+checksum = "0a24c8eecaa89f39c786c7d85bdef327ee713fd5ff75b6f13d587d892a3095d7"
 dependencies = [
  "adk-core",
  "adk-plugin",
@@ -381,9 +382,9 @@ dependencies = [
 
 [[package]]
 name = "adk-telemetry"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4c6eb04e8f53cb0474803e51cb6bc78a23e35d4df3095ce96e55b31dd6f32361"
+checksum = "fa1b86e5f8621f72cf62ec90bce40f1d4988dd1b054a2e8ff00012e0112d3d4c"
 dependencies = [
  "opentelemetry",
  "opentelemetry-otlp",
@@ -398,15 +399,15 @@ dependencies = [
 
 [[package]]
 name = "adk-tool"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf9e7d3c451da3f36048dbe423ac7f77a3713f0760a47f2723e07dd6cd9119f7"
+checksum = "86e889c5af0022664f6e73974c1576e37e36fd8d930074f52f4fa28e7938b5dd"
 dependencies = [
  "adk-core",
  "adk-rust-macros",
  "adk-telemetry",
  "async-trait",
- "base64 0.21.7",
+ "base64 0.22.1",
  "futures",
  "rmcp",
  "schemars 0.8.22",
@@ -541,7 +542,7 @@ version = "1.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "40c48f72fd53cd289104fc64099abca73db4166ad86ea0b4341abe65af83dadc"
 dependencies = [
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -552,7 +553,7 @@ checksum = "291e6a250ff86cd4a820112fb8898808a366d8f9f58ce16d1f538353ad55747d"
 dependencies = [
  "anstyle",
  "once_cell_polyfill",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2690,7 +2691,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users 0.5.2",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2920,7 +2921,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -4018,7 +4019,7 @@ dependencies = [
  "libc",
  "percent-encoding",
  "pin-project-lite",
- "socket2 0.5.10",
+ "socket2 0.6.3",
  "system-configuration",
  "tokio",
  "tower-service",
@@ -5119,7 +5120,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5625,7 +5626,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d8fae84b431384b68627d0f9b3b1245fcf9f46f6c0e3dc902e9dce64edd1967"
 dependencies = [
  "libc",
- "windows-sys 0.45.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -6396,7 +6397,7 @@ dependencies = [
  "quinn-udp",
  "rustc-hash",
  "rustls",
- "socket2 0.5.10",
+ "socket2 0.6.3",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
@@ -6434,7 +6435,7 @@ dependencies = [
  "cfg_aliases",
  "libc",
  "once_cell",
- "socket2 0.5.10",
+ "socket2 0.6.3",
  "tracing",
  "windows-sys 0.60.2",
 ]
@@ -7060,7 +7061,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7118,7 +7119,7 @@ dependencies = [
  "security-framework 3.7.0",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -8054,7 +8055,7 @@ version = "0.8.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c1c97747dbf44bb1ca44a561ece23508e99cb592e862f22222dcf42f51d1e451"
 dependencies = [
- "heck 0.4.1",
+ "heck 0.5.0",
  "proc-macro2",
  "quote",
  "syn 2.0.117",
@@ -8077,7 +8078,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3a766e1110788c36f4fa1c2b71b387a7815aa65f88ce0229841826633d93723e"
 dependencies = [
  "libc",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -9150,10 +9151,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.2",
  "once_cell",
  "rustix",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -9862,7 +9863,7 @@ checksum = "f2f6fb2847f6742cd76af783a2a2c49e9375d0a111c7bef6f71cd9e738c72d6e"
 dependencies = [
  "memoffset",
  "tempfile",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -10435,7 +10436,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
