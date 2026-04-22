@@ -23,7 +23,7 @@
     "@lingui/core": "^5.9.4",
     "@lingui/macro": "^5.9.4",
     "@lingui/react": "^5.9.4",
-    "@lingui/swc-plugin": "^5.11.0",
+    "@lingui/swc-plugin": "^6.0.0",
     "@mdxeditor/editor": "^3.39.1",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",

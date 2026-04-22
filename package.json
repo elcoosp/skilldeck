@@ -104,7 +104,7 @@
     "@lingui/cli": "^5.9.2",
     "@lingui/conf": "^5.9.2",
     "@lingui/macro": "^5.9.2",
-    "@lingui/swc-plugin": "^5.11.0",
+    "@lingui/swc-plugin": "^6.0.0",
     "@lingui/vite-plugin": "^5.9.2",
     "@tailwindcss/typography": "^0.5.19",
     "@tailwindcss/vite": "^4.2.1",

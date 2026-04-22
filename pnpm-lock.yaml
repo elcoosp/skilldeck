@@ -187,8 +187,8 @@ importers:
         specifier: ^5.9.2
         version: 5.9.5(@lingui/babel-plugin-lingui-macro@5.9.5(babel-plugin-macros@3.1.0)(typescript@6.0.3))(babel-plugin-macros@3.1.0)(react@19.2.5)
       '@lingui/swc-plugin':
-        specifier: ^5.11.0
-        version: 5.11.0(@lingui/core@5.9.5(@lingui/babel-plugin-lingui-macro@5.9.5(babel-plugin-macros@3.1.0)(typescript@6.0.3))(babel-plugin-macros@3.1.0))(next@16.2.4(@babel/core@7.29.0)(@playwright/test@1.59.1)(babel-plugin-macros@3.1.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))
+        specifier: ^6.0.0
+        version: 6.0.0(@lingui/core@5.9.5(@lingui/babel-plugin-lingui-macro@5.9.5(babel-plugin-macros@3.1.0)(typescript@6.0.3))(babel-plugin-macros@3.1.0))(next@16.2.4(@babel/core@7.29.0)(@playwright/test@1.59.1)(babel-plugin-macros@3.1.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))
       '@lingui/vite-plugin':
         specifier: ^5.9.2
         version: 5.9.5(babel-plugin-macros@3.1.0)(typescript@6.0.3)(vite@8.0.9(@types/node@25.6.0)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))
@@ -301,8 +301,8 @@ importers:
         specifier: ^5.9.4
         version: 5.9.5(@lingui/babel-plugin-lingui-macro@5.9.5(babel-plugin-macros@3.1.0)(typescript@6.0.3))(babel-plugin-macros@3.1.0)(react@19.2.5)
       '@lingui/swc-plugin':
-        specifier: ^5.11.0
-        version: 5.11.0(@lingui/core@5.9.5(@lingui/babel-plugin-lingui-macro@5.9.5(babel-plugin-macros@3.1.0)(typescript@6.0.3))(babel-plugin-macros@3.1.0))(next@16.2.4(@babel/core@7.29.0)(@playwright/test@1.59.1)(babel-plugin-macros@3.1.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))
+        specifier: ^6.0.0
+        version: 6.0.0(@lingui/core@5.9.5(@lingui/babel-plugin-lingui-macro@5.9.5(babel-plugin-macros@3.1.0)(typescript@6.0.3))(babel-plugin-macros@3.1.0))(next@16.2.4(@babel/core@7.29.0)(@playwright/test@1.59.1)(babel-plugin-macros@3.1.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))
       '@mdxeditor/editor':
         specifier: ^3.39.1
         version: 3.55.0(@codemirror/language@6.12.3)(@lezer/highlight@1.2.3)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(yjs@13.6.30)
@@ -2285,10 +2285,10 @@ packages:
       babel-plugin-macros:
         optional: true
 
-  '@lingui/swc-plugin@5.11.0':
-    resolution: {integrity: sha512-0PBYyozQOiA4WtxKPsnCyrbA9da9zOYehyZjvrv56Kzt9w81xbgnNjuAQZyjIX7UYuqFFE48GvzBqnB5SLLOFA==}
+  '@lingui/swc-plugin@6.0.0':
+    resolution: {integrity: sha512-Jq9DKO/lKywWJafVYAvPeydetWV6eEi0nkLUmlsjo+fMkJIZqiOx5uQBxxfK33jtVB2kWzpAO6aoH9zt6H3R/A==}
     peerDependencies:
-      '@lingui/core': '5'
+      '@lingui/core': 5 || 6
       '@swc/core': '*'
       next: '*'
     peerDependenciesMeta:
@@ -11639,7 +11639,7 @@ snapshots:
       '@lingui/babel-plugin-lingui-macro': 5.9.5(babel-plugin-macros@3.1.0)(typescript@6.0.3)
       babel-plugin-macros: 3.1.0
 
-  '@lingui/swc-plugin@5.11.0(@lingui/core@5.9.5(@lingui/babel-plugin-lingui-macro@5.9.5(babel-plugin-macros@3.1.0)(typescript@6.0.3))(babel-plugin-macros@3.1.0))(next@16.2.4(@babel/core@7.29.0)(@playwright/test@1.59.1)(babel-plugin-macros@3.1.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))':
+  '@lingui/swc-plugin@6.0.0(@lingui/core@5.9.5(@lingui/babel-plugin-lingui-macro@5.9.5(babel-plugin-macros@3.1.0)(typescript@6.0.3))(babel-plugin-macros@3.1.0))(next@16.2.4(@babel/core@7.29.0)(@playwright/test@1.59.1)(babel-plugin-macros@3.1.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))':
     dependencies:
       '@lingui/core': 5.9.5(@lingui/babel-plugin-lingui-macro@5.9.5(babel-plugin-macros@3.1.0)(typescript@6.0.3))(babel-plugin-macros@3.1.0)
     optionalDependencies:
