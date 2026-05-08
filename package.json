@@ -98,8 +98,8 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.6",
-    "@commitlint/cli": "^20.4.4",
-    "@commitlint/config-conventional": "^20.4.4",
+    "@commitlint/cli": "^21.0.0",
+    "@commitlint/config-conventional": "^21.0.0",
     "@elcoosp-configs/lefthook": "^0.0.9",
     "@lingui/cli": "^6.0.0",
     "@lingui/conf": "^6.0.0",
