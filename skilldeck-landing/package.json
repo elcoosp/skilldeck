@@ -24,7 +24,7 @@
     "@lingui/macro": "^5.9.4",
     "@lingui/react": "^6.0.0",
     "@lingui/swc-plugin": "^6.0.0",
-    "@mdxeditor/editor": "^3.39.1",
+    "@mdxeditor/editor": "^4.0.0",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",
     "@radix-ui/react-aspect-ratio": "^1.1.7",
