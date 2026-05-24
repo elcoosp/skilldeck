@@ -10,9 +10,9 @@ checksum = "fe438c63458706e03479442743baae6c88256498e6431708f6dfc520a26515d3"
 
 [[package]]
 name = "adk-agent"
-version = "0.8.4"
+version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c740e17b6df582a16c2a5db441262d39b3e05577af1ede5238eff9c4bba859f1"
+checksum = "6d7411655f5eeffdfa1b4f88ce73e515fb92601176d2dcde719f474bec66669c"
 dependencies = [
  "adk-core",
  "adk-telemetry",
@@ -27,9 +27,9 @@ dependencies = [
 
 [[package]]
 name = "adk-core"
-version = "0.8.4"
+version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2318dcd1640aa1ec6017d9185e57ae2c24f8b782486ee76679508c4c6d221028"
+checksum = "257e0d5a39ef6130bc5fe7f0a8d9c1b28a3fbb690f28854525f9493ebf3df4f5"
 dependencies = [
  "async-trait",
  "chrono",
@@ -44,9 +44,9 @@ dependencies = [
 
 [[package]]
 name = "adk-gemini"
-version = "0.8.4"
+version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d15fcb764431b6bfeb9e7c5f5947835495e8334e5668fe8334d7e53ead289fdb"
+checksum = "20b787fb33d1d0eaca0a6e7a8294e22639aa89234e2a37de3f70823ef970754d"
 dependencies = [
  "adk-core",
  "async-stream",
@@ -72,9 +72,9 @@ dependencies = [
 
 [[package]]
 name = "adk-model"
-version = "0.8.4"
+version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6aa1936735907647574602228e47139a4e5344f3744299477c85347a82f3f983"
+checksum = "29ed8150197d3a036deae063126f719408c2d9828a00bd4b93664d4a3de5de13"
 dependencies = [
  "adk-core",
  "adk-gemini",
@@ -93,9 +93,9 @@ dependencies = [
 
 [[package]]
 name = "adk-runner"
-version = "0.8.4"
+version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "21f80f166ef5ac4f68a0946c478094811f4bee99a3b9edac0c3150ea68471382"
+checksum = "81060ce13ca23755c4d8aa34aa707b6bec293efa8af6ac1126a5ce0a891c20e8"
 dependencies = [
  "adk-core",
  "adk-session",
@@ -104,6 +104,7 @@ dependencies = [
  "futures",
  "serde",
  "serde_json",
+ "thiserror 2.0.18",
  "tokio",
  "tokio-util",
  "tracing",
@@ -112,9 +113,9 @@ dependencies = [
 
 [[package]]
 name = "adk-rust"
-version = "0.8.4"
+version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ae88463c51cdd91c8fbc49d4504b3c4d8c8114eda0a87c06921c957893dcac45"
+checksum = "79ce7ff944c94f27123ecfcd137ce4a8601a81409af9c7979b770fa0d1ffc43c"
 dependencies = [
  "adk-agent",
  "adk-core",
@@ -131,9 +132,9 @@ dependencies = [
 
 [[package]]
 name = "adk-session"
-version = "0.8.4"
+version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6dd7b619296403c39833100fc25b4d518f6dd81467301360737855368a698e58"
+checksum = "7ce52dadc5ba4aca30cc9675dead0ad8d7ccf2283f4138d52df62e157eb97f4b"
 dependencies = [
  "adk-core",
  "async-trait",
@@ -146,9 +147,9 @@ dependencies = [
 
 [[package]]
 name = "adk-telemetry"
-version = "0.8.4"
+version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f84665382b5b871995f53c8a83704f3cf9c043ec8ccd0e8de77aa2736d6242c3"
+checksum = "9dbc8ab717002f32629639f74f0e080fc643e91c85cbf2fdced7b0abb41f5746"
 dependencies = [
  "thiserror 2.0.18",
  "tracing",
@@ -267,7 +268,7 @@ version = "1.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "40c48f72fd53cd289104fc64099abca73db4166ad86ea0b4341abe65af83dadc"
 dependencies = [
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -278,7 +279,7 @@ checksum = "291e6a250ff86cd4a820112fb8898808a366d8f9f58ce16d1f538353ad55747d"
 dependencies = [
  "anstyle",
  "once_cell_polyfill",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1254,7 +1255,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "117725a109d387c937a1533ce01b450cbde6b88abceea8473c4d7a85853cda3c"
 dependencies = [
  "lazy_static",
- "windows-sys 0.48.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -1858,7 +1859,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users 0.5.2",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2088,7 +2089,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3119,7 +3120,7 @@ dependencies = [
  "libc",
  "percent-encoding",
  "pin-project-lite",
- "socket2 0.5.10",
+ "socket2 0.6.3",
  "system-configuration",
  "tokio",
  "tower-service",
@@ -4006,7 +4007,7 @@ dependencies = [
  "png 0.18.1",
  "serde",
  "thiserror 2.0.18",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -4155,7 +4156,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -4617,7 +4618,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d8fae84b431384b68627d0f9b3b1245fcf9f46f6c0e3dc902e9dce64edd1967"
 dependencies = [
  "libc",
- "windows-sys 0.45.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5346,7 +5347,7 @@ dependencies = [
  "quinn-udp",
  "rustc-hash",
  "rustls",
- "socket2 0.5.10",
+ "socket2 0.6.3",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
@@ -5384,7 +5385,7 @@ dependencies = [
  "cfg_aliases",
  "libc",
  "once_cell",
- "socket2 0.5.10",
+ "socket2 0.6.3",
  "tracing",
  "windows-sys 0.60.2",
 ]
@@ -5886,7 +5887,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5944,7 +5945,7 @@ dependencies = [
  "security-framework 3.7.0",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -6861,7 +6862,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3a766e1110788c36f4fa1c2b71b387a7815aa65f88ce0229841826633d93723e"
 dependencies = [
  "libc",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7939,7 +7940,7 @@ dependencies = [
  "getrandom 0.4.2",
  "once_cell",
  "rustix",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -8516,7 +8517,7 @@ dependencies = [
  "png 0.18.1",
  "serde",
  "thiserror 2.0.18",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -8551,7 +8552,7 @@ checksum = "f2f6fb2847f6742cd76af783a2a2c49e9375d0a111c7bef6f71cd9e738c72d6e"
 dependencies = [
  "memoffset",
  "tempfile",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -9096,7 +9097,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
