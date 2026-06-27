@@ -23,7 +23,7 @@ tauri-build = { version = "2", features = [] }
 [features]
 e2e-testing = ["tauri-plugin-playwright"]
 [dependencies]
-tauri-plugin-playwright = { version = "0.2", optional = true }
+tauri-plugin-playwright = { version = "0.4", optional = true }
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 tauri-plugin-shell = "2"
