@@ -24,7 +24,7 @@ jobs:
           cache: true
           cache_dependency_path: skilldeck-user-docs/pnpm-lock.yaml
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
 
