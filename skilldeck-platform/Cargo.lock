@@ -3439,9 +3439,9 @@ dependencies = [
 
 [[package]]
 name = "sea-orm"
-version = "2.0.0-rc.43"
+version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "350a7b21fc90ff973ba45eb72d349192ee537dda2cecee8221c0e884bd547ba9"
+checksum = "e29e1a2e2e6da3d2486086f9d96b4bf5b7d8bf344e16c48bd87ce7977b8d0154"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -3487,9 +3487,9 @@ dependencies = [
 
 [[package]]
 name = "sea-orm-cli"
-version = "2.0.0-rc.43"
+version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e1f4bc6be93c1636e844aa041449b186435c180a70ff89fffe9d8998e69090bf"
+checksum = "53cc7731b9472864d21bc6223c6747de539c5ec0cfe29bbd92aac0537c22812c"
 dependencies = [
  "chrono",
  "clap",
@@ -3504,9 +3504,9 @@ dependencies = [
 
 [[package]]
 name = "sea-orm-macros"
-version = "2.0.0-rc.43"
+version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "35aca99a640e4e3896104d1ba80201b4e555960b4776fd78874e1ef8142dd0b7"
+checksum = "88a6fd7ae2932a838d3bc7ca1e5483ffa10d6b25e4c43c8aebb4cd14773c2d08"
 dependencies = [
  "heck 0.5.0",
  "itertools",
@@ -3520,9 +3520,9 @@ dependencies = [
 
 [[package]]
 name = "sea-orm-migration"
-version = "2.0.0-rc.43"
+version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "497f49c482c298e278aa3a8bafdd66efb0c8e9e4be29d095a95ad51e96a1204a"
+checksum = "95ae369463e80e8a75e57434ba10dd9008a1010d81ec66cba5909561add7223f"
 dependencies = [
  "async-trait",
  "clap",
