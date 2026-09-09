@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { useToolApprovalStore } from '@/store/tool-approvals'
 import type { ToolCallInfo } from '@/lib/events'
+import { useToolApprovalStore } from '@/store/tool-approvals'
 
 const info: ToolCallInfo = {
   id: 'tc-1',

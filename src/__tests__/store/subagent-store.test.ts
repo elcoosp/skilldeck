@@ -65,6 +65,8 @@ describe('useSubagentStore', () => {
 
   it('unknown-id updates create partial entries', () => {
     useSubagentStore.getState().updateSubagentStatus('nope', 'running')
-    expect(useSubagentStore.getState().subagents.nope).toEqual({ status: 'running' })
+    expect(useSubagentStore.getState().subagents.nope).toEqual({
+      status: 'running'
+    })
   })
 })
