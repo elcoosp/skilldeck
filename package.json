@@ -34,6 +34,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
+    "test:coverage:unit": "vitest run --project unit --coverage",
     "i18n:extract": "lingui extract",
     "i18n:compile": "lingui compile --typescript",
     "i18n": "pnpm i18n:extract && pnpm i18n:compile",
