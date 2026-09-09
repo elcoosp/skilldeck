@@ -2,15 +2,20 @@
   <img src="https://raw.githubusercontent.com/elcoosp/skilldeck/main/docs/brand/logo-main.svg" alt="SkillDeck Logo" width="200"/>
 </p>
 
-# SkillDeck
-
 **Ship faster with AI — without sending your code to anyone.**
 
 We help developers who worry about pasting proprietary code into cloud AI run coordinated multi-agent workflows locally, so they can leverage AI's full potential without compromising privacy.
 
-[![Status](https://img.shields.io/badge/Status-Beta-green.svg)](https://shields.io/)
-[![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey.svg)](https://shields.io/)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://shields.io/)
+<div style="display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; align-items: center;">
+  <img src="https://img.shields.io/badge/Status-Beta-green?style=flat-square" alt="Status Beta">
+  <img src="https://img.shields.io/badge/Platform-macOS%2C%20Windows%2C%20Linux-lightgrey?style=flat-square" alt="Platform">
+  <img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" alt="License MIT">
+  <img src="https://img.shields.io/badge/Built%20with-Rust-000000?style=flat-square&logo=rust&logoColor=white" alt="Rust">
+  <img src="https://img.shields.io/badge/Frontend-React%20%2B%20TS-20232A?style=flat-square&logo=react&logoColor=61DAFB" alt="React + TypeScript">
+  <img src="https://img.shields.io/badge/Shell-Tauri-24C8DB?style=flat-square&logo=tauri&logoColor=white" alt="Tauri">
+  <img src="https://img.shields.io/badge/Database-SQLite-07405E?style=flat-square&logo=sqlite&logoColor=white" alt="SQLite">
+  <img src="https://img.shields.io/badge/UI-Tailwind-38BDF8?style=flat-square&logo=tailwindcss&logoColor=white" alt="Tailwind CSS">
+</div>
 
 ---
 
@@ -56,7 +61,7 @@ We know what it's like to stare at a complex refactoring task, knowing AI could 
 
 ---
 
-## ⚡ What You Can Do Today
+## What You Can Do Today
 
 ### Branching Conversations
 Explore multiple solutions without losing your place. Branch from any message, compare results side‑by‑side, and merge the best approach back into the main thread. Perfect for "what if" experiments.
@@ -81,7 +86,7 @@ Connect to the [Model Context Protocol](https://modelcontextprotocol.io/) ecosys
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 SkillDeck is architected as a **Reactive, Event‑Driven State Machine** with three distinct layers.
 
@@ -119,7 +124,7 @@ graph TB
 
 ---
 
-## 🚀 Get Started in 5 Minutes
+## Get Started in 5 Minutes
 
 ### Prerequisites
 - [Rust](https://www.rust-lang.org/tools/install) (Edition 2024)
@@ -149,7 +154,7 @@ The app launches and your first workflow is ready to build. Your code, your mach
 
 ---
 
-## 🧠 How It Works
+## How It Works
 
 ### Profiles
 Profiles bundle your configuration: Model selection (Claude, OpenAI, Ollama), active skills, and MCP servers. Switch profiles instantly to change context — e.g., "Work" vs. "Personal".
@@ -173,7 +178,7 @@ SkillDeck uses a risk‑based approval system so you stay in control.
 
 ---
 
-## 📦 Technology Stack
+## Technology Stack
 
 | Layer        | Technologies                                                 |
 | ------------ | ------------------------------------------------------------ |
@@ -185,7 +190,7 @@ SkillDeck uses a risk‑based approval system so you stay in control.
 
 ---
 
-## 📊 Current Status
+## Current Status
 
 We're building SkillDeck in the open. Most core features are now complete, and the application is ready for daily use. Remaining work focuses on polish, edge cases, and expanding the skill ecosystem.
 
@@ -228,7 +233,7 @@ We're building SkillDeck in the open. Most core features are now complete, and t
 
 ---
 
-## 🗺️ Roadmap (v2 and Beyond)
+## Roadmap (v2 and Beyond)
 
 With the core feature set complete, our focus shifts to:
 - **Stability & Performance:** Hardening edge cases, optimizing startup time, and refining the streaming pipeline.
@@ -240,7 +245,7 @@ See the [detailed v2 roadmap](docs/design/v2-roadmap.md) for the full plan throu
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 We welcome contributors of all skill levels:
 - Pick an open issue from our [issue tracker](docs/issues/).
@@ -250,7 +255,7 @@ We welcome contributors of all skill levels:
 
 ---
 
-## 📚 Documentation
+## Documentation
 
 Detailed specifications are available in the `/docs` directory:
 - [Product Vision](docs/spec/vision.md)
@@ -261,5 +266,5 @@ Detailed specifications are available in the `/docs` directory:
 
 <p align="center">
   <strong>Your code stays yours. Your agents work for you.</strong><br/>
-  <sub>Built with ❤️ by developers who believe in local‑first AI.</sub>
+  <sub>Built with love by developers who believe in local‑first AI.</sub>
 </p>
