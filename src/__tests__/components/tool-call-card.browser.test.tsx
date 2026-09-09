@@ -34,7 +34,7 @@ describe('ToolCallCard', () => {
     await screen.getByText('read_file').click()
     const input = screen.getByText('Input')
     await expect.element(input).toBeInTheDocument()
-    const path = screen.getByText(/\/project\/src\/main\.rs/)
+    const path = screen.getByText(/"path": "\/project\/src\/main\.rs"/)
     await expect.element(path).toBeInTheDocument()
   })
 

@@ -229,7 +229,10 @@ export interface CollapsibleHandle {
   isCollapsed: () => boolean
 }
 
-const textDocCache = new Map<string, NodeDocument>()
+const textDocCache = new Map<
+  string,
+  { content: string; doc: NodeDocument }
+>()
 
 function getTextNodeDocument(
   messageId: string,
@@ -237,7 +240,7 @@ function getTextNodeDocument(
 ): NodeDocument | null {
   if (!content) return null
   const cached = textDocCache.get(messageId)
-  if (cached) return cached
+  if (cached && cached.content === content) return cached.doc
 
   const escaped = content.replace(/[&<>]/g, (m) => {
     if (m === '&') return '&amp;'
@@ -256,7 +259,7 @@ function getTextNodeDocument(
     toc_items: [],
     artifact_specs: []
   }
-  textDocCache.set(messageId, doc)
+  textDocCache.set(messageId, { content, doc })
   return doc
 }
 
