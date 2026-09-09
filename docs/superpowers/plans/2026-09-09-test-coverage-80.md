@@ -673,5 +673,6 @@ Update `docs/reports/coverage.md` with the final layer table + date. If `ARCHITE
   - Thread-navigator rail renders **one dot per user message**; dot click fires `onScrollTo(messageIdx)`, heading click fires `onHeadingClick(assistantMsgIdx, tocIndex)`.
 - **Do not** introduce `@vitest/coverage-v8`; istanbul is the only working provider with `@vitest/browser-playwright`.
 - Browser tests are flaky-slow (~30s file open); run `--project unit` for fast inner loops and the full `pnpm test:coverage` only at checkpoints.
+- **Coverage comparability**: baseline (5.5%/358) and after numbers (7.86%/510) are FULL-RUN measurements (`pnpm test:coverage`, both projects). A unit-only run lands **lower** (195/6483 = 3.0%) because browser-test-covered component lines aren't exercised in that project. Never compare `--project unit` coverage to a full-run number; use the full run at chunk gates. (Chunk 1 reviewer flagged 195 vs 510 — expected, not a regression.)
 - Every test file uses the project's biome rules (`pnpm lint`) — run `pnpm biome check <files>` before each commit.
 - Re-run the plan-document-reviewer on each chunk and surface any issue that blocks >5 iterations to the human.
