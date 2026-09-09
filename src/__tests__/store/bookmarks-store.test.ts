@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { BookmarkData } from '@/lib/bindings'
 import { toast } from '@/components/ui/toast'
+import type { BookmarkData } from '@/lib/bindings'
 import { useBookmarksStore } from '@/store/bookmarks'
 
 vi.mock('@/components/ui/toast', () => ({ toast: { error: vi.fn() } }))
@@ -67,7 +67,9 @@ describe('loadBookmarks', () => {
     await useBookmarksStore.getState().loadBookmarks('c1')
 
     expect(useBookmarksStore.getState().bookmarks.c1).toBeUndefined()
-    expect(vi.mocked(toast.error)).toHaveBeenCalledWith('Could not load bookmarks')
+    expect(vi.mocked(toast.error)).toHaveBeenCalledWith(
+      'Could not load bookmarks'
+    )
     expect(useBookmarksStore.getState().isLoading.c1).toBe(false)
   })
 
@@ -76,7 +78,9 @@ describe('loadBookmarks', () => {
 
     await useBookmarksStore.getState().loadBookmarks('c1')
 
-    expect(vi.mocked(toast.error)).toHaveBeenCalledWith('Could not load bookmarks')
+    expect(vi.mocked(toast.error)).toHaveBeenCalledWith(
+      'Could not load bookmarks'
+    )
     expect(useBookmarksStore.getState().isLoading.c1).toBe(false)
   })
 })
@@ -126,9 +130,7 @@ describe('toggleBookmark', () => {
     useBookmarksStore.getState().addBookmark('c1', bm)
     toggleBookmark.mockResolvedValue({ status: 'ok', data: bm })
 
-    const result = await useBookmarksStore
-      .getState()
-      .toggleBookmark('c1', 'm1')
+    const result = await useBookmarksStore.getState().toggleBookmark('c1', 'm1')
 
     expect(result).toEqual(bm)
     expect(useBookmarksStore.getState().bookmarks.c1).toEqual([bm])
@@ -139,9 +141,7 @@ describe('toggleBookmark', () => {
     useBookmarksStore.getState().addBookmark('c1', bm)
     toggleBookmark.mockResolvedValue({ status: 'ok', data: null })
 
-    const result = await useBookmarksStore
-      .getState()
-      .toggleBookmark('c1', 'm1')
+    const result = await useBookmarksStore.getState().toggleBookmark('c1', 'm1')
 
     expect(result).toBeNull()
     expect(useBookmarksStore.getState().bookmarks.c1).toEqual([])
@@ -152,25 +152,25 @@ describe('toggleBookmark', () => {
     useBookmarksStore.getState().addBookmark('c1', bm)
     toggleBookmark.mockResolvedValue({ status: 'error', error: 'nope' })
 
-    const result = await useBookmarksStore
-      .getState()
-      .toggleBookmark('c1', 'm1')
+    const result = await useBookmarksStore.getState().toggleBookmark('c1', 'm1')
 
     expect(result).toBeNull()
     expect(useBookmarksStore.getState().bookmarks.c1).toEqual([bm])
-    expect(vi.mocked(toast.error)).toHaveBeenCalledWith('Failed to update bookmark')
+    expect(vi.mocked(toast.error)).toHaveBeenCalledWith(
+      'Failed to update bookmark'
+    )
   })
 
   it('toasts on error status when there was nothing to revert', async () => {
     toggleBookmark.mockResolvedValue({ status: 'error', error: 'nope' })
 
-    const result = await useBookmarksStore
-      .getState()
-      .toggleBookmark('c1', 'm9')
+    const result = await useBookmarksStore.getState().toggleBookmark('c1', 'm9')
 
     expect(result).toBeNull()
     expect(useBookmarksStore.getState().bookmarks.c1).toBeUndefined()
-    expect(vi.mocked(toast.error)).toHaveBeenCalledWith('Failed to update bookmark')
+    expect(vi.mocked(toast.error)).toHaveBeenCalledWith(
+      'Failed to update bookmark'
+    )
   })
 
   it('reverts and toasts when the command throws', async () => {
@@ -178,19 +178,21 @@ describe('toggleBookmark', () => {
     useBookmarksStore.getState().addBookmark('c1', bm)
     toggleBookmark.mockRejectedValue(new Error('boom'))
 
-    const result = await useBookmarksStore
-      .getState()
-      .toggleBookmark('c1', 'm1')
+    const result = await useBookmarksStore.getState().toggleBookmark('c1', 'm1')
 
     expect(result).toBeNull()
     expect(useBookmarksStore.getState().bookmarks.c1).toEqual([bm])
-    expect(vi.mocked(toast.error)).toHaveBeenCalledWith('Failed to update bookmark')
+    expect(vi.mocked(toast.error)).toHaveBeenCalledWith(
+      'Failed to update bookmark'
+    )
   })
 
   it('sends the heading anchor and label through', async () => {
     toggleBookmark.mockResolvedValue({ status: 'ok', data: null })
 
-    await useBookmarksStore.getState().toggleBookmark('c1', 'm1', 'intro', 'Intro')
+    await useBookmarksStore
+      .getState()
+      .toggleBookmark('c1', 'm1', 'intro', 'Intro')
 
     expect(toggleBookmark).toHaveBeenCalledWith('c1', 'm1', 'intro', 'Intro')
   })
@@ -214,8 +216,8 @@ describe('getBookmarksForMessage', () => {
   })
 
   it('returns empty when the conversation has no bookmarks', () => {
-    expect(useBookmarksStore.getState().getBookmarksForMessage('c1', 'm1')).toEqual(
-      []
-    )
+    expect(
+      useBookmarksStore.getState().getBookmarksForMessage('c1', 'm1')
+    ).toEqual([])
   })
 })
