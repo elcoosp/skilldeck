@@ -43,7 +43,9 @@ describe('useUIPersistentStore', () => {
     expect(useUIPersistentStore.getState().workspaceExpandedFolders).toEqual({
       ws: ['a']
     })
-    useUIPersistentStore.getState().setWorkspaceExpandedFolders('ws', ['a', 'b'])
+    useUIPersistentStore
+      .getState()
+      .setWorkspaceExpandedFolders('ws', ['a', 'b'])
     expect(useUIPersistentStore.getState().workspaceExpandedFolders).toEqual({
       ws: ['a', 'b']
     })
