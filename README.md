@@ -13,7 +13,6 @@ We help developers who worry about pasting proprietary code into cloud AI run co
   <img src="https://img.shields.io/badge/Built%20with-Rust-000000?style=flat-square&logo=rust&logoColor=white" alt="Rust">
   <img src="https://img.shields.io/badge/Frontend-React%20%2B%20TS-20232A?style=flat-square&logo=react&logoColor=61DAFB" alt="React + TypeScript">
   <img src="https://img.shields.io/badge/Shell-Tauri-24C8DB?style=flat-square&logo=tauri&logoColor=white" alt="Tauri">
-  <img src="https://img.shields.io/badge/Database-SQLite-07405E?style=flat-square&logo=sqlite&logoColor=white" alt="SQLite">
   <img src="https://img.shields.io/badge/UI-Tailwind-38BDF8?style=flat-square&logo=tailwindcss&logoColor=white" alt="Tailwind CSS">
 </div>
 
