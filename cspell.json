@@ -24,7 +24,9 @@
     "specta",
     "youre",
     "thiserror",
-    "clippy"
+    "clippy",
+    "ntvs",
+    "njsproj"
   ],
   "ignorePaths": [
     "Cargo.toml",
