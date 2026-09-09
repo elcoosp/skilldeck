@@ -51,18 +51,18 @@ After this, `npx vitest run --project unit` is **green (34/34)**. Do **not** red
 
 ### Task 0.0: Commit the green baseline
 
-- [ ] **Step 1**: Run the unit suite to confirm green:
+- [x] **Step 1**: Run the unit suite to confirm green:
   ```
   npx vitest run --project unit
   ```
   Expected: `Test Files 4 passed (4)`, `Tests 34 passed (34)`.
 
-- [ ] **Step 2**: Add `coverage/` and any `.vite` caches to `.gitignore`:
+- [x] **Step 2**: Add `coverage/` and any `.vite` caches to `.gitignore`:
   ```
   coverage
   ```
 
-- [ ] **Step 3**: Commit:
+- [x] **Step 3**: Commit:
   ```bash
   git add vitest.config.ts src/__tests__/setup.ts src/lib/bindings.ts src/hooks/use-achievements.ts src/__tests__/hooks/use-achievements.test.tsx package.json pnpm-lock.yaml .gitignore
   git commit -m "test: fix vitest infra and green the unit suite (5.5% baseline)"
@@ -83,7 +83,7 @@ Verify: `pnpm test:coverage:unit` prints a summary and writes `coverage/coverage
 
 Three test files are red because their assertions are stale relative to current component markup. Fix each:
 
-- [ ] **Step 1 — `message-bubble.browser.test.tsx` (9 failures)**. The component's real markup (verified at `src/components/conversation/message-bubble.tsx`):
+- [x] **Step 1 — `message-bubble.browser.test.tsx` (9 failures)**. The component's real markup (verified at `src/components/conversation/message-bubble.tsx`):
   - Message container (line 944-947): wrapper class is `flex gap-3 max-w-full group` + `flex-row-reverse` **when user**. Inner column (line 973-977) uses `items-end` (user) / `items-start` (assistant).
   - Bubble (line 983-988): user `bg-primary text-primary-foreground … block w-full`; assistant `bg-muted/50 inline-block`.
   - Avatars (line 952-962) are `aria-hidden` divs with classes `bg-primary` (user) / `bg-blue-500/20 text-blue-500` (system) / `bg-muted text-foreground` (assistant) — there is **no** `aria-label`. Replace `getByLabelText('User avatar')` with `getByLabelText(/Message from/)`-style queries OR assert on the `[aria-hidden="true"]` div classes. Use `getByLabelText('Assistant', { exact: false })` for the role label span (line 688) instead.
@@ -91,19 +91,19 @@ Three test files are red because their assertions are stale relative to current 
   - System (line 157): expected class is `bg-blue-500/20 text-blue-500`, **not** `destructive`.
   - Run in a loop: `npx vitest run --project browser src/__tests__/components/message-bubble.browser.test.tsx` until green.
 
-- [ ] **Step 2 — `tool-call-card.browser.test.tsx` (2 failures)**. "expands on header click and shows arguments" and "uses correct icon based on tool name" time out. Read `src/components/conversation/tool-call-card.tsx` and align assertions with actual render output (arguments may render inside a `<details>`/`<pre>`, and the icon is a `lucide-react` component — assert on a wrapping `data-*` attribute or the rendered `<svg>` count instead of matching a component reference). Verify with the same command above.
+- [x] **Step 2 — `tool-call-card.browser.test.tsx` (2 failures)**. "expands on header click and shows arguments" and "uses correct icon based on tool name" time out. Read `src/components/conversation/tool-call-card.tsx` and align assertions with actual render output (arguments may render inside a `<details>`/`<pre>`, and the icon is a `lucide-react` component — assert on a wrapping `data-*` attribute or the rendered `<svg>` count instead of matching a component reference). Verify with the same command above.
 
-- [ ] **Step 3 — `thread-navigator.browser.test.tsx` (suite import failure)**.
+- [x] **Step 3 — `thread-navigator.browser.test.tsx` (suite import failure)**.
   Root cause evidence: Vite's browser optimizer produces a broken `react-dom` CJS shim — `node_modules/.vite/vitest/*/deps/react-dom.js` contains only `export { require_react_dom as t }`, so named imports fail with *"does not provide an export named 't'"*. React/react-dom versions are identical (19.2.5); cache clears did **not** fix it; `deps.optimizer.web.include/exclude` of `react-dom` did **not** fix it.
   **Recommended workaround (reliable):** move this test to the happy-dom **unit** project so it never hits the browser optimizer: rename `thread-navigator.browser.test.tsx` → `src/__tests__/components/thread-navigator.test.tsx`, replace `vitest-browser-react`'s `await render(...)`/`expect.element(...)` API with `@testing-library/react` `render` + DOM assertions, wrap in `QueryClientProvider` (the component uses react-query). Keep the same scenarios. If you prefer to stay in the browser, bisect which transitive import of `react-dom` (candidate: `@tanstack/react-router`) is hoisted into the bad shim and fix the optimizer config — but the happy-dom move is the sanctioned path to keep momentum.
 
-- [ ] **Step 4**: Full verification:
+- [x] **Step 4**: Full verification:
   ```
   pnpm test
   ```
   Expected: `Test Files × passed`, `Tests × passed` — zero failures across both projects.
 
-- [ ] **Step 5**: Commit:
+- [x] **Step 5**: Commit:
   ```bash
   git add -A
   git commit -m "test: fix stale browser assertions and thread-navigator import"
@@ -662,7 +662,15 @@ Update `docs/reports/coverage.md` with the final layer table + date. If `ARCHITE
 
 ## Execution handoff notes
 
-- Work tree currently has the Chunk 1 baseline fixes **uncommitted**. Commit them via Task 0.0 before writing new tests.
+- **Chunk 1 committed as of 2026-09-09**: `90add6a` (task 0.0 baseline), `3eb5f7c` (task 0.1 scripts + cspell hook fix), `b4c60a6` (task 0.2 test fixes), `58e2725` (plan doc), `c693fb2` (biome formatting). `pnpm test` green: **73/73** across both projects.
+- **After coverage (Chunk 1 checkpoint)**: Statements 554/7301 (7.58%), Branches 354/4715 (7.5%), Functions 142/2163 (6.56%), **Lines 510/6483 (7.86%)** — up from the 358/6483 (5.5%) baseline.
+- **Task 0.2 discoveries to preserve** (verified against real markup / fixed in this chunk):
+  - `message-bubble.tsx` had a real caching bug — `textDocCache` was keyed by message id only, returning stale docs for a same-id message with different content; now `Map<string, { content, doc }>` checked against content.
+  - Assistant/system messages render through a **transparent** prose wrapper (`bg-transparent w-full inline-block`) with a visible role label; **not** `bg-muted/50 inline-block`. That plan assumption (line 88) was stale.
+  - `tool-call-card.tsx` `synthesizeDescription` was missing a descriptive branch for `http_request`; added to the GET branch.
+  - **Do not** write happy-dom tests that render `framer-motion` exit animations — unmounting mid-animation emits unhandled `AbortError` rejections that fail `vitest run` (exit 1). Mock `framer-motion` (passthrough `AnimatePresence` + `motion` as plain `div`s) in unit tests.
+  - `@testing-library/react` auto-cleanup does **not** run in this Vitest setup (no `globals`); call `cleanup()` in `afterEach` per test file.
+  - Thread-navigator rail renders **one dot per user message**; dot click fires `onScrollTo(messageIdx)`, heading click fires `onHeadingClick(assistantMsgIdx, tocIndex)`.
 - **Do not** introduce `@vitest/coverage-v8`; istanbul is the only working provider with `@vitest/browser-playwright`.
 - Browser tests are flaky-slow (~30s file open); run `--project unit` for fast inner loops and the full `pnpm test:coverage` only at checkpoints.
 - Every test file uses the project's biome rules (`pnpm lint`) — run `pnpm biome check <files>` before each commit.
