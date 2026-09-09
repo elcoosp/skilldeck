@@ -29,7 +29,6 @@ import React, {
   useRef,
   useState
 } from 'react'
-import { toast } from '@/components/ui/toast'
 import { ContextChip } from '@/components/chat/context-chip'
 import { MarkdownView } from '@/components/markdown-view'
 import {
@@ -50,6 +49,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Textarea } from '@/components/ui/textarea'
+import { toast } from '@/components/ui/toast'
 import {
   Tooltip,
   TooltipContent,
@@ -229,10 +229,7 @@ export interface CollapsibleHandle {
   isCollapsed: () => boolean
 }
 
-const textDocCache = new Map<
-  string,
-  { content: string; doc: NodeDocument }
->()
+const textDocCache = new Map<string, { content: string; doc: NodeDocument }>()
 
 function getTextNodeDocument(
   messageId: string,
@@ -582,7 +579,7 @@ function MessageBubbleInner({
       <SubagentCard
         stepName={subagentData.task || 'Subagent'}
         status="running"
-        onOpen={() => { }}
+        onOpen={() => {}}
       />
     )
   }
@@ -659,12 +656,20 @@ function MessageBubbleInner({
     const timeString = formatTime(message.created_at)
 
     // Avatar and role label
-    const avatarIcon = isSystem ? <FileText className="size-3.5" /> : <Bot className="size-3.5" />
+    const avatarIcon = isSystem ? (
+      <FileText className="size-3.5" />
+    ) : (
+      <Bot className="size-3.5" />
+    )
     const avatarClass = isSystem
       ? 'bg-blue-500/20 text-blue-500'
       : 'bg-muted text-foreground'
     const roleLabel = isSystem
-      ? (message.content.startsWith('[Compacted summary of previous conversation]') ? 'System: Compacted summary' : 'System')
+      ? message.content.startsWith(
+          '[Compacted summary of previous conversation]'
+        )
+        ? 'System: Compacted summary'
+        : 'System'
       : 'Assistant'
 
     return (
@@ -789,7 +794,7 @@ function MessageBubbleInner({
                   document={
                     isStreaming
                       ? thinkingDoc
-                      : (message as any).thinking_document ?? null
+                      : ((message as any).thinking_document ?? null)
                   }
                   messageId={message.id}
                   conversationId={activeConversationId}
