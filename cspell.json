@@ -25,8 +25,15 @@
     "youre",
     "thiserror",
     "clippy",
+    "ol-combhaspostfix",
     "ntvs",
-    "njsproj"
+    "njsproj",
+    "conv",
+    "partialize",
+    "metacharacters",
+    "unlisten",
+    "classmap",
+    "xyflow"
   ],
   "ignorePaths": [
     "Cargo.toml",
