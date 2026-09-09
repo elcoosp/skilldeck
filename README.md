@@ -8,7 +8,7 @@ We help developers who worry about pasting proprietary code into cloud AI run co
 
 <div style="display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; align-items: center;">
   <img src="https://img.shields.io/badge/Status-Beta-green?style=flat-square" alt="Status Beta">
-  <img src="https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey?style=flat-square" alt="Platform">
+  <img src="https://img.shields.io/badge/Platform-macOS%2C%20Windows%2C%20Linux-lightgrey?style=flat-square" alt="Platform">
   <img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" alt="License MIT">
   <img src="https://img.shields.io/badge/Built%20with-Rust-000000?style=flat-square&logo=rust&logoColor=white" alt="Rust">
   <img src="https://img.shields.io/badge/Frontend-React%20%2B%20TS-20232A?style=flat-square&logo=react&logoColor=61DAFB" alt="React + TypeScript">
