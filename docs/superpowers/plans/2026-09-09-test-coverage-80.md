@@ -134,7 +134,7 @@ src/__tests__/store/bookmarks-store.test.ts
 
 ### Task 1.1: Simple action stores (conversation, workspace, ui-overlays, tool-approvals, subagent)
 
-- [ ] **Step 1**: Write `src/__tests__/store/conversation-store.test.ts`:
+- [x] **Step 1**: Write `src/__tests__/store/conversation-store.test.ts`:
 
 ```ts
 import { beforeEach, describe, expect, it } from 'vitest'
@@ -179,11 +179,11 @@ describe('useConversationStore', () => {
 })
 ```
 
-- [ ] **Step 2**: `src/__tests__/store/workspace-store.test.ts` (mirror: `activeWorkspaceId` null default, `setActiveWorkspace('ws-1')`, back to null).
+- [x] **Step 2**: `src/__tests__/store/workspace-store.test.ts` (mirror: `activeWorkspaceId` null default, `setActiveWorkspace('ws-1')`, back to null).
 
-- [ ] **Step 3**: `src/__tests__/store/ui-overlays-store.test.ts` — assert `commandPaletteOpen`/`globalSearchOpen` default `false`; `setCommandPaletteOpen(true)`; `setGlobalSearchOpen(true)`; toggling back to `false`.
+- [x] **Step 3**: `src/__tests__/store/ui-overlays-store.test.ts` — assert `commandPaletteOpen`/`globalSearchOpen` default `false`; `setCommandPaletteOpen(true)`; `setGlobalSearchOpen(true)`; toggling back to `false`.
 
-- [ ] **Step 4**: `src/__tests__/store/tool-approvals-store.test.ts`:
+- [x] **Step 4**: `src/__tests__/store/tool-approvals-store.test.ts`:
 
 ```ts
 import { beforeEach, describe, expect, it } from 'vitest'
@@ -240,19 +240,19 @@ describe('useToolApprovalStore', () => {
 ```
 Verify `ToolCallInfo` fields against `src/lib/events.ts` (it has `id, name, arguments?, description?, title?, emoji?`) and adjust if any are optional/absent.
 
-- [ ] **Step 5**: `src/__tests__/store/subagent-store.test.ts` — seed `subagents: { sa1: { id: 'sa1', task: 't', status: 'pending' } }`; assert `updateSubagentStatus('sa1','running')` preserves task; `setSubagentResult` sets `status: 'completed'` + result; `setSubagentError` sets `status: 'failed'` + error; `removeSubagent` deletes; unknown-id updates create partial entries (`{ ...undefined, status }`) — assert that is the current behavior.
+- [x] **Step 5**: `src/__tests__/store/subagent-store.test.ts` — seed `subagents: { sa1: { id: 'sa1', task: 't', status: 'pending' } }`; assert `updateSubagentStatus('sa1','running')` preserves task; `setSubagentResult` sets `status: 'completed'` + result; `setSubagentError` sets `status: 'failed'` + error; `removeSubagent` deletes; unknown-id updates create partial entries (`{ ...undefined, status }`) — assert that is the current behavior.
 
-- [ ] **Step 6**: Run each: `npx vitest run --project unit src/__tests__/store/` → green. Commit `feat(test): store action tests (5 stores)`.
+- [x] **Step 6**: Run each: `npx vitest run --project unit src/__tests__/store/` → green. Commit `feat(test): store action tests (5 stores)`.
 
 ### Task 1.2: Persisted stores (ui-layout, ui-state, queue)
 
 The `persist` middleware writes to `localStorage` (polyfilled). Reset by seeding initial state AND clearing storage in `beforeEach`:
 `localStorage.removeItem('skilldeck-ui-layout')` (name from `partialize` storage key is the configure name + version suffix in localStorage: `skilldeck-ui-layout`); same pattern for `skilldeck-ui-persistent`, `skilldeck-queue-ui`.
 
-- [ ] **Step 1**: `src/__tests__/store/ui-layout-store.test.ts` — defaults `panelSizesPx` = `{left:0,center:0,right:0}`, `leftTab:'conversations'`, `rightTab:'session'`. `setPanelSizesPx({ left: 300 })` merges (center/right unchanged). `setLeftTab('skills')`, `setRightTab('mcp')`. Assert page reload round-trip via `localStorage` (persist replays) is NOT required — assert in-memory state is enough.
-- [ ] **Step 2**: `src/__tests__/store/ui-state-store.test.ts` — defaults `unlockStage:0`, `onboardingComplete:false`, `platformFeaturesEnabled:true`, `workspaceExpandedFolders:{}`. Setters update each; `setWorkspaceExpandedFolders('ws','a')` then `('ws',['a','b'])` replaces. `setOnboardingComplete(true)` writes `skilldeck-onboarding-complete='true'` to localStorage.
-- [ ] **Step 3**: `src/__tests__/store/queue-store.test.ts` — defaults empty. `setExpanded`, `setMode('select')`, `toggleSelected` add/remove/toggle a single id, `selectAll` replaces array, `clearSelected`, `setEditingId`, `setIsDragging`, `resetQueueUI` clears all five slices for that conversation and leaves other conversations' keys intact. All keyed by conversationId — use two conversations to prove isolation.
-- [ ] **Step 4**: Run + commit `feat(test): persisted store tests (ui-layout, ui-state, queue)`.
+- [x] **Step 1**: `src/__tests__/store/ui-layout-store.test.ts` — defaults `panelSizesPx` = `{left:0,center:0,right:0}`, `leftTab:'conversations'`, `rightTab:'session'`. `setPanelSizesPx({ left: 300 })` merges (center/right unchanged). `setLeftTab('skills')`, `setRightTab('mcp')`. Assert page reload round-trip via `localStorage` (persist replays) is NOT required — assert in-memory state is enough.
+- [x] **Step 2**: `src/__tests__/store/ui-state-store.test.ts` — defaults `unlockStage:0`, `onboardingComplete:false`, `platformFeaturesEnabled:true`, `workspaceExpandedFolders:{}`. Setters update each; `setWorkspaceExpandedFolders('ws','a')` then `('ws',['a','b'])` replaces. `setOnboardingComplete(true)` writes `skilldeck-onboarding-complete='true'` to localStorage.
+- [x] **Step 3**: `src/__tests__/store/queue-store.test.ts` — defaults empty. `setExpanded`, `setMode('select')`, `toggleSelected` add/remove/toggle a single id, `selectAll` replaces array, `clearSelected`, `setEditingId`, `setIsDragging`, `resetQueueUI` clears all five slices for that conversation and leaves other conversations' keys intact. All keyed by conversationId — use two conversations to prove isolation.
+- [x] **Step 4**: Run + commit `feat(test): persisted store tests (ui-layout, ui-state, queue)`.
 
 ### Task 1.3: Chat context store
 
@@ -275,6 +275,8 @@ This store calls `commands.listBookmarks`/`commands.toggleBookmark` from `@/lib/
 Cover: `loadBookmarks` ok/error listing + `isLoading` flag lifecycle; `addBookmark` appends + dedupes on `(message_id, heading_anchor)`; `removeBookmark` filters and no-ops for missing array; `toggleBookmark` 4 paths — existing placeholder removed (optimistic), add/`data` returned, removed/`data:null`, and `status:'error'` reverts the optimistic removal + `toast.error`; `getBookmarksForMessage` filters. Run + commit `feat(test): bookmarks store tests`.
 
 > **Chunk 2 review checkpoint.** Dispatch reviewer. Gate: `pnpm test:coverage:unit` store layer ≥ 90%, settings mutations intact.
+>
+> **Chunk 2 result (2026-09-09)**: All 11 files created + `bookmarks-store.test.ts` passed. Store layer **201/206 (97.6%)**, well above the 90% gate. Additions beyond the plan: `ui-ephemeral-store.test.ts` (in the file list but had no task step), and `ToolCallInfo` fixture uses only `{id, name, arguments}` (real type — the plan's extra `description/title/emoji` fields were excess). Also fixed `LintWarning` fixture to the real shape (`rule_id, severity, message, location, suggested_fix`). Commits: `2e68aa3`, `45a7a69`, `c32ef5d`, `0cb8132`, plus ui-ephemeral and newline/style commits. `ui-ephemeral`'s `setStreamingMessage(null)` deletes the key (unlike `setThinkingDocument(null)` which stores null) — asserted accordingly.
 
 ---
 
