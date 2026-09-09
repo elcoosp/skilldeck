@@ -2,6 +2,10 @@
   "version": "0.2",
   "language": "en",
   "words": [
+    "TOON",
+    "frontmatter",
+    "petgraph",
+    "oneshot",
     "ollama",
     "splashscreen",
     "neighbouring",
