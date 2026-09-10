@@ -1,11 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { i18n } from '@lingui/core'
-import {
-  defaultLocale,
-  initI18n,
-  loadLocale,
-  locales
-} from '@/lib/i18n'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { defaultLocale, initI18n, loadLocale, locales } from '@/lib/i18n'
 
 vi.mock('@/locales/en/messages.js', () => ({
   messages: { hello: 'Hello' }

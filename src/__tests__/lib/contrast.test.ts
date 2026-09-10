@@ -19,7 +19,10 @@ describe('computeContrast', () => {
   })
 
   it('parses rgb() colors', () => {
-    expect(computeContrast('rgb(0,0,0)', 'rgb(255, 255, 255)')).toBeCloseTo(21, 0)
+    expect(computeContrast('rgb(0,0,0)', 'rgb(255, 255, 255)')).toBeCloseTo(
+      21,
+      0
+    )
   })
 
   it('throws for invalid colors', () => {
