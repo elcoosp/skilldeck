@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
-import { afterEach, describe, expect, it, vi } from 'vitest'
+
 import { cleanup, renderHook } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useExpandedDateGroups } from '@/hooks/use-expanded-date-groups'
 
 const router = vi.hoisted(() => ({ useNavigate: vi.fn() }))
@@ -21,7 +22,9 @@ describe('useExpandedDateGroups', () => {
 
   it('splits the comma-separated search param', () => {
     router.useNavigate.mockReturnValue(vi.fn())
-    root.Route.useSearch.mockReturnValue({ expandedDateGroups: '2026-09,2026-10' })
+    root.Route.useSearch.mockReturnValue({
+      expandedDateGroups: '2026-09,2026-10'
+    })
     const { result } = renderHook(() => useExpandedDateGroups())
     expect(result.current.expandedDateGroups).toEqual(['2026-09', '2026-10'])
   })
@@ -39,7 +42,9 @@ describe('useExpandedDateGroups', () => {
   it('removes a group already present', () => {
     const navigate = vi.fn()
     router.useNavigate.mockReturnValue(navigate)
-    root.Route.useSearch.mockReturnValue({ expandedDateGroups: '2026-09,2026-10' })
+    root.Route.useSearch.mockReturnValue({
+      expandedDateGroups: '2026-09,2026-10'
+    })
     const { result } = renderHook(() => useExpandedDateGroups())
     result.current.toggleDateGroup('2026-09')
     const search = navigate.mock.calls[0][0].search

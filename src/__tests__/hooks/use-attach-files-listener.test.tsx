@@ -1,10 +1,11 @@
 // @vitest-environment happy-dom
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
+
 import { listen } from '@tauri-apps/api/event'
+import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { toast } from '@/components/ui/toast'
-import { useChatContextStore } from '@/store/chat-context-store'
 import { useAttachFilesListener } from '@/hooks/use-attach-files-listener'
+import { useChatContextStore } from '@/store/chat-context-store'
 
 vi.mock('@/components/ui/toast', () => ({
   toast: { success: vi.fn(), warning: vi.fn() }
@@ -60,9 +61,9 @@ describe('useAttachFilesListener', () => {
     )
     await waitFor(() =>
       expect(
-        useChatContextStore.getState().items['conv-1'].map((i) =>
-          'path' in i.data ? i.data.path : null
-        )
+        useChatContextStore
+          .getState()
+          .items['conv-1'].map((i) => ('path' in i.data ? i.data.path : null))
       ).toEqual(['/a.md', '/b.md', '/c.md'])
     )
   })

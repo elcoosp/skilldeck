@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
-import { afterEach, describe, expect, it, vi } from 'vitest'
+
 import { cleanup, renderHook, waitFor } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useAppVersion } from '@/hooks/use-app-version'
 
 const app = vi.hoisted(() => ({ getVersion: vi.fn() }))

@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
-import { afterEach, describe, expect, it, vi } from 'vitest'
+
 import { cleanup, renderHook } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useLeftPanelSearch } from '@/hooks/use-left-panel-search'
 
 const router = vi.hoisted(() => ({ useNavigate: vi.fn() }))

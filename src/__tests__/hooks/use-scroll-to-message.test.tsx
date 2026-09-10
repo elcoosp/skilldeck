@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
-import { afterEach, describe, expect, it, vi } from 'vitest'
+
 import { cleanup, renderHook, waitFor } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useScrollToMessage } from '@/hooks/use-scroll-to-message'
 
 const router = vi.hoisted(() => ({ useMatch: vi.fn() }))

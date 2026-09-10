@@ -16,4 +16,4 @@ export function wrapper(client: QueryClient) {
   }
 }
 
-export { renderHook, waitFor, act }
+export { act, renderHook, waitFor }

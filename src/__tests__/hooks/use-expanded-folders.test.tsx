@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
-import { afterEach, describe, expect, it, vi } from 'vitest'
+
 import { cleanup, renderHook } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useExpandedFolders } from '@/hooks/use-expanded-folders'
 
 const router = vi.hoisted(() => ({ useNavigate: vi.fn() }))
