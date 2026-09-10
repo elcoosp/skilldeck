@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
-import { afterEach, describe, expect, it, vi } from 'vitest'
+
 import { cleanup, renderHook, waitFor } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   createTestQueryClient,
   wrapper
@@ -13,13 +14,16 @@ import {
   useRenameFolder
 } from '@/hooks/use-folders'
 
-const commands = vi.hoisted(() => ({
-  listFolders: vi.fn(),
-  createFolder: vi.fn(),
-  renameFolder: vi.fn(),
-  deleteFolder: vi.fn(),
-  moveConversationToFolder: vi.fn()
-}) as Record<string, ReturnType<typeof vi.fn>>)
+const commands = vi.hoisted(
+  () =>
+    ({
+      listFolders: vi.fn(),
+      createFolder: vi.fn(),
+      renameFolder: vi.fn(),
+      deleteFolder: vi.fn(),
+      moveConversationToFolder: vi.fn()
+    }) as Record<string, ReturnType<typeof vi.fn>>
+)
 vi.mock('@/lib/bindings', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/bindings')>()
   return { ...actual, commands: { ...actual.commands, ...commands } }
@@ -33,14 +37,18 @@ describe('useFolders', () => {
   it('returns the folder list on success', async () => {
     commands.listFolders.mockResolvedValue({ status: 'ok', data: [folder] })
     const client = createTestQueryClient()
-    const { result } = renderHook(() => useFolders(), { wrapper: wrapper(client) })
+    const { result } = renderHook(() => useFolders(), {
+      wrapper: wrapper(client)
+    })
     await waitFor(() => expect(result.current.data).toEqual([folder]))
   })
 
   it('surfaces the command error', async () => {
     commands.listFolders.mockResolvedValue({ status: 'error', error: 'boom' })
     const client = createTestQueryClient()
-    const { result } = renderHook(() => useFolders(), { wrapper: wrapper(client) })
+    const { result } = renderHook(() => useFolders(), {
+      wrapper: wrapper(client)
+    })
     await waitFor(() => expect(result.current.isError).toBe(true))
   })
 })
@@ -92,7 +100,10 @@ describe('useDeleteFolder', () => {
 
 describe('useMoveConversationToFolder', () => {
   it('moves a conversation and invalidates conversations', async () => {
-    commands.moveConversationToFolder.mockResolvedValue({ status: 'ok', data: null })
+    commands.moveConversationToFolder.mockResolvedValue({
+      status: 'ok',
+      data: null
+    })
     const client = createTestQueryClient()
     const invalidateSpy = vi.spyOn(client, 'invalidateQueries')
     const { result } = renderHook(() => useMoveConversationToFolder(), {
@@ -105,7 +116,10 @@ describe('useMoveConversationToFolder', () => {
   })
 
   it('clears a folder assignment when folderId is null', async () => {
-    commands.moveConversationToFolder.mockResolvedValue({ status: 'ok', data: null })
+    commands.moveConversationToFolder.mockResolvedValue({
+      status: 'ok',
+      data: null
+    })
     const client = createTestQueryClient()
     const { result } = renderHook(() => useMoveConversationToFolder(), {
       wrapper: wrapper(client)

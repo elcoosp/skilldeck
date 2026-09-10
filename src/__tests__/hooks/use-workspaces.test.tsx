@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
-import { afterEach, describe, expect, it, vi } from 'vitest'
+
 import { cleanup, renderHook, waitFor } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   createTestQueryClient,
   wrapper
@@ -12,12 +13,15 @@ import {
   useWorkspaces
 } from '@/hooks/use-workspaces'
 
-const commands = vi.hoisted(() => ({
-  listWorkspaces: vi.fn(),
-  openWorkspace: vi.fn(),
-  closeWorkspace: vi.fn(),
-  updateWorkspace: vi.fn()
-}) as Record<string, ReturnType<typeof vi.fn>>)
+const commands = vi.hoisted(
+  () =>
+    ({
+      listWorkspaces: vi.fn(),
+      openWorkspace: vi.fn(),
+      closeWorkspace: vi.fn(),
+      updateWorkspace: vi.fn()
+    }) as Record<string, ReturnType<typeof vi.fn>>
+)
 vi.mock('@/lib/bindings', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/bindings')>()
   return { ...actual, commands: { ...actual.commands, ...commands } }
@@ -31,14 +35,21 @@ describe('useWorkspaces', () => {
   it('returns the workspace list on success', async () => {
     commands.listWorkspaces.mockResolvedValue({ status: 'ok', data: [ws] })
     const client = createTestQueryClient()
-    const { result } = renderHook(() => useWorkspaces(), { wrapper: wrapper(client) })
+    const { result } = renderHook(() => useWorkspaces(), {
+      wrapper: wrapper(client)
+    })
     await waitFor(() => expect(result.current.data).toEqual([ws]))
   })
 
   it('surfaces an error when the command fails', async () => {
-    commands.listWorkspaces.mockResolvedValue({ status: 'error', error: 'boom' })
+    commands.listWorkspaces.mockResolvedValue({
+      status: 'error',
+      error: 'boom'
+    })
     const client = createTestQueryClient()
-    const { result } = renderHook(() => useWorkspaces(), { wrapper: wrapper(client) })
+    const { result } = renderHook(() => useWorkspaces(), {
+      wrapper: wrapper(client)
+    })
     await waitFor(() => expect(result.current.isError).toBe(true))
     expect(result.current.error).toEqual(new Error('boom'))
   })

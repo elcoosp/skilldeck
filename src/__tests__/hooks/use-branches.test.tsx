@@ -1,16 +1,20 @@
 // @vitest-environment happy-dom
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
 import { cleanup, renderHook, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   createTestQueryClient,
   wrapper
 } from '@/__tests__/helpers/with-query-client'
 import { useBranches, useCreateBranch } from '@/hooks/use-branches'
 
-const commands = vi.hoisted(() => ({
-  createBranch: vi.fn(),
-  listBranches: vi.fn()
-}) as Record<string, ReturnType<typeof vi.fn>>)
+const commands = vi.hoisted(
+  () =>
+    ({
+      createBranch: vi.fn(),
+      listBranches: vi.fn()
+    }) as Record<string, ReturnType<typeof vi.fn>>
+)
 vi.mock('@/lib/bindings', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/bindings')>()
   return { ...actual, commands: { ...actual.commands, ...commands } }
@@ -22,7 +26,13 @@ beforeEach(() => {
   for (const fn of Object.values(commands)) fn.mockClear()
 })
 
-const branch = { id: 'b1', name: 'main', parent_message_id: 'm1', created_at: 't', message_count: 1 }
+const branch = {
+  id: 'b1',
+  name: 'main',
+  parent_message_id: 'm1',
+  created_at: 't',
+  message_count: 1
+}
 
 describe('useCreateBranch', () => {
   it('creates a branch and invalidates the branch list', async () => {
@@ -32,7 +42,11 @@ describe('useCreateBranch', () => {
     const { result } = renderHook(() => useCreateBranch(), {
       wrapper: wrapper(client)
     })
-    const req = { conversation_id: 'c1', parent_message_id: 'm1', content: 'hi' }
+    const req = {
+      conversation_id: 'c1',
+      parent_message_id: 'm1',
+      content: 'hi'
+    }
     result.current.mutate(req as never)
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(commands.createBranch).toHaveBeenCalledWith(req)

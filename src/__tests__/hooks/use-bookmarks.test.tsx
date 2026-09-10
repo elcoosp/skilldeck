@@ -1,16 +1,20 @@
 // @vitest-environment happy-dom
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
 import { cleanup, renderHook, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   createTestQueryClient,
   wrapper
 } from '@/__tests__/helpers/with-query-client'
 import { useBookmarks, useToggleBookmark } from '@/hooks/use-bookmarks'
 
-const commands = vi.hoisted(() => ({
-  listBookmarks: vi.fn(),
-  toggleBookmark: vi.fn()
-}) as Record<string, ReturnType<typeof vi.fn>>)
+const commands = vi.hoisted(
+  () =>
+    ({
+      listBookmarks: vi.fn(),
+      toggleBookmark: vi.fn()
+    }) as Record<string, ReturnType<typeof vi.fn>>
+)
 vi.mock('@/lib/bindings', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/bindings')>()
   return { ...actual, commands: { ...actual.commands, ...commands } }
@@ -22,7 +26,12 @@ beforeEach(() => {
   for (const fn of Object.values(commands)) fn.mockClear()
 })
 
-const bookmark = { id: 'bm1', message_id: 'm1', heading_anchor: null, label: 'L' }
+const bookmark = {
+  id: 'bm1',
+  message_id: 'm1',
+  heading_anchor: null,
+  label: 'L'
+}
 
 describe('useBookmarks', () => {
   it('returns the bookmarks for the conversation', async () => {
@@ -65,7 +74,9 @@ describe('useToggleBookmark', () => {
     result.current.mutate({ messageId: 'm1', headingAnchor: 'h', label: null })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(commands.toggleBookmark).toHaveBeenCalledWith('c1', 'm1', 'h', null)
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['bookmarks', 'c1'] })
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ['bookmarks', 'c1']
+    })
   })
 
   it('defaults optional args to null', async () => {
