@@ -38,6 +38,52 @@ function paragraphDoc(text = 'Hello world'): NodeDocument {
   }
 }
 
+function mixedDoc(): NodeDocument {
+  return {
+    stable_nodes: [
+      { type: 'paragraph', id: 'p1', html: '<p>Tom &amp; Jerry</p>' },
+      {
+        type: 'heading',
+        id: 'h1',
+        level: 2,
+        text: 'Section',
+        slug: 'section',
+        toc_index: 0
+      },
+      {
+        type: 'code_block',
+        id: 'c1',
+        language: 'ts',
+        raw_code: 'const a = 1\nconst b = 2',
+        highlighted_lines: [],
+        artifact_id: 'a1',
+        line_count: 2,
+        file_path: null,
+        token_count: 10,
+        minimap_rgba: [],
+        minimap_width: 0,
+        minimap_height: 0
+      },
+      {
+        type: 'list',
+        id: 'l1',
+        ordered: false,
+        html: '<ul><li>first</li><li>second</li></ul>'
+      },
+      {
+        type: 'blockquote',
+        id: 'q1',
+        html: '<blockquote><p>Quoted</p></blockquote>'
+      },
+      { type: 'horizontal_rule', id: 'r1' },
+      { type: 'html_block', id: 'hb1', html: '<div>raw</div>' }
+    ],
+    draft_nodes: [],
+    toc_items: [],
+    artifact_specs: []
+  }
+}
+
 describe('MarkdownHeightEngine.prepare/layout', () => {
   it('returns a finite height ≥ minAssistantHeight for an assistant paragraph', () => {
     const e = new MarkdownHeightEngine(
@@ -106,6 +152,80 @@ describe('MarkdownHeightEngine.prepare/layout', () => {
     e.prepare('a1', doc, 'assistant', '')
     const h2 = e.layout('a1', 640, 0)
     expect(h1).toBe(h2)
+  })
+
+  it('lays out a document mixing every block type', () => {
+    const e = new MarkdownHeightEngine(
+      DEFAULT_PROSE_CONFIG,
+      DEFAULT_CHROME_CONFIG
+    )
+    e.prepare('m1', mixedDoc(), 'assistant', '')
+    const h = e.layout('m1', 640, 0)
+    expect(Number.isFinite(h)).toBe(true)
+    expect(h).toBeGreaterThan(DEFAULT_CHROME_CONFIG.minAssistantHeight)
+  })
+
+  it('renders draft nodes alongside stable nodes', () => {
+    const e = new MarkdownHeightEngine(
+      DEFAULT_PROSE_CONFIG,
+      DEFAULT_CHROME_CONFIG
+    )
+    e.prepare(
+      'm1',
+      { ...paragraphDoc(), draft_nodes: [{
+        type: 'paragraph',
+        id: 'd1',
+        html: '<p>streaming draft</p>'
+      }] },
+      'assistant',
+      ''
+    )
+    const h = e.layout('m1', 640, 0)
+    expect(h).toBeGreaterThan(DEFAULT_CHROME_CONFIG.minAssistantHeight)
+  })
+
+  it('falls back to NBSP content for an empty user message', () => {
+    const e = new MarkdownHeightEngine(
+      DEFAULT_PROSE_CONFIG,
+      DEFAULT_CHROME_CONFIG
+    )
+    e.prepare('u3', null, 'user', '')
+    expect(Number.isFinite(e.layout('u3', 640, 0))).toBe(true)
+  })
+
+  it('keeps the first prepared user content for a repeated prepare', () => {
+    const e = new MarkdownHeightEngine(
+      DEFAULT_PROSE_CONFIG,
+      DEFAULT_CHROME_CONFIG
+    )
+    e.prepare('u4', null, 'user', 'first')
+    e.prepare('u4', null, 'user', 'second')
+    const h = e.layout('u4', 640, 0)
+    expect(h).toBeGreaterThanOrEqual(DEFAULT_CHROME_CONFIG.minUserHeight)
+  })
+
+  it('parses a list node whose html carries no list items', () => {
+    const e = new MarkdownHeightEngine(
+      DEFAULT_PROSE_CONFIG,
+      DEFAULT_CHROME_CONFIG
+    )
+    e.prepare(
+      'm1',
+      {
+        ...emptyDoc(),
+        stable_nodes: [
+          {
+            type: 'list',
+            id: 'l1',
+            ordered: true,
+            html: '<div>plain content</div>'
+          }
+        ]
+      },
+      'assistant',
+      ''
+    )
+    expect(Number.isFinite(e.layout('m1', 640, 0))).toBe(true)
   })
 
   it('evict removes a cached message', () => {
