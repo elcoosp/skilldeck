@@ -19,252 +19,349 @@ We help developers who worry about pasting proprietary code into cloud AI run co
 
 ---
 
-## The Problem: You're Holding Back on AI — and It's Costing You
+## What is SkillDeck?
 
-You know AI can make you dramatically more productive. But every time you paste your company's code into a cloud chat window, you feel that knot in your stomach. Is this training their model? Will this show up in someone else's suggestion?
+SkillDeck is a **local‑first, native desktop AI orchestration platform** for developers. It brings multi‑agent workflows, filesystem‑based skills, and the Model Context Protocol (MCP) into a single Tauri 2 application — so your code, prompts, and API keys never leave your machine.
 
-So you hold back. You use AI for trivial questions and do the real engineering yourself.
+Unlike cloud‑based AI assistants, SkillDeck treats your AI workflow as part of your codebase: skills are version‑controllable Markdown files, workflows are declarative DAGs, and every tool call is transparent and approval‑gated.
 
-**The villain here is black-box AI** — cloud assistants that take your code, treat every task as a throwaway chat, and hide what they're actually doing. You get shallow one-liners instead of coordinated workflows, and zero visibility into the tool calls happening behind the curtain.
-
-You shouldn't have to choose between AI-powered productivity and protecting your intellectual property. That's the unjust compromise the industry has forced on you.
-
----
-
-## How SkillDeck Helps
-
-We know what it's like to stare at a complex refactoring task, knowing AI could help — if only you could trust it with your codebase. That's why we built SkillDeck as a fully local, fully transparent AI orchestration layer that turns AI from a chat buddy into a coordinated engineering team.
-
-**Your code never leaves your machine.** All conversations live in a local SQLite database. No cloud, no training on your work — unless you explicitly choose a cloud model.
-
-**You see everything.** Every tool call is visible before it executes. Approve, edit, or deny. No more black-box surprises.
-
-**Your workflows, not one-liners.** Orchestrate complex tasks with battle-tested patterns — Sequential, Parallel, and Evaluator-Optimizer — so your agents collaborate like a real team.
-
-**Skills live in your repo.** Define agent instructions in plain `SKILL.md` files. Version them, share them, and reuse them across projects — just like any other piece of your codebase.
+> [!NOTE]
+> Built with a Rust core, React frontend, and SQLite storage. Zero Electron. Zero cloud dependency. Optional cloud features are strictly opt‑in.
 
 ---
 
-## What Changes When You Use SkillDeck
+## Features
 
-### Before
-- You paste code into cloud chats and hope nothing leaks
-- AI gives you one-off answers that don't connect to each other
-- You can't see what tools the AI is calling or what it's changing
-- Every project starts from zero — no reusable AI workflows
-
-### After
-- Your proprietary code stays on your machine, always
-- AI agents execute multi-step workflows: analyze → design → implement → review
-- You approve every file write, every command, every mutation before it happens
-- Your team shares `SKILL.md` files in repos like any other engineering asset
-
----
-
-## What You Can Do Today
-
-### Branching Conversations
-Explore multiple solutions without losing your place. Branch from any message, compare results side‑by‑side, and merge the best approach back into the main thread. Perfect for "what if" experiments.
-
-### Multi‑Agent Workflows
-Orchestrate AI tasks using production‑proven patterns:
-- **Sequential:** Step‑by‑step execution (Analyze → Design → Implement).
-- **Parallel:** Concurrent execution for independent tasks (Security Review + Performance Audit).
-- **Evaluator‑Optimizer:** Iterative refinement loops that keep improving until quality thresholds are met.
-
-### Reactive Architecture
-A high‑performance Rust core manages state, streaming, and orchestration. The React frontend stays silky smooth thanks to a tiered streaming pipeline (Ring Buffer → Debounce → IPC). Even under heavy load, your UI never stutters.
-
-### Filesystem‑Based Skills
-Create reusable instructions in `SKILL.md` files. SkillDeck automatically resolves priorities:
-1. Workspace (`.skilldeck/skills/`)
-2. Personal (`~/.config/app/skills/`)
-3. Marketplace
-
-### MCP Integration
-Connect to the [Model Context Protocol](https://modelcontextprotocol.io/) ecosystem. Discover local servers, manage supervision, and expose external tools to your agents with secure approval gates.
+- **Branching Conversations** — explore multiple solutions from any message without losing context; navigate and compare branches side‑by‑side.
+- **Multi‑Agent Workflows** — Sequential, Parallel, and Evaluator‑Optimizer orchestration patterns, visualized as interactive DAGs.
+- **Filesystem‑Based Skills** — reusable `SKILL.md` packages with YAML frontmatter, priority resolution (workspace > personal > registry), and built‑in linting.
+- **MCP Integration** — full Model Context Protocol client (stdio + SSE transports, JSON‑RPC 2.0, protocol `2024-11-05`) with supervision and automatic restarts.
+- **Tool Approval Gates** — risk‑based approval for every external tool call; approve, edit parameters, or deny.
+- **Multi‑Provider** — Claude, OpenAI, and Ollama (local) with per‑profile model selection and parameters.
+- **Local‑First Storage** — SQLite with WAL mode; API keys stored in the OS keychain (macOS Keychain, Windows Credential Manager, libsecret).
+- **Reactive Streaming** — ring buffer → 50 ms debounce → IPC → `requestAnimationFrame` for silky‑smooth token rendering.
+- **TOON Encoding** — structured data sent to LLMs uses TOON (Token‑Oriented Object Notation), reducing token usage by ~40 % compared to JSON.
 
 ---
 
 ## Architecture
 
-SkillDeck is architected as a **Reactive, Event‑Driven State Machine** with three distinct layers.
+SkillDeck is architected as a **Reactive, Event‑Driven State Machine** with three distinct layers:
 
 ```mermaid
 graph TB
-    subgraph Frontend ["React Frontend"]
+    subgraph Frontend["React Frontend — Pure View Layer"]
         UI[UI Components]
         State[Zustand + TanStack Query]
     end
 
-    subgraph Shell ["Tauri Shell"]
-        IPC[IPC Bridge]
-        OS[OS Integration]
+    subgraph Shell["Tauri Shell — OS Integration"]
+        IPC[IPC Commands & Events]
+        Keychain[OS Keychain]
     end
 
-    subgraph Core ["Rust Core"]
+    subgraph Core["Rust Core — Business Logic"]
         Agent[Agent Loop]
         Workflow[Workflow Engine]
         MCP[MCP Client]
         Skill[Skill Engine]
-        DB[SQLite + SeaORM]
+        DB[(SQLite + SeaORM)]
     end
 
-    UI -- Tauri IPC --> IPC
-    IPC -- Async API --> Core
-    Core -- Filesystem/Network --> External[External Systems]
+    UI -- invoke / events --> IPC
+    IPC --> Core
+    Core --> DB
+    Core --> External[Model Providers & MCP Servers]
 ```
 
-- **Rust Core:** Owns all business logic, agent loops, database, and orchestration. Zero Tauri dependencies for testability.
-- **Tauri Shell:** Thin OS integration layer handling IPC, keychain, and app lifecycle.
-- **React Frontend:** Pure view layer communicating exclusively via IPC.
+### The Three Layers
 
-> [!NOTE]
-> All structured data sent to LLMs (tool schemas, context) is encoded using **TOON (Token‑Oriented Object Notation)**, reducing token usage by ~40% compared to JSON. That means faster responses and lower costs.
+| Layer | Crate / Package | Responsibility |
+|-------|-----------------|----------------|
+| **Rust Core** | `skilldeck-core` | Agent loop, context builder, tool dispatcher, model providers, MCP client, skill loader/resolver/watcher, workflow executor, workspace detection. **Zero Tauri dependencies.** |
+| **Tauri Shell** | `src-tauri` | IPC commands, event bridging, OS keychain integration, window management, approval‑gate queue. Thin — no business logic. |
+| **React Frontend** | `src` | Pure UI. State via Zustand, server state via TanStack Query, routing via TanStack Router, components via shadcn/ui. |
+
+> [!TIP]
+> Because `skilldeck-core` has no Tauri dependency, it’s fully testable in isolation and portable to CLI or server contexts.
+
+### The Agent Loop
+
+At the heart of SkillDeck is a streaming async loop:
+
+1. Save the user message to SQLite.
+2. Build context (conversation history + active skills + workspace files).
+3. Call the configured model provider.
+4. Stream tokens: ring buffer → 50 ms debounce → IPC events.
+5. Dispatch tool calls (built‑in or MCP) through the approval gate.
+6. Persist the assistant message and emit a `done` event.
+7. Auto‑process the next queued message, if any.
 
 ---
 
-## Get Started in 5 Minutes
+## Tech Stack
+
+| Layer | Technologies |
+|-------|--------------|
+| **Core** | Rust (Edition 2024), Tokio, SeaORM 2, Petgraph, Notify, Reqwest, Tracing |
+| **Shell** | Tauri 2, `tauri-plugin-shell`, `tauri-plugin-keyring`, `tauri-plugin-store` |
+| **Frontend** | React 19, TypeScript, Vite 8, Tailwind CSS 4, shadcn/ui (Radix primitives) |
+| **State** | Zustand (UI state), TanStack Query (server state) |
+| **Routing** | TanStack Router |
+| **Workflows** | `@xyflow/react` (React Flow) for DAG visualization; `petgraph` for execution |
+| **Database** | SQLite (WAL mode) with optional vector search (`sqlite-vss`) |
+| **Testing** | Rust: `cargo test` + `nextest`; Frontend: Vitest (unit + browser) + Playwright |
+| **Tooling** | Biome (lint + format), Lefthook (git hooks), Commitlint, CSpell, Lingui (i18n) |
+
+---
+
+## Getting Started
 
 ### Prerequisites
-- [Rust](https://www.rust-lang.org/tools/install) (Edition 2024)
-- [Node.js](https://nodejs.org/) (v24+)
-- [pnpm](https://pnpm.io/installation)
-- System dependencies for Tauri (see [Prerequisites](https://tauri.app/start/prerequisites/))
 
-### Three Steps to Running Locally
+- [Rust](https://rustup.rs/) (stable, Edition 2024)
+- [Node.js](https://nodejs.org/) v20 or later
+- [pnpm](https://pnpm.io/) v10 or later
+- [Tauri prerequisites](https://tauri.app/start/prerequisites/) for your platform
+- (Optional) [Ollama](https://ollama.com) for local models
 
-**1. Clone the repository**
+### Quick Start
+
 ```bash
+# Clone the repository
 git clone https://github.com/elcoosp/skilldeck.git
 cd skilldeck
-```
 
-**2. Install dependencies**
-```bash
+# Install frontend dependencies
 pnpm install
-```
 
-**3. Launch with hot‑reloading**
-```bash
+# Launch with hot-reloading
 pnpm tauri dev
 ```
 
-The app launches and your first workflow is ready to build. Your code, your machine, your control.
+The app launches and you’re ready to create your first conversation.
 
----
+> [!NOTE]
+> On first launch, SkillDeck runs database migrations and seeds default data (a default profile, model pricing entries, and skill source directories).
 
-## How It Works
+### Build for Production
 
-### Profiles
-Profiles bundle your configuration: Model selection (Claude, OpenAI, Ollama), active skills, and MCP servers. Switch profiles instantly to change context — e.g., "Work" vs. "Personal".
-
-### Workflows
-Define workflows in skill frontmatter or spawn them dynamically:
-```yaml
-workflow:
-  type: parallel
-  merge_strategy: voting
-  agents:
-    - skill: security-reviewer
-    - skill: performance-reviewer
+```bash
+pnpm build          # Build the frontend
+pnpm tauri:build    # Build native installers (MSI, DMG, AppImage)
 ```
 
-### Tool Approval
-SkillDeck uses a risk‑based approval system so you stay in control.
-- **Auto‑Approve:** Read‑only operations.
-- **Require Approval:** Write operations, database mutations.
-- **Always Confirm:** Destructive actions (force push, delete directory).
+---
+
+## Project Structure
+
+```
+skilldeck/
+├── src/                          # React frontend (kebab-case files)
+│   ├── components/               # UI components (shadcn/ui + custom)
+│   │   ├── conversation/         # Message thread, branches, tool cards
+│   │   ├── layout/               # Three-panel shell
+│   │   ├── right-panel/          # Session, Workflow, Analytics tabs
+│   │   ├── skills/               # Marketplace, install, lint panels
+│   │   └── ui/                   # shadcn primitives (do not edit)
+│   ├── hooks/                    # TanStack Query & event hooks
+│   ├── store/                    # Zustand stores
+│   ├── lib/                      # IPC wrappers, events, utils
+│   └── routes/                   # TanStack Router routes
+│
+├── src-tauri/                    # Tauri shell + Rust workspace
+│   ├── skilldeck-core/           # Pure Rust library (no Tauri dependency)
+│   │   └── src/
+│   │       ├── agent/            # Agent loop, context builder, tools
+│   │       ├── mcp/              # MCP client, transports, supervisor
+│   │       ├── providers/        # Claude, OpenAI, Ollama
+│   │       ├── skills/           # Loader, resolver, watcher, scanner
+│   │       ├── workflow/         # DAG executor, pattern runners
+│   │       ├── workspace/        # Project detection, context loading
+│   │       ├── traits/           # ModelProvider, McpTransport, …
+│   │       ├── db/               # SeaORM connection + migrations
+│   │       └── toon.rs           # TOON encoding wrapper
+│   ├── skilldeck-models/         # Shared SeaORM entities (50+ tables)
+│   ├── migration/                # Database migrations
+│   └── src/                      # Tauri commands, AppState, keychain
+│
+├── skilldeck-lint/               # Skill linting engine (CLI + library)
+│   └── src/
+│       ├── rules/                # 17 lint rules across 4 categories
+│       └── bin/main.rs           # `skilldeck-lint` CLI
+│
+├── skilldeck-platform/           # Optional cloud backend (Axum)
+│   └── src/
+│       ├── core/                 # Registration, API keys
+│       ├── growth/               # Referrals, nudges, activity events
+│       ├── preferences/          # User preferences
+│       └── skills/               # Registry, enrichment, lint cron
+│
+├── skilldeck-user-docs/          # Documentation site (Astro Starlight)
+├── skilldeck-landing/            # Marketing landing page (Next.js)
+├── skilldeck-marketing-assets/   # Screenshot/video capture (Playwright)
+│
+├── docs/                         # Specs, design docs, reports
+│   ├── spec/                     # SRS, BRS, architecture, vision
+│   ├── design/                   # UX, tech stack, project structure
+│   └── reports/                  # Audit, growth, code-smell reports
+│
+├── ARCHITECTURE.md               # High-level architecture overview
+├── CODE_OF_CONDUCT.md
+├── CONTRIBUTING.md
+├── SECURITY.md
+└── LICENSE.md                    # MIT OR Apache-2.0
+```
 
 ---
 
-## Technology Stack
+## Core Concepts
 
-| Layer        | Technologies                                                 |
-| ------------ | ------------------------------------------------------------ |
-| **Core**     | Rust, Tokio, SeaORM 2, Petgraph, Notify                      |
-| **Shell**    | Tauri 2, tauri‑plugin‑shell, tauri‑plugin‑keychain           |
-| **Frontend** | React 19, TypeScript, Vite, Tailwind CSS, shadcn/ui          |
-| **Database** | SQLite (WAL mode) with optional Vector Search (`sqlite‑vss`) |
-| **State**    | Zustand (UI), TanStack Query (Server State)                  |
+### Skills
+
+Skills are directories containing a `SKILL.md` file with YAML frontmatter. They’re injected into the agent’s context and can be version‑controlled like any other code.
+
+```yaml
+---
+name: code-review
+description: "Review code for bugs, security issues, and style violations"
+compatibility: ["claude-3", "gpt-4"]
+allowed_tools: ["read_file", "list_directory"]
+---
+
+# Code Review
+
+## Instructions
+1. Read the target file.
+2. Check for null‑access patterns and missing error handling.
+3. Report findings grouped by severity (HIGH / MED / LOW).
+```
+
+Skills are resolved by priority:
+
+1. **Workspace** — `./.skilldeck/skills/`
+2. **Personal** — `~/.agents/skills/`
+3. **Registry** — cached from the SkillDeck Platform
+
+The built‑in linter (`skilldeck-lint`) runs **17 rules** across frontmatter, structure, security, and quality categories, producing a security score and quality score (1–5).
+
+### MCP (Model Context Protocol)
+
+SkillDeck implements the full MCP specification (JSON‑RPC 2.0, protocol `2024-11-05`) with:
+
+- **stdio transport** — spawns local MCP servers as subprocesses.
+- **SSE transport** — connects to remote MCP servers over HTTP.
+- **Supervision** — health checks every 30 s and exponential‑backoff restarts (1 s → 2 s → 4 s → … max 60 s, max 5 attempts).
+- **Tool registry** — aggregates tools from all connected servers.
+- **Approval gate** — every external tool call is gated by default (all six auto‑approve categories are off by default).
+
+### Workflows
+
+Three execution patterns for multi‑step tasks:
+
+| Pattern | When to use |
+|---------|-------------|
+| **Sequential** | Each step depends on the previous one; steps run in topological order. |
+| **Parallel** | Independent steps run concurrently using Tokio’s `JoinSet`. |
+| **Evaluator‑Optimizer** | Iterative refinement loop; generator produces, evaluator scores, repeat until threshold or max iterations. |
+
+Workflows are defined as DAGs, validated with `petgraph` (cycle detection), visualized with React Flow, and executed with real‑time step tracking.
+
+### Agent Loop
+
+The agent loop is the heart of the system:
+
+1. Persist user message.
+2. Build context (history + active skills + workspace).
+3. Call model provider (streaming).
+4. Emit `agent:token` events (50 ms debounce).
+5. Dispatch tool calls (built‑in or MCP).
+6. Await approval if required (non‑blocking oneshot channel).
+7. Persist assistant message; emit `done`.
 
 ---
 
-## Current Status
+## Development
 
-We're building SkillDeck in the open. Most core features are now complete, and the application is ready for daily use. Remaining work focuses on polish, edge cases, and expanding the skill ecosystem.
+### Common Commands
 
-| Feature Area                | Status        | Details & Links |
-|-----------------------------|---------------|-----------------|
-| **Core Error Taxonomy**     | ✅ Complete   | Comprehensive error types with codes, retryable classification, and suggested actions. |
-| **Plugin Traits**           | ✅ Complete   | All major subsystem traits defined for dependency inversion. |
-| **Model Providers**         | ✅ Complete   | Claude, OpenAI, Ollama – streaming, retries, error handling. |
-| **MCP Protocol**            | ✅ Complete   | JSON‑RPC types, initialize handshake, tool definitions. |
-| **MCP Transports**          | ✅ Complete   | stdio and SSE transports with proper handshakes. |
-| **MCP Registry**            | ✅ Complete   | Server management, tool aggregation, status tracking. |
-| **MCP Supervisor**          | ✅ Complete   | Health checks and exponential backoff with full reconnection logic. |
-| **Skill Loader**            | ✅ Complete   | Parses `SKILL.md` with YAML frontmatter, computes hash. |
-| **Skill Resolver**          | ✅ Complete   | Priority ordering (workspace → personal → marketplace) with shadow logging. |
-| **Skill Scanner**           | ✅ Complete   | Directory traversal, symlink skipping. |
-| **Skill Watcher**           | ✅ Complete   | Hot‑reload via filesystem events (200ms debounce). |
-| **Workflow Types & Graph**  | ✅ Complete   | DAG definition with petgraph, cycle detection, topological order. |
-| **Workflow Executor**       | ✅ Complete   | Sequential/parallel/evaluator‑optimizer runners with real agent calls. |
-| **Subagent Management**     | ✅ Complete   | Full session management and agent spawning via ADK. |
-| **Agent Loop**              | ✅ Complete   | Streaming with 50ms debounce, tool handling, cancellation, and persistence. |
-| **Context Builder**         | ✅ Complete   | Assembles prompts and history; TOON encoding integrated. |
-| **Built‑in Tools**          | ✅ Complete   | `loadSkill`, `spawnSubagent`, `mergeSubagentResults` fully implemented. |
-| **Tool Dispatcher**         | ✅ Complete   | Routes to built‑in or MCP tools, approval gates via oneshot channels. |
-| **Database Layer**          | ✅ Complete   | SQLite + SeaORM with 35‑table migration, WAL mode, integrity checks. |
-| **Workspace Detector**      | ✅ Complete   | Project type detection (Rust, Node, Python, Go, Java, .NET), context file loading. |
-| **Context Loader**          | ✅ Complete   | Loads CLAUDE.md, README, .gitignore, etc. |
-| **Event Definitions**       | ✅ Complete   | Agent, MCP, workflow, and skill events defined in core. |
-| **Tauri Event Bridging**    | ✅ Complete   | Events emitted to frontend via Tauri channels. |
-| **Tauri Commands**          | ✅ Complete   | All command groups (conversations, profiles, skills, MCP, settings, export) implemented. |
-| **Tauri State Management**  | ✅ Complete   | AppState, initialization, command registration. |
-| **React Frontend**          | ✅ Complete   | Full UI with all components, hooks, stores, and overlays. |
-| **Onboarding Wizard**       | ✅ Complete   | Progressive unlock and setup flow. |
-| **Testing (Unit/Integration)** | ✅ Complete   | Comprehensive unit, integration, and E2E tests. |
-| **Project Scaffolding**     | ✅ Complete   | Full Rust core, Tauri shell, and frontend configuration. |
+```bash
+# Frontend
+pnpm dev              # Vite dev server only
+pnpm build            # Build frontend
+pnpm lint             # Biome check
+pnpm format           # Biome format
+pnpm typecheck        # TypeScript check
+pnpm test             # Vitest (unit + browser)
+pnpm test:coverage    # Coverage report
 
-### What This Means for You
-- **Want a fully functional desktop app today?** It's ready. Build, run, and use every feature described above.
-- **Want to contribute?** The codebase is stable. Look for issues labeled `good first issue`, or help with documentation, testing, and skill creation.
-- **Evaluating for your team?** The core vision is realized and we're actively shipping. Use it, give feedback, and join the community.
+# Rust
+cargo test --workspace
+cargo clippy --workspace -- -D warnings
+cargo fmt --all -- --check
 
----
+# Tauri
+pnpm tauri dev        # Dev with hot-reload
+pnpm tauri:build      # Production build
+```
 
-## Roadmap (v2 and Beyond)
+### Testing
 
-With the core feature set complete, our focus shifts to:
-- **Stability & Performance:** Hardening edge cases, optimizing startup time, and refining the streaming pipeline.
-- **Skill Ecosystem:** Expanding the registry with community‑contributed skills and improving the sharing experience.
-- **Advanced Workflows:** Adding more pattern support (e.g., Map‑Reduce, DAG merging) and visual workflow editor.
-- **Team Features:** Collaboration tools, shared skill libraries, and enterprise‑grade security controls.
+| Layer | Tool | Command |
+|-------|------|---------|
+| Rust core | `cargo test` + `nextest` | `cargo nextest run` |
+| Frontend units | Vitest (happy‑dom) | `pnpm test:coverage:unit` |
+| Frontend components | Vitest (browser mode) | `pnpm test` |
+| E2E | Playwright + `tauri-driver` | `cd e2e-tests && pnpm test` |
 
-See the [detailed v2 roadmap](docs/design/v2-roadmap.md) for the full plan through 2026.
+### Linting & Formatting
+
+- **Rust**: `rustfmt` + `clippy` (warnings as errors in CI).
+- **TS / TSX / JSON / CSS**: Biome (replaces ESLint + Prettier).
+- **Git hooks**: Lefthook (runs Biome + CSpell on staged files).
+- **Commit messages**: Commitlint (Conventional Commits).
 
 ---
 
-## Contributing
+## Configuration
 
-We welcome contributors of all skill levels:
-- Pick an open issue from our [issue tracker](docs/issues/).
-- Join the discussion on [GitHub Discussions](https://github.com/elcoosp/skilldeck/discussions).
-- Review the [architecture design](docs/design/archi-design.md) and [product vision](docs/spec/vision.md).
-- Submit a PR — we review promptly and provide guidance.
+| What | Where |
+|------|-------|
+| API keys | OS keychain — macOS Keychain, Windows Credential Manager, libsecret |
+| Database | `~/.local/share/skilldeck/skilldeck.db` (platform‑specific) |
+| Lint config (global) | `~/.config/skilldeck/skilldeck-lint.toml` |
+| Lint config (workspace) | `<workspace>/.skilldeck/skilldeck-lint.toml` |
+| Personal skills | `~/.agents/skills/` |
+| Workspace skills | `<workspace>/.skilldeck/skills/` |
+| Panel layout | Persisted in `localStorage` under `skilldeck-panel-layout` |
 
 ---
 
 ## Documentation
 
-Detailed specifications are available in the `/docs` directory:
-- [Product Vision](docs/spec/vision.md)
-- [Architecture Design](docs/design/archi-design.md)
-- [Technical Requirements](docs/spec/srs.md)
+- **User documentation** → [docs.skilldeck.dev](https://docs.skilldeck.dev) (built with Astro Starlight)
+- **Architecture overview** → [ARCHITECTURE.md](ARCHITECTURE.md)
+- **Specifications** → [`docs/spec/`](docs/spec/) — vision, BRS, SRS, architecture, test verification
+- **Design documents** → [`docs/design/`](docs/design/) — UX, tech stack, project structure, v2 roadmap
+- **Skill format** → [agentskills.io](https://agentskills.io)
+- **Security policy** → [SECURITY.md](SECURITY.md)
+
+---
+
+## Status
+
+SkillDeck is in **beta**. Core features are complete and the app is usable for daily work. Remaining focus areas:
+
+- Stability and edge‑case hardening.
+- Skill ecosystem growth (registry, sharing, linting).
+- Advanced workflow patterns (Map‑Reduce, DAG merging).
+- Team features (shared skill libraries, enterprise controls).
+
+See the [v2 roadmap](docs/design/v2-roadmap.md) for the full plan through 2026.
 
 ---
 
 <p align="center">
   <strong>Your code stays yours. Your agents work for you.</strong><br/>
-  <sub>Built with love by developers who believe in local‑first AI.</sub>
+  <sub>Built with care by developers who believe in local‑first AI.</sub>
 </p>
