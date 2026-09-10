@@ -53,12 +53,20 @@ describe('filterTree', () => {
     expect(src.children).toEqual([])
     const lib = src.children?.find((c) => c.id === 'lib')
     expect(lib).toBeUndefined()
-    const empty = filterTree([{ id: 'x', name: 'x', type: 'folder', children: [] }], 'x')
+    const empty = filterTree(
+      [{ id: 'x', name: 'x', type: 'folder', children: [] }],
+      'x'
+    )
     expect(empty[0].children).toEqual([])
   })
 
   it('drops a folder with no children and no name match', () => {
-    const folder = { id: 'empty', name: 'empty', type: 'folder' as const, children: [] }
+    const folder = {
+      id: 'empty',
+      name: 'empty',
+      type: 'folder' as const,
+      children: []
+    }
     const out = filterTree([folder], 'zzz')
     expect(out).toEqual([])
   })
