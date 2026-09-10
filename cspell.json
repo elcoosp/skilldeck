@@ -2,9 +2,12 @@
   "version": "0.2",
   "language": "en",
   "words": [
-    "ntvs",
-    "njsproj",
     "TOON",
+    "libsecret",
+    "Reqwest",
+    "nextest",
+    "libsecret",
+    "agentskills",
     "frontmatter",
     "petgraph",
     "oneshot",
@@ -30,7 +33,16 @@
     "specta",
     "youre",
     "thiserror",
-    "clippy"
+    "clippy",
+    "ol-combhaspostfix",
+    "ntvs",
+    "njsproj",
+    "conv",
+    "partialize",
+    "metacharacters",
+    "unlisten",
+    "classmap",
+    "xyflow"
   ],
   "ignorePaths": [
     "Cargo.toml",
