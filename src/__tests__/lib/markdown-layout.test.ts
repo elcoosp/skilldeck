@@ -172,11 +172,16 @@ describe('MarkdownHeightEngine.prepare/layout', () => {
     )
     e.prepare(
       'm1',
-      { ...paragraphDoc(), draft_nodes: [{
-        type: 'paragraph',
-        id: 'd1',
-        html: '<p>streaming draft</p>'
-      }] },
+      {
+        ...paragraphDoc(),
+        draft_nodes: [
+          {
+            type: 'paragraph',
+            id: 'd1',
+            html: '<p>streaming draft</p>'
+          }
+        ]
+      },
       'assistant',
       ''
     )

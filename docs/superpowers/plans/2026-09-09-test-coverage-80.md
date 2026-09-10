@@ -305,7 +305,7 @@ src/__tests__/lib/gist.test.ts
 
 ### Task 2.1: Pure functions (utils, url-detection, filter-tree, keyboard-tree-navigation)
 
-- [ ] **Step 1**: `src/__tests__/lib/utils.test.ts`:
+- [x] **Step 1**: `src/__tests__/lib/utils.test.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest'
@@ -365,36 +365,36 @@ describe('highlightText', () => {
 })
 ```
 
-- [ ] **Step 2**: `src/__tests__/lib/url-detection.test.ts` — `extractUrls` with: one URL; multiple URLs; URLs with query/hash; URL inside prose with trailing punctuation (`,`/`.` excluded by regex class); no URLs → `[]`; `ftp://` ignored.
+- [x] **Step 2**: `src/__tests__/lib/url-detection.test.ts` — `extractUrls` with: one URL; multiple URLs; URLs with query/hash; URL inside prose with trailing punctuation (`,`/`.` excluded by regex class); no URLs → `[]`; `ftp://` ignored.
 
-- [ ] **Step 3**: `src/__tests__/lib/filter-tree.test.ts` — builds `TreeViewElement` fixtures (type-only import, no runtime pull). Cases: empty query returns all; matches by name ignoring case; prunes non-matching parents but keeps parents whose children match; children array preserved/empty on retained parents; folder with no children and no name match is dropped.
+- [x] **Step 3**: `src/__tests__/lib/filter-tree.test.ts` — builds `TreeViewElement` fixtures (type-only import, no runtime pull). Cases: empty query returns all; matches by name ignoring case; prunes non-matching parents but keeps parents whose children match; children array preserved/empty on retained parents; folder with no children and no name match is dropped.
 
-- [ ] **Step 4**: `src/__tests__/lib/keyboard-tree-navigation.test.ts` — `flattenTree`: depth ordering, skip children of collapsed/collapsed-folder-less nodes, `depth` increments, `parentId` set; folder vs file `type`; `getNextVisibleItem`/`getPrevVisibleItem` bounds (undefined past ends); `findIndexById` found + `-1`.
+- [x] **Step 4**: `src/__tests__/lib/keyboard-tree-navigation.test.ts` — `flattenTree`: depth ordering, skip children of collapsed/collapsed-folder-less nodes, `depth` increments, `parentId` set; folder vs file `type`; `getNextVisibleItem`/`getPrevVisibleItem` bounds (undefined past ends); `findIndexById` found + `-1`.
 
-- [ ] **Step 5**: Run all four files green; commit `feat(test): pure lib util tests`.
+- [x] **Step 5**: Run all four files green; commit `feat(test): pure lib util tests`.
 
 ### Task 2.2: Static data + config (achievements, keyboard-shortcuts, suggested-prompts, config)
 
-- [ ] **Step 1**: `achievements.test.ts` — 4 keys with expected `id`/`emoji`/`title`/`description`; ids unique.
-- [ ] **Step 2**: `keyboard-shortcuts.test.ts` — 10 entries; unique `keys`; all categories are from the union; contains `Cmd+K`, `Cmd+Enter`.
-- [ ] **Step 3**: `suggested-prompts.test.ts` — every entry has non-empty id/label/prompt; ids unique; each category `coding|writing|analysis|debugging|planning|brainstorming` present with ≥1.
-- [ ] **Step 4**: `config.test.ts` — `platformUrl('/api/x')` equals `${PLATFORM_BASE_URL}/api/x`; `DOCS_LINT_URL` starts with `https://`. (In test env `import.meta.env.DEV` is `true`, so `PLATFORM_BASE_URL` is `http://localhost:8080` — assert against the imported constant, not a hardcoded host.)
-- [ ] **Step 5**: Commit `feat(test): data/config lib tests`.
+- [x] **Step 1**: `achievements.test.ts` — 4 keys with expected `id`/`emoji`/`title`/`description`; ids unique.
+- [x] **Step 2**: `keyboard-shortcuts.test.ts` — 10 entries; unique `keys`; all categories are from the union; contains `Cmd+K`, `Cmd+Enter`.
+- [x] **Step 3**: `suggested-prompts.test.ts` — every entry has non-empty id/label/prompt; ids unique; each category `coding|writing|analysis|debugging|planning|brainstorming` present with ≥1.
+- [x] **Step 4**: `config.test.ts` — `platformUrl('/api/x')` equals `${PLATFORM_BASE_URL}/api/x`; `DOCS_LINT_URL` starts with `https://`. (In test env `import.meta.env.DEV` is `true`, so `PLATFORM_BASE_URL` is `http://localhost:8080` — assert against the imported constant, not a hardcoded host.)
+- [x] **Step 5**: Commit `feat(test): data/config lib tests`.
 
 ### Task 2.3: contrast + audio + i18n
 
-- [ ] **Step 1**: `src/__tests__/lib/contrast.test.ts` — unit-test the pure functions directly (replaces the vacuous CSS-variable browser loop in `src/__tests__/accessibility/contrast.test.tsx`, which you should then **delete**):
+- [x] **Step 1**: `src/__tests__/lib/contrast.test.ts` — unit-test the pure functions directly (replaces the vacuous CSS-variable browser loop in `src/__tests__/accessibility/contrast.test.tsx`, which you should then **delete**):
   - `computeContrast('#ffffff', '#000000')` ≈ `21`; `computeContrast('white','black')` same; `computeContrast('#fff','#000')` (3-digit hex) same.
   - `computeContrast('#000000', '#000000')` === `1`.
   - Invalid color throws `Invalid color`.
   - `rgb(0,0,0)` / `rgb(255, 255, 255)` parse.
   - `isAccessible(4.5)` true, `isAccessible(2.9)` false, `isAccessible(21)` true.
 
-- [ ] **Step 2**: `src/__tests__/lib/audio.test.ts` — mock the HTML5 `Audio` global (`vi.fn` class w/ `volume`, `currentTime`, `play`); `playSound` no-ops when `audioEnabled:false` (seed settings store); plays and sets volume/currentTime when enabled; `sound.play()` rejection is swallowed (.catch). `setSoundVolume(0.4)` sets `volume` on all three sounds.
+- [x] **Step 2**: `src/__tests__/lib/audio.test.ts` — mock the HTML5 `Audio` global (`vi.fn` class w/ `volume`, `currentTime`, `play`); `playSound` no-ops when `audioEnabled:false` (seed settings store); plays and sets volume/currentTime when enabled; `sound.play()` rejection is swallowed (.catch). `setSoundVolume(0.4)` sets `volume` on all three sounds.
 
-- [ ] **Step 3**: `src/__tests__/lib/i18n.test.ts` — `locales` has `en`; `defaultLocale === 'en'`; default activated locale is `'en'`; `loadLocale('en')` resolves after dynamic import (mock `../locales/en/messages.js` via `vi.mock` to resolve `{ messages: { 'x':'X' } }`); failing locale import warns and leaves current locale unchanged.
+- [x] **Step 3**: `src/__tests__/lib/i18n.test.ts` — `locales` has `en`; `defaultLocale === 'en'`; default activated locale is `'en'`; `loadLocale('en')` resolves after dynamic import (mock `../locales/en/messages.js` via `vi.mock` to resolve `{ messages: { 'x':'X' } }`); failing locale import warns and leaves current locale unchanged.
 
-- [ ] **Step 4**: Commit `feat(test): contrast/audio/i18n lib tests`. Delete `src/__tests__/accessibility/contrast.test.tsx` (covered by the new file) — and archive `src/__tests__/accessibility/keyboard-navigation.test.tsx` (it is an empty placeholder; remove it if still empty).
+- [x] **Step 4**: Commit `feat(test): contrast/audio/i18n lib tests`. Delete `src/__tests__/accessibility/contrast.test.tsx` (covered by the new file) — and archive `src/__tests__/accessibility/keyboard-navigation.test.tsx` (it is an empty placeholder; remove it if still empty).
 
 ### Task 2.4: markdown-layout (pixel engine)
 
@@ -413,6 +413,8 @@ These are pure invoke wrappers. Create `src/__tests__/lib/events.test.ts`, `plat
 - `platform.test.ts` / `gist.test.ts` — mock `@/lib/bindings.commands` (the target wrappers just forward), or skip if the wrapper adds no executable logic (mark as covered-by-hooks in Chunk 4). Prefer asserting the wrapper's error/edge behavior only.
 
 > **Chunk 3 review checkpoint.** Dispatch reviewer. Gate: lib layer ≥ 90% on `test:coverage:unit`.
+
+> **Chunk 3 result (2026-09-10)**: All 15 lib test files created and green (11 files / 87 tests in `src/__tests__/lib/`). Unit coverage of the lib layer is **100% lines / 100% statements / 100% functions / 92% branches (232/232)**, far above the 90% gate. Truth adjustments made against the plan: (1) `extractUrls` does NOT strip a trailing comma — the regex class `[^\s<>"{}|\\^`[\]]` keeps it, so the test asserts the comma stays; (2) `filterTree` retains a name-matched parent with `children: []` when no descendants match; (3) Task 2.5's `events.ts` exports 5 listeners (`onAgentEvent`, `onMcpEvent`, `onWorkflowEvent`, `onSkillEvent`, `onQueueEvent`) — there is **no** `onSubagentEvent`, so the plan's exact-names guidance resolved to the real set, tested against a mocked `@tauri-apps/api/event`; platform/gist use `@tauri-apps/api/core` `invoke` mocks (setup.ts already stubs both). Two plan file expectations corrected: deleted the vacuous `src/__tests__/accessibility/contrast.test.tsx` and the empty `keyboard-navigation.test.tsx` placeholder. `markdown-layout.test.ts` stubs `OffscreenCanvas` (a deterministic 2D context) because happy-dom can't measure text, and covers every block type (heading/code/list/blockquote/hr/html/entities/NBSP). Commits: `f9c4969`, `06de035`, `28b9103`, `882daf7`.
 
 ---
 
