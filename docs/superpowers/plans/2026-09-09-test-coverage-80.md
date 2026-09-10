@@ -548,6 +548,8 @@ This is the real-time streaming engine. Test with mocked `listen` (agent-event) 
 Prioritize assertions on the store effects (observable) rather than internal handler functions.
 
 > **Chunk 4 review checkpoint.** Dispatch reviewer. Gate: hooks layer ≥ 85% on `test:coverage:unit` (90% is the stretch end).
+>
+> **Chunk 4 result (2026-09-10)**: All 36 hook files in `src/hooks/` are covered by 31 test files / 183 tests in `src/__tests__/hooks/` (Task 4.0 harness + 4.1–4.4). Unit coverage run shows the hooks layer at **90% lines (846/937)**, above the 85% gate. Notes vs the plan: the harness `commands` mock needs explicit `vi.fn()` stubs (an empty object fails with "Cannot read properties of undefined"); `fetchRegistrySkills(category, search)` — category is the first argument; `use-provider-ready` returns `undefined` (not `null`) on disabled queries; `use-analytics` coerces string counts via `Number()` and defaults `conversations_per_day` to `[]`; `use-platform` local overrides (`platformEnabled`/`platformUrl`) survive mutation responses. Fixes applied in source: `use-tool-approvals.ts` declared `_setup` but never invoked it (hook never subscribed) — now wired. Commits: `ded9dd9`, `f665322`, `2800902`, `4955f77`, `3c16c64`.
 
 ---
 

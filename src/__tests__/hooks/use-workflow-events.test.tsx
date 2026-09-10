@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useWorkflowEvents } from '@/hooks/use-workflow-events'
 
 const onWorkflowEvent = vi.hoisted(() => vi.fn())
@@ -82,7 +83,11 @@ describe('useWorkflowEvents', () => {
 
     act(() => handleEvent!({ type: 'started', id: 'w1' }))
     act(() =>
-      handleEvent!({ type: 'step_started', workflow_id: 'other', step_id: 's9' })
+      handleEvent!({
+        type: 'step_started',
+        workflow_id: 'other',
+        step_id: 's9'
+      })
     )
     act(() => handleEvent!({ type: 'completed', id: 'other' }))
     expect(result.current.progress?.status).toBe('running')

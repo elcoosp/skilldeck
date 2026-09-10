@@ -1,24 +1,28 @@
 // @vitest-environment happy-dom
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
 import { cleanup, renderHook, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   createTestQueryClient,
   wrapper
 } from '@/__tests__/helpers/with-query-client'
 import { toast } from '@/components/ui/toast'
+import { useAgentStream } from '@/hooks/use-agent-stream'
 import { onAgentEvent } from '@/lib/events'
 import { useToolApprovalStore } from '@/store/tool-approvals'
 import { useUIEphemeralStore } from '@/store/ui-ephemeral'
 import { useUIPersistentStore } from '@/store/ui-state'
-import { useAgentStream } from '@/hooks/use-agent-stream'
 
 vi.mock('@/components/ui/toast', () => ({
   toast: { success: vi.fn(), error: vi.fn() }
 }))
 
-const commands = vi.hoisted(() => ({
-  renameConversation: vi.fn()
-}) as Record<string, ReturnType<typeof vi.fn>>)
+const commands = vi.hoisted(
+  () =>
+    ({
+      renameConversation: vi.fn()
+    }) as Record<string, ReturnType<typeof vi.fn>>
+)
 vi.mock('@/lib/bindings', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/bindings')>()
   return { ...actual, commands: { ...actual.commands, ...commands } }
@@ -77,8 +81,22 @@ describe('useAgentStream', () => {
     useUIEphemeralStore.setState({
       agentRunning: { [C]: true },
       streamingError: { [C]: true },
-      streamingMessages: { [C]: { stable_nodes: [], draft_nodes: [], toc_items: [], artifact_specs: [] } },
-      thinkingDocuments: { [C]: { stable_nodes: [], draft_nodes: [], toc_items: [], artifact_specs: [] } }
+      streamingMessages: {
+        [C]: {
+          stable_nodes: [],
+          draft_nodes: [],
+          toc_items: [],
+          artifact_specs: []
+        }
+      },
+      thinkingDocuments: {
+        [C]: {
+          stable_nodes: [],
+          draft_nodes: [],
+          toc_items: [],
+          artifact_specs: []
+        }
+      }
     })
     renderHook(() => useAgentStream(C), { wrapper: wrapper(client) })
     await waitFor(() => expect(handleEvent).toBeDefined())
@@ -116,11 +134,17 @@ describe('useAgentStream', () => {
       toc_items: [],
       artifact_specs: []
     }
-    handleEvent!({ type: 'stream_update', conversation_id: C, node_document: doc })
+    handleEvent!({
+      type: 'stream_update',
+      conversation_id: C,
+      node_document: doc
+    })
     await waitFor(() =>
       expect(useUIEphemeralStore.getState().streamingMessages[C]).toBeTruthy()
     )
-    expect(useUIEphemeralStore.getState().streamingMessages[C]?.draft_nodes).toHaveLength(1)
+    expect(
+      useUIEphemeralStore.getState().streamingMessages[C]?.draft_nodes
+    ).toHaveLength(1)
   })
 
   it('registers a pending tool approval when required', async () => {
@@ -203,9 +227,10 @@ describe('useAgentStream', () => {
     onAgentEvent.mockImplementation(capture)
     commands.renameConversation.mockResolvedValue({ status: 'ok', data: null })
     client.setQueryData(['conversations'], [{ id: C, title: null }])
-    client.setQueryData(['messages', C], [
-      { id: 'm1', role: 'user', content: '  hello world  ' }
-    ])
+    client.setQueryData(
+      ['messages', C],
+      [{ id: 'm1', role: 'user', content: '  hello world  ' }]
+    )
     renderHook(() => useAgentStream(C), { wrapper: wrapper(client) })
     await waitFor(() => expect(handleEvent).toBeDefined())
     handleEvent!({ type: 'persisted', conversation_id: C })

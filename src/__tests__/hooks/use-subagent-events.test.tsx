@@ -1,9 +1,10 @@
 // @vitest-environment happy-dom
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, renderHook, waitFor } from '@testing-library/react'
+
 import { listen } from '@tauri-apps/api/event'
-import { useSubagentStore } from '@/store/subagent'
+import { cleanup, renderHook, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useSubagentEvents } from '@/hooks/use-subagent-events'
+import { useSubagentStore } from '@/store/subagent'
 
 const initialStore = useSubagentStore.getState()
 
@@ -29,11 +30,11 @@ describe('useSubagentEvents', () => {
       )
     })
     const { unmount } = renderHook(() => useSubagentEvents())
-    await waitFor(() =>
-      expect(captures['subagent-status']).toBeDefined()
-    )
+    await waitFor(() => expect(captures['subagent-status']).toBeDefined())
 
-    captures['subagent-status']({ payload: { subagentId: 's1', status: 'running' } })
+    captures['subagent-status']({
+      payload: { subagentId: 's1', status: 'running' }
+    })
     expect(useSubagentStore.getState().subagents['s1']).toMatchObject({
       status: 'running'
     })

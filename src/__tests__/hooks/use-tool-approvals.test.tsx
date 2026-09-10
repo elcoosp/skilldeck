@@ -1,9 +1,10 @@
 // @vitest-environment happy-dom
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, renderHook, waitFor } from '@testing-library/react'
+
 import { listen } from '@tauri-apps/api/event'
-import { useToolApprovalStore } from '@/store/tool-approvals'
+import { cleanup, renderHook, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useToolApprovals } from '@/hooks/use-tool-approvals'
+import { useToolApprovalStore } from '@/store/tool-approvals'
 
 const initialStore = useToolApprovalStore.getState()
 
