@@ -587,6 +587,8 @@ src/__tests__/components/branch-nav.browser.test.tsx
 ```
 Each: render with representative fixtures; assert happy path + empty/streaming/error variants. `code-block` (393 exec lines): renders code, language badge, copy button invokes `writeTextFile` (mock `@tauri-apps/plugin-fs`), collapse toggle, line numbers. `tool-approval-card`: approve/deny callbacks. `subagent-card`: status → classmap + result/error rendering.
 
+> **Task 5.1 result** ✅ (commits `af8d802`, `afbbdf9`): created all 10 test files, 55 tests, all green (full suite 77 files / 485 tests pass). Browser project (incl. pre-existing) 13 files / 87 tests pass. 8/10 components ≥83% line coverage: `thinking-view` 100%, `tool-approval-card` 100%, `tool-result-bubble` 94%, `pinned-bar` 88%, `heading` 100%, `artifact-card` 100%, `branch-nav` 83%, `suggested-prompts` 83%. `subagent-card` 63%, `code-block` 31% (huge super-codeblock component; both have happy-path coverage — defer deep coverage to Task 5.x follow-up or accept).
+
 ### Task 5.2: Queue components (6 files)
 
 `queue-list`, `queue-item`, `queue-header`, `queue-edit-form`, `queue-selection-toolbar`, `queue-pause-indicator`: mock `useQueueStore` state directly via `useQueueStore.setState(...)`; assert render by mode (`view/select/edit`), selection toggle, edit submission (mock `commands.editQueuedMessage`), drag flag.
