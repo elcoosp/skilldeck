@@ -12,7 +12,6 @@ const plainText = `line one\nline two\nline three`
 
 const fileTree = `[FILE] src/index.ts\n[DIR] src/components\n[FILE] src/components/app.tsx\n[FILE] src/components/app.tsx\n[FILE] src/components/app.tsx`
 
-
 describe('ToolResultBubble', () => {
   beforeEach(() => {
     vi.mocked(toast.success).mockClear()
