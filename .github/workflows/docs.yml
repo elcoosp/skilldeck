@@ -35,6 +35,7 @@ jobs:
         uses: errata-ai/vale-action@v3
         with:
           sync: false
+          config: skilldeck-user-docs/.vale.ini
           files: skilldeck-user-docs/src
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
