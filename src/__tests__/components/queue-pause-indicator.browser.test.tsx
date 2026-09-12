@@ -20,34 +20,31 @@ beforeEach(() => {
 describe('QueuePauseIndicator', () => {
   it('renders when editing', async () => {
     useQueueStore.getState().setEditingId(CONV, 'm1')
-    const screen = await render(
-      <QueuePauseIndicator conversationId={CONV} />,
-      { wrapper }
-    )
-    await expect.element(
-      screen.getByText(/Auto‑send paused/)
-    ).toBeInTheDocument()
+    const screen = await render(<QueuePauseIndicator conversationId={CONV} />, {
+      wrapper
+    })
+    await expect
+      .element(screen.getByText(/Auto‑send paused/))
+      .toBeInTheDocument()
   })
 
   it('renders when dragging', async () => {
     useQueueStore.getState().setIsDragging(CONV, true)
-    const screen = await render(
-      <QueuePauseIndicator conversationId={CONV} />,
-      { wrapper }
-    )
-    await expect.element(
-      screen.getByText(/Auto‑send paused/)
-    ).toBeInTheDocument()
+    const screen = await render(<QueuePauseIndicator conversationId={CONV} />, {
+      wrapper
+    })
+    await expect
+      .element(screen.getByText(/Auto‑send paused/))
+      .toBeInTheDocument()
   })
 
   it('renders when in select mode', async () => {
     useQueueStore.getState().setMode(CONV, 'select')
-    const screen = await render(
-      <QueuePauseIndicator conversationId={CONV} />,
-      { wrapper }
-    )
-    await expect.element(
-      screen.getByText(/Auto‑send paused/)
-    ).toBeInTheDocument()
+    const screen = await render(<QueuePauseIndicator conversationId={CONV} />, {
+      wrapper
+    })
+    await expect
+      .element(screen.getByText(/Auto‑send paused/))
+      .toBeInTheDocument()
   })
 })

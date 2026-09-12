@@ -7,7 +7,9 @@ import * as bindings from '@/lib/bindings'
 import { useQueueStore } from '@/store/queue'
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
-  <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>
+  <QueryClientProvider client={new QueryClient()}>
+    {children}
+  </QueryClientProvider>
 )
 
 const initialState = useQueueStore.getState()
@@ -52,9 +54,9 @@ describe('QueueSelectionToolbar', () => {
       <QueueSelectionToolbar conversationId="c1" messageIds={['m1']} />,
       { wrapper }
     )
-    await expect.element(
-      screen.getByRole('button', { name: 'Delete' })
-    ).toBeDisabled()
+    await expect
+      .element(screen.getByRole('button', { name: 'Delete' }))
+      .toBeDisabled()
   })
 
   it('deletes each selected message', async () => {
@@ -75,9 +77,9 @@ describe('QueueSelectionToolbar', () => {
       <QueueSelectionToolbar conversationId="c1" messageIds={['m1', 'm2']} />,
       { wrapper }
     )
-    await expect.element(
-      screen.getByRole('button', { name: 'Merge' })
-    ).toBeDisabled()
+    await expect
+      .element(screen.getByRole('button', { name: 'Merge' }))
+      .toBeDisabled()
   })
 
   it('merges selected messages and returns to view mode', async () => {

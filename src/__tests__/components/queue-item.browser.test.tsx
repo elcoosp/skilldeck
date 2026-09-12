@@ -8,7 +8,9 @@ import * as bindings from '@/lib/bindings'
 import { useQueueStore } from '@/store/queue'
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
-  <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>
+  <QueryClientProvider client={new QueryClient()}>
+    {children}
+  </QueryClientProvider>
 )
 
 const msg: QueuedMessage = {
@@ -38,10 +40,11 @@ describe('QueueItem', () => {
       <QueueItem message={msg} conversationId="c1" position={3} />,
       { wrapper }
     )
-    await expect.element(
-      screen.getByText('Remind me to fetch the data')
-    ).toBeInTheDocument()
-    await expect.element(screen.getByText('3', { exact: true }).first())
+    await expect
+      .element(screen.getByText('Remind me to fetch the data'))
+      .toBeInTheDocument()
+    await expect
+      .element(screen.getByText('3', { exact: true }).first())
       .toBeInTheDocument()
   })
 

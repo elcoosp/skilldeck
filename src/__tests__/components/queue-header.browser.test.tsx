@@ -60,7 +60,8 @@ describe('QueueHeader', () => {
     await screen.getByRole('button', { name: 'Select' }).click()
     expect(useQueueStore.getState().mode.c1).toBe('select')
     await expect.element(screen.getByText('0 selected')).toBeInTheDocument()
-    await expect.element(screen.getByRole('button', { name: 'Cancel' }))
+    await expect
+      .element(screen.getByRole('button', { name: 'Cancel' }))
       .toBeInTheDocument()
   })
 

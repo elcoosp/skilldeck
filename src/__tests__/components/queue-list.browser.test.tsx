@@ -3,9 +3,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { QueueList } from '@/components/conversation/queue/queue-list'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import type { QueuedMessage } from '@/hooks/use-queued-messages'
 import * as bindings from '@/lib/bindings'
-import { TooltipProvider } from '@/components/ui/tooltip'
 import { useQueueStore } from '@/store/queue'
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -64,7 +64,9 @@ describe('QueueList', () => {
     const screen = await render(<QueueList conversationId="c1" />, {
       wrapper
     })
-    await expect.element(screen.getByText('do the thing')).not.toBeInTheDocument()
+    await expect
+      .element(screen.getByText('do the thing'))
+      .not.toBeInTheDocument()
   })
 
   it('renders the selection toolbar in select mode', async () => {
@@ -77,9 +79,9 @@ describe('QueueList', () => {
       wrapper
     })
     await expect.element(screen.getByText('do the thing')).toBeInTheDocument()
-    await expect.element(
-      screen.getByRole('button', { name: 'Select all' })
-    ).toBeInTheDocument()
+    await expect
+      .element(screen.getByRole('button', { name: 'Select all' }))
+      .toBeInTheDocument()
   })
 
   it('pauses auto-send while editing', async () => {
@@ -91,9 +93,9 @@ describe('QueueList', () => {
     const screen = await render(<QueueList conversationId="c1" />, {
       wrapper
     })
-    await expect.element(
-      screen.getByText(/Auto‑send paused/)
-    ).toBeInTheDocument()
+    await expect
+      .element(screen.getByText(/Auto‑send paused/))
+      .toBeInTheDocument()
     expect(bindings.commands.setAutoSendPaused).toHaveBeenCalledWith('c1', true)
   })
 
@@ -104,6 +106,8 @@ describe('QueueList', () => {
     const screen = await render(<QueueList conversationId="c1" />, {
       wrapper
     })
-    await expect.element(screen.getByText('Loading queue...')).toBeInTheDocument()
+    await expect
+      .element(screen.getByText('Loading queue...'))
+      .toBeInTheDocument()
   })
 })

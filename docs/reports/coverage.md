@@ -9,12 +9,12 @@ Measured with `npx vitest run --coverage` (istanbul, whole `src/` tree, auto-gen
 | store | 12 | 206 | 201 | 97.6% |
 | lib | 15 | 232 | 232 | 100.0% |
 | hooks | 36 | 937 | 846 | 90.3% |
-| components | 114 | 4804 | 827 | 17.2% |
+| components | 114 | 4804 | 1163 | 24.2% |
 | routes | 19 | 304 | 0 | 0.0% |
 | other (router.ts) | 1 | 1 | 0 | 0.0% |
-| **Total** | | | | |
+| **Total** | 197 | 6484 | | |
 
-> Snapshot date: 2026-09-12 (after Task 5.2). Suite state: 83 files / 512 tests, all green.
+> Snapshot date: 2026-09-12 (after Task 5.3). Suite state: 95 files / 572 tests, all green.
 
 ## Components layer detail
 
@@ -38,3 +38,17 @@ Updated after each 5.x sub-task. Line coverage % per conversation component:
 | queue-selection-toolbar | 100% | Task 5.2 |
 | queue-item | 96% | Task 5.2 |
 | queue-list | 59% | Task 5.2 — DnD drag/merge orchestration paths |
+| empty-state-local | 100% | Task 5.3 |
+| empty-state-registry | 100% | Task 5.3 |
+| platform-status-banner | 100% | Task 5.3 |
+| trust-badge | 100% | Task 5.3 |
+| install-dialog | 86% | Task 5.3 |
+| lint-warning-panel | 97% | Task 5.3 |
+| share-skill-modal | 91% | Task 5.3 |
+| blocked-skill-alert | 80% | Task 5.3 |
+| conflict-resolver | 75% | Task 5.3 |
+| unified-skill-card | 96% | Task 5.3 |
+| skill-detail-panel | 66% | Task 5.3 — mutations/dialogs happy-path, defer |
+| unified-skill-list | 54% | Task 5.3 — virtualization tuning |
+
+> Skills layer (12 files, aggregate): statements 66.19%, lines 68.75%, functions 56.86%, branches 68.02%.

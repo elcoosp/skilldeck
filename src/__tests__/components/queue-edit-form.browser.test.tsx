@@ -7,7 +7,9 @@ import * as bindings from '@/lib/bindings'
 import { useQueueStore } from '@/store/queue'
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
-  <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>
+  <QueryClientProvider client={new QueryClient()}>
+    {children}
+  </QueryClientProvider>
 )
 
 const initialState = useQueueStore.getState()
