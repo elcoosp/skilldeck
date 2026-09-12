@@ -54,9 +54,11 @@
     "node_modules/**",
     ".github/**",
     "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
     "dist/**",
     "target/**",
     "src-tauri/target/**",
-    "skilldeck-user-docs/.vale/**"
+    "skilldeck-user-docs/.vale/**",
+    "skilldeck-user-docs/astro.config.mjs"
   ]
 }
