@@ -34,9 +34,7 @@ jobs:
       - name: Lint with Vale
         uses: errata-ai/vale-action@v3
         with:
-          styles: |
-            https://github.com/errata-ai/Microsoft/releases/latest/download/Microsoft.zip
-            https://github.com/errata-ai/write-good/releases/latest/download/write-good.zip
+          sync: false
           files: skilldeck-user-docs/src
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
