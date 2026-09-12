@@ -593,6 +593,8 @@ Each: render with representative fixtures; assert happy path + empty/streaming/e
 
 `queue-list`, `queue-item`, `queue-header`, `queue-edit-form`, `queue-selection-toolbar`, `queue-pause-indicator`: mock `useQueueStore` state directly via `useQueueStore.setState(...)`; assert render by mode (`view/select/edit`), selection toggle, edit submission (mock `commands.editQueuedMessage`), drag flag.
 
+> **Task 5.2 result** ✅ (commit pending): created all 6 test files, 27 tests, all green (full suite 83 files / 512 tests pass). 5/6 queue components ≥96% line coverage: `queue-pause-indicator` 100%, `queue-edit-form` 100%, `queue-header` 100%, `queue-selection-toolbar` 100%, `queue-item` 96%. `queue-list` 59% (DnD drag/merge orchestration paths — happy-path started, defer). Components layer now 827/4804 (17.2%) — tracked in `docs/reports/coverage.md`. Notes vs plan: the `commands.editQueuedMessage` in the plan does not exist — the edit hook calls `commands.updateQueuedMessage`; `Tooltip` requires a `<TooltipProvider>` wrapper (Radix); Zustand `persist` rehydrates from localStorage across browser tests, so tests must `useQueueStore.persist.clearStorage()` in `beforeEach`.
+
 ### Task 5.3: Skills components (12 files)
 
 `unified-skill-list` (201 exec lines, priority), `unified-skill-card`, `skill-detail-panel`, `install-dialog`, `conflict-resolver`, `share-skill-modal`, `empty-state-registry`, `empty-state-local`, `blocked-skill-alert`, `trust-badge`, `lint-warning-panel`, `platform-status-banner`. Mock `useUnifiedSkills`/`useSkills`/`useLint` via module mocks of the hooks (`vi.mock('@/hooks/use-skills', ...)`). Assert status badges for all 4 `SkillStatus` values and install/uninstall/update dialogs.
