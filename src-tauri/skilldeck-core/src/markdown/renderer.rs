@@ -10,7 +10,6 @@ use regex::Regex;
 use syntect::{
     easy::HighlightLines,
     highlighting::Theme,
-    html::{styled_line_to_highlighted_html, IncludeBackground},
     parsing::{SyntaxDefinition, SyntaxReference, SyntaxSet},
 };
 use uuid::Uuid;
@@ -28,12 +27,9 @@ static SYNTAX_SET: Lazy<SyntaxSet> = Lazy::new(|| {
     builder.add(tsx_def);
 
     // Load TOML syntax
-    let toml_def = SyntaxDefinition::load_from_str(
-        include_str!("./TOML.sublime-syntax"),
-        false,
-        Some("toml"),
-    )
-    .expect("Failed to load TOML.sublime-syntax");
+    let toml_def =
+        SyntaxDefinition::load_from_str(include_str!("./TOML.sublime-syntax"), false, Some("toml"))
+            .expect("Failed to load TOML.sublime-syntax");
     builder.add(toml_def);
 
     builder.build()
@@ -128,8 +124,14 @@ impl MarkdownPipeline {
 
                     let id = format!("cb-{}", id_counter);
                     id_counter += 1;
-                    let (highlighted_lines, line_count, token_count, minimap_rgba, minimap_width, minimap_height) =
-                        self.highlight(&code_buf, &code_lang);
+                    let (
+                        highlighted_lines,
+                        line_count,
+                        token_count,
+                        minimap_rgba,
+                        minimap_width,
+                        minimap_height,
+                    ) = self.highlight(&code_buf, &code_lang);
                     let artifact_id = Uuid::new_v4();
                     let raw = std::mem::take(&mut code_buf);
                     nodes.push(MdNode::CodeBlock {
@@ -224,17 +226,19 @@ impl MarkdownPipeline {
                     in_list = !list_stack.is_empty();
                 }
                 Event::Start(Tag::Item) => {
-                    if in_list && !list_stack.is_empty() {
-                        if let Some((_, buf)) = list_stack.last_mut() {
-                            buf.push_str("<li>");
-                        }
+                    if in_list
+                        && !list_stack.is_empty()
+                        && let Some((_, buf)) = list_stack.last_mut()
+                    {
+                        buf.push_str("<li>");
                     }
                 }
                 Event::End(TagEnd::Item) => {
-                    if in_list && !list_stack.is_empty() {
-                        if let Some((_, buf)) = list_stack.last_mut() {
-                            buf.push_str("</li>");
-                        }
+                    if in_list
+                        && !list_stack.is_empty()
+                        && let Some((_, buf)) = list_stack.last_mut()
+                    {
+                        buf.push_str("</li>");
                     }
                 }
 
@@ -336,7 +340,14 @@ impl MarkdownPipeline {
             minimap_height = h;
         });
 
-        (highlighted_lines, line_count, token_count, minimap_rgba, minimap_width, minimap_height)
+        (
+            highlighted_lines,
+            line_count,
+            token_count,
+            minimap_rgba,
+            minimap_width,
+            minimap_height,
+        )
     }
 
     // ─── Minimap generation using HighlightLines ──────────────────────────────
@@ -483,11 +494,9 @@ fn event_to_html(event: &Event) -> String {
 
 fn extract_file_path(lang: &str, code: &str) -> Option<String> {
     let first_line = code.lines().find(|l| !l.trim().is_empty())?;
-    let trimmed = first_line.trim();
-
     let comment_prefix = comment_prefix_for_lang(lang)?;
-    if trimmed.starts_with(comment_prefix) {
-        let after_comment = trimmed[comment_prefix.len()..].trim();
+    if let Some(after_prefix) = first_line.trim().strip_prefix(comment_prefix) {
+        let after_comment = after_prefix.trim();
         if is_plausible_filename(after_comment, lang) {
             return Some(after_comment.to_string());
         }

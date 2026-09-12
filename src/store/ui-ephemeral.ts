@@ -28,7 +28,10 @@ interface UIState {
   setEditingMessageId: (id: string | null) => void
   // Thinking documents (streaming thought process per conversation)
   thinkingDocuments: Record<string, NodeDocument | null>
-  setThinkingDocument: (conversationId: string, doc: NodeDocument | null) => void
+  setThinkingDocument: (
+    conversationId: string,
+    doc: NodeDocument | null
+  ) => void
   // Linked artifact selection (temporary highlight)
   selectedArtifactId: string | null
   setSelectedArtifactId: (id: string | null) => void
@@ -107,10 +110,10 @@ export const useUIEphemeralStore = create<UIState>((set) => ({
     set((state) => ({
       thinkingDocuments: {
         ...state.thinkingDocuments,
-        [conversationId]: doc,
-      },
+        [conversationId]: doc
+      }
     })),
   // Linked artifact selection
   selectedArtifactId: null,
-  setSelectedArtifactId: (id) => set({ selectedArtifactId: id }),
+  setSelectedArtifactId: (id) => set({ selectedArtifactId: id })
 }))

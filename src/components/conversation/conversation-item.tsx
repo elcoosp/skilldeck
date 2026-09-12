@@ -1,11 +1,10 @@
 // src/components/conversation/conversation-item.tsx
+
+import { useDroppable } from '@dnd-kit/react'
 import { formatDistanceToNow } from 'date-fns'
 import { MoreHorizontal, Pencil, Pin, PinOff, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useDroppable } from '@dnd-kit/react'
-import { toast } from '@/components/ui/toast'
 import { Badge } from '@/components/ui/badge'
-import { StreamingPulse } from '@/components/ui/streaming-pulse'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -13,6 +12,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
+import { StreamingPulse } from '@/components/ui/streaming-pulse'
+import { toast } from '@/components/ui/toast'
 import {
   useDeleteConversation,
   usePinConversation,
@@ -49,7 +50,7 @@ export function ConversationItem({
   isDeleting,
   onDeleteStart,
   onClick,
-  workspaceName,
+  workspaceName: _workspaceName,
   profileName,
   profileDeleted,
   showProfileBadge
@@ -75,19 +76,22 @@ export function ConversationItem({
   const { ref: droppableRef, isDropTarget } = useDroppable({
     id: conversation.id,
     data: {
-      conversationId: conversation.id,
-    },
+      conversationId: conversation.id
+    }
   })
 
   console.log(`[ConversationItem] useDroppable for ${conversation.id}`, {
     isDropTarget,
-    title: conversation.title,
+    title: conversation.title
   })
 
   // Combine refs: droppableRef is a callback ref, call it directly
   const combinedRef = useCallback(
     (node: HTMLDivElement | null) => {
-      console.log(`[ConversationItem] combinedRef called for ${conversation.id}`, { node })
+      console.log(
+        `[ConversationItem] combinedRef called for ${conversation.id}`,
+        { node }
+      )
       containerRef.current = node
       droppableRef(node)
     },
@@ -96,7 +100,10 @@ export function ConversationItem({
 
   // Log when isDropTarget changes
   useEffect(() => {
-    console.log(`[ConversationItem] isDropTarget changed for ${conversation.id}:`, isDropTarget)
+    console.log(
+      `[ConversationItem] isDropTarget changed for ${conversation.id}:`,
+      isDropTarget
+    )
   }, [isDropTarget, conversation.id])
 
   // ── Listen to the custom drag-drop event from GlobalDropZone (external files) ──
@@ -246,6 +253,8 @@ export function ConversationItem({
       <div className="flex-1 min-w-0 relative z-10">
         <div className="flex items-center gap-1 h-5">
           {isRenaming ? (
+            // biome-ignore lint/a11y/noStaticElementInteractions: propagation guard only
+            // biome-ignore lint/a11y/useKeyWithClickEvents: propagation guard only
             <div className="flex-1 h-full" onClick={(e) => e.stopPropagation()}>
               <input
                 ref={inputRef}

@@ -1,8 +1,8 @@
 // src/components/layout/catalog-card.tsx
 
-import { ReactNode, useState } from 'react'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { Check, ExternalLink, Loader2, Package, Plus } from 'lucide-react'
+import { type ReactNode, useState } from 'react'
 import { toast } from '@/components/ui/toast'
 import { cn } from '@/lib/utils'
 import type { CatalogEntry } from './mcp-tab'

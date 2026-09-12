@@ -1,22 +1,28 @@
 'use client'
 
-import React from 'react'
-import { toast as sonnerToast, Toaster as SonnerToaster } from 'sonner'
-import {
-  X,
-  CheckCircle,
-  AlertTriangle,
-  Info,
-  XCircle,
-  Loader2,
-} from 'lucide-react'
 import { motion } from 'framer-motion'
+import {
+  AlertTriangle,
+  CheckCircle,
+  Info,
+  Loader2,
+  X,
+  XCircle
+} from 'lucide-react'
+import type React from 'react'
+import { Toaster as SonnerToaster, toast as sonnerToast } from 'sonner'
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
 
-type ToastType = 'default' | 'success' | 'error' | 'info' | 'warning' | 'loading'
+type ToastType =
+  | 'default'
+  | 'success'
+  | 'error'
+  | 'info'
+  | 'warning'
+  | 'loading'
 
 interface ToastAction {
   label: string
@@ -49,17 +55,19 @@ function ToastTextEffect({ words }: { words: string }) {
     <>
       {wordsArray.map((word, idx) => (
         <motion.span
+          // biome-ignore lint/suspicious/noArrayIndexKey: sequence-position key for stagger
           key={word + idx}
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{
             duration: 0.4,
-            delay: baseDelay + (idx * stagger),
-            ease: 'easeOut',
+            delay: baseDelay + idx * stagger,
+            ease: 'easeOut'
           }}
           className="inline-block"
         >
-          {word}{idx < wordsArray.length - 1 ? '\u00A0' : ''}
+          {word}
+          {idx < wordsArray.length - 1 ? '\u00A0' : ''}
         </motion.span>
       ))}
     </>
@@ -70,53 +78,54 @@ function ToastTextEffect({ words }: { words: string }) {
 /*  Config                                                             */
 /* ------------------------------------------------------------------ */
 
-const typeConfig: Record<ToastType, { gradient: string; iconBg: string; iconColor: string }> = {
+const typeConfig: Record<
+  ToastType,
+  { gradient: string; iconBg: string; iconColor: string }
+> = {
   default: {
     gradient: 'from-[var(--brand-primary-light)]/5 to-transparent',
     iconBg: 'bg-[var(--brand-primary-light)]/15',
-    iconColor: 'text-[var(--brand-primary-light)]',
+    iconColor: 'text-[var(--brand-primary-light)]'
   },
   success: {
     gradient: 'from-[var(--brand-primary-light)]/10 to-transparent',
     iconBg: 'bg-[var(--brand-primary-light)]/15',
-    iconColor: 'text-[var(--brand-primary-light)]',
+    iconColor: 'text-[var(--brand-primary-light)]'
   },
   error: {
     gradient: 'from-[var(--destructive)]/10 to-transparent',
     iconBg: 'bg-[var(--destructive)]/15',
-    iconColor: 'text-[var(--destructive)]',
+    iconColor: 'text-[var(--destructive)]'
   },
   info: {
     gradient: 'from-[#6c47ff]/10 dark:from-[#8f6eff]/10 to-transparent',
     iconBg: 'bg-[#6c47ff]/15 dark:bg-[#8f6eff]/15',
-    iconColor: 'text-[#6c47ff] dark:text-[#8f6eff]',
+    iconColor: 'text-[#6c47ff] dark:text-[#8f6eff]'
   },
   warning: {
     gradient: 'from-[var(--brand-accent)]/10 to-transparent',
     iconBg: 'bg-[var(--brand-accent)]/15',
-    iconColor: 'text-[var(--brand-accent)]',
+    iconColor: 'text-[var(--brand-accent)]'
   },
   loading: {
     gradient: 'from-[var(--brand-primary-light)]/5 to-transparent',
     iconBg: 'bg-[var(--brand-primary-light)]/15',
-    iconColor: 'text-[var(--brand-primary-light)]',
-  },
+    iconColor: 'text-[var(--brand-primary-light)]'
+  }
 }
 
 /* ------------------------------------------------------------------ */
 /*  Icons                                                              */
 /* ------------------------------------------------------------------ */
 
-const typeIcons: Record<ToastType, React.ReactNode> = (
-  [
-    ['default', <Info className="h-4 w-4" />],
-    ['success', <CheckCircle className="h-4 w-4" />],
-    ['error', <XCircle className="h-4 w-4" />],
-    ['info', <Info className="h-4 w-4" />],
-    ['warning', <AlertTriangle className="h-4 w-4" />],
-    ['loading', <Loader2 className="h-4 w-4 animate-spin" />],
-  ] as const
-).reduce((acc, [key, icon]) => ({ ...acc, [key]: icon }), {}) as Record<ToastType, React.ReactNode>
+const typeIcons: Record<ToastType, React.ReactNode> = {
+  default: <Info key="default" className="h-4 w-4" />,
+  success: <CheckCircle key="success" className="h-4 w-4" />,
+  error: <XCircle key="error" className="h-4 w-4" />,
+  info: <Info key="info" className="h-4 w-4" />,
+  warning: <AlertTriangle key="warning" className="h-4 w-4" />,
+  loading: <Loader2 key="loading" className="h-4 w-4 animate-spin" />
+}
 
 /* ------------------------------------------------------------------ */
 /*  Toast Component                                                    */
@@ -128,7 +137,7 @@ function Toast({
   message,
   description,
   action,
-  dismissible = true,
+  dismissible = true
 }: InternalToastProps) {
   const config = typeConfig[type]
 
@@ -143,9 +152,7 @@ function Toast({
         transition={{ duration: 0.4, delay: 0.05, ease: 'easeOut' }}
         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${config.iconBg}`}
       >
-        <div className={config.iconColor}>
-          {typeIcons[type]}
-        </div>
+        <div className={config.iconColor}>{typeIcons[type]}</div>
       </motion.div>
 
       {/* Body */}
@@ -163,6 +170,7 @@ function Toast({
       {/* Action Button */}
       {action && (
         <button
+          type="button"
           onClick={() => {
             action.onClick()
             sonnerToast.dismiss(id)
@@ -176,6 +184,7 @@ function Toast({
       {/* Dismiss Button */}
       {dismissible && !action && (
         <button
+          type="button"
           onClick={() => sonnerToast.dismiss(id)}
           className="shrink-0 rounded-lg p-1.5 text-muted-foreground/60 hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
           aria-label="Dismiss"
@@ -220,7 +229,7 @@ export const toast = {
       success: string | ((data: T) => string)
       error: string | ((err: unknown) => string)
     },
-    options?: ToastOptions,
+    options?: ToastOptions
   ) =>
     sonnerToast.promise(promise, {
       loading: () =>
@@ -229,17 +238,19 @@ export const toast = {
         createToast({
           type: 'success',
           message:
-            typeof opts.success === 'function' ? opts.success(data) : opts.success,
-          ...options,
+            typeof opts.success === 'function'
+              ? opts.success(data)
+              : opts.success,
+          ...options
         }),
       error: (err: unknown) =>
         createToast({
           type: 'error',
           message:
             typeof opts.error === 'function' ? opts.error(err) : opts.error,
-          ...options,
-        }),
-    }),
+          ...options
+        })
+    })
 } as const
 
 /* ------------------------------------------------------------------ */
@@ -248,12 +259,12 @@ export const toast = {
 
 export function Toaster(props?: {
   position?:
-  | 'top-left'
-  | 'top-center'
-  | 'top-right'
-  | 'bottom-left'
-  | 'bottom-center'
-  | 'bottom-right'
+    | 'top-left'
+    | 'top-center'
+    | 'top-right'
+    | 'bottom-left'
+    | 'bottom-center'
+    | 'bottom-right'
   gap?: number
 }) {
   return (
@@ -264,8 +275,8 @@ export function Toaster(props?: {
         unstyled: true,
         classNames: {
           toast:
-            '!block !p-0 !m-0 !border-0 !shadow-none !outline-none !ring-0 !gap-0 !overflow-visible',
-        },
+            '!block !p-0 !m-0 !border-0 !shadow-none !outline-none !ring-0 !gap-0 !overflow-visible'
+        }
       }}
     />
   )

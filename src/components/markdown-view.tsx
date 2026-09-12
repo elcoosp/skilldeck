@@ -5,8 +5,8 @@ import { motion } from 'framer-motion'
 import { Bookmark } from 'lucide-react'
 import type { JSX } from 'react'
 import { memo, useCallback } from 'react'
-import { toast } from '@/components/ui/toast'
 import { CodeBlock } from '@/components/conversation/code-block'
+import { toast } from '@/components/ui/toast'
 import { useBookmarks, useToggleBookmark } from '@/hooks/use-bookmarks'
 import type { MdNode, NodeDocument } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
@@ -330,7 +330,7 @@ const NodeRenderer = memo(
           <CodeBlock
             language={node.language}
             artifactId={node.artifact_id}
-            highlightedLines={node.highlighted_lines}   // ← changed from highlightedHtml
+            highlightedLines={node.highlighted_lines} // ← changed from highlightedHtml
             isStreaming={isStreaming}
             scrollContainerRef={scrollContainerRef}
             lineCount={node.line_count}

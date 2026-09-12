@@ -1,12 +1,12 @@
 // src/components/conversation/message-input.tsx
 // Full file with concierge-ui additions (suggested prompts, auto-approve toggle, thinking mode, compaction)
 
+import { useQueryClient } from '@tanstack/react-query'
 import { open } from '@tauri-apps/plugin-dialog'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
   AlertTriangle,
-  AtSign,
   BrainCircuit,
   DollarSign,
   Globe,
@@ -26,9 +26,7 @@ import {
   useRef,
   useState
 } from 'react'
-import { toast } from '@/components/ui/toast'
 import { useDebouncedCallback } from 'use-debounce'
-import { AttachedItemsList } from '@/components/chat/attached-items-list'
 import { ChatCommandPalette } from '@/components/chat/chat-command-palette'
 import { ContextChip } from '@/components/chat/context-chip'
 import { FileMentionPicker } from '@/components/chat/file-mention-picker'
@@ -44,6 +42,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Textarea } from '@/components/ui/textarea'
+import { toast } from '@/components/ui/toast'
 import {
   Tooltip,
   TooltipContent,
@@ -70,7 +69,6 @@ import { useChatContextStore } from '@/store/chat-context-store'
 import { useConversationStore } from '@/store/conversation'
 import { useQueueStore } from '@/store/queue'
 import { useSettingsStore } from '@/store/settings'
-import { useToolApprovalStore } from '@/store/tool-approvals'
 import { useUIEphemeralStore } from '@/store/ui-ephemeral'
 import { useWorkspaceStore } from '@/store/workspace'
 import type {
@@ -79,7 +77,6 @@ import type {
   TriggerState
 } from '@/types/chat-context'
 import type { UnifiedSkill } from '@/types/skills'
-import { useQueryClient } from '@tanstack/react-query'
 
 interface MessageInputProps {
   conversationId: UUID
@@ -213,11 +210,11 @@ export function MessageInput({
     if (!el) return
     el.style.height = 'auto'
     el.style.height = `${Math.min(el.scrollHeight, MAX_HEIGHT)}px`
-  }, [content])
+  }, [])
 
   useEffect(() => {
     textareaRef.current?.focus()
-  }, [conversationId])
+  }, [])
 
   // ─── Draft persistence: load from DB on mount ────────────────────────────────
   useEffect(() => {

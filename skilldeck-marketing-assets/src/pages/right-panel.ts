@@ -1,13 +1,22 @@
-import { Page, Locator } from '@playwright/test';
-import { BasePage } from './base-page';
+import type { Page } from '@playwright/test'
+import { BasePage } from './base-page'
 
 export class RightPanel extends BasePage {
   constructor(page: Page) {
-    super(page);
+    super(page)
   }
 
-  async openTab(tabName: 'session' | 'skills' | 'mcp' | 'workflow' | 'analytics' | 'artifacts' | 'files'): Promise<void> {
-    const tab = this.rightPanel.locator(`button[aria-label="${tabName}"]`);
-    await tab.click();
+  async openTab(
+    tabName:
+      | 'session'
+      | 'skills'
+      | 'mcp'
+      | 'workflow'
+      | 'analytics'
+      | 'artifacts'
+      | 'files'
+  ): Promise<void> {
+    const tab = this.rightPanel.locator(`button[aria-label="${tabName}"]`)
+    await tab.click()
   }
 }

@@ -55,6 +55,9 @@ export default defineConfig({
             enabled: true,
             // Explicitly defining the provider resolves the "Type string" error
             provider: playwright(),
+            locators: {
+              exact: false
+            },
             instances: [
               { browser: 'chromium' }
               // You can add 'firefox' and 'webkit' here if installed

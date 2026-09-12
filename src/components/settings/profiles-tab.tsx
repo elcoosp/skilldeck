@@ -2,7 +2,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, ChevronRight, Plus, Star, Trash2 } from 'lucide-react'
 import { useState } from 'react'
-import { toast } from '@/components/ui/toast'
 import { SettingsSection } from '@/components/settings/settings-section'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -10,6 +9,7 @@ import { ModelSelectorWithIcon } from '@/components/ui/model-selector-with-icon'
 import { ProviderDropdown } from '@/components/ui/provider-dropdown'
 import { ProviderIcon } from '@/components/ui/provider-icon'
 import { Textarea } from '@/components/ui/textarea'
+import { toast } from '@/components/ui/toast'
 import {
   useDeleteProfile,
   useProfiles,
@@ -137,7 +137,7 @@ export function ProfilesTab() {
 
               {/* Model selector with icons */}
               <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">Model</label>
+                <span className="text-xs text-muted-foreground">Model</span>
                 {newProvider === 'ollama' ? (
                   <ModelSelectorWithIcon
                     value={newModel || (models[0] ?? '')}
@@ -284,10 +284,14 @@ export function ProfilesTab() {
                   {/* Inline system prompt editor */}
                   {expandedProfileId === p.id && (
                     <div className="mt-3 border-t pt-3">
-                      <label className="text-sm font-medium">
+                      <label
+                        htmlFor="edit-system-prompt"
+                        className="text-sm font-medium"
+                      >
                         Personality / System Prompt
                       </label>
                       <Textarea
+                        id="edit-system-prompt"
                         className="mt-1.5 min-h-[100px]"
                         placeholder="You are a helpful assistant with a concise, direct style..."
                         value={editSystemPrompt}

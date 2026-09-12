@@ -35,14 +35,14 @@ describe('useSubagentEvents', () => {
     captures['subagent-status']({
       payload: { subagentId: 's1', status: 'running' }
     })
-    expect(useSubagentStore.getState().subagents['s1']).toMatchObject({
+    expect(useSubagentStore.getState().subagents.s1).toMatchObject({
       status: 'running'
     })
 
     captures['subagent-artifact']({
       payload: { subagentId: 's1', artifact: { kind: 'code' } }
     })
-    expect(useSubagentStore.getState().subagents['s1']).toMatchObject({
+    expect(useSubagentStore.getState().subagents.s1).toMatchObject({
       result: JSON.stringify({ kind: 'code' }),
       status: 'completed'
     })

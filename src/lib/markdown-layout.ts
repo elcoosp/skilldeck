@@ -148,8 +148,10 @@ function stripHtml(html: string): string {
 function extractListItems(html: string): string[] {
   const items: string[] = []
   const re = /<li[^>]*>([\s\S]*?)<\/li>/gi
-  let m
-  while ((m = re.exec(html)) !== null) {
+  let m: RegExpExecArray | null = null
+  for (;;) {
+    m = re.exec(html)
+    if (!m) break
     const t = stripHtml(m[1])
     if (t) items.push(t)
   }
@@ -309,6 +311,10 @@ function prepareBlocks(
         return { kind: 'hr' }
       case 'html':
         return { kind: 'html' }
+      default: {
+        const _exhaustive: never = b
+        throw new Error(`Unhandled block kind: ${_exhaustive}`)
+      }
     }
   })
 }

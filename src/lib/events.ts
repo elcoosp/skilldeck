@@ -7,8 +7,8 @@
  */
 
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
-import type { UUID } from './types'
 import type { NodeDocument } from '@/lib/bindings'
+import type { UUID } from './types'
 
 // ============================================================================
 // Agent events  ("agent-event")

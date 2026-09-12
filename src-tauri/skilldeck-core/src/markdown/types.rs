@@ -42,7 +42,7 @@ pub enum MdNode {
         id: String,
         language: String,
         raw_code: String,
-        highlighted_lines: Vec<String>,   // ← changed from highlighted_html
+        highlighted_lines: Vec<String>, // ← changed from highlighted_html
         artifact_id: Uuid,
         line_count: u32,
         file_path: Option<String>,

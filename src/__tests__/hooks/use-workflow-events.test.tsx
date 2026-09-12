@@ -37,7 +37,7 @@ describe('useWorkflowEvents', () => {
     act(() =>
       handleEvent!({ type: 'step_started', workflow_id: 'w1', step_id: 's1' })
     )
-    expect(result.current.progress?.steps['s1']).toMatchObject({
+    expect(result.current.progress?.steps.s1).toMatchObject({
       stepId: 's1',
       status: 'running'
     })
@@ -50,7 +50,7 @@ describe('useWorkflowEvents', () => {
         result: 'ok'
       })
     )
-    expect(result.current.progress?.steps['s1']).toEqual({
+    expect(result.current.progress?.steps.s1).toEqual({
       stepId: 's1',
       status: 'completed',
       result: 'ok'
@@ -91,7 +91,7 @@ describe('useWorkflowEvents', () => {
     )
     act(() => handleEvent!({ type: 'completed', id: 'other' }))
     expect(result.current.progress?.status).toBe('running')
-    expect(result.current.progress?.steps['s9']).toBeUndefined()
+    expect(result.current.progress?.steps.s9).toBeUndefined()
 
     act(() => handleEvent!({ type: 'started' }))
     expect(result.current.progress).toBeTruthy()

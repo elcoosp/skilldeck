@@ -1,39 +1,66 @@
 // src/components/conversation/code-block.tsx
 
-import { Check, ChevronDown, ChevronRight, ChevronUp, Copy, GitCompare, Hash, HelpCircle, Loader2, Play, Save, Search, Wrench, X } from 'lucide-react'
-import type React from 'react'
-import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
-import { toast } from '@/components/ui/toast'
-import { useArtifactContent } from '@/hooks/use-artifact-content'
-import { cn } from '@/lib/utils'
-import { save } from '@tauri-apps/plugin-dialog'
-import { commands } from '@/lib/bindings'
-import { Channel } from '@tauri-apps/api/core'
+import Ansi from '@curvenote/ansi-to-react'
+import { FileIcon } from '@react-symbols/icons/utils'
 import { useQuery } from '@tanstack/react-query'
+import { useVirtualizer } from '@tanstack/react-virtual'
+import { Channel } from '@tauri-apps/api/core'
+import { save } from '@tauri-apps/plugin-dialog'
+import {
+  Check,
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
+  Copy,
+  GitCompare,
+  Hash,
+  HelpCircle,
+  Loader2,
+  Play,
+  Save,
+  Search,
+  Wrench,
+  X
+} from 'lucide-react'
+import type React from 'react'
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState
+} from 'react'
+import { createPortal } from 'react-dom'
 import { VersionDiffModal } from '@/components/artifacts/version-diff-modal'
-import { useUILayoutStore } from '@/store/ui-layout'
-import { useUIEphemeralStore } from '@/store/ui-ephemeral'
-import { useSendMessage } from '@/hooks/use-messages'
-import { useConversationStore } from '@/store/conversation'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
-  DialogTitle,
+  DialogTitle
 } from '@/components/ui/dialog'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import Ansi from '@curvenote/ansi-to-react'
-import { useVirtualizer } from '@tanstack/react-virtual'
-import { FileIcon } from '@react-symbols/icons/utils'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { toast } from '@/components/ui/toast'
+import { useArtifactContent } from '@/hooks/use-artifact-content'
+import { useSendMessage } from '@/hooks/use-messages'
+import { commands } from '@/lib/bindings'
+import { cn } from '@/lib/utils'
+import { useConversationStore } from '@/store/conversation'
+import { useUIEphemeralStore } from '@/store/ui-ephemeral'
+import { useUILayoutStore } from '@/store/ui-layout'
 
 const SUPPORTED_RUN_LANGUAGES = new Set([
-  'python', 'py',
-  'javascript', 'js',
-  'bash', 'sh',
-  'ruby', 'rb',
-  'rust', 'rs'
+  'python',
+  'py',
+  'javascript',
+  'js',
+  'bash',
+  'sh',
+  'ruby',
+  'rb',
+  'rust',
+  'rs'
 ])
 
 function escapeRegExp(string: string) {
@@ -90,13 +117,14 @@ const CodeBlockHeader = memo(function CodeBlockHeader({
   searchQuery,
   setSearchQuery,
   clearHighlights,
+  clearMatches,
   searchInputRef,
   handleExplain,
   handleFix,
   matchCount,
   currentMatchIndex,
   onNextMatch,
-  onPrevMatch,
+  onPrevMatch
 }: {
   language: string
   collapsed: boolean
@@ -122,6 +150,7 @@ const CodeBlockHeader = memo(function CodeBlockHeader({
   searchQuery: string
   setSearchQuery: (q: string) => void
   clearHighlights: () => void
+  clearMatches: () => void
   searchInputRef: React.RefObject<HTMLInputElement>
   handleExplain: () => void
   handleFix: () => void
@@ -238,7 +267,10 @@ const CodeBlockHeader = memo(function CodeBlockHeader({
         {/* Left: file icon + path */}
         {filePath ? (
           <div className="flex items-center gap-1.5 min-w-0 flex-1">
-            <FileIcon fileName={filePath} className="size-3.5 flex-shrink-0 text-muted-foreground" />
+            <FileIcon
+              fileName={filePath}
+              className="size-3.5 flex-shrink-0 text-muted-foreground"
+            />
             <button
               type="button"
               onClick={handleOpenArtifact}
@@ -279,9 +311,14 @@ const CodeBlockHeader = memo(function CodeBlockHeader({
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="h-full w-full px-2 text-xs border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-primary"
                     style={{
-                      paddingRight: matchCount > 0
-                        ? searchQuery ? '56px' : '40px'
-                        : searchQuery ? '28px' : '8px'
+                      paddingRight:
+                        matchCount > 0
+                          ? searchQuery
+                            ? '56px'
+                            : '40px'
+                          : searchQuery
+                            ? '28px'
+                            : '8px'
                     }}
                     onKeyDown={(e) => e.stopPropagation()}
                   />
@@ -294,7 +331,7 @@ const CodeBlockHeader = memo(function CodeBlockHeader({
                         onClick={() => {
                           setSearchQuery('')
                           clearHighlights()
-                          setMatchLineIndices([])
+                          clearMatches()
                           searchInputRef.current?.focus()
                         }}
                         className="p-0.5 text-muted-foreground hover:text-foreground"
@@ -339,7 +376,7 @@ const CodeBlockHeader = memo(function CodeBlockHeader({
                     setShowSearch(false)
                     setSearchQuery('')
                     clearHighlights()
-                    setMatchLineIndices([])
+                    clearMatches()
                   }}
                   className="p-1 text-muted-foreground hover:text-foreground rounded flex-shrink-0"
                 >
@@ -393,7 +430,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
     highlightedLineNumbers,
     minimapRgba: minimapRgbaProp,
     minimapWidth,
-    minimapHeight,
+    minimapHeight
   }) => {
     const [collapsed, setCollapsed] = useState(false)
     const [copied, setCopied] = useState(false)
@@ -414,8 +451,8 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
     const virtualizer = useVirtualizer({
       count: highlightedLines.length,
       getScrollElement: () => scrollableRef.current,
-      estimateSize: () => 21,      // 👈 14px * 1.5 = 21px
-      overscan: 15,
+      estimateSize: () => 21, // 👈 14px * 1.5 = 21px
+      overscan: 15
     })
 
     const isUserScrolledUp = useRef(false)
@@ -437,6 +474,8 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
     const [matchLineIndices, setMatchLineIndices] = useState<number[]>([])
     const [currentMatchIndex, setCurrentMatchIndex] = useState(0)
 
+    const clearMatches = useCallback(() => setMatchLineIndices([]), [])
+
     const [thumbTop, setThumbTop] = useState(0)
     const [thumbHeight, setThumbHeight] = useState(20)
     const [isDragging, setIsDragging] = useState(false)
@@ -445,8 +484,12 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
     const canRun = SUPPORTED_RUN_LANGUAGES.has(language)
 
     const setRightTab = useUILayoutStore((s) => s.setRightTab)
-    const setSelectedArtifactId = useUIEphemeralStore((s) => s.setSelectedArtifactId)
-    const activeConversationId = useConversationStore((s) => s.activeConversationId)
+    const setSelectedArtifactId = useUIEphemeralStore(
+      (s) => s.setSelectedArtifactId
+    )
+    const activeConversationId = useConversationStore(
+      (s) => s.activeConversationId
+    )
     const activeBranchId = useConversationStore((s) => s.activeBranchId)
     const sendMessage = useSendMessage(activeConversationId!, activeBranchId)
 
@@ -482,14 +525,15 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
         if (res.status === 'ok') return res.data
         throw new Error(res.error)
       },
-      enabled: !!artifactId,
+      enabled: !!artifactId
     })
 
     const canDiff = (versions?.length ?? 0) > 1
 
-    const displayTokenCount = tokenCount > 0
-      ? `${tokenCount} tok`
-      : `~${Math.ceil((rawCode?.length ?? 0) / 4)} tok`
+    const displayTokenCount =
+      tokenCount > 0
+        ? `${tokenCount} tok`
+        : `~${Math.ceil((rawCode?.length ?? 0) / 4)} tok`
 
     const minimapRgba = minimapRgbaProp
       ? minimapRgbaProp instanceof Uint8Array
@@ -502,7 +546,12 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
       const canvas = minimapCanvasRef.current
       if (!canvas) return
 
-      if (minimapRgba && minimapRgba.length > 0 && minimapWidth && minimapHeight) {
+      if (
+        minimapRgba &&
+        minimapRgba.length > 0 &&
+        minimapWidth &&
+        minimapHeight
+      ) {
         canvas.width = minimapWidth
         canvas.height = minimapHeight
         const ctx = canvas.getContext('2d')
@@ -527,7 +576,12 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
               ctx.fillRect(0, i * 2, canvas.width, 2)
             }
           }
-          minimapImageDataRef.current = ctx.getImageData(0, 0, canvas.width, canvas.height)
+          minimapImageDataRef.current = ctx.getImageData(
+            0,
+            0,
+            canvas.width,
+            canvas.height
+          )
         }
       }
     }, [minimapRgba, minimapWidth, minimapHeight, lineCount])
@@ -554,12 +608,25 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
     }, [drawThumb])
 
     // Search keyboard shortcut
+    const clearHighlights = useCallback(() => {
+      const container = parentRef.current
+      if (!container) return
+      container.querySelectorAll('.search-highlight').forEach((el) => {
+        const parent = el.parentNode
+        if (parent) {
+          parent.replaceChild(document.createTextNode(el.textContent || ''), el)
+          parent.normalize()
+        }
+      })
+    }, [])
+
     useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
         const container = containerRef.current
         if (!container) return
         const activeElement = document.activeElement
-        const isFocused = container === activeElement || container.contains(activeElement)
+        const isFocused =
+          container === activeElement || container.contains(activeElement)
         if (!isFocused) return
 
         if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
@@ -579,86 +646,95 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
       }
       window.addEventListener('keydown', handleKeyDown, true)
       return () => window.removeEventListener('keydown', handleKeyDown, true)
-    }, [showSearch])
-
-    const clearHighlights = useCallback(() => {
-      const container = parentRef.current
-      if (!container) return
-      container.querySelectorAll('.search-highlight').forEach(el => {
-        const parent = el.parentNode
-        if (parent) {
-          parent.replaceChild(document.createTextNode(el.textContent || ''), el)
-          parent.normalize()
-        }
-      })
-    }, [])
+    }, [showSearch, clearHighlights])
 
     // Highlight matches and collect line indices (scoped to current block)
-    const applyHighlights = useCallback((query: string) => {
-      const container = parentRef.current
-      if (!container || !query.trim()) {
+    const applyHighlights = useCallback(
+      (query: string) => {
+        const container = parentRef.current
+        if (!container || !query.trim()) {
+          clearHighlights()
+          setMatchLineIndices([])
+          setCurrentMatchIndex(0)
+          return
+        }
+
         clearHighlights()
-        setMatchLineIndices([])
-        setCurrentMatchIndex(0)
-        return
-      }
 
-      clearHighlights()
+        const regex = new RegExp(escapeRegExp(query), 'gi')
+        const matchLinesSet = new Set<number>()
 
-      const regex = new RegExp(escapeRegExp(query), 'gi')
-      const matchLinesSet = new Set<number>()
-
-      const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
-        acceptNode: (node) =>
-          regex.test(node.textContent || '') ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT,
-      })
-      const textNodes: Text[] = []
-      let node = walker.nextNode()
-      while (node) {
-        textNodes.push(node as Text)
-        node = walker.nextNode()
-      }
-
-      for (const textNode of textNodes) {
-        const text = textNode.textContent || ''
-        const frag = document.createDocumentFragment()
-        let lastIdx = 0
-        let match
-        regex.lastIndex = 0
-        while ((match = regex.exec(text)) !== null) {
-          if (match.index > lastIdx) {
-            frag.appendChild(document.createTextNode(text.slice(lastIdx, match.index)))
+        const walker = document.createTreeWalker(
+          container,
+          NodeFilter.SHOW_TEXT,
+          {
+            acceptNode: (node) =>
+              regex.test(node.textContent || '')
+                ? NodeFilter.FILTER_ACCEPT
+                : NodeFilter.FILTER_REJECT
           }
-          const mark = document.createElement('mark')
-          mark.className = 'search-highlight'
-          mark.textContent = match[0]
-          frag.appendChild(mark)
-          lastIdx = regex.lastIndex
-          if (match[0].length === 0) regex.lastIndex++
+        )
+        const textNodes: Text[] = []
+        let node = walker.nextNode()
+        while (node) {
+          textNodes.push(node as Text)
+          node = walker.nextNode()
+        }
 
-          const lineElement = textNode.parentElement?.closest('[data-line-index]')
-          if (lineElement) {
-            const lineIndex = parseInt(lineElement.getAttribute('data-line-index') || '0', 10)
-            matchLinesSet.add(lineIndex)
+        for (const textNode of textNodes) {
+          const text = textNode.textContent || ''
+          const frag = document.createDocumentFragment()
+          let lastIdx = 0
+          let match: RegExpExecArray | null = null
+          regex.lastIndex = 0
+          for (;;) {
+            match = regex.exec(text)
+            if (!match) break
+            if (match.index > lastIdx) {
+              frag.appendChild(
+                document.createTextNode(text.slice(lastIdx, match.index))
+              )
+            }
+            const mark = document.createElement('mark')
+            mark.className = 'search-highlight'
+            mark.textContent = match[0]
+            frag.appendChild(mark)
+            lastIdx = regex.lastIndex
+            if (match[0].length === 0) regex.lastIndex++
+
+            const lineElement =
+              textNode.parentElement?.closest('[data-line-index]')
+            if (lineElement) {
+              const lineIndex = parseInt(
+                lineElement.getAttribute('data-line-index') || '0',
+                10
+              )
+              matchLinesSet.add(lineIndex)
+            }
           }
+          if (lastIdx < text.length) {
+            frag.appendChild(document.createTextNode(text.slice(lastIdx)))
+          }
+          textNode.parentNode?.replaceChild(frag, textNode)
         }
-        if (lastIdx < text.length) {
-          frag.appendChild(document.createTextNode(text.slice(lastIdx)))
-        }
-        textNode.parentNode?.replaceChild(frag, textNode)
-      }
 
-      const sortedMatches = Array.from(matchLinesSet).sort((a, b) => a - b)
-      setMatchLineIndices(sortedMatches)
-      setCurrentMatchIndex(prev => sortedMatches.length > 0 ? Math.min(prev, sortedMatches.length - 1) : 0)
-    }, [clearHighlights])
+        const sortedMatches = Array.from(matchLinesSet).sort((a, b) => a - b)
+        setMatchLineIndices(sortedMatches)
+        setCurrentMatchIndex((prev) =>
+          sortedMatches.length > 0
+            ? Math.min(prev, sortedMatches.length - 1)
+            : 0
+        )
+      },
+      [clearHighlights]
+    )
 
     // Apply highlights after each render when search is active
     useLayoutEffect(() => {
       if (!showSearch || !searchQuery) return
       const timeout = setTimeout(() => applyHighlights(searchQuery), 0)
       return () => clearTimeout(timeout)
-    }, [highlightedLines, searchQuery, showSearch, applyHighlights])
+    }, [searchQuery, showSearch, applyHighlights])
 
     // Debounced typing effect
     useEffect(() => {
@@ -670,25 +746,30 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
     }, [searchQuery, applyHighlights, showSearch])
 
     // Improved scroll to match with retry, SCOPED TO CURRENT BLOCK
-    const scrollToMatchIndex = useCallback((index: number) => {
-      const lineIndex = matchLineIndices[index]
-      if (lineIndex === undefined) return
+    const scrollToMatchIndex = useCallback(
+      (index: number) => {
+        const lineIndex = matchLineIndices[index]
+        if (lineIndex === undefined) return
 
-      virtualizer.scrollToIndex(lineIndex, { align: 'center' })
+        virtualizer.scrollToIndex(lineIndex, { align: 'center' })
 
-      const container = parentRef.current
-      if (!container) return
+        const container = parentRef.current
+        if (!container) return
 
-      const checkAndScroll = () => {
-        const targetEl = container.querySelector(`[data-line-index="${lineIndex}"]`)
-        if (targetEl) {
-          targetEl.scrollIntoView({ block: 'center', behavior: 'auto' })
-        } else {
-          setTimeout(checkAndScroll, 20)
+        const checkAndScroll = () => {
+          const targetEl = container.querySelector(
+            `[data-line-index="${lineIndex}"]`
+          )
+          if (targetEl) {
+            targetEl.scrollIntoView({ block: 'center', behavior: 'auto' })
+          } else {
+            setTimeout(checkAndScroll, 20)
+          }
         }
-      }
-      setTimeout(checkAndScroll, 30)
-    }, [matchLineIndices, virtualizer])
+        setTimeout(checkAndScroll, 30)
+      },
+      [matchLineIndices, virtualizer]
+    )
 
     const onNextMatch = useCallback(() => {
       if (matchLineIndices.length === 0) return
@@ -699,7 +780,9 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
 
     const onPrevMatch = useCallback(() => {
       if (matchLineIndices.length === 0) return
-      const prev = (currentMatchIndex - 1 + matchLineIndices.length) % matchLineIndices.length
+      const prev =
+        (currentMatchIndex - 1 + matchLineIndices.length) %
+        matchLineIndices.length
       setCurrentMatchIndex(prev)
       scrollToMatchIndex(prev)
     }, [currentMatchIndex, matchLineIndices, scrollToMatchIndex])
@@ -722,7 +805,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
           timeoutRef.current = undefined
         }
         setIsRunning(false)
-        setRunError(prev => [...prev, 'Execution timed out after 30 seconds'])
+        setRunError((prev) => [...prev, 'Execution timed out after 30 seconds'])
       }, 30000)
       timeoutRef.current = timeoutId
 
@@ -730,9 +813,9 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
         const channel = new Channel<RunOutput>()
         channel.onmessage = (message) => {
           if (message.type === 'stdout' && message.line) {
-            setRunOutput(prev => [...prev, message.line!])
+            setRunOutput((prev) => [...prev, message.line!])
           } else if (message.type === 'stderr' && message.line) {
-            setRunError(prev => [...prev, message.line!])
+            setRunError((prev) => [...prev, message.line!])
           } else if (message.type === 'exit') {
             if (timeoutRef.current) {
               clearTimeout(timeoutRef.current)
@@ -740,7 +823,10 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
             }
             setIsRunning(false)
             if (message.code !== 0) {
-              setRunError(prev => [...prev, `Process exited with code ${message.code} in ${message.elapsed_ms}ms`])
+              setRunError((prev) => [
+                ...prev,
+                `Process exited with code ${message.code} in ${message.elapsed_ms}ms`
+              ])
             }
           }
         }
@@ -765,7 +851,8 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
       const handleScroll = () => {
         const { scrollTop, scrollHeight, clientHeight } = el
         if (!isProgrammaticScroll.current) {
-          isUserScrolledUp.current = Math.abs(scrollHeight - clientHeight - scrollTop) >= 10
+          isUserScrolledUp.current =
+            Math.abs(scrollHeight - clientHeight - scrollTop) >= 10
         }
         const ratio = scrollHeight > 0 ? scrollTop / scrollHeight : 0
         const visibleRatio = clientHeight / scrollHeight
@@ -782,22 +869,28 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
       return () => el.removeEventListener('scroll', handleScroll)
     }, [])
 
-    const handleMinimapClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-      const canvas = minimapCanvasRef.current
-      if (!canvas) return
-      const rect = canvas.getBoundingClientRect()
-      const y = e.clientY - rect.top
-      const ratio = Math.min(1, Math.max(0, y / rect.height))
-      const scrollable = scrollableRef.current
-      if (scrollable) {
-        scrollable.scrollTop = ratio * scrollable.scrollHeight
-      }
-    }, [])
+    const handleMinimapClick = useCallback(
+      (e: React.MouseEvent<HTMLDivElement>) => {
+        const canvas = minimapCanvasRef.current
+        if (!canvas) return
+        const rect = canvas.getBoundingClientRect()
+        const y = e.clientY - rect.top
+        const ratio = Math.min(1, Math.max(0, y / rect.height))
+        const scrollable = scrollableRef.current
+        if (scrollable) {
+          scrollable.scrollTop = ratio * scrollable.scrollHeight
+        }
+      },
+      []
+    )
 
-    const onMouseDown = useCallback((e: React.MouseEvent) => {
-      setIsDragging(true)
-      handleMinimapClick(e)
-    }, [handleMinimapClick])
+    const onMouseDown = useCallback(
+      (e: React.MouseEvent) => {
+        setIsDragging(true)
+        handleMinimapClick(e)
+      },
+      [handleMinimapClick]
+    )
 
     useEffect(() => {
       if (!isDragging) return
@@ -844,7 +937,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
 
       const interval = setInterval(scrollToBottom, 100)
       return () => clearInterval(interval)
-    }, [isStreaming, collapsed, highlightedLines.length])
+    }, [isStreaming, collapsed])
 
     // Floating header
     useEffect(() => {
@@ -927,7 +1020,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
         const defaultPath = filePath ?? `artifact.${language}`
         const selected = await save({
           defaultPath,
-          filters: [{ name: 'All Files', extensions: ['*'] }],
+          filters: [{ name: 'All Files', extensions: ['*'] }]
         })
         if (!selected) return
         await commands.writeArtifactToFile(artifactId, selected)
@@ -939,7 +1032,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
 
     const showMinimap = lineCount > 60 && !collapsed
 
-    const firstVisibleIndex = virtualizer.getVirtualItems()[0]?.index ?? 0
+    const _firstVisibleIndex = virtualizer.getVirtualItems()[0]?.index ?? 0
 
     const headerProps = {
       language,
@@ -966,13 +1059,14 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
       searchQuery,
       setSearchQuery,
       clearHighlights,
+      clearMatches,
       searchInputRef,
       handleExplain,
       handleFix,
       matchCount: matchLineIndices.length,
       currentMatchIndex,
       onNextMatch,
-      onPrevMatch,
+      onPrevMatch
     }
 
     return (
@@ -985,7 +1079,8 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
               opacity: 0,
               pointerEvents: 'none',
               borderRadius: 'var(--radius)',
-              transition: 'border-radius 200ms ease, box-shadow 200ms ease, opacity 150ms ease',
+              transition:
+                'border-radius 200ms ease, box-shadow 200ms ease, opacity 150ms ease'
             }}
           >
             <CodeBlockHeader {...headerProps} />
@@ -995,7 +1090,6 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
 
         <div
           ref={containerRef}
-          tabIndex={0}
           className="my-3 rounded-lg border border-border font-mono text-xs group/code-header focus:outline-none focus:ring-2 focus:ring-primary/50"
         >
           <div
@@ -1012,7 +1106,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
             className="overflow-hidden rounded-b-lg"
             style={{
               maxHeight: collapsed ? 0 : 384,
-              transition: 'max-height 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+              transition: 'max-height 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
             }}
           >
             <div className="relative bg-transparent">
@@ -1026,16 +1120,26 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
                 <pre
                   ref={preRef}
                   className="p-3 mt-0 mb-0"
-                  style={{ fontSize: 14, fontFamily: 'inherit', lineHeight: '21px' }}  // 👈 critical fix
+                  style={{
+                    fontSize: 14,
+                    fontFamily: 'inherit',
+                    lineHeight: '21px'
+                  }} // 👈 critical fix
                 >
                   <div
                     ref={parentRef}
-                    style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative' }}
+                    style={{
+                      height: `${virtualizer.getTotalSize()}px`,
+                      position: 'relative'
+                    }}
                   >
                     {virtualizer.getVirtualItems().map((virtualRow) => {
                       const line = highlightedLines[virtualRow.index]
-                      const isHighlighted = highlightedLineNumbers?.includes(virtualRow.index + 1)
-                      const isCurrentMatch = matchLineIndices[currentMatchIndex] === virtualRow.index
+                      const isHighlighted = highlightedLineNumbers?.includes(
+                        virtualRow.index + 1
+                      )
+                      const isCurrentMatch =
+                        matchLineIndices[currentMatchIndex] === virtualRow.index
                       const lineNumber = virtualRow.index + 1
 
                       return (
@@ -1052,7 +1156,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
                           style={{
                             transform: `translateY(${virtualRow.start}px)`,
                             display: 'flex',
-                            alignItems: 'flex-start',    // 👈 prevents stretch
+                            alignItems: 'flex-start' // 👈 prevents stretch
                           }}
                         >
                           {showLineNumbers && (
@@ -1061,8 +1165,8 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
                               style={{
                                 minWidth: `${String(lineCount).length + 2}ch`,
                                 userSelect: 'none',
-                                flexShrink: 0,            // 👈 prevent shrinking
-                                lineHeight: '21px',       // 👈 match pre line-height
+                                flexShrink: 0, // 👈 prevent shrinking
+                                lineHeight: '21px' // 👈 match pre line-height
                               }}
                             >
                               {lineNumber}
@@ -1071,11 +1175,11 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
                           <span
                             dangerouslySetInnerHTML={{ __html: line }}
                             style={{
-                              display: 'block',           // 👈 block, not inline
+                              display: 'block', // 👈 block, not inline
                               whiteSpace: 'pre-wrap',
                               fontFamily: 'inherit',
                               flex: 1,
-                              minWidth: 0,
+                              minWidth: 0
                             }}
                           />
                         </div>
@@ -1085,12 +1189,15 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
                 </pre>
               </div>
               {showMinimap && (
+                // biome-ignore lint/a11y/noStaticElementInteractions: hover-only minimap strip
                 <div
                   className="absolute right-0 top-0 h-full"
                   style={{ width: '12px', cursor: 'pointer' }}
                   onMouseEnter={() => setMinimapHovered(true)}
                   onMouseLeave={() => setMinimapHovered(false)}
                 >
+                  {/* biome-ignore lint/a11y/noStaticElementInteractions: mouse-driven scroll thumb */}
+                  {/* biome-ignore lint/a11y/useKeyWithClickEvents: mouse-driven scroll thumb */}
                   <div
                     style={{
                       position: 'absolute',
@@ -1100,7 +1207,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
                       height: '100%',
                       transition: 'width 0.15s ease',
                       pointerEvents: minimapHovered ? 'auto' : 'none',
-                      overflow: 'hidden',
+                      overflow: 'hidden'
                     }}
                     onClick={handleMinimapClick}
                     onMouseDown={onMouseDown}
@@ -1113,7 +1220,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
                         height: '100%',
                         imageRendering: 'pixelated',
                         position: 'absolute',
-                        right: 0,
+                        right: 0
                       }}
                     />
                     <canvas
@@ -1124,7 +1231,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
                         height: '100%',
                         position: 'absolute',
                         right: 0,
-                        pointerEvents: 'none',
+                        pointerEvents: 'none'
                       }}
                     />
                   </div>
@@ -1140,10 +1247,15 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <span>Code Execution Output</span>
-                {isRunning && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
+                {isRunning && (
+                  <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                )}
               </DialogTitle>
             </DialogHeader>
-            <Tabs defaultValue="stdout" className="flex-1 flex flex-col min-h-0 mt-2">
+            <Tabs
+              defaultValue="stdout"
+              className="flex-1 flex flex-col min-h-0 mt-2"
+            >
               <TabsList className="w-full justify-start">
                 <TabsTrigger value="stdout" className="flex-1">
                   stdout {runOutput.length > 0 && `(${runOutput.length})`}
@@ -1155,7 +1267,9 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
               <TabsContent value="stdout" className="flex-1 min-h-0 mt-2">
                 <ScrollArea className="h-full rounded-md border bg-muted/30 p-3">
                   {runOutput.length === 0 ? (
-                    <p className="text-muted-foreground text-sm italic">No output</p>
+                    <p className="text-muted-foreground text-sm italic">
+                      No output
+                    </p>
                   ) : (
                     <pre className="text-xs font-mono whitespace-pre-wrap break-all">
                       <Ansi>{runOutput.join('\n')}</Ansi>
@@ -1166,7 +1280,9 @@ export const CodeBlock: React.FC<CodeBlockProps> = memo(
               <TabsContent value="stderr" className="flex-1 min-h-0 mt-2">
                 <ScrollArea className="h-full rounded-md border bg-muted/30 p-3">
                   {runError.length === 0 ? (
-                    <p className="text-muted-foreground text-sm italic">No errors</p>
+                    <p className="text-muted-foreground text-sm italic">
+                      No errors
+                    </p>
                   ) : (
                     <pre className="text-xs font-mono whitespace-pre-wrap break-all text-destructive">
                       <Ansi>{runError.join('\n')}</Ansi>

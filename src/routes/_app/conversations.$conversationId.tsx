@@ -1,6 +1,9 @@
 // src/routes/_app/conversations.$conversationId.tsx
+
+import { useDroppable } from '@dnd-kit/react'
 import { useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, useRouter } from '@tanstack/react-router'
+import { AnimatePresence, motion } from 'framer-motion'
 import {
   ArrowDown,
   CaseSensitive,
@@ -10,11 +13,8 @@ import {
   X
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { toast } from '@/components/ui/toast'
 import { useDebounce } from 'use-debounce'
 import { z } from 'zod'
-import { useDroppable } from '@dnd-kit/react'
-import { AnimatePresence, motion } from 'framer-motion'
 import { BranchNav } from '@/components/conversation/branch-nav'
 import { MessageInput } from '@/components/conversation/message-input'
 import {
@@ -25,6 +25,7 @@ import ThreadNavigator from '@/components/conversation/thread-navigator'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
+import { toast } from '@/components/ui/toast'
 import {
   Tooltip,
   TooltipContent,
@@ -235,7 +236,7 @@ function ConversationView() {
   }, [markAllUnseenAsSeen])
 
   useEffect(() => {
-    let unsub = () => { }
+    let unsub = () => {}
     const t = setTimeout(() => {
       const thread = threadRef.current
       if (!thread) return
@@ -433,9 +434,9 @@ function ConversationView() {
   const { ref: droppableRef, isDropTarget } = useDroppable({
     id: `conversation-${conversationId}`,
     data: {
-      conversationId,
+      conversationId
     },
-    disabled: !conversationId || showNotFound,
+    disabled: !conversationId || showNotFound
   })
 
   if (showNotFound) {

@@ -28,6 +28,7 @@ struct ClaudeMessage {
 
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
+#[allow(dead_code)]
 enum ClaudeContent {
     Text(String),
     Blocks(Vec<ClaudeContentBlock>),
@@ -35,6 +36,7 @@ enum ClaudeContent {
 
 #[derive(Debug, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
+#[allow(dead_code)]
 enum ClaudeContentBlock {
     Text {
         text: String,
@@ -82,6 +84,7 @@ struct ClaudeRequest {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct ClaudeEvent {
     #[serde(rename = "type")]
     event_type: String,
@@ -98,6 +101,7 @@ struct ClaudeEvent {
 }
 
 #[derive(Debug, Deserialize, Default)]
+#[allow(dead_code)]
 struct ClaudeDelta {
     #[serde(default)]
     text: Option<String>,
@@ -106,6 +110,7 @@ struct ClaudeDelta {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct ClaudeMessageResponse {
     #[serde(default)]
     id: Option<String>,
@@ -122,6 +127,7 @@ struct ClaudeMessageResponse {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct ClaudeContentBlockResponse {
     #[serde(rename = "type", default)]
     block_type: Option<String>,
@@ -148,6 +154,7 @@ struct ClaudeUsage {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct ClaudeErrorEnvelope {
     #[serde(rename = "type")]
     envelope_type: String,
@@ -421,14 +428,13 @@ impl ModelProvider for ClaudeProvider {
 
                                     match serde_json::from_str::<ClaudeEvent>(data) {
                                         Ok(event) => {
-                                            if let Some(delta) = &event.delta {
-                                                if let Some(text) = &delta.text {
-                                                    if !text.is_empty() {
-                                                        items.push(Ok(CompletionChunk::Token {
-                                                            content: text.clone(),
-                                                        }));
-                                                    }
-                                                }
+                                            if let Some(delta) = &event.delta
+                                                && let Some(text) = &delta.text
+                                                && !text.is_empty()
+                                            {
+                                                items.push(Ok(CompletionChunk::Token {
+                                                    content: text.clone(),
+                                                }));
                                             }
                                             if event.event_type == "message_stop" {
                                                 let usage = event

@@ -24,7 +24,9 @@ function SyntaxThemeSync() {
   useEffect(() => {
     commands.getSyntaxCss().then((res) => {
       if (res.status === 'ok') {
-        const style = document.getElementById('syntax-theme') || document.createElement('style')
+        const style =
+          document.getElementById('syntax-theme') ||
+          document.createElement('style')
         style.id = 'syntax-theme'
         style.textContent = res.data
         document.head.appendChild(style)

@@ -1,5 +1,5 @@
-import { cn } from '@/lib/utils'
 import { Loader2 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 interface LoadingStateProps {
   message?: string
@@ -14,7 +14,9 @@ export function LoadingState({
 }: LoadingStateProps) {
   if (variant === 'spinner') {
     return (
-      <div className={cn('flex items-center justify-center gap-2 py-8', className)}>
+      <div
+        className={cn('flex items-center justify-center gap-2 py-8', className)}
+      >
         <Loader2 className="size-4 animate-spin text-muted-foreground" />
         {message && <p className="text-xs text-muted-foreground">{message}</p>}
       </div>
@@ -32,7 +34,12 @@ export function LoadingState({
 
   // pulse (default) – subtle breathing indicator
   return (
-    <div className={cn('flex flex-col items-center justify-center gap-2 py-8', className)}>
+    <div
+      className={cn(
+        'flex flex-col items-center justify-center gap-2 py-8',
+        className
+      )}
+    >
       <div className="relative">
         <div className="size-2 rounded-full bg-primary/30 animate-ping absolute inset-0" />
         <div className="size-2 rounded-full bg-primary/60 relative" />

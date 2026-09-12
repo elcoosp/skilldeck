@@ -1,7 +1,5 @@
 // src/hooks/use-edit-message.ts
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { invoke } from '@tauri-apps/api/core'
-import type { UUID } from '@/lib/types'
 
 export function useEditMessage() {
   const queryClient = useQueryClient()

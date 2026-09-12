@@ -11,8 +11,8 @@ import { invoke } from '@tauri-apps/api/core'
 import { motion } from 'framer-motion'
 import { GitBranch } from 'lucide-react'
 import * as React from 'react'
-import { toast } from '@/components/ui/toast'
 import { Button } from '@/components/ui/button'
+import { toast } from '@/components/ui/toast'
 import { useSendMessage } from '@/hooks/use-messages'
 import { useWorkspaceGitStatus } from '@/hooks/use-workspace-git'
 import { useWorkspaces } from '@/hooks/use-workspaces'
@@ -98,7 +98,7 @@ const VirtualRow = React.memo(
     searchQuery,
     searchCaseSensitive,
     searchRegex,
-    isLast,
+    _isLast,
     measureRef
   }: VirtualRowProps) => {
     return (
@@ -171,7 +171,7 @@ export const MessageThread = React.forwardRef<
       onVisibleUserIndexChange,
       onMessageVisible,
       branchParentMessageId,
-      headings = []
+      _headings = []
     },
     ref
   ) => {
@@ -313,10 +313,10 @@ export const MessageThread = React.forwardRef<
         const chipHeight =
           (msg.context_items?.length ?? 0) > 0
             ? estimateContextChipHeight(
-              msg.context_items!.length,
-              effectiveWidth,
-              DEFAULT_CHROME_CONFIG
-            )
+                msg.context_items!.length,
+                effectiveWidth,
+                DEFAULT_CHROME_CONFIG
+              )
             : 0
 
         return baseHeight + chipHeight
@@ -597,7 +597,7 @@ export const MessageThread = React.forwardRef<
         getScrollPosition: () => scrollRef.current?.scrollTop ?? 0,
         onScroll: (cb: () => void) => {
           const el = scrollRef.current
-          if (!el) return () => { }
+          if (!el) return () => {}
           el.addEventListener('scroll', cb, { passive: true })
           return () => el.removeEventListener('scroll', cb)
         }
@@ -709,7 +709,7 @@ export const MessageThread = React.forwardRef<
                     const retryAvailable = (message as any).retryAvailable
                     const handleRetry = retryAvailable
                       ? () =>
-                        sendMutation.mutateAsync({ content: message.content })
+                          sendMutation.mutateAsync({ content: message.content })
                       : undefined
 
                     return (

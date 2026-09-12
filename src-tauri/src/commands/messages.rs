@@ -65,6 +65,7 @@ pub struct SearchMessagesResult {
 
 /// Request for searching all messages across conversations.
 #[derive(Debug, Deserialize, Type)]
+#[allow(dead_code)]
 pub struct GlobalSearchRequest {
     pub query: String,
     pub limit: Option<u64>,
@@ -259,6 +260,7 @@ pub async fn search_messages(
 /// Search all messages across conversations using FTS5.
 #[specta]
 #[tauri::command]
+#[allow(dead_code)]
 pub async fn search_all_messages(
     state: State<'_, Arc<AppState>>,
     req: GlobalSearchRequest,
@@ -375,6 +377,7 @@ pub async fn resolve_tool_approval(
 
 #[specta]
 #[tauri::command]
+#[allow(dead_code)]
 pub async fn mark_messages_seen(
     state: State<'_, Arc<AppState>>,
     conversation_id: String,
@@ -436,6 +439,7 @@ pub async fn get_conversation_bootstrap(
 // Internal send function (returns the user message ID)
 // =============================================================================
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn send_message_internal(
     state: Arc<AppState>,
     conversation_id: String,
@@ -564,6 +568,7 @@ pub(crate) async fn send_message_internal(
 ///
 /// Used both on the success path (status = "active") and on error paths
 /// (status = "incomplete") to avoid losing partial streamed content.
+#[allow(clippy::too_many_arguments)]
 async fn persist_assistant_message(
     db: &DatabaseConnection,
     conv_uuid: Uuid,
@@ -826,6 +831,7 @@ impl SubagentSpawner for SpawnerWithContext {
         Ok(merged)
     }
 }
+#[allow(dead_code)]
 fn is_retryable_error(e: &skilldeck_core::CoreError) -> bool {
     matches!(
         e,
@@ -837,6 +843,7 @@ fn is_retryable_error(e: &skilldeck_core::CoreError) -> bool {
 }
 /// Run the agent loop in a spawned task.
 #[allow(unused_variables)]
+#[allow(clippy::too_many_arguments)]
 fn run_agent_loop(
     state: Arc<AppState>,
     conversation_id: String,
@@ -1593,56 +1600,52 @@ fn run_agent_loop(
                     );
                 }
 
-                if !accumulated_content.is_empty() {
-                    if let Ok(db) = state.registry.db.connection().await {
-                        let doc = state.markdown.render_final(&accumulated_content);
-                        // For incomplete messages, we don't have thinking content, but we may have a final thinking document
-                        let incomplete_thinking_doc = if let Some(stream) = thinking_streamer.take()
-                        {
-                            let t_doc = stream.finalize();
-                            tracing::debug!(
-                                target: "agent::thinking",
-                                conversation_id = %conversation_id,
-                                stable_nodes = t_doc.stable_nodes.len(),
-                                draft_nodes = t_doc.draft_nodes.len(),
-                                "Finalized incomplete thinking document in error path"
-                            );
-                            Some(t_doc)
-                        } else {
-                            final_thinking_document.clone()
-                        };
+                if !accumulated_content.is_empty()
+                    && let Ok(db) = state.registry.db.connection().await
+                {
+                    let doc = state.markdown.render_final(&accumulated_content);
+                    // For incomplete messages, we don't have thinking content, but we may have a final thinking document
+                    let incomplete_thinking_doc = if let Some(stream) = thinking_streamer.take() {
+                        let t_doc = stream.finalize();
+                        tracing::debug!(
+                            target: "agent::thinking",
+                            conversation_id = %conversation_id,
+                            stable_nodes = t_doc.stable_nodes.len(),
+                            draft_nodes = t_doc.draft_nodes.len(),
+                            "Finalized incomplete thinking document in error path"
+                        );
+                        Some(t_doc)
+                    } else {
+                        final_thinking_document.clone()
+                    };
 
-                        match persist_assistant_message(
-                            db,
-                            conv_uuid,
-                            branch_uuid,
-                            accumulated_content,
-                            "incomplete",
-                            0,
-                            0,
-                            0,
-                            0,
-                            doc,
-                            None, // no thinking content for incomplete message
-                            incomplete_thinking_doc,
-                            chrono::Utc::now().fixed_offset(),
-                        )
-                        .await
-                        {
-                            Ok(_) => {
-                                let _ = app.emit(
-                                    "agent-event",
-                                    AgentEvent::Persisted {
-                                        conversation_id: conversation_id.clone(),
-                                    },
-                                );
-                            }
-                            Err(persist_err) => {
-                                tracing::warn!(
-                                    "Failed to persist incomplete message: {}",
-                                    persist_err
-                                );
-                            }
+                    match persist_assistant_message(
+                        db,
+                        conv_uuid,
+                        branch_uuid,
+                        accumulated_content,
+                        "incomplete",
+                        0,
+                        0,
+                        0,
+                        0,
+                        doc,
+                        None, // no thinking content for incomplete message
+                        incomplete_thinking_doc,
+                        chrono::Utc::now().fixed_offset(),
+                    )
+                    .await
+                    {
+                        Ok(_) => {
+                            let _ = app.emit(
+                                "agent-event",
+                                AgentEvent::Persisted {
+                                    conversation_id: conversation_id.clone(),
+                                },
+                            );
+                        }
+                        Err(persist_err) => {
+                            tracing::warn!("Failed to persist incomplete message: {}", persist_err);
                         }
                     }
                 }

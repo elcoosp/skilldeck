@@ -1,20 +1,20 @@
-import fs from 'fs/promises';
-import path from 'path';
+import fs from 'node:fs/promises'
+import path from 'node:path'
 
-const resultsDir = path.join(__dirname, '../test-results');
+const resultsDir = path.join(__dirname, '../test-results')
 
 async function renameVideos() {
-  const entries = await fs.readdir(resultsDir, { withFileTypes: true });
+  const entries = await fs.readdir(resultsDir, { withFileTypes: true })
   for (const entry of entries) {
     if (entry.isDirectory() && entry.name.includes('marketing')) {
-      const videoPath = path.join(resultsDir, entry.name, 'video.webm');
+      const videoPath = path.join(resultsDir, entry.name, 'video.webm')
       try {
-        await fs.access(videoPath);
+        await fs.access(videoPath)
         // Extract test name from directory (e.g., "empty-state-Landing-chromium")
-        const testName = entry.name.split('-').slice(0, -1).join('-');
-        const newPath = path.join(resultsDir, `${testName}.webm`);
-        await fs.rename(videoPath, newPath);
-        console.log(`Renamed ${videoPath} -> ${newPath}`);
+        const testName = entry.name.split('-').slice(0, -1).join('-')
+        const newPath = path.join(resultsDir, `${testName}.webm`)
+        await fs.rename(videoPath, newPath)
+        console.log(`Renamed ${videoPath} -> ${newPath}`)
       } catch {
         // video might not exist yet
       }
@@ -22,4 +22,4 @@ async function renameVideos() {
   }
 }
 
-renameVideos().catch(console.error);
+renameVideos().catch(console.error)

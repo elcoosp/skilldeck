@@ -1,7 +1,7 @@
 // src/components/settings/lint-config.tsx
 
 import { openUrl } from '@tauri-apps/plugin-opener'
-import { Settings2, ToggleLeft, ToggleRight } from 'lucide-react'
+import { ToggleLeft, ToggleRight } from 'lucide-react'
 import { useState } from 'react'
 import { SettingsSection } from '@/components/settings/settings-section'
 import { useDisableRule, useLintRules } from '@/hooks/use-lint'

@@ -240,7 +240,6 @@
   --animate-shiny-text: shiny-text 8s infinite;
 
   @keyframes shiny-text {
-
     0%,
     90%,
     100% {
@@ -437,6 +436,15 @@
 /* ============================================ */
 /* Code block horizontal scrollbar & wrapping   */
 /* ============================================ */
+
+/* Base pre styles */
+pre {
+  font-family: inherit;
+  tab-size: 2;
+  line-height: 1.5;
+  margin: 0;
+}
+
 .prose pre,
 pre[class*="language-"] {
   overflow-x: auto;
@@ -491,14 +499,6 @@ code[data-inline-code]:hover {
 /* ============================================ */
 /* Code block line numbers styling              */
 /* ============================================ */
-
-/* Base pre styles */
-pre {
-  font-family: inherit;
-  tab-size: 2;
-  line-height: 1.5;
-  margin: 0;
-}
 
 /* When line numbers are enabled */
 .code-with-lines {
@@ -575,7 +575,7 @@ pre {
   margin: 0;
   padding: 0;
   display: inline;
-  background-color: transparent !important;
+  background-color: transparent;
   font-family: inherit;
   font-size: inherit;
   line-height: inherit;

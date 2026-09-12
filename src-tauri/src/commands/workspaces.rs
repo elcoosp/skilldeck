@@ -7,7 +7,6 @@ use serde::{Deserialize, Serialize};
 use specta::{Type, specta};
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tauri::State;
-use tokio::fs;
 use uuid::Uuid;
 
 use crate::state::AppState;
@@ -208,6 +207,7 @@ pub async fn list_workspaces(
 }
 
 #[derive(Debug, Serialize, Deserialize, Type)]
+#[allow(dead_code)]
 pub struct GitStatus {
     pub is_git_repo: bool,
     pub has_uncommitted: bool,
@@ -216,6 +216,7 @@ pub struct GitStatus {
 /// Check if the given workspace path is a git repository and whether it has uncommitted changes.
 #[specta]
 #[tauri::command]
+#[allow(dead_code)]
 pub async fn check_git_status(workspace_path: String) -> Result<GitStatus, String> {
     let is_git_repo = std::process::Command::new("git")
         .args(["rev-parse", "--is-inside-work-tree"])
@@ -243,6 +244,7 @@ pub async fn check_git_status(workspace_path: String) -> Result<GitStatus, Strin
 
 #[specta]
 #[tauri::command]
+#[allow(dead_code)]
 pub async fn git_init(path: String) -> Result<(), String> {
     std::process::Command::new("git")
         .arg("init")
@@ -427,7 +429,7 @@ pub async fn list_git_status(workspace_path: String) -> Result<HashMap<String, S
             }
         } else {
             // Use the first non-space status char
-            let code = if status.chars().next() == Some(' ') {
+            let code = if status.starts_with(' ') {
                 status.chars().nth(1).unwrap().to_string()
             } else {
                 status.chars().next().unwrap().to_string()

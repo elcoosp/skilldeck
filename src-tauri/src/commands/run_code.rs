@@ -1,11 +1,11 @@
+use serde::Serialize;
+use specta::Type;
 use std::io::Write;
 use std::time::Instant;
 use tauri::ipc::Channel;
+use tempfile::Builder as TempFileBuilder;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
-use serde::Serialize;
-use specta::Type;
-use tempfile::Builder as TempFileBuilder;
 
 #[derive(Debug, Clone, Serialize, Type)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -115,7 +115,7 @@ pub async fn run_code_snippet(
             return Err(format!(
                 "Running '{}' is not supported for security reasons",
                 language
-            ))
+            ));
         }
     };
 

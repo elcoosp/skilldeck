@@ -26,7 +26,7 @@ export default function ChangelogPage() {
                   if (line.startsWith('## ')) {
                     return (
                       <h2
-                        key={i}
+                        key={line}
                         className="text-2xl font-bold text-foreground mt-10 mb-4"
                       >
                         {line.replace('## ', '')}
@@ -36,7 +36,7 @@ export default function ChangelogPage() {
                   if (line.startsWith('### ')) {
                     return (
                       <h3
-                        key={i}
+                        key={line}
                         className="text-lg font-semibold text-foreground mt-6 mb-2"
                       >
                         {line.replace('### ', '')}
@@ -45,13 +45,17 @@ export default function ChangelogPage() {
                   }
                   if (line.startsWith('- ')) {
                     return (
-                      <li key={i} className="ml-4">
+                      <li key={line} className="ml-4">
                         {line.replace('- ', '')}
                       </li>
                     )
                   }
-                  if (line.trim() === '') return <br key={i} />
-                  return <p key={i}>{line}</p>
+                  if (line.trim() === '')
+                    return (
+                      // biome-ignore lint/suspicious/noArrayIndexKey: changelog line positions are the stable key
+                      <br key={`empty-${i}`} />
+                    )
+                  return <p key={line}>{line}</p>
                 })}
               </div>
             ) : (

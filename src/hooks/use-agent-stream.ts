@@ -268,7 +268,7 @@ export function useAgentStream(conversationId: string | null) {
             stable_nodes: stableNodes,
             draft_nodes: doc.draft_nodes,
             toc_items: doc.toc_items,
-            artifact_specs: doc.artifact_specs,
+            artifact_specs: doc.artifact_specs
           }
           prevThinkingStableDocRef.current = stabilizedDoc
 

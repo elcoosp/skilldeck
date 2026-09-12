@@ -1,9 +1,8 @@
 // src/components/conversation/message-bubble.tsx
 import { save } from '@tauri-apps/plugin-dialog'
 import { writeTextFile } from '@tauri-apps/plugin-fs'
-import { AnimatePresence, motion } from 'framer-motion'
+import { motion } from 'framer-motion'
 import {
-  AlertCircle,
   Bookmark,
   BookmarkCheck,
   Bot,
@@ -647,7 +646,7 @@ function MessageBubbleInner({
       if (!dateStr) return 'just now'
       try {
         const date = new Date(dateStr)
-        if (isNaN(date.getTime())) return 'just now'
+        if (Number.isNaN(date.getTime())) return 'just now'
         return date.toLocaleTimeString()
       } catch {
         return 'just now'
@@ -876,7 +875,7 @@ function MessageBubbleInner({
     if (!dateStr) return 'just now'
     try {
       const date = new Date(dateStr)
-      if (isNaN(date.getTime())) return 'just now'
+      if (Number.isNaN(date.getTime())) return 'just now'
       return date.toLocaleTimeString()
     } catch {
       return 'just now'

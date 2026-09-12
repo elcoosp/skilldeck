@@ -361,10 +361,10 @@ pub async fn disable_lint_rule(
         .map_err(|e| e.to_string())?;
 
     // Update in-memory config for global scope so subsequent lints see the change
-    if matches!(scope, ConfigScope::Global) {
-        if let Ok(new_config) = LintConfig::from_files(Some(&config_path), None) {
-            *state.lint_config.write().await = new_config;
-        }
+    if matches!(scope, ConfigScope::Global)
+        && let Ok(new_config) = LintConfig::from_files(Some(&config_path), None)
+    {
+        *state.lint_config.write().await = new_config;
     }
 
     Ok(())

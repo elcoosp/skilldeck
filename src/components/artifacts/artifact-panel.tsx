@@ -1,13 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { FileCode } from 'lucide-react'
 import { useEffect, useRef } from 'react'
-import { commands } from '@/lib/bindings'
-import { useConversationStore } from '@/store/conversation'
-import { ArtifactItem } from './artifact-item'
 import { RightPanelHeader } from '@/components/layout/right-panel-header'
 import { EmptyState } from '@/components/ui/empty-state'
 import { LoadingState } from '@/components/ui/loading-state'
+import { commands } from '@/lib/bindings'
+import { useConversationStore } from '@/store/conversation'
 import { useUIEphemeralStore } from '@/store/ui-ephemeral'
+import { ArtifactItem } from './artifact-item'
 
 export function ArtifactPanel() {
   const activeConversationId = useConversationStore(
@@ -16,7 +16,9 @@ export function ArtifactPanel() {
   const activeBranchId = useConversationStore((s) => s.activeBranchId)
 
   const selectedArtifactId = useUIEphemeralStore((s) => s.selectedArtifactId)
-  const setSelectedArtifactId = useUIEphemeralStore((s) => s.setSelectedArtifactId)
+  const setSelectedArtifactId = useUIEphemeralStore(
+    (s) => s.setSelectedArtifactId
+  )
   const containerRef = useRef<HTMLDivElement>(null)
 
   const { data: artifacts, isLoading } = useQuery({
