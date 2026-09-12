@@ -298,7 +298,6 @@ const NodeRenderer = memo(
     node,
     messageId,
     conversationId,
-    isStreaming,
     isDraft,
     scrollContainerRef
   }: NodeRendererProps) => {
@@ -331,7 +330,7 @@ const NodeRenderer = memo(
             language={node.language}
             artifactId={node.artifact_id}
             highlightedLines={node.highlighted_lines} // ← changed from highlightedHtml
-            isStreaming={isStreaming}
+            isStreaming={isDraft}
             scrollContainerRef={scrollContainerRef}
             lineCount={node.line_count}
             filePath={node.file_path}
