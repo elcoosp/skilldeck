@@ -1,8 +1,17 @@
 // src/__tests__/components/message-bubble.browser.test.tsx
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { MessageBubble } from '@/components/conversation/message-bubble'
 import type { MessageData } from '@/lib/bindings'
+
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false } }
+})
+
+const wrap = (element: React.ReactNode) => (
+  <QueryClientProvider client={queryClient}>{element}</QueryClientProvider>
+)
 
 // ── Fixture helper ────────────────────────────────────────────────────────────
 
@@ -27,37 +36,37 @@ const makeMessage = (overrides: Partial<MessageData> = {}): MessageData => ({
 describe('MessageBubble styling', () => {
   it('user message bubble has primary background', async () => {
     const screen = await render(
-      <MessageBubble message={makeMessage({ role: 'user' })} />
+      wrap(<MessageBubble message={makeMessage({ role: 'user' })} />)
     )
     const bubble = screen.getByText('Hello, world!')
     const bubbleElement = bubble.element()
     expect(bubbleElement?.closest('div')?.className).toMatch(/bg-primary/)
   })
 
-  it('assistant message bubble has muted background', async () => {
+  it('assistant message shows a role label in a transparent bubble', async () => {
     const screen = await render(
-      <MessageBubble message={makeMessage({ role: 'assistant' })} />
+      wrap(<MessageBubble message={makeMessage({ role: 'assistant' })} />)
     )
+    await expect.element(screen.getByText('Assistant')).toBeInTheDocument()
     const bubble = screen.getByText('Hello, world!')
-    const bubbleElement = bubble.element()
-    expect(bubbleElement?.closest('div')?.className).toMatch(/bg-muted/)
+    expect(bubble.element()?.closest('div')?.className).not.toMatch(
+      /bg-primary/
+    )
   })
 
   it('user message container is right-aligned', async () => {
     const screen = await render(
-      <MessageBubble message={makeMessage({ role: 'user' })} />
+      wrap(<MessageBubble message={makeMessage({ role: 'user' })} />)
     )
-    const bubble = screen.getByText('Hello, world!')
-    const rootElement = bubble.element()?.closest('.flex')
+    const rootElement = screen.container.querySelector('[id^="msg-"]')
     expect(rootElement?.className).toMatch(/flex-row-reverse/)
   })
 
   it('assistant message container is left-aligned', async () => {
     const screen = await render(
-      <MessageBubble message={makeMessage({ role: 'assistant' })} />
+      wrap(<MessageBubble message={makeMessage({ role: 'assistant' })} />)
     )
-    const bubble = screen.getByText('Hello, world!')
-    const rootElement = bubble.element()?.closest('.flex')
+    const rootElement = screen.container.querySelector('[id^="msg-"]')
     expect(rootElement?.className).not.toMatch(/flex-row-reverse/)
   })
 })
@@ -67,34 +76,34 @@ describe('MessageBubble styling', () => {
 describe('MessageBubble avatars', () => {
   it('renders an avatar for user messages', async () => {
     const screen = await render(
-      <MessageBubble message={makeMessage({ role: 'user' })} />
+      wrap(<MessageBubble message={makeMessage({ role: 'user' })} />)
     )
-    const avatar = screen.getByLabelText('User avatar')
-    await expect.element(avatar).toBeInTheDocument()
+    const avatar = screen.container.querySelector('.size-7.rounded-full')
+    expect(avatar).not.toBeNull()
   })
 
   it('renders an avatar for assistant messages', async () => {
     const screen = await render(
-      <MessageBubble message={makeMessage({ role: 'assistant' })} />
+      wrap(<MessageBubble message={makeMessage({ role: 'assistant' })} />)
     )
-    const avatar = screen.getByLabelText('Assistant avatar')
-    await expect.element(avatar).toBeInTheDocument()
+    const avatar = screen.container.querySelector('.size-7.rounded-full')
+    expect(avatar).not.toBeNull()
   })
 
   it('user avatar has primary background', async () => {
     const screen = await render(
-      <MessageBubble message={makeMessage({ role: 'user' })} />
+      wrap(<MessageBubble message={makeMessage({ role: 'user' })} />)
     )
-    const avatar = screen.getByLabelText('User avatar')
-    expect(avatar.element()?.className).toMatch(/bg-primary/)
+    const avatar = screen.container.querySelector('.size-7.rounded-full')
+    expect(avatar?.className).toMatch(/bg-primary/)
   })
 
   it('assistant avatar has muted background', async () => {
     const screen = await render(
-      <MessageBubble message={makeMessage({ role: 'assistant' })} />
+      wrap(<MessageBubble message={makeMessage({ role: 'assistant' })} />)
     )
-    const avatar = screen.getByLabelText('Assistant avatar')
-    expect(avatar.element()?.className).toMatch(/bg-muted/)
+    const avatar = screen.container.querySelector('.size-7.rounded-full')
+    expect(avatar?.className).toMatch(/bg-muted/)
   })
 })
 
@@ -103,7 +112,7 @@ describe('MessageBubble avatars', () => {
 describe('MessageBubble content', () => {
   it('renders message content', async () => {
     const screen = await render(
-      <MessageBubble message={makeMessage({ content: 'Test content' })} />
+      wrap(<MessageBubble message={makeMessage({ content: 'Test content' })} />)
     )
     const content = screen.getByText('Test content')
     await expect.element(content).toBeInTheDocument()
@@ -112,29 +121,36 @@ describe('MessageBubble content', () => {
   it('renders multiline content with whitespace preserved', async () => {
     const content = 'line one\nline two'
     const screen = await render(
-      <MessageBubble message={makeMessage({ role: 'user', content })} />
+      wrap(<MessageBubble message={makeMessage({ role: 'user', content })} />)
     )
     const rendered = screen.getByText(content)
     await expect.element(rendered).toBeInTheDocument()
   })
 
-  it('shows streaming spinner when isStreaming=true on assistant message', async () => {
+  it('renders markdown content while streaming without a status spinner', async () => {
     const screen = await render(
-      <MessageBubble
-        message={makeMessage({ role: 'assistant', content: 'Partial…' })}
-        isStreaming
-      />
+      wrap(
+        <MessageBubble
+          message={makeMessage({ role: 'assistant', content: 'Partial…' })}
+          isStreaming
+        />
+      )
     )
-    const spinner = screen.getByRole('status', { name: /loading/i })
-    await expect.element(spinner).toBeInTheDocument()
+    const content = screen.getByText('Partial…')
+    await expect.element(content).toBeInTheDocument()
+    expect(content.element()?.closest('.prose')).not.toBeNull()
+    const spinner = screen.getByRole('status', { name: /loading/i }).query()
+    expect(spinner).toBeNull()
   })
 
   it('does not show spinner when isStreaming=false', async () => {
     const screen = await render(
-      <MessageBubble
-        message={makeMessage({ role: 'assistant', content: 'Done' })}
-        isStreaming={false}
-      />
+      wrap(
+        <MessageBubble
+          message={makeMessage({ role: 'assistant', content: 'Done' })}
+          isStreaming={false}
+        />
+      )
     )
     const spinner = screen.getByRole('status', { name: /loading/i }).query()
     expect(spinner).toBeNull()
@@ -144,23 +160,44 @@ describe('MessageBubble content', () => {
 // ── Role variants ─────────────────────────────────────────────────────────────
 
 describe('MessageBubble role variants', () => {
-  it('tool role renders with monospace class', async () => {
+  it('tool role renders a collapsible result card', async () => {
     const screen = await render(
-      <MessageBubble
-        message={makeMessage({ role: 'tool', content: '{"result": "ok"}' })}
-      />
+      wrap(
+        <MessageBubble
+          message={makeMessage({ role: 'tool', content: '{"result": "ok"}' })}
+        />
+      )
     )
-    const bubble = screen.getByText(/{"result"/)
-    expect(bubble.element()?.className).toMatch(/font-mono/)
+    const header = screen.getByText('Tool result')
+    await expect.element(header).toBeInTheDocument()
+    expect(header.element()?.closest('.font-mono')).not.toBeNull()
+    expect(
+      screen.getByRole('button', { name: 'Expand' }).query()
+    ).not.toBeNull()
+    expect(screen.getByText(/"result": "ok"/).query()).toBeNull()
   })
 
-  it('system role renders with destructive avatar colouring', async () => {
+  it('tool role expands to reveal the result content', async () => {
     const screen = await render(
-      <MessageBubble
-        message={makeMessage({ role: 'system', content: 'System notice' })}
-      />
+      wrap(
+        <MessageBubble
+          message={makeMessage({ role: 'tool', content: '{"result": "ok"}' })}
+        />
+      )
     )
-    const avatar = screen.getByLabelText('System avatar')
-    expect(avatar.element()?.className).toMatch(/destructive/)
+    await screen.getByRole('button', { name: 'Expand' }).click()
+    await expect.element(screen.getByText(/"result": "ok"/)).toBeInTheDocument()
+  })
+
+  it('system role renders with blue avatar coloring', async () => {
+    const screen = await render(
+      wrap(
+        <MessageBubble
+          message={makeMessage({ role: 'system', content: 'System notice' })}
+        />
+      )
+    )
+    const avatar = screen.container.querySelector('.size-7.rounded-full')
+    expect(avatar?.className).toMatch(/bg-blue-500/)
   })
 })

@@ -22,7 +22,7 @@ jobs:
         with:
           version: 12
           cache: true
-          cache_dependency_path: skilldeck-user-docs/pnpm-lock.yaml
+          cache_dependency_path: pnpm-lock.yaml
 
       - uses: actions/setup-node@v7
         with:
@@ -34,9 +34,8 @@ jobs:
       - name: Lint with Vale
         uses: errata-ai/vale-action@v3
         with:
-          styles: |
-            https://github.com/errata-ai/Microsoft/releases/latest/download/Microsoft.zip
-            https://github.com/errata-ai/write-good/releases/latest/download/write-good.zip
+          sync: false
+          config: skilldeck-user-docs/.vale.ini
           files: skilldeck-user-docs/src
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

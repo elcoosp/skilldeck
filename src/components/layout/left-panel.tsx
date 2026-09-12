@@ -13,10 +13,14 @@
  */
 
 import { DotLottieReact } from '@lottiefiles/dotlottie-react'
-import { useRouter, useRouterState } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
+import { useRouter, useRouterState } from '@tanstack/react-router'
 import { open } from '@tauri-apps/plugin-dialog'
 import { openUrl } from '@tauri-apps/plugin-opener'
+// ----------------------------------------------------------------------
+// Date grouping helper
+// ----------------------------------------------------------------------
+import { isToday, isValid, isYesterday, parseISO, subDays } from 'date-fns'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   ArrowUpDown,
@@ -34,7 +38,6 @@ import {
 } from 'lucide-react'
 import { Collapsible } from 'radix-ui'
 import { useEffect, useState } from 'react'
-import { toast } from '@/components/ui/toast'
 import { ConversationItem } from '@/components/conversation/conversation-item'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -46,6 +49,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
+import { toast } from '@/components/ui/toast'
 import {
   useConversations,
   useCreateConversation
@@ -64,11 +68,6 @@ import { cn } from '@/lib/utils'
 import { useSettingsStore } from '@/store/settings'
 import { useUIOverlaysStore } from '@/store/ui-overlays'
 import { useWorkspaceStore } from '@/store/workspace'
-
-// ----------------------------------------------------------------------
-// Date grouping helper
-// ----------------------------------------------------------------------
-import { isToday, isValid, isYesterday, parseISO, subDays } from 'date-fns'
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
 
 function getDateGroupKey(dateStr: string): string {
@@ -131,64 +130,121 @@ function EmptyStateAnimation({ alt, className }: EmptyStateAnimationProps) {
 // Gradient presets for workspace avatars
 // ----------------------------------------------------------------------
 const GRADIENT_PRESETS = [
-  { name: 'Instagram', value: 'linear-gradient(115deg, #f9ce34, #ee2a7b, #6228d7)' },
-  { name: 'Midnight Splash', value: 'linear-gradient(115deg, #004ff9, #000000)' },
+  {
+    name: 'Instagram',
+    value: 'linear-gradient(115deg, #f9ce34, #ee2a7b, #6228d7)'
+  },
+  {
+    name: 'Midnight Splash',
+    value: 'linear-gradient(115deg, #004ff9, #000000)'
+  },
   { name: 'Blue Sky', value: 'linear-gradient(115deg, #62cff4, #2c67f2)' },
-  { name: 'Dreamscape Delight', value: 'linear-gradient(115deg, #fa8bff, #2bd2ff, #2bff88)' },
-  { name: 'Pastel Dream', value: 'linear-gradient(115deg, #d16ba5, #86a8e7, #5ffbf1)' },
+  {
+    name: 'Dreamscape Delight',
+    value: 'linear-gradient(115deg, #fa8bff, #2bd2ff, #2bff88)'
+  },
+  {
+    name: 'Pastel Dream',
+    value: 'linear-gradient(115deg, #d16ba5, #86a8e7, #5ffbf1)'
+  },
   { name: 'Almond Breeze', value: 'linear-gradient(115deg, #fdfcfb, #e2d1c3)' },
   { name: 'Mars', value: 'linear-gradient(115deg, #2c3e52, #fd746a)' },
-  { name: 'Sunset Glow', value: 'linear-gradient(115deg, #4158d0, #c850c0, #ffcc70)' },
+  {
+    name: 'Sunset Glow',
+    value: 'linear-gradient(115deg, #4158d0, #c850c0, #ffcc70)'
+  },
   { name: 'Purple Dreams', value: 'linear-gradient(115deg, #fab2ff, #1904e5)' },
   { name: 'Autumn Blaze', value: 'linear-gradient(115deg, #fec163, #de4313)' },
   { name: 'Mint Night', value: 'linear-gradient(115deg, #92ffc0, #002661)' },
   { name: 'Midnight Rain', value: 'linear-gradient(115deg, #12063b, #09555c)' },
-  { name: 'Amber Eclipse', value: 'linear-gradient(115deg, #ffa600, #ff6361, #003f5c)' },
+  {
+    name: 'Amber Eclipse',
+    value: 'linear-gradient(115deg, #ffa600, #ff6361, #003f5c)'
+  },
   { name: 'Deep Space', value: 'linear-gradient(115deg, #000000, #444444)' },
   { name: 'Aqua Reef', value: 'linear-gradient(115deg, #3cc5d7, #47d794)' },
   { name: 'Sunset Coral', value: 'linear-gradient(115deg, #fe5f75, #fc9840)' },
-  { name: 'Spring Meadow', value: 'linear-gradient(115deg, #c5f9d7, #f7d486, #f27a7d)' },
+  {
+    name: 'Spring Meadow',
+    value: 'linear-gradient(115deg, #c5f9d7, #f7d486, #f27a7d)'
+  },
   { name: 'Electric Blue', value: 'linear-gradient(115deg, #004ff9, #fff94c)' },
   { name: 'Verdant Depth', value: 'linear-gradient(115deg, #00bf8f, #001510)' },
   { name: 'Plum Passion', value: 'linear-gradient(115deg, #662d8c, #ed1e79)' },
   { name: 'Tennis Ball', value: 'linear-gradient(115deg, #5efce8, #736efe)' },
-  { name: 'Neon Fusion', value: 'linear-gradient(115deg, #f97794, #6200ff, #3498db)' },
+  {
+    name: 'Neon Fusion',
+    value: 'linear-gradient(115deg, #f97794, #6200ff, #3498db)'
+  },
   { name: 'Frosted Glass', value: 'linear-gradient(115deg, #ffffff, #d4dfed)' },
-  { name: 'Cotton Candy', value: 'linear-gradient(115deg, #f878ff, #ffda9e, #ffffff)' },
+  {
+    name: 'Cotton Candy',
+    value: 'linear-gradient(115deg, #f878ff, #ffda9e, #ffffff)'
+  },
   { name: 'Lemon Lime', value: 'linear-gradient(115deg, #16a085, #f4d03f)' },
   { name: 'Ocean Depth', value: 'linear-gradient(115deg, #2c3e50, #58b8c7)' },
   { name: 'Arctic Aurora', value: 'linear-gradient(115deg, #5efce8, #736efe)' },
   { name: 'Ember Glow', value: 'linear-gradient(115deg, #ff512f, #dd2476)' },
-  { name: 'Berry Smoothie', value: 'linear-gradient(115deg, #f97794, #623aa2, #111111)' },
+  {
+    name: 'Berry Smoothie',
+    value: 'linear-gradient(115deg, #f97794, #623aa2, #111111)'
+  },
   { name: 'Volcanic Heat', value: 'linear-gradient(115deg, #e6220c, #ffad5c)' },
   { name: 'Golden Hour', value: 'linear-gradient(115deg, #eece13, #b210ff)' },
   { name: 'Bliss', value: 'linear-gradient(115deg, #ef629a, #eecda1)' },
   { name: 'Solar Flare', value: 'linear-gradient(115deg, #f5f523, #2c3e50)' },
   { name: 'Silver Lining', value: 'linear-gradient(115deg, #ffffff, #dddddd)' },
-  { name: 'Azure Radiance', value: 'linear-gradient(115deg, #3c8ce7, #00eaff)' },
+  {
+    name: 'Azure Radiance',
+    value: 'linear-gradient(115deg, #3c8ce7, #00eaff)'
+  },
   { name: 'Coastal Mist', value: 'linear-gradient(115deg, #4ca1af, #c4e0e5)' },
   { name: 'Cyberpunk', value: 'linear-gradient(115deg, #00c3ff, #ffff1c)' },
-  { name: 'Neon Pulse', value: 'linear-gradient(115deg, #ff004c, #ffffff, #0099ff)' },
+  {
+    name: 'Neon Pulse',
+    value: 'linear-gradient(115deg, #ff004c, #ffffff, #0099ff)'
+  },
   { name: 'Smoke & Ash', value: 'linear-gradient(115deg, #d7d2c9, #222222)' },
-  { name: 'Tropical Punch', value: 'linear-gradient(115deg, #abffee, #3d00a6, #000e17)' },
-  { name: 'Psychedelic Pop', value: 'linear-gradient(115deg, #62cff4, #ff00ff)' },
+  {
+    name: 'Tropical Punch',
+    value: 'linear-gradient(115deg, #abffee, #3d00a6, #000e17)'
+  },
+  {
+    name: 'Psychedelic Pop',
+    value: 'linear-gradient(115deg, #62cff4, #ff00ff)'
+  },
   { name: 'Rose Mist', value: 'linear-gradient(115deg, #ffc6df, #60b9fc)' },
   { name: 'Desert Sand', value: 'linear-gradient(115deg, #a07361, #eed7b2)' },
   { name: 'Skyline', value: 'linear-gradient(115deg, #abdcff, #0396ff)' },
   { name: 'Blush', value: 'linear-gradient(115deg, #ffffff, #ffe3fb)' },
-  { name: 'Grape Soda', value: 'linear-gradient(115deg, #75188f, #75167a, #410a47)' },
-  { name: 'Mango Tango', value: 'linear-gradient(115deg, #59cc4d, #ffcd00, #ff5f00)' },
+  {
+    name: 'Grape Soda',
+    value: 'linear-gradient(115deg, #75188f, #75167a, #410a47)'
+  },
+  {
+    name: 'Mango Tango',
+    value: 'linear-gradient(115deg, #59cc4d, #ffcd00, #ff5f00)'
+  },
   { name: 'Lime Twist', value: 'linear-gradient(115deg, #d8e547, #56d388)' },
   { name: 'Crimson Dusk', value: 'linear-gradient(115deg, #262935, #b30938)' },
   { name: 'Sea Breeze', value: 'linear-gradient(115deg, #538ad6, #86e7d6)' },
   { name: 'Soft Petals', value: 'linear-gradient(115deg, #f1a7f1, #fad0c4)' },
   { name: 'Void', value: 'linear-gradient(115deg, #000000, #00f7ff)' },
-  { name: 'Dusk Till Dawn', value: 'linear-gradient(115deg, #614385, #516395)' },
+  {
+    name: 'Dusk Till Dawn',
+    value: 'linear-gradient(115deg, #614385, #516395)'
+  },
   { name: 'Deep Lagoon', value: 'linear-gradient(115deg, #141e30, #243b55)' },
   { name: 'Peach Fizz', value: 'linear-gradient(115deg, #fff6b7, #f6416c)' },
   { name: 'Lavender Haze', value: 'linear-gradient(115deg, #b58ecc, #5de6de)' },
-  { name: 'Raspberry Ripple', value: 'linear-gradient(115deg, #2e4fc6, #ed4182)' },
-  { name: 'Electric Jungle', value: 'linear-gradient(115deg, #22f9c4, #f91894)' },
+  {
+    name: 'Raspberry Ripple',
+    value: 'linear-gradient(115deg, #2e4fc6, #ed4182)'
+  },
+  {
+    name: 'Electric Jungle',
+    value: 'linear-gradient(115deg, #22f9c4, #f91894)'
+  },
   { name: 'Cyber Mint', value: 'linear-gradient(115deg, #1dfffb, #cf1bb1)' }
 ]
 const DEFAULT_GRADIENT = 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)'
@@ -196,7 +252,9 @@ const DEFAULT_GRADIENT = 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)'
 // ----------------------------------------------------------------------
 // Helper: get avatar style from workspace
 // ----------------------------------------------------------------------
-function getWorkspaceAvatarStyle(workspace: { avatar_style?: string }): React.CSSProperties {
+function getWorkspaceAvatarStyle(workspace: {
+  avatar_style?: string
+}): React.CSSProperties {
   return { background: workspace.avatar_style || DEFAULT_GRADIENT }
 }
 
@@ -221,7 +279,10 @@ interface WorkspaceAvatarEditorProps {
   onClose: () => void
 }
 
-function WorkspaceAvatarEditor({ workspace, onClose }: WorkspaceAvatarEditorProps) {
+function WorkspaceAvatarEditor({
+  workspace,
+  onClose
+}: WorkspaceAvatarEditorProps) {
   const updateWorkspace = useUpdateWorkspace()
   const [customColor, setCustomColor] = useState('#6366f1')
 
@@ -266,6 +327,7 @@ function WorkspaceAvatarEditor({ workspace, onClose }: WorkspaceAvatarEditorProp
         {GRADIENT_PRESETS.map((preset) => (
           <button
             key={preset.name}
+            type="button"
             className="w-8 h-8 rounded-full border border-border hover:scale-110 transition-transform disabled:opacity-50"
             style={{ background: preset.value }}
             title={preset.name}
@@ -303,18 +365,30 @@ function WorkspaceAvatarEditor({ workspace, onClose }: WorkspaceAvatarEditorProp
 // Workspace avatar component (with edit button that opens card)
 // ----------------------------------------------------------------------
 interface WorkspaceAvatarProps {
-  workspace: { id: string; name: string; is_open: boolean; avatar_style?: string }
+  workspace: {
+    id: string
+    name: string
+    is_open: boolean
+    avatar_style?: string
+  }
   isActive: boolean
   onSwitch: (workspace: { id: string; name: string; is_open: boolean }) => void
 }
-function WorkspaceAvatar({ workspace, isActive, onSwitch }: WorkspaceAvatarProps) {
+function WorkspaceAvatar({
+  workspace,
+  isActive,
+  onSwitch
+}: WorkspaceAvatarProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
 
-  const initials = workspace.name ? workspace.name.slice(0, 2).toUpperCase() : '??'
+  const initials = workspace.name
+    ? workspace.name.slice(0, 2).toUpperCase()
+    : '??'
   const avatarStyle = getWorkspaceAvatarStyle(workspace)
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: hover avatar, interactive child handles actions
     <div
       className="relative"
       onMouseEnter={() => setIsHovered(true)}
@@ -323,7 +397,9 @@ function WorkspaceAvatar({ workspace, isActive, onSwitch }: WorkspaceAvatarProps
       <button
         type="button"
         onClick={() => onSwitch(workspace)}
-        title={workspace.is_open ? workspace.name : `${workspace.name} (closed)`}
+        title={
+          workspace.is_open ? workspace.name : `${workspace.name} (closed)`
+        }
         className={cn(
           'w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-base shadow-sm transition-transform duration-150 ease-out hover:scale-105 focus:outline-none shrink-0',
           isActive
@@ -478,7 +554,8 @@ export function LeftPanel() {
       setActiveWorkspace(workspace.id)
 
       // Assign a random gradient from presets to the new workspace
-      const randomPreset = GRADIENT_PRESETS[Math.floor(Math.random() * GRADIENT_PRESETS.length)]
+      const randomPreset =
+        GRADIENT_PRESETS[Math.floor(Math.random() * GRADIENT_PRESETS.length)]
       updateWorkspace.mutate(
         { id: workspace.id, avatar_style: randomPreset.value },
         {

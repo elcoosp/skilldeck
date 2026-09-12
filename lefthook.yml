@@ -8,7 +8,7 @@ pre-commit:
       run: pnpm exec biome format --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
     # Override CSpell to use local install
     cspell:
-      run: pnpm exec cspell {staged_files}
+      run: pnpm exec cspell --no-must-find-files {staged_files}
 
 commit-msg:
   parallel: true

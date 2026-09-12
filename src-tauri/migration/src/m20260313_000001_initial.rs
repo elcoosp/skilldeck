@@ -1709,6 +1709,7 @@ enum ConversationDrafts {
     UpdatedAt,
 }
 
+#[allow(dead_code)]
 #[derive(DeriveIden)]
 enum ToolCallEvents {
     Table,

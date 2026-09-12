@@ -73,10 +73,7 @@ impl McpRegistry {
     }
 
     /// Register a transport through a shared reference — works through `Arc<McpRegistry>`.
-    pub fn register_transport(
-        &self,
-        transport: impl crate::traits::McpTransport + Send + Sync + 'static,
-    ) {
+    pub fn register_transport(&self, transport: impl crate::traits::McpTransport + 'static) {
         self.transports.write().push(Arc::new(transport));
     }
 

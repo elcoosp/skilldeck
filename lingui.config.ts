@@ -1,4 +1,5 @@
 import type { LinguiConfig } from '@lingui/conf'
+import { formatter } from '@lingui/format-po'
 
 const config: LinguiConfig = {
   locales: ['en'],
@@ -10,7 +11,7 @@ const config: LinguiConfig = {
     }
   ],
   // Use 'po' format for better git diffs and compatibility with translation tools
-  format: 'po',
+  format: formatter(),
   // Ensures imports in generated files point to your i18n instance
   runtimeConfigModule: {
     i18n: ['src/i18n', 'i18n'],

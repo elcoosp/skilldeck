@@ -68,7 +68,11 @@ function synthesizeDescription(
     const cmd = args.command ?? args.cmd ?? ''
     return `Run: ${cmd}`
   }
-  if (lowerName.includes('http_get') || lowerName.includes('fetch')) {
+  if (
+    lowerName.includes('http_request') ||
+    lowerName.includes('http_get') ||
+    lowerName.includes('fetch')
+  ) {
     const url = args.url ?? args.uri ?? ''
     return `GET: ${url}`
   }

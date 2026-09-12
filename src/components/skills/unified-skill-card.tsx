@@ -190,11 +190,11 @@ export function UnifiedSkillCard({
             className={cn(
               'shrink-0 text-[10px] px-1.5 py-0 rounded-full',
               skill.status === 'installed' &&
-              'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/30 dark:text-teal-400',
+                'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/30 dark:text-teal-400',
               skill.status === 'local_only' &&
-              'bg-secondary text-secondary-foreground',
+                'bg-secondary text-secondary-foreground',
               skill.status === 'available' &&
-              'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400'
+                'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400'
             )}
           >
             {STATUS_LABEL[skill.status]}

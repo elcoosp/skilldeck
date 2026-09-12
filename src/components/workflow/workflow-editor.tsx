@@ -2,7 +2,6 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { toast } from '@/components/ui/toast'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -13,6 +12,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { toast } from '@/components/ui/toast'
 import { commands } from '@/lib/bindings'
 
 interface WorkflowEditorProps {
@@ -35,15 +35,15 @@ export function WorkflowEditor({
     initialDefinition
       ? JSON.stringify(initialDefinition, null, 2)
       : JSON.stringify(
-        {
-          name: '',
-          pattern: 'sequential',
-          steps: [],
-          dependencies: []
-        },
-        null,
-        2
-      )
+          {
+            name: '',
+            pattern: 'sequential',
+            steps: [],
+            dependencies: []
+          },
+          null,
+          2
+        )
   )
   const [error, setError] = useState<string | null>(null)
 
@@ -66,7 +66,10 @@ export function WorkflowEditor({
         if (res.status === 'error') throw new Error(res.error)
         return res.data
       } else {
-        const res = await commands.saveWorkflowDefinition({ name, definition: parsed })
+        const res = await commands.saveWorkflowDefinition({
+          name,
+          definition: parsed
+        })
         if (res.status === 'error') throw new Error(res.error)
         return res.data
       }

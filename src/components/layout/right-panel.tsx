@@ -29,8 +29,7 @@ import {
   X,
   Zap
 } from 'lucide-react'
-import { useMemo, useState, useCallback, useRef } from 'react'
-import { toast } from '@/components/ui/toast'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { ArtifactPanel } from '@/components/artifacts/artifact-panel'
 import { UnifiedSkillList } from '@/components/skills/unified-skill-list'
 import { Button } from '@/components/ui/button'
@@ -43,8 +42,12 @@ import {
   DialogTitle,
   DialogTrigger
 } from '@/components/ui/dialog'
+import { EmptyState } from '@/components/ui/empty-state'
+import { Input } from '@/components/ui/input'
+import { LoadingState } from '@/components/ui/loading-state'
 import { ModelSelectorWithIcon } from '@/components/ui/model-selector-with-icon'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { toast } from '@/components/ui/toast'
 import {
   Tooltip,
   TooltipContent,
@@ -67,18 +70,13 @@ import {
 } from '@/hooks/use-workflow-definitions'
 import { useWorkflowEvents } from '@/hooks/use-workflow-events'
 import { commands } from '@/lib/bindings'
-import { getProviderFromModelId } from '@/lib/model-provider'
 import { cn } from '@/lib/utils'
-import { useConversationStore } from '@/store/conversation'
 import { type UIPersistentState, useUIPersistentStore } from '@/store/ui-state'
 import { AnalyticsHeatmap } from '../analytics/analytics-heatmap'
+import { AnimatedSuccessIcon } from '../ui/animated-success-icon'
 import { ProviderIcon } from '../ui/provider-icon'
 import { McpTab } from './mcp-tab'
 import { RightPanelHeader } from './right-panel-header'
-import { EmptyState } from '@/components/ui/empty-state'
-import { Input } from '@/components/ui/input'
-import { LoadingState } from '@/components/ui/loading-state'
-import { AnimatedSuccessIcon } from '../ui/animated-success-icon'
 
 // Feature gate selectors remain unchanged
 const selectHasSkillsUnlocked = (state: UIPersistentState) =>
@@ -100,17 +98,23 @@ const TABS: {
   label: string
   Icon: React.FC<{ className?: string }>
 }[] = [
-    { id: 'session', label: 'Session', Icon: Cpu },
-    { id: 'skills', label: 'Skills', Icon: Layers },
-    { id: 'mcp', label: 'MCP', Icon: Zap },
-    { id: 'workflow', label: 'Workflow', Icon: GitBranch },
-    { id: 'analytics', label: 'Analytics', Icon: BarChart2 },
-    { id: 'artifacts', label: 'Artifacts', Icon: FileCode },
-    { id: 'files', label: 'Files', Icon: FolderTree }
-  ]
+  { id: 'session', label: 'Session', Icon: Cpu },
+  { id: 'skills', label: 'Skills', Icon: Layers },
+  { id: 'mcp', label: 'MCP', Icon: Zap },
+  { id: 'workflow', label: 'Workflow', Icon: GitBranch },
+  { id: 'analytics', label: 'Analytics', Icon: BarChart2 },
+  { id: 'artifacts', label: 'Artifacts', Icon: FileCode },
+  { id: 'files', label: 'Files', Icon: FolderTree }
+]
 
 // Group definitions for visual separation
-const PRIMARY_TAB_IDS: Tab[] = ['session', 'skills', 'mcp', 'artifacts', 'files']
+const PRIMARY_TAB_IDS: Tab[] = [
+  'session',
+  'skills',
+  'mcp',
+  'artifacts',
+  'files'
+]
 const SECONDARY_TAB_IDS: Tab[] = ['workflow', 'analytics']
 
 export function RightPanel() {
@@ -325,7 +329,9 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
           <LoadingState message="Loading conversation…" />
         ) : !conversation ? (
           <div className="p-3 space-y-3">
-            <p className="text-xs text-muted-foreground">Conversation not found.</p>
+            <p className="text-xs text-muted-foreground">
+              Conversation not found.
+            </p>
             <Button size="xs" variant="outline" onClick={() => refetch()}>
               Refresh
             </Button>
@@ -355,7 +361,9 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
                 </h3>
 
                 <div className="space-y-1">
-                  <span className="text-xs text-muted-foreground">Provider</span>
+                  <span className="text-xs text-muted-foreground">
+                    Provider
+                  </span>
                   <div className="text-xs font-medium px-2 py-1 rounded bg-muted/50 flex items-center gap-1.5 min-w-0">
                     <ProviderIcon
                       provider={profile.model_provider}
@@ -371,18 +379,23 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
                         </span>
                       )}
                   </div>
-                  {!readinessLoading && readiness?.status.status === 'not_ready' && (
-                    <div className="mt-1 text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/20 p-2 rounded">
-                      Can't connect to provider – {readiness.status.reason.toLowerCase()}. {readiness.status.fix_action}
-                    </div>
-                  )}
+                  {!readinessLoading &&
+                    readiness?.status.status === 'not_ready' && (
+                      <div className="mt-1 text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/20 p-2 rounded">
+                        Can't connect to provider –{' '}
+                        {readiness.status.reason.toLowerCase()}.{' '}
+                        {readiness.status.fix_action}
+                      </div>
+                    )}
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">
+                  <span className="text-xs text-muted-foreground">
                     Model{' '}
-                    {modelsLoading && <span className="opacity-50">(loading…)</span>}
-                  </label>
+                    {modelsLoading && (
+                      <span className="opacity-50">(loading…)</span>
+                    )}
+                  </span>
                   <ModelSelectorWithIcon
                     value={safeSelectedModel}
                     onValueChange={setSelectedModelId}
@@ -406,7 +419,9 @@ function SessionTab({ conversationId }: { conversationId: string | null }) {
                     </div>
                   </div>
                   <div className="rounded border border-border p-3">
-                    <span className="text-muted-foreground text-xs">Output</span>
+                    <span className="text-muted-foreground text-xs">
+                      Output
+                    </span>
                     <div className="font-mono text-lg tabular-nums mt-0.5">
                       {outputTokens.toLocaleString()}
                     </div>
@@ -429,7 +444,7 @@ function WorkflowTab() {
   const deleteWorkflow = useDeleteWorkflowDefinition()
   const runMutation = useRunWorkflowDefinition()
   const [editorOpen, setEditorOpen] = useState(false)
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({})
+  const [_expanded, _setExpanded] = useState<Record<string, boolean>>({})
   const [selectedWorkflow, setSelectedWorkflow] = useState<any | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [showSearch, setShowSearch] = useState(false)
@@ -478,10 +493,14 @@ function WorkflowTab() {
         actions={
           <div className="flex items-center gap-1">
             {showSaveSuccess && (
-              <AnimatedSuccessIcon onComplete={() => setShowSaveSuccess(false)} />
+              <AnimatedSuccessIcon
+                onComplete={() => setShowSaveSuccess(false)}
+              />
             )}
             {showRunSuccess && (
-              <AnimatedSuccessIcon onComplete={() => setShowRunSuccess(false)} />
+              <AnimatedSuccessIcon
+                onComplete={() => setShowRunSuccess(false)}
+              />
             )}
             <Button
               variant="ghost"
@@ -568,9 +587,9 @@ function WorkflowTab() {
               action={
                 !searchQuery
                   ? {
-                    label: 'New Workflow',
-                    onClick: () => setEditorOpen(true)
-                  }
+                      label: 'New Workflow',
+                      onClick: () => setEditorOpen(true)
+                    }
                   : undefined
               }
             />
@@ -587,13 +606,34 @@ function WorkflowTab() {
                       {new Date(wf.updated_at).toLocaleDateString()}
                     </p>
                   </div>
-                  <Button size="icon-xs" variant="ghost" onClick={() => { setSelectedWorkflow(wf.definition); setEditorOpen(true) }} title="Edit" className="shrink-0">
+                  <Button
+                    size="icon-xs"
+                    variant="ghost"
+                    onClick={() => {
+                      setSelectedWorkflow(wf.definition)
+                      setEditorOpen(true)
+                    }}
+                    title="Edit"
+                    className="shrink-0"
+                  >
                     <ChevronRight className="size-3" />
                   </Button>
-                  <Button size="icon-xs" variant="ghost" onClick={() => handleRun(wf.id)} disabled={runMutation.isPending} title="Run" className="shrink-0">
+                  <Button
+                    size="icon-xs"
+                    variant="ghost"
+                    onClick={() => handleRun(wf.id)}
+                    disabled={runMutation.isPending}
+                    title="Run"
+                    className="shrink-0"
+                  >
                     <Play className="size-3" />
                   </Button>
-                  <Button variant="ghost" size="icon-xs" onClick={() => handleDelete(wf.id, wf.name)} className="text-muted-foreground hover:text-destructive shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={() => handleDelete(wf.id, wf.name)}
+                    className="text-muted-foreground hover:text-destructive shrink-0"
+                  >
                     <Trash2 className="size-3" />
                   </Button>
                 </div>
@@ -638,7 +678,10 @@ function AnalyticsTab() {
     if (!analytics) return []
     return analytics.messages_per_day.filter((item) => {
       const date = new Date(item.date)
-      return isWithinInterval(date, { start: currentMonthStart, end: currentMonthEnd })
+      return isWithinInterval(date, {
+        start: currentMonthStart,
+        end: currentMonthEnd
+      })
     })
   }, [analytics, currentMonthStart, currentMonthEnd])
 
@@ -646,13 +689,19 @@ function AnalyticsTab() {
     if (!analytics) return []
     return analytics.conversations_per_day.filter((item) => {
       const date = new Date(item.date)
-      return isWithinInterval(date, { start: currentMonthStart, end: currentMonthEnd })
+      return isWithinInterval(date, {
+        start: currentMonthStart,
+        end: currentMonthEnd
+      })
     })
   }, [analytics, currentMonthStart, currentMonthEnd])
 
   const fullYearStart = useMemo(() => {
     if (!analytics) return startOfMonth(new Date())
-    const allDates = [...analytics.messages_per_day, ...analytics.conversations_per_day]
+    const allDates = [
+      ...analytics.messages_per_day,
+      ...analytics.conversations_per_day
+    ]
       .map((d) => new Date(d.date))
       .filter((d) => !Number.isNaN(d.getTime()))
     if (allDates.length === 0) return startOfMonth(new Date())
@@ -662,7 +711,10 @@ function AnalyticsTab() {
 
   const fullYearEnd = useMemo(() => {
     if (!analytics) return endOfMonth(new Date())
-    const allDates = [...analytics.messages_per_day, ...analytics.conversations_per_day]
+    const allDates = [
+      ...analytics.messages_per_day,
+      ...analytics.conversations_per_day
+    ]
       .map((d) => new Date(d.date))
       .filter((d) => !Number.isNaN(d.getTime()))
     if (allDates.length === 0) return endOfMonth(new Date())
@@ -693,9 +745,16 @@ function AnalyticsTab() {
       <RightPanelHeader
         title="Analytics"
         actions={
-          <Dialog open={fullYearDialogOpen} onOpenChange={setFullYearDialogOpen}>
+          <Dialog
+            open={fullYearDialogOpen}
+            onOpenChange={setFullYearDialogOpen}
+          >
             <DialogTrigger asChild>
-              <Button variant="ghost" size="sm" className="text-[10px] h-5 px-1.5">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-[10px] h-5 px-1.5"
+              >
                 Full year
               </Button>
             </DialogTrigger>
@@ -711,7 +770,8 @@ function AnalyticsTab() {
               <DialogHeader>
                 <DialogTitle>Activity heatmap – full year</DialogTitle>
                 <DialogDescription>
-                  Daily activity from the start of the year of the earliest data to the end of the year of the latest data.
+                  Daily activity from the start of the year of the earliest data
+                  to the end of the year of the latest data.
                 </DialogDescription>
               </DialogHeader>
               <div className="py-4">
@@ -724,7 +784,9 @@ function AnalyticsTab() {
                 />
               </div>
               <DialogFooter>
-                <Button onClick={() => setFullYearDialogOpen(false)}>Close</Button>
+                <Button onClick={() => setFullYearDialogOpen(false)}>
+                  Close
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -733,28 +795,44 @@ function AnalyticsTab() {
       <div className="flex-1 p-3 space-y-4">
         <div className="grid grid-cols-2 gap-2">
           <div className="rounded-lg border border-border p-2 min-w-0">
-            <p className="text-[10px] text-muted-foreground truncate">Conversations</p>
-            <p className="text-lg font-semibold truncate">{analytics.total_conversations}</p>
+            <p className="text-[10px] text-muted-foreground truncate">
+              Conversations
+            </p>
+            <p className="text-lg font-semibold truncate">
+              {analytics.total_conversations}
+            </p>
           </div>
           <div className="rounded-lg border border-border p-2 min-w-0">
-            <p className="text-[10px] text-muted-foreground truncate">Messages</p>
-            <p className="text-lg font-semibold truncate">{analytics.total_messages}</p>
+            <p className="text-[10px] text-muted-foreground truncate">
+              Messages
+            </p>
+            <p className="text-lg font-semibold truncate">
+              {analytics.total_messages}
+            </p>
           </div>
         </div>
 
         <div className="rounded-lg border border-border p-2 space-y-1">
-          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Token Usage</p>
+          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+            Token Usage
+          </p>
           <div className="flex justify-between text-xs">
             <span>Input</span>
-            <span className="font-mono">{analytics.token_usage.input_tokens.toLocaleString()}</span>
+            <span className="font-mono">
+              {analytics.token_usage.input_tokens.toLocaleString()}
+            </span>
           </div>
           <div className="flex justify-between text-xs">
             <span>Output</span>
-            <span className="font-mono">{analytics.token_usage.output_tokens.toLocaleString()}</span>
+            <span className="font-mono">
+              {analytics.token_usage.output_tokens.toLocaleString()}
+            </span>
           </div>
           <div className="flex justify-between text-xs font-medium pt-1 border-t">
             <span>Total</span>
-            <span className="font-mono">{analytics.token_usage.total_tokens.toLocaleString()}</span>
+            <span className="font-mono">
+              {analytics.token_usage.total_tokens.toLocaleString()}
+            </span>
           </div>
         </div>
 

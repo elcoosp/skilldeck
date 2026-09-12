@@ -49,12 +49,12 @@ export function CustomServerForm({ onSuccess }: CustomServerFormProps) {
 
   const setField =
     (key: keyof CustomFormState) =>
-      (
-        e: React.ChangeEvent<
-          HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-        >
-      ) =>
-        setForm((f) => ({ ...f, [key]: e.target.value }))
+    (
+      e: React.ChangeEvent<
+        HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+      >
+    ) =>
+      setForm((f) => ({ ...f, [key]: e.target.value }))
 
   const submit = () => {
     if (!form.name.trim()) {

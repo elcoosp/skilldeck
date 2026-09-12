@@ -34,11 +34,17 @@ export function flattenTree(
   return result
 }
 
-export function getNextVisibleItem(flat: FlattenedNode[], currentIndex: number): FlattenedNode | undefined {
+export function getNextVisibleItem(
+  flat: FlattenedNode[],
+  currentIndex: number
+): FlattenedNode | undefined {
   return flat[currentIndex + 1]
 }
 
-export function getPrevVisibleItem(flat: FlattenedNode[], currentIndex: number): FlattenedNode | undefined {
+export function getPrevVisibleItem(
+  flat: FlattenedNode[],
+  currentIndex: number
+): FlattenedNode | undefined {
   return flat[currentIndex - 1]
 }
 

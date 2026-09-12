@@ -1,21 +1,29 @@
-import { Page, Locator } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test'
 
 export class MessageThread {
-  constructor(private page: Page) { }
+  constructor(private page: Page) {}
 
   async waitForMessageWithText(text: string | RegExp): Promise<Locator> {
-    const msg = this.page.locator('[data-msg-id]').filter({ hasText: text }).first();
-    await msg.waitFor({ state: 'visible' });
-    return msg;
+    const msg = this.page
+      .locator('[data-msg-id]')
+      .filter({ hasText: text })
+      .first()
+    await msg.waitFor({ state: 'visible' })
+    return msg
   }
 
   async waitForStreamingToFinish(): Promise<void> {
-    await this.page.waitForFunction(() => {
-      return !document.querySelector('[data-testid="streaming-indicator"]');
-    }, { timeout: 30000 });
+    await this.page.waitForFunction(
+      () => {
+        return !document.querySelector('[data-testid="streaming-indicator"]')
+      },
+      { timeout: 30000 }
+    )
   }
 
   async scrollToTop(): Promise<void> {
-    await this.page.locator('#message-thread-scroll-container').evaluate(el => el.scrollTop = 0);
+    await this.page
+      .locator('#message-thread-scroll-container')
+      .evaluate((el) => (el.scrollTop = 0))
   }
 }

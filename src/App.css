@@ -204,38 +204,48 @@
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
   --animate-shine: shine var(--duration) infinite linear;
+
   @keyframes shine {
     0% {
       background-position: 0% 0%;
     }
+
     50% {
       background-position: 100% 100%;
     }
+
     to {
       background-position: 0% 0%;
     }
   }
+
   --animate-meteor: meteor 5s linear infinite;
+
   @keyframes meteor {
     0% {
       transform: rotate(var(--angle)) translateX(0);
       opacity: 1;
     }
+
     70% {
       opacity: 1;
     }
+
     100% {
       transform: rotate(var(--angle)) translateX(-500px);
       opacity: 0;
     }
   }
+
   --animate-shiny-text: shiny-text 8s infinite;
+
   @keyframes shiny-text {
     0%,
     90%,
     100% {
       background-position: calc(-100% - var(--shiny-width)) 0;
     }
+
     30%,
     60% {
       background-position: calc(100% + var(--shiny-width)) 0;
@@ -274,6 +284,10 @@
 .thin-scrollbar::-webkit-scrollbar-thumb {
   background-color: var(--border);
   border-radius: 4px;
+}
+
+.thin-scrollbar::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 .message-highlight {
@@ -422,6 +436,15 @@
 /* ============================================ */
 /* Code block horizontal scrollbar & wrapping   */
 /* ============================================ */
+
+/* Base pre styles */
+pre {
+  font-family: inherit;
+  tab-size: 2;
+  line-height: 1.5;
+  margin: 0;
+}
+
 .prose pre,
 pre[class*="language-"] {
   overflow-x: auto;
@@ -471,4 +494,142 @@ code[data-inline-code]::after {
 code[data-inline-code]:hover {
   background-color: var(--inline-code-hover-bg);
   color: var(--inline-code-hover-color);
+}
+
+/* ============================================ */
+/* Code block line numbers styling              */
+/* ============================================ */
+
+/* When line numbers are enabled */
+.code-with-lines {
+  counter-reset: line;
+}
+
+/* Each line container (used for both virtual and non-virtual) */
+.code-with-lines .line {
+  display: block;
+  padding-left: 3.5rem;
+  line-height: 1.5;
+  min-height: 1.5em;
+  counter-increment: line;
+}
+
+/* Line number pseudo-element */
+.code-with-lines .line::before {
+  content: counter(line);
+  position: absolute;
+  left: 0;
+  width: 2.8rem;
+  text-align: right;
+  color: var(--muted-foreground);
+  opacity: 0.4;
+  font-size: 0.75rem;
+  user-select: none;
+  -webkit-user-select: none;
+  padding-right: 1rem;
+  border-right: 1px solid var(--border);
+  line-height: inherit;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+/* Reset counter for virtual container based on first visible line */
+.code-with-lines[data-line-start] {
+  counter-reset: line calc(attr(data-line-start, number, 1) - 1);
+}
+
+/* Remove conflicting counter reset rules */
+[data-line-start] {
+  counter-reset: none;
+}
+
+/* Highlighted line */
+.highlighted-line {
+  background: var(--highlight-inline);
+  border-left: 3px solid var(--primary);
+}
+
+.current-search-match {
+  background-color: rgba(255, 165, 0, 0.2);
+  box-shadow: inset 2px 0 0 var(--color-accent);
+}
+
+/* Search highlight marks */
+.search-highlight {
+  background-color: var(--highlight-inline);
+  color: inherit;
+  border-radius: 2px;
+}
+
+/* Inline code inside lines (ensure it doesn't break layout) */
+.code-with-lines .line code {
+  font-size: inherit;
+  line-height: inherit;
+}
+
+/* Reset any pre tags that might appear inside highlighted lines */
+.code-with-lines .line pre {
+  margin: 0;
+  padding: 0;
+  display: inline;
+  background-color: transparent;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  white-space: pre-wrap;
+}
+
+/* Artifact highlight pulse animation */
+.artifact-highlight {
+  animation: artifact-pulse 2s ease-out;
+}
+
+@keyframes artifact-pulse {
+  0% {
+    background-color: rgba(var(--primary), 0.1);
+  }
+
+  50% {
+    background-color: rgba(var(--primary), 0.2);
+  }
+
+  100% {
+    background-color: transparent;
+  }
+}
+
+/* ============================================ */
+/* Code block scroll / minimap adjustments      */
+/* ============================================ */
+.code-scroll-area {
+  scrollbar-gutter: stable;
+  background: transparent;
+}
+
+/* Explicit track background for code blocks — prevents white background */
+.code-scroll-area::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.code-scroll-area::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Hide vertical scrollbar when minimap is shown */
+.hide-y-scrollbar {
+  scrollbar-width: none;
+  /* Firefox */
+}
+
+.hide-y-scrollbar::-webkit-scrollbar:vertical {
+  display: none;
+  width: 0;
+}
+
+/* Keep horizontal scrollbar for code that overflows horizontally */
+.hide-y-scrollbar::-webkit-scrollbar:horizontal {
+  height: 4px;
 }

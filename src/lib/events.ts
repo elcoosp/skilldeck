@@ -7,8 +7,8 @@
  */
 
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
-import type { UUID } from './types'
 import type { NodeDocument } from '@/lib/bindings'
+import type { UUID } from './types'
 
 // ============================================================================
 // Agent events  ("agent-event")
@@ -149,4 +149,13 @@ export function onQueueEvent(
   callback: (event: QueueEvent) => void
 ): Promise<UnlistenFn> {
   return listen<QueueEvent>('queue-event', (e) => callback(e.payload))
+}
+export type RunCodeEventType = 'stdout' | 'stderr' | 'exit'
+
+export interface RunCodeEvent {
+  type: RunCodeEventType
+  run_id: string
+  line: string
+  code?: number
+  elapsed_ms?: number
 }

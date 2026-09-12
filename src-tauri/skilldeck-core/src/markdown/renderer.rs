@@ -1,3 +1,5 @@
+// src-tauri/skilldeck-core/src/markdown/renderer.rs
+
 use super::{
     theme::SharedTheme,
     types::{ArtifactSpec, MdNode, NodeDocument, TocItem},
@@ -6,10 +8,12 @@ use once_cell::sync::Lazy;
 use pulldown_cmark::{CodeBlockKind, Event, HeadingLevel, Options, Parser, Tag, TagEnd, html};
 use regex::Regex;
 use syntect::{
-    html::{ClassStyle, ClassedHTMLGenerator},
-    parsing::{SyntaxDefinition, SyntaxSet},
+    easy::HighlightLines,
+    highlighting::Theme,
+    parsing::{SyntaxDefinition, SyntaxReference, SyntaxSet},
 };
 use uuid::Uuid;
+
 static SYNTAX_SET: Lazy<SyntaxSet> = Lazy::new(|| {
     let mut builder = SyntaxSet::load_defaults_newlines().into_builder();
 
@@ -30,6 +34,7 @@ static SYNTAX_SET: Lazy<SyntaxSet> = Lazy::new(|| {
 
     builder.build()
 });
+
 // compiled regex for link rewriting
 static LINK_RE: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"<a((?:\s[^>]*)?)\s*href=(")([^"]+)""#).unwrap());
@@ -119,15 +124,28 @@ impl MarkdownPipeline {
 
                     let id = format!("cb-{}", id_counter);
                     id_counter += 1;
-                    let highlighted = self.highlight(&code_buf, &code_lang);
+                    let (
+                        highlighted_lines,
+                        line_count,
+                        token_count,
+                        minimap_rgba,
+                        minimap_width,
+                        minimap_height,
+                    ) = self.highlight(&code_buf, &code_lang);
                     let artifact_id = Uuid::new_v4();
                     let raw = std::mem::take(&mut code_buf);
                     nodes.push(MdNode::CodeBlock {
                         id,
                         language: code_lang.clone(),
                         raw_code: raw.clone(),
-                        highlighted_html: highlighted,
+                        highlighted_lines,
                         artifact_id,
+                        line_count,
+                        file_path: file_path.clone(),
+                        token_count,
+                        minimap_rgba,
+                        minimap_width,
+                        minimap_height,
                     });
                     if emit_artifacts {
                         artifact_specs.push(ArtifactSpec {
@@ -136,6 +154,8 @@ impl MarkdownPipeline {
                             raw_code: raw,
                             slot_index: id_counter - 1,
                             file_path,
+                            line_count,
+                            token_count,
                         });
                     }
 
@@ -206,17 +226,19 @@ impl MarkdownPipeline {
                     in_list = !list_stack.is_empty();
                 }
                 Event::Start(Tag::Item) => {
-                    if in_list && !list_stack.is_empty() {
-                        if let Some((_, buf)) = list_stack.last_mut() {
-                            buf.push_str("<li>");
-                        }
+                    if in_list
+                        && !list_stack.is_empty()
+                        && let Some((_, buf)) = list_stack.last_mut()
+                    {
+                        buf.push_str("<li>");
                     }
                 }
                 Event::End(TagEnd::Item) => {
-                    if in_list && !list_stack.is_empty() {
-                        if let Some((_, buf)) = list_stack.last_mut() {
-                            buf.push_str("</li>");
-                        }
+                    if in_list
+                        && !list_stack.is_empty()
+                        && let Some((_, buf)) = list_stack.last_mut()
+                    {
+                        buf.push_str("</li>");
                     }
                 }
 
@@ -261,24 +283,151 @@ impl MarkdownPipeline {
         }
     }
 
-    fn highlight(&self, code: &str, lang: &str) -> String {
+    /// Highlight code and return per-line HTML (inline spans only, no block wrapper).
+    /// Returns (lines_html, line_count, token_count, minimap_rgba, minimap_width, minimap_height).
+    fn highlight(&self, code: &str, lang: &str) -> (Vec<String>, u32, u32, Vec<u8>, u32, u32) {
         let normalized_lang = match lang {
             "typescript" | "ts" | "typescriptreact" => "tsx",
             _ => lang,
         };
-        let syntax = SYNTAX_SET
+        let syntax_ref = SYNTAX_SET
             .find_syntax_by_token(normalized_lang)
             .unwrap_or_else(|| {
                 SYNTAX_SET
                     .find_syntax_by_first_line(code)
                     .unwrap_or_else(|| SYNTAX_SET.find_syntax_plain_text())
             });
-        let mut css_gen =
-            ClassedHTMLGenerator::new_with_class_style(syntax, &SYNTAX_SET, ClassStyle::Spaced);
-        for line in syntect::util::LinesWithEndings::from(code) {
-            let _ = css_gen.parse_html_for_line_which_includes_newline(line);
+
+        let lines: Vec<&str> = code.lines().collect();
+        let line_count = lines.len() as u32;
+
+        let mut highlighted_lines = Vec::with_capacity(lines.len());
+        let mut minimap_rgba = Vec::new();
+        let mut minimap_width = 0;
+        let mut minimap_height = 0;
+        let mut token_count = 0u32;
+
+        self.theme.with_theme(|theme| {
+            // Count tokens using HighlightLines (still needed)
+            let mut highlighter = HighlightLines::new(syntax_ref, theme);
+            for line in &lines {
+                let line_with_nl = format!("{}\n", line);
+                if let Ok(regions) = highlighter.highlight_line(&line_with_nl, &SYNTAX_SET) {
+                    token_count += regions.len() as u32;
+                }
+            }
+
+            // Generate class-based HTML per line (no block wrapper)
+            for line in lines.iter() {
+                let highlighted = syntect::html::highlighted_html_for_string(
+                    line,
+                    &SYNTAX_SET,
+                    syntax_ref,
+                    theme,
+                )
+                .unwrap_or_else(|_| line.replace('<', "&lt;").replace('>', "&gt;"));
+
+                // `highlighted_html_for_string` returns a full <pre>…</pre> block.
+                // We need to strip the outer <pre> and keep only the inner spans.
+                let inner = strip_pre_tag(&highlighted);
+                highlighted_lines.push(inner);
+            }
+
+            // Generate minimap (unchanged)
+            let (rgba, w, h) = self.minimap_from_lines_with_highlighter(&lines, syntax_ref, theme);
+            minimap_rgba = rgba;
+            minimap_width = w;
+            minimap_height = h;
+        });
+
+        (
+            highlighted_lines,
+            line_count,
+            token_count,
+            minimap_rgba,
+            minimap_width,
+            minimap_height,
+        )
+    }
+
+    // ─── Minimap generation using HighlightLines ──────────────────────────────
+    fn minimap_from_lines_with_highlighter(
+        &self,
+        lines: &[&str],
+        syntax_ref: &SyntaxReference,
+        theme: &Theme,
+    ) -> (Vec<u8>, u32, u32) {
+        if lines.is_empty() {
+            return (vec![], 0, 0);
         }
-        css_gen.finalize()
+
+        const CHAR_W: u32 = 2;
+        const CHAR_H: u32 = 2;
+        const MAX_WIDTH_CHARS: u32 = 50;
+
+        let image_width = MAX_WIDTH_CHARS * CHAR_W;
+        let image_height = lines.len() as u32 * CHAR_H;
+        let mut rgba = vec![0u8; (image_width * image_height * 4) as usize];
+
+        let mut highlighter = HighlightLines::new(syntax_ref, theme);
+
+        for (line_idx, &line) in lines.iter().enumerate() {
+            let line_with_nl = format!("{}\n", line);
+            let regions = highlighter
+                .highlight_line(&line_with_nl, &SYNTAX_SET)
+                .unwrap_or_default();
+            let mut col = 0;
+
+            for (style, text) in regions {
+                let fg = style.foreground;
+                let char_count = text.chars().count();
+                for _ in 0..char_count {
+                    if col < MAX_WIDTH_CHARS {
+                        fill_block(
+                            &mut rgba,
+                            line_idx as u32,
+                            col,
+                            CHAR_W,
+                            CHAR_H,
+                            image_width,
+                            fg,
+                        );
+                        col += 1;
+                    }
+                }
+            }
+        }
+
+        (rgba, image_width, image_height)
+    }
+}
+
+// Helper to fill a block of pixels
+fn fill_block(
+    rgba: &mut [u8],
+    line_idx: u32,
+    char_col: u32,
+    char_w: u32,
+    char_h: u32,
+    full_width: u32,
+    color: syntect::highlighting::Color,
+) {
+    let start_x = char_col * char_w;
+    let start_y = line_idx * char_h;
+    for dy in 0..char_h {
+        for dx in 0..char_w {
+            let px_x = start_x + dx;
+            let px_y = start_y + dy;
+            if px_x < full_width {
+                let idx = ((px_y * full_width + px_x) * 4) as usize;
+                if idx + 3 < rgba.len() {
+                    rgba[idx] = color.r;
+                    rgba[idx + 1] = color.g;
+                    rgba[idx + 2] = color.b;
+                    rgba[idx + 3] = color.a;
+                }
+            }
+        }
     }
 }
 
@@ -340,18 +489,14 @@ fn event_to_html(event: &Event) -> String {
 }
 
 // -----------------------------------------------------------------------------
-// File path extraction helpers
+// File path extraction helpers (unchanged)
 // -----------------------------------------------------------------------------
 
-/// Attempts to extract a file path from the first non‑empty line of a code block
-/// if it starts with a comment token appropriate for the language.
 fn extract_file_path(lang: &str, code: &str) -> Option<String> {
     let first_line = code.lines().find(|l| !l.trim().is_empty())?;
-    let trimmed = first_line.trim();
-
     let comment_prefix = comment_prefix_for_lang(lang)?;
-    if trimmed.starts_with(comment_prefix) {
-        let after_comment = trimmed[comment_prefix.len()..].trim();
+    if let Some(after_prefix) = first_line.trim().strip_prefix(comment_prefix) {
+        let after_comment = after_prefix.trim();
         if is_plausible_filename(after_comment, lang) {
             return Some(after_comment.to_string());
         }
@@ -359,7 +504,6 @@ fn extract_file_path(lang: &str, code: &str) -> Option<String> {
     None
 }
 
-/// Returns the single‑line comment prefix for a given language name.
 fn comment_prefix_for_lang(lang: &str) -> Option<&'static str> {
     match lang.to_lowercase().as_str() {
         "rust" | "rs" | "c" | "cpp" | "c++" | "java" | "javascript" | "js" | "typescript"
@@ -376,8 +520,6 @@ fn comment_prefix_for_lang(lang: &str) -> Option<&'static str> {
     }
 }
 
-/// Checks whether a string looks like a file path ending with an extension
-/// that plausibly matches the language.
 fn is_plausible_filename(s: &str, lang: &str) -> bool {
     if !(s.contains('/') || s.contains('\\') || s.contains('.')) {
         return false;
@@ -424,4 +566,10 @@ fn is_plausible_filename(s: &str, lang: &str) -> bool {
         | ("hs", "hs") => true,
         _ => ext.len() >= 2 && ext.len() <= 5,
     }
+}
+fn strip_pre_tag(html: &str) -> String {
+    let open_end = html.find('>').map(|i| i + 1).unwrap_or(0);
+    let close_start = html.rfind("</pre>").unwrap_or(html.len());
+    let inner = &html[open_end..close_start];
+    inner.trim_matches('\n').to_string()
 }

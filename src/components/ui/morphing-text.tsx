@@ -116,6 +116,7 @@ const SvgFilters: React.FC = () => (
     className="fixed h-0 w-0"
     preserveAspectRatio="xMidYMid slice"
   >
+    <title>Shape morphing filters</title>
     <defs>
       <filter id="threshold">
         <feColorMatrix

@@ -19,8 +19,8 @@ export function useToolApprovals(conversationId: string | null) {
 
     let unlisten: (() => void) | undefined
 
-    const _setup = async () => {
-      const _unlistenFn = await listen<ApprovalEventPayload>(
+    const setup = async () => {
+      unlisten = await listen<ApprovalEventPayload>(
         'tool-approval-requested',
         (event) => {
           if (event.payload.conversationId !== conversationId) return
@@ -32,6 +32,8 @@ export function useToolApprovals(conversationId: string | null) {
         }
       )
     }
+
+    setup()
 
     return () => {
       if (unlisten) unlisten()

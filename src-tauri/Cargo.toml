@@ -23,7 +23,7 @@ tauri-build = { version = "2", features = [] }
 [features]
 e2e-testing = ["tauri-plugin-playwright"]
 [dependencies]
-tauri-plugin-playwright = { version = "0.4", optional = true }
+tauri-plugin-playwright = { version = "0.2", optional = true }
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 tauri-plugin-shell = "2"
@@ -38,9 +38,9 @@ serde_json = "1"
 skilldeck-core = { path = "./skilldeck-core" }
 skilldeck-lint = {path = "../skilldeck-lint"}
 skilldeck-models = { path = "skilldeck-models" }
-specta = { version = "=2.0.0-rc.25", features= [ "chrono", "uuid", "serde_json"] }
+specta = { version = "=2.0.0-rc.22", features= [ "chrono", "uuid", "serde_json"] }
 tauri-specta = { version = "2.0.0-rc.21", features = ["typescript", "derive"] }
-specta-typescript = "0.0.12"
+specta-typescript = "0.0.9"
 tracing = "0.1.44"
 tracing-subscriber = "0.3.23"
 tauri-plugin-store = "2.4.2"
@@ -63,10 +63,11 @@ futures = "0.3.32"
 wiremock = "0.6.5"
 walkdir = "2.5.0"
 axum = "0.8.8"
-adk-rust = "2.0.0"
+adk-rust = "0.5.0"
 async-stream = "0.3.6"
 ignore = "0.4.25"
 tauri-plugin-fs = "2"
 regex = "1.12.3"
 pulldown-cmark = "0.13.3"
 tauri-plugin-devtools = "2.1.0"
+tempfile = "3.27.0"

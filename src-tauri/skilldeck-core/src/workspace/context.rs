@@ -118,7 +118,7 @@ impl ContextLoader {
         }
 
         // Sort by priority (highest first)
-        files.sort_by(|a, b| b.priority.cmp(&a.priority));
+        files.sort_by_key(|a| std::cmp::Reverse(a.priority));
 
         Ok(files)
     }
@@ -141,8 +141,8 @@ impl ContextLoader {
     /// 1. Workspace-local `.skilldeck/skills/`
     /// 2. Workspace-local `.claude/skills/`
     /// 3. Global `~/.agents/skills/`
-    /// Returns all discovered skill directories with their source labels,
-    /// in priority order: workspace-local first, then global.
+    ///    Returns all discovered skill directories with their source labels,
+    ///    in priority order: workspace-local first, then global.
     async fn find_skill_directories(root: &Path) -> Vec<(String, PathBuf)> {
         let mut found = Vec::new();
 

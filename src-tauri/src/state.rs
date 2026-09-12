@@ -121,6 +121,7 @@ impl ToolApprovalEmitter for TauriToolApprovalEmitter {
 }
 
 /// Wrapper to implement SubagentSpawner for Arc<AppState> without orphan rule issues.
+#[allow(dead_code)]
 pub struct AppStateSpawner {
     pub state: Arc<AppState>,
 }
@@ -169,14 +170,17 @@ pub struct AppState {
     /// Global auto-approve configuration (shared by all ToolDispatcher instances).
     pub global_auto_approve: Arc<RwLock<AutoApproveConfig>>,
     /// Subagent servers indexed by subagent ID.
+    #[allow(dead_code)]
     pub subagent_servers: Arc<DashMap<String, SubagentServer>>,
     /// Semaphore to limit concurrent subagents (default 3).
     pub subagent_semaphore: Arc<Semaphore>,
     /// A2A clients for active subagents (wrapped in Arc for sharing).
+    #[allow(dead_code)]
     pub subagent_clients: Arc<DashMap<String, Arc<A2aClient>>>,
     /// Final results of completed subagents (for mergeSubagentResult).
     pub subagent_results: Arc<DashMap<String, String>>,
     /// Subagent session manager.
+    #[allow(dead_code)]
     pub subagent_manager: Arc<tokio::sync::Mutex<SubagentManager>>,
     /// Subagent registry (tracks active subagents for result merging).
     pub subagent_registry: SubagentRegistry,
@@ -190,6 +194,7 @@ pub struct AppState {
     /// HTTP client for the optional SkillDeck Platform.
     pub platform_client: tokio::sync::RwLock<crate::platform_client::PlatformClient>,
     /// Whether the user has opted in to anonymous analytics (mirrored from DB).
+    #[allow(dead_code)]
     pub analytics_opt_in: std::sync::atomic::AtomicBool,
     pub config: crate::config::AppConfig,
 
@@ -607,6 +612,7 @@ impl AppState {
     }
 
     // Internal methods for SubagentSpawner implementation
+    #[allow(dead_code)]
     async fn spawn_subagent_internal(
         &self,
         task: String,
@@ -633,6 +639,7 @@ impl AppState {
             .await
     }
 
+    #[allow(dead_code)]
     async fn get_subagent_result_internal(&self, subagent_id: &str) -> Option<String> {
         if let Some(handle) = self.subagent_registry.get(subagent_id) {
             handle
@@ -645,6 +652,7 @@ impl AppState {
         }
     }
 
+    #[allow(dead_code)]
     async fn merge_subagent_result_internal(
         &self,
         subagent_id: &str,

@@ -1,11 +1,8 @@
 // src/components/settings/preferences-tab.tsx
 import { useRouter } from '@tanstack/react-router'
 import { open } from '@tauri-apps/plugin-dialog'
-import { AlertTriangle } from 'lucide-react'
 import { useState } from 'react'
 import { SettingsSection } from '@/components/settings/settings-section'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { PremiumError } from '@/components/ui/premium-error'
 import {
   Select,
@@ -393,10 +390,14 @@ export function PreferencesTab() {
         </div>
         {autoCompactionEnabled && (
           <div className="mt-3">
-            <label className="text-sm text-muted-foreground">
+            <label
+              htmlFor="compaction-range"
+              className="text-sm text-muted-foreground"
+            >
               Threshold: {compactionTokenThreshold.toLocaleString()} tokens
             </label>
             <input
+              id="compaction-range"
               type="range"
               min="20000"
               max="200000"

@@ -4,6 +4,7 @@ use sea_orm::{
 use serde::Serialize;
 use skilldeck_models::pinned_artifacts::{self, Entity as PinnedArtifacts};
 use specta::{Type, specta};
+use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::State;
 use uuid::Uuid;
@@ -370,4 +371,47 @@ pub async fn get_artifact_content(
     } else {
         Ok(artifact.content)
     }
+}
+
+// NEW COMMAND
+#[specta]
+#[tauri::command]
+pub async fn write_artifact_to_file(
+    state: State<'_, Arc<AppState>>,
+    artifact_id: String,
+    target_path: String,
+) -> Result<(), String> {
+    let db = state
+        .registry
+        .db
+        .connection()
+        .await
+        .map_err(|e| e.to_string())?;
+    let art_uuid = Uuid::parse_str(&artifact_id).map_err(|e| e.to_string())?;
+
+    let artifact = Artifacts::find_by_id(art_uuid)
+        .one(db)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "Artifact not found".to_string())?;
+
+    let content = if let Some(storage_path) = artifact.storage_path {
+        tokio::fs::read_to_string(&storage_path)
+            .await
+            .map_err(|e| e.to_string())?
+    } else {
+        artifact.content
+    };
+
+    let path = PathBuf::from(&target_path);
+    if let Some(parent) = path.parent() {
+        tokio::fs::create_dir_all(parent)
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+    tokio::fs::write(&path, content)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
 }

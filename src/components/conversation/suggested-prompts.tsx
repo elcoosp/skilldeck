@@ -2,7 +2,6 @@
 
 import { Sparkles, X } from 'lucide-react'
 import { useState } from 'react'
-import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
@@ -51,6 +50,7 @@ export function SuggestedPrompts({
   return (
     <div className="relative rounded-lg border bg-muted/30 px-3 py-2 mx-3 mt-2">
       <button
+        type="button"
         onClick={handleDismiss}
         className="absolute right-2 top-2 text-muted-foreground hover:text-foreground"
       >
@@ -64,6 +64,7 @@ export function SuggestedPrompts({
         {quickPrompts.map((p) => (
           <button
             key={p.id}
+            type="button"
             onClick={() => onSelect(p.prompt)}
             className="rounded-full border bg-background px-2.5 py-1 text-xs text-foreground transition-colors hover:bg-accent hover:text-primary-foreground"
           >
@@ -71,6 +72,7 @@ export function SuggestedPrompts({
           </button>
         ))}
         <button
+          type="button"
           onClick={() => setExploreOpen(true)}
           className="rounded-full border border-dashed px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-primary-foreground"
         >
@@ -92,6 +94,7 @@ export function SuggestedPrompts({
                     .map((p) => (
                       <button
                         key={p.id}
+                        type="button"
                         onClick={() => {
                           onSelect(p.prompt)
                           setExploreOpen(false)

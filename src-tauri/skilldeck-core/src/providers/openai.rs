@@ -350,8 +350,6 @@ impl ModelProvider for OpenAiProvider {
         let token_count = Arc::new(AtomicU64::new(0));
         let chunk_count_clone = chunk_count.clone();
         let token_count_clone = token_count.clone();
-        let model_id_for_log = request.model_id.clone();
-
         // BUG FIX: Use `scan` to maintain a line buffer across TCP chunks.
         // `bytes_stream()` yields raw TCP chunks, not logical SSE lines.
         // A single `data: {...}\n` event can be split across multiple chunks,
@@ -444,30 +442,30 @@ impl ModelProvider for OpenAiProvider {
                                             chunk_count_clone.fetch_add(1, Ordering::Relaxed);
 
                                             if let Some(choice) = chunk.choices.first() {
-                                                if let Some(content) = &choice.delta.content {
-                                                    if !content.is_empty() {
-                                                        token_count_clone.fetch_add(content.len() as u64, Ordering::Relaxed);
-                                                        items.push(Ok(CompletionChunk::Token {
-                                                            content: content.clone(),
-                                                        }));
-                                                    }
+                                                if let Some(content) = &choice.delta.content
+                                                    && !content.is_empty()
+                                                {
+                                                    token_count_clone.fetch_add(content.len() as u64, Ordering::Relaxed);
+                                                    items.push(Ok(CompletionChunk::Token {
+                                                        content: content.clone(),
+                                                    }));
                                                 }
-                                                if let Some(tool_calls) = &choice.delta.tool_calls {
-                                                    if let Some(tc) = tool_calls.first() {
-                                                        items.push(Ok(CompletionChunk::ToolCall {
-                                                            tool_call: ToolCall {
-                                                                id: tc.id.clone(),
-                                                                r#type: tc.r#type.clone(),
-                                                                function: FunctionCall {
-                                                                    name: tc.function.name.clone(),
-                                                                    arguments: tc
-                                                                        .function
-                                                                        .arguments
-                                                                        .clone(),
-                                                                },
+                                                if let Some(tool_calls) = &choice.delta.tool_calls
+                                                    && let Some(tc) = tool_calls.first()
+                                                {
+                                                    items.push(Ok(CompletionChunk::ToolCall {
+                                                        tool_call: ToolCall {
+                                                            id: tc.id.clone(),
+                                                            r#type: tc.r#type.clone(),
+                                                            function: FunctionCall {
+                                                                name: tc.function.name.clone(),
+                                                                arguments: tc
+                                                                    .function
+                                                                    .arguments
+                                                                    .clone(),
                                                             },
-                                                        }));
-                                                    }
+                                                        },
+                                                    }));
                                                 }
                                             }
                                             if let Some(usage) = &chunk.usage {

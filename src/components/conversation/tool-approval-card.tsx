@@ -1,7 +1,7 @@
 import { AlertTriangle, Check, Edit2, X } from 'lucide-react'
 import { useState } from 'react'
-import { toast } from '@/components/ui/toast'
 import { Button } from '@/components/ui/button'
+import { toast } from '@/components/ui/toast'
 import { useAchievements } from '@/hooks/use-achievements'
 import { commands } from '@/lib/bindings'
 import type { ToolCallInfo } from '@/lib/events'

@@ -4,6 +4,29 @@
  * Optimized for narrow containers (25% viewport width).
  */
 
+// Simple Icons
+import {
+  SiBrave,
+  SiCloudflare,
+  SiDatadog,
+  SiFigma,
+  SiFirebase,
+  SiGit,
+  SiGithub,
+  SiGitlab,
+  SiGrafana,
+  SiJira,
+  SiKubernetes,
+  SiMongodb,
+  SiNotion,
+  SiPostgresql,
+  SiSentry,
+  SiSqlite,
+  SiStripe,
+  SiSupabase,
+  SiTerraform,
+  SiVercel
+} from '@icons-pack/react-simple-icons'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { motion } from 'framer-motion'
@@ -15,8 +38,11 @@ import {
   Zap
 } from 'lucide-react'
 import { useState } from 'react'
-import { toast } from '@/components/ui/toast'
+import { AnimatedSuccessIcon } from '@/components/ui/animated-success-icon'
+import { Button } from '@/components/ui/button'
+import { LoadingState } from '@/components/ui/loading-state'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { toast } from '@/components/ui/toast'
 import { useActiveConversationWorkspaceId } from '@/hooks/use-conversations'
 import { useWorkspaces } from '@/hooks/use-workspaces'
 import type { AddMcpServerPayload, McpServerResponse } from '@/lib/bindings'
@@ -26,33 +52,6 @@ import { CatalogCard } from './catalog-card'
 import { CustomServerForm } from './custom-server-form'
 import { LiveServerCard } from './live-server-card'
 import { RightPanelHeader } from './right-panel-header'
-import { Button } from '@/components/ui/button'
-import { LoadingState } from '@/components/ui/loading-state'
-import { AnimatedSuccessIcon } from '@/components/ui/animated-success-icon'
-
-// Simple Icons
-import {
-  SiBrave,
-  SiFirebase,
-  SiGithub,
-  SiGit,
-  SiGitlab,
-  SiPostgresql,
-  SiSqlite,
-  SiSupabase,
-  SiMongodb,
-  SiCloudflare,
-  SiDatadog,
-  SiGrafana,
-  SiSentry,
-  SiKubernetes,
-  SiTerraform,
-  SiNotion,
-  SiJira,
-  SiFigma,
-  SiStripe,
-  SiVercel,
-} from '@icons-pack/react-simple-icons'
 
 export interface CatalogEntry {
   id: string
@@ -64,49 +63,384 @@ export interface CatalogEntry {
   url?: string
   docsUrl: string
   category:
-  | 'filesystem'
-  | 'web'
-  | 'data'
-  | 'dev'
-  | 'productivity'
-  | 'cloud'
-  | 'observability'
+    | 'filesystem'
+    | 'web'
+    | 'data'
+    | 'dev'
+    | 'productivity'
+    | 'cloud'
+    | 'observability'
   tags: string[]
 }
 
 const CATALOG: CatalogEntry[] = [
-  { id: 'filesystem', name: 'Filesystem', description: 'Read and write files on your local machine', transport: 'stdio', command: 'npx', args: ['-y', '@modelcontextprotocol/server-filesystem', '__WORKSPACE__'], docsUrl: 'https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem', category: 'filesystem', tags: ['files', 'read', 'write'] },
-  { id: 'memory', name: 'Memory', description: 'Persistent key-value memory across sessions', transport: 'stdio', command: 'npx', args: ['-y', '@modelcontextprotocol/server-memory'], docsUrl: 'https://github.com/modelcontextprotocol/servers/tree/main/src/memory', category: 'data', tags: ['memory', 'persistence', 'kv'] },
-  { id: 'git', name: 'Git', description: 'Read git history, diffs, and commits locally', transport: 'stdio', command: 'uvx', args: ['mcp-server-git', '--repository', '.'], docsUrl: 'https://github.com/modelcontextprotocol/servers/tree/main/src/git', category: 'dev', tags: ['git', 'history', 'diff'] },
-  { id: 'github', name: 'GitHub', description: 'Read repos, issues, PRs and files from GitHub', transport: 'stdio', command: 'npx', args: ['-y', '@modelcontextprotocol/server-github'], docsUrl: 'https://github.com/modelcontextprotocol/servers/tree/main/src/github', category: 'dev', tags: ['git', 'code', 'issues'] },
-  { id: 'gitlab', name: 'GitLab', description: 'Access GitLab projects, issues, and merge requests', transport: 'stdio', command: 'npx', args: ['-y', '@modelcontextprotocol/server-gitlab'], docsUrl: 'https://github.com/modelcontextprotocol/servers/tree/main/src/gitlab', category: 'dev', tags: ['gitlab', 'ci/cd', 'mrs'] },
-  { id: 'brave-search', name: 'Brave Search', description: 'Web and local search via Brave Search API', transport: 'stdio', command: 'npx', args: ['-y', '@modelcontextprotocol/server-brave-search'], docsUrl: 'https://github.com/modelcontextprotocol/servers/tree/main/src/brave-search', category: 'web', tags: ['search', 'web', 'browse'] },
-  { id: 'fetch', name: 'Fetch', description: 'Fetch any URL and convert to markdown', transport: 'stdio', command: 'uvx', args: ['mcp-server-fetch'], docsUrl: 'https://github.com/modelcontextprotocol/servers/tree/main/src/fetch', category: 'web', tags: ['http', 'scrape', 'browse'] },
-  { id: 'puppeteer', name: 'Puppeteer', description: 'Browser automation and screenshot capture', transport: 'stdio', command: 'npx', args: ['-y', '@modelcontextprotocol/server-puppeteer'], docsUrl: 'https://github.com/modelcontextprotocol/servers/tree/main/src/puppeteer', category: 'web', tags: ['browser', 'automation', 'screenshot'] },
-  { id: 'playwright', name: 'Playwright', description: 'End-to-end testing and web automation', transport: 'stdio', command: 'npx', args: ['-y', '@modelcontextprotocol/server-playwright'], docsUrl: 'https://github.com/modelcontextprotocol/servers/tree/main/src/playwright', category: 'web', tags: ['testing', 'automation', 'e2e'] },
-  { id: 'postgres', name: 'PostgreSQL', description: 'Read-only access to PostgreSQL databases', transport: 'stdio', command: 'npx', args: ['-y', '@modelcontextprotocol/server-postgres', 'postgresql://localhost/mydb'], docsUrl: 'https://github.com/modelcontextprotocol/servers/tree/main/src/postgres', category: 'data', tags: ['sql', 'database', 'postgres'] },
-  { id: 'sqlite', name: 'SQLite', description: 'Query and manage SQLite databases', transport: 'stdio', command: 'uvx', args: ['mcp-server-sqlite', '--db-path', 'data.db'], docsUrl: 'https://github.com/modelcontextprotocol/servers/tree/main/src/sqlite', category: 'data', tags: ['sql', 'database', 'query'] },
-  { id: 'mongodb', name: 'MongoDB', description: 'Query MongoDB collections using natural language', transport: 'stdio', command: 'npx', args: ['-y', '@modelcontextprotocol/server-mongodb'], docsUrl: 'https://github.com/modelcontextprotocol/servers/tree/main/src/mongodb', category: 'data', tags: ['nosql', 'document', 'aggregation'] },
-  { id: 'qdrant', name: 'Qdrant', description: 'Vector search for RAG and long-term memory', transport: 'stdio', command: 'docker', args: ['run', '-p', '6333:6333', 'qdrant/qdrant'], docsUrl: 'https://github.com/qdrant/qdrant-mcp-server', category: 'data', tags: ['vector', 'embeddings', 'memory'] },
-  { id: 'firebase', name: 'Firebase', description: 'Manage Firestore, Auth, Crashlytics, and more', transport: 'stdio', command: 'npx', args: ['-y', 'firebase-tools', 'mcp'], docsUrl: 'https://github.com/firebase/firebase-tools', category: 'cloud', tags: ['firestore', 'auth', 'crashlytics'] },
-  { id: 'supabase', name: 'Supabase', description: 'Query database, manage edge functions, generate types', transport: 'stdio', command: 'npx', args: ['-y', '@supabase/mcp-server'], docsUrl: 'https://github.com/supabase/mcp-server', category: 'cloud', tags: ['postgres', 'auth', 'edge-functions'] },
-  { id: 'aws', name: 'AWS', description: 'Official AWS SDK integration for resource management', transport: 'stdio', command: 'npx', args: ['-y', '@aws/mcp-server'], docsUrl: 'https://github.com/awslabs/mcp', category: 'cloud', tags: ['ec2', 's3', 'lambda'] },
-  { id: 'azure-devops', name: 'Azure DevOps', description: 'Manage work items, repos, pipelines, and wikis', transport: 'stdio', command: 'npx', args: ['-y', '@azure/mcp-server-devops'], docsUrl: 'https://github.com/microsoft/mcp-server-devops', category: 'cloud', tags: ['azure', 'devops', 'pipelines'] },
-  { id: 'cloudflare-workers', name: 'Cloudflare Workers', description: 'Deploy and manage Workers, KV, and D1', transport: 'stdio', command: 'npx', args: ['-y', '@cloudflare/mcp-server-workers'], docsUrl: 'https://github.com/cloudflare/mcp-server-workers', category: 'cloud', tags: ['workers', 'kv', 'd1'] },
-  { id: 'cloudflare-docs', name: 'Cloudflare Docs', description: 'Get up-to-date reference on Cloudflare products', transport: 'sse', url: 'https://docs.mcp.cloudflare.com/mcp', docsUrl: 'https://developers.cloudflare.com/agents/model-context-protocol/mcp-servers-for-cloudflare/', category: 'cloud', tags: ['docs', 'cloudflare'] },
-  { id: 'cloudflare-observability', name: 'Cloudflare Observability', description: 'Debug applications with logs and analytics', transport: 'sse', url: 'https://observability.mcp.cloudflare.com/mcp', docsUrl: 'https://developers.cloudflare.com/agents/model-context-protocol/mcp-servers-for-cloudflare/', category: 'observability', tags: ['logs', 'analytics', 'debug'] },
-  { id: 'cloudflare-radar', name: 'Cloudflare Radar', description: 'Global internet traffic insights and URL scans', transport: 'sse', url: 'https://radar.mcp.cloudflare.com/mcp', docsUrl: 'https://developers.cloudflare.com/agents/model-context-protocol/mcp-servers-for-cloudflare/', category: 'web', tags: ['internet', 'traffic', 'trends'] },
-  { id: 'datadog', name: 'Datadog', description: 'Query metrics, logs, traces, and monitor incidents', transport: 'stdio', command: 'npx', args: ['-y', '@datadog/mcp-server'], docsUrl: 'https://github.com/datadog/mcp-server', category: 'observability', tags: ['metrics', 'logs', 'apm'] },
-  { id: 'grafana', name: 'Grafana', description: 'Query dashboards, explore data sources', transport: 'stdio', command: 'npx', args: ['-y', '@grafana/mcp-server'], docsUrl: 'https://github.com/grafana/mcp-server', category: 'observability', tags: ['dashboards', 'prometheus', 'loki'] },
-  { id: 'sentry', name: 'Sentry', description: 'Access errors, issues, and performance data', transport: 'stdio', command: 'npx', args: ['-y', '@sentry/mcp-server'], docsUrl: 'https://github.com/getsentry/sentry-mcp-server', category: 'observability', tags: ['errors', 'issues', 'performance'] },
-  { id: 'kubernetes', name: 'Kubernetes', description: 'Manage pods, deployments, services via kubectl', transport: 'stdio', command: 'npx', args: ['-y', '@kubernetes/mcp-server'], docsUrl: 'https://github.com/kubernetes/mcp-server', category: 'dev', tags: ['k8s', 'pods', 'deployments'] },
-  { id: 'terraform', name: 'Terraform', description: 'Plan, apply, and query Terraform state', transport: 'stdio', command: 'npx', args: ['-y', '@hashicorp/mcp-server-terraform'], docsUrl: 'https://github.com/hashicorp/mcp-server-terraform', category: 'dev', tags: ['iac', 'terraform', 'state'] },
-  { id: 'slack', name: 'Slack', description: 'Read and send messages, search channels', transport: 'stdio', command: 'npx', args: ['-y', '@slack/mcp-server'], docsUrl: 'https://github.com/slackapi/mcp-server-slack', category: 'productivity', tags: ['slack', 'messaging', 'team'] },
-  { id: 'notion', name: 'Notion', description: 'Search, read, and write Notion pages', transport: 'stdio', command: 'npx', args: ['-y', '@notionhq/mcp-server'], docsUrl: 'https://github.com/makenotion/notion-mcp-server', category: 'productivity', tags: ['wiki', 'docs', 'notes'] },
-  { id: 'jira', name: 'Jira', description: 'Create, read, and update issues', transport: 'stdio', command: 'npx', args: ['-y', '@atlassian/mcp-server-jira'], docsUrl: 'https://github.com/atlassian/mcp-server-jira', category: 'productivity', tags: ['tickets', 'project-mgmt'] },
-  { id: 'figma', name: 'Figma', description: 'Extract design tokens and generate code from frames', transport: 'sse', url: 'https://mcp.figma.com/mcp', docsUrl: 'https://www.figma.com/developers/mcp', category: 'dev', tags: ['design', 'ui', 'code-gen'] },
-  { id: 'stripe', name: 'Stripe', description: 'Query customers, subscriptions, and payments', transport: 'stdio', command: 'npx', args: ['-y', '@stripe/mcp-server'], docsUrl: 'https://github.com/stripe/mcp-server', category: 'productivity', tags: ['payments', 'billing'] },
-  { id: 'vercel', name: 'Vercel', description: 'Inspect deployments, logs, and env variables', transport: 'stdio', command: 'npx', args: ['-y', '@vercel/mcp-server'], docsUrl: 'https://github.com/vercel/mcp-server', category: 'cloud', tags: ['deployments', 'logs', 'frontend'] }
+  {
+    id: 'filesystem',
+    name: 'Filesystem',
+    description: 'Read and write files on your local machine',
+    transport: 'stdio',
+    command: 'npx',
+    args: ['-y', '@modelcontextprotocol/server-filesystem', '__WORKSPACE__'],
+    docsUrl:
+      'https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem',
+    category: 'filesystem',
+    tags: ['files', 'read', 'write']
+  },
+  {
+    id: 'memory',
+    name: 'Memory',
+    description: 'Persistent key-value memory across sessions',
+    transport: 'stdio',
+    command: 'npx',
+    args: ['-y', '@modelcontextprotocol/server-memory'],
+    docsUrl:
+      'https://github.com/modelcontextprotocol/servers/tree/main/src/memory',
+    category: 'data',
+    tags: ['memory', 'persistence', 'kv']
+  },
+  {
+    id: 'git',
+    name: 'Git',
+    description: 'Read git history, diffs, and commits locally',
+    transport: 'stdio',
+    command: 'uvx',
+    args: ['mcp-server-git', '--repository', '.'],
+    docsUrl:
+      'https://github.com/modelcontextprotocol/servers/tree/main/src/git',
+    category: 'dev',
+    tags: ['git', 'history', 'diff']
+  },
+  {
+    id: 'github',
+    name: 'GitHub',
+    description: 'Read repos, issues, PRs and files from GitHub',
+    transport: 'stdio',
+    command: 'npx',
+    args: ['-y', '@modelcontextprotocol/server-github'],
+    docsUrl:
+      'https://github.com/modelcontextprotocol/servers/tree/main/src/github',
+    category: 'dev',
+    tags: ['git', 'code', 'issues']
+  },
+  {
+    id: 'gitlab',
+    name: 'GitLab',
+    description: 'Access GitLab projects, issues, and merge requests',
+    transport: 'stdio',
+    command: 'npx',
+    args: ['-y', '@modelcontextprotocol/server-gitlab'],
+    docsUrl:
+      'https://github.com/modelcontextprotocol/servers/tree/main/src/gitlab',
+    category: 'dev',
+    tags: ['gitlab', 'ci/cd', 'mrs']
+  },
+  {
+    id: 'brave-search',
+    name: 'Brave Search',
+    description: 'Web and local search via Brave Search API',
+    transport: 'stdio',
+    command: 'npx',
+    args: ['-y', '@modelcontextprotocol/server-brave-search'],
+    docsUrl:
+      'https://github.com/modelcontextprotocol/servers/tree/main/src/brave-search',
+    category: 'web',
+    tags: ['search', 'web', 'browse']
+  },
+  {
+    id: 'fetch',
+    name: 'Fetch',
+    description: 'Fetch any URL and convert to markdown',
+    transport: 'stdio',
+    command: 'uvx',
+    args: ['mcp-server-fetch'],
+    docsUrl:
+      'https://github.com/modelcontextprotocol/servers/tree/main/src/fetch',
+    category: 'web',
+    tags: ['http', 'scrape', 'browse']
+  },
+  {
+    id: 'puppeteer',
+    name: 'Puppeteer',
+    description: 'Browser automation and screenshot capture',
+    transport: 'stdio',
+    command: 'npx',
+    args: ['-y', '@modelcontextprotocol/server-puppeteer'],
+    docsUrl:
+      'https://github.com/modelcontextprotocol/servers/tree/main/src/puppeteer',
+    category: 'web',
+    tags: ['browser', 'automation', 'screenshot']
+  },
+  {
+    id: 'playwright',
+    name: 'Playwright',
+    description: 'End-to-end testing and web automation',
+    transport: 'stdio',
+    command: 'npx',
+    args: ['-y', '@modelcontextprotocol/server-playwright'],
+    docsUrl:
+      'https://github.com/modelcontextprotocol/servers/tree/main/src/playwright',
+    category: 'web',
+    tags: ['testing', 'automation', 'e2e']
+  },
+  {
+    id: 'postgres',
+    name: 'PostgreSQL',
+    description: 'Read-only access to PostgreSQL databases',
+    transport: 'stdio',
+    command: 'npx',
+    args: [
+      '-y',
+      '@modelcontextprotocol/server-postgres',
+      'postgresql://localhost/mydb'
+    ],
+    docsUrl:
+      'https://github.com/modelcontextprotocol/servers/tree/main/src/postgres',
+    category: 'data',
+    tags: ['sql', 'database', 'postgres']
+  },
+  {
+    id: 'sqlite',
+    name: 'SQLite',
+    description: 'Query and manage SQLite databases',
+    transport: 'stdio',
+    command: 'uvx',
+    args: ['mcp-server-sqlite', '--db-path', 'data.db'],
+    docsUrl:
+      'https://github.com/modelcontextprotocol/servers/tree/main/src/sqlite',
+    category: 'data',
+    tags: ['sql', 'database', 'query']
+  },
+  {
+    id: 'mongodb',
+    name: 'MongoDB',
+    description: 'Query MongoDB collections using natural language',
+    transport: 'stdio',
+    command: 'npx',
+    args: ['-y', '@modelcontextprotocol/server-mongodb'],
+    docsUrl:
+      'https://github.com/modelcontextprotocol/servers/tree/main/src/mongodb',
+    category: 'data',
+    tags: ['nosql', 'document', 'aggregation']
+  },
+  {
+    id: 'qdrant',
+    name: 'Qdrant',
+    description: 'Vector search for RAG and long-term memory',
+    transport: 'stdio',
+    command: 'docker',
+    args: ['run', '-p', '6333:6333', 'qdrant/qdrant'],
+    docsUrl: 'https://github.com/qdrant/qdrant-mcp-server',
+    category: 'data',
+    tags: ['vector', 'embeddings', 'memory']
+  },
+  {
+    id: 'firebase',
+    name: 'Firebase',
+    description: 'Manage Firestore, Auth, Crashlytics, and more',
+    transport: 'stdio',
+    command: 'npx',
+    args: ['-y', 'firebase-tools', 'mcp'],
+    docsUrl: 'https://github.com/firebase/firebase-tools',
+    category: 'cloud',
+    tags: ['firestore', 'auth', 'crashlytics']
+  },
+  {
+    id: 'supabase',
+    name: 'Supabase',
+    description: 'Query database, manage edge functions, generate types',
+    transport: 'stdio',
+    command: 'npx',
+    args: ['-y', '@supabase/mcp-server'],
+    docsUrl: 'https://github.com/supabase/mcp-server',
+    category: 'cloud',
+    tags: ['postgres', 'auth', 'edge-functions']
+  },
+  {
+    id: 'aws',
+    name: 'AWS',
+    description: 'Official AWS SDK integration for resource management',
+    transport: 'stdio',
+    command: 'npx',
+    args: ['-y', '@aws/mcp-server'],
+    docsUrl: 'https://github.com/awslabs/mcp',
+    category: 'cloud',
+    tags: ['ec2', 's3', 'lambda']
+  },
+  {
+    id: 'azure-devops',
+    name: 'Azure DevOps',
+    description: 'Manage work items, repos, pipelines, and wikis',
+    transport: 'stdio',
+    command: 'npx',
+    args: ['-y', '@azure/mcp-server-devops'],
+    docsUrl: 'https://github.com/microsoft/mcp-server-devops',
+    category: 'cloud',
+    tags: ['azure', 'devops', 'pipelines']
+  },
+  {
+    id: 'cloudflare-workers',
+    name: 'Cloudflare Workers',
+    description: 'Deploy and manage Workers, KV, and D1',
+    transport: 'stdio',
+    command: 'npx',
+    args: ['-y', '@cloudflare/mcp-server-workers'],
+    docsUrl: 'https://github.com/cloudflare/mcp-server-workers',
+    category: 'cloud',
+    tags: ['workers', 'kv', 'd1']
+  },
+  {
+    id: 'cloudflare-docs',
+    name: 'Cloudflare Docs',
+    description: 'Get up-to-date reference on Cloudflare products',
+    transport: 'sse',
+    url: 'https://docs.mcp.cloudflare.com/mcp',
+    docsUrl:
+      'https://developers.cloudflare.com/agents/model-context-protocol/mcp-servers-for-cloudflare/',
+    category: 'cloud',
+    tags: ['docs', 'cloudflare']
+  },
+  {
+    id: 'cloudflare-observability',
+    name: 'Cloudflare Observability',
+    description: 'Debug applications with logs and analytics',
+    transport: 'sse',
+    url: 'https://observability.mcp.cloudflare.com/mcp',
+    docsUrl:
+      'https://developers.cloudflare.com/agents/model-context-protocol/mcp-servers-for-cloudflare/',
+    category: 'observability',
+    tags: ['logs', 'analytics', 'debug']
+  },
+  {
+    id: 'cloudflare-radar',
+    name: 'Cloudflare Radar',
+    description: 'Global internet traffic insights and URL scans',
+    transport: 'sse',
+    url: 'https://radar.mcp.cloudflare.com/mcp',
+    docsUrl:
+      'https://developers.cloudflare.com/agents/model-context-protocol/mcp-servers-for-cloudflare/',
+    category: 'web',
+    tags: ['internet', 'traffic', 'trends']
+  },
+  {
+    id: 'datadog',
+    name: 'Datadog',
+    description: 'Query metrics, logs, traces, and monitor incidents',
+    transport: 'stdio',
+    command: 'npx',
+    args: ['-y', '@datadog/mcp-server'],
+    docsUrl: 'https://github.com/datadog/mcp-server',
+    category: 'observability',
+    tags: ['metrics', 'logs', 'apm']
+  },
+  {
+    id: 'grafana',
+    name: 'Grafana',
+    description: 'Query dashboards, explore data sources',
+    transport: 'stdio',
+    command: 'npx',
+    args: ['-y', '@grafana/mcp-server'],
+    docsUrl: 'https://github.com/grafana/mcp-server',
+    category: 'observability',
+    tags: ['dashboards', 'prometheus', 'loki']
+  },
+  {
+    id: 'sentry',
+    name: 'Sentry',
+    description: 'Access errors, issues, and performance data',
+    transport: 'stdio',
+    command: 'npx',
+    args: ['-y', '@sentry/mcp-server'],
+    docsUrl: 'https://github.com/getsentry/sentry-mcp-server',
+    category: 'observability',
+    tags: ['errors', 'issues', 'performance']
+  },
+  {
+    id: 'kubernetes',
+    name: 'Kubernetes',
+    description: 'Manage pods, deployments, services via kubectl',
+    transport: 'stdio',
+    command: 'npx',
+    args: ['-y', '@kubernetes/mcp-server'],
+    docsUrl: 'https://github.com/kubernetes/mcp-server',
+    category: 'dev',
+    tags: ['k8s', 'pods', 'deployments']
+  },
+  {
+    id: 'terraform',
+    name: 'Terraform',
+    description: 'Plan, apply, and query Terraform state',
+    transport: 'stdio',
+    command: 'npx',
+    args: ['-y', '@hashicorp/mcp-server-terraform'],
+    docsUrl: 'https://github.com/hashicorp/mcp-server-terraform',
+    category: 'dev',
+    tags: ['iac', 'terraform', 'state']
+  },
+  {
+    id: 'slack',
+    name: 'Slack',
+    description: 'Read and send messages, search channels',
+    transport: 'stdio',
+    command: 'npx',
+    args: ['-y', '@slack/mcp-server'],
+    docsUrl: 'https://github.com/slackapi/mcp-server-slack',
+    category: 'productivity',
+    tags: ['slack', 'messaging', 'team']
+  },
+  {
+    id: 'notion',
+    name: 'Notion',
+    description: 'Search, read, and write Notion pages',
+    transport: 'stdio',
+    command: 'npx',
+    args: ['-y', '@notionhq/mcp-server'],
+    docsUrl: 'https://github.com/makenotion/notion-mcp-server',
+    category: 'productivity',
+    tags: ['wiki', 'docs', 'notes']
+  },
+  {
+    id: 'jira',
+    name: 'Jira',
+    description: 'Create, read, and update issues',
+    transport: 'stdio',
+    command: 'npx',
+    args: ['-y', '@atlassian/mcp-server-jira'],
+    docsUrl: 'https://github.com/atlassian/mcp-server-jira',
+    category: 'productivity',
+    tags: ['tickets', 'project-mgmt']
+  },
+  {
+    id: 'figma',
+    name: 'Figma',
+    description: 'Extract design tokens and generate code from frames',
+    transport: 'sse',
+    url: 'https://mcp.figma.com/mcp',
+    docsUrl: 'https://www.figma.com/developers/mcp',
+    category: 'dev',
+    tags: ['design', 'ui', 'code-gen']
+  },
+  {
+    id: 'stripe',
+    name: 'Stripe',
+    description: 'Query customers, subscriptions, and payments',
+    transport: 'stdio',
+    command: 'npx',
+    args: ['-y', '@stripe/mcp-server'],
+    docsUrl: 'https://github.com/stripe/mcp-server',
+    category: 'productivity',
+    tags: ['payments', 'billing']
+  },
+  {
+    id: 'vercel',
+    name: 'Vercel',
+    description: 'Inspect deployments, logs, and env variables',
+    transport: 'stdio',
+    command: 'npx',
+    args: ['-y', '@vercel/mcp-server'],
+    docsUrl: 'https://github.com/vercel/mcp-server',
+    category: 'cloud',
+    tags: ['deployments', 'logs', 'frontend']
+  }
 ]
 
 const CATEGORY_LABELS: Record<CatalogEntry['category'], string> = {
@@ -120,7 +454,13 @@ const CATEGORY_LABELS: Record<CatalogEntry['category'], string> = {
 }
 
 const CATEGORY_ORDER: CatalogEntry['category'][] = [
-  'filesystem', 'dev', 'web', 'data', 'cloud', 'observability', 'productivity'
+  'filesystem',
+  'dev',
+  'web',
+  'data',
+  'cloud',
+  'observability',
+  'productivity'
 ]
 
 type McpView = 'servers' | 'catalog' | 'custom'
@@ -150,7 +490,7 @@ const getIconForEntry = (entryId: string): React.ReactNode => {
     jira: SiJira,
     figma: SiFigma,
     stripe: SiStripe,
-    vercel: SiVercel,
+    vercel: SiVercel
   }
 
   const IconComponent = iconMap[entryId]
@@ -160,7 +500,9 @@ const getIconForEntry = (entryId: string): React.ReactNode => {
 export function McpTab() {
   const [view, setView] = useState<McpView>('servers')
   const [addingId, setAddingId] = useState<string | null>(null)
-  const [catalogCategory, setCatalogCategory] = useState<CatalogEntry['category'] | 'all'>('all')
+  const [catalogCategory, setCatalogCategory] = useState<
+    CatalogEntry['category'] | 'all'
+  >('all')
   const qc = useQueryClient()
   const [showConnectSuccess, setShowConnectSuccess] = useState(false)
 
@@ -168,7 +510,12 @@ export function McpTab() {
   const { data: workspaces = [] } = useWorkspaces()
   const activeWorkspace = workspaces.find((w) => w.id === workspaceId)
 
-  const { data: servers = [], isLoading, refetch, isFetching } = useQuery({
+  const {
+    data: servers = [],
+    isLoading,
+    refetch,
+    isFetching
+  } = useQuery({
     queryKey: ['mcp-servers'],
     queryFn: async () => {
       const res = await commands.listMcpServers()
@@ -207,7 +554,9 @@ export function McpTab() {
         const homeRes = await commands.getHomeDir()
         workspacePath = homeRes.status === 'ok' ? homeRes.data : ''
       }
-      resolvedArgs = entry.args?.map((arg) => arg === '__WORKSPACE__' ? workspacePath : arg)
+      resolvedArgs = entry.args?.map((arg) =>
+        arg === '__WORKSPACE__' ? workspacePath : arg
+      )
     }
     addMut.mutate({
       name: entry.name,
@@ -219,17 +568,29 @@ export function McpTab() {
     })
   }
 
-  const addedNames = new Set(servers.map((s: McpServerResponse) => s.name.toLowerCase()))
-  const isAdded = (entry: CatalogEntry) => addedNames.has(entry.name.toLowerCase())
-  const filteredCatalog = catalogCategory === 'all' ? CATALOG : CATALOG.filter((e) => e.category === catalogCategory)
+  const addedNames = new Set(
+    servers.map((s: McpServerResponse) => s.name.toLowerCase())
+  )
+  const isAdded = (entry: CatalogEntry) =>
+    addedNames.has(entry.name.toLowerCase())
+  const filteredCatalog =
+    catalogCategory === 'all'
+      ? CATALOG
+      : CATALOG.filter((e) => e.category === catalogCategory)
 
   const handleBrowseAll = async () => {
-    try { await openUrl('https://github.com/modelcontextprotocol/servers') }
-    catch (e) { toast.error(`Failed to open link: ${e}`) }
+    try {
+      await openUrl('https://github.com/modelcontextprotocol/servers')
+    } catch (e) {
+      toast.error(`Failed to open link: ${e}`)
+    }
   }
   const handleWhatIsMcp = async () => {
-    try { await openUrl('https://modelcontextprotocol.io/introduction') }
-    catch (e) { toast.error(`Failed to open link: ${e}`) }
+    try {
+      await openUrl('https://modelcontextprotocol.io/introduction')
+    } catch (e) {
+      toast.error(`Failed to open link: ${e}`)
+    }
   }
 
   // ── Catalog view ───────────────────────────────────────────────────────────
@@ -266,7 +627,7 @@ export function McpTab() {
               WebkitMaskImage:
                 'linear-gradient(to right, black calc(100% - 40px), transparent)',
               maskImage:
-                'linear-gradient(to right, black calc(100% - 40px), transparent)',
+                'linear-gradient(to right, black calc(100% - 40px), transparent)'
             }}
           >
             {(['all', ...CATEGORY_ORDER] as const).map((cat) => (
@@ -341,7 +702,9 @@ export function McpTab() {
         actions={
           <div className="flex items-center gap-1">
             {showConnectSuccess && (
-              <AnimatedSuccessIcon onComplete={() => setShowConnectSuccess(false)} />
+              <AnimatedSuccessIcon
+                onComplete={() => setShowConnectSuccess(false)}
+              />
             )}
             <Button
               variant="ghost"
@@ -351,7 +714,9 @@ export function McpTab() {
               disabled={isFetching}
               title="Refresh"
             >
-              <RefreshCw className={cn('size-4', isFetching && 'animate-spin')} />
+              <RefreshCw
+                className={cn('size-4', isFetching && 'animate-spin')}
+              />
             </Button>
           </div>
         }
@@ -389,10 +754,18 @@ export function McpTab() {
             <div className="flex items-center gap-2 px-0.5 pt-1 text-[10px] text-muted-foreground">
               <span className="flex items-center gap-1 shrink-0">
                 <span className="size-1.5 rounded-full bg-green-500 inline-block" />
-                {servers.filter((s: McpServerResponse) => s.status === 'connected').length}
+                {
+                  servers.filter(
+                    (s: McpServerResponse) => s.status === 'connected'
+                  ).length
+                }
               </span>
               <span className="truncate">
-                {servers.reduce((n: number, s: McpServerResponse) => n + s.tools.length, 0)} tools
+                {servers.reduce(
+                  (n: number, s: McpServerResponse) => n + s.tools.length,
+                  0
+                )}{' '}
+                tools
               </span>
             </div>
           )}

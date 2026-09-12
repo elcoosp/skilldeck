@@ -157,24 +157,24 @@ export function useNudgeListener() {
             action:
               cta_label && cta_action
                 ? {
-                  label: cta_label,
-                  onClick: async () => {
-                    if (cta_action.startsWith('open:')) {
-                      const target = cta_action.replace('open:', '')
-                      window.dispatchEvent(
-                        new CustomEvent('skilldeck:navigate', {
-                          detail: { target }
-                        })
-                      )
-                    } else if (cta_action.startsWith('http')) {
-                      try {
-                        await openUrl(cta_action) // <-- use openUrl
-                      } catch (error) {
-                        console.error('Failed to open URL:', error)
+                    label: cta_label,
+                    onClick: async () => {
+                      if (cta_action.startsWith('open:')) {
+                        const target = cta_action.replace('open:', '')
+                        window.dispatchEvent(
+                          new CustomEvent('skilldeck:navigate', {
+                            detail: { target }
+                          })
+                        )
+                      } else if (cta_action.startsWith('http')) {
+                        try {
+                          await openUrl(cta_action) // <-- use openUrl
+                        } catch (error) {
+                          console.error('Failed to open URL:', error)
+                        }
                       }
                     }
                   }
-                }
                 : undefined
           })
         })
