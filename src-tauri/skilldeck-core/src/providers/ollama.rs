@@ -32,7 +32,10 @@ pub struct OllamaProvider {
 impl OllamaProvider {
     pub fn new(port: u16) -> Self {
         Self {
-            client: OllamaClient::builder().host("localhost").port(port).build(),
+            client: OllamaClient::builder()
+                .host("http://localhost")
+                .port(port)
+                .build(),
             port,
         }
     }
