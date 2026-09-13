@@ -12,6 +12,7 @@ overrides:
 
 packages:
   - '.'
+  - './e2e-tests'
   - "./skilldeck-user-docs"
   - "./skilldeck-landing"
   - "./skilldeck-marketing-assets"

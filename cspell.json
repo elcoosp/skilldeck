@@ -43,7 +43,10 @@
     "unlisten",
     "classmap",
     "xyflow",
-    "codellama"
+    "codellama",
+    "srsholmes",
+    "LOCALAPPDATA",
+    "taskkill"
   ],
   "ignorePaths": [
     "Cargo.toml",
