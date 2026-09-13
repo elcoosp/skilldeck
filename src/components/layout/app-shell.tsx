@@ -14,7 +14,6 @@ import { useHotkeys } from 'react-hotkeys-hook'
 import { Group, type Layout, Panel, Separator } from 'react-resizable-panels'
 import { GlobalDropZone } from '@/components/chat/global-drop-zone'
 import { CommandPalette } from '@/components/overlays/command-palette'
-import { LaunchNotificationBanner } from '@/components/overlays/launch-notification'
 import { GlobalSearchModal } from '@/components/search/global-search-modal'
 import { Toaster, toast } from '@/components/ui/toast'
 import { useNudgeListener, usePlatformRegistration } from '@/hooks/use-platform'
@@ -224,8 +223,6 @@ export function AppShell() {
       onDragEnd={handleDragEnd}
     >
       <div className="h-screen w-screen overflow-hidden bg-background text-foreground flex flex-col">
-        <LaunchNotificationBanner />
-
         <div className="flex-1 overflow-hidden">
           <Group
             orientation="horizontal"
