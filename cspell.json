@@ -42,7 +42,8 @@
     "metacharacters",
     "unlisten",
     "classmap",
-    "xyflow"
+    "xyflow",
+    "codellama"
   ],
   "ignorePaths": [
     "Cargo.toml",
