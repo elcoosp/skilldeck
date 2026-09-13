@@ -227,7 +227,11 @@ jobs:
         run: cargo build --manifest-path src-tauri/Cargo.toml --release
 
   # ==========================================
-  # 6. E2E TESTS (WebDriver)
+  # 6. E2E TESTS (tauri-plugin-playwright)
+  #
+  #    Socket mode on Linux (plugin drives the webview over a unix socket,
+  #    tests launch the binary themselves under xvfb). CDP mode on Windows
+  #    (WebView2 exposes a Chrome DevTools endpoint that Playwright drives).
   # ==========================================
   e2e-test:
     needs: [build]
@@ -261,37 +265,65 @@ jobs:
         with:
           workspaces: src-tauri
 
+      - name: Configure sccache
+        run: |
+          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
+          echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
+
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.11
+
       - name: Install System Dependencies (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev webkit2gtk-driver xvfb
-
-      - name: Install Microsoft Edge Driver (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          cargo install --git https://github.com/chippers/msedgedriver-tool
-          & "$HOME/.cargo/bin/msedgedriver-tool.exe"
-          $PWD.Path >> $env:GITHUB_PATH
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev \
+            libayatana-appindicator3-dev librsvg2-dev xvfb
 
       - name: Install Frontend Dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build Frontend
+        run: pnpm build
+
+      # The release binary embeds the built frontend ('../dist') and must be
+      # compiled with BOTH features: custom-protocol for the tauri:// scheme
+      # and e2e-testing to register tauri-plugin-playwright.
       - name: Build Tauri App for Testing
-        run: cargo build --manifest-path src-tauri/Cargo.toml --release
+        run: cargo build --manifest-path src-tauri/Cargo.toml --release --features custom-protocol,e2e-testing
 
-      - name: Install tauri-driver
-        run: cargo install tauri-driver
+      - name: Run E2E Tests (Linux / socket)
         if: matrix.os == 'ubuntu-latest'
-
-      - name: Run E2E Tests
-        run: |
-          cd e2e-tests
-          pnpm install
-          pnpm test
         env:
-          WEBDRIVER_URL: http://localhost:4444
-          APP_BINARY_PATH: ${{ github.workspace }}/src-tauri/target/release/${{ matrix.os == 'windows-latest' && 'your-app-name.exe' || 'your-app-name' }}
+          APP_BINARY_PATH: ${{ github.workspace }}/src-tauri/target/release/skilldeck
+        run: |
+          xvfb-run -a pnpm --filter skilldeck-e2e-tests test
+
+      - name: Launch App with WebView2 CDP (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = '--remote-debugging-port=9222'
+          Start-Process -FilePath "${{ github.workspace }}\src-tauri\target\release\skilldeck.exe"
+          $ready = $false
+          for ($i = 0; $i -lt 90; $i++) {
+            try {
+              Invoke-WebRequest -UseBasicParsing -Uri http://localhost:9222/json -TimeoutSec 2 | Out-Null
+              $ready = $true
+              break
+            } catch {
+              Start-Sleep -Seconds 2
+            }
+          }
+          if (-not $ready) { throw 'WebView2 CDP endpoint did not become ready' }
+
+      - name: Run E2E Tests (Windows / CDP)
+        if: matrix.os == 'windows-latest'
+        env:
+          E2E_MODE: cdp
+          CDP_ENDPOINT: http://localhost:9222
+          APP_BINARY_PATH: ${{ github.workspace }}\src-tauri\target\release\skilldeck.exe
+        run: pnpm --filter skilldeck-e2e-tests test
 
   # ==========================================
   # 7. RELEASE (Triggered by Tag)
