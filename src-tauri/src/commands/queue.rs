@@ -10,10 +10,10 @@ use sea_orm::{
 };
 use serde::{Deserialize, Serialize};
 use specta::{Type, specta};
-use tauri::{Emitter, State};
+use tauri::State;
 use uuid::Uuid;
 
-use crate::commands::messages::send_message_internal;
+use crate::commands::messages::{emit_from_main, send_message_internal};
 use crate::events::QueueEvent; // NEW import
 use crate::state::AppState;
 use skilldeck_models::context_item::{ContextItem, ContextItems};
@@ -339,7 +339,8 @@ pub fn auto_send_next_queued(state: Arc<AppState>, conversation_id: String, app:
                 {
                     Ok(user_message_id) => {
                         // Emit queue event with the new message ID
-                        let _ = app.emit(
+                        emit_from_main(
+                            &app,
                             "queue-event",
                             QueueEvent::MessageSent {
                                 conversation_id: conv_clone,

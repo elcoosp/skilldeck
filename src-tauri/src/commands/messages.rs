@@ -328,7 +328,8 @@ pub async fn send_message(
             req.context_items.clone(),
         )
         .await?;
-        let _ = app.emit(
+        emit_from_main(
+            &app,
             "queued-message-added",
             serde_json::json!({
                 "conversation_id": req.conversation_id,
@@ -439,6 +440,26 @@ pub async fn get_conversation_bootstrap(
 // Internal send function (returns the user message ID)
 // =============================================================================
 
+/// Emit a frontend event from the main thread.
+///
+/// `AppHandle::emit` locks Tauri's webview registry and then evaluates JS on
+/// every webview. From a tokio worker that eval parks the worker until the main
+/// thread services it. If the main thread is concurrently inside the `ipc://`
+/// protocol handler (`AppManager::get_webview`) it needs that same registry
+/// lock, so a worker holding the lock while parked on the main thread inverts
+/// into a deadlock. `run_on_main_thread` enqueues the emit instead of blocking,
+/// keeping the lock acquisition main-thread-local so no worker ever parks while
+/// holding it.
+pub(crate) fn emit_from_main<P>(app: &tauri::AppHandle, event: &'static str, payload: P)
+where
+    P: serde::Serialize + Clone + Send + 'static,
+{
+    let app = app.clone();
+    let _ = app.clone().run_on_main_thread(move || {
+        let _ = app.emit(event, payload);
+    });
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn send_message_internal(
     state: Arc<AppState>,
@@ -461,7 +482,8 @@ pub(crate) async fn send_message_internal(
     let now = chrono::Utc::now().fixed_offset();
 
     // Emit Started FIRST – UI can enter streaming mode immediately
-    let _ = app.emit(
+    emit_from_main(
+        &app,
         "agent-event",
         AgentEvent::Started {
             conversation_id: conversation_id.clone(),
@@ -469,7 +491,8 @@ pub(crate) async fn send_message_internal(
     );
 
     // Reset thinking panel before starting
-    let _ = app.emit(
+    emit_from_main(
+        &app,
         "agent-event",
         AgentEvent::ThinkingDone {
             conversation_id: conversation_id.clone(),
@@ -494,7 +517,8 @@ pub(crate) async fn send_message_internal(
     let db = match state.registry.db.connection().await {
         Ok(db) => db,
         Err(e) => {
-            let _ = app.emit(
+            emit_from_main(
+                &app,
                 "agent-event",
                 AgentEvent::Error {
                     conversation_id: conversation_id.clone(),
@@ -525,7 +549,8 @@ pub(crate) async fn send_message_internal(
     };
 
     if let Err(e) = user_msg.insert(db).await {
-        let _ = app.emit(
+        emit_from_main(
+            &app,
             "agent-event",
             AgentEvent::Error {
                 conversation_id: conversation_id.clone(),
@@ -536,7 +561,8 @@ pub(crate) async fn send_message_internal(
     }
 
     // Emit Persisted after the message is saved – triggers cache refresh
-    let _ = app.emit(
+    emit_from_main(
+        &app,
         "agent-event",
         AgentEvent::Persisted {
             conversation_id: conversation_id_clone.clone(),
@@ -871,7 +897,8 @@ fn run_agent_loop(
                     conversation_id = %conversation_id,
                     "Provider not registered — check API key and base URL"
                 );
-                let _ = app.emit(
+                emit_from_main(
+                    &app,
                     "agent-event",
                     AgentEvent::Error {
                         conversation_id: conversation_id.clone(),
@@ -917,7 +944,8 @@ fn run_agent_loop(
         let db = match state.registry.db.connection().await {
             Ok(conn) => conn,
             Err(e) => {
-                let _ = app.emit(
+                emit_from_main(
+                    &app,
                     "agent-event",
                     AgentEvent::Error {
                         conversation_id: conversation_id.clone(),
@@ -930,7 +958,8 @@ fn run_agent_loop(
         let conv_uuid = match Uuid::parse_str(&conversation_id) {
             Ok(u) => u,
             Err(e) => {
-                let _ = app.emit(
+                emit_from_main(
+                    &app,
                     "agent-event",
                     AgentEvent::Error {
                         conversation_id: conversation_id.clone(),
@@ -949,7 +978,8 @@ fn run_agent_loop(
         {
             Ok(rows) => rows,
             Err(e) => {
-                let _ = app.emit(
+                emit_from_main(
+                    &app,
                     "agent-event",
                     AgentEvent::Error {
                         conversation_id: conversation_id.clone(),
@@ -1184,8 +1214,9 @@ fn run_agent_loop(
         let app_emitter = app.clone();
         tokio::spawn(async move {
             while let Some(event) = emit_rx.recv().await {
-                // Emit directly on the async task — AppHandle::emit is not blocking.
-                let _ = app_emitter.emit("agent-event", event);
+                // `AppHandle::emit` parks a worker on the main thread while
+                // holding Tauri's webview lock, so emit via the main thread.
+                emit_from_main(&app_emitter, "agent-event", event);
             }
         });
 
@@ -1431,7 +1462,8 @@ fn run_agent_loop(
                 let db = match state.registry.db.connection().await {
                     Ok(conn) => conn,
                     Err(e) => {
-                        let _ = app.emit(
+                        emit_from_main(
+                            &app,
                             "agent-event",
                             AgentEvent::Error {
                                 conversation_id: conversation_id.clone(),
@@ -1513,7 +1545,8 @@ fn run_agent_loop(
                         .await
                         {
                             tracing::warn!("Failed to persist assistant message: {}", e);
-                            let _ = app.emit(
+                            emit_from_main(
+                                &app,
                                 "agent-event",
                                 AgentEvent::Error {
                                     conversation_id: conversation_id.clone(),
@@ -1547,7 +1580,8 @@ fn run_agent_loop(
                         }
 
                         if let Err(e) = active.insert(db).await {
-                            let _ = app.emit(
+                            emit_from_main(
+                                &app,
                                 "agent-event",
                                 AgentEvent::Error {
                                     conversation_id: conversation_id.clone(),
@@ -1566,7 +1600,8 @@ fn run_agent_loop(
                     }
                 }
 
-                let _ = app.emit(
+                emit_from_main(
+                    &app,
                     "agent-event",
                     AgentEvent::Persisted {
                         conversation_id: conversation_id.clone(),
@@ -1585,7 +1620,8 @@ fn run_agent_loop(
                     "Agent loop returned error after completion"
                 );
 
-                let _ = app.emit(
+                emit_from_main(
+                    &app,
                     "agent-event",
                     AgentEvent::Error {
                         conversation_id: conversation_id.clone(),
@@ -1637,7 +1673,8 @@ fn run_agent_loop(
                     .await
                     {
                         Ok(_) => {
-                            let _ = app.emit(
+                            emit_from_main(
+                                &app,
                                 "agent-event",
                                 AgentEvent::Persisted {
                                     conversation_id: conversation_id.clone(),
