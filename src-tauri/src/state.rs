@@ -220,7 +220,14 @@ impl AppState {
     }
 
     pub async fn initialize(app: &tauri::AppHandle) -> Result<Self, Box<dyn std::error::Error>> {
-        let data_dir = app.path().app_data_dir()?;
+        // Allow demo/test runs to point the app at an isolated, disposable data
+        // directory instead of the real one (SKILLDECK_DATA_DIR). This makes
+        // scripted e2e runs reproducible from a clean database.
+        let data_dir = std::env::var("SKILLDECK_DATA_DIR")
+            .ok()
+            .filter(|p| !p.trim().is_empty())
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| app.path().app_data_dir()?);
         std::fs::create_dir_all(&data_dir)?;
 
         let db_path = data_dir.join("skilldeck.db");
@@ -228,6 +235,8 @@ impl AppState {
         info!("Database path: {}", db_url);
 
         let conn = open_db(&db_url, true).await?;
+        #[cfg(feature = "e2e-testing")]
+        crate::app_provision::provision(&conn).await?;
         let db = SeaOrmDatabase::new(conn);
 
         // Load lint config

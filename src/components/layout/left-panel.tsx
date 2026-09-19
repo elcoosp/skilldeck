@@ -473,6 +473,15 @@ export function LeftPanel() {
   const updateWorkspace = useUpdateWorkspace()
   const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId)
 
+  // Restore workspace selection on (re)load: when nothing is selected yet,
+  // prefer an open workspace so a freshly provisioned demo boots into a
+  // working state instead of requiring the native folder picker.
+  useEffect(() => {
+    if (activeWorkspaceId || workspaces.length === 0) return
+    const target = workspaces.find((w) => w.is_open) ?? workspaces[0]
+    if (target) setActiveWorkspace(target.id)
+  }, [activeWorkspaceId, workspaces, setActiveWorkspace])
+
   const { data: profiles = [] } = useProfiles(false)
   const { data: allProfiles, isLoading: profilesLoading } = useProfiles(true)
   const defaultProfile =

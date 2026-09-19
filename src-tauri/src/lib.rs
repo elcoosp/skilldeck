@@ -25,10 +25,13 @@ pub use subagent_server::SubagentServer;
 
 use commands::{
     achievements::*, analytics::*, artifacts::*, attachments::*, bookmarks::*, branches::*,
-    conversations::*, drafts::*, export::*, files::*, folders::*, gist::*, headings::*,
+    conversations::*, drafts::*, e2e::*, export::*, files::*, folders::*, gist::*, headings::*,
     home_dir::*, mcp::*, messages::*, ollama::*, platform::*, profiles::*, provider_ready::*,
     queue::*, run_code::*, settings::*, skills::*, theme::*, workflows::*, workspaces::*,
 };
+
+#[cfg(feature = "e2e-testing")]
+mod app_provision;
 use events::{AgentEvent, McpEvent, RunCodeEvent, SkillEvent, WorkflowEvent};
 use state::AppState;
 use std::sync::Arc;
@@ -209,6 +212,7 @@ pub fn run() {
             // NEW: artifact save to file
             write_artifact_to_file,
             run_code_snippet,
+            is_e2e_testing,
         ])
         .events(collect_events![
             RunCodeEvent,
