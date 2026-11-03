@@ -12,7 +12,7 @@
 
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait,
-    QueryFilter,
+    PaginatorTrait, QueryFilter,
 };
 use std::path::PathBuf;
 use tracing::warn;
@@ -24,7 +24,7 @@ use skilldeck_models::workspaces::{self, Entity as Workspaces};
 /// Default profile inserted on a fresh demo database.
 const DEMO_PROFILE_NAME: &str = "Local (Ollama)";
 const DEMO_PROFILE_PROVIDER: &str = "ollama";
-const DEMO_PROFILE_MODEL: &str = "glm-5:cloud";
+const DEMO_PROFILE_MODEL: &str = "gemma4:e2b-mlx";
 
 /// Insert a default profile when the profiles table is empty.
 async fn ensure_default_profile(db: &DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {

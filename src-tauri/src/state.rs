@@ -223,11 +223,10 @@ impl AppState {
         // Allow demo/test runs to point the app at an isolated, disposable data
         // directory instead of the real one (SKILLDECK_DATA_DIR). This makes
         // scripted e2e runs reproducible from a clean database.
-        let data_dir = std::env::var("SKILLDECK_DATA_DIR")
-            .ok()
-            .filter(|p| !p.trim().is_empty())
-            .map(std::path::PathBuf::from)
-            .unwrap_or_else(|| app.path().app_data_dir()?);
+        let data_dir = match std::env::var("SKILLDECK_DATA_DIR") {
+            Ok(p) if !p.trim().is_empty() => std::path::PathBuf::from(p),
+            _ => app.path().app_data_dir()?,
+        };
         std::fs::create_dir_all(&data_dir)?;
 
         let db_path = data_dir.join("skilldeck.db");
