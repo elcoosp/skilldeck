@@ -20,6 +20,7 @@ pub struct BookmarkData {
 
 #[derive(Debug, Deserialize, Type)]
 pub struct CreateBookmarkRequest {
+    #[allow(dead_code)]
     pub conversation_id: String,
     pub message_id: String,
     pub heading_anchor: Option<String>,
@@ -62,7 +63,7 @@ pub async fn add_bookmark(
         .connection()
         .await
         .map_err(|e| e.to_string())?;
-    add_bookmark_internal(&db, req).await
+    add_bookmark_internal(db, req).await
 }
 
 #[specta]
