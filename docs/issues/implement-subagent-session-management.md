@@ -1,22 +1,25 @@
 ---
+
 id: implement-subagent-session-management
 title: Implement subagent session management
 labels:
-  - backend
-  - 'priority:should'
-  - 'type:feature'
-  - 'size:medium'
-assignees:
-  - elcoosp
-references:
-  - ../plans/v1.md#11-chunk-8-workflow-engine
-state: in-progress
-createdAt: '2026-03-12T13:56:20.465Z'
-priority: should
-effort: 1d
-dependencies:
-  - Implement agent loop with streaming and debouncing
+- backend
+- 'priority:should'
+- 'type:feature'
+- 'size:medium'
+  assignees:
+- elcoosp
+  references:
+- ../plans/v1.md#11-chunk-8-workflow-engine
+  state: in-progress
+  createdAt: '2026-03-12T13:56:20.465Z'
+  priority: should
+  effort: 1d
+  dependencies:
+- Implement agent loop with streaming and debouncing
+
 ---
+
 ## Context
 
 Subagents are spawned by workflows to handle specialized tasks. Each subagent has its own message history and can be merged or discarded after completion.
