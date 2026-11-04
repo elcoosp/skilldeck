@@ -37,6 +37,7 @@ SkillDeck is a **local‑first, reactive, event‑driven state machine** wrapped
 ## Key Design Decisions
 
 ### 1. Three‑Layer Architecture (ADR-001)
+
 - **Rust Core (`skilldeck-core`)** – all business logic, no Tauri dependencies.
 - **Tauri Shell** – thin OS integration, IPC, keychain, window management.
 - **React Frontend** – pure view layer, communicates only via IPC.
@@ -44,18 +45,23 @@ SkillDeck is a **local‑first, reactive, event‑driven state machine** wrapped
 This separation ensures the core is testable in isolation and portable to other contexts (CLI, server) in the future.
 
 ### 2. Tiered Streaming (ADR-002)
+
 To meet the requirement of <100ms render latency, streaming responses from model providers go through a ring buffer → 50ms debounced emit → IPC → `requestAnimationFrame` rendering. This balances responsiveness and IPC efficiency.
 
 ### 3. Approval Gate via Oneshot Channels (ADR-005)
+
 Tool calls requiring user approval use oneshot channels. The agent loop awaits the channel; the UI resolves it via IPC. Cancellation is handled by closing the channel.
 
 ### 4. Petgraph for Workflow DAG (ADR-006)
+
 Workflows are defined as directed acyclic graphs using the `petgraph` crate. This provides topological sort, cycle detection, and dependency management.
 
 ### 5. SQLite with WAL Mode (ADR-003)
+
 All persistent data is stored in SQLite with WAL mode enabled for crash recovery and concurrency.
 
 ### 6. OS Keychain for Secrets (ADR-009)
+
 API keys are stored in the platform‑specific secure keychain, never in the database or config files.
 
 ## Core Modules (Rust)
@@ -94,13 +100,13 @@ For more detailed diagrams, see the [full Architecture Document](docs/ARCHITECTU
 
 ## Technology Stack
 
-| Layer          | Technology                                                       |
-|----------------|------------------------------------------------------------------|
-| Rust Core      | Tokio, SeaORM, Petgraph, Reqwest, Tracing, Thiserror            |
-| Tauri Shell    | Tauri 2, tauri‑plugin‑keyring, tauri‑plugin‑store, etc.         |
+| Layer          | Technology                                                                   |
+| -------------- | ---------------------------------------------------------------------------- |
+| Rust Core      | Tokio, SeaORM, Petgraph, Reqwest, Tracing, Thiserror                         |
+| Tauri Shell    | Tauri 2, tauri‑plugin‑keyring, tauri‑plugin‑store, etc.                      |
 | React Frontend | React 19, TypeScript, Vite, Zustand, TanStack Query, shadcn/ui, Tailwind CSS |
-| Database       | SQLite (with WAL)                                                |
-| Security       | OS keychain (Keychain, Credential Manager, libsecret)            |
+| Database       | SQLite (with WAL)                                                            |
+| Security       | OS keychain (Keychain, Credential Manager, libsecret)                        |
 
 ## Contributing to the Architecture
 
