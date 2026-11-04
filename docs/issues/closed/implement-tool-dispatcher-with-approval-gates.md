@@ -1,23 +1,26 @@
 ---
+
 id: implement-tool-dispatcher-with-approval-gates
 title: Implement tool dispatcher with approval gates
 labels:
-  - backend
-  - 'priority:must'
-  - 'type:feature'
-  - 'size:large'
-assignees:
-  - elcoosp
-references:
-  - ../plans/v1.md#10-chunk-7-agent-loop--tool-dispatcher
-state: closed
-createdAt: '2026-03-12T13:56:20.460Z'
-priority: must
-effort: 2d
-dependencies:
-  - Implement MCP registry for server management
-  - 'Implement built-in tools (loadSkill, spawnSubagent, mergeSubagentResults)'
+- backend
+- 'priority:must'
+- 'type:feature'
+- 'size:large'
+  assignees:
+- elcoosp
+  references:
+- ../plans/v1.md#10-chunk-7-agent-loop--tool-dispatcher
+  state: closed
+  createdAt: '2026-03-12T13:56:20.460Z'
+  priority: must
+  effort: 2d
+  dependencies:
+- Implement MCP registry for server management
+- 'Implement built-in tools (loadSkill, spawnSubagent, mergeSubagentResults)'
+
 ---
+
 ## Context
 
 The tool dispatcher routes tool calls to either built-in tools or MCP servers. It implements the approval gate mechanism for external tool calls.
