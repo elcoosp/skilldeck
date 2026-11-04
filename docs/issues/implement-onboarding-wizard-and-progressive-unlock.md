@@ -1,23 +1,26 @@
 ---
+
 id: implement-onboarding-wizard-and-progressive-unlock
 title: Implement onboarding wizard and progressive unlock
 labels:
-  - frontend
-  - 'priority:must'
-  - 'type:feature'
-  - 'size:medium'
-assignees:
-  - elcoosp
-references:
-  - ../plans/v1.md#15-chunk-12-react-frontend--components
-state: in-progress
-createdAt: '2026-03-12T13:59:50.861Z'
-priority: must
-effort: 1d
-dependencies:
-  - 'Implement Tauri commands for profiles, skills, and MCP'
-  - Implement Tauri commands for settings and export
+- frontend
+- 'priority:must'
+- 'type:feature'
+- 'size:medium'
+  assignees:
+- elcoosp
+  references:
+- ../plans/v1.md#15-chunk-12-react-frontend--components
+  state: in-progress
+  createdAt: '2026-03-12T13:59:50.861Z'
+  priority: must
+  effort: 1d
+  dependencies:
+- 'Implement Tauri commands for profiles, skills, and MCP'
+- Implement Tauri commands for settings and export
+
 ---
+
 ## Context
 
 The onboarding wizard guides new users through setup, and progressive unlock reveals features as users become more experienced.
