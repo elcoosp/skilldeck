@@ -2,7 +2,7 @@ Let me dig into this one properly — it's deceptively deep once you trace all t
 
 ## Skill A/B bench — replay with swapped skills
 
-The core UX is simple: pick any past conversation, swap one or more skills, and see the responses side-by-side. But the interesting part is *how much of this is already built*.Here's the full picture, starting with how the data flow actually works:Now here's what the actual UI surface would look like — the bench configuration step is where most of the UX design lives:Here's the full breakdown of what makes this feature tick:
+The core UX is simple: pick any past conversation, swap one or more skills, and see the responses side-by-side. But the interesting part is _how much of this is already built_.Here's the full picture, starting with how the data flow actually works:Now here's what the actual UI surface would look like — the bench configuration step is where most of the UX design lives:Here's the full breakdown of what makes this feature tick:
 
 ---
 
@@ -36,7 +36,8 @@ I appreciate the redirection. A split‑view of the entire `MessageThread` is in
 # UX Research: Skill A/B Bench – Compact Comparison Mode
 
 ## 🎯 Design Principle
-**Compare the *outputs*, not the *entire conversations*.**  
+
+**Compare the _outputs_, not the _entire conversations_.**  
 The user already knows the context (the conversation history leading up to the message). They only need to evaluate the **assistant response** produced by the alternate skill.
 
 ---
@@ -86,25 +87,27 @@ Instead of splitting the thread, we introduce an **inline comparison card** that
 
 ## 🔗 Integration with Existing SkillDeck Components
 
-| Feature | **Existing Component** | **How We Reuse It** |
-| :--- | :--- | :--- |
-| **Trigger** | Message dropdown menu | Add "Compare with another skill..." option (similar to "Branch from here"). |
-| **Comparison Container** | `Collapsible` from `ThinkingView` or `ToolResultBubble` | The comparison card expands inline, pushing subsequent messages down. |
-| **Diff Display** | `VersionDiffModal`'s `react-diff-viewer-continued` | Embed the diff viewer directly in the card, with tabs for split/unified view. |
-| **Metrics** | `Card` components from `ui/card.tsx` | Display small metric badges (tokens, latency) above the diff. |
-| **Promote Action** | `Button` with `Sparkles` icon | Promotes the new skill for this conversation (updates `conversation_skill_overrides`). |
+| Feature                  | **Existing Component**                                  | **How We Reuse It**                                                                    |
+| :----------------------- | :------------------------------------------------------ | :------------------------------------------------------------------------------------- |
+| **Trigger**              | Message dropdown menu                                   | Add "Compare with another skill..." option (similar to "Branch from here").            |
+| **Comparison Container** | `Collapsible` from `ThinkingView` or `ToolResultBubble` | The comparison card expands inline, pushing subsequent messages down.                  |
+| **Diff Display**         | `VersionDiffModal`'s `react-diff-viewer-continued`      | Embed the diff viewer directly in the card, with tabs for split/unified view.          |
+| **Metrics**              | `Card` components from `ui/card.tsx`                    | Display small metric badges (tokens, latency) above the diff.                          |
+| **Promote Action**       | `Button` with `Sparkles` icon                           | Promotes the new skill for this conversation (updates `conversation_skill_overrides`). |
 
 ---
 
 ## 👤 User Flow (Refined)
 
 ### Step 1: Initiate
+
 User hovers over an **assistant message** that was generated using a skill. The message dropdown (`...`) includes a new item:
 > 🔬 **Compare with another skill version...**
 
 Clicking opens a small dialog (similar to `CreateBranchModal`) but focused on skill selection.
 
 ### Step 2: Configure
+
 A compact modal appears:
 - **Base Skill**: `code-review v1.2` (read‑only)
 - **Compare with**: Dropdown of available versions of `code-review` (e.g., `v1.3-beta`, `v1.1`).
@@ -112,17 +115,20 @@ A compact modal appears:
 - **Preview** button.
 
 ### Step 3: Generate & Display
+
 The backend runs the alternate skill and streams the response.  
 The UI inserts a **comparison card** directly below the original assistant message.  
 The card loads incrementally (streaming tokens appear in the diff view).
 
 ### Step 4: Evaluate
+
 The user can:
 - Switch between **Split** and **Unified** diff views.
 - View metrics (token count, latency delta).
 - Scroll the diff independently.
 
 ### Step 5: Act
+
 - **Keep Original**: Dismisses the comparison card (or collapses it).
 - **Promote v1.3**: Updates the conversation's skill override and **replaces** the original assistant message content with the new response (using the existing `useEditMessage` flow). The comparison card disappears, and the message bubble updates.
 
@@ -149,12 +155,12 @@ The user can:
 
 ## 🧪 Potential Edge Cases & Solutions
 
-| Edge Case | **UX Mitigation** |
-| :--- | :--- |
-| The original assistant message is very long. | The comparison card has a **max height** and internal scrolling, just like code blocks. |
-| User wants to compare skills on a **tool call** or **artifact**. | Disable the option for non‑assistant messages. For artifacts, we already have `VersionDiffModal`. |
-| The user switches to a different conversation while comparison is open. | Auto‑dismiss the card (ephemeral state). |
-| The "Promote" action should be reversible. | Use the existing "Edit Message" → "Edit in Place" pattern; the user can always undo via the edit history (future). |
+| Edge Case                                                               | **UX Mitigation**                                                                                                  |
+| :---------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------- |
+| The original assistant message is very long.                            | The comparison card has a **max height** and internal scrolling, just like code blocks.                            |
+| User wants to compare skills on a **tool call** or **artifact**.        | Disable the option for non‑assistant messages. For artifacts, we already have `VersionDiffModal`.                  |
+| The user switches to a different conversation while comparison is open. | Auto‑dismiss the card (ephemeral state).                                                                           |
+| The "Promote" action should be reversible.                              | Use the existing "Edit Message" → "Edit in Place" pattern; the user can always undo via the edit history (future). |
 
 ---
 
