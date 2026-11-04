@@ -1,22 +1,25 @@
 ---
+
 id: implement-core-error-types-and-error-taxonomy
 title: Implement core error types and error taxonomy
 labels:
-  - backend
-  - 'priority:must'
-  - 'type:feature'
-  - 'size:medium'
-assignees:
-  - elcoosp
-references:
-  - ../plans/v1.md#4-chunk-1-core-error-types--utilities
-state: closed
-createdAt: '2026-03-12T13:51:42.843Z'
-priority: must
-effort: 1d
-dependencies:
-  - Set up project scaffolding and directory structure
+- backend
+- 'priority:must'
+- 'type:feature'
+- 'size:medium'
+  assignees:
+- elcoosp
+  references:
+- ../plans/v1.md#4-chunk-1-core-error-types--utilities
+  state: closed
+  createdAt: '2026-03-12T13:51:42.843Z'
+  priority: must
+  effort: 1d
+  dependencies:
+- Set up project scaffolding and directory structure
+
 ---
+
 ## Context
 
 The core error type is foundational to the entire Rust codebase. It provides a comprehensive taxonomy of all failure modes in the system, enabling meaningful error messages, recovery actions, and proper error propagation across the Tauri IPC boundary.
