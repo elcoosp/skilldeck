@@ -1,22 +1,25 @@
 ---
+
 id: implement-skill-scanner-for-directory-traversal
 title: Implement skill scanner for directory traversal
 labels:
-  - backend
-  - 'priority:must'
-  - 'type:feature'
-  - 'size:small'
-assignees:
-  - elcoosp
-references:
-  - ../plans/v1.md#8-chunk-5-skill-system
-state: closed
-createdAt: '2026-03-12T13:53:55.307Z'
-priority: must
-effort: 0.5d
-dependencies:
-  - Implement filesystem skill loader
+- backend
+- 'priority:must'
+- 'type:feature'
+- 'size:small'
+  assignees:
+- elcoosp
+  references:
+- ../plans/v1.md#8-chunk-5-skill-system
+  state: closed
+  createdAt: '2026-03-12T13:53:55.307Z'
+  priority: must
+  effort: 0.5d
+  dependencies:
+- Implement filesystem skill loader
+
 ---
+
 ## Context
 
 The skill scanner traverses skill source directories to discover all SKILL.md files. It must handle symlink skipping for security and provide efficient directory traversal.
