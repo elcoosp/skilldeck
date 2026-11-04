@@ -25,13 +25,17 @@ use crate::{
 
 pub struct OllamaProvider {
     client: OllamaClient,
+    #[allow(dead_code)]
     port: u16,
 }
 
 impl OllamaProvider {
     pub fn new(port: u16) -> Self {
         Self {
-            client: OllamaClient::new("http://localhost", port),
+            client: OllamaClient::builder()
+                .host("http://localhost")
+                .port(port)
+                .build(),
             port,
         }
     }
@@ -211,12 +215,12 @@ impl ModelProvider for OllamaProvider {
                     let mut items = Vec::new();
 
                     // Emit thinking delta if present
-                    if let Some(ref thinking) = response.message.thinking {
-                        if !thinking.is_empty() {
-                            items.push(Ok(CompletionChunk::Thinking {
-                                delta: thinking.clone(),
-                            }));
-                        }
+                    if let Some(ref thinking) = response.message.thinking
+                        && !thinking.is_empty()
+                    {
+                        items.push(Ok(CompletionChunk::Thinking {
+                            delta: thinking.clone(),
+                        }));
                     }
 
                     // Emit content delta if present
