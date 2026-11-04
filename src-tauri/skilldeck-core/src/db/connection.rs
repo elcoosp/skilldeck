@@ -14,12 +14,12 @@ use migration::Migrator;
 /// runs pending migrations.
 pub async fn open_db(url: &str, run_migrations: bool) -> Result<DatabaseConnection, CoreError> {
     // Ensure parent directory exists for file-based databases
-    if url != ":memory:" {
-        if let Some(parent) = std::path::Path::new(url).parent() {
-            std::fs::create_dir_all(parent).map_err(|e| CoreError::DatabaseConnection {
-                message: format!("Failed to create database directory: {e}"),
-            })?;
-        }
+    if url != ":memory:"
+        && let Some(parent) = std::path::Path::new(url).parent()
+    {
+        std::fs::create_dir_all(parent).map_err(|e| CoreError::DatabaseConnection {
+            message: format!("Failed to create database directory: {e}"),
+        })?;
     }
 
     let db_url = if url == ":memory:" {
