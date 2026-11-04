@@ -1,23 +1,26 @@
 ---
+
 id: set-up-react-frontend-foundation
 title: Set up React frontend foundation
 labels:
-  - frontend
-  - 'priority:must'
-  - 'type:feature'
-  - 'size:medium'
-assignees:
-  - elcoosp
-references:
-  - ../plans/v1.md#14-chunk-11-react-frontend--foundation
-state: closed
-createdAt: '2026-03-12T13:59:50.858Z'
-priority: must
-effort: 2d
-dependencies:
-  - Implement Tauri commands for conversations and messages
-  - Implement Tauri event definitions and bridging
+- frontend
+- 'priority:must'
+- 'type:feature'
+- 'size:medium'
+  assignees:
+- elcoosp
+  references:
+- ../plans/v1.md#14-chunk-11-react-frontend--foundation
+  state: closed
+  createdAt: '2026-03-12T13:59:50.858Z'
+  priority: must
+  effort: 2d
+  dependencies:
+- Implement Tauri commands for conversations and messages
+- Implement Tauri event definitions and bridging
+
 ---
+
 ## Context
 
 The React frontend is the view layer that communicates only via Tauri IPC. We need to set up the foundation including state management, API layer, and event handling.
