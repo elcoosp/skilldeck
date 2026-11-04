@@ -1,22 +1,25 @@
 ---
+
 id: implement-skill-resolver-with-priority-ordering
 title: Implement skill resolver with priority ordering
 labels:
-  - backend
-  - 'priority:must'
-  - 'type:feature'
-  - 'size:small'
-assignees:
-  - elcoosp
-references:
-  - ../plans/v1.md#8-chunk-5-skill-system
-state: closed
-createdAt: '2026-03-12T13:53:55.305Z'
-priority: must
-effort: 0.5d
-dependencies:
-  - Implement filesystem skill loader
+- backend
+- 'priority:must'
+- 'type:feature'
+- 'size:small'
+  assignees:
+- elcoosp
+  references:
+- ../plans/v1.md#8-chunk-5-skill-system
+  state: closed
+  createdAt: '2026-03-12T13:53:55.305Z'
+  priority: must
+  effort: 0.5d
+  dependencies:
+- Implement filesystem skill loader
+
 ---
+
 ## Context
 
 The skill resolver handles conflicts when multiple skills with the same name exist in different source directories. It applies priority ordering: workspace > personal > superpowers > marketplace.
