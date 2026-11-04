@@ -906,10 +906,10 @@ Skill (workspace-scoped)
 >    - Agent A: Review code quality (naming, structure, patterns)
 >    - Agent B: Check for security vulnerabilities
 >    - Agent C: Analyze performance implications
-> 2. Workflow DAG shows three parallel nodes.
-> 3. Alex starts the workflow. Three subagent sessions spawn.
-> 4. Results stream in as each agent completes.
-> 5. Alex reviews each result card and decides whether to merge insights into the main conversation.
+   2. Workflow DAG shows three parallel nodes.
+> 2. Alex starts the workflow. Three subagent sessions spawn.
+> 3. Results stream in as each agent completes.
+> 4. Alex reviews each result card and decides whether to merge insights into the main conversation.
 
 #### Scenario 4: Skill Creation for Project Conventions
 
