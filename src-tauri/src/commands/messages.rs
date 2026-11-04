@@ -65,6 +65,7 @@ pub struct SearchMessagesResult {
 
 /// Request for searching all messages across conversations.
 #[derive(Debug, Deserialize, Type)]
+#[allow(dead_code)]
 pub struct GlobalSearchRequest {
     pub query: String,
     pub limit: Option<u64>,
@@ -259,6 +260,7 @@ pub async fn search_messages(
 /// Search all messages across conversations using FTS5.
 #[specta]
 #[tauri::command]
+#[allow(dead_code)]
 pub async fn search_all_messages(
     state: State<'_, Arc<AppState>>,
     req: GlobalSearchRequest,
@@ -326,7 +328,8 @@ pub async fn send_message(
             req.context_items.clone(),
         )
         .await?;
-        let _ = app.emit(
+        emit_from_main(
+            &app,
             "queued-message-added",
             serde_json::json!({
                 "conversation_id": req.conversation_id,
@@ -375,6 +378,7 @@ pub async fn resolve_tool_approval(
 
 #[specta]
 #[tauri::command]
+#[allow(dead_code)]
 pub async fn mark_messages_seen(
     state: State<'_, Arc<AppState>>,
     conversation_id: String,
@@ -436,6 +440,27 @@ pub async fn get_conversation_bootstrap(
 // Internal send function (returns the user message ID)
 // =============================================================================
 
+/// Emit a frontend event from the main thread.
+///
+/// `AppHandle::emit` locks Tauri's webview registry and then evaluates JS on
+/// every webview. From a tokio worker that eval parks the worker until the main
+/// thread services it. If the main thread is concurrently inside the `ipc://`
+/// protocol handler (`AppManager::get_webview`) it needs that same registry
+/// lock, so a worker holding the lock while parked on the main thread inverts
+/// into a deadlock. `run_on_main_thread` enqueues the emit instead of blocking,
+/// keeping the lock acquisition main-thread-local so no worker ever parks while
+/// holding it.
+pub(crate) fn emit_from_main<P>(app: &tauri::AppHandle, event: &'static str, payload: P)
+where
+    P: serde::Serialize + Clone + Send + 'static,
+{
+    let app = app.clone();
+    let _ = app.clone().run_on_main_thread(move || {
+        let _ = app.emit(event, payload);
+    });
+}
+
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn send_message_internal(
     state: Arc<AppState>,
     conversation_id: String,
@@ -457,7 +482,8 @@ pub(crate) async fn send_message_internal(
     let now = chrono::Utc::now().fixed_offset();
 
     // Emit Started FIRST – UI can enter streaming mode immediately
-    let _ = app.emit(
+    emit_from_main(
+        &app,
         "agent-event",
         AgentEvent::Started {
             conversation_id: conversation_id.clone(),
@@ -465,7 +491,8 @@ pub(crate) async fn send_message_internal(
     );
 
     // Reset thinking panel before starting
-    let _ = app.emit(
+    emit_from_main(
+        &app,
         "agent-event",
         AgentEvent::ThinkingDone {
             conversation_id: conversation_id.clone(),
@@ -490,7 +517,8 @@ pub(crate) async fn send_message_internal(
     let db = match state.registry.db.connection().await {
         Ok(db) => db,
         Err(e) => {
-            let _ = app.emit(
+            emit_from_main(
+                &app,
                 "agent-event",
                 AgentEvent::Error {
                     conversation_id: conversation_id.clone(),
@@ -521,7 +549,8 @@ pub(crate) async fn send_message_internal(
     };
 
     if let Err(e) = user_msg.insert(db).await {
-        let _ = app.emit(
+        emit_from_main(
+            &app,
             "agent-event",
             AgentEvent::Error {
                 conversation_id: conversation_id.clone(),
@@ -532,7 +561,8 @@ pub(crate) async fn send_message_internal(
     }
 
     // Emit Persisted after the message is saved – triggers cache refresh
-    let _ = app.emit(
+    emit_from_main(
+        &app,
         "agent-event",
         AgentEvent::Persisted {
             conversation_id: conversation_id_clone.clone(),
@@ -564,6 +594,7 @@ pub(crate) async fn send_message_internal(
 ///
 /// Used both on the success path (status = "active") and on error paths
 /// (status = "incomplete") to avoid losing partial streamed content.
+#[allow(clippy::too_many_arguments)]
 async fn persist_assistant_message(
     db: &DatabaseConnection,
     conv_uuid: Uuid,
@@ -826,6 +857,7 @@ impl SubagentSpawner for SpawnerWithContext {
         Ok(merged)
     }
 }
+#[allow(dead_code)]
 fn is_retryable_error(e: &skilldeck_core::CoreError) -> bool {
     matches!(
         e,
@@ -837,6 +869,7 @@ fn is_retryable_error(e: &skilldeck_core::CoreError) -> bool {
 }
 /// Run the agent loop in a spawned task.
 #[allow(unused_variables)]
+#[allow(clippy::too_many_arguments)]
 fn run_agent_loop(
     state: Arc<AppState>,
     conversation_id: String,
@@ -864,7 +897,8 @@ fn run_agent_loop(
                     conversation_id = %conversation_id,
                     "Provider not registered — check API key and base URL"
                 );
-                let _ = app.emit(
+                emit_from_main(
+                    &app,
                     "agent-event",
                     AgentEvent::Error {
                         conversation_id: conversation_id.clone(),
@@ -910,7 +944,8 @@ fn run_agent_loop(
         let db = match state.registry.db.connection().await {
             Ok(conn) => conn,
             Err(e) => {
-                let _ = app.emit(
+                emit_from_main(
+                    &app,
                     "agent-event",
                     AgentEvent::Error {
                         conversation_id: conversation_id.clone(),
@@ -923,7 +958,8 @@ fn run_agent_loop(
         let conv_uuid = match Uuid::parse_str(&conversation_id) {
             Ok(u) => u,
             Err(e) => {
-                let _ = app.emit(
+                emit_from_main(
+                    &app,
                     "agent-event",
                     AgentEvent::Error {
                         conversation_id: conversation_id.clone(),
@@ -942,7 +978,8 @@ fn run_agent_loop(
         {
             Ok(rows) => rows,
             Err(e) => {
-                let _ = app.emit(
+                emit_from_main(
+                    &app,
                     "agent-event",
                     AgentEvent::Error {
                         conversation_id: conversation_id.clone(),
@@ -1177,8 +1214,9 @@ fn run_agent_loop(
         let app_emitter = app.clone();
         tokio::spawn(async move {
             while let Some(event) = emit_rx.recv().await {
-                // Emit directly on the async task — AppHandle::emit is not blocking.
-                let _ = app_emitter.emit("agent-event", event);
+                // `AppHandle::emit` parks a worker on the main thread while
+                // holding Tauri's webview lock, so emit via the main thread.
+                emit_from_main(&app_emitter, "agent-event", event);
             }
         });
 
@@ -1424,7 +1462,8 @@ fn run_agent_loop(
                 let db = match state.registry.db.connection().await {
                     Ok(conn) => conn,
                     Err(e) => {
-                        let _ = app.emit(
+                        emit_from_main(
+                            &app,
                             "agent-event",
                             AgentEvent::Error {
                                 conversation_id: conversation_id.clone(),
@@ -1506,7 +1545,8 @@ fn run_agent_loop(
                         .await
                         {
                             tracing::warn!("Failed to persist assistant message: {}", e);
-                            let _ = app.emit(
+                            emit_from_main(
+                                &app,
                                 "agent-event",
                                 AgentEvent::Error {
                                     conversation_id: conversation_id.clone(),
@@ -1540,7 +1580,8 @@ fn run_agent_loop(
                         }
 
                         if let Err(e) = active.insert(db).await {
-                            let _ = app.emit(
+                            emit_from_main(
+                                &app,
                                 "agent-event",
                                 AgentEvent::Error {
                                     conversation_id: conversation_id.clone(),
@@ -1559,7 +1600,8 @@ fn run_agent_loop(
                     }
                 }
 
-                let _ = app.emit(
+                emit_from_main(
+                    &app,
                     "agent-event",
                     AgentEvent::Persisted {
                         conversation_id: conversation_id.clone(),
@@ -1578,7 +1620,8 @@ fn run_agent_loop(
                     "Agent loop returned error after completion"
                 );
 
-                let _ = app.emit(
+                emit_from_main(
+                    &app,
                     "agent-event",
                     AgentEvent::Error {
                         conversation_id: conversation_id.clone(),
@@ -1593,56 +1636,53 @@ fn run_agent_loop(
                     );
                 }
 
-                if !accumulated_content.is_empty() {
-                    if let Ok(db) = state.registry.db.connection().await {
-                        let doc = state.markdown.render_final(&accumulated_content);
-                        // For incomplete messages, we don't have thinking content, but we may have a final thinking document
-                        let incomplete_thinking_doc = if let Some(stream) = thinking_streamer.take()
-                        {
-                            let t_doc = stream.finalize();
-                            tracing::debug!(
-                                target: "agent::thinking",
-                                conversation_id = %conversation_id,
-                                stable_nodes = t_doc.stable_nodes.len(),
-                                draft_nodes = t_doc.draft_nodes.len(),
-                                "Finalized incomplete thinking document in error path"
-                            );
-                            Some(t_doc)
-                        } else {
-                            final_thinking_document.clone()
-                        };
+                if !accumulated_content.is_empty()
+                    && let Ok(db) = state.registry.db.connection().await
+                {
+                    let doc = state.markdown.render_final(&accumulated_content);
+                    // For incomplete messages, we don't have thinking content, but we may have a final thinking document
+                    let incomplete_thinking_doc = if let Some(stream) = thinking_streamer.take() {
+                        let t_doc = stream.finalize();
+                        tracing::debug!(
+                            target: "agent::thinking",
+                            conversation_id = %conversation_id,
+                            stable_nodes = t_doc.stable_nodes.len(),
+                            draft_nodes = t_doc.draft_nodes.len(),
+                            "Finalized incomplete thinking document in error path"
+                        );
+                        Some(t_doc)
+                    } else {
+                        final_thinking_document.clone()
+                    };
 
-                        match persist_assistant_message(
-                            db,
-                            conv_uuid,
-                            branch_uuid,
-                            accumulated_content,
-                            "incomplete",
-                            0,
-                            0,
-                            0,
-                            0,
-                            doc,
-                            None, // no thinking content for incomplete message
-                            incomplete_thinking_doc,
-                            chrono::Utc::now().fixed_offset(),
-                        )
-                        .await
-                        {
-                            Ok(_) => {
-                                let _ = app.emit(
-                                    "agent-event",
-                                    AgentEvent::Persisted {
-                                        conversation_id: conversation_id.clone(),
-                                    },
-                                );
-                            }
-                            Err(persist_err) => {
-                                tracing::warn!(
-                                    "Failed to persist incomplete message: {}",
-                                    persist_err
-                                );
-                            }
+                    match persist_assistant_message(
+                        db,
+                        conv_uuid,
+                        branch_uuid,
+                        accumulated_content,
+                        "incomplete",
+                        0,
+                        0,
+                        0,
+                        0,
+                        doc,
+                        None, // no thinking content for incomplete message
+                        incomplete_thinking_doc,
+                        chrono::Utc::now().fixed_offset(),
+                    )
+                    .await
+                    {
+                        Ok(_) => {
+                            emit_from_main(
+                                &app,
+                                "agent-event",
+                                AgentEvent::Persisted {
+                                    conversation_id: conversation_id.clone(),
+                                },
+                            );
+                        }
+                        Err(persist_err) => {
+                            tracing::warn!("Failed to persist incomplete message: {}", persist_err);
                         }
                     }
                 }
