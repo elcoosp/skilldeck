@@ -642,10 +642,12 @@ This SRS covers:
 
 ```markdown
 ---
+
 name: skill-name
 description: Brief description of the skill
 triggers:
-  - optional-trigger-keywords
+- optional-trigger-keywords
+
 ---
 
 # Skill Title
