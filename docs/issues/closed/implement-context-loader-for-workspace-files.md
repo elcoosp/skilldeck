@@ -1,22 +1,25 @@
 ---
+
 id: implement-context-loader-for-workspace-files
 title: Implement context loader for workspace files
 labels:
-  - backend
-  - 'priority:must'
-  - 'type:feature'
-  - 'size:small'
-assignees:
-  - elcoosp
-references:
-  - ../plans/v1.md#12-chunk-9-workspace-detection
-state: closed
-createdAt: '2026-03-12T13:59:50.853Z'
-priority: must
-effort: 0.5d
-dependencies:
-  - Implement workspace detector for project type detection
+- backend
+- 'priority:must'
+- 'type:feature'
+- 'size:small'
+  assignees:
+- elcoosp
+  references:
+- ../plans/v1.md#12-chunk-9-workspace-detection
+  state: closed
+  createdAt: '2026-03-12T13:59:50.853Z'
+  priority: must
+  effort: 0.5d
+  dependencies:
+- Implement workspace detector for project type detection
+
 ---
+
 ## Context
 
 The context loader reads workspace context files (CLAUDE.md, README, etc.) and builds a context string for the AI.
