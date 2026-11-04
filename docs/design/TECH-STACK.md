@@ -59,7 +59,7 @@ SkillDeck is a Tauri-based desktop application providing an AI agent chat interf
 ### AI Integration
 
 - **Agent‑LLM Communication**: [TOON (Token‑Oriented Object Notation)](https://github.com/toon-format/toon) – compact, human‑readable format for sending structured data (tool inputs, skill contexts, conversation state) to the LLM, reducing token usage by ~40% while maintaining or improving accuracy.
-  - *Note*: The TypeScript SDK (`@toon-format/toon`) is not yet installed; planned for future integration.
+  - _Note_: The TypeScript SDK (`@toon-format/toon`) is not yet installed; planned for future integration.
 
 ### Real‑time Updates & Notifications
 
@@ -119,43 +119,43 @@ SkillDeck is a Tauri-based desktop application providing an AI agent chat interf
   - `migration` – SeaORM migration crate
 
 **Key Dependencies**:
-| Crate | Purpose |
-|-------|---------|
-| `tauri` | Core Tauri framework |
-| `tauri-plugin-opener` | Open files/URLs |
-| `tauri-plugin-shell` | Execute shell commands (MCP stdio) |
-| `tauri-plugin-dialog` | Native dialog boxes |
-| `tauri-plugin-store` | Persistent key-value store |
-| `tauri-plugin-keyring` | Secure credential storage (OS keychain) |
-| `tokio` | Async runtime (full features) |
-| `sea-orm` | ORM with SQLite support (`sqlx-sqlite`) |
-| `serde` / `serde_json` | Serialization |
+| Crate                     | Purpose                                             |
+| ------------------------- | --------------------------------------------------- |
+| `tauri`                   | Core Tauri framework                                |
+| `tauri-plugin-opener`     | Open files/URLs                                     |
+| `tauri-plugin-shell`      | Execute shell commands (MCP stdio)                  |
+| `tauri-plugin-dialog`     | Native dialog boxes                                 |
+| `tauri-plugin-store`      | Persistent key-value store                          |
+| `tauri-plugin-keyring`    | Secure credential storage (OS keychain)             |
+| `tokio`                   | Async runtime (full features)                       |
+| `sea-orm`                 | ORM with SQLite support (`sqlx-sqlite`)             |
+| `serde` / `serde_json`    | Serialization                                       |
 | `specta` / `tauri-specta` | Type-safe Tauri commands with TypeScript generation |
-| `tracing` | Structured logging |
+| `tracing`                 | Structured logging                                  |
 
 **Additional Rust Crates**:
 
-| Library                 | Purpose                                                                       |
-| :---------------------- | :---------------------------------------------------------------------------- |
-| `anyhow` / `thiserror`  | Simplified error handling                                                     |
-| `async-trait`           | Async trait support                                                           |
-| `backoff`               | Exponential backoff for retries                                               |
-| `bytes`                 | Efficient buffer handling                                                     |
-| `chrono`                | Date/time handling                                                            |
-| `config`                | Manage configuration (API keys, skill directories)                            |
-| `dashmap`               | Concurrent HashMap for workflow state tracking                                |
-| `dirs-next`             | Platform‑specific directories                                                 |
-| `futures`               | Stream combinators and async utilities                                        |
-| `glob`                  | Pattern matching for skill discovery                                          |
-| `notify`                | Filesystem watching for skill directories                                     |
-| `notify-debouncer-mini` | Debounced filesystem events                                                   |
-| `petgraph`              | Graph data structures for workflow DAG execution                              |
-| `reqwest`               | HTTP client for remote MCP registry and model APIs                            |
-| `serde_yaml`            | YAML serialization (skill workflow frontmatter)                               |
-| `sha2`                  | Hashing for content‑addressable caching                                       |
-| `uuid`                  | Generate UUIDs for database primary keys                                      |
-| `sea-orm-migration`     | Migration support                                                             |
-| `tempfile`              | Temporary files (dev)                                                         |
+| Library                 | Purpose                                            |
+| :---------------------- | :------------------------------------------------- |
+| `anyhow` / `thiserror`  | Simplified error handling                          |
+| `async-trait`           | Async trait support                                |
+| `backoff`               | Exponential backoff for retries                    |
+| `bytes`                 | Efficient buffer handling                          |
+| `chrono`                | Date/time handling                                 |
+| `config`                | Manage configuration (API keys, skill directories) |
+| `dashmap`               | Concurrent HashMap for workflow state tracking     |
+| `dirs-next`             | Platform‑specific directories                      |
+| `futures`               | Stream combinators and async utilities             |
+| `glob`                  | Pattern matching for skill discovery               |
+| `notify`                | Filesystem watching for skill directories          |
+| `notify-debouncer-mini` | Debounced filesystem events                        |
+| `petgraph`              | Graph data structures for workflow DAG execution   |
+| `reqwest`               | HTTP client for remote MCP registry and model APIs |
+| `serde_yaml`            | YAML serialization (skill workflow frontmatter)    |
+| `sha2`                  | Hashing for content‑addressable caching            |
+| `uuid`                  | Generate UUIDs for database primary keys           |
+| `sea-orm-migration`     | Migration support                                  |
+| `tempfile`              | Temporary files (dev)                              |
 
 **Architectural Layers** (as per design):
 
@@ -213,28 +213,28 @@ SkillDeck is a Tauri-based desktop application providing an AI agent chat interf
 | **Workflow orchestration**          | Core Rust orchestrator + Tauri events               |
 | **Workflow DAG visualization**      | `@xyflow/react` + Zustand                           |
 | **Inline branch navigation**        | Zustand + UI state in DB                            |
-| **MCP discovery & marketplace**     | TanStack Query, shadcn Dialog/Sheet                  |
+| **MCP discovery & marketplace**     | TanStack Query, shadcn Dialog/Sheet                 |
 | **Skill management**                | TanStack Query, filesystem watcher events           |
-| **Prompt library with variables**   | *(planned: React Hook Form + zod)*                  |
+| **Prompt library with variables**   | _(planned: React Hook Form + zod)_                  |
 | **Command menu (`⌘K`)**             | `cmdk`                                              |
 | **Mention picker (`@`)**            | `cmdk` + `fuse.js` (fuzzy skill search)             |
 | **Fuzzy search (marketplace)**      | `fuse.js`                                           |
 | **Skill diff view**                 | `react-diff-viewer`                                 |
-| **SKILL.md preview**                | `react-markdown` + remark/rehype plugins + `shiki` |
+| **SKILL.md preview**                | `react-markdown` + remark/rehype plugins + `shiki`  |
 | **Real‑time event display**         | Tauri events + Sonner                               |
 | **Usage analytics (charts)**        | Recharts                                            |
-| **Long list virtualization**        | `@tanstack/react-virtual`         |
+| **Long list virtualization**        | `@tanstack/react-virtual`                           |
 | **Client state persistence**        | `@tauri-apps/plugin-store`                          |
 | **Keyboard shortcuts**              | `react-hotkeys-hook`                                |
 | **Debouncing / Throttling**         | `use-debounce`                                      |
 | **Workflow performance monitoring** | TanStack Query + Recharts (trends/analytics)        |
 | **Internationalization**            | Lingui (`@lingui/core`, `@lingui/react`, CLI, Vite) |
 | **Animations**                      | `framer-motion`                                     |
-| **Frontend testing**                | Vitest (Browser Mode) + Playwright                   |
+| **Frontend testing**                | Vitest (Browser Mode) + Playwright                  |
 | **Linting & Formatting**            | Biome                                               |
 | **Git Hooks**                       | Lefthook                                            |
 | **Commit Linting**                  | Commitlint                                          |
-| **Vector search (semantic)**        | *(planned: `sqlite-vss` or in‑memory `ndarray`)*    |
+| **Vector search (semantic)**        | _(planned: `sqlite-vss` or in‑memory `ndarray`)_    |
 
 ---
 
@@ -291,7 +291,7 @@ impl WorkflowExecutor {
 **React Component Structure:**
 
 ```tsx
-<WorkflowVisualization>
+;<WorkflowVisualization>
   <ReactFlow nodes={workflowNodes} edges={workflowEdges}>
     <StepNode type="agent" />
     <StepNode type="evaluator" />
