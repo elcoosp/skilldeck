@@ -1,22 +1,25 @@
 ---
+
 id: write-bdd-scenario-tests-for-critical-user-journey
 title: Write BDD scenario tests for critical user journeys
 labels:
-  - testing
-  - 'priority:must'
-  - 'type:test'
-  - 'size:large'
-assignees:
-  - elcoosp
-references:
-  - ../plans/v1.md#17-chunk-14-tests--bdd-scenarios
-state: open
-createdAt: '2026-03-12T13:59:50.863Z'
-priority: must
-effort: 3d
-dependencies:
-  - Write integration tests for core workflows
+- testing
+- 'priority:must'
+- 'type:test'
+- 'size:large'
+  assignees:
+- elcoosp
+  references:
+- ../plans/v1.md#17-chunk-14-tests--bdd-scenarios
+  state: open
+  createdAt: '2026-03-12T13:59:50.863Z'
+  priority: must
+  effort: 3d
+  dependencies:
+- Write integration tests for core workflows
+
 ---
+
 ## Context
 
 BDD (Behavior-Driven Development) tests verify user-facing behavior using Given/When/Then scenarios. We need to implement tests for critical user journeys.
