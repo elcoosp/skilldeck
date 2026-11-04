@@ -2,9 +2,10 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capability for the main window",
-  "windows": [
-    "main"
-  ],
+  "windows": ["main"],
+  "remote": {
+    "urls": ["http://localhost:*", "http://127.0.0.1:*"]
+  },
   "permissions": [
     "shell:allow-open",
     "deep-link:allow-get-current",
@@ -36,6 +37,8 @@
     },
     "dialog:allow-open",
     "dialog:default",
-    "fs:default"
+    "fs:default",
+    "playwright:default",
+    "playwright:allow-pw-result"
   ]
 }
