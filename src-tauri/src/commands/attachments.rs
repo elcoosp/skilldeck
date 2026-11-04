@@ -7,6 +7,7 @@ use tauri::{Emitter, State};
 use crate::state::AppState;
 
 #[derive(Debug, Clone, serde::Serialize, Type)]
+#[allow(dead_code)]
 pub struct AttachFilesPayload {
     pub conversation_id: String,
     pub paths: Vec<String>,
