@@ -1,26 +1,29 @@
 ---
+
 id: write-unit-tests-for-rust-core-modules
 title: Write unit tests for Rust core modules
 labels:
-  - testing
-  - 'priority:must'
-  - 'type:test'
-  - 'size:large'
-assignees:
-  - elcoosp
-references:
-  - ../plans/v1.md#16-chunk-13-tests--unit--integration
-state: in-progress
-createdAt: '2026-03-12T13:59:50.862Z'
-priority: must
-effort: 3d
-dependencies:
-  - Implement workflow executor with pattern runners
-  - Implement agent loop with streaming and debouncing
-  - Implement MCP stdio transport
-  - Implement filesystem skill loader
-  - Implement database layer with SQLite and SeaORM
+- testing
+- 'priority:must'
+- 'type:test'
+- 'size:large'
+  assignees:
+- elcoosp
+  references:
+- ../plans/v1.md#16-chunk-13-tests--unit--integration
+  state: in-progress
+  createdAt: '2026-03-12T13:59:50.862Z'
+  priority: must
+  effort: 3d
+  dependencies:
+- Implement workflow executor with pattern runners
+- Implement agent loop with streaming and debouncing
+- Implement MCP stdio transport
+- Implement filesystem skill loader
+- Implement database layer with SQLite and SeaORM
+
 ---
+
 ## Context
 
 Unit tests verify individual functions and modules in isolation. We need comprehensive unit tests for the Rust core library.
@@ -37,6 +40,7 @@ Unit tests verify individual functions and modules in isolation. We need compreh
 We need to write unit tests for all Rust core modules including error types, database layer, model providers, MCP client, skill system, agent loop, workflow executor, and workspace detection.
 
 ## Solution Approach
+
 ### Implementation Details
 
 **Test files to create:**
