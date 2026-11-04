@@ -48,6 +48,7 @@ This report catalogues every finding with file references, severity ratings, and
 ## 1. Accessibility (a11y) Issues
 
 ### A11Y-01 — Onboarding Wizard: No dialog semantics or focus trap
+
 **File:** `src/components/overlays/onboarding-wizard.tsx`  
 **Severity:** Critical
 
@@ -58,6 +59,7 @@ The wizard modal overlay is a plain `<div className="fixed inset-0 z-50">` with 
 ---
 
 ### A11Y-02 — Splash Screen: Hardcoded white background, no progress bar semantics
+
 **File:** `src/components/overlays/splash-screen.tsx`  
 **Severity:** High
 
@@ -68,6 +70,7 @@ Uses `bg-white` hardcoded, which causes a jarring white flash for users in dark 
 ---
 
 ### A11Y-03 — Settings Layout: Backdrop is an unsemantic `div`
+
 **File:** `src/routes/_app/settings.tsx`  
 **Severity:** High
 
@@ -78,6 +81,7 @@ The settings modal backdrop is a `<div>` with `onClick` but no `role`, `tabIndex
 ---
 
 ### A11Y-04 — ConversationItem: `role="button"` without Space key support
+
 **File:** `src/components/conversation/conversation-item.tsx`  
 **Severity:** High
 
@@ -88,6 +92,7 @@ Uses `role="button"` on a `<div>` (with a `biome-ignore`). The `onKeyDown` handl
 ---
 
 ### A11Y-05 — Right Panel Tabs: No ARIA tab pattern
+
 **File:** `src/components/layout/right-panel.tsx`  
 **Severity:** High
 
@@ -98,6 +103,7 @@ Tab buttons use raw `<button>` elements without `role="tablist"`, `role="tab"`, 
 ---
 
 ### A11Y-06 — API Keys Tab: Native `<input>` without label association
+
 **File:** `src/components/settings/api-keys-tab.tsx`  
 **Severity:** High
 
@@ -108,6 +114,7 @@ Uses raw `<input>` elements instead of the `Input` component, and they have no a
 ---
 
 ### A11Y-07 — Appearance Tab Volume Slider: Missing range semantics
+
 **File:** `src/components/settings/appearance-tab.tsx`  
 **Severity:** High
 
@@ -118,6 +125,7 @@ The `<input type="range">` has no `aria-label`, `aria-valuenow`, `aria-valuemin`
 ---
 
 ### A11Y-08 — Workspace Avatar Buttons: Using `title` only
+
 **File:** `src/components/layout/left-panel.tsx`  
 **Severity:** Medium
 
@@ -128,6 +136,7 @@ Workspace avatar buttons use only `title={w.name}` for accessibility. The `title
 ---
 
 ### A11Y-09 — ToolCallCard: Expandable content has no `aria-expanded`
+
 **File:** `src/components/conversation/tool-call-card.tsx`  
 **Severity:** Medium
 
@@ -138,6 +147,7 @@ The expand/collapse button does not have `aria-expanded={open}` or `aria-control
 ---
 
 ### A11Y-10 — ToolApprovalCard: No `aria-live` for status changes
+
 **File:** `src/components/conversation/tool-approval-card.tsx`  
 **Severity:** Medium
 
@@ -148,6 +158,7 @@ When the approval is resolving (`resolving` state), the button text does not upd
 ---
 
 ### A11Y-11 — Left Panel Collapsible Sections: Missing `aria-expanded`
+
 **File:** `src/components/layout/left-panel.tsx`  
 **Severity:** Medium
 
@@ -158,6 +169,7 @@ All `Collapsible.Trigger` elements for "Pinned", folder names, and date groups l
 ---
 
 ### A11Y-12 — Heading Bookmark Button: No `aria-label`
+
 **File:** `src/components/conversation/heading.tsx`  
 **Severity:** Medium
 
@@ -168,6 +180,7 @@ The bookmark toggle button inside headings has no `aria-label`. Screen readers w
 ---
 
 ### A11Y-13 — App Shell Panel Separators: No keyboard resize
+
 **File:** `src/components/layout/app-shell.tsx`  
 **Severity:** Medium
 
@@ -178,6 +191,7 @@ Panel separators have `cursor-col-resize` styling but no `role="separator"`, `ar
 ---
 
 ### A11Y-14 — UnifiedSkillCard: Action buttons lack `aria-label`
+
 **File:** `src/components/skills/unified-skill-card.tsx`  
 **Severity:** Low
 
@@ -188,6 +202,7 @@ Install/Update action buttons lack `aria-label` attributes. The card correctly h
 ---
 
 ### A11Y-15 — CreateBranchModal: Missing `DialogDescription`
+
 **File:** `src/components/conversation/create-branch-modal.tsx`  
 **Severity:** Low
 
@@ -198,6 +213,7 @@ Uses `Dialog` but omits `DialogDescription`, which is recommended by Radix for a
 ---
 
 ### A11Y-16 — Docs Checkpoint.astro: Buttons without descriptive labels
+
 **File:** `skilldeck-user-docs/src/components/mdx/Checkpoint.astro`  
 **Severity:** Medium
 
@@ -208,6 +224,7 @@ The checkpoint uses `<button>` elements with only "Yes"/"No" text but no `aria-l
 ---
 
 ### A11Y-17 — Docs Nudge.astro: No `role` or `aria-live`
+
 **File:** `skilldeck-user-docs/src/components/mdx/Nudge.astro`  
 **Severity:** Low
 
@@ -220,6 +237,7 @@ Nudge component lacks `role="status"` and `aria-live="polite"` for accessibility
 ## 2. Usability Issues
 
 ### US-01 — No confirmation dialog for conversation deletion
+
 **File:** `src/components/conversation/conversation-item.tsx`  
 **Severity:** Critical
 
@@ -230,6 +248,7 @@ Nudge component lacks `role="status"` and `aria-live="polite"` for accessibility
 ---
 
 ### US-02 — Edit Message hook is a stub — silently discards user edits
+
 **File:** `src/hooks/use-edit-message.ts`  
 **Severity:** Critical
 
@@ -240,6 +259,7 @@ The hook logs to console and returns `{ success: true }` as a placeholder. It ne
 ---
 
 ### US-03 — Auto-approve toggle labels are unclear programmatic names
+
 **File:** `src/components/conversation/message-input.tsx`  
 **Severity:** High
 
@@ -250,6 +270,7 @@ The dropdown uses programmatic key names (`autoApproveReads`, `autoApproveWrites
 ---
 
 ### US-04 — ToolCallCard content is `select-none` — prevents text selection
+
 **File:** `src/components/conversation/tool-call-card.tsx`  
 **Severity:** High
 
@@ -260,6 +281,7 @@ The entire card including Input/Output sections has `select-none`, preventing us
 ---
 
 ### US-05 — Command Palette "Open Workspace" action is a no-op
+
 **File:** `src/components/overlays/command-palette.tsx`  
 **Severity:** High
 
@@ -270,6 +292,7 @@ The "Open Workspace" command item's `onSelect` only closes the palette: `() => s
 ---
 
 ### US-06 — Right panel tab labels only show on hover — poor discoverability
+
 **File:** `src/components/layout/right-panel.tsx`  
 **Severity:** High
 
@@ -280,6 +303,7 @@ Tab labels (Session, Skills, MCP, etc.) are hidden by default and only visible o
 ---
 
 ### US-07 — Workflow deletion uses native `confirm()` — inconsistent with design system
+
 **File:** `src/components/layout/right-panel.tsx`  
 **Severity:** Medium
 
@@ -290,6 +314,7 @@ Uses `confirm()` (native browser dialog) which is blocking and does not match th
 ---
 
 ### US-08 — File upload processing is simulated/fake
+
 **File:** `src/components/conversation/message-input.tsx`  
 **Severity:** Medium
 
@@ -300,6 +325,7 @@ File "processing" is simulated with `setTimeout` (1500 ms pending, then success)
 ---
 
 ### US-09 — Draft persistence error is silently swallowed
+
 **File:** `src/components/conversation/message-input.tsx`  
 **Severity:** Medium
 
@@ -310,6 +336,7 @@ File "processing" is simulated with `setTimeout` (1500 ms pending, then success)
 ---
 
 ### US-10 — No email validation in Preferences and Onboarding
+
 **Files:** `src/components/settings/preferences-tab.tsx`, `src/components/overlays/onboarding-wizard.tsx`, `src/components/overlays/launch-notification.tsx`  
 **Severity:** Medium
 
@@ -320,6 +347,7 @@ Email inputs accept any text without validation. Invalid emails are silently sav
 ---
 
 ### US-11 — Message content truncation threshold is arbitrary
+
 **File:** `src/components/conversation/message-bubble.tsx`  
 **Severity:** Low
 
@@ -330,6 +358,7 @@ Messages longer than 300 characters get a "Show more/less" toggle. The threshold
 ---
 
 ### US-12 — Debug `console.log` statements left in production code
+
 **Files:** `src/components/overlays/command-palette.tsx`, `src/store/bookmarks.ts`  
 **Severity:** Low
 
@@ -340,6 +369,7 @@ Messages longer than 300 characters get a "Show more/less" toggle. The threshold
 ---
 
 ### US-13 — Right panel tab state does not persist across sessions
+
 **File:** `src/components/layout/right-panel.tsx`  
 **Severity:** Low
 
@@ -352,6 +382,7 @@ Messages longer than 300 characters get a "Show more/less" toggle. The threshold
 ## 3. Error Handling & User Feedback
 
 ### ERR-01 — Agent stream error toast uses hardcoded English with no retry action
+
 **File:** `src/hooks/use-agent-stream.ts`  
 **Severity:** High
 
@@ -362,6 +393,7 @@ Messages longer than 300 characters get a "Show more/less" toggle. The threshold
 ---
 
 ### ERR-02 — MCP mutations have no `onError` toasts
+
 **File:** `src/hooks/use-mcp.ts`  
 **Severity:** High
 
@@ -372,6 +404,7 @@ Messages longer than 300 characters get a "Show more/less" toggle. The threshold
 ---
 
 ### ERR-03 — Skill mutations (install/uninstall/sync) have no `onError` toasts
+
 **File:** `src/hooks/use-skills.ts`  
 **Severity:** High
 
@@ -382,6 +415,7 @@ Messages longer than 300 characters get a "Show more/less" toggle. The threshold
 ---
 
 ### ERR-04 — Workspace mutations have no user feedback
+
 **File:** `src/hooks/use-workspaces.ts`  
 **Severity:** Medium
 
@@ -392,6 +426,7 @@ Messages longer than 300 characters get a "Show more/less" toggle. The threshold
 ---
 
 ### ERR-05 — `useDisableRule` and `useRemoveSkillSource` also lack success toasts
+
 **File:** `src/hooks/use-skills.ts`  
 **Severity:** Medium
 
@@ -402,6 +437,7 @@ These mutations return `void` with no success toast. Users have no confirmation 
 ---
 
 ### ERR-06 — Profile update mutations lack explicit error toasts
+
 **File:** `src/hooks/use-profiles.ts`  
 **Severity:** Medium
 
@@ -412,6 +448,7 @@ Profile update mutations throw errors but have no `onError` toast at the hook le
 ---
 
 ### ERR-07 — No user-facing guidance when provider is not ready
+
 **File:** `src/hooks/use-provider-ready.ts`  
 **Severity:** Medium
 
@@ -422,6 +459,7 @@ Returns `{ status: 'not_ready', reason?, fix_action? }` but has `retry: false`. 
 ---
 
 ### ERR-08 — `isPlatformNotConfigured` uses fragile string matching
+
 **File:** `src/hooks/use-platform.ts`  
 **Severity:** Medium
 
@@ -432,6 +470,7 @@ Returns `{ status: 'not_ready', reason?, fix_action? }` but has `retry: false`. 
 ---
 
 ### ERR-09 — Lint rule toggle provides no feedback on failure
+
 **File:** `src/components/settings/lint-config.tsx`  
 **Severity:** Medium
 
@@ -442,6 +481,7 @@ Returns `{ status: 'not_ready', reason?, fix_action? }` but has `retry: false`. 
 ---
 
 ### ERR-10 — Analytics error displays raw error object
+
 **File:** `src/components/layout/right-panel.tsx`  
 **Severity:** Low
 
@@ -452,6 +492,7 @@ Returns `{ status: 'not_ready', reason?, fix_action? }` but has `retry: false`. 
 ---
 
 ### ERR-11 — Workflow step errors shown as raw text
+
 **File:** `src/components/layout/right-panel.tsx`  
 **Severity:** Medium
 
@@ -462,6 +503,7 @@ Workflow step errors are rendered as raw `{progress.error}` text. No structured 
 ---
 
 ### ERR-12 — Conversation create error has no recovery path
+
 **File:** `src/components/layout/left-panel.tsx`  
 **Severity:** Low
 
@@ -474,6 +516,7 @@ Workflow step errors are rendered as raw `{progress.error}` text. No structured 
 ## 4. Loading States & Performance Perception
 
 ### PERF-01 — Hardcoded limit of 50 conversations with no pagination
+
 **File:** `src/hooks/use-conversations.ts`  
 **Severity:** High
 
@@ -484,6 +527,7 @@ Workflow step errors are rendered as raw `{progress.error}` text. No structured 
 ---
 
 ### PERF-02 — Unbounded store growth (memory leak in conversation-keyed records)
+
 **Files:** `src/store/queue.ts`, `src/store/ui-ephemeral.ts`  
 **Severity:** High
 
@@ -494,6 +538,7 @@ Both stores use `Record<string, ...>` keyed by `conversationId` for streaming te
 ---
 
 ### PERF-03 — Message drafts are ephemeral and lost on refresh
+
 **File:** `src/store/ui-ephemeral.ts`  
 **Severity:** High
 
@@ -504,6 +549,7 @@ Message drafts (`drafts: Record<string, string>`) are stored in a non-persisted 
 ---
 
 ### PERF-04 — `use-attach-files-listener` closes over stale data
+
 **File:** `src/hooks/use-attach-files-listener.ts`  
 **Severity:** Medium
 
@@ -514,6 +560,7 @@ The `useEffect` dependency array includes `itemsMap`, which is an object referen
 ---
 
 ### PERF-05 — Workflow events have no timeout or fallback
+
 **File:** `src/hooks/use-workflow-events.ts`  
 **Severity:** Medium
 
@@ -524,6 +571,7 @@ The hook exposes `progress` state but has no timeout. If a workflow starts and t
 ---
 
 ### PERF-06 — Splash screen relies entirely on CSS animations with no programmatic dismissal
+
 **File:** `src/components/overlays/splash-screen.tsx`  
 **Severity:** Medium
 
@@ -534,6 +582,7 @@ The splash screen uses CSS animations with no programmatic dismissal tied to act
 ---
 
 ### PERF-07 — Achievement check uses `setTimeout(100ms)` race condition
+
 **File:** `src/hooks/use-messages.ts`  
 **Severity:** Medium
 
@@ -544,6 +593,7 @@ Achievement unlocking uses `setTimeout(() => { ... }, 100)` to read messages fro
 ---
 
 ### PERF-08 — `useCreateConversation` has arbitrary 50 ms delay
+
 **File:** `src/hooks/use-conversations.ts`  
 **Severity:** Low
 
@@ -554,6 +604,7 @@ Achievement unlocking uses `setTimeout(() => { ... }, 100)` to read messages fro
 ---
 
 ### PERF-09 — No progress events for skill sync operations
+
 **File:** `src-tauri/src/lib.rs`  
 **Severity:** High
 
@@ -564,6 +615,7 @@ Background skill sync runs every 3600 seconds but emits no events to the fronten
 ---
 
 ### PERF-10 — No streaming progress for long-running folder assembly
+
 **File:** `src-tauri/src/commands/files.rs`  
 **Severity:** Medium
 
@@ -576,6 +628,7 @@ The `assemble_folder` and `read_file` commands can be slow for large directories
 ## 5. Internationalisation Gaps
 
 ### I18N-01 — Locale messages file is completely empty
+
 **File:** `src/locales/en/messages.js`  
 **Severity:** Critical
 
@@ -586,6 +639,7 @@ The `assemble_folder` and `read_file` commands can be slow for large directories
 ---
 
 ### I18N-02 — Only `en` locale configured
+
 **File:** `lingui.config.ts`  
 **Severity:** Medium
 
@@ -596,6 +650,7 @@ The `assemble_folder` and `read_file` commands can be slow for large directories
 ---
 
 ### I18N-03 — `loadLocale()` silently falls back on missing locale
+
 **File:** `src/lib/i18n.ts`  
 **Severity:** Medium
 
@@ -606,6 +661,7 @@ If a locale file is missing, the function logs `console.warn` and does nothing. 
 ---
 
 ### I18N-04 — Language setting in Preferences has no effect
+
 **File:** `src/store/settings.ts`  
 **Severity:** Medium
 
@@ -616,6 +672,7 @@ The store has `language: string` and `setLanguage`, and `LanguageSync` in `main.
 ---
 
 ### I18N-05 — All error toast messages are hardcoded English
+
 **Files:** All hooks (`use-conversations.ts`, `use-skills.ts`, `use-mcp.ts`, etc.)  
 **Severity:** High
 
@@ -626,6 +683,7 @@ Every `toast.error(...)` and `toast.success(...)` across the entire codebase use
 ---
 
 ### I18N-06 — Achievement toasts are not internationalised
+
 **File:** `src/hooks/use-achievements.ts`  
 **Severity:** Low
 
@@ -638,6 +696,7 @@ Every `toast.error(...)` and `toast.success(...)` across the entire codebase use
 ## 6. Onboarding & First-Time Experience
 
 ### ONB-01 — Onboarding Wizard has no "Back" button
+
 **File:** `src/components/overlays/onboarding-wizard.tsx`  
 **Severity:** High
 
@@ -648,6 +707,7 @@ The wizard has 4 steps (`welcome → apikey → platform → done`) with a progr
 ---
 
 ### ONB-02 — Platform step error silently skips to "done"
+
 **File:** `src/components/overlays/onboarding-wizard.tsx`  
 **Severity:** Medium
 
@@ -658,6 +718,7 @@ The wizard has 4 steps (`welcome → apikey → platform → done`) with a progr
 ---
 
 ### ONB-03 — Onboarding Wizard has no keyboard navigation support
+
 **File:** `src/components/overlays/onboarding-wizard.tsx`  
 **Severity:** Medium
 
@@ -668,6 +729,7 @@ The wizard is a modal overlay but does not trap focus. Users can Tab out into th
 ---
 
 ### ONB-04 — No "Skip All" option for experienced users
+
 **File:** `src/components/overlays/onboarding-wizard.tsx`  
 **Severity:** Low
 
@@ -678,6 +740,7 @@ Users must go through all steps. While each step has a skip button, there is no 
 ---
 
 ### ONB-05 — Dark mode not fully supported in onboarding steps
+
 **File:** `src/components/overlays/onboarding-wizard.tsx`  
 **Severity:** Low
 
@@ -688,6 +751,7 @@ The `DoneStep` has `bg-emerald-100 dark:bg-emerald-900/30` but the `WelcomeStep`
 ---
 
 ### ONB-06 — Platform step has duplicate content
+
 **File:** `src/components/overlays/onboarding-wizard.tsx`  
 **Severity:** Low
 
@@ -698,6 +762,7 @@ The Platform step shows TWO info boxes both explaining "What you'll get:" — on
 ---
 
 ### ONB-07 — Launch Notification banner shows during/after onboarding
+
 **File:** `src/components/overlays/launch-notification.tsx`  
 **Severity:** Medium
 
@@ -710,6 +775,7 @@ The banner checks a separate localStorage key independent of the onboarding stat
 ## 7. Visual & Design Consistency Issues
 
 ### VIS-01 — Inconsistent form controls: raw `<input>` vs `<Input>` component
+
 **Files:** `api-keys-tab.tsx`, `preferences-tab.tsx`, `onboarding-wizard.tsx`, `custom-server-form.tsx`  
 **Severity:** Medium
 
@@ -720,6 +786,7 @@ Multiple settings forms use raw `<input>` elements with manually crafted classNa
 ---
 
 ### VIS-02 — Inconsistent button styling in Onboarding Wizard
+
 **File:** `src/components/overlays/onboarding-wizard.tsx`  
 **Severity:** Medium
 
@@ -730,6 +797,7 @@ All onboarding wizard buttons use raw `<button>` with inline className instead o
 ---
 
 ### VIS-03 — Custom server form defines its own `inp` class constant
+
 **File:** `src/components/layout/custom-server-form.tsx`  
 **Severity:** Medium
 
@@ -740,6 +808,7 @@ Defines `const inp = 'w-full h-7 rounded-md...'` — a completely custom input s
 ---
 
 ### VIS-04 — Inconsistent icon sizes across the app
+
 **Files:** Multiple  
 **Severity:** Low
 
@@ -750,6 +819,7 @@ Icon sizes vary between `size-3`, `size-3.5`, `size-4`, `size-5` with no clear p
 ---
 
 ### VIS-05 — Inconsistent empty state patterns
+
 **Files:** `left-panel.tsx`, `right-panel.tsx`, `empty-state-local.tsx`, `empty-state-registry.tsx`  
 **Severity:** Low
 
@@ -760,6 +830,7 @@ Empty states use different patterns — left panel uses Lottie animation + text,
 ---
 
 ### VIS-06 — Auto-approve toggle uses dropdown menu pattern inappropriately
+
 **File:** `src/components/conversation/message-input.tsx`  
 **Severity:** Medium
 
@@ -772,6 +843,7 @@ The shield icon opens a dropdown with toggle items. This is non-standard — tog
 ## 8. Navigation & Information Architecture
 
 ### NAV-01 — Settings has 11 tabs — cognitive overload
+
 **File:** `src/routes/_app/settings.tsx`  
 **Severity:** Medium
 
@@ -782,6 +854,7 @@ The shield icon opens a dropdown with toggle items. This is non-standard — tog
 ---
 
 ### NAV-02 — No breadcrumb or context indicator in center panel
+
 **File:** `src/components/layout/center-panel.tsx`  
 **Severity:** Medium
 
@@ -792,6 +865,7 @@ The center panel is just an `<Outlet />` with no visual indication of which conv
 ---
 
 ### NAV-03 — Three different search mechanisms may confuse users
+
 **Files:** `left-panel.tsx`, `app-shell.tsx`, `global-search-modal.tsx`  
 **Severity:** Medium
 
@@ -802,6 +876,7 @@ The search icon in the left panel opens Global Search, `Cmd+Shift+F` also opens 
 ---
 
 ### NAV-04 — No keyboard navigation between conversations in the list
+
 **File:** `src/components/layout/left-panel.tsx`  
 **Severity:** High
 
@@ -812,6 +887,7 @@ The conversation list does not support arrow key navigation. Users must click or
 ---
 
 ### NAV-05 — "New Chat" may not navigate to the new conversation
+
 **File:** `src/components/layout/left-panel.tsx`  
 **Severity:** Medium
 
@@ -822,6 +898,7 @@ The conversation list does not support arrow key navigation. Users must click or
 ---
 
 ### NAV-06 — Keyboard shortcuts listed but some are not implemented
+
 **File:** `src/lib/keyboard-shortcuts.ts`  
 **Severity:** High
 
@@ -834,6 +911,7 @@ Lists `Cmd+N` for "New conversation" but this shortcut is not registered in `app
 ## 9. State Management UX Issues
 
 ### STATE-01 — Dual storage for `onboardingComplete` (Zustand + localStorage)
+
 **File:** `src/store/ui-state.ts`  
 **Severity:** High
 
@@ -844,6 +922,7 @@ The `onboardingComplete` state is stored in both Zustand's `persist` middleware 
 ---
 
 ### STATE-02 — Same dual storage issue for `platformFeaturesEnabled`
+
 **File:** `src/store/ui-state.ts`  
 **Severity:** High
 
@@ -854,6 +933,7 @@ Same pattern as STATE-01. `platformFeaturesEnabled` is stored in both localStora
 ---
 
 ### STATE-03 — `activeConversationId` not persisted
+
 **File:** `src/store/conversation.ts`  
 **Severity:** Medium
 
@@ -864,6 +944,7 @@ Stored in a non-persisted Zustand store. On app refresh, the user always lands o
 ---
 
 ### STATE-04 — `settings.ts` has no migration strategy for persist schema changes
+
 **File:** `src/store/settings.ts`  
 **Severity:** Low
 
@@ -876,6 +957,7 @@ Stored in a non-persisted Zustand store. On app refresh, the user always lands o
 ## 10. Achievement & Engagement Issues
 
 ### ACH-01 — Achievements stored in `localStorage` — not synced, easily lost
+
 **File:** `src/hooks/use-achievements.ts`  
 **Severity:** Medium
 
@@ -886,6 +968,7 @@ Achievement state is stored in `localStorage`. If the user clears browser data, 
 ---
 
 ### ACH-02 — Only 4 achievements defined — very limited engagement
+
 **File:** `src/lib/achievements.ts`  
 **Severity:** Medium
 
@@ -896,6 +979,7 @@ Only 4 achievements exist: `firstMessage`, `tenthMessage`, `firstToolApproval`, 
 ---
 
 ### ACH-03 — Achievement unlocks use unreliable `setTimeout` pattern
+
 **File:** `src/hooks/use-messages.ts`  
 **Severity:** Medium
 
@@ -906,6 +990,7 @@ Achievement checks read the entire messages array from React Query cache and cou
 ---
 
 ### ACH-04 — No progress indicators for locked achievements
+
 **File:** `src/components/settings/achievements-tab.tsx`  
 **Severity:** Low
 
@@ -916,6 +1001,7 @@ Locked achievements are shown at 60% opacity with no indication of how close the
 ---
 
 ### ACH-05 — No unlock date shown for achievements
+
 **File:** `src/components/settings/achievements-tab.tsx`  
 **Severity:** Low
 
@@ -926,6 +1012,7 @@ Unlocked achievements show emoji, title, and description but no timestamp of whe
 ---
 
 ### ACH-06 — Nudge toasts have no "Don't show again" option
+
 **File:** `src/hooks/use-platform.ts`  
 **Severity:** Low
 
@@ -936,6 +1023,7 @@ Nudge toasts from the platform appear with a 10-second duration and CTA button, 
 ---
 
 ### ACH-07 — Nudge engine uses round-robin instead of intelligent selection
+
 **File:** `skilldeck-platform/src/growth/nudge_engine.rs`  
 **Severity:** Medium
 
@@ -948,6 +1036,7 @@ Nudge toasts from the platform appear with a 10-second duration and CTA button, 
 ## 11. Backend-to-Frontend Error Propagation
 
 ### BE-01 — Tauri commands flatten all errors to opaque strings
+
 **Files:** `src-tauri/src/commands/*.rs`  
 **Severity:** Critical
 
@@ -958,6 +1047,7 @@ Every Tauri command maps errors with `.map_err(|e| e.to_string())`. The rich `Co
 ---
 
 ### BE-02 — `CoreError::Internal` leaks raw debug strings to users
+
 **File:** `src-tauri/skilldeck-core/src/error.rs`  
 **Severity:** High
 
@@ -968,6 +1058,7 @@ Every Tauri command maps errors with `.map_err(|e| e.to_string())`. The rich `Co
 ---
 
 ### BE-03 — `FileOperation` errors lose path context during `From` conversion
+
 **File:** `src-tauri/skilldeck-core/src/error.rs`  
 **Severity:** Medium
 
@@ -978,6 +1069,7 @@ Every Tauri command maps errors with `.map_err(|e| e.to_string())`. The rich `Co
 ---
 
 ### BE-04 — `suggested_action()` has sparse coverage
+
 **File:** `src-tauri/skilldeck-core/src/error.rs`  
 **Severity:** Medium
 
@@ -988,6 +1080,7 @@ Only 8 out of approximately 30 error variants have `suggested_action()`. Notable
 ---
 
 ### BE-05 — Platform `AppError::Internal` leaks internal state to clients
+
 **File:** `skilldeck-platform/src/error.rs`  
 **Severity:** Low
 
@@ -998,6 +1091,7 @@ Only 8 out of approximately 30 error variants have `suggested_action()`. Notable
 ---
 
 ### BE-06 — `cancel_all()` cancels approvals for ALL conversations
+
 **File:** `src-tauri/src/state.rs`  
 **Severity:** High
 
@@ -1008,6 +1102,7 @@ Only 8 out of approximately 30 error variants have `suggested_action()`. Notable
 ---
 
 ### BE-07 — No error recovery for MCP server connection failures
+
 **File:** `src-tauri/skilldeck-core/src/error.rs`  
 **Severity:** Medium
 
@@ -1020,6 +1115,7 @@ Only 8 out of approximately 30 error variants have `suggested_action()`. Notable
 ## 12. Skill Installation & Registry Friction
 
 ### SKILL-01 — Install failure requires manual overwrite toggle
+
 **Files:** `src-tauri/src/skills/installer.rs`, `commands/skills.rs`  
 **Severity:** Medium
 
@@ -1030,6 +1126,7 @@ When a skill already exists, `install_skill` fails. The command layer accepts an
 ---
 
 ### SKILL-02 — No atomic write during skill installation
+
 **File:** `src-tauri/src/skills/installer.rs`  
 **Severity:** Medium
 
@@ -1040,6 +1137,7 @@ When a skill already exists, `install_skill` fails. The command layer accepts an
 ---
 
 ### SKILL-03 — Skill validation name error not surfaced in events
+
 **File:** `src-tauri/src/commands/skills.rs`  
 **Severity:** Low
 
@@ -1050,6 +1148,7 @@ When a skill already exists, `install_skill` fails. The command layer accepts an
 ---
 
 ### SKILL-04 — Registry skill sync shows stale data during sync
+
 **File:** `src-tauri/src/commands/skills.rs`  
 **Severity:** Low
 
@@ -1062,6 +1161,7 @@ The registry cache table is updated incrementally during sync. If the user opens
 ## 13. Tool Approval Flow UX
 
 ### APPROVAL-01 — Hardcoded 120-second timeout with no user-visible countdown
+
 **File:** `src-tauri/skilldeck-core/src/agent/tool_dispatcher.rs`  
 **Severity:** High
 
@@ -1072,6 +1172,7 @@ The approval gate has a `tokio::time::timeout(Duration::from_secs(120), ...)`. T
 ---
 
 ### APPROVAL-02 — Auto-approve defaults inconsistent between components
+
 **File:** `src-tauri/skilldeck-core/src/agent/tool_dispatcher.rs`, `src-tauri/src/state.rs`  
 **Severity:** High
 
@@ -1082,6 +1183,7 @@ The approval gate has a `tokio::time::timeout(Duration::from_secs(120), ...)`. T
 ---
 
 ### APPROVAL-03 — No "Remember my choice" for tool approvals
+
 **File:** `src-tauri/skilldeck-core/src/agent/tool_dispatcher.rs`  
 **Severity:** Medium
 
@@ -1092,6 +1194,7 @@ The `AutoApproveConfig` uses name-prefix matching, but there is no per-tool-name
 ---
 
 ### APPROVAL-04 — Shell auto-approve enables all shell commands silently
+
 **File:** `src-tauri/skilldeck-core/src/agent/tool_dispatcher.rs`  
 **Severity:** High
 
@@ -1102,6 +1205,7 @@ The `AutoApproveConfig` uses name-prefix matching, but there is no per-tool-name
 ---
 
 ### APPROVAL-05 — `resolve()` returns generic error for already-resolved approvals
+
 **File:** `src-tauri/skilldeck-core/src/agent/tool_dispatcher.rs`  
 **Severity:** Low
 
@@ -1114,6 +1218,7 @@ If the frontend tries to resolve an approval that was already auto-resolved or e
 ## 14. Workspace Context UX
 
 ### WS-01 — Workspace root silently falls back to `current_dir()`
+
 **File:** `src-tauri/src/state.rs`  
 **Severity:** High
 
@@ -1124,6 +1229,7 @@ If the frontend tries to resolve an approval that was already auto-resolved or e
 ---
 
 ### WS-02 — Workspace detection does not handle monorepos
+
 **File:** `src-tauri/skilldeck-core/src/workspace/detector.rs`  
 **Severity:** Medium
 
@@ -1134,6 +1240,7 @@ Detection checks for `Cargo.toml`, `package.json`, etc. at the root level only. 
 ---
 
 ### WS-03 — Skill directory search only checks limited paths
+
 **File:** `src-tauri/skilldeck-core/src/workspace/context.rs`  
 **Severity:** Medium
 
@@ -1144,6 +1251,7 @@ Only checks `.skilldeck/skills/`, `.claude/skills/`, and `~/.agents/skills/`. It
 ---
 
 ### WS-04 — Context file loading favours `CLAUDE.md` over `README.md`
+
 **File:** `src-tauri/skilldeck-core/src/workspace/context.rs`  
 **Severity:** Low
 
@@ -1154,6 +1262,7 @@ Priority is `CLAUDE.md` (100), `README.md` (50), `README` (40). This gives Anthr
 ---
 
 ### WS-05 — No event emitted when workspace context changes
+
 **File:** `src-tauri/src/state.rs`  
 **Severity:** Medium
 
@@ -1166,6 +1275,7 @@ Workspace context is loaded once at startup. If the user changes workspace durin
 ## 15. Documentation & Landing Page UX
 
 ### DOC-01 — Docs Feedback component only does `console.log`
+
 **File:** `skilldeck-user-docs/src/components/mdx/Feedback.astro`  
 **Severity:** Critical
 
@@ -1176,6 +1286,7 @@ The Feedback component only does `console.log('Page Helpful', ...)` — it does 
 ---
 
 ### DOC-02 — Checkpoint component uses `innerHTML` — potential XSS risk
+
 **File:** `skilldeck-user-docs/src/components/mdx/Checkpoint.astro`  
 **Severity:** Medium
 
@@ -1186,6 +1297,7 @@ The Feedback component only does `console.log('Page Helpful', ...)` — it does 
 ---
 
 ### DOC-03 — Landing page FAQ contradicts actual auto-approve defaults
+
 **Files:** Landing page i18n messages, `tool_dispatcher.rs`  
 **Severity:** High
 
@@ -1196,6 +1308,7 @@ The FAQ states "Six auto-approve categories exist for convenience, but every sin
 ---
 
 ### DOC-04 — No "Getting Started" content for workspace setup
+
 **File:** `skilldeck-user-docs/`  
 **Severity:** Medium
 
@@ -1206,6 +1319,7 @@ The documentation focuses on in-page engagement widgets (Checkpoint, Feedback, N
 ---
 
 ### DOC-05 — Nudge poller is hourly — very slow feedback loop
+
 **File:** `src-tauri/src/nudge_poller.rs`  
 **Severity:** Low
 
@@ -1216,6 +1330,7 @@ The documentation focuses on in-page engagement widgets (Checkpoint, Feedback, N
 ---
 
 ### DOC-06 — GitHub issue ingestion is unimplemented (pseudo-code only)
+
 **File:** `skilldeck-platform/src/feedback/ingestion.rs`  
 **Severity:** Medium
 
@@ -1228,6 +1343,7 @@ The entire `fetch_github_issues()` function is commented-out pseudo-code. GitHub
 ## 16. Security UX
 
 ### SEC-01 — `noDangerouslySetInnerHtml` rule is explicitly disabled
+
 **File:** `biome.json`  
 **Severity:** Medium
 
@@ -1238,6 +1354,7 @@ The Biome linter has `"noDangerouslySetInnerHtml": "off"`, which means `dangerou
 ---
 
 ### SEC-02 — Shell auto-approve has no safety confirmation (see APPROVAL-04)
+
 **File:** `src-tauri/skilldeck-core/src/agent/tool_dispatcher.rs`  
 **Severity:** High
 
@@ -1248,6 +1365,7 @@ Enabling shell auto-approve silently allows all shell commands without review. T
 ---
 
 ### SEC-03 — Ollama provider hardcoded port 11434
+
 **File:** `src-tauri/src/state.rs`  
 **Severity:** Medium
 
@@ -1261,34 +1379,34 @@ Enabling shell auto-approve silently allows all shell commands without review. T
 
 ### Issue Distribution by Severity
 
-| Severity | Count |
-|----------|-------|
-| **Critical** | 7 |
-| **High** | 25 |
-| **Medium** | 45 |
-| **Low** | 34 |
-| **Total** | **111** |
+| Severity     | Count   |
+| ------------ | ------- |
+| **Critical** | 7       |
+| **High**     | 25      |
+| **Medium**   | 45      |
+| **Low**      | 34      |
+| **Total**    | **111** |
 
 ### Issue Distribution by Category
 
-| Category | Critical | High | Medium | Low | Total |
-|----------|----------|------|--------|-----|-------|
-| Accessibility | 1 | 6 | 6 | 3 | 16 |
-| Usability | 2 | 4 | 3 | 4 | 13 |
-| Error Handling | 0 | 3 | 5 | 2 | 10 |
-| Loading & Performance | 0 | 4 | 4 | 2 | 10 |
-| Internationalisation | 1 | 1 | 3 | 1 | 6 |
-| Onboarding | 0 | 1 | 3 | 3 | 7 |
-| Visual Consistency | 0 | 0 | 4 | 2 | 6 |
-| Navigation | 0 | 2 | 3 | 0 | 5 |
-| State Management | 0 | 2 | 1 | 2 | 5 |
-| Achievements & Engagement | 0 | 0 | 3 | 4 | 7 |
-| Backend Error Propagation | 1 | 2 | 3 | 1 | 7 |
-| Skill Installation | 0 | 0 | 2 | 2 | 4 |
-| Tool Approval Flow | 0 | 3 | 1 | 1 | 5 |
-| Workspace Context | 0 | 1 | 3 | 1 | 5 |
-| Documentation | 1 | 1 | 2 | 1 | 5 |
-| Security | 0 | 1 | 2 | 0 | 3 |
+| Category                  | Critical | High | Medium | Low | Total |
+| ------------------------- | -------- | ---- | ------ | --- | ----- |
+| Accessibility             | 1        | 6    | 6      | 3   | 16    |
+| Usability                 | 2        | 4    | 3      | 4   | 13    |
+| Error Handling            | 0        | 3    | 5      | 2   | 10    |
+| Loading & Performance     | 0        | 4    | 4      | 2   | 10    |
+| Internationalisation      | 1        | 1    | 3      | 1   | 6     |
+| Onboarding                | 0        | 1    | 3      | 3   | 7     |
+| Visual Consistency        | 0        | 0    | 4      | 2   | 6     |
+| Navigation                | 0        | 2    | 3      | 0   | 5     |
+| State Management          | 0        | 2    | 1      | 2   | 5     |
+| Achievements & Engagement | 0        | 0    | 3      | 4   | 7     |
+| Backend Error Propagation | 1        | 2    | 3      | 1   | 7     |
+| Skill Installation        | 0        | 0    | 2      | 2   | 4     |
+| Tool Approval Flow        | 0        | 3    | 1      | 1   | 5     |
+| Workspace Context         | 0        | 1    | 3      | 1   | 5     |
+| Documentation             | 1        | 1    | 2      | 1   | 5     |
+| Security                  | 0        | 1    | 2      | 0   | 3     |
 
 ---
 
@@ -1296,75 +1414,75 @@ Enabling shell auto-approve silently allows all shell commands without review. T
 
 #### Phase 1 — Immediate (Week 1-2) | Critical + High Impact
 
-| Priority | Issue ID | Title | Effort |
-|----------|----------|-------|--------|
-| 1 | US-01 | Add confirmation dialog for conversation deletion | Low |
-| 2 | US-02 | Implement or disable edit-message hook (remove silent stub) | Medium |
-| 3 | BE-01 | Return structured error objects from all Tauri commands | Medium |
-| 4 | I18N-01 | Begin extracting strings to Lingui message catalogs | High |
-| 5 | DOC-01 | Fix Feedback.astro to POST to API endpoint | Low |
-| 6 | A11Y-01 | Add dialog semantics + focus trap to onboarding wizard | Low |
-| 7 | ONB-01 | Add "Back" button to onboarding wizard | Low |
-| 8 | ERR-02/03 | Add `onError` toasts to MCP and skill mutations | Low |
-| 9 | A11Y-04/05/06/07 | Fix keyboard + ARIA for conversation items, tabs, inputs | Medium |
-| 10 | BE-06 | Scope `cancel_agent()` to single conversation | Medium |
+| Priority | Issue ID         | Title                                                       | Effort |
+| -------- | ---------------- | ----------------------------------------------------------- | ------ |
+| 1        | US-01            | Add confirmation dialog for conversation deletion           | Low    |
+| 2        | US-02            | Implement or disable edit-message hook (remove silent stub) | Medium |
+| 3        | BE-01            | Return structured error objects from all Tauri commands     | Medium |
+| 4        | I18N-01          | Begin extracting strings to Lingui message catalogs         | High   |
+| 5        | DOC-01           | Fix Feedback.astro to POST to API endpoint                  | Low    |
+| 6        | A11Y-01          | Add dialog semantics + focus trap to onboarding wizard      | Low    |
+| 7        | ONB-01           | Add "Back" button to onboarding wizard                      | Low    |
+| 8        | ERR-02/03        | Add `onError` toasts to MCP and skill mutations             | Low    |
+| 9        | A11Y-04/05/06/07 | Fix keyboard + ARIA for conversation items, tabs, inputs    | Medium |
+| 10       | BE-06            | Scope `cancel_agent()` to single conversation               | Medium |
 
 #### Phase 2 — Short Term (Week 3-4) | High + Medium Impact
 
-| Priority | Issue ID | Title | Effort |
-|----------|----------|-------|--------|
-| 11 | PERF-01 | Implement pagination for conversation list | Medium |
-| 12 | PERF-02/03 | Fix memory leak in store records; persist drafts | Medium |
-| 13 | STATE-01/02 | Consolidate dual storage for onboarding state | Low |
-| 14 | APPROVAL-01 | Add approval timeout countdown UI | Medium |
-| 15 | APPROVAL-02/04 | Fix auto-approve defaults; add shell warning | Medium |
-| 16 | US-03/06 | Improve auto-approve labels; show tab labels by default | Low |
-| 17 | BE-02 | Replace debug strings with user-friendly error messages | Low |
-| 18 | NAV-04/06 | Implement conversation list arrow keys; implement or remove shortcuts | Medium |
-| 19 | WS-01 | Prompt for workspace on first launch | Medium |
-| 20 | PERF-09 | Add progress events for skill sync | Medium |
+| Priority | Issue ID       | Title                                                                 | Effort |
+| -------- | -------------- | --------------------------------------------------------------------- | ------ |
+| 11       | PERF-01        | Implement pagination for conversation list                            | Medium |
+| 12       | PERF-02/03     | Fix memory leak in store records; persist drafts                      | Medium |
+| 13       | STATE-01/02    | Consolidate dual storage for onboarding state                         | Low    |
+| 14       | APPROVAL-01    | Add approval timeout countdown UI                                     | Medium |
+| 15       | APPROVAL-02/04 | Fix auto-approve defaults; add shell warning                          | Medium |
+| 16       | US-03/06       | Improve auto-approve labels; show tab labels by default               | Low    |
+| 17       | BE-02          | Replace debug strings with user-friendly error messages               | Low    |
+| 18       | NAV-04/06      | Implement conversation list arrow keys; implement or remove shortcuts | Medium |
+| 19       | WS-01          | Prompt for workspace on first launch                                  | Medium |
+| 20       | PERF-09        | Add progress events for skill sync                                    | Medium |
 
 #### Phase 3 — Medium Term (Month 2) | Systemic Improvements
 
-| Priority | Issue ID | Title | Effort |
-|----------|----------|-------|--------|
-| 21 | I18N-01 (cont.) | Complete i18n extraction across all components | High |
-| 22 | BE-04 | Add `suggested_action()` to all error variants | Low |
-| 23 | US-07/08 | Replace native dialogs; implement real file validation | Medium |
-| 24 | VIS-01/02/03 | Standardise form controls and buttons | Medium |
-| 25 | SKILL-01/02 | Add conflict dialog and atomic skill installation | Medium |
-| 26 | ACH-01/02 | Persist achievements in SQLite; add more achievements | Medium |
-| 27 | WS-02/03 | Add monorepo detection; expand skill directory search | Medium |
-| 28 | NAV-01/02 | Settings IA restructure; add center panel context header | Medium |
-| 29 | DOC-03/04 | Fix FAQ contradiction; add Getting Started guide | Low |
-| 30 | ERR-07/08/09 | Add provider-ready warnings; fix error propagation patterns | Medium |
+| Priority | Issue ID        | Title                                                       | Effort |
+| -------- | --------------- | ----------------------------------------------------------- | ------ |
+| 21       | I18N-01 (cont.) | Complete i18n extraction across all components              | High   |
+| 22       | BE-04           | Add `suggested_action()` to all error variants              | Low    |
+| 23       | US-07/08        | Replace native dialogs; implement real file validation      | Medium |
+| 24       | VIS-01/02/03    | Standardise form controls and buttons                       | Medium |
+| 25       | SKILL-01/02     | Add conflict dialog and atomic skill installation           | Medium |
+| 26       | ACH-01/02       | Persist achievements in SQLite; add more achievements       | Medium |
+| 27       | WS-02/03        | Add monorepo detection; expand skill directory search       | Medium |
+| 28       | NAV-01/02       | Settings IA restructure; add center panel context header    | Medium |
+| 29       | DOC-03/04       | Fix FAQ contradiction; add Getting Started guide            | Low    |
+| 30       | ERR-07/08/09    | Add provider-ready warnings; fix error propagation patterns | Medium |
 
 #### Phase 4 — Long Term (Month 3+) | Polish & Delight
 
-| Priority | Issue ID | Title | Effort |
-|----------|----------|-------|--------|
-| 31 | ACH-04/05 | Add progress indicators and unlock dates to achievements | Low |
-| 32 | APPROVAL-03 | Implement per-tool allow/deny lists | Medium |
-| 33 | BE-07 | Add MCP auto-reconnect with UI feedback | Medium |
-| 34 | VIS-04/05 | Establish icon size system; create reusable EmptyState component | Low |
-| 35 | DOC-06 | Implement GitHub issue ingestion | Medium |
-| 36 | I18N-02/03/04 | Add additional locales; implement locale fallback UI | High |
-| 37 | A11Y-13 | Add keyboard resize for panel separators | Medium |
-| 38 | SEC-01 | Re-enable `noDangerouslySetInnerHtml` and audit usages | Medium |
+| Priority | Issue ID      | Title                                                            | Effort |
+| -------- | ------------- | ---------------------------------------------------------------- | ------ |
+| 31       | ACH-04/05     | Add progress indicators and unlock dates to achievements         | Low    |
+| 32       | APPROVAL-03   | Implement per-tool allow/deny lists                              | Medium |
+| 33       | BE-07         | Add MCP auto-reconnect with UI feedback                          | Medium |
+| 34       | VIS-04/05     | Establish icon size system; create reusable EmptyState component | Low    |
+| 35       | DOC-06        | Implement GitHub issue ingestion                                 | Medium |
+| 36       | I18N-02/03/04 | Add additional locales; implement locale fallback UI             | High   |
+| 37       | A11Y-13       | Add keyboard resize for panel separators                         | Medium |
+| 38       | SEC-01        | Re-enable `noDangerouslySetInnerHtml` and audit usages           | Medium |
 
 ---
 
 ### Key Metrics to Track Post-Remediation
 
-| Metric | Target | Measurement Method |
-|--------|--------|--------------------|
-| WCAG 2.1 AA audit pass rate | 100% of Critical/High issues resolved | Automated axe-core + manual screen reader testing |
-| Conversation list load time (with pagination) | < 200 ms for first 50 items | Performance monitoring |
-| Error feedback coverage (mutations with `onError`) | 100% | Code audit |
-| i18n coverage (% of strings extracted) | > 90% | Lingui extraction report |
-| Onboarding completion rate | > 80% | Analytics event tracking |
-| Store memory usage (after 100 conversations) | Bounded / stable | Memory profiling |
-| User-reported confusion (support tickets) | 30% reduction | Support ticket analysis |
+| Metric                                             | Target                                | Measurement Method                                |
+| -------------------------------------------------- | ------------------------------------- | ------------------------------------------------- |
+| WCAG 2.1 AA audit pass rate                        | 100% of Critical/High issues resolved | Automated axe-core + manual screen reader testing |
+| Conversation list load time (with pagination)      | < 200 ms for first 50 items           | Performance monitoring                            |
+| Error feedback coverage (mutations with `onError`) | 100%                                  | Code audit                                        |
+| i18n coverage (% of strings extracted)             | > 90%                                 | Lingui extraction report                          |
+| Onboarding completion rate                         | > 80%                                 | Analytics event tracking                          |
+| Store memory usage (after 100 conversations)       | Bounded / stable                      | Memory profiling                                  |
+| User-reported confusion (support tickets)          | 30% reduction                         | Support ticket analysis                           |
 
 ---
 
@@ -1391,4 +1509,4 @@ The single highest-impact investment the team can make is **implementing structu
 
 ---
 
-*Report generated by UX Research Agent | 2026-04-05 | SkillDeck v0.1.0*
+_Report generated by UX Research Agent | 2026-04-05 | SkillDeck v0.1.0_
