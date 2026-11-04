@@ -1,22 +1,25 @@
 ---
+
 id: implement-tauri-commands-for-settings-and-export
 title: Implement Tauri commands for settings and export
 labels:
-  - backend
-  - 'priority:must'
-  - 'type:feature'
-  - 'size:medium'
-assignees:
-  - elcoosp
-references:
-  - ../plans/v1.md#13-chunk-10-tauri-shell--commands--events
-state: closed
-createdAt: '2026-03-12T13:59:50.857Z'
-priority: must
-effort: 1d
-dependencies:
-  - Implement Tauri state management and initialization
+- backend
+- 'priority:must'
+- 'type:feature'
+- 'size:medium'
+  assignees:
+- elcoosp
+  references:
+- ../plans/v1.md#13-chunk-10-tauri-shell--commands--events
+  state: closed
+  createdAt: '2026-03-12T13:59:50.857Z'
+  priority: must
+  effort: 1d
+  dependencies:
+- Implement Tauri state management and initialization
+
 ---
+
 ## Context
 
 Additional Tauri commands are needed for settings management (API keys) and conversation export.
