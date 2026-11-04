@@ -6,15 +6,15 @@ After diving deep into 450+ files (Rust core, Tauri commands, React components, 
 
 ## 🚀 Existing Growth Assets (Already in Code)
 
-| Asset | Location | Current State | Growth Potential |
-|-------|----------|---------------|------------------|
-| **Referral program** | `src/components/settings/referral-tab.tsx`, `skilldeck-platform/src/growth/` | Fully functional: referral codes, signup tracking, rewards (free months). | **High** – but hidden inside Settings. No viral loop. |
-| **Gist sharing** | `share_skill_as_gist`, `import_skill_from_gist` | Users can share skills as GitHub Gists; others can import. | **High** – but no social sharing, no tracking. |
-| **Nudge engine** | `nudge_engine.rs`, `useNudgeListener` | Hourly nudges (skill sharing, referral, privacy). | **Medium** – used for retention, not acquisition. |
-| **Achievements** | `useAchievements`, `ACHIEVEMENTS` | Local only – no social sharing, no rewards. | **Low** – currently just for fun. |
-| **Onboarding wizard** | `onboarding-wizard.tsx` | Asks for email, API key, platform opt-in. | **Medium** – can be optimised for activation. |
-| **Analytics** | `sendActivityEvent`, `useAnalytics` | Tracks skill_shared, workflow_executed, etc. | **Foundation** – needed for cohort analysis. |
-| **Platform registration** | `ensurePlatformRegistration` | Creates user on platform, stores API key. | **Strategic** – enables cross‑promotion. |
+| Asset                     | Location                                                                     | Current State                                                             | Growth Potential                                      |
+| ------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------- |
+| **Referral program**      | `src/components/settings/referral-tab.tsx`, `skilldeck-platform/src/growth/` | Fully functional: referral codes, signup tracking, rewards (free months). | **High** – but hidden inside Settings. No viral loop. |
+| **Gist sharing**          | `share_skill_as_gist`, `import_skill_from_gist`                              | Users can share skills as GitHub Gists; others can import.                | **High** – but no social sharing, no tracking.        |
+| **Nudge engine**          | `nudge_engine.rs`, `useNudgeListener`                                        | Hourly nudges (skill sharing, referral, privacy).                         | **Medium** – used for retention, not acquisition.     |
+| **Achievements**          | `useAchievements`, `ACHIEVEMENTS`                                            | Local only – no social sharing, no rewards.                               | **Low** – currently just for fun.                     |
+| **Onboarding wizard**     | `onboarding-wizard.tsx`                                                      | Asks for email, API key, platform opt-in.                                 | **Medium** – can be optimised for activation.         |
+| **Analytics**             | `sendActivityEvent`, `useAnalytics`                                          | Tracks skill_shared, workflow_executed, etc.                              | **Foundation** – needed for cohort analysis.          |
+| **Platform registration** | `ensurePlatformRegistration`                                                 | Creates user on platform, stores API key.                                 | **Strategic** – enables cross‑promotion.              |
 
 ---
 
@@ -192,14 +192,14 @@ Building an internal (or external) cohort dashboard will allow you to identify w
 
 ## 📊 Growth Metrics & Tracking (What You Should Monitor)
 
-| Metric | Current (estimated) | Target (3 months) | How to track |
-|--------|---------------------|-------------------|---------------|
-| **Monthly active users (MAU)** | 500 | 5,000 | Platform `users` table |
-| **Viral coefficient (K)** | <0.1 | >0.5 | `referral_signups` / `referral_codes` |
-| **Skill installation rate** | 20% of new users | 70% | `skill_install_completed` event |
-| **Conversation publish rate** | 0 | 100 per month | New `conversation_published` event |
-| **Email nudge open rate** | N/A | 30% | Resend webhook |
-| **Gist import from social** | 0 | 50 per month | Track `ref` parameter |
+| Metric                         | Current (estimated) | Target (3 months) | How to track                          |
+| ------------------------------ | ------------------- | ----------------- | ------------------------------------- |
+| **Monthly active users (MAU)** | 500                 | 5,000             | Platform `users` table                |
+| **Viral coefficient (K)**      | <0.1                | >0.5              | `referral_signups` / `referral_codes` |
+| **Skill installation rate**    | 20% of new users    | 70%               | `skill_install_completed` event       |
+| **Conversation publish rate**  | 0                   | 100 per month     | New `conversation_published` event    |
+| **Email nudge open rate**      | N/A                 | 30%               | Resend webhook                        |
+| **Gist import from social**    | 0                   | 50 per month      | Track `ref` parameter                 |
 
 ---
 
@@ -218,12 +218,11 @@ Building an internal (or external) cohort dashboard will allow you to identify w
 
 ## 🔥 Unconventional Idea: “Skill Challenge” Viral Campaign
 
-Use the existing **achievements** system to create a monthly “Skill Challenge”:  
-- Users must create and share a skill that solves a specific problem (e.g., “automate PR reviews”).  
-- Top 3 skills win a year of free SkillDeck Pro.  
-- Use the `share_skill_as_gist` flow to automatically submit entries.  
-- Promote via Twitter/LinkedIn using `openUrl` with pre‑written text.  
-
+Use the existing **achievements** system to create a monthly “Skill Challenge”:
+- Users must create and share a skill that solves a specific problem (e.g., “automate PR reviews”).
+- Top 3 skills win a year of free SkillDeck Pro.
+- Use the `share_skill_as_gist` flow to automatically submit entries.
+- Promote via Twitter/LinkedIn using `openUrl` with pre‑written text.
 This generates user‑generated content, builds community, and drives organic reach.
 
 ---
