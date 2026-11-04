@@ -8,14 +8,22 @@ skilldeck-lint = { path = "../../skilldeck-lint" }
 tokio = { version = "1.54.1", features = ["full"] }
 
 # Database (SeaORM 2.x with SQLite)
-sea-orm = { version = "2.0.0-rc.37", features = ["sqlx-sqlite", "runtime-tokio-native-tls", "macros"] }
+sea-orm = { version = "2.0.0-rc.37", features = [
+  "sqlx-sqlite",
+  "runtime-tokio-native-tls",
+  "macros",
+] }
 
 # Serialization
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
 # Specta
-specta = { version = "=2.0.0-rc.26", features=[ "chrono", "uuid", "serde_json"]}
+specta = { version = "=2.0.0-rc.26", features = [
+  "chrono",
+  "uuid",
+  "serde_json",
+] }
 tauri-specta = { version = "2.0.0-rc.26", features = ["typescript", "derive"] }
 
 # Data Types & Time
@@ -68,6 +76,3 @@ regex = "1.13.1"
 ollama-rs = { version = "0.3.6", features = ["stream"] }
 [dev-dependencies]
 tempfile = "3.27.0"
-
-
-

@@ -26,12 +26,12 @@ tokio = { version = "1.54.1", features = ["full"] }
 
 # Database
 sea-orm = { version = "2.0.0-rc.37", features = [
-    "sqlx-sqlite",
-    "runtime-tokio-native-tls",
-    "macros",
-    "with-chrono",
-    "with-uuid",
-    "with-json",
+  "sqlx-sqlite",
+  "runtime-tokio-native-tls",
+  "macros",
+  "with-chrono",
+  "with-uuid",
+  "with-json",
 ] }
 sea-orm-migration = "2.0.0-rc.37"
 
@@ -46,7 +46,7 @@ uuid = { version = "1.29.0", features = ["v4", "serde"] }
 chrono = { version = "0.4.45", features = ["serde"] }
 
 # Auth
-argon2 = {version="0.6.0-rc.7", features=["password-hash"]}
+argon2 = { version = "0.6.0-rc.7", features = ["password-hash"] }
 rand = "0.10.3"
 
 # Email
@@ -60,8 +60,8 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter", "json"] }
 
 # Error handling
-thiserror = "2.0.21"
-anyhow = "1.0.104"
+thiserror = "2"
+anyhow = "1"
 
 # Config
 config = "0.15.27"
