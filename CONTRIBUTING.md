@@ -39,14 +39,17 @@ The SkillDeck documentation site lives in the `skilldeck-user-docs/` folder and 
 
 1. Ensure you have [Node.js](https://nodejs.org/) (v20 or later) and [pnpm](https://pnpm.io/) installed.
 2. Navigate to the docs folder:
+
    ```bash
    cd skilldeck-user-docs
    ```
 3. Install dependencies:
+
    ```bash
    pnpm install
    ```
 4. Start the development server:
+
    ```bash
    pnpm run dev
    ```
@@ -87,17 +90,20 @@ The SkillDeck documentation site lives in the `skilldeck-user-docs/` folder and 
 ### Building and Running the App
 
 1. Clone the repository:
+
    ```bash
    git clone https://github.com/skilldeck/skilldeck.git
    cd skilldeck
    ```
 
 2. Install frontend dependencies:
+
    ```bash
    pnpm install
    ```
 
 3. Run in development mode:
+
    ```bash
    pnpm tauri dev
    ```
