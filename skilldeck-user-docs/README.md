@@ -5,6 +5,7 @@ As a brilliant documenter, you need a systematic approach that balances deep tec
 ## 📊 Documentation Status
 
 ### 🚀 Implemented
+
 - **Platform**: [Astro Starlight](https://starlight.astro.build) with custom theming.
 - **Internationalization**: English (`en`) and French (`fr`) – fully configured with locale‑aware routing.
 - **Versioning**: Three version folders (`latest`, `v0-2`, `v0-1`) automatically synced from a base version.
@@ -16,6 +17,7 @@ As a brilliant documenter, you need a systematic approach that balances deep tec
 - **CI/CD**: GitHub Actions workflow using pnpm, Node 24, with linting, building, and link checking.
 
 ### ✅ Core Content (Complete)
+
 - **Getting Started**: Installation, first conversation, first skill guides.
 - **Tutorials**: Build‑a‑Skill series (frontmatter, instructions, testing, sharing) and Workflow series (sequential, parallel, evaluator‑optimizer).
 - **How‑to Guides**: Installing skills, adding MCP servers (filesystem, stdio, SSE), configuring profiles, using workspaces, setting up API keys, configuring lint rules, enabling platform features, exporting conversations, importing from Gist, using command palette, managing queued messages, environment setup.
@@ -25,10 +27,12 @@ As a brilliant documenter, you need a systematic approach that balances deep tec
 - **Community**: Skill showcase, community spotlight (template + first spotlight), skill of the month, contributor onboarding, feedback review process, monthly feedback report, feedback acknowledgment system, contribute skill page.
 
 ### 🏗️ In Progress / Ongoing
+
 - **Broken Link Audit**: Addressing remaining 404s (mostly external placeholders).
 - **Feedback Integration**: Implementing user feedback loop and internal dashboards.
 
 ### 📅 Planned (Optional)
+
 - **Feedback Dashboard** – internal tool for tracking user feedback.
 - **Content Health Dashboard** – monitor docs quality.
 - **A/B Testing Framework** – experiment with content variations.
@@ -36,6 +40,7 @@ As a brilliant documenter, you need a systematic approach that balances deep tec
 - **Printable Cheat Sheets** – PDF version of quick reference (placeholder added).
 
 ### ✅ Done (Foundation & Infrastructure)
+
 - [x] Astro Starlight setup with custom theme
 - [x] i18n configuration (en, fr)
 - [x] Versioned content structure (`latest`, `v0-2`, `v0-1`)
@@ -49,10 +54,12 @@ As a brilliant documenter, you need a systematic approach that balances deep tec
 
 ---
 
-## Phase 1: Brainstorm & Research  
+## Phase 1: Brainstorm & Research
+
 **Goal:** Understand the product, its users, and their needs before writing a single word.
 
 ### 1.1 Immerse Yourself in the Codebase
+
 - **Install and run the app** locally. Experience the onboarding flow, create a conversation, install a skill, configure an MCP server, etc.
 - **Review the directory structure** and key files:
   - `src/` – React UI components, hooks, stores → reveals user workflows.
@@ -62,6 +69,7 @@ As a brilliant documenter, you need a systematic approach that balances deep tec
   - Configuration files (`biome.json`, `lefthook.yml`, etc.) – development setup, but may hint at user‑facing config.
 
 ### 1.2 Identify User Personas and Scenarios
+
 - **Primary persona**: Developer wanting to automate tasks, orchestrate AI agents, and share reusable “skills” with their team.
 - **Secondary personas**: Team lead evaluating the tool, contributor wanting to extend it.
 - **Key scenarios**:
@@ -75,6 +83,7 @@ As a brilliant documenter, you need a systematic approach that balances deep tec
   - Configuring platform features (email nudges, referrals).
 
 ### 1.3 Extract Feature Deep‑Dives
+
 - **Read through the UI components** (e.g., `src/components/skills/`) to understand how users interact with skills.
 - **Study the Tauri command handlers** (`src-tauri/src/commands/`) – each command corresponds to a user action (install skill, list MCP servers, etc.).
 - **Note configuration locations**:
@@ -86,10 +95,12 @@ As a brilliant documenter, you need a systematic approach that balances deep tec
 
 ---
 
-## Phase 2: Analysis & Structuring  
+## Phase 2: Analysis & Structuring
+
 **Goal:** Design a documentation architecture that is easy to navigate and logically organised.
 
 ### 2.1 Define the Information Hierarchy
+
 Use a structure typical for developer tools:
 
 1. **Overview** – What is SkillDeck? Core philosophy (local‑first, AI orchestration, skills as code).
@@ -120,6 +131,7 @@ Use a structure typical for developer tools:
 7. **Contributing** – How to build from source, run tests, contribute skills.
 
 ### 2.2 Plan Astro Implementation
+
 - Use **Starlight** (Astro’s documentation template) for a polished, searchable site.
 - Organise content in `src/content/docs/` with subdirectories matching the hierarchy.
 - Leverage **MDX** for interactive examples (e.g., embedded code sandboxes).
@@ -127,6 +139,7 @@ Use a structure typical for developer tools:
 - Add **screenshots** of the UI where helpful (install dialogs, settings panels, etc.).
 
 ### 2.3 Create a Content Inventory
+
 List every page and the key points it should cover. For example:
 - **Getting Started/Installation**: System requirements, download options, first launch, onboarding.
 - **Core Concepts/Skills**: What is a skill? How is it structured (SKILL.md with frontmatter)? Local vs. registry skills, linting, trust badges.
@@ -135,10 +148,12 @@ List every page and the key points it should cover. For example:
 
 ---
 
-## Phase 3: Copywriting & Creation  
+## Phase 3: Copywriting & Creation
+
 **Goal:** Write clear, accurate, and engaging content.
 
 ### 3.1 Write for the User
+
 - **Use active voice and second person** (“You can install a skill by…”).
 - **Start each page with a clear goal** (“In this guide you will learn how to…”).
 - **Break long procedures into numbered steps**.
@@ -146,17 +161,20 @@ List every page and the key points it should cover. For example:
 - **Provide concrete examples** (e.g., “To install the ‘code‑review’ skill, click the Skills tab, search for ‘code‑review’, and click Install.”).
 
 ### 3.2 Leverage the Codebase for Accuracy
+
 - Extract command names from `src/lib/bindings.ts` to ensure they match.
 - Verify configuration file paths from `dirs_next` usage in Rust.
 - Use actual error messages from `CoreError` in troubleshooting sections.
 - Validate steps by executing them in a clean environment.
 
 ### 3.3 Create Visual Aids
+
 - Take **screenshots** of key UI elements: the main interface, the Skills tab, the install dialog, the settings overlay.
 - Annotate screenshots to highlight important areas.
 - Consider short **screen recordings** for complex workflows (e.g., attaching a folder to a message).
 
 ### 3.4 Build with Astro
+
 - Set up a new Astro project with Starlight: `npm create astro@latest -- --template starlight`.
 - Configure `astro.config.mjs` for your documentation structure.
 - Write content in Markdown/MDX, using frontmatter for title, description, sidebar position.
@@ -164,6 +182,7 @@ List every page and the key points it should cover. For example:
 - Enable **last updated dates** to show freshness.
 
 ### 3.5 Review and Iterate
+
 - **Self‑review**: Read each page for clarity and technical correctness.
 - **Peer review**: Have a developer (or another documenter) test the instructions.
 - **User testing**: Ask someone unfamiliar with the app to follow the guides.
@@ -171,25 +190,29 @@ List every page and the key points it should cover. For example:
 
 ---
 
-## Phase 4: Refinement & Launch  
+## Phase 4: Refinement & Launch
+
 **Goal:** Polish the documentation and make it easily discoverable.
 
 ### 4.1 Polish
+
 - Ensure consistent tone and terminology throughout.
 - Check all links (internal and external).
 - Validate code snippets by copying them into a real environment.
 - Optimise images for web.
 
 ### 4.2 Add Final Touches
+
 - Write a compelling **landing page** that explains what SkillDeck is and directs users to the right starting point.
 - Include a **table of contents** on long pages.
 - Add **“Edit this page”** links to encourage community contributions.
 
 ### 4.3 Publish and Promote
+
 - Deploy the Astro site (e.g., to Vercel, Netlify, or GitHub Pages).
 - Link to the docs from the app’s README and in‑app help links.
 - Announce the documentation on community channels (Discord, GitHub Discussions).
 
 ---
 
-By following this structured process, you’ll create documentation that not only explains *how* to use SkillDeck but also conveys *why* its design decisions matter—making it a true asset for your users.
+By following this structured process, you’ll create documentation that not only explains _how_ to use SkillDeck but also conveys _why_ its design decisions matter—making it a true asset for your users.
