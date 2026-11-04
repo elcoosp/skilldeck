@@ -64,7 +64,12 @@ export function CodeDemo() {
             </div>
             <div className="p-5 font-mono text-sm leading-relaxed overflow-x-auto max-h-[500px]">
               {lines.map((line, idx) => (
-                <CodeLine key={idx} line={line} lineNumber={idx + 1} />
+                <CodeLine
+                  // biome-ignore lint/suspicious/noArrayIndexKey: static demo listing
+                  key={`${idx}-${line}`}
+                  line={line}
+                  lineNumber={idx + 1}
+                />
               ))}
               {displayText.length < DEMO_TEXT.length ? (
                 <span className="inline-block w-2 h-4 bg-primary animate-typing-cursor ml-0.5" />
