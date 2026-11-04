@@ -1,22 +1,25 @@
 ---
+
 id: implement-workflow-executor-with-pattern-runners
 title: Implement workflow executor with pattern runners
 labels:
-  - backend
-  - 'priority:should'
-  - 'type:feature'
-  - 'size:large'
-assignees:
-  - elcoosp
-references:
-  - ../plans/v1.md#11-chunk-8-workflow-engine
-state: in-progress
-createdAt: '2026-03-12T13:56:20.462Z'
-priority: should
-effort: 2d
-dependencies:
-  - Implement workflow types and graph structure
+- backend
+- 'priority:should'
+- 'type:feature'
+- 'size:large'
+  assignees:
+- elcoosp
+  references:
+- ../plans/v1.md#11-chunk-8-workflow-engine
+  state: in-progress
+  createdAt: '2026-03-12T13:56:20.462Z'
+  priority: should
+  effort: 2d
+  dependencies:
+- Implement workflow types and graph structure
+
 ---
+
 ## Context
 
 The workflow executor orchestrates workflow execution, running steps in dependency order and supporting sequential, parallel, and evaluator-optimizer patterns.
