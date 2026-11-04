@@ -76,11 +76,11 @@ graph TB
 
 ### The Three Layers
 
-| Layer | Crate / Package | Responsibility |
-|-------|-----------------|----------------|
-| **Rust Core** | `skilldeck-core` | Agent loop, context builder, tool dispatcher, model providers, MCP client, skill loader/resolver/watcher, workflow executor, workspace detection. **Zero Tauri dependencies.** |
-| **Tauri Shell** | `src-tauri` | IPC commands, event bridging, OS keychain integration, window management, approval‑gate queue. Thin — no business logic. |
-| **React Frontend** | `src` | Pure UI. State via Zustand, server state via TanStack Query, routing via TanStack Router, components via shadcn/ui. |
+| Layer              | Crate / Package  | Responsibility                                                                                                                                                                 |
+| ------------------ | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Rust Core**      | `skilldeck-core` | Agent loop, context builder, tool dispatcher, model providers, MCP client, skill loader/resolver/watcher, workflow executor, workspace detection. **Zero Tauri dependencies.** |
+| **Tauri Shell**    | `src-tauri`      | IPC commands, event bridging, OS keychain integration, window management, approval‑gate queue. Thin — no business logic.                                                       |
+| **React Frontend** | `src`            | Pure UI. State via Zustand, server state via TanStack Query, routing via TanStack Router, components via shadcn/ui.                                                            |
 
 > [!TIP]
 > Because `skilldeck-core` has no Tauri dependency, it’s fully testable in isolation and portable to CLI or server contexts.
@@ -101,17 +101,17 @@ At the heart of SkillDeck is a streaming async loop:
 
 ## Tech Stack
 
-| Layer | Technologies |
-|-------|--------------|
-| **Core** | Rust (Edition 2024), Tokio, SeaORM 2, Petgraph, Notify, Reqwest, Tracing |
-| **Shell** | Tauri 2, `tauri-plugin-shell`, `tauri-plugin-keyring`, `tauri-plugin-store` |
-| **Frontend** | React 19, TypeScript, Vite 8, Tailwind CSS 4, shadcn/ui (Radix primitives) |
-| **State** | Zustand (UI state), TanStack Query (server state) |
-| **Routing** | TanStack Router |
-| **Workflows** | `@xyflow/react` (React Flow) for DAG visualization; `petgraph` for execution |
-| **Database** | SQLite (WAL mode) with optional vector search (`sqlite-vss`) |
-| **Testing** | Rust: `cargo test` + `nextest`; Frontend: Vitest (unit + browser) + Playwright |
-| **Tooling** | Biome (lint + format), Lefthook (git hooks), Commitlint, CSpell, Lingui (i18n) |
+| Layer         | Technologies                                                                   |
+| ------------- | ------------------------------------------------------------------------------ |
+| **Core**      | Rust (Edition 2024), Tokio, SeaORM 2, Petgraph, Notify, Reqwest, Tracing       |
+| **Shell**     | Tauri 2, `tauri-plugin-shell`, `tauri-plugin-keyring`, `tauri-plugin-store`    |
+| **Frontend**  | React 19, TypeScript, Vite 8, Tailwind CSS 4, shadcn/ui (Radix primitives)     |
+| **State**     | Zustand (UI state), TanStack Query (server state)                              |
+| **Routing**   | TanStack Router                                                                |
+| **Workflows** | `@xyflow/react` (React Flow) for DAG visualization; `petgraph` for execution   |
+| **Database**  | SQLite (WAL mode) with optional vector search (`sqlite-vss`)                   |
+| **Testing**   | Rust: `cargo test` + `nextest`; Frontend: Vitest (unit + browser) + Playwright |
+| **Tooling**   | Biome (lint + format), Lefthook (git hooks), Commitlint, CSpell, Lingui (i18n) |
 
 ---
 
@@ -228,7 +228,6 @@ description: "Review code for bugs, security issues, and style violations"
 compatibility: ["claude-3", "gpt-4"]
 allowed_tools: ["read_file", "list_directory"]
 ---
-
 # Code Review
 
 ## Instructions
@@ -259,10 +258,10 @@ SkillDeck implements the full MCP specification (JSON‑RPC 2.0, protocol `2024-
 
 Three execution patterns for multi‑step tasks:
 
-| Pattern | When to use |
-|---------|-------------|
-| **Sequential** | Each step depends on the previous one; steps run in topological order. |
-| **Parallel** | Independent steps run concurrently using Tokio’s `JoinSet`. |
+| Pattern                 | When to use                                                                                                |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------- |
+| **Sequential**          | Each step depends on the previous one; steps run in topological order.                                     |
+| **Parallel**            | Independent steps run concurrently using Tokio’s `JoinSet`.                                                |
 | **Evaluator‑Optimizer** | Iterative refinement loop; generator produces, evaluator scores, repeat until threshold or max iterations. |
 
 Workflows are defined as DAGs, validated with `petgraph` (cycle detection), visualized with React Flow, and executed with real‑time step tracking.
@@ -307,12 +306,12 @@ pnpm tauri:build      # Production build
 
 ### Testing
 
-| Layer | Tool | Command |
-|-------|------|---------|
-| Rust core | `cargo test` + `nextest` | `cargo nextest run` |
-| Frontend units | Vitest (happy‑dom) | `pnpm test:coverage:unit` |
-| Frontend components | Vitest (browser mode) | `pnpm test` |
-| E2E | Playwright + `tauri-driver` | `cd e2e-tests && pnpm test` |
+| Layer               | Tool                        | Command                     |
+| ------------------- | --------------------------- | --------------------------- |
+| Rust core           | `cargo test` + `nextest`    | `cargo nextest run`         |
+| Frontend units      | Vitest (happy‑dom)          | `pnpm test:coverage:unit`   |
+| Frontend components | Vitest (browser mode)       | `pnpm test`                 |
+| E2E                 | Playwright + `tauri-driver` | `cd e2e-tests && pnpm test` |
 
 ### Linting & Formatting
 
@@ -325,15 +324,15 @@ pnpm tauri:build      # Production build
 
 ## Configuration
 
-| What | Where |
-|------|-------|
-| API keys | OS keychain — macOS Keychain, Windows Credential Manager, libsecret |
-| Database | `~/.local/share/skilldeck/skilldeck.db` (platform‑specific) |
-| Lint config (global) | `~/.config/skilldeck/skilldeck-lint.toml` |
-| Lint config (workspace) | `<workspace>/.skilldeck/skilldeck-lint.toml` |
-| Personal skills | `~/.agents/skills/` |
-| Workspace skills | `<workspace>/.skilldeck/skills/` |
-| Panel layout | Persisted in `localStorage` under `skilldeck-panel-layout` |
+| What                    | Where                                                               |
+| ----------------------- | ------------------------------------------------------------------- |
+| API keys                | OS keychain — macOS Keychain, Windows Credential Manager, libsecret |
+| Database                | `~/.local/share/skilldeck/skilldeck.db` (platform‑specific)         |
+| Lint config (global)    | `~/.config/skilldeck/skilldeck-lint.toml`                           |
+| Lint config (workspace) | `<workspace>/.skilldeck/skilldeck-lint.toml`                        |
+| Personal skills         | `~/.agents/skills/`                                                 |
+| Workspace skills        | `<workspace>/.skilldeck/skills/`                                    |
+| Panel layout            | Persisted in `localStorage` under `skilldeck-panel-layout`          |
 
 ---
 
