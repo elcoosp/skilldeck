@@ -7,7 +7,6 @@ use serde::{Deserialize, Serialize};
 use specta::{Type, specta};
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tauri::State;
-use tokio::fs;
 use uuid::Uuid;
 
 use crate::state::AppState;
@@ -208,6 +207,7 @@ pub async fn list_workspaces(
 }
 
 #[derive(Debug, Serialize, Deserialize, Type)]
+#[allow(dead_code)]
 pub struct GitStatus {
     pub is_git_repo: bool,
     pub has_uncommitted: bool,
@@ -216,6 +216,7 @@ pub struct GitStatus {
 /// Check if the given workspace path is a git repository and whether it has uncommitted changes.
 #[specta]
 #[tauri::command]
+#[allow(dead_code)]
 pub async fn check_git_status(workspace_path: String) -> Result<GitStatus, String> {
     let is_git_repo = std::process::Command::new("git")
         .args(["rev-parse", "--is-inside-work-tree"])
@@ -243,6 +244,7 @@ pub async fn check_git_status(workspace_path: String) -> Result<GitStatus, Strin
 
 #[specta]
 #[tauri::command]
+#[allow(dead_code)]
 pub async fn git_init(path: String) -> Result<(), String> {
     std::process::Command::new("git")
         .arg("init")
@@ -253,11 +255,11 @@ pub async fn git_init(path: String) -> Result<(), String> {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct FileEntry {
+pub struct WorkspaceFileEntry {
     pub name: String,
     pub path: String,
     pub is_dir: bool,
-    pub children: Vec<FileEntry>,
+    pub children: Vec<WorkspaceFileEntry>,
 }
 
 /// List files and folders in a workspace directory up to a specified depth,
@@ -267,7 +269,7 @@ pub struct FileEntry {
 pub async fn list_workspace_files(
     workspace_path: String,
     max_depth: Option<u32>,
-) -> Result<Vec<FileEntry>, String> {
+) -> Result<Vec<WorkspaceFileEntry>, String> {
     let max_depth = max_depth.unwrap_or(4);
 
     // Run the blocking walk on a dedicated thread pool.
@@ -284,7 +286,7 @@ pub async fn list_workspace_files(
             .build();
 
         // Collect all entries, skipping the root directory itself.
-        let mut all_entries: Vec<FileEntry> = Vec::new();
+        let mut all_entries: Vec<WorkspaceFileEntry> = Vec::new();
         for result in walker {
             match result {
                 Ok(entry) => {
@@ -296,7 +298,7 @@ pub async fn list_workspace_files(
                     let name = entry.file_name().to_string_lossy().to_string();
                     let is_dir = entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false);
 
-                    all_entries.push(FileEntry {
+                    all_entries.push(WorkspaceFileEntry {
                         name,
                         path: entry_path.to_string_lossy().to_string(),
                         is_dir,
@@ -343,12 +345,12 @@ pub async fn list_workspace_files(
         // Recursively assemble the tree.
         fn assemble_tree(
             idx: usize,
-            all_entries: &mut Vec<FileEntry>,
+            all_entries: &mut Vec<WorkspaceFileEntry>,
             parent_to_children: &HashMap<usize, Vec<usize>>,
-        ) -> FileEntry {
+        ) -> WorkspaceFileEntry {
             let mut entry = all_entries[idx].clone();
             if let Some(child_indices) = parent_to_children.get(&idx) {
-                let mut children: Vec<FileEntry> = child_indices
+                let mut children: Vec<WorkspaceFileEntry> = child_indices
                     .iter()
                     .map(|&child_idx| assemble_tree(child_idx, all_entries, parent_to_children))
                     .collect();
@@ -367,7 +369,7 @@ pub async fn list_workspace_files(
             entry
         }
 
-        let mut root_entries: Vec<FileEntry> = root_children_indices
+        let mut root_entries: Vec<WorkspaceFileEntry> = root_children_indices
             .into_iter()
             .map(|idx| assemble_tree(idx, &mut all_entries, &parent_to_children))
             .collect();
@@ -427,7 +429,7 @@ pub async fn list_git_status(workspace_path: String) -> Result<HashMap<String, S
             }
         } else {
             // Use the first non-space status char
-            let code = if status.chars().next() == Some(' ') {
+            let code = if status.starts_with(' ') {
                 status.chars().nth(1).unwrap().to_string()
             } else {
                 status.chars().next().unwrap().to_string()
