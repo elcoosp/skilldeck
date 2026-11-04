@@ -1,22 +1,25 @@
 ---
+
 id: implement-mcp-stdio-transport
 title: Implement MCP stdio transport
 labels:
-  - backend
-  - 'priority:must'
-  - 'type:feature'
-  - 'size:large'
-assignees:
-  - elcoosp
-references:
-  - ../plans/v1.md#9-chunk-6-mcp-client--supervision
-state: closed
-createdAt: '2026-03-12T13:53:55.310Z'
-priority: must
-effort: 2d
-dependencies:
-  - Implement MCP types and JSON-RPC protocol
+- backend
+- 'priority:must'
+- 'type:feature'
+- 'size:large'
+  assignees:
+- elcoosp
+  references:
+- ../plans/v1.md#9-chunk-6-mcp-client--supervision
+  state: closed
+  createdAt: '2026-03-12T13:53:55.310Z'
+  priority: must
+  effort: 2d
+  dependencies:
+- Implement MCP types and JSON-RPC protocol
+
 ---
+
 ## Context
 
 The stdio transport is the primary mechanism for communicating with local MCP servers. It spawns subprocesses and communicates via stdin/stdout using JSON-RPC.
