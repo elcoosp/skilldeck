@@ -1,22 +1,25 @@
 ---
+
 id: implement-built-in-tools-loadskill-spawnsubagent-m
 title: 'Implement built-in tools (loadSkill, spawnSubagent, mergeSubagentResults)'
 labels:
-  - backend
-  - 'priority:should'
-  - 'type:feature'
-  - 'size:medium'
-assignees:
-  - elcoosp
-references:
-  - ../plans/v1.md#10-chunk-7-agent-loop--tool-dispatcher
-state: closed
-createdAt: '2026-03-12T13:56:20.458Z'
-priority: should
-effort: 1d
-dependencies:
-  - Implement skill resolver with priority ordering
+- backend
+- 'priority:should'
+- 'type:feature'
+- 'size:medium'
+  assignees:
+- elcoosp
+  references:
+- ../plans/v1.md#10-chunk-7-agent-loop--tool-dispatcher
+  state: closed
+  createdAt: '2026-03-12T13:56:20.458Z'
+  priority: should
+  effort: 1d
+  dependencies:
+- Implement skill resolver with priority ordering
+
 ---
+
 ## Context
 
 Built-in tools are always available without approval gates. They provide core functionality like loading skills, spawning subagents, and merging results.
