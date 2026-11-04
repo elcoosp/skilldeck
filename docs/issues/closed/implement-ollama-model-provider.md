@@ -1,22 +1,25 @@
 ---
+
 id: implement-ollama-model-provider
 title: Implement Ollama model provider
 labels:
-  - backend
-  - 'priority:should'
-  - 'type:feature'
-  - 'size:small'
-assignees:
-  - elcoosp
-references:
-  - ../plans/v1.md#7-chunk-4-model-providers
-state: closed
-createdAt: '2026-03-12T13:51:42.847Z'
-priority: should
-effort: 0.5d
-dependencies:
-  - Define plugin traits for dependency inversion
+- backend
+- 'priority:should'
+- 'type:feature'
+- 'size:small'
+  assignees:
+- elcoosp
+  references:
+- ../plans/v1.md#7-chunk-4-model-providers
+  state: closed
+  createdAt: '2026-03-12T13:51:42.847Z'
+  priority: should
+  effort: 0.5d
+  dependencies:
+- Define plugin traits for dependency inversion
+
 ---
+
 ## Context
 
 The Ollama provider enables local LLM inference for users who need complete data sovereignty. It uses the OpenAI-compatible API provided by Ollama.
