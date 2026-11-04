@@ -42,7 +42,17 @@
     "metacharacters",
     "unlisten",
     "classmap",
-    "xyflow"
+    "xyflow",
+    "codellama",
+    "srsholmes",
+    "LOCALAPPDATA",
+    "taskkill",
+    "customisable",
+    "lottiefiles",
+    "dotlottie",
+    "Convs",
+    "folderless",
+    "convs"
   ],
   "ignorePaths": [
     "Cargo.toml",
@@ -54,8 +64,11 @@
     "node_modules/**",
     ".github/**",
     "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
     "dist/**",
     "target/**",
-    "src-tauri/target/**"
+    "src-tauri/target/**",
+    "skilldeck-user-docs/.vale/**",
+    "skilldeck-user-docs/astro.config.mjs"
   ]
 }
