@@ -1,22 +1,25 @@
 ---
+
 id: implement-skill-watcher-for-hot-reload
 title: Implement skill watcher for hot reload
 labels:
-  - backend
-  - 'priority:should'
-  - 'type:feature'
-  - 'size:medium'
-assignees:
-  - elcoosp
-references:
-  - ../plans/v1.md#8-chunk-5-skill-system
-state: closed
-createdAt: '2026-03-12T13:53:55.306Z'
-priority: should
-effort: 1d
-dependencies:
-  - Implement filesystem skill loader
+- backend
+- 'priority:should'
+- 'type:feature'
+- 'size:medium'
+  assignees:
+- elcoosp
+  references:
+- ../plans/v1.md#8-chunk-5-skill-system
+  state: closed
+  createdAt: '2026-03-12T13:53:55.306Z'
+  priority: should
+  effort: 1d
+  dependencies:
+- Implement filesystem skill loader
+
 ---
+
 ## Context
 
 The skill watcher monitors skill directories for changes and triggers hot reload when SKILL.md files are created, modified, or deleted. This enables real-time skill updates without restarting the application.
