@@ -1,23 +1,26 @@
 ---
+
 id: implement-mcp-registry-for-server-management
 title: Implement MCP registry for server management
 labels:
-  - backend
-  - 'priority:must'
-  - 'type:feature'
-  - 'size:medium'
-assignees:
-  - elcoosp
-references:
-  - ../plans/v1.md#9-chunk-6-mcp-client--supervision
-state: closed
-createdAt: '2026-03-12T13:53:55.312Z'
-priority: must
-effort: 1d
-dependencies:
-  - Implement MCP stdio transport
-  - Implement MCP SSE transport
+- backend
+- 'priority:must'
+- 'type:feature'
+- 'size:medium'
+  assignees:
+- elcoosp
+  references:
+- ../plans/v1.md#9-chunk-6-mcp-client--supervision
+  state: closed
+  createdAt: '2026-03-12T13:53:55.312Z'
+  priority: must
+  effort: 1d
+  dependencies:
+- Implement MCP stdio transport
+- Implement MCP SSE transport
+
 ---
+
 ## Context
 
 The MCP registry manages all connected MCP servers, tracks their status, and provides tool discovery across all servers.
