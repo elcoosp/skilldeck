@@ -216,12 +216,11 @@ pub fn start_registry_watcher(
                         .load_skill_from_source(&source_label, skill_dir.clone(), &lint_config)
                         .await
                         .is_ok()
+                        && let Some(ref emitter) = emitter
                     {
-                        if let Some(ref emitter) = emitter {
-                            let skill_name =
-                                skill_dir.file_name().unwrap().to_string_lossy().to_string();
-                            emitter.emit_updated(source_label.clone(), skill_name);
-                        }
+                        let skill_name =
+                            skill_dir.file_name().unwrap().to_string_lossy().to_string();
+                        emitter.emit_updated(source_label.clone(), skill_name);
                     }
                 }
                 SkillWatchEvent::Deleted(skill_dir) => {
