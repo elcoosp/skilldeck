@@ -4,9 +4,9 @@
 
 We release patches for security vulnerabilities. The following versions are currently being supported with security updates:
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 1.x     | ✅ Yes             |
+| Version | Supported           |
+| ------- | ------------------- |
+| 1.x     | ✅ Yes              |
 | < 1.0   | ❌ No (development) |
 
 ## Reporting a Vulnerability
@@ -30,18 +30,23 @@ After the initial reply to your report, we will keep you informed of the progres
 ## Security-Related Configuration
 
 ### API Key Storage
+
 SkillDeck stores API keys **exclusively in the OS keychain** (macOS Keychain, Windows Credential Manager, Linux libsecret). Keys are never stored in the database, configuration files, or logs. If the keychain is unavailable, the application will refuse to store new keys and display an error.
 
 ### Telemetry
+
 SkillDeck does **not** collect any telemetry or usage data without explicit user opt-in. Telemetry is disabled by default. When enabled, it sends only anonymized usage statistics (feature usage, error counts) – no personal data, conversation content, or code.
 
 ### Tool Approval
+
 By default, all tool calls that access external resources (file system, network, databases) require explicit user approval via an approval card. Users can configure auto‑approval for specific categories (file reads, database selects, etc.) in Settings.
 
 ### Symlink Safety
+
 The skill scanner skips symlinked directories to prevent directory traversal attacks. Any attempt to scan a symlink is logged as a warning.
 
 ### TLS
+
 All external HTTPS connections (to model providers, MCP servers) use TLS 1.2 or higher. Connections to servers that only support older TLS versions are rejected.
 
 ## Responsible Disclosure
