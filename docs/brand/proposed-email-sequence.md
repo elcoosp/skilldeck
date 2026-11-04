@@ -30,11 +30,11 @@ This sequence activates during **Phase 5 (Full Launch)** , but its content shoul
 
 ### ORB Framework Alignment
 
-| Channel Type | Role in Launch | How This Sequence Helps |
-|--------------|----------------|-------------------------|
-| **Owned** | Email, blog, community | This sequence is a core owned asset – it nurtures users after they join. |
-| **Rented** | Social media, app stores | Drive traffic to your signup page; this sequence takes over from there. |
-| **Borrowed** | Podcasts, guest posts, influencers | Borrowed attention converts to signups, which then enter this sequence. |
+| Channel Type | Role in Launch                     | How This Sequence Helps                                                  |
+| ------------ | ---------------------------------- | ------------------------------------------------------------------------ |
+| **Owned**    | Email, blog, community             | This sequence is a core owned asset – it nurtures users after they join. |
+| **Rented**   | Social media, app stores           | Drive traffic to your signup page; this sequence takes over from there.  |
+| **Borrowed** | Podcasts, guest posts, influencers | Borrowed attention converts to signups, which then enter this sequence.  |
 
 Every email in this sequence should reinforce the value of staying in your owned ecosystem. Use it to encourage users to follow you on social (rented) or refer friends (borrowed) – turning them into amplifiers.
 
@@ -75,7 +75,7 @@ You're receiving this because you signed up for SkillDeck. We're excited to have
 If you'd rather not receive these emails, you can [Unsubscribe here] or [Update your preferences].
 ```
 
-*Replace [Company Name] and [Physical Address] with your actual details. Ensure the unsubscribe link is functional and immediately processes the request (no login required).*
+_Replace [Company Name] and [Physical Address] with your actual details. Ensure the unsubscribe link is functional and immediately processes the request (no login required)._
 
 ---
 
@@ -96,7 +96,7 @@ SkillDeck is a **Tauri‑based desktop app** designed for developers like you wh
 - A local‑first, private AI chat with branching conversations
 - Full compatibility with the Superpowers skill ecosystem (`SKILL.md` manifests, priority‑ordered skill directories)
 - Seamless integration with MCP servers (local discovery + remote registry)
-- A flexible agent loop with tool approval, subagents, and **TOON encoding** — a compact format that uses ~40% fewer tokens than JSON, saving you money and improving accuracy. *(Source: TOON benchmark, 2025)*
+- A flexible agent loop with tool approval, subagents, and **TOON encoding** — a compact format that uses ~40% fewer tokens than JSON, saving you money and improving accuracy. _(Source: TOON benchmark, 2025)_
 
 To get started right away:
 1. **Open a workspace** – Click `⌘O` and select any project folder. SkillDeck will auto‑detect project type (Rust, Node, Python, etc.) and inject context from `README.md` or `CLAUDE.md`.
@@ -158,7 +158,7 @@ Want to create your own skill? Use the built‑in `skill‑create` template — 
 
 **CTA:** Browse All Skills → [link to marketplace overlay]
 
-**Hook Improvement:** The subject line personalizes and promises speed. Consider testing a variant: “30 seconds to supercharge your AI” for more impact. The body could include a statistic: “Developers who use skills save an average of 2 hours per week on repetitive tasks.” *(If you have such data, insert it here.)*
+**Hook Improvement:** The subject line personalizes and promises speed. Consider testing a variant: “30 seconds to supercharge your AI” for more impact. The body could include a statistic: “Developers who use skills save an average of 2 hours per week on repetitive tasks.” _(If you have such data, insert it here.)_
 
 **Launch Strategy Insight:**
 - This email delivers a **quick win**, which is essential for activation (one of your exit conditions). In the five‑phase model, you should have tested this quick win with alpha/beta users to ensure it truly delivers value.
@@ -200,7 +200,7 @@ If you ever wonder “why did you build it this way?”, just ask — we’re ha
 
 — The SkillDeck Team
 
-*(No CTA, just connection)*
+_(No CTA, just connection)_
 
 **Story Enhancement:** This email is already strong. To make it more relatable, add a specific anecdote: “I remember spending three days trying to customize a cloud‑based agent to understand our codebase — it kept hallucinating imports. With SkillDeck, I just pointed it at the workspace and it worked.” This humanizes the problem.
 
@@ -234,7 +234,7 @@ Meet [Alex], a Rust developer who was struggling to onboard a new team member. H
 
 Another user, [Jordan], uses SkillDeck to review pull requests. The agent loads the `code‑review` skill, examines the diff, and provides line‑by‑line suggestions — right in the chat.
 
-**Research‑backed benefit:** According to a recent survey, developers using AI assistants with code‑aware context reduce code review time by 35% and catch 22% more bugs before merge. *(Source: [Citation needed — add a link to a study or your own data])*
+**Research‑backed benefit:** According to a recent survey, developers using AI assistants with code‑aware context reduce code review time by 35% and catch 22% more bugs before merge. _(Source: [Citation needed — add a link to a study or your own data])_
 
 Ready to try it yourself?
 
@@ -315,7 +315,7 @@ You’ve been using SkillDeck for a couple of weeks — awesome! 🎉 Now it’s
 
 **Subagents**: Ever wished you could delegate a subtask while the main agent keeps working? With the built‑in `spawnSubagent` tool, your agent can fork a new conversation, run it in parallel, and merge the results back. Perfect for code reviews, research, or writing documentation.
 
-**TOON encoding**: All structured data (tool schemas, skill metadata, MCP server lists) is sent to the LLM in **TOON**, a compact format that uses ~40% fewer tokens than JSON — saving you money and improving accuracy. In benchmarks, TOON achieved 73.9% retrieval accuracy vs. 69.7% for JSON. *(Source: TOON benchmark study, 2025)*
+**TOON encoding**: All structured data (tool schemas, skill metadata, MCP server lists) is sent to the LLM in **TOON**, a compact format that uses ~40% fewer tokens than JSON — saving you money and improving accuracy. In benchmarks, TOON achieved 73.9% retrieval accuracy vs. 69.7% for JSON. _(Source: TOON benchmark study, 2025)_
 
 **MCP discovery**: SkillDeck automatically scans localhost for MCP servers and lets you browse a remote registry. Add a server with one click, and its tools become available to your agent instantly.
 
