@@ -25,11 +25,14 @@ pub use subagent_server::SubagentServer;
 
 use commands::{
     achievements::*, analytics::*, artifacts::*, attachments::*, bookmarks::*, branches::*,
-    conversations::*, drafts::*, export::*, files::*, folders::*, gist::*, headings::*,
+    conversations::*, drafts::*, e2e::*, export::*, files::*, folders::*, gist::*, headings::*,
     home_dir::*, mcp::*, messages::*, ollama::*, platform::*, profiles::*, provider_ready::*,
-    queue::*, settings::*, skills::*, theme::*, workflows::*, workspaces::*,
+    queue::*, run_code::*, settings::*, skills::*, theme::*, workflows::*, workspaces::*,
 };
-use events::{AgentEvent, McpEvent, SkillEvent, WorkflowEvent};
+
+#[cfg(feature = "e2e-testing")]
+mod app_provision;
+use events::{AgentEvent, McpEvent, RunCodeEvent, SkillEvent, WorkflowEvent};
 use state::AppState;
 use std::sync::Arc;
 use tauri::Manager;
@@ -96,8 +99,8 @@ pub fn run() {
             list_workflow_definitions,
             get_workflow_definition,
             delete_workflow_definition,
-            update_workflow_definition, // NEW
-            run_workflow_definition,    // NEW
+            update_workflow_definition,
+            run_workflow_definition,
             get_installed_skill_content,
             get_installed_skill_path,
             install_registry_skill,
@@ -206,8 +209,13 @@ pub fn run() {
             update_conversation_workspace,
             // headings
             get_conversation_messages_headings,
+            // NEW: artifact save to file
+            write_artifact_to_file,
+            run_code_snippet,
+            is_e2e_testing,
         ])
         .events(collect_events![
+            RunCodeEvent,
             AgentEvent,
             McpEvent,
             WorkflowEvent,
