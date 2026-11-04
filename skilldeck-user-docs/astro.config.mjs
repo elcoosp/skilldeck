@@ -36,7 +36,7 @@ export default defineConfig({
         {
           label: 'Getting Started',
           translations: { fr: 'Mise en route' },
-          autogenerate: { directory: 'getting-started' }
+          items: [{ autogenerate: { directory: 'getting-started' } }]
         },
         {
           label: 'How‑To Guides',
@@ -149,7 +149,7 @@ export default defineConfig({
         {
           label: 'Explanations',
           translations: { fr: 'Explications' },
-          autogenerate: { directory: 'explanation' }
+          items: [{ autogenerate: { directory: 'explanation' } }]
         },
         {
           label: 'Tutorials',
@@ -209,12 +209,12 @@ export default defineConfig({
         {
           label: 'Reference',
           translations: { fr: 'Référence' },
-          autogenerate: { directory: 'reference' }
+          items: [{ autogenerate: { directory: 'reference' } }]
         },
         {
           label: 'Community',
           translations: { fr: 'Communauté' },
-          autogenerate: { directory: 'community' }
+          items: [{ autogenerate: { directory: 'community' } }]
         },
         {
           label: 'Market Insights',
