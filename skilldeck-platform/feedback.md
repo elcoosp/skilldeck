@@ -14,12 +14,12 @@ The Feedback Dashboard is an internal tool to aggregate, analyze, and track user
 
 The dashboard will collect data from:
 
-| Source | Method | Update Frequency |
-|--------|--------|------------------|
-| Docs site "Was this helpful?" buttons | Custom API endpoint (or Plausible events) | Real‑time |
-| GitHub issues with label `documentation` | GitHub API | Daily |
-| Discord `#docs-feedback` channel | Discord bot / webhook | Real‑time |
-| User interviews / usability tests | Manual entry (CSV upload) | As needed |
+| Source                                   | Method                                    | Update Frequency |
+| ---------------------------------------- | ----------------------------------------- | ---------------- |
+| Docs site "Was this helpful?" buttons    | Custom API endpoint (or Plausible events) | Real‑time        |
+| GitHub issues with label `documentation` | GitHub API                                | Daily            |
+| Discord `#docs-feedback` channel         | Discord bot / webhook                     | Real‑time        |
+| User interviews / usability tests        | Manual entry (CSV upload)                 | As needed        |
 
 ## Core Features
 
@@ -57,15 +57,15 @@ The dashboard will collect data from:
 
 ## Technology Stack
 
-| Component | Recommended Technology |
-|-----------|------------------------|
-| Backend API | Node.js + Express (or Python FastAPI) |
-| Database | PostgreSQL (for structured data) + Redis (for caching) |
-| Frontend | React (or Vue) – simple dashboard |
-| Authentication | GitHub OAuth (only internal team) |
-| GitHub Integration | Octokit (Node.js) |
-| Discord Integration | Discord bot with message intent |
-| Hosting | Vercel (frontend) + Render/Heroku (backend) |
+| Component           | Recommended Technology                                 |
+| ------------------- | ------------------------------------------------------ |
+| Backend API         | Node.js + Express (or Python FastAPI)                  |
+| Database            | PostgreSQL (for structured data) + Redis (for caching) |
+| Frontend            | React (or Vue) – simple dashboard                      |
+| Authentication      | GitHub OAuth (only internal team)                      |
+| GitHub Integration  | Octokit (Node.js)                                      |
+| Discord Integration | Discord bot with message intent                        |
+| Hosting             | Vercel (frontend) + Render/Heroku (backend)            |
 
 ## Database Schema (Simplified)
 
@@ -149,4 +149,4 @@ CREATE TABLE feedback_comments (
 
 ---
 
-*This document is for internal use only. Do not share publicly.*
+_This document is for internal use only. Do not share publicly._
