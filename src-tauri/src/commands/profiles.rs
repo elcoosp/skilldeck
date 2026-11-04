@@ -227,19 +227,18 @@ pub async fn delete_profile(state: State<'_, Arc<AppState>>, id: String) -> Resu
     active.update(db).await.map_err(|e| e.to_string())?;
 
     // If it was default, set another active profile as default
-    if was_default {
-        if let Some(first) = Profiles::find()
+    if was_default
+        && let Some(first) = Profiles::find()
             .filter(profiles::Column::DeletedAt.is_null())
             .order_by_asc(profiles::Column::Name)
             .one(db)
             .await
             .map_err(|e| e.to_string())?
-        {
-            let mut new_default: profiles::ActiveModel = first.into();
-            new_default.is_default = Set(true);
-            new_default.updated_at = Set(chrono::Utc::now().fixed_offset());
-            new_default.update(db).await.map_err(|e| e.to_string())?;
-        }
+    {
+        let mut new_default: profiles::ActiveModel = first.into();
+        new_default.is_default = Set(true);
+        new_default.updated_at = Set(chrono::Utc::now().fixed_offset());
+        new_default.update(db).await.map_err(|e| e.to_string())?;
     }
 
     Ok(())
