@@ -1,22 +1,25 @@
 ---
+
 id: implement-react-layout-components
 title: Implement React layout components
 labels:
-  - frontend
-  - 'priority:must'
-  - 'type:feature'
-  - 'size:medium'
-assignees:
-  - elcoosp
-references:
-  - ../plans/v1.md#15-chunk-12-react-frontend--components
-state: closed
-createdAt: '2026-03-12T13:59:50.859Z'
-priority: must
-effort: 2d
-dependencies:
-  - Set up React frontend foundation
+- frontend
+- 'priority:must'
+- 'type:feature'
+- 'size:medium'
+  assignees:
+- elcoosp
+  references:
+- ../plans/v1.md#15-chunk-12-react-frontend--components
+  state: closed
+  createdAt: '2026-03-12T13:59:50.859Z'
+  priority: must
+  effort: 2d
+  dependencies:
+- Set up React frontend foundation
+
 ---
+
 ## Context
 
 The layout components provide the three-panel resizable interface for the application shell.
