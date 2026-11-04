@@ -1,4 +1,5 @@
 ---
+
 name: sample-skill
 description: "A sample skill for testing the lint crate end-to-end with enough characters"
 license: MIT
