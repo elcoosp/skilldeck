@@ -1,22 +1,25 @@
 ---
+
 id: implement-conversation-components
 title: Implement conversation components
 labels:
-  - frontend
-  - 'priority:must'
-  - 'type:feature'
-  - 'size:large'
-assignees:
-  - elcoosp
-references:
-  - ../plans/v1.md#15-chunk-12-react-frontend--components
-state: closed
-createdAt: '2026-03-12T13:59:50.860Z'
-priority: must
-effort: 3d
-dependencies:
-  - Implement React layout components
+- frontend
+- 'priority:must'
+- 'type:feature'
+- 'size:large'
+  assignees:
+- elcoosp
+  references:
+- ../plans/v1.md#15-chunk-12-react-frontend--components
+  state: closed
+  createdAt: '2026-03-12T13:59:50.860Z'
+  priority: must
+  effort: 3d
+  dependencies:
+- Implement React layout components
+
 ---
+
 ## Context
 
 Conversation components handle the display of conversations, messages, branches, and tool calls.
