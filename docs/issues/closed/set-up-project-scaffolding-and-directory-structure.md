@@ -1,20 +1,23 @@
 ---
+
 id: set-up-project-scaffolding-and-directory-structure
 title: Set up project scaffolding and directory structure
 labels:
-  - infrastructure
-  - 'priority:must'
-  - 'type:chore'
-  - 'size:medium'
-assignees:
-  - elcoosp
-references:
-  - ../plans/v1.md#3-project-scaffolding
-state: closed
-createdAt: '2026-03-12T13:51:42.837Z'
-priority: must
-effort: 1d
+- infrastructure
+- 'priority:must'
+- 'type:chore'
+- 'size:medium'
+  assignees:
+- elcoosp
+  references:
+- ../plans/v1.md#3-project-scaffolding
+  state: closed
+  createdAt: '2026-03-12T13:51:42.837Z'
+  priority: must
+  effort: 1d
+
 ---
+
 ## Context
 
 This issue establishes the foundational project structure for SkillDeck v1. The project uses a Tauri 2 desktop application with a Rust core (`skilldeck-core`) and React frontend. Proper scaffolding ensures consistent development workflow and clear separation of concerns.
