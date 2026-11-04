@@ -1,5 +1,5 @@
-import { createTauriTest } from '@srsholmes/tauri-playwright';
-import path from 'path';
+import path from 'node:path'
+import { createTauriTest } from '@srsholmes/tauri-playwright'
 
 export const { test, expect } = createTauriTest({
   // Browser‑only mode config (not used for actual asset capture)
@@ -10,5 +10,5 @@ export const { test, expect } = createTauriTest({
   tauriCommand: 'cargo tauri dev',
   tauriFeatures: ['e2e-testing'],
   tauriCwd: path.resolve(__dirname, '../../'), // repo root
-  startTimeout: 120,
-});
+  startTimeout: 120
+})
