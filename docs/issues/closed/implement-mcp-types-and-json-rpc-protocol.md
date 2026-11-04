@@ -1,22 +1,25 @@
 ---
+
 id: implement-mcp-types-and-json-rpc-protocol
 title: Implement MCP types and JSON-RPC protocol
 labels:
-  - backend
-  - 'priority:must'
-  - 'type:feature'
-  - 'size:medium'
-assignees:
-  - elcoosp
-references:
-  - ../plans/v1.md#9-chunk-6-mcp-client--supervision
-state: closed
-createdAt: '2026-03-12T13:53:55.309Z'
-priority: must
-effort: 1d
-dependencies:
-  - Implement core error types and error taxonomy
+- backend
+- 'priority:must'
+- 'type:feature'
+- 'size:medium'
+  assignees:
+- elcoosp
+  references:
+- ../plans/v1.md#9-chunk-6-mcp-client--supervision
+  state: closed
+  createdAt: '2026-03-12T13:53:55.309Z'
+  priority: must
+  effort: 1d
+  dependencies:
+- Implement core error types and error taxonomy
+
 ---
+
 ## Context
 
 MCP (Model Context Protocol) uses JSON-RPC 2.0 for communication. We need to define all protocol types for requests, responses, and events.
