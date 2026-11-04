@@ -268,19 +268,19 @@ A side-by-side look at what sets SkillDeck apart from other AI developer tools.
 
 **Comparison copy:**
 
-| Capability | SkillDeck | Cursor | Continue.dev | Cline |
-|---|---|---|---|---|
-| Multi-provider support | OpenAI, Claude, Ollama | OpenAI only | Limited | OpenAI + Anthropic |
-| Local model support | Full Ollama, works offline | Cloud only | Limited | Limited |
-| Skill system | Markdown skills with linting, registry, sharing | None | Basic .clinerules | None |
-| Visual workflow editor | Drag-and-drop with 3 patterns | None | None | None |
-| Multi-agent orchestration | Parallel subagents with skill equip | Single agent | None | None |
-| MCP protocol support | Full client, stdio + SSE, supervisor | None | Added recently | None |
-| Tool approval gate | Category-based, off by default | None | None | None |
-| Conversation branching | Branch from any message | None | None | None |
-| Open source | MIT OR Apache-2.0 | Proprietary | Apache-2.0 | Apache-2.0 |
-| Data storage | 100% local, OS keychain for keys | Cloud | Local | Local |
-| Application type | Native desktop (Tauri) | Desktop (Electron) | VS Code extension | VS Code extension |
+| Capability                | SkillDeck                                       | Cursor             | Continue.dev      | Cline              |
+| ------------------------- | ----------------------------------------------- | ------------------ | ----------------- | ------------------ |
+| Multi-provider support    | OpenAI, Claude, Ollama                          | OpenAI only        | Limited           | OpenAI + Anthropic |
+| Local model support       | Full Ollama, works offline                      | Cloud only         | Limited           | Limited            |
+| Skill system              | Markdown skills with linting, registry, sharing | None               | Basic .clinerules | None               |
+| Visual workflow editor    | Drag-and-drop with 3 patterns                   | None               | None              | None               |
+| Multi-agent orchestration | Parallel subagents with skill equip             | Single agent       | None              | None               |
+| MCP protocol support      | Full client, stdio + SSE, supervisor            | None               | Added recently    | None               |
+| Tool approval gate        | Category-based, off by default                  | None               | None              | None               |
+| Conversation branching    | Branch from any message                         | None               | None              | None               |
+| Open source               | MIT OR Apache-2.0                               | Proprietary        | Apache-2.0        | Apache-2.0         |
+| Data storage              | 100% local, OS keychain for keys                | Cloud              | Local             | Local              |
+| Application type          | Native desktop (Tauri)                          | Desktop (Electron) | VS Code extension | VS Code extension  |
 
 **Supporting copy:**
 SkillDeck is not another AI chat extension. It is a full desktop application purpose-built for AI workflow orchestration. No Electron overhead. No VS Code dependency. No cloud requirement.
@@ -436,9 +436,11 @@ Built with Rust, React, and Tauri 2. Open source under MIT OR Apache-2.0.
 ---
 
 ### Tone
+
 Direct, technical, and respectful. SkillDeck speaks to developers as peers. No hype. No marketing fluff. Every claim is backed by a feature that exists in the codebase.
 
 ### Language Rules
+
 - Use "you" language in headlines and CTAs. The developer is the hero.
 - Use "we" sparingly and only for empathy and authority statements.
 - Never position SkillDeck as the hero. It is the guide.
@@ -451,6 +453,7 @@ Direct, technical, and respectful. SkillDeck speaks to developers as peers. No h
 - Use specific feature names from the codebase (Agent Loop, Tool Approval Gate, Skill Linter, Workflow Editor, MCP Supervisor, Subagent Cards, Unified Skill Marketplace, Message Queue, Conversation Branching).
 
 ### Vocabulary
+
 - "Orchestration" not "automation"
 - "Local-first" not "offline-capable"
 - "Native desktop app" not "application"
@@ -460,6 +463,7 @@ Direct, technical, and respectful. SkillDeck speaks to developers as peers. No h
 - "Workflow" (capitalized when referring to the system feature)
 
 ### Things to Avoid
+
 - Superlatives without evidence ("best," "fastest," "most powerful")
 - Vague feature descriptions ("AI-powered," "smart," "intelligent")
 - Competitor names in headlines or primary copy (save for the comparison table)
@@ -483,4 +487,4 @@ Direct, technical, and respectful. SkillDeck speaks to developers as peers. No h
 
 ---
 
-*This brand script is a living document. As SkillDeck evolves, each section should be updated to reflect actual shipped features. Every claim here maps to code that exists in the repository.*
+_This brand script is a living document. As SkillDeck evolves, each section should be updated to reflect actual shipped features. Every claim here maps to code that exists in the repository._
