@@ -19,7 +19,7 @@ file_extensions:
 contexts:
   main:
     - meta_include_prototype: false
-    - match: ''
+    - match: ""
       set: toml
 
   toml:
@@ -30,7 +30,7 @@ contexts:
     - include: table-values
     - include: illegal-tokens
 
-###[ COMMENTS ]################################################################
+  ###[ COMMENTS ]################################################################
 
   comments:
     # https://toml.io/en/v1.0.0#comment
@@ -44,7 +44,7 @@ contexts:
     - match: $\n?
       pop: 1
 
-###[ MERGE CONFLICT MARKERS ]##################################################
+  ###[ MERGE CONFLICT MARKERS ]##################################################
 
   merge-conflict-markers:
     # see also: Diff.sublime-syntax#conflict-markers
@@ -64,7 +64,7 @@ contexts:
         1: punctuation.section.block.diff
         2: entity.name.section.diff
 
-###[ TABLES ]##################################################################
+  ###[ TABLES ]##################################################################
 
   table-header:
     # https://toml.io/en/v1.0.0#array-of-tables
@@ -133,7 +133,7 @@ contexts:
 
   name-prototype: []
 
-###[ KEYS ]####################################################################
+  ###[ KEYS ]####################################################################
 
   table-keys:
     - match: \"
@@ -146,7 +146,7 @@ contexts:
       push:
         - table-key-accessor
         - literal-string-body
-    - match: '{{ident_begin}}'
+    - match: "{{ident_begin}}"
       push:
         - table-key-accessor
         - unquoted-table-key-body
@@ -155,7 +155,7 @@ contexts:
     - meta_include_prototype: false
     - meta_scope: meta.string.toml string.unquoted.toml
     - include: string-prototype
-    - match: '{{ident_break}}'
+    - match: "{{ident_break}}"
       pop: 1
     - include: illegal-eol-pop
 
@@ -168,7 +168,7 @@ contexts:
       pop: 1
     - include: immediately-pop
 
-###[ VALUES ]##################################################################
+  ###[ VALUES ]##################################################################
 
   table-values:
     - match: =
@@ -202,7 +202,7 @@ contexts:
     - include: literal-string
     - include: immediately-pop
 
-###[ ARRAYS ]##################################################################
+  ###[ ARRAYS ]##################################################################
 
   array:
     # https://toml.io/en/v1.0.0#array
@@ -217,13 +217,13 @@ contexts:
       pop: 1
     - match: (?=\})
       pop: 1
-    - match: ','
+    - match: ","
       scope: punctuation.separator.sequence.toml
     - include: comments
     - match: (?=\S)
       push: value
 
-###[ INLINE TABLES ]###########################################################
+  ###[ INLINE TABLES ]###########################################################
 
   inline-table:
     # https://toml.io/en/v1.0.0#inline-table
@@ -238,13 +238,13 @@ contexts:
       pop: 1
     - match: (?=\])
       pop: 1
-    - match: ','
+    - match: ","
       scope: punctuation.separator.sequence.toml
     - include: comments
     - include: table-keys
     - include: table-values
 
-###[ CONSTANT VALUES ]#########################################################
+  ###[ CONSTANT VALUES ]#########################################################
 
   boolean:
     # https://toml.io/en/v1.0.0#boolean
@@ -340,7 +340,7 @@ contexts:
         2: constant.numeric.value.toml
       pop: 1
 
-###[ STRING VALUES ]###########################################################
+  ###[ STRING VALUES ]###########################################################
 
   basic-multiline-string:
     - match: '"""'
@@ -414,10 +414,10 @@ contexts:
   string-prototype:
     - include: merge-conflict-markers
 
-###[ PROTOTYPES ]##############################################################
+  ###[ PROTOTYPES ]##############################################################
 
   immediately-pop:
-    - match: ''
+    - match: ""
       pop: 1
 
   eol-pop:
@@ -445,7 +445,7 @@ variables:
   # identifier
   ident_begin: (?={{ident_char}})
   ident_break: (?!{{ident_char}})
-  ident_char: '[0-9A-Za-z_-]'
+  ident_char: "[0-9A-Za-z_-]"
 
   # numbers
   dec_digits: (?:[1-9][0-9_]+|[0-9])
@@ -455,17 +455,17 @@ variables:
   # rfc3339 / ISO8601 date
 
   # date-fullyear = 4DIGIT
-  date_year: '[0-9]{4}'
+  date_year: "[0-9]{4}"
   # date-month = 2DIGIT   ; 01-12
-  date_month: '(?:0[0-9]|1[0-2])'
+  date_month: "(?:0[0-9]|1[0-2])"
   # date-mday = 2DIGIT    ; 01-28, 01-29, 01-30, 01-31 based on month/year
-  date_mday: '(?:[0-2][0-9]|3[0-1])'
+  date_mday: "(?:[0-2][0-9]|3[0-1])"
 
   # rfc3339 / ISO8601 time
 
   # time-hour = 2DIGIT    ; 00-23
-  time_hour: '(?:[01][0-9]|2[0-4])'
+  time_hour: "(?:[01][0-9]|2[0-4])"
   # time-minute = 2DIGIT  ; 00-59
-  time_minute: '[0-5][0-9]'
+  time_minute: "[0-5][0-9]"
   # time-second = 2DIGIT  ; 00-58, 00-59, 00-60 based on leap second rules
-  time_second: '(?:[0-6][0-9])'
+  time_second: "(?:[0-6][0-9])"
