@@ -1,24 +1,27 @@
 ---
+
 id: implement-tauri-event-definitions-and-bridging
 title: Implement Tauri event definitions and bridging
 labels:
-  - backend
-  - 'priority:must'
-  - 'type:feature'
-  - 'size:small'
-assignees:
-  - elcoosp
-references:
-  - ../plans/v1.md#13-chunk-10-tauri-shell--commands--events
-state: closed
-createdAt: '2026-03-12T13:59:50.857Z'
-priority: must
-effort: 0.5d
-dependencies:
-  - Implement agent loop with streaming and debouncing
-  - Implement MCP supervisor with exponential backoff
-  - Implement workflow executor with pattern runners
+- backend
+- 'priority:must'
+- 'type:feature'
+- 'size:small'
+  assignees:
+- elcoosp
+  references:
+- ../plans/v1.md#13-chunk-10-tauri-shell--commands--events
+  state: closed
+  createdAt: '2026-03-12T13:59:50.857Z'
+  priority: must
+  effort: 0.5d
+  dependencies:
+- Implement agent loop with streaming and debouncing
+- Implement MCP supervisor with exponential backoff
+- Implement workflow executor with pattern runners
+
 ---
+
 ## Context
 
 Events are the primary mechanism for real-time communication from Rust to React. We need to define event types and implement event emission.
