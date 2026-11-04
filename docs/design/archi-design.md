@@ -134,6 +134,7 @@ To manage backpressure between the LLM provider and the UI render cycle:
 1.  **Ring Buffer (Rust Core):** Incoming SSE/WS tokens from the LLM are accumulated into a `String` buffer.
 2.  **Debounced Emission:** The core emits `agent:token` events in batches every **50ms** or every **10 tokens**, preventing IPC flooding.
 3.  **Payload Structure:**
+
     ```rust
     // Event: agent:token
     pub struct TokenPayload {
@@ -767,6 +768,7 @@ A layered approach to handle the Rust/JS split.
 
 2.  **Integration Tests (IPC Mocking):**
     - **Frontend:** Mock the `api` object in `src/lib/invoke.ts`.
+
       ```typescript
       // tests/mocks/api.ts
       export const api = {
