@@ -27,7 +27,7 @@ This is a **well-structured, enterprise-grade application** with modern tooling 
 
 ```typescript
 // CRITICAL BUG: API keys hardcoded in client code
-const apiKey = "sk-ant-api03-..."; // ⚠️ EXPOSED TO CLIENT
+const apiKey = 'sk-ant-api03-...' // ⚠️ EXPOSED TO CLIENT
 ```
 
 **Risk**: High - API keys can be extracted from bundled JavaScript  
@@ -36,7 +36,7 @@ const apiKey = "sk-ant-api03-..."; // ⚠️ EXPOSED TO CLIENT
 **Fix**:
 ```typescript
 // Move to environment variables
-const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
+const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY
 
 // Implement backend proxy
 // src/api/proxy-anthropic.ts
@@ -45,8 +45,8 @@ export async function proxyAnthropicRequest(messages: Message[]) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ messages })
-  });
-  return response.json();
+  })
+  return response.json()
 }
 ```
 
@@ -86,12 +86,12 @@ const sanitizedHtml = DOMPurify.sanitize(renderedMarkdown, {
 ```typescript
 // RACE CONDITION: processQueue() can be called multiple times simultaneously
 const processQueue = useCallback(async () => {
-  if (isPaused || queue.length === 0) return;
-  
-  const next = queue[0]; // ⚠️ Multiple calls could process same message
-  await sendMessage(next);
-  setQueue(prev => prev.slice(1)); // ⚠️ State update race
-}, [queue, isPaused, sendMessage]);
+  if (isPaused || queue.length === 0) return
+
+  const next = queue[0] // ⚠️ Multiple calls could process same message
+  await sendMessage(next)
+  setQueue((prev) => prev.slice(1)) // ⚠️ State update race
+}, [queue, isPaused, sendMessage])
 ```
 
 **Impact**: Duplicate message processing, incorrect queue state  
@@ -99,20 +99,20 @@ const processQueue = useCallback(async () => {
 
 **Fix**:
 ```typescript
-const [isProcessing, setIsProcessing] = useState(false);
+const [isProcessing, setIsProcessing] = useState(false)
 
 const processQueue = useCallback(async () => {
-  if (isPaused || queue.length === 0 || isProcessing) return;
-  
-  setIsProcessing(true);
+  if (isPaused || queue.length === 0 || isProcessing) return
+
+  setIsProcessing(true)
   try {
-    const next = queue[0];
-    await sendMessage(next);
-    setQueue(prev => prev.slice(1));
+    const next = queue[0]
+    await sendMessage(next)
+    setQueue((prev) => prev.slice(1))
   } finally {
-    setIsProcessing(false);
+    setIsProcessing(false)
   }
-}, [queue, isPaused, sendMessage, isProcessing]);
+}, [queue, isPaused, sendMessage, isProcessing])
 ```
 
 ---
@@ -124,10 +124,10 @@ const processQueue = useCallback(async () => {
 ```typescript
 // MEMORY LEAK: EventEmitter listeners not cleaned up
 useEffect(() => {
-  mcpEmitter.on('tool_call', handleToolCall);
-  mcpEmitter.on('tool_result', handleToolResult);
+  mcpEmitter.on('tool_call', handleToolCall)
+  mcpEmitter.on('tool_result', handleToolResult)
   // ⚠️ Missing cleanup function - listeners accumulate on re-renders
-}, [handleToolCall, handleToolResult]);
+}, [handleToolCall, handleToolResult])
 ```
 
 **Impact**: Performance degradation, increased memory usage over time  
@@ -136,14 +136,14 @@ useEffect(() => {
 **Fix**:
 ```typescript
 useEffect(() => {
-  mcpEmitter.on('tool_call', handleToolCall);
-  mcpEmitter.on('tool_result', handleToolResult);
-  
+  mcpEmitter.on('tool_call', handleToolCall)
+  mcpEmitter.on('tool_result', handleToolResult)
+
   return () => {
-    mcpEmitter.off('tool_call', handleToolCall);
-    mcpEmitter.off('tool_result', handleToolResult);
-  };
-}, [handleToolCall, handleToolResult]);
+    mcpEmitter.off('tool_call', handleToolCall)
+    mcpEmitter.off('tool_result', handleToolResult)
+  }
+}, [handleToolCall, handleToolResult])
 ```
 
 ---
@@ -194,8 +194,8 @@ let skills = Skill::find()
 ))}
 ```
 
-**Impact**:  
-- 100 messages × 16ms render = 1.6s lag  
+**Impact**:
+- 100 messages × 16ms render = 1.6s lag
 - Janky scrolling, frozen UI
 
 **Fix**:
@@ -234,41 +234,44 @@ import { VirtualList } from '@tanstack/react-virtual';
 
 ```typescript
 // QUADRATIC COMPLEXITY: Nested loops over skills
-conflicts.forEach(conflict => {
-  allSkills.forEach(skill => { // ⚠️ O(n²)
-    if (skill.triggers.some(t => 
-      conflict.triggers.includes(t) // ⚠️ O(m) inside O(n²)
-    )) {
+conflicts.forEach((conflict) => {
+  allSkills.forEach((skill) => {
+    // ⚠️ O(n²)
+    if (
+      skill.triggers.some(
+        (t) => conflict.triggers.includes(t) // ⚠️ O(m) inside O(n²)
+      )
+    ) {
       // ...
     }
-  });
-});
+  })
+})
 ```
 
-**Impact**: 1000 skills × 1000 checks = 1M operations = ~500ms freeze  
+**Impact**: 1000 skills × 1000 checks = 1M operations = ~500ms freeze
 **User Experience**: App freezes during skill conflict detection
 
 **Fix**:
 ```typescript
 // O(n) with hash map
-const triggerIndex = new Map<string, Set<string>>();
+const triggerIndex = new Map<string, Set<string>>()
 
 // Build index once: O(n × m)
-allSkills.forEach(skill => {
-  skill.triggers.forEach(trigger => {
+allSkills.forEach((skill) => {
+  skill.triggers.forEach((trigger) => {
     if (!triggerIndex.has(trigger)) {
-      triggerIndex.set(trigger, new Set());
+      triggerIndex.set(trigger, new Set())
     }
-    triggerIndex.get(trigger)!.add(skill.id);
-  });
-});
+    triggerIndex.get(trigger)!.add(skill.id)
+  })
+})
 
 // Find conflicts: O(k × m) where k = conflicts.length
-const conflictingSkills = conflicts.flatMap(conflict =>
-  conflict.triggers.flatMap(trigger =>
+const conflictingSkills = conflicts.flatMap((conflict) =>
+  conflict.triggers.flatMap((trigger) =>
     Array.from(triggerIndex.get(trigger) || [])
   )
-);
+)
 ```
 
 **Expected improvement**: 500ms → 5ms (100× faster)
@@ -328,11 +331,10 @@ return lastMessage.content;
 // ⚠️ Violates Single Responsibility Principle
 ```
 
-**Impact**:  
-- Hard to test (mocking 34 methods)  
-- Difficult to reason about  
-- High coupling  
-
+**Impact**:
+- Hard to test (mocking 34 methods)
+- Difficult to reason about
+- High coupling
 **Fix**: Split into focused stores
 ```typescript
 // Split into domain-specific stores
@@ -442,27 +444,27 @@ async function executeNode(node: WorkflowNode) {
 const nodeExecutors: Record<NodeType, NodeExecutor> = {
   condition: executeConditionNode,
   action: executeActionNode,
-  message: executeMessageNode,
+  message: executeMessageNode
   // ...
-};
+}
 
 async function executeNode(node: WorkflowNode) {
-  const executor = nodeExecutors[node.type];
+  const executor = nodeExecutors[node.type]
   if (!executor) {
-    throw new Error(`Unknown node type: ${node.type}`);
+    throw new Error(`Unknown node type: ${node.type}`)
   }
-  return executor(node, context);
+  return executor(node, context)
 }
 
 // Separate, testable functions
 async function executeConditionNode(node: ConditionNode, ctx: Context) {
-  const evaluator = conditionEvaluators[node.condition.operator];
-  const result = evaluator(node.condition, ctx);
-  
+  const evaluator = conditionEvaluators[node.condition.operator]
+  const result = evaluator(node.condition, ctx)
+
   if (result) {
-    return executeNode(node.outputs[0]);
+    return executeNode(node.outputs[0])
   }
-  return null;
+  return null
 }
 ```
 
@@ -520,27 +522,25 @@ if (chunk.length > LIMITS.MAX_CHUNK_SIZE) {
 // Example: src/hooks/__tests__/use-queued-messages.test.ts
 describe('useQueuedMessages - Error Handling', () => {
   it('should handle network failure during send', async () => {
-    const { result } = renderHook(() => useQueuedMessages());
-    
+    const { result } = renderHook(() => useQueuedMessages())
+
     // Mock network failure
-    vi.spyOn(global, 'fetch').mockRejectedValueOnce(
-      new Error('Network error')
-    );
-    
+    vi.spyOn(global, 'fetch').mockRejectedValueOnce(new Error('Network error'))
+
     act(() => {
-      result.current.enqueue({ content: 'test' });
-    });
-    
+      result.current.enqueue({ content: 'test' })
+    })
+
     await waitFor(() => {
-      expect(result.current.failedMessages).toHaveLength(1);
-      expect(result.current.queue).toHaveLength(0);
-    });
-  });
-  
+      expect(result.current.failedMessages).toHaveLength(1)
+      expect(result.current.queue).toHaveLength(0)
+    })
+  })
+
   it('should prevent concurrent processing', async () => {
     // Test race condition fix from Issue #3
-  });
-});
+  })
+})
 ```
 
 ---
@@ -659,25 +659,25 @@ function matchSkill(
 **Fix**: Parameter object pattern
 ```typescript
 interface SkillMatchOptions {
-  query: string;
-  skills: Skill[];
-  preferences: UserPreferences;
-  context: ConversationContext;
-  metadata: SkillMetadata;
-  filters?: FilterOptions;
-  sortBy?: SortOption;
-  pagination?: { limit: number; offset: number };
+  query: string
+  skills: Skill[]
+  preferences: UserPreferences
+  context: ConversationContext
+  metadata: SkillMetadata
+  filters?: FilterOptions
+  sortBy?: SortOption
+  pagination?: { limit: number; offset: number }
 }
 
 function matchSkill(options: SkillMatchOptions) {
-  const { 
-    query, 
-    skills, 
+  const {
+    query,
+    skills,
     preferences,
     filters = {},
     sortBy = 'relevance',
     pagination = { limit: 20, offset: 0 }
-  } = options;
+  } = options
   // ...
 }
 ```
@@ -690,15 +690,15 @@ function matchSkill(options: SkillMatchOptions) {
 ```typescript
 // Pattern 1: Try-catch
 try {
-  await fetchSkills();
+  await fetchSkills()
 } catch (e) {
-  console.error(e); // ⚠️ Silent failure
+  console.error(e) // ⚠️ Silent failure
 }
 
 // Pattern 2: .catch()
-fetchSkills().catch(e => {
-  throw new Error('Failed'); // ⚠️ Loses original error
-});
+fetchSkills().catch((e) => {
+  throw new Error('Failed') // ⚠️ Loses original error
+})
 
 // Pattern 3: Error boundaries (React)
 // ⚠️ Not consistent across app
@@ -713,31 +713,31 @@ export class AppError extends Error {
     public code: string,
     public originalError?: unknown
   ) {
-    super(message);
-    this.name = 'AppError';
+    super(message)
+    this.name = 'AppError'
   }
 }
 
 export function handleError(error: unknown): AppError {
   if (error instanceof AppError) {
-    return error;
+    return error
   }
-  
+
   if (error instanceof Error) {
-    return new AppError(error.message, 'UNKNOWN_ERROR', error);
+    return new AppError(error.message, 'UNKNOWN_ERROR', error)
   }
-  
-  return new AppError('An unknown error occurred', 'UNKNOWN_ERROR', error);
+
+  return new AppError('An unknown error occurred', 'UNKNOWN_ERROR', error)
 }
 
 // Usage
 try {
-  await fetchSkills();
+  await fetchSkills()
 } catch (e) {
-  const appError = handleError(e);
-  toast.error(appError.message);
-  logError(appError);
-  throw appError;
+  const appError = handleError(e)
+  toast.error(appError.message)
+  logError(appError)
+  throw appError
 }
 ```
 
@@ -817,18 +817,18 @@ import debounce from 'lodash-es/debounce'; // 2 KB
 **Coverage**: <10% of functions have documentation
 
 **Fix**: Add comprehensive JSDoc
-```typescript
+````typescript
 /**
  * Executes a workflow starting from the given node.
- * 
+ *
  * @param node - The workflow node to execute
  * @param context - Execution context containing variables and state
  * @param options - Optional execution settings
  * @returns Promise resolving to execution result
- * 
+ *
  * @throws {WorkflowError} If node execution fails
  * @throws {ValidationError} If node configuration is invalid
- * 
+ *
  * @example
  * ```typescript
  * const result = await executeNode(
@@ -845,7 +845,7 @@ export async function executeNode(
 ): Promise<ExecutionResult> {
   // ...
 }
-```
+````
 
 ---
 
@@ -856,6 +856,7 @@ export async function executeNode(
 **Goal**: Eliminate critical security vulnerabilities and crash bugs
 
 #### Step 1.1: Secure API Key Management (Day 1-2)
+
 - [ ] Create backend proxy route `/api/anthropic/messages`
 - [ ] Move API key to `.env` file (never commit)
 - [ ] Update `agent-client.ts` to use proxy
@@ -864,6 +865,7 @@ export async function executeNode(
 - **Verification**: `grep -r "sk-ant-api" src/` returns nothing
 
 #### Step 1.2: Fix XSS Vulnerabilities (Day 2-3)
+
 - [ ] Install `dompurify`: `pnpm add dompurify @types/dompurify`
 - [ ] Update `markdown-view.tsx` with sanitization
 - [ ] Add CSP headers in `index.html`
@@ -871,12 +873,14 @@ export async function executeNode(
 - **Verification**: Manual XSS testing with payloads
 
 #### Step 1.3: Fix Race Conditions (Day 3-4)
+
 - [ ] Add `isProcessing` flag to `use-queued-messages.ts`
 - [ ] Add unit tests for concurrent processing
 - [ ] Add integration test: spam click send button 20 times
 - **Verification**: No duplicate messages in queue
 
 #### Step 1.4: Fix Memory Leaks (Day 4-5)
+
 - [ ] Audit all `useEffect` hooks for cleanup
 - [ ] Add cleanup to `use-mcp-events.ts`
 - [ ] Add cleanup to `use-skill-events.ts`
@@ -884,6 +888,7 @@ export async function executeNode(
 - **Verification**: Memory stable after 1 hour
 
 #### Step 1.5: Fix SQL Injection (Day 5-7)
+
 - [ ] Replace all `format!()` SQL with parameterized queries
 - [ ] Audit `handlers.rs` files in all modules
 - [ ] Add SQLx compile-time query checking
@@ -899,6 +904,7 @@ export async function executeNode(
 **Goal**: Improve app responsiveness and reduce lag
 
 #### Step 2.1: Optimize Message Rendering (Day 8-10)
+
 - [ ] Memoize `MessageBubble` component
 - [ ] Memoize all callback props
 - [ ] Install `@tanstack/react-virtual`
@@ -907,12 +913,14 @@ export async function executeNode(
 - **Verification**: <100ms render time for 1000 messages
 
 #### Step 2.2: Fix O(n²) Algorithms (Day 10-12)
+
 - [ ] Implement hash map index in `conflict-resolver.tsx`
 - [ ] Benchmark with 1000 skills
 - [ ] Add performance test to CI
 - **Verification**: <10ms conflict detection
 
 #### Step 2.3: Optimize Bundle Size (Day 12-14)
+
 - [ ] Replace Moment.js with date-fns
 - [ ] Use tree-shakeable Lodash imports
 - [ ] Run `pnpm why` to find unused deps
@@ -929,6 +937,7 @@ export async function executeNode(
 **Goal**: Eliminate runtime errors and improve reliability
 
 #### Step 3.1: Add Null Safety (Day 15-17)
+
 - [ ] Enable strict null checks in `tsconfig.json`
 - [ ] Fix all type errors (estimate: 200-300)
 - [ ] Add null assertions where appropriate
@@ -936,6 +945,7 @@ export async function executeNode(
 - **Verification**: `pnpm typecheck` passes
 
 #### Step 3.2: Standardize Error Handling (Day 17-19)
+
 - [ ] Create `AppError` class
 - [ ] Implement global error handler
 - [ ] Add error logging (Sentry integration)
@@ -943,6 +953,7 @@ export async function executeNode(
 - **Verification**: All errors logged to Sentry
 
 #### Step 3.3: Add Loading States (Day 19-21)
+
 - [ ] Create skeleton components
 - [ ] Update all data-fetching components
 - [ ] Add retry mechanisms
@@ -958,6 +969,7 @@ export async function executeNode(
 **Goal**: Reduce complexity and improve maintainability
 
 #### Step 4.1: Refactor God Objects (Day 22-26)
+
 - [ ] Split `settings-store.ts` into 5 stores
 - [ ] Update all import paths
 - [ ] Add integration tests
@@ -965,18 +977,21 @@ export async function executeNode(
 - **Verification**: Each store <150 lines
 
 #### Step 4.2: Eliminate Duplication (Day 26-30)
+
 - [ ] Create generic Rust handler pattern
 - [ ] Refactor 8 handler files
 - [ ] Ensure tests still pass
 - **Verification**: `tokei` shows 400+ lines reduction
 
 #### Step 4.3: Fix Circular Dependencies (Day 30-33)
+
 - [ ] Map dependency graph with `madge`
 - [ ] Introduce dependency injection
 - [ ] Refactor circular imports
 - **Verification**: `madge --circular src/` returns empty
 
 #### Step 4.4: Reduce Complexity (Day 33-36)
+
 - [ ] Refactor `workflow-executor.ts` with strategy pattern
 - [ ] Extract magic numbers to constants
 - [ ] Add complexity linting to CI
@@ -991,6 +1006,7 @@ export async function executeNode(
 **Goal**: Increase confidence and developer experience
 
 #### Step 5.1: Increase Test Coverage (Day 37-42)
+
 - [ ] Write tests for all critical paths
 - [ ] Target 80% coverage for frontend
 - [ ] Target 90% coverage for backend
@@ -998,6 +1014,7 @@ export async function executeNode(
 - **Verification**: Coverage reports in CI
 
 #### Step 5.2: Improve Documentation (Day 42-45)
+
 - [ ] Add JSDoc to all public functions
 - [ ] Update README with architecture diagram
 - [ ] Write contributing guide
@@ -1005,6 +1022,7 @@ export async function executeNode(
 - **Verification**: `pnpm doc:generate` succeeds
 
 #### Step 5.3: Add Accessibility (Day 45-48)
+
 - [ ] Audit with axe DevTools
 - [ ] Add ARIA labels to all interactive elements
 - [ ] Test with screen reader
@@ -1048,16 +1066,16 @@ return <LegacyMessageQueue />;
 
 ### Before/After Targets
 
-| Metric | Current | Target | Measurement |
-|--------|---------|--------|-------------|
-| Bundle size | 4.1 MB | 1.5 MB | Webpack analyzer |
-| Time to interactive | 3.2s | <1.5s | Lighthouse |
-| Message render (1000) | 1.6s | <100ms | Chrome DevTools |
-| Memory leak rate | 5-10%/hr | <1%/hr | Chrome Profiler |
-| Test coverage | 30% | 80% | Coverage report |
-| Type safety | 60% | 95% | `pnpm typecheck` |
-| Accessibility | WCAG C | WCAG AA | axe audit |
-| Security score | B- | A | Security audit |
+| Metric                | Current  | Target  | Measurement      |
+| --------------------- | -------- | ------- | ---------------- |
+| Bundle size           | 4.1 MB   | 1.5 MB  | Webpack analyzer |
+| Time to interactive   | 3.2s     | <1.5s   | Lighthouse       |
+| Message render (1000) | 1.6s     | <100ms  | Chrome DevTools  |
+| Memory leak rate      | 5-10%/hr | <1%/hr  | Chrome Profiler  |
+| Test coverage         | 30%      | 80%     | Coverage report  |
+| Type safety           | 60%      | 95%     | `pnpm typecheck` |
+| Accessibility         | WCAG C   | WCAG AA | axe audit        |
+| Security score        | B-       | A       | Security audit   |
 
 ---
 
@@ -1067,7 +1085,7 @@ return <LegacyMessageQueue />;
 
 1. **Settings Store Refactor** (Phase 4.1)
    - Risk: Breaking existing functionality
-   - Mitigation: 
+   - Mitigation:
      - Feature flag
      - Comprehensive integration tests
      - Staged rollout
@@ -1092,21 +1110,25 @@ return <LegacyMessageQueue />;
 ## Long-Term Recommendations
 
 ### 1. Implement Design System
+
 - Component library with Storybook
 - Consistent spacing/typography tokens
 - Automated visual regression tests
 
 ### 2. Add Monitoring & Observability
+
 - Frontend: Sentry, LogRocket
 - Backend: Prometheus, Grafana
 - Alerts for critical errors
 
 ### 3. Automate More Testing
+
 - Visual regression (Percy/Chromatic)
 - Performance budgets in CI
 - Security scanning (Snyk)
 
 ### 4. Developer Experience
+
 - Pre-commit hooks (already have lefthook)
 - Faster test feedback
 - Better error messages
@@ -1120,14 +1142,14 @@ Your codebase is **well-architected** with modern tooling, but has accumulated *
 
 **Priority order**:
 1. ✅ Security (Week 1-2) - Non-negotiable
-2. ✅ Performance (Week 3-4) - High user impact  
+2. ✅ Performance (Week 3-4) - High user impact
 3. ✅ Stability (Week 5-6) - Reduce crash rate
 4. ✅ Architecture (Week 7-9) - Long-term maintainability
 5. ✅ Testing/Docs (Week 10-12) - Foundation for growth
 
 **Estimated effort**: 12 weeks (3 months) with 2 developers
 
-**ROI**: 
+**ROI**:
 - 90% fewer production bugs
 - 70% faster feature development
 - 50% better performance
