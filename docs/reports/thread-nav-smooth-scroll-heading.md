@@ -9,9 +9,12 @@ First, modify the `MessageThreadHandle` interface to support both the old signat
 ```tsx
 export interface MessageThreadHandle {
   scrollToMessage: {
-    (fullIndex: number, onComplete?: () => void): void;
-    (fullIndex: number, options?: { behavior?: ScrollBehavior; onComplete?: () => void }): void;
-  };
+    (fullIndex: number, onComplete?: () => void): void
+    (
+      fullIndex: number,
+      options?: { behavior?: ScrollBehavior; onComplete?: () => void }
+    ): void
+  }
   // ... other methods remain
 }
 ```
@@ -22,78 +25,90 @@ Then, update the implementation inside the `React.useImperativeHandle` call:
 React.useImperativeHandle(
   ref,
   () => ({
-    scrollToMessage: (fullIndex: number, arg?: (() => void) | { behavior?: ScrollBehavior; onComplete?: () => void }) => {
-      let onComplete: (() => void) | undefined;
-      let behavior: ScrollBehavior = 'auto';
+    scrollToMessage: (
+      fullIndex: number,
+      arg?:
+        | (() => void)
+        | { behavior?: ScrollBehavior; onComplete?: () => void }
+    ) => {
+      let onComplete: (() => void) | undefined
+      let behavior: ScrollBehavior = 'auto'
       if (typeof arg === 'function') {
-        onComplete = arg;
+        onComplete = arg
       } else if (arg) {
-        behavior = arg.behavior ?? 'auto';
-        onComplete = arg.onComplete;
+        behavior = arg.behavior ?? 'auto'
+        onComplete = arg.onComplete
       }
 
-      const el = scrollRef.current;
-      if (!el) return;
-      const targetId = messages[fullIndex]?.id;
-      if (!targetId) return;
-      const fi = filteredMessagesRef.current.findIndex((m) => m.id === targetId);
-      if (fi === -1) return;
+      const el = scrollRef.current
+      if (!el) return
+      const targetId = messages[fullIndex]?.id
+      if (!targetId) return
+      const fi = filteredMessagesRef.current.findIndex((m) => m.id === targetId)
+      if (fi === -1) return
 
-      navigatorActiveRef.current = true;
+      navigatorActiveRef.current = true
 
       // Initial scroll with the requested behavior
       virtualizerRef.current.scrollToIndex(fi, {
         align: 'start',
-        behavior: behavior,
-      });
+        behavior: behavior
+      })
 
-      let lastStart = -1;
-      let stableTicks = 0;
+      let lastStart = -1
+      let stableTicks = 0
       const poll = () => {
-        if (!navigatorActiveRef.current) return;
-        const vItems = virtualizerRef.current.getVirtualItems();
-        const targetItem = vItems.find((it) => it.index === fi);
+        if (!navigatorActiveRef.current) return
+        const vItems = virtualizerRef.current.getVirtualItems()
+        const targetItem = vItems.find((it) => it.index === fi)
         if (!targetItem) {
           // Target not yet in view; wait
-          requestAnimationFrame(poll);
-          return;
+          requestAnimationFrame(poll)
+          return
         }
-        const start = targetItem.start;
+        const start = targetItem.start
         if (Math.abs(start - lastStart) <= 2) {
-          stableTicks++;
+          stableTicks++
         } else {
-          stableTicks = 0;
+          stableTicks = 0
         }
-        lastStart = start;
+        lastStart = start
 
         if (stableTicks >= 3) {
-          navigatorActiveRef.current = false;
-          isProgrammaticScrollRef.current = true;
-          el.scrollTop = start;
+          navigatorActiveRef.current = false
+          isProgrammaticScrollRef.current = true
+          el.scrollTop = start
           requestAnimationFrame(() => {
-            isProgrammaticScrollRef.current = false;
+            isProgrammaticScrollRef.current = false
             if (onScrollSettledRef.current) {
-              const msg = filteredMessagesRef.current[fi];
+              const msg = filteredMessagesRef.current[fi]
               if (msg) {
                 onScrollSettledRef.current({
                   messageId: msg.id,
-                  scrollTop: start,
-                });
+                  scrollTop: start
+                })
               }
             }
-            if (onComplete) onComplete();
-          });
+            if (onComplete) onComplete()
+          })
         } else {
           // Wait for the scroll to stabilize – do not re‑scroll
-          requestAnimationFrame(poll);
+          requestAnimationFrame(poll)
         }
-      };
-      requestAnimationFrame(poll);
-    },
+      }
+      requestAnimationFrame(poll)
+    }
     // ... other methods unchanged
   }),
-  [messages, filteredMessagesRef, virtualizerRef, scrollRef, isProgrammaticScrollRef, onScrollSettledRef]
-);
+  [
+    messages,
+    filteredMessagesRef,
+    virtualizerRef,
+    scrollRef,
+    isProgrammaticScrollRef,
+    onScrollSettledRef
+  ]
+)
 ```
 
 **Note:** The repeated `scrollToIndex` call inside the polling loop has been removed. The virtualizer’s `scrollToIndex` with smooth behavior will trigger a single animation; we only wait for it to finish.
@@ -105,42 +120,49 @@ React.useImperativeHandle(
 Modify the `handleHeadingClick` callback to use the new options and to perform a smooth scroll for the heading itself:
 
 ```tsx
-const handleHeadingClick = useCallback((messageIndex: number, tocIndex: number) => {
-  const targetMsgId = messages[messageIndex]?.id;
-  const scrollContainer = threadRef.current?.getScrollElement();
-  const userMsgIndex = messageIndex - 1;
-  const userMsg = messages[userMsgIndex];
+const handleHeadingClick = useCallback(
+  (messageIndex: number, tocIndex: number) => {
+    const targetMsgId = messages[messageIndex]?.id
+    const scrollContainer = threadRef.current?.getScrollElement()
+    const userMsgIndex = messageIndex - 1
+    const userMsg = messages[userMsgIndex]
 
-  const scrollToHeading = () => {
-    requestAnimationFrame(() => {
-      const container = threadRef.current?.getScrollElement();
-      const bubble = container?.querySelector(`[data-msg-id="${targetMsgId}"]`);
-      if (!bubble || !container) return;
-      const headingEls = bubble.querySelectorAll('h1,h2,h3,h4,h5,h6');
-      const target = headingEls[tocIndex];
-      if (!target) return;
-      const elTop = target.getBoundingClientRect().top;
-      const containerTop = container.getBoundingClientRect().top;
-      const newScrollTop = container.scrollTop + (elTop - containerTop - 16);
-      container.scrollTo({ top: newScrollTop, behavior: 'smooth' });
+    const scrollToHeading = () => {
+      requestAnimationFrame(() => {
+        const container = threadRef.current?.getScrollElement()
+        const bubble = container?.querySelector(
+          `[data-msg-id="${targetMsgId}"]`
+        )
+        if (!bubble || !container) return
+        const headingEls = bubble.querySelectorAll('h1,h2,h3,h4,h5,h6')
+        const target = headingEls[tocIndex]
+        if (!target) return
+        const elTop = target.getBoundingClientRect().top
+        const containerTop = container.getBoundingClientRect().top
+        const newScrollTop = container.scrollTop + (elTop - containerTop - 16)
+        container.scrollTo({ top: newScrollTop, behavior: 'smooth' })
 
-      // Update navigator active index
-      if (userMsg) handleVisibleUserIndexChange(userMsgIndex);
-    });
-  };
+        // Update navigator active index
+        if (userMsg) handleVisibleUserIndexChange(userMsgIndex)
+      })
+    }
 
-  const bubbleAlreadyRendered = !!scrollContainer?.querySelector(`[data-msg-id="${targetMsgId}"]`);
+    const bubbleAlreadyRendered = !!scrollContainer?.querySelector(
+      `[data-msg-id="${targetMsgId}"]`
+    )
 
-  if (bubbleAlreadyRendered) {
-    scrollToHeading();
-  } else {
-    // Smooth scroll to the message first, then to the heading
-    threadRef.current?.scrollToMessage(messageIndex, {
-      behavior: 'smooth',
-      onComplete: scrollToHeading,
-    });
-  }
-}, [messages, handleVisibleUserIndexChange]);
+    if (bubbleAlreadyRendered) {
+      scrollToHeading()
+    } else {
+      // Smooth scroll to the message first, then to the heading
+      threadRef.current?.scrollToMessage(messageIndex, {
+        behavior: 'smooth',
+        onComplete: scrollToHeading
+      })
+    }
+  },
+  [messages, handleVisibleUserIndexChange]
+)
 ```
 
 ## How it works
