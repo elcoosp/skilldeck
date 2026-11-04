@@ -1,23 +1,26 @@
 ---
+
 id: implement-database-layer-with-sqlite-and-seaorm
 title: Implement database layer with SQLite and SeaORM
 labels:
-  - backend
-  - database
-  - 'priority:must'
-  - 'type:feature'
-  - 'size:large'
-assignees:
-  - elcoosp
-references:
-  - ../plans/v1.md#5-chunk-2-database-layer
-state: closed
-createdAt: '2026-03-12T13:51:42.844Z'
-priority: must
-effort: 2d
-dependencies:
-  - Implement core error types and error taxonomy
+- backend
+- database
+- 'priority:must'
+- 'type:feature'
+- 'size:large'
+  assignees:
+- elcoosp
+  references:
+- ../plans/v1.md#5-chunk-2-database-layer
+  state: closed
+  createdAt: '2026-03-12T13:51:42.844Z'
+  priority: must
+  effort: 2d
+  dependencies:
+- Implement core error types and error taxonomy
+
 ---
+
 ## Context
 
 The database layer is the foundation for all persistent storage in SkillDeck. Using SQLite with WAL mode ensures crash recovery without data loss (REQ-REL-001, REQ-REL-002). SeaORM provides type-safe queries and migrations.
