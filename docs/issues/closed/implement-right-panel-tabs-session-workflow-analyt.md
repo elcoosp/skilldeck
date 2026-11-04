@@ -1,22 +1,25 @@
 ---
+
 id: implement-right-panel-tabs-session-workflow-analyt
 title: 'Implement right panel tabs (Session, Workflow, Analytics)'
 labels:
-  - frontend
-  - 'priority:should'
-  - 'type:feature'
-  - 'size:medium'
-assignees:
-  - elcoosp
-references:
-  - ../plans/v1.md#15-chunk-12-react-frontend--components
-state: closed
-createdAt: '2026-03-12T13:59:50.860Z'
-priority: should
-effort: 2d
-dependencies:
-  - Implement React layout components
+- frontend
+- 'priority:should'
+- 'type:feature'
+- 'size:medium'
+  assignees:
+- elcoosp
+  references:
+- ../plans/v1.md#15-chunk-12-react-frontend--components
+  state: closed
+  createdAt: '2026-03-12T13:59:50.860Z'
+  priority: should
+  effort: 2d
+  dependencies:
+- Implement React layout components
+
 ---
+
 ## Context
 
 The right panel contains tabs for session management, workflow visualization, and analytics.
