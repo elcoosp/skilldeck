@@ -10,10 +10,10 @@ use sea_orm::{
 };
 use serde::{Deserialize, Serialize};
 use specta::{Type, specta};
-use tauri::{Emitter, State};
+use tauri::State;
 use uuid::Uuid;
 
-use crate::commands::messages::send_message_internal;
+use crate::commands::messages::{emit_from_main, send_message_internal};
 use crate::events::QueueEvent; // NEW import
 use crate::state::AppState;
 use skilldeck_models::context_item::{ContextItem, ContextItems};
@@ -308,53 +308,52 @@ pub fn auto_send_next_queued(state: Arc<AppState>, conversation_id: String, app:
         if is_paused {
             return;
         }
-        if let Ok(queued) = list_queued_messages_internal(&state, &conversation_id).await {
-            if let Some(first) = queued.first() {
-                if let Ok(()) = delete_queued_message_internal(&state, &first.id).await {
-                    let meta = MessageMetadata {
-                        from_queue: Some(true),
-                        queued_at: Some(first.created_at.clone()),
-                        ..Default::default()
-                    };
-                    let state_clone = state.clone();
-                    let conv_clone = conversation_id.clone();
-                    let content_clone = first.content.clone();
-                    let app_clone = app.clone();
-                    let first_id = first.id.clone();
+        if let Ok(queued) = list_queued_messages_internal(&state, &conversation_id).await
+            && let Some(first) = queued.first()
+            && let Ok(()) = delete_queued_message_internal(&state, &first.id).await
+        {
+            let meta = MessageMetadata {
+                from_queue: Some(true),
+                queued_at: Some(first.created_at.clone()),
+                ..Default::default()
+            };
+            let state_clone = state.clone();
+            let conv_clone = conversation_id.clone();
+            let content_clone = first.content.clone();
+            let app_clone = app.clone();
+            let _first_id = first.id.clone();
 
-                    let inner: Pin<Box<dyn Future<Output = ()> + Send + 'static>> =
-                        Box::pin(async move {
-                            // send_message_internal now returns the user message ID
-                            match send_message_internal(
-                                state_clone,
-                                conv_clone.clone(),
-                                content_clone,
-                                None, // branch_id
-                                None, // context_items
-                                app_clone,
-                                Some(meta),
-                                false,
-                            )
-                            .await
-                            {
-                                Ok(user_message_id) => {
-                                    // Emit queue event with the new message ID
-                                    let _ = app.emit(
-                                        "queue-event",
-                                        QueueEvent::MessageSent {
-                                            conversation_id: conv_clone,
-                                            message_id: user_message_id.to_string(),
-                                        },
-                                    );
-                                }
-                                Err(e) => {
-                                    tracing::error!("Failed to send queued message: {}", e);
-                                }
-                            }
-                        });
-                    tokio::spawn(inner);
+            let inner: Pin<Box<dyn Future<Output = ()> + Send + 'static>> = Box::pin(async move {
+                // send_message_internal now returns the user message ID
+                match send_message_internal(
+                    state_clone,
+                    conv_clone.clone(),
+                    content_clone,
+                    None, // branch_id
+                    None, // context_items
+                    app_clone,
+                    Some(meta),
+                    false,
+                )
+                .await
+                {
+                    Ok(user_message_id) => {
+                        // Emit queue event with the new message ID
+                        emit_from_main(
+                            &app,
+                            "queue-event",
+                            QueueEvent::MessageSent {
+                                conversation_id: conv_clone,
+                                message_id: user_message_id.to_string(),
+                            },
+                        );
+                    }
+                    Err(e) => {
+                        tracing::error!("Failed to send queued message: {}", e);
+                    }
                 }
-            }
+            });
+            tokio::spawn(inner);
         }
     });
 }
