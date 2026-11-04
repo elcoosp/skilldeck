@@ -1,22 +1,25 @@
 ---
+
 id: implement-mcp-supervisor-with-exponential-backoff
 title: Implement MCP supervisor with exponential backoff
 labels:
-  - backend
-  - 'priority:must'
-  - 'type:feature'
-  - 'size:medium'
-assignees:
-  - elcoosp
-references:
-  - ../plans/v1.md#9-chunk-6-mcp-client--supervision
-state: closed
-createdAt: '2026-03-12T13:53:55.313Z'
-priority: must
-effort: 1d
-dependencies:
-  - Implement MCP registry for server management
+- backend
+- 'priority:must'
+- 'type:feature'
+- 'size:medium'
+  assignees:
+- elcoosp
+  references:
+- ../plans/v1.md#9-chunk-6-mcp-client--supervision
+  state: closed
+  createdAt: '2026-03-12T13:53:55.313Z'
+  priority: must
+  effort: 1d
+  dependencies:
+- Implement MCP registry for server management
+
 ---
+
 ## Context
 
 The MCP supervisor monitors connected MCP servers for health, restarts failed servers with exponential backoff, and manages the supervision lifecycle.
