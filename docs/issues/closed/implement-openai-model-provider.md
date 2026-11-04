@@ -1,22 +1,25 @@
 ---
+
 id: implement-openai-model-provider
 title: Implement OpenAI model provider
 labels:
-  - backend
-  - 'priority:should'
-  - 'type:feature'
-  - 'size:small'
-assignees:
-  - elcoosp
-references:
-  - ../plans/v1.md#7-chunk-4-model-providers
-state: closed
-createdAt: '2026-03-12T13:51:42.846Z'
-priority: should
-effort: 0.5d
-dependencies:
-  - Define plugin traits for dependency inversion
+- backend
+- 'priority:should'
+- 'type:feature'
+- 'size:small'
+  assignees:
+- elcoosp
+  references:
+- ../plans/v1.md#7-chunk-4-model-providers
+  state: closed
+  createdAt: '2026-03-12T13:51:42.846Z'
+  priority: should
+  effort: 0.5d
+  dependencies:
+- Define plugin traits for dependency inversion
+
 ---
+
 ## Context
 
 The OpenAI provider enables users to use GPT models with SkillDeck. It implements the ModelProvider trait with OpenAI-compatible API format.
