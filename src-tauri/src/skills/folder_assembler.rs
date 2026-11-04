@@ -42,19 +42,19 @@ pub fn assemble_folder_context(
             }
         };
 
-        if let Some(limit) = max_total_bytes {
-            if total_bytes + content.len() > limit {
-                let remaining = limit.saturating_sub(total_bytes);
-                // Safe UTF-8 truncation at character boundary
-                let safe_end = content
-                    .char_indices()
-                    .take_while(|(idx, _)| *idx < remaining)
-                    .last()
-                    .map(|(idx, ch)| idx + ch.len_utf8())
-                    .unwrap_or(0);
-                output.push_str(&content[..safe_end]);
-                break;
-            }
+        if let Some(limit) = max_total_bytes
+            && total_bytes + content.len() > limit
+        {
+            let remaining = limit.saturating_sub(total_bytes);
+            // Safe UTF-8 truncation at character boundary
+            let safe_end = content
+                .char_indices()
+                .take_while(|(idx, _)| *idx < remaining)
+                .last()
+                .map(|(idx, ch)| idx + ch.len_utf8())
+                .unwrap_or(0);
+            output.push_str(&content[..safe_end]);
+            break;
         }
 
         output.push_str(&format!("=== File: {} ===\n{}\n\n", relative, content));
