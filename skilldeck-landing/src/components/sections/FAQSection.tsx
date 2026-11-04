@@ -66,10 +66,10 @@ export function FAQSection() {
         </div>
         <div className="mt-12" style={{ contentVisibility: 'auto' }}>
           <Accordion type="single" collapsible className="w-full">
-            {faqItems.map((item, idx) => (
+            {faqItems.map((item) => (
               <AccordionItem
-                key={idx}
-                value={`faq-${idx}`}
+                key={item.question}
+                value={item.question}
                 className="border-border"
               >
                 <AccordionTrigger className="text-left text-foreground hover:text-primary hover:no-underline transition-colors">
