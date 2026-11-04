@@ -22,11 +22,14 @@ import { useConversationStore } from '@/store/conversation'
 import { useUIOverlaysStore } from '@/store/ui-overlays'
 
 // Local type for the UI. We'll map from the backend response.
+// Local type for the UI. `search_messages` currently returns only
+// { message_id, snippet }; the conversation metadata fields are populated
+// once `search_all_messages` is exposed to the frontend.
 interface GlobalSearchResult {
   message_id: string
-  conversation_id: string
+  conversation_id: string | null
   conversation_title: string | null
-  created_at: string
+  created_at: string | null
   message_snippet: string
 }
 
@@ -66,14 +69,13 @@ export function GlobalSearchModal() {
         limit: '50'
       })
       if (res.status === 'ok') {
-        const data = res.data as any[]
-        return data.map(
+        return res.data.map(
           (item): GlobalSearchResult => ({
-            message_id: item.message_id || item.id,
-            conversation_id: item.conversation_id || item.conversationId,
-            conversation_title: item.conversation_title || item.title || null,
-            created_at: item.created_at || item.timestamp,
-            message_snippet: item.message_snippet || item.snippet || ''
+            message_id: item.message_id,
+            conversation_id: null,
+            conversation_title: null,
+            created_at: null,
+            message_snippet: item.snippet
           })
         )
       }
@@ -224,7 +226,9 @@ export function GlobalSearchModal() {
                           </span>
                           <span className="flex items-center gap-0.5">
                             <Calendar className="size-3" />
-                            {new Date(result.created_at).toLocaleDateString()}
+                            {new Date(
+                              result.created_at ?? ''
+                            ).toLocaleDateString()}
                           </span>
                         </div>
                         <p

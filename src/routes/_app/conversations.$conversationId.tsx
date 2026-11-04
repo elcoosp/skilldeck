@@ -1,6 +1,9 @@
 // src/routes/_app/conversations.$conversationId.tsx
+
+import { useDroppable } from '@dnd-kit/react'
 import { useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, useRouter } from '@tanstack/react-router'
+import { AnimatePresence, motion } from 'framer-motion'
 import {
   ArrowDown,
   CaseSensitive,
@@ -10,11 +13,8 @@ import {
   X
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { toast } from '@/components/ui/toast'
 import { useDebounce } from 'use-debounce'
 import { z } from 'zod'
-import { useDroppable } from '@dnd-kit/react'
-import { AnimatePresence, motion } from 'framer-motion'
 import { BranchNav } from '@/components/conversation/branch-nav'
 import { MessageInput } from '@/components/conversation/message-input'
 import {
@@ -25,6 +25,7 @@ import ThreadNavigator from '@/components/conversation/thread-navigator'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
+import { toast } from '@/components/ui/toast'
 import {
   Tooltip,
   TooltipContent,
@@ -235,7 +236,7 @@ function ConversationView() {
   }, [markAllUnseenAsSeen])
 
   useEffect(() => {
-    let unsub = () => { }
+    let unsub = () => {}
     const t = setTimeout(() => {
       const thread = threadRef.current
       if (!thread) return
@@ -305,8 +306,8 @@ function ConversationView() {
       if (!headingEls.length) return
       const containerTop = scrollContainer.getBoundingClientRect().top
       let activeIdx = 0
-      for (let i = 0; i < headingEls.length; i++) {
-        const headingTop = headingEls[i].getBoundingClientRect().top
+      for (const [i, headingEl] of headingEls.entries()) {
+        const headingTop = headingEl.getBoundingClientRect().top
         if (headingTop - containerTop <= 32) {
           activeIdx = i
         }
@@ -392,7 +393,7 @@ function ConversationView() {
         return
       }
       if (!syncRes.data.is_synced) {
-        const title = bootstrap?.title || 'Shared Conversation'
+        const title = 'Shared Conversation'
         const syncPayload = {
           title,
           messages: messages
@@ -433,9 +434,9 @@ function ConversationView() {
   const { ref: droppableRef, isDropTarget } = useDroppable({
     id: `conversation-${conversationId}`,
     data: {
-      conversationId,
+      conversationId
     },
-    disabled: !conversationId || showNotFound,
+    disabled: !conversationId || showNotFound
   })
 
   if (showNotFound) {

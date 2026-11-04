@@ -1,11 +1,11 @@
 // src/hooks/use-workflow-definitions.ts
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { commands } from '@/lib/bindings'
+import { commands, type JsonValue } from '@/lib/bindings'
 
 export interface WorkflowDefinition {
   id: string
   name: string
-  definition: any
+  definition: JsonValue
   created_at: string
   updated_at: string
 }
@@ -43,7 +43,7 @@ export function useSaveWorkflowDefinition() {
       definition
     }: {
       name: string
-      definition: any
+      definition: JsonValue
     }) => {
       const res = await commands.saveWorkflowDefinition({
         name,

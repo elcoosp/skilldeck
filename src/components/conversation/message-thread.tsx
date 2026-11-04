@@ -11,12 +11,12 @@ import { invoke } from '@tauri-apps/api/core'
 import { motion } from 'framer-motion'
 import { GitBranch } from 'lucide-react'
 import * as React from 'react'
-import { toast } from '@/components/ui/toast'
 import { Button } from '@/components/ui/button'
+import { toast } from '@/components/ui/toast'
 import { useSendMessage } from '@/hooks/use-messages'
 import { useWorkspaceGitStatus } from '@/hooks/use-workspace-git'
 import { useWorkspaces } from '@/hooks/use-workspaces'
-import type { MessageData, NodeDocument } from '@/lib/bindings'
+import type { HeadingItem, MessageData, NodeDocument } from '@/lib/bindings'
 import {
   DEFAULT_CHROME_CONFIG,
   DEFAULT_PROSE_CONFIG,
@@ -60,7 +60,7 @@ interface MessageThreadProps {
   onVisibleUserIndexChange?: (index: number) => void
   onMessageVisible?: (messageId: string) => void
   branchParentMessageId?: string | null
-  headings?: any[]
+  headings?: HeadingItem[]
 }
 
 function distFromBottom(el: HTMLElement): number {
@@ -70,6 +70,8 @@ function distFromBottom(el: HTMLElement): number {
 export const ScrollContainerContext =
   React.createContext<React.RefObject<HTMLDivElement | null> | null>(null)
 export const AutoScrollContext = React.createContext<boolean>(true)
+
+type ThreadMessage = MessageData & { retryAvailable?: boolean }
 
 interface VirtualRowProps {
   virtualItem: { index: number; start: number }
@@ -98,7 +100,7 @@ const VirtualRow = React.memo(
     searchQuery,
     searchCaseSensitive,
     searchRegex,
-    isLast,
+    isLast: _isLast,
     measureRef
   }: VirtualRowProps) => {
     return (
@@ -170,8 +172,7 @@ export const MessageThread = React.forwardRef<
       autoScroll = true,
       onVisibleUserIndexChange,
       onMessageVisible,
-      branchParentMessageId,
-      headings = []
+      branchParentMessageId
     },
     ref
   ) => {
@@ -186,13 +187,14 @@ export const MessageThread = React.forwardRef<
     const activeConversationId = useConversationStore(
       (s) => s.activeConversationId
     )
-    const sendMutation = useSendMessage(activeConversationId!)
+    const sendMutation = useSendMessage(activeConversationId ?? '')
 
     // ─── Git repo init hint (F18) ─────────────────────────────────────────
     const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId)
     const { data: workspaces } = useWorkspaces()
     const activeWorkspace = workspaces?.find((w) => w.id === activeWorkspaceId)
-    const { data: gitStatus } = useWorkspaceGitStatus(activeWorkspace?.path)
+    const gitHintPath = activeWorkspace?.path
+    const { data: gitStatus } = useWorkspaceGitStatus(gitHintPath)
     const gitDismissed = useUIEphemeralStore((s) => s.gitInitDismissed)
     const setGitInitDismissed = useUIEphemeralStore(
       (s) => s.setGitInitDismissed
@@ -200,10 +202,10 @@ export const MessageThread = React.forwardRef<
     const queryClient = useQueryClient()
 
     const showGitHint =
-      activeWorkspace?.path &&
+      gitHintPath &&
       gitStatus &&
       !gitStatus.is_git_repo &&
-      !gitDismissed[activeWorkspace.path]
+      !gitDismissed[gitHintPath]
 
     const handleGitInit = async (path: string) => {
       try {
@@ -222,11 +224,11 @@ export const MessageThread = React.forwardRef<
       getKey: (location) => location.pathname
     })
 
-    const messagesWithRetry = React.useMemo(() => {
+    const messagesWithRetry = React.useMemo<ThreadMessage[]>(() => {
       return messages.map((msg, idx) => {
         if (msg.role === 'user' && idx + 1 < messages.length) {
           const nextMsg = messages[idx + 1]
-          if (nextMsg.role === 'assistant' && nextMsg.status === 'cancelled') {
+          if (nextMsg?.role === 'assistant' && nextMsg.status === 'cancelled') {
             return { ...msg, retryAvailable: true }
           }
         }
@@ -263,7 +265,7 @@ export const MessageThread = React.forwardRef<
       instance: Virtualizer<HTMLDivElement, Element>
     ) => void = React.useCallback((offset, { behavior }, instance) => {
       isProgrammaticScrollRef.current = true
-      elementScroll(offset, { behavior }, instance as any)
+      elementScroll(offset, { behavior }, instance)
       requestAnimationFrame(() => {
         isProgrammaticScrollRef.current = false
       })
@@ -286,12 +288,7 @@ export const MessageThread = React.forwardRef<
       const engine = engineRef.current
       if (!engine) return
       for (const msg of messages) {
-        engine.prepare(
-          msg.id,
-          (msg as any).node_document,
-          msg.role,
-          msg.content
-        )
+        engine.prepare(msg.id, msg.node_document, msg.role, msg.content)
       }
     }, [messages])
 
@@ -304,19 +301,23 @@ export const MessageThread = React.forwardRef<
           return DEFAULT_CHROME_CONFIG.toolMessageBaseHeight
         }
 
-        const baseHeight = engineRef.current!.layout(
+        const engine = engineRef.current
+        if (!engine) return 80
+
+        const baseHeight = engine.layout(
           msg.id,
           effectiveWidth,
           msg.content.length
         )
 
+        const contextItemCount = msg.context_items?.length ?? 0
         const chipHeight =
-          (msg.context_items?.length ?? 0) > 0
+          contextItemCount > 0
             ? estimateContextChipHeight(
-              msg.context_items!.length,
-              effectiveWidth,
-              DEFAULT_CHROME_CONFIG
-            )
+                contextItemCount,
+                effectiveWidth,
+                DEFAULT_CHROME_CONFIG
+              )
             : 0
 
         return baseHeight + chipHeight
@@ -597,7 +598,7 @@ export const MessageThread = React.forwardRef<
         getScrollPosition: () => scrollRef.current?.scrollTop ?? 0,
         onScroll: (cb: () => void) => {
           const el = scrollRef.current
-          if (!el) return () => { }
+          if (!el) return () => {}
           el.addEventListener('scroll', cb, { passive: true })
           return () => el.removeEventListener('scroll', cb)
         }
@@ -625,7 +626,7 @@ export const MessageThread = React.forwardRef<
               className="h-full overflow-y-auto thin-scrollbar pl-6"
             >
               {/* Git repo init hint banner (F18) */}
-              {showGitHint && (
+              {showGitHint && gitHintPath && (
                 <div className="flex items-center justify-between rounded-lg border border-yellow-500/30 bg-yellow-500/5 px-4 py-2 mx-4 mt-2 mb-2">
                   <div className="flex items-center gap-2">
                     <GitBranch className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
@@ -637,16 +638,14 @@ export const MessageThread = React.forwardRef<
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() =>
-                        setGitInitDismissed(activeWorkspace!.path, true)
-                      }
+                      onClick={() => setGitInitDismissed(gitHintPath, true)}
                       className="border-yellow-500/30 text-yellow-700 hover:bg-yellow-500/10 dark:text-yellow-300"
                     >
                       Dismiss
                     </Button>
                     <Button
                       size="sm"
-                      onClick={() => handleGitInit(activeWorkspace!.path)}
+                      onClick={() => handleGitInit(gitHintPath)}
                       className="bg-yellow-600 text-white hover:bg-yellow-700"
                     >
                       Initialize
@@ -703,13 +702,17 @@ export const MessageThread = React.forwardRef<
                 >
                   {virtualItems.map((virtualItem) => {
                     const message = filteredMessages[virtualItem.index]
+                    if (!message) return null
                     const isThisMessageStreaming =
                       message.id === streamingMessageId
                     const isLast = virtualItem.index === lastFilteredIdx
-                    const retryAvailable = (message as any).retryAvailable
+                    const retryAvailable = message.retryAvailable
                     const handleRetry = retryAvailable
                       ? () =>
-                        sendMutation.mutateAsync({ content: message.content })
+                          sendMutation.mutateAsync({
+                            content: message.content,
+                            thinking: false
+                          })
                       : undefined
 
                     return (

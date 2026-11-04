@@ -28,10 +28,10 @@ export const Meteors = ({
 
   useEffect(() => {
     const styles = [...new Array(number)].map(() => ({
-      '--angle': -angle + 'deg',
+      '--angle': `${-angle}deg`,
       top: '-5%',
       left: `calc(0% + ${Math.floor(Math.random() * window.innerWidth)}px)`,
-      animationDelay: Math.random() * (maxDelay - minDelay) + minDelay + 's',
+      animationDelay: `${Math.random() * (maxDelay - minDelay) + minDelay}s`,
       animationDuration:
         Math.floor(Math.random() * (maxDuration - minDuration) + minDuration) +
         's'
@@ -42,8 +42,8 @@ export const Meteors = ({
   return (
     <>
       {[...meteorStyles].map((style, idx) => (
-        // Meteor Head
         <span
+          // biome-ignore lint/suspicious/noArrayIndexKey: randomized per-render styles
           key={idx}
           style={{ ...style }}
           className={cn(

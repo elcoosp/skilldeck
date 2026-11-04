@@ -24,7 +24,9 @@ function SyntaxThemeSync() {
   useEffect(() => {
     commands.getSyntaxCss().then((res) => {
       if (res.status === 'ok') {
-        const style = document.getElementById('syntax-theme') || document.createElement('style')
+        const style =
+          document.getElementById('syntax-theme') ||
+          document.createElement('style')
         style.id = 'syntax-theme'
         style.textContent = res.data
         document.head.appendChild(style)
@@ -93,7 +95,10 @@ onOpenUrl((urls) => {
   handleDeepLinkUrls(urls)
 })
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
+const rootElement = document.getElementById('root')
+if (!rootElement) throw new Error('Root element "#root" not found')
+
+ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <I18nProvider i18n={i18n}>
       <QueryClientProvider client={queryClient}>

@@ -96,7 +96,7 @@ function FileTreeRenderer({ text }: { text: string }) {
 // JSON renderer with expand/collapse
 function JSONRenderer({ text }: { text: string }) {
   const [expanded, setExpanded] = useState(false)
-  let parsed: any
+  let parsed: unknown
   try {
     parsed = JSON.parse(text)
   } catch {

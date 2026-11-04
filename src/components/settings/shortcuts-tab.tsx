@@ -14,8 +14,9 @@ export function ShortcutsTab() {
   const grouped = keyboardShortcuts.reduce<
     Record<string, typeof keyboardShortcuts>
   >((acc, s) => {
-    if (!acc[s.category]) acc[s.category] = []
-    acc[s.category].push(s)
+    const bucket = acc[s.category] ?? []
+    bucket.push(s)
+    acc[s.category] = bucket
     return acc
   }, {})
 

@@ -44,7 +44,13 @@ interface ModelIconProps {
   colored?: boolean
 }
 
-const modelPrefixMap: Record<string, React.ComponentType<any>> = {
+type IconComponent = React.ComponentType<{
+  size?: string | number
+  className?: string
+  type?: string
+}>
+
+const modelPrefixMap: Record<string, IconComponent> = {
   claude: Claude,
   gemma: Gemma,
   gemini: Gemini,
@@ -106,6 +112,7 @@ export function ModelIcon({
   if (!matchKey) return null
 
   const Icon = modelPrefixMap[matchKey]
+  if (!Icon) return null
   return (
     <Icon
       size={size}

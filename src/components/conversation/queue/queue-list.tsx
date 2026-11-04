@@ -74,7 +74,7 @@ export function QueueList({ conversationId }: QueueListProps) {
 
     const newOrder = [...messages]
     const [moved] = newOrder.splice(oldIndex, 1)
-    newOrder.splice(newIndex, 0, moved)
+    if (moved) newOrder.splice(newIndex, 0, moved)
 
     reorderMutation.mutate(newOrder.map((m) => m.id))
   }

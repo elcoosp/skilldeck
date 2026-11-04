@@ -1,4 +1,4 @@
-import HeatMap from '@uiw/react-heat-map'
+import HeatMap, { type HeatMapValue } from '@uiw/react-heat-map'
 import { differenceInWeeks } from 'date-fns'
 import { useMemo } from 'react'
 import {
@@ -84,7 +84,7 @@ export function AnalyticsHeatmap({
     label
   }: {
     props: React.SVGProps<SVGRectElement>
-    data: any
+    data: HeatMapValue & { column: number; row: number; index: number }
     label: string
   }) => {
     const count = data.count ?? 0

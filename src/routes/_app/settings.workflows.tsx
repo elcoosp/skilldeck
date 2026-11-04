@@ -1,14 +1,15 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
-import { toast } from '@/components/ui/toast'
-import { Pencil, Trash2, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { toast } from '@/components/ui/toast'
+import { WorkflowEditor } from '@/components/workflow/workflow-editor'
 import {
   useDeleteWorkflowDefinition,
   useWorkflowDefinitions
 } from '@/hooks/use-workflow-definitions'
-import { WorkflowEditor } from '@/components/workflow/workflow-editor'
+import type { JsonValue } from '@/lib/bindings'
 
 export const Route = createFileRoute('/_app/settings/workflows')({
   component: WorkflowsSettings
@@ -18,7 +19,7 @@ function WorkflowsSettings() {
   const { data: workflows = [], isLoading } = useWorkflowDefinitions()
   const deleteMutation = useDeleteWorkflowDefinition()
   const [editorOpen, setEditorOpen] = useState(false)
-  const [editingWorkflow, setEditingWorkflow] = useState<any>(null)
+  const [editingWorkflow, setEditingWorkflow] = useState<JsonValue | null>(null)
 
   const handleDelete = (id: string, name: string) => {
     if (confirm(`Delete "${name}"?`)) {
@@ -33,7 +34,13 @@ function WorkflowsSettings() {
     <div className="p-6 space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Workflows</h2>
-        <Button size="sm" onClick={() => { setEditingWorkflow(null); setEditorOpen(true) }}>
+        <Button
+          size="sm"
+          onClick={() => {
+            setEditingWorkflow(null)
+            setEditorOpen(true)
+          }}
+        >
           <Plus className="size-4 mr-1" />
           New Workflow
         </Button>
@@ -65,7 +72,10 @@ function WorkflowsSettings() {
                   <Button
                     variant="ghost"
                     size="icon-xs"
-                    onClick={() => { setEditingWorkflow(wf.definition); setEditorOpen(true) }}
+                    onClick={() => {
+                      setEditingWorkflow(wf.definition)
+                      setEditorOpen(true)
+                    }}
                     title="Edit workflow"
                   >
                     <Pencil className="size-3.5" />

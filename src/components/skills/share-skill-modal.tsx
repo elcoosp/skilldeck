@@ -35,8 +35,8 @@ export function ShareSkillModal({ skillName, contentMd, onClose }: Props) {
         return
       }
       await doShare()
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Share failed')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e))
       setSaving(false)
     }
   }
@@ -47,8 +47,8 @@ export function ShareSkillModal({ skillName, contentMd, onClose }: Props) {
     try {
       await setGithubToken(tokenDraft.trim())
       await doShare()
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Failed to connect GitHub')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e))
       setSaving(false)
     }
   }
@@ -67,7 +67,7 @@ export function ShareSkillModal({ skillName, contentMd, onClose }: Props) {
       setResult(gist)
       setStep('done')
       sendActivityEvent('skill_shared', { skill_name: skillName }).catch(
-        () => { }
+        () => {}
       )
     } finally {
       setSaving(false)

@@ -1,31 +1,33 @@
 // src/components/layout/app-shell.tsx
+
+import {
+  type DragDropManager,
+  DragDropProvider,
+  type DragEndEvent,
+  type DragMoveEvent,
+  DragOverlay,
+  type DragStartEvent,
+  KeyboardSensor,
+  PointerSensor
+} from '@dnd-kit/react'
+import { FileIcon } from '@react-symbols/icons/utils'
 import { useRouter } from '@tanstack/react-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { Group, type Layout, Panel, Separator } from 'react-resizable-panels'
-import { Toaster } from '@/components/ui/toast'
 import { GlobalDropZone } from '@/components/chat/global-drop-zone'
 import { CommandPalette } from '@/components/overlays/command-palette'
-import { LaunchNotificationBanner } from '@/components/overlays/launch-notification'
 import { GlobalSearchModal } from '@/components/search/global-search-modal'
+import { Toaster, toast } from '@/components/ui/toast'
 import { useNudgeListener, usePlatformRegistration } from '@/hooks/use-platform'
+import { commands } from '@/lib/bindings'
+import { useChatContextStore } from '@/store/chat-context-store'
+import { useConversationStore } from '@/store/conversation'
 import { useUILayoutStore } from '@/store/ui-layout'
 import { useUIOverlaysStore } from '@/store/ui-overlays'
 import { CenterPanel } from './center-panel'
 import { LeftPanel } from './left-panel'
 import { RightPanel } from './right-panel'
-import {
-  DragDropProvider,
-  DragOverlay,
-  KeyboardSensor,
-  PointerSensor,
-  type DragDropManager,
-} from '@dnd-kit/react'
-import { useChatContextStore } from '@/store/chat-context-store'
-import { useConversationStore } from '@/store/conversation'
-import { commands } from '@/lib/bindings'
-import { toast } from '@/components/ui/toast'
-import { FileIcon } from '@react-symbols/icons/utils'
 
 const LAYOUT_STORAGE_KEY = 'skilldeck-panel-layout'
 
@@ -59,7 +61,7 @@ export function AppShell() {
           return parsed as Layout
         }
       }
-    } catch { }
+    } catch {}
     return DEFAULT_LAYOUT
   })
 
@@ -82,8 +84,12 @@ export function AppShell() {
       setLayout(newLayout)
 
       const totalWidth = window.innerWidth
-      const leftPx = Math.round(((newLayout[PANEL_LEFT] ?? 20) / 100) * totalWidth)
-      const rightPx = Math.round(((newLayout[PANEL_RIGHT] ?? 20) / 100) * totalWidth)
+      const leftPx = Math.round(
+        ((newLayout[PANEL_LEFT] ?? 20) / 100) * totalWidth
+      )
+      const rightPx = Math.round(
+        ((newLayout[PANEL_RIGHT] ?? 20) / 100) * totalWidth
+      )
       const centerPx = Math.max(35, totalWidth - leftPx - rightPx - 2)
 
       setPanelSizesPx({
@@ -100,14 +106,18 @@ export function AppShell() {
     [setPanelSizesPx]
   )
 
-  const setCommandPaletteOpen = useUIOverlaysStore((s) => s.setCommandPaletteOpen)
+  const setCommandPaletteOpen = useUIOverlaysStore(
+    (s) => s.setCommandPaletteOpen
+  )
   const setGlobalSearchOpen = useUIOverlaysStore((s) => s.setGlobalSearchOpen)
 
   usePlatformRegistration()
   useNudgeListener()
 
   useHotkeys('meta+k, ctrl+k', () => setCommandPaletteOpen(true))
-  useHotkeys(['meta+,', 'ctrl+,'], () => router.navigate({ to: '/settings/api-keys' }))
+  useHotkeys(['meta+,', 'ctrl+,'], () =>
+    router.navigate({ to: '/settings/api-keys' })
+  )
   useHotkeys('meta+shift+f, ctrl+shift+f', () => setGlobalSearchOpen(true))
 
   const [activeDragItem, setActiveDragItem] = useState<{
@@ -117,19 +127,19 @@ export function AppShell() {
   } | null>(null)
 
   const handleDragStart = (
-    event: { operation: { source: any } },
+    event: DragStartEvent,
     _manager: DragDropManager
   ) => {
     console.log('[AppShell] onDragStart', {
       source: event.operation?.source,
-      sourceData: event.operation?.source?.data,
+      sourceData: event.operation?.source?.data
     })
     const source = event.operation?.source
     if (source?.data?.type === 'file') {
       setActiveDragItem({
         type: 'file',
         path: source.data.path,
-        name: source.data.name,
+        name: source.data.name
       })
       console.log('[AppShell] Active drag item set:', source.data)
     } else {
@@ -137,14 +147,11 @@ export function AppShell() {
     }
   }
 
-  const handleDragEnd = (
-    event: { operation: { source: any; target: any }; canceled: boolean },
-    _manager: DragDropManager
-  ) => {
+  const handleDragEnd = (event: DragEndEvent, _manager: DragDropManager) => {
     console.log('[AppShell] onDragEnd', {
       source: event.operation?.source,
       target: event.operation?.target,
-      canceled: event.canceled,
+      canceled: event.canceled
     })
     const { source, target } = event.operation
     setActiveDragItem(null)
@@ -175,7 +182,7 @@ export function AppShell() {
 
     console.log('[AppShell] Dropped file on conversation:', {
       filePath,
-      conversationId,
+      conversationId
     })
 
     commands
@@ -191,30 +198,31 @@ export function AppShell() {
             id: filePath,
             name: sourceData.name,
             path: filePath,
-            size: undefined,
+            size: undefined
           })
 
-          const activeConvId = useConversationStore.getState().activeConversationId
+          const activeConvId =
+            useConversationStore.getState().activeConversationId
           if (activeConvId !== conversationId) {
-            useConversationStore.getState().setActiveConversation(conversationId)
+            useConversationStore
+              .getState()
+              .setActiveConversation(conversationId)
           }
         }
       })
       .catch(() => toast.error('Failed to attach file'))
   }
-  const handleDragMove = (event: any) => {
+  const handleDragMove = (event: DragMoveEvent) => {
     console.log('[AppShell] onDragMove', event)
   }
   return (
     <DragDropProvider
-
-      onDragMove={handleDragMove} sensors={[PointerSensor, KeyboardSensor]}
+      onDragMove={handleDragMove}
+      sensors={[PointerSensor, KeyboardSensor]}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
       <div className="h-screen w-screen overflow-hidden bg-background text-foreground flex flex-col">
-        <LaunchNotificationBanner />
-
         <div className="flex-1 overflow-hidden">
           <Group
             orientation="horizontal"

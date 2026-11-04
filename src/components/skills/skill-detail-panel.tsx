@@ -16,9 +16,9 @@ import {
   Trash2
 } from 'lucide-react'
 import { useRef, useState } from 'react'
-import { toast } from '@/components/ui/toast'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { toast } from '@/components/ui/toast'
 import {
   Tooltip,
   TooltipContent,
@@ -43,7 +43,15 @@ interface Props {
 }
 
 // Helper for score bars
-function ScoreBar({ score, max = 5, color }: { score: number; max?: number; color: string }) {
+function ScoreBar({
+  score,
+  max = 5,
+  color
+}: {
+  score: number
+  max?: number
+  color: string
+}) {
   return (
     <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
       <div
@@ -375,10 +383,22 @@ export function SkillDetailPanel({ skill, onClose }: Props) {
           <div>
             <SectionLabel>Metadata</SectionLabel>
             <div className="flex flex-col gap-2">
-              <MetaField label="Author" value={skill.registryData.author ?? 'Unknown'} />
-              <MetaField label="Version" value={skill.registryData.version ?? 'N/A'} />
-              <MetaField label="License" value={skill.registryData.license ?? 'Unspecified'} />
-              <MetaField label="Category" value={skill.registryData.category ?? 'General'} />
+              <MetaField
+                label="Author"
+                value={skill.registryData.author ?? 'Unknown'}
+              />
+              <MetaField
+                label="Version"
+                value={skill.registryData.version ?? 'N/A'}
+              />
+              <MetaField
+                label="License"
+                value={skill.registryData.license ?? 'Unspecified'}
+              />
+              <MetaField
+                label="Category"
+                value={skill.registryData.category ?? 'General'}
+              />
             </div>
           </div>
         )}

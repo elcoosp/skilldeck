@@ -14,7 +14,7 @@ export function useMessages(
     queryKey: ['messages', conversationId, branchId],
     queryFn: async () => {
       if (!conversationId) return []
-      const res = await commands.listMessages(conversationId!, branchId ?? null)
+      const res = await commands.listMessages(conversationId, branchId ?? null)
       if (res.status === 'ok') return res.data
       throw new Error(res.error)
     },
@@ -97,13 +97,21 @@ export function useMessagesWithStream(
 
   if (!isRunning && !expectingResponse) return messages
 
+  // The streaming/expecting states above can only be reached for a real
+  // conversation (the messages query is disabled without one), so this guard
+  // is unreachable in practice but keeps the type honest.
+  if (!conversationId) return messages
+
   // Add streaming bubble with all required MessageData properties
   const streamBubble: MessageData = {
     id: '__streaming__',
-    conversation_id: conversationId!,
+    conversation_id: conversationId,
     role: 'assistant',
     content: streamingText,
     created_at: new Date().toISOString(),
+    compacted: false,
+    thinking_content: null,
+    thinking_document: null,
     context_items: null,
     metadata: null,
     seen: false,

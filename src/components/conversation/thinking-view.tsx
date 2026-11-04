@@ -1,6 +1,7 @@
 // src/components/conversation/thinking-view.tsx
-import { useState } from 'react'
+
 import { BrainCircuit, ChevronDown, ChevronRight } from 'lucide-react'
+import { useState } from 'react'
 import { MarkdownView } from '@/components/markdown-view'
 import type { NodeDocument } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
@@ -16,7 +17,7 @@ export function ThinkingView({
   document,
   messageId,
   conversationId,
-  isStreaming = false,
+  isStreaming = false
 }: ThinkingViewProps) {
   // Auto-expand while streaming, collapse when done
   const [expanded, setExpanded] = useState(false)
@@ -41,7 +42,9 @@ export function ThinkingView({
         )}
         onClick={() => setExpanded((v) => !v)}
         aria-expanded={effectiveExpanded}
-        aria-label={isStreaming ? 'Thinking in progress' : 'Toggle thought process'}
+        aria-label={
+          isStreaming ? 'Thinking in progress' : 'Toggle thought process'
+        }
       >
         <BrainCircuit className="size-3.5 shrink-0" />
         <span className="font-medium">

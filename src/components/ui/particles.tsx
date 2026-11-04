@@ -96,7 +96,7 @@ export const Particles: React.FC<ParticlesProps> = ({
   const canvasSize = useRef<{ w: number; h: number }>({ w: 0, h: 0 })
   const dpr = typeof window !== 'undefined' ? window.devicePixelRatio : 1
   const rafID = useRef<number | null>(null)
-  const resizeTimeout = useRef<NodeJS.Timeout | null>(null)
+  const resizeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
   const initCanvasRef = useRef<() => void>(() => {})
   const onMouseMoveRef = useRef<() => void>(() => {})
   const animateRef = useRef<() => void>(() => {})
@@ -128,15 +128,15 @@ export const Particles: React.FC<ParticlesProps> = ({
       }
       window.removeEventListener('resize', handleResize)
     }
-  }, [color])
+  }, [])
 
   useEffect(() => {
     onMouseMoveRef.current()
-  }, [mousePosition.x, mousePosition.y])
+  }, [])
 
   useEffect(() => {
     initCanvasRef.current()
-  }, [refresh])
+  }, [])
 
   const initCanvas = () => {
     resizeCanvas()
@@ -249,7 +249,7 @@ export const Particles: React.FC<ParticlesProps> = ({
   ): number => {
     const remapped =
       ((value - start1) * (end2 - start2)) / (end1 - start1) + start2
-    return remapped > 0 ? remapped : 0
+    return Math.max(remapped, 0)
   }
 
   const animate = () => {

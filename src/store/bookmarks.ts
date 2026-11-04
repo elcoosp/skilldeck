@@ -1,5 +1,5 @@
-import { toast } from '@/components/ui/toast'
 import { create } from 'zustand'
+import { toast } from '@/components/ui/toast'
 import { type BookmarkData, commands } from '@/lib/bindings'
 
 interface BookmarksState {

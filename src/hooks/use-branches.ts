@@ -1,7 +1,14 @@
 // src/hooks/use-branches.ts
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { type CreateBranchRequest, commands } from '@/lib/bindings'
+import {
+  type BranchInfo,
+  type CreateBranchRequest,
+  commands
+} from '@/lib/bindings'
 import type { UUID } from '@/lib/types'
+
+export type { BranchInfo }
+
 export function useCreateBranch() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -15,21 +22,13 @@ export function useCreateBranch() {
     }
   })
 }
-export interface BranchInfo {
-  id: UUID
-  name: string | null
-  parent_message_id: UUID
-  created_at: string
-  message_count: number
-}
 
 export function useBranches(conversationId: UUID | null) {
   return useQuery({
     queryKey: ['branches', conversationId],
     queryFn: async (): Promise<BranchInfo[]> => {
       if (!conversationId) return []
-      // FIXME: commands.listBranches is not typed; assert as any until bindings are regenerated
-      const res = await (commands as any).listBranches(conversationId)
+      const res = await commands.listBranches(conversationId)
       if (res.status === 'ok') return res.data
       throw new Error(res.error)
     },

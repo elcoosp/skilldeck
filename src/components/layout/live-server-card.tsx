@@ -9,9 +9,9 @@ import {
   Unplug
 } from 'lucide-react'
 import { useState } from 'react'
-import { toast } from '@/components/ui/toast'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { toast } from '@/components/ui/toast'
 import {
   Tooltip,
   TooltipContent,
@@ -39,7 +39,7 @@ function StatusBadge({ status }: { status: McpServerResponse['status'] }) {
       className={cn(
         'text-[10px] h-4 px-1.5 min-w-0 overflow-hidden',
         status === 'connected' &&
-        'bg-green-500/15 text-green-600 dark:text-green-400 border-green-500/20'
+          'bg-green-500/15 text-green-600 dark:text-green-400 border-green-500/20'
       )}
     >
       <span className="flex items-center gap-1 min-w-0 overflow-hidden">
@@ -61,7 +61,11 @@ function StatusDot({ status }: { status: McpServerResponse['status'] }) {
         : 'bg-muted-foreground'
 
   const label =
-    status === 'connected' ? 'Connected' : status === 'error' ? 'Error' : 'Disconnected'
+    status === 'connected'
+      ? 'Connected'
+      : status === 'error'
+        ? 'Error'
+        : 'Disconnected'
 
   return (
     <Tooltip>
@@ -209,12 +213,15 @@ export function LiveServerCard({ server }: LiveServerCardProps) {
           <div className="border-t border-border px-3 py-2 space-y-1.5">
             {server.tools.length === 0 ? (
               <p className="text-[11px] text-muted-foreground">
-                {isConnected ? 'No tools exposed.' : 'Connect to discover tools.'}
+                {isConnected
+                  ? 'No tools exposed.'
+                  : 'Connect to discover tools.'}
               </p>
             ) : (
               <>
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-                  {server.tools.length} tool{server.tools.length !== 1 ? 's' : ''}
+                  {server.tools.length} tool
+                  {server.tools.length !== 1 ? 's' : ''}
                 </p>
                 {server.tools.map((tool: McpToolResponse) => (
                   <div key={tool.name} className="text-[11px] min-w-0">

@@ -160,6 +160,8 @@ export const FileMentionPicker: React.FC<FileMentionPickerProps> = ({
         return <CheckCircle className="w-3 h-3 text-green-500" />
       case 'error':
         return <XCircle className="w-3 h-3 text-red-500" />
+      default:
+        return null
     }
   }
 

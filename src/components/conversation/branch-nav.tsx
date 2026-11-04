@@ -41,17 +41,20 @@ export function BranchNav({ conversationId }: BranchNavProps) {
       setActiveBranch(null)
     } else {
       // Go to previous branch (branches are 1‑based in the array)
-      setActiveBranch(branches[currentBranchIndex - 2].id)
+      const prevBranch = branches[currentBranchIndex - 2]
+      if (prevBranch) setActiveBranch(prevBranch.id)
     }
   }
 
   const handleNext = () => {
     if (isOnMain && total > 0) {
       // From main to first branch
-      setActiveBranch(branches[0].id)
+      const firstBranch = branches[0]
+      if (firstBranch) setActiveBranch(firstBranch.id)
     } else if (!isOnMain && currentBranchIndex < total) {
       // Next branch
-      setActiveBranch(branches[currentBranchIndex].id)
+      const nextBranch = branches[currentBranchIndex]
+      if (nextBranch) setActiveBranch(nextBranch.id)
     }
   }
 

@@ -10,7 +10,9 @@ export interface SubagentState {
 }
 
 interface SubagentStore {
-  subagents: Record<string, SubagentState>
+  // Entries may be partial: updating an unknown id seeds `{ status }` only
+  // (see "unknown-id updates create partial entries" in the store tests).
+  subagents: Record<string, Partial<SubagentState>>
   updateSubagentStatus: (id: string, status: SubagentState['status']) => void
   setSubagentResult: (id: string, result: string) => void
   setSubagentError: (id: string, error: string) => void

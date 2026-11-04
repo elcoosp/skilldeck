@@ -12,11 +12,10 @@ export function useScrollToMessage() {
   const [scrollId, setScrollId] = useState<string | null>(null)
 
   useEffect(() => {
-    if (messageId) {
-      setScrollId(messageId)
-      const timer = setTimeout(() => setScrollId(null), 500)
-      return () => clearTimeout(timer)
-    }
+    if (!messageId) return undefined
+    setScrollId(messageId)
+    const timer = setTimeout(() => setScrollId(null), 500)
+    return () => clearTimeout(timer)
   }, [messageId])
 
   return scrollId

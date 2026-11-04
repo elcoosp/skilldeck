@@ -5,8 +5,8 @@ import { motion } from 'framer-motion'
 import { Bookmark } from 'lucide-react'
 import type { JSX } from 'react'
 import { memo, useCallback } from 'react'
-import { toast } from '@/components/ui/toast'
 import { CodeBlock } from '@/components/conversation/code-block'
+import { toast } from '@/components/ui/toast'
 import { useBookmarks, useToggleBookmark } from '@/hooks/use-bookmarks'
 import type { MdNode, NodeDocument } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
@@ -167,7 +167,7 @@ interface MarkdownViewProps {
 function draftNodesEqual(a: MdNode[], b: MdNode[]): boolean {
   if (a.length !== b.length) return false
   for (let i = 0; i < a.length; i++) {
-    if (a[i].id !== b[i].id) return false
+    if (a[i]?.id !== b[i]?.id) return false
     const an = a[i] as Record<string, unknown>
     const bn = b[i] as Record<string, unknown>
     if (an.html !== bn.html) return false
@@ -187,7 +187,11 @@ export const MarkdownView = memo(
     scrollContainerRef
   }: MarkdownViewProps) => {
     const handleClick = useCallback(
-      async (e: React.MouseEvent<HTMLDivElement>) => {
+      async (
+        e:
+          | React.MouseEvent<HTMLDivElement>
+          | React.KeyboardEvent<HTMLDivElement>
+      ) => {
         const anchor = (e.target as HTMLElement).closest('a')
         if (anchor) {
           e.preventDefault()
@@ -231,7 +235,7 @@ export const MarkdownView = memo(
     const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault()
-        handleClick(e as any)
+        handleClick(e)
       }
     }
 
@@ -298,7 +302,6 @@ const NodeRenderer = memo(
     node,
     messageId,
     conversationId,
-    isStreaming,
     isDraft,
     scrollContainerRef
   }: NodeRendererProps) => {
@@ -330,9 +333,15 @@ const NodeRenderer = memo(
           <CodeBlock
             language={node.language}
             artifactId={node.artifact_id}
-            highlightedHtml={node.highlighted_html}
+            highlightedLines={node.highlighted_lines} // ← changed from highlightedHtml
             isStreaming={isDraft}
             scrollContainerRef={scrollContainerRef}
+            lineCount={node.line_count}
+            filePath={node.file_path}
+            tokenCount={node.token_count}
+            minimapRgba={node.minimap_rgba}
+            minimapWidth={node.minimap_width}
+            minimapHeight={node.minimap_height}
           />
         )
       case 'list': {

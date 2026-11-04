@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 
 interface SettingsSectionProps {
   title: string
-  description?: string
+  description?: React.ReactNode
   children: ReactNode
 }
 

@@ -180,14 +180,14 @@ export function useAgentStream(conversationId: string | null) {
           break
 
         case 'stream_update': {
-          const doc: NodeDocument = (event as any).node_document
+          const doc: NodeDocument = event.document
           if (!doc) break
 
           const incoming = doc.stable_nodes
           const prev = prevStableNodesRef.current
           const sameStable =
             incoming.length === prev.length &&
-            incoming.every((n, i) => n.id === prev[i].id)
+            incoming.every((n, i) => n.id === prev[i]?.id)
 
           const stableNodes = sameStable ? prev : incoming
           if (!sameStable) prevStableNodesRef.current = incoming
@@ -198,7 +198,7 @@ export function useAgentStream(conversationId: string | null) {
           let sameDraft = prevDraft.length === nextDraft.length
           if (sameDraft) {
             for (let i = 0; i < nextDraft.length; i++) {
-              if (prevDraft[i].id !== nextDraft[i].id) {
+              if (prevDraft[i]?.id !== nextDraft[i]?.id) {
                 sameDraft = false
                 break
               }
@@ -230,7 +230,7 @@ export function useAgentStream(conversationId: string | null) {
         }
 
         case 'thinking_stream_update': {
-          const doc: NodeDocument = (event as any).thinking_document
+          const doc: NodeDocument = event.document
           if (!doc) break
 
           // Same stabilization pattern as stream_update
@@ -238,7 +238,7 @@ export function useAgentStream(conversationId: string | null) {
           const prev = prevThinkingStableNodesRef.current
           const sameStable =
             incoming.length === prev.length &&
-            incoming.every((n, i) => n.id === prev[i].id)
+            incoming.every((n, i) => n.id === prev[i]?.id)
 
           const stableNodes = sameStable ? prev : incoming
           if (!sameStable) prevThinkingStableNodesRef.current = incoming
@@ -249,7 +249,7 @@ export function useAgentStream(conversationId: string | null) {
           let sameDraft = prevDraft.length === nextDraft.length
           if (sameDraft) {
             for (let i = 0; i < nextDraft.length; i++) {
-              if (prevDraft[i].id !== nextDraft[i].id) {
+              if (prevDraft[i]?.id !== nextDraft[i]?.id) {
                 sameDraft = false
                 break
               }
@@ -268,7 +268,7 @@ export function useAgentStream(conversationId: string | null) {
             stable_nodes: stableNodes,
             draft_nodes: doc.draft_nodes,
             toc_items: doc.toc_items,
-            artifact_specs: doc.artifact_specs,
+            artifact_specs: doc.artifact_specs
           }
           prevThinkingStableDocRef.current = stabilizedDoc
 
@@ -281,7 +281,7 @@ export function useAgentStream(conversationId: string | null) {
         }
 
         case 'thinking_done': {
-          const doc: NodeDocument = (event as any).thinking_document
+          const doc: NodeDocument = event.document
           if (doc) {
             setThinkingDocument(conversationId, doc)
           }
@@ -299,7 +299,7 @@ export function useAgentStream(conversationId: string | null) {
           }
           break
 
-        case 'cancelled' as any:
+        case 'cancelled':
           flushNow()
           resetStreamingRefs()
           resetThinkingStreamingRefs()

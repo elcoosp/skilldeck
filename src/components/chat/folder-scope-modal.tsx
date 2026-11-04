@@ -62,8 +62,8 @@ export const FolderScopeModal: React.FC<FolderScopeModalProps> = ({
         const res = await commands.listDirectoryContents(folderPath)
         if (res.status === 'ok') {
           const files = res.data
-            .filter((f: any) => !f.is_dir && f.name !== '.' && f.name !== '..')
-            .map((f: any) => f.name)
+            .filter((f) => !f.is_dir && f.name !== '.' && f.name !== '..')
+            .map((f) => f.name)
             .slice(0, 5)
           setPreviewFiles(files)
         }

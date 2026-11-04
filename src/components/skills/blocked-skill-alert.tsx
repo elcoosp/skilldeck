@@ -13,6 +13,7 @@ import {
   DialogTitle
 } from '@/components/ui/dialog'
 import type { RegistrySkillData } from '@/lib/bindings'
+import { isLintWarning } from '@/lib/lint-warnings'
 
 interface BlockedSkillAlertProps {
   skill: RegistrySkillData
@@ -25,9 +26,9 @@ export function BlockedSkillAlert({
   onCancel,
   onInstallAnyway
 }: BlockedSkillAlertProps) {
-  const securityErrors = skill.lintWarnings.filter(
-    (w: any) => w.rule_id.startsWith('sec-') && w.severity === 'error'
-  )
+  const securityErrors = skill.lintWarnings
+    .filter(isLintWarning)
+    .filter((w) => w.rule_id.startsWith('sec-') && w.severity === 'error')
 
   return (
     <Dialog open onOpenChange={(open) => !open && onCancel()}>
@@ -47,7 +48,7 @@ export function BlockedSkillAlert({
           <p className="text-xs font-semibold text-red-700 dark:text-red-400 uppercase tracking-wide">
             Issues detected ({securityErrors.length})
           </p>
-          {securityErrors.map((w: any) => (
+          {securityErrors.map((w) => (
             <div key={w.rule_id} className="text-sm">
               <p className="font-medium text-red-700 dark:text-red-300">
                 {w.message}

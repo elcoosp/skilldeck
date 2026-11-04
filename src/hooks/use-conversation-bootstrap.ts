@@ -1,16 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import type { QueuedMessage } from '@/hooks/use-queued-messages'
-import type { BranchInfo, HeadingItem, MessageData } from '@/lib/bindings' // <-- import binding types
 import { commands } from '@/lib/bindings'
 import type { UUID } from '@/lib/types'
-
-export interface ConversationBootstrapData {
-  messages: MessageData[]
-  branches: BranchInfo[] // use binding type
-  draft: [string, any[]] | null
-  queued: QueuedMessage[]
-  headings: HeadingItem[] // use binding type
-}
 
 export function useConversationBootstrap(conversationId: UUID | null) {
   return useQuery({
@@ -18,7 +8,7 @@ export function useConversationBootstrap(conversationId: UUID | null) {
     queryFn: async () => {
       if (!conversationId) return null
       const res = await commands.getConversationBootstrap(conversationId)
-      if (res.status === 'ok') return res.data as ConversationBootstrapData
+      if (res.status === 'ok') return res.data
       throw new Error(res.error)
     },
     enabled: !!conversationId,

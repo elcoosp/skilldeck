@@ -15,7 +15,7 @@ export function useConversations(profileId?: UUID | null) {
   return useQuery({
     queryKey: ['conversations', profileId],
     queryFn: async () => {
-      const res = await commands.listConversations(profileId ?? null, 50)
+      const res = await commands.listConversations(profileId ?? null, '50')
       if (res.status === 'ok') return res.data
       throw new Error(res.error)
     },

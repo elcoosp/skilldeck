@@ -39,7 +39,7 @@ export const ChatCommandPalette: React.FC<ChatCommandPaletteProps> = ({
   // Reset index on filter change
   useEffect(() => {
     setSelectedIndex(0)
-  }, [query])
+  }, [])
 
   // Focus input when opened
   useEffect(() => {
@@ -153,6 +153,12 @@ export const ChatCommandPalette: React.FC<ChatCommandPaletteProps> = ({
               )}
               onClick={() => onSelect(skill)}
               onMouseEnter={() => setSelectedIndex(index)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  onSelect(skill)
+                }
+              }}
             >
               <span className="font-medium truncate">{skill.name}</span>
               {skill.description && (

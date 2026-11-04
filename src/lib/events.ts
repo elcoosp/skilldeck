@@ -7,48 +7,19 @@
  */
 
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
+import type { AgentEvent, JsonValue } from '@/lib/bindings'
 import type { UUID } from './types'
-import type { NodeDocument } from '@/lib/bindings'
 
 // ============================================================================
 // Agent events  ("agent-event")
 // ============================================================================
 
-export type AgentEventType =
-  | 'started'
-  | 'token'
-  | 'tool_call'
-  | 'tool_result'
-  | 'done'
-  | 'error'
-  | 'persisted'
-  | 'tool_approval_required'
-  | 'stream_update'
-  | 'thinking_stream_update'
-  | 'thinking_done'
-
-export interface AgentEvent {
-  type: AgentEventType
-  conversation_id: string
-  delta?: string
-  tool_call?: ToolCallInfo
-  tool_call_id?: string
-  result?: string
-  input_tokens?: number
-  output_tokens?: number
-  message?: string
-  tool_name?: string
-  arguments?: Record<string, unknown>
-  draft_html?: string | null
-  slot_count?: number
-  new_toc_items?: any[]
-  new_artifact_specs?: any[]
-  thinking_document?: NodeDocument
-}
+export type { AgentEvent }
+export type AgentEventType = AgentEvent['type']
 export interface ToolCallInfo {
   id: string
   name: string
-  arguments: Record<string, unknown>
+  arguments: JsonValue
 }
 
 // ============================================================================
@@ -149,4 +120,13 @@ export function onQueueEvent(
   callback: (event: QueueEvent) => void
 ): Promise<UnlistenFn> {
   return listen<QueueEvent>('queue-event', (e) => callback(e.payload))
+}
+export type RunCodeEventType = 'stdout' | 'stderr' | 'exit'
+
+export interface RunCodeEvent {
+  type: RunCodeEventType
+  run_id: string
+  line: string
+  code?: number
+  elapsed_ms?: number
 }

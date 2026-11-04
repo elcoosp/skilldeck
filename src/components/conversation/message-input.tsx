@@ -1,12 +1,12 @@
 // src/components/conversation/message-input.tsx
 // Full file with concierge-ui additions (suggested prompts, auto-approve toggle, thinking mode, compaction)
 
+import { useQueryClient } from '@tanstack/react-query'
 import { open } from '@tauri-apps/plugin-dialog'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
   AlertTriangle,
-  AtSign,
   BrainCircuit,
   DollarSign,
   Globe,
@@ -26,9 +26,7 @@ import {
   useRef,
   useState
 } from 'react'
-import { toast } from '@/components/ui/toast'
 import { useDebouncedCallback } from 'use-debounce'
-import { AttachedItemsList } from '@/components/chat/attached-items-list'
 import { ChatCommandPalette } from '@/components/chat/chat-command-palette'
 import { ContextChip } from '@/components/chat/context-chip'
 import { FileMentionPicker } from '@/components/chat/file-mention-picker'
@@ -44,6 +42,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Textarea } from '@/components/ui/textarea'
+import { toast } from '@/components/ui/toast'
 import {
   Tooltip,
   TooltipContent,
@@ -61,8 +60,9 @@ import {
 import { useUnifiedSkills } from '@/hooks/use-unified-skills'
 import { useWorkspaces } from '@/hooks/use-workspaces'
 import { playSound } from '@/lib/audio'
-import type { ContextItem, RegistrySkillData } from '@/lib/bindings'
+import type { ContextItem, JsonValue, RegistrySkillData } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
+import { isLintWarning } from '@/lib/lint-warnings'
 import type { UUID } from '@/lib/types'
 import { extractUrls } from '@/lib/url-detection'
 import { cn } from '@/lib/utils'
@@ -70,21 +70,130 @@ import { useChatContextStore } from '@/store/chat-context-store'
 import { useConversationStore } from '@/store/conversation'
 import { useQueueStore } from '@/store/queue'
 import { useSettingsStore } from '@/store/settings'
-import { useToolApprovalStore } from '@/store/tool-approvals'
 import { useUIEphemeralStore } from '@/store/ui-ephemeral'
 import { useWorkspaceStore } from '@/store/workspace'
 import type {
+  AttachedFile,
+  AttachedFolder,
+  AttachedItem,
   FileEntry,
   FolderCounts,
   TriggerState
 } from '@/types/chat-context'
 import type { UnifiedSkill } from '@/types/skills'
-import { useQueryClient } from '@tanstack/react-query'
 
 interface MessageInputProps {
   conversationId: UUID
   workspaceRoot?: string
   onRequestScrollToBottom?: () => void
+}
+
+// ─── Draft item restoration helpers ──────────────────────────────────────────
+// Draft context items are persisted as JSON (see debouncedSaveDraft); validate
+// each stored value before handing it back to the context store.
+type JsonObject = Partial<{ [key: string]: JsonValue }>
+
+const asJsonObject = (value: JsonValue): JsonObject | null =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? value
+    : null
+
+const isNullableString = (
+  value: JsonValue | undefined
+): value is string | null => value === null || typeof value === 'string'
+
+const isStringArray = (value: JsonValue | undefined): value is string[] =>
+  Array.isArray(value) && value.every((v) => typeof v === 'string')
+
+const toDraftFile = (data: JsonValue): AttachedFile['data'] | null => {
+  const obj = asJsonObject(data)
+  if (!obj) return null
+  const { id, name, path, size } = obj
+  if (
+    typeof id !== 'string' ||
+    typeof name !== 'string' ||
+    typeof path !== 'string'
+  )
+    return null
+  return { id, name, path, size: typeof size === 'number' ? size : undefined }
+}
+
+const toDraftFolder = (data: JsonValue): AttachedFolder['data'] | null => {
+  const obj = asJsonObject(data)
+  if (!obj) return null
+  const { id, name, path, scope, fileCount } = obj
+  if (
+    typeof id !== 'string' ||
+    typeof name !== 'string' ||
+    typeof path !== 'string' ||
+    (scope !== 'shallow' && scope !== 'deep') ||
+    typeof fileCount !== 'number'
+  )
+    return null
+  return { id, name, path, scope, fileCount }
+}
+
+const toDraftSkill = (data: JsonValue): RegistrySkillData | null => {
+  const obj = asJsonObject(data)
+  if (!obj) return null
+  const {
+    id,
+    name,
+    description,
+    source,
+    sourceUrl,
+    version,
+    author,
+    license,
+    tags,
+    category,
+    lintWarnings,
+    securityScore,
+    qualityScore,
+    metadataSource,
+    content,
+    createdAt,
+    updatedAt
+  } = obj
+  if (
+    typeof id !== 'string' ||
+    typeof name !== 'string' ||
+    typeof description !== 'string' ||
+    typeof source !== 'string' ||
+    !isNullableString(sourceUrl) ||
+    !isNullableString(version) ||
+    !isNullableString(author) ||
+    !isNullableString(license) ||
+    !isStringArray(tags) ||
+    !isNullableString(category) ||
+    !Array.isArray(lintWarnings) ||
+    typeof securityScore !== 'number' ||
+    typeof qualityScore !== 'number' ||
+    typeof metadataSource !== 'string' ||
+    typeof content !== 'string' ||
+    typeof createdAt !== 'string' ||
+    typeof updatedAt !== 'string'
+  )
+    return null
+  return {
+    id,
+    name,
+    description,
+    source,
+    sourceUrl,
+    version,
+    author,
+    license,
+    tags,
+    category,
+    lintWarnings,
+    securityScore,
+    qualityScore,
+    metadataSource,
+    content,
+    createdAt,
+    updatedAt
+  }
 }
 
 interface FileChip {
@@ -213,11 +322,11 @@ export function MessageInput({
     if (!el) return
     el.style.height = 'auto'
     el.style.height = `${Math.min(el.scrollHeight, MAX_HEIGHT)}px`
-  }, [content])
+  }, [])
 
   useEffect(() => {
     textareaRef.current?.focus()
-  }, [conversationId])
+  }, [])
 
   // ─── Draft persistence: load from DB on mount ────────────────────────────────
   useEffect(() => {
@@ -228,11 +337,19 @@ export function MessageInput({
         if (res.status === 'ok' && res.data) {
           const [text, items] = res.data
           setContent(text)
-          items.forEach((item: any) => {
-            if (item.type === 'file') addFile(conversationId, item.data)
-            else if (item.type === 'folder')
-              addFolder(conversationId, item.data)
-            else if (item.type === 'skill') addSkill(conversationId, item.data)
+          items.forEach((item) => {
+            const obj = asJsonObject(item)
+            if (!obj) return
+            if (obj.type === 'file') {
+              const file = toDraftFile(obj.data ?? null)
+              if (file) addFile(conversationId, file)
+            } else if (obj.type === 'folder') {
+              const folder = toDraftFolder(obj.data ?? null)
+              if (folder) addFolder(conversationId, folder)
+            } else if (obj.type === 'skill') {
+              const skill = toDraftSkill(obj.data ?? null)
+              if (skill) addSkill(conversationId, skill)
+            }
           })
         }
       })
@@ -241,7 +358,7 @@ export function MessageInput({
 
   // ─── Debounced save draft to DB ─────────────────────────────────────────────
   const debouncedSaveDraft = useDebouncedCallback(
-    (text: string, items: any[]) => {
+    (text: string, items: AttachedItem[]) => {
       if (!conversationId) return
       const itemsJson = items.map((item) => item.data)
       commands
@@ -375,8 +492,9 @@ export function MessageInput({
         const hasDanger =
           skill.registryData.securityScore < 2 ||
           rawWarnings.some(
-            (w: any) =>
-              w.severity === 'error' || (w.rule_id ?? '').includes('sec-')
+            (w) =>
+              isLintWarning(w) &&
+              (w.severity === 'error' || w.rule_id.includes('sec-'))
           )
 
         if (hasDanger) {

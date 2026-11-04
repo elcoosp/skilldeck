@@ -1,5 +1,5 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from '@/components/ui/toast'
 import { ACHIEVEMENTS, type AchievementId } from '@/lib/achievements'
 import { commands } from '@/lib/bindings'
@@ -31,27 +31,31 @@ export function useAchievements() {
       if (res.status === 'ok') return res.data.map((a) => a.id)
       return []
     },
-    staleTime: Infinity,
+    staleTime: Infinity
   })
 
   const unlockMutation = useMutation({
     mutationFn: async (id: AchievementId) => {
-      const res = await commands.unlockAchievement(id)
+      const res = await commands.unlockAchievement(ACHIEVEMENTS[id].id)
       if (res.status === 'error') throw new Error(res.error)
     },
     onSuccess: (_data, id) => {
-      queryClient.setQueryData(['achievements'], (old: string[] = []) => [...old, id])
+      queryClient.setQueryData(['achievements'], (old: string[] = []) => [
+        ...old,
+        ACHIEVEMENTS[id].id
+      ])
       const ach = ACHIEVEMENTS[id]
       toast.success(`${ach.emoji} Achievement Unlocked: ${ach.title}`, {
         description: ach.description,
-        duration: 4000,
+        duration: 4000
       })
-    },
+    }
   })
 
   const unlock = useCallback(
     (id: AchievementId) => {
-      if (!unlockedIds.includes(id) && !unlockMutation.isPending) {
+      const canUnlock = !unlockedIds.includes(ACHIEVEMENTS[id].id)
+      if (canUnlock && !unlockMutation.isPending) {
         unlockMutation.mutate(id)
       }
     },
@@ -60,7 +64,7 @@ export function useAchievements() {
 
   const isUnlocked = useCallback(
     (id: AchievementId): boolean => {
-      return unlockedIds.includes(id)
+      return unlockedIds.includes(ACHIEVEMENTS[id].id)
     },
     [unlockedIds]
   )

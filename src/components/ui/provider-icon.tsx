@@ -74,7 +74,13 @@ interface ProviderIconProps {
 }
 
 // Strict exact-match map for Providers
-const providerMap: Record<string, React.ComponentType<any>> = {
+type IconComponent = React.ComponentType<{
+  size?: string | number
+  className?: string
+  type?: string
+}>
+
+const providerMap: Record<string, IconComponent> = {
   openai: OpenAI,
   anthropic: Anthropic,
   google: Google,

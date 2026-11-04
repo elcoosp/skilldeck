@@ -148,9 +148,11 @@ function stripHtml(html: string): string {
 function extractListItems(html: string): string[] {
   const items: string[] = []
   const re = /<li[^>]*>([\s\S]*?)<\/li>/gi
-  let m
-  while ((m = re.exec(html)) !== null) {
-    const t = stripHtml(m[1])
+  let m: RegExpExecArray | null = null
+  for (;;) {
+    m = re.exec(html)
+    if (!m) break
+    const t = stripHtml(m[1] ?? '')
     if (t) items.push(t)
   }
   return items.length > 0 ? items : [stripHtml(html)]
@@ -294,9 +296,7 @@ function prepareBlocks(
       case 'code':
         return {
           kind: 'code',
-          prepared: prepareItem({ text: b.rawCode || NBSP }, schemas.code, {
-            whiteSpace: 'pre-wrap'
-          })
+          prepared: prepareItem({ text: b.rawCode || NBSP }, schemas.code)
         }
       case 'list':
         return {
@@ -309,6 +309,10 @@ function prepareBlocks(
         return { kind: 'hr' }
       case 'html':
         return { kind: 'html' }
+      default: {
+        const _exhaustive: never = b
+        throw new Error(`Unhandled block kind: ${_exhaustive}`)
+      }
     }
   })
 }
@@ -343,9 +347,9 @@ function layoutBlocks(
 ): number {
   if (blocks.length === 0) return 0
   let total = 0
+  let prevBlock: PreparedBlock | undefined
 
-  for (let i = 0; i < blocks.length; i++) {
-    const block = blocks[i]
+  for (const block of blocks) {
     let h: number
 
     switch (block.kind) {
@@ -372,8 +376,8 @@ function layoutBlocks(
       case 'list': {
         let lh = 0
         const itemW = Math.max(60, textAreaWidth - c.listIndent)
-        for (let j = 0; j < block.items.length; j++) {
-          lh += layoutItem(block.items[j], itemW, schemas.text)
+        for (const [j, item] of block.items.entries()) {
+          lh += layoutItem(item, itemW, schemas.text)
           if (j > 0) lh += c.listItemGap
         }
         h = lh
@@ -387,12 +391,13 @@ function layoutBlocks(
         break
     }
 
-    if (i > 0) {
-      const prevBottom = getMargin(blocks[i - 1], 'bottom', c)
+    if (prevBlock !== undefined) {
+      const prevBottom = getMargin(prevBlock, 'bottom', c)
       const thisTop = getMargin(block, 'top', c)
       total += Math.max(prevBottom, thisTop)
     }
     total += h
+    prevBlock = block
   }
   return total
 }
@@ -431,8 +436,7 @@ export class MarkdownHeightEngine {
           draft: [],
           userPrepared: prepareItem(
             { text: content || NBSP },
-            this.schemas.userText,
-            { whiteSpace: 'pre-wrap' }
+            this.schemas.userText
           )
         })
       }

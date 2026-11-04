@@ -88,7 +88,7 @@ function parseHEX(color: Color, opacity: number): RGBA | Color {
     return `rgba(${parse(hex.slice(0, 2))},${parse(hex.slice(2, 4))},${parse(hex.slice(4, 6))},${opacity})`
   }
   if (/^[0-9A-Fa-f]{3}$/.test(hex)) {
-    return `rgba(${parse(hex[0] + hex[0])},${parse(hex[1] + hex[1])},${parse(hex[2] + hex[2])},${opacity})`
+    return `rgba(${parse(hex.slice(0, 1) + hex.slice(0, 1))},${parse(hex.slice(1, 2) + hex.slice(1, 2))},${parse(hex.slice(2, 3) + hex.slice(2, 3))},${opacity})`
   }
 
   return color

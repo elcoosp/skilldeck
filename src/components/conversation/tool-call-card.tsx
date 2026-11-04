@@ -68,7 +68,11 @@ function synthesizeDescription(
     const cmd = args.command ?? args.cmd ?? ''
     return `Run: ${cmd}`
   }
-  if (lowerName.includes('http_get') || lowerName.includes('fetch')) {
+  if (
+    lowerName.includes('http_request') ||
+    lowerName.includes('http_get') ||
+    lowerName.includes('fetch')
+  ) {
     const url = args.url ?? args.uri ?? ''
     return `GET: ${url}`
   }
@@ -91,7 +95,7 @@ export function ToolCallCard({
   isError = false
 }: ToolCallCardProps) {
   const [open, setOpen] = useState(false)
-  const Icon = TOOL_ICONS[name] ?? TOOL_ICONS.default
+  const Icon = TOOL_ICONS[name] ?? Wrench
   const description = synthesizeDescription(name, args)
 
   const copyResult = async () => {

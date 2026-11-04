@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { useChatContextStore } from '@/store/chat-context-store'
 import { useConversationStore } from '@/store/conversation'
 import { useUILayoutStore } from '@/store/ui-layout'
+import type { AttachedFile } from '@/types/chat-context'
 
 type DragDropPayload =
   | { type: 'enter'; paths: string[]; position: { x: number; y: number } }
@@ -127,9 +128,8 @@ export function GlobalDropZone() {
             const targetItems = itemsMap[targetId] ?? []
             const existingPaths = new Set(
               targetItems
-                .filter((item) => item.type === 'file')
-                .map((item) => (item as any).data?.path)
-                .filter((p): p is string => !!p)
+                .filter((item): item is AttachedFile => item.type === 'file')
+                .map((item) => item.data.path)
             )
 
             const newPaths = paths.filter((p) => !existingPaths.has(p))

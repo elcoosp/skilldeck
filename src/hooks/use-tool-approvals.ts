@@ -2,12 +2,13 @@
 
 import { listen } from '@tauri-apps/api/event'
 import { useEffect } from 'react'
+import type { JsonValue } from '@/lib/bindings'
 import { useToolApprovalStore } from '@/store/tool-approvals'
 
 interface ApprovalEventPayload {
   toolCallId: string
   toolName: string
-  arguments: Record<string, unknown>
+  arguments: JsonValue
   conversationId: string
 }
 
@@ -19,8 +20,8 @@ export function useToolApprovals(conversationId: string | null) {
 
     let unlisten: (() => void) | undefined
 
-    const _setup = async () => {
-      const _unlistenFn = await listen<ApprovalEventPayload>(
+    const setup = async () => {
+      unlisten = await listen<ApprovalEventPayload>(
         'tool-approval-requested',
         (event) => {
           if (event.payload.conversationId !== conversationId) return
@@ -32,6 +33,8 @@ export function useToolApprovals(conversationId: string | null) {
         }
       )
     }
+
+    setup()
 
     return () => {
       if (unlisten) unlisten()

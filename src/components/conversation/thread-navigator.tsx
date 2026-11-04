@@ -43,8 +43,9 @@ const ThreadNavigator = memo(function ThreadNavigator({
   const headingsByMessage = useMemo(() => {
     const map = new Map<string, HeadingItem[]>()
     for (const h of headings) {
-      if (!map.has(h.message_id)) map.set(h.message_id, [])
-      map.get(h.message_id)!.push(h)
+      const existing = map.get(h.message_id)
+      if (existing) existing.push(h)
+      else map.set(h.message_id, [h])
     }
     return map
   }, [headings])
@@ -302,14 +303,20 @@ const ThreadNavigator = memo(function ThreadNavigator({
           e.preventDefault()
           const cur = s.userMessages.findIndex((u) => u.idx === s.activeIndex)
           const next = Math.min(s.userMessages.length - 1, cur + 1)
-          if (next !== cur) onScrollTo(s.userMessages[next].idx)
+          if (next !== cur) {
+            const nextMsg = s.userMessages[next]
+            if (nextMsg) onScrollTo(nextMsg.idx)
+          }
           return
         }
         if (e.key === 'k' || e.key === 'K') {
           e.preventDefault()
           const cur = s.userMessages.findIndex((u) => u.idx === s.activeIndex)
           const prev = Math.max(0, cur - 1)
-          if (prev !== cur) onScrollTo(s.userMessages[prev].idx)
+          if (prev !== cur) {
+            const prevMsg = s.userMessages[prev]
+            if (prevMsg) onScrollTo(prevMsg.idx)
+          }
           return
         }
         if (e.key === '?') {

@@ -53,8 +53,8 @@ export function OnboardingWizard() {
       if (res.status === 'error') throw new Error(res.error)
       toast.success('API key saved')
       setStep('platform')
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Failed to save key')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e))
     } finally {
       setSaving(false)
     }

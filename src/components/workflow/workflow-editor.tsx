@@ -2,7 +2,6 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { toast } from '@/components/ui/toast'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -13,13 +12,15 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { toast } from '@/components/ui/toast'
+import type { JsonValue } from '@/lib/bindings'
 import { commands } from '@/lib/bindings'
 
 interface WorkflowEditorProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   id?: string
-  initialDefinition?: any
+  initialDefinition?: JsonValue
   onSaved?: () => void
 }
 
@@ -30,20 +31,27 @@ export function WorkflowEditor({
   initialDefinition,
   onSaved
 }: WorkflowEditorProps) {
-  const [name, setName] = useState(initialDefinition?.name ?? '')
+  const initialName =
+    typeof initialDefinition === 'object' &&
+    initialDefinition !== null &&
+    !Array.isArray(initialDefinition) &&
+    typeof initialDefinition.name === 'string'
+      ? initialDefinition.name
+      : ''
+  const [name, setName] = useState(initialName)
   const [definitionText, setDefinitionText] = useState(
     initialDefinition
       ? JSON.stringify(initialDefinition, null, 2)
       : JSON.stringify(
-        {
-          name: '',
-          pattern: 'sequential',
-          steps: [],
-          dependencies: []
-        },
-        null,
-        2
-      )
+          {
+            name: '',
+            pattern: 'sequential',
+            steps: [],
+            dependencies: []
+          },
+          null,
+          2
+        )
   )
   const [error, setError] = useState<string | null>(null)
 
@@ -51,11 +59,11 @@ export function WorkflowEditor({
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      let parsed: any
+      let parsed: JsonValue
       try {
         parsed = JSON.parse(definitionText)
       } catch (e) {
-        const msg = (e as Error).message
+        const msg = e instanceof Error ? e.message : String(e)
         setError(`Invalid JSON: ${msg}`)
         throw new Error(`Invalid JSON: ${msg}`)
       }
@@ -66,7 +74,10 @@ export function WorkflowEditor({
         if (res.status === 'error') throw new Error(res.error)
         return res.data
       } else {
-        const res = await commands.saveWorkflowDefinition({ name, definition: parsed })
+        const res = await commands.saveWorkflowDefinition({
+          name,
+          definition: parsed
+        })
         if (res.status === 'error') throw new Error(res.error)
         return res.data
       }

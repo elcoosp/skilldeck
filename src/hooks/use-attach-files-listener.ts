@@ -2,6 +2,7 @@ import { listen } from '@tauri-apps/api/event'
 import { useEffect } from 'react'
 import { toast } from '@/components/ui/toast'
 import { useChatContextStore } from '@/store/chat-context-store'
+import type { AttachedFile } from '@/types/chat-context'
 
 export function useAttachFilesListener() {
   const addFile = useChatContextStore((s) => s.addFile)
@@ -20,9 +21,8 @@ export function useAttachFilesListener() {
           const currentItems = itemsMap[conversation_id] ?? []
           const existingPaths = new Set(
             currentItems
-              .filter((item) => item.type === 'file')
-              .map((item) => (item as any).data?.path)
-              .filter((p): p is string => !!p)
+              .filter((item): item is AttachedFile => item.type === 'file')
+              .map((item) => item.data.path)
           )
 
           const newPaths = paths.filter((p) => !existingPaths.has(p))

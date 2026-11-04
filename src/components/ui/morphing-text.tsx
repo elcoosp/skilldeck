@@ -29,8 +29,9 @@ const useMorphingText = (texts: string[]) => {
       )}px)`
       current1.style.opacity = `${invertedFraction ** 0.4 * 100}%`
 
-      current1.textContent = texts[textIndexRef.current % texts.length]
-      current2.textContent = texts[(textIndexRef.current + 1) % texts.length]
+      current1.textContent = texts[textIndexRef.current % texts.length] ?? ''
+      current2.textContent =
+        texts[(textIndexRef.current + 1) % texts.length] ?? ''
     },
     [texts]
   )
@@ -116,6 +117,7 @@ const SvgFilters: React.FC = () => (
     className="fixed h-0 w-0"
     preserveAspectRatio="xMidYMid slice"
   >
+    <title>Shape morphing filters</title>
     <defs>
       <filter id="threshold">
         <feColorMatrix

@@ -43,14 +43,15 @@ export function useWorkflowEvents() {
 
         case 'step_started':
           if (event.workflow_id && event.step_id) {
+            const { workflow_id, step_id } = event
             setProgress((prev) => {
-              if (!prev || prev.workflowId !== event.workflow_id) return prev
+              if (!prev || prev.workflowId !== workflow_id) return prev
               return {
                 ...prev,
                 steps: {
                   ...prev.steps,
-                  [event.step_id!]: {
-                    stepId: event.step_id!,
+                  [step_id]: {
+                    stepId: step_id,
                     status: 'running'
                   }
                 }
@@ -61,14 +62,15 @@ export function useWorkflowEvents() {
 
         case 'step_completed':
           if (event.workflow_id && event.step_id) {
+            const { workflow_id, step_id } = event
             setProgress((prev) => {
-              if (!prev || prev.workflowId !== event.workflow_id) return prev
+              if (!prev || prev.workflowId !== workflow_id) return prev
               return {
                 ...prev,
                 steps: {
                   ...prev.steps,
-                  [event.step_id!]: {
-                    stepId: event.step_id!,
+                  [step_id]: {
+                    stepId: step_id,
                     status: 'completed',
                     result: event.result ?? undefined
                   }

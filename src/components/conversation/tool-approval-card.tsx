@@ -1,9 +1,9 @@
 import { AlertTriangle, Check, Edit2, X } from 'lucide-react'
 import { useState } from 'react'
-import { toast } from '@/components/ui/toast'
 import { Button } from '@/components/ui/button'
+import { toast } from '@/components/ui/toast'
 import { useAchievements } from '@/hooks/use-achievements'
-import { commands } from '@/lib/bindings'
+import { commands, type JsonValue } from '@/lib/bindings'
 import type { ToolCallInfo } from '@/lib/events'
 import { cn } from '@/lib/utils'
 
@@ -28,7 +28,7 @@ export function ToolApprovalCard({
   const resolve = async (approved: boolean) => {
     setResolving(true)
     try {
-      let parsed: Record<string, unknown> | null = null
+      let parsed: JsonValue | null = null
       if (approved && isEditing) {
         try {
           parsed = JSON.parse(editedArgs)
@@ -38,11 +38,10 @@ export function ToolApprovalCard({
           return
         }
       }
-      const jsonValue = parsed as any
       const res = await commands.resolveToolApproval(
         toolCallId,
         approved,
-        jsonValue
+        parsed
       )
       if (res.status === 'error') throw new Error(res.error)
       if (approved) {

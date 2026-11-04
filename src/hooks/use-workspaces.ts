@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { commands, WorkspaceData } from '@/lib/bindings'
+import { commands, type WorkspaceData } from '@/lib/bindings'
 import type { UUID } from '@/lib/types'
 
 export function useWorkspaces() {
@@ -45,7 +45,13 @@ export function useUpdateWorkspace() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ id, avatar_style }: { id: UUID; avatar_style: string }) => {
+    mutationFn: async ({
+      id,
+      avatar_style
+    }: {
+      id: UUID
+      avatar_style: string
+    }) => {
       const res = await commands.updateWorkspace(id, avatar_style)
       if (res.status === 'error') throw new Error(res.error)
       return res.data
@@ -55,7 +61,9 @@ export function useUpdateWorkspace() {
       await queryClient.cancelQueries({ queryKey: ['workspaces'] })
 
       // Snapshot previous value
-      const previousWorkspaces = queryClient.getQueryData<WorkspaceData[]>(['workspaces'])
+      const previousWorkspaces = queryClient.getQueryData<WorkspaceData[]>([
+        'workspaces'
+      ])
 
       // Optimistically update the cache
       queryClient.setQueryData<WorkspaceData[]>(['workspaces'], (old) => {
@@ -66,7 +74,7 @@ export function useUpdateWorkspace() {
       // Return context with snapshot for rollback
       return { previousWorkspaces }
     },
-    onError: (err, variables, context) => {
+    onError: (_err, _variables, context) => {
       // Rollback on error
       queryClient.setQueryData(['workspaces'], context?.previousWorkspaces)
     },

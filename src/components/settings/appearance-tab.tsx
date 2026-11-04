@@ -46,6 +46,7 @@ export function AppearanceTab() {
           {(['sm', 'md', 'lg'] as const).map((size) => (
             <button
               key={size}
+              type="button"
               onClick={() => setFontSize(size)}
               className={cn(
                 'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
@@ -79,8 +80,14 @@ export function AppearanceTab() {
         </div>
         {audioEnabled && (
           <div className="mt-3">
-            <label className="text-sm text-muted-foreground">Volume</label>
+            <label
+              htmlFor="volume-range"
+              className="text-sm text-muted-foreground"
+            >
+              Volume
+            </label>
             <input
+              id="volume-range"
               type="range"
               min="0"
               max="1"

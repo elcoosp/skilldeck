@@ -19,17 +19,21 @@ function parseColor(color: string): { r: number; g: number; b: number } | null {
   }
   const rgbMatch = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/)
   if (rgbMatch) {
-    return {
-      r: parseInt(rgbMatch[1], 10),
-      g: parseInt(rgbMatch[2], 10),
-      b: parseInt(rgbMatch[3], 10)
+    const [, r, g, b] = rgbMatch
+    if (r !== undefined && g !== undefined && b !== undefined) {
+      return {
+        r: parseInt(r, 10),
+        g: parseInt(g, 10),
+        b: parseInt(b, 10)
+      }
     }
   }
   const named: Record<string, { r: number; g: number; b: number }> = {
     white: { r: 255, g: 255, b: 255 },
     black: { r: 0, g: 0, b: 0 }
   }
-  if (named[color]) return named[color]
+  const namedColor = named[color]
+  if (namedColor) return namedColor
   return null
 }
 

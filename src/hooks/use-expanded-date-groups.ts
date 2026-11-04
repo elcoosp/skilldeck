@@ -1,9 +1,8 @@
-import { useNavigate } from '@tanstack/react-router'
 import { useCallback, useMemo } from 'react'
 import { Route } from '@/routes/__root'
 
 export function useExpandedDateGroups() {
-  const navigate = useNavigate()
+  const navigate = Route.useNavigate()
   const { expandedDateGroups } = Route.useSearch()
 
   const groupKeys = useMemo(() => {
@@ -19,11 +18,11 @@ export function useExpandedDateGroups() {
         ? current.filter((k) => k !== key)
         : [...current, key]
       navigate({
-        search: (prev: any) => ({
+        search: (prev) => ({
           ...prev,
           expandedDateGroups: next.length ? next.join(',') : undefined
         })
-      } as any)
+      })
     },
     [navigate, expandedDateGroups]
   )

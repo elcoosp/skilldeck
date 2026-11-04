@@ -1,9 +1,8 @@
 // src/components/conversation/message-bubble.tsx
 import { save } from '@tauri-apps/plugin-dialog'
 import { writeTextFile } from '@tauri-apps/plugin-fs'
-import { AnimatePresence, motion } from 'framer-motion'
+import { motion } from 'framer-motion'
 import {
-  AlertCircle,
   Bookmark,
   BookmarkCheck,
   Bot,
@@ -29,7 +28,6 @@ import React, {
   useRef,
   useState
 } from 'react'
-import { toast } from '@/components/ui/toast'
 import { ContextChip } from '@/components/chat/context-chip'
 import { MarkdownView } from '@/components/markdown-view'
 import {
@@ -50,6 +48,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Textarea } from '@/components/ui/textarea'
+import { toast } from '@/components/ui/toast'
 import {
   Tooltip,
   TooltipContent,
@@ -229,7 +228,7 @@ export interface CollapsibleHandle {
   isCollapsed: () => boolean
 }
 
-const textDocCache = new Map<string, NodeDocument>()
+const textDocCache = new Map<string, { content: string; doc: NodeDocument }>()
 
 function getTextNodeDocument(
   messageId: string,
@@ -237,7 +236,7 @@ function getTextNodeDocument(
 ): NodeDocument | null {
   if (!content) return null
   const cached = textDocCache.get(messageId)
-  if (cached) return cached
+  if (cached && cached.content === content) return cached.doc
 
   const escaped = content.replace(/[&<>]/g, (m) => {
     if (m === '&') return '&amp;'
@@ -256,7 +255,7 @@ function getTextNodeDocument(
     toc_items: [],
     artifact_specs: []
   }
-  textDocCache.set(messageId, doc)
+  textDocCache.set(messageId, { content, doc })
   return doc
 }
 
@@ -301,7 +300,7 @@ function MessageBubbleInner({
 
   const createBranch = useCreateBranch()
   const editMessage = useEditMessage()
-  const sendMessage = useSendMessage(activeConversationId!)
+  const sendMessage = useSendMessage(activeConversationId ?? '')
   const editingMessageId = useUIEphemeralStore((s) => s.editingMessageId)
   const setEditingMessageId = useUIEphemeralStore((s) => s.setEditingMessageId)
 
@@ -540,7 +539,8 @@ function MessageBubbleInner({
       })
       // Resend the edited message to trigger agent
       await sendMessage.mutateAsync({
-        content: editContent.trim()
+        content: editContent.trim(),
+        thinking: false
       })
       setIsInlineEditing(false)
       setEditingMessageId(null)
@@ -566,7 +566,7 @@ function MessageBubbleInner({
     }
   }
 
-  let subagentData: any = null
+  let subagentData: { subagentId?: string; task?: string } | null = null
   if (isAssistant && !isStreaming && message.content) {
     try {
       subagentData = JSON.parse(message.content)
@@ -579,7 +579,7 @@ function MessageBubbleInner({
       <SubagentCard
         stepName={subagentData.task || 'Subagent'}
         status="running"
-        onOpen={() => { }}
+        onOpen={() => {}}
       />
     )
   }
@@ -601,7 +601,7 @@ function MessageBubbleInner({
 
     const { blocks, isError } = parseToolContent(message.content)
     const combinedText = blocks.map((b) => b.text).join('\n\n')
-    const toolName = (message.metadata as any)?.tool_name as string | undefined
+    const toolName = message.metadata?.tool_name ?? undefined
 
     return (
       <div className="ml-10">
@@ -616,10 +616,7 @@ function MessageBubbleInner({
 
   // Assistant AND System messages share the same layout
   if (isAssistant || isSystem || syntheticStreaming) {
-    const nodeDocument = (message as any).node_document as
-      | NodeDocument
-      | null
-      | undefined
+    const nodeDocument = message.node_document
     const documentToRender =
       (nodeDocument != null ? nodeDocument : null) ??
       streamingMessage ??
@@ -647,7 +644,7 @@ function MessageBubbleInner({
       if (!dateStr) return 'just now'
       try {
         const date = new Date(dateStr)
-        if (isNaN(date.getTime())) return 'just now'
+        if (Number.isNaN(date.getTime())) return 'just now'
         return date.toLocaleTimeString()
       } catch {
         return 'just now'
@@ -656,12 +653,20 @@ function MessageBubbleInner({
     const timeString = formatTime(message.created_at)
 
     // Avatar and role label
-    const avatarIcon = isSystem ? <FileText className="size-3.5" /> : <Bot className="size-3.5" />
+    const avatarIcon = isSystem ? (
+      <FileText className="size-3.5" />
+    ) : (
+      <Bot className="size-3.5" />
+    )
     const avatarClass = isSystem
       ? 'bg-blue-500/20 text-blue-500'
       : 'bg-muted text-foreground'
     const roleLabel = isSystem
-      ? (message.content.startsWith('[Compacted summary of previous conversation]') ? 'System: Compacted summary' : 'System')
+      ? message.content.startsWith(
+          '[Compacted summary of previous conversation]'
+        )
+        ? 'System: Compacted summary'
+        : 'System'
       : 'Assistant'
 
     return (
@@ -765,9 +770,12 @@ function MessageBubbleInner({
 
             {contextItems.length > 0 && (
               <div className="flex flex-wrap gap-1 mb-2">
-                {contextItems.map((item: any, idx: number) => (
+                {contextItems.map((item, idx) => (
                   <ContextChip
-                    key={item.path || item.name || `item-${idx}`}
+                    key={
+                      ('path' in item ? item.path || item.name : item.name) ||
+                      `item-${idx}`
+                    }
                     item={item}
                     readonly
                   />
@@ -786,7 +794,7 @@ function MessageBubbleInner({
                   document={
                     isStreaming
                       ? thinkingDoc
-                      : (message as any).thinking_document ?? null
+                      : (message.thinking_document ?? null)
                   }
                   messageId={message.id}
                   conversationId={activeConversationId}
@@ -850,7 +858,7 @@ function MessageBubbleInner({
         <CreateBranchModal
           open={branchModalOpen}
           onClose={() => setBranchModalOpen(false)}
-          conversationId={activeConversationId!}
+          conversationId={activeConversationId ?? ''}
           parentMessageId={message.id}
         />
       </motion.div>
@@ -868,7 +876,7 @@ function MessageBubbleInner({
     if (!dateStr) return 'just now'
     try {
       const date = new Date(dateStr)
-      if (isNaN(date.getTime())) return 'just now'
+      if (Number.isNaN(date.getTime())) return 'just now'
       return date.toLocaleTimeString()
     } catch {
       return 'just now'
@@ -931,7 +939,7 @@ function MessageBubbleInner({
         <CreateBranchModal
           open={branchModalOpen}
           onClose={() => setBranchModalOpen(false)}
-          conversationId={activeConversationId!}
+          conversationId={activeConversationId ?? ''}
           parentMessageId={message.id}
         />
       </motion.div>
@@ -1007,9 +1015,12 @@ function MessageBubbleInner({
 
             {contextItems.length > 0 && (
               <div className="flex flex-wrap gap-1 mb-2">
-                {contextItems.map((item: any, idx: number) => (
+                {contextItems.map((item, idx) => (
                   <ContextChip
-                    key={item.path || item.name || `item-${idx}`}
+                    key={
+                      ('path' in item ? item.path || item.name : item.name) ||
+                      `item-${idx}`
+                    }
                     item={item}
                     readonly
                   />
@@ -1126,7 +1137,7 @@ function MessageBubbleInner({
       <CreateBranchModal
         open={branchModalOpen}
         onClose={() => setBranchModalOpen(false)}
-        conversationId={activeConversationId!}
+        conversationId={activeConversationId ?? ''}
         parentMessageId={message.id}
       />
     </motion.div>

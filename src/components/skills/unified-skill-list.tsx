@@ -2,11 +2,22 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from '@tanstack/react-router'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { motion } from 'framer-motion'
-import { AlertCircle, RefreshCw, Search, X } from 'lucide-react'
+import {
+  AlertCircle,
+  FolderOpen,
+  Globe,
+  RefreshCw,
+  Search,
+  X
+} from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { toast } from '@/components/ui/toast'
 import { useDebounce } from 'use-debounce'
+import { RightPanelHeader } from '@/components/layout/right-panel-header'
+import { AnimatedSuccessIcon } from '@/components/ui/animated-success-icon'
 import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
+import { Input } from '@/components/ui/input'
+import { LoadingState } from '@/components/ui/loading-state'
 import {
   Select,
   SelectContent,
@@ -15,6 +26,7 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { toast } from '@/components/ui/toast'
 import { useUnifiedSkills } from '@/hooks/use-unified-skills'
 import { commands } from '@/lib/bindings'
 import { cn } from '@/lib/utils'
@@ -23,15 +35,9 @@ import type { UnifiedSkill } from '@/types/skills'
 import { PlatformStatusBanner } from './platform-status-banner'
 import { SkillDetailPanel } from './skill-detail-panel'
 import { UnifiedSkillCard } from './unified-skill-card'
-import { RightPanelHeader } from '@/components/layout/right-panel-header'
-import { EmptyState } from '@/components/ui/empty-state'
-import { FolderOpen, Globe } from 'lucide-react'
-import { Input } from '@/components/ui/input'
-import { LoadingState } from '@/components/ui/loading-state'
-import { AnimatedSuccessIcon } from '@/components/ui/animated-success-icon'
 
 const BREAKPOINTS = {
-  single: 260,
+  single: 260
 }
 
 function useColumnCount(ref: React.RefObject<HTMLElement | null>) {
@@ -258,15 +264,17 @@ export function UnifiedSkillList() {
 
   const ROW_HEIGHT_ESTIMATE = columns === 1 ? 56 : 104
 
-  const measureElement = useCallback((el: Element | null) => {
-    if (!el) return ROW_HEIGHT_ESTIMATE
-    if (measurementsRef.current.has(el)) {
-      return measurementsRef.current.get(el)!
-    }
-    const height = (el as HTMLElement).getBoundingClientRect().height
-    measurementsRef.current.set(el, height)
-    return height
-  }, [ROW_HEIGHT_ESTIMATE])
+  const measureElement = useCallback(
+    (el: Element | null) => {
+      if (!el) return ROW_HEIGHT_ESTIMATE
+      const measured = measurementsRef.current.get(el)
+      if (measured !== undefined) return measured
+      const height = (el as HTMLElement).getBoundingClientRect().height
+      measurementsRef.current.set(el, height)
+      return height
+    },
+    [ROW_HEIGHT_ESTIMATE]
+  )
 
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
@@ -354,19 +362,28 @@ export function UnifiedSkillList() {
   }
 
   return (
-    <div className="flex flex-col h-full min-h-0 overflow-hidden w-full min-w-0" ref={containerRef}>
+    <div
+      className="flex flex-col h-full min-h-0 overflow-hidden w-full min-w-0"
+      ref={containerRef}
+    >
       <RightPanelHeader
         title="Skills"
         actions={
           <div className="flex items-center gap-1">
             {showInstallSuccess && (
-              <AnimatedSuccessIcon onComplete={() => setShowInstallSuccess(false)} />
+              <AnimatedSuccessIcon
+                onComplete={() => setShowInstallSuccess(false)}
+              />
             )}
             {showUpdateSuccess && (
-              <AnimatedSuccessIcon onComplete={() => setShowUpdateSuccess(false)} />
+              <AnimatedSuccessIcon
+                onComplete={() => setShowUpdateSuccess(false)}
+              />
             )}
             {showSyncSuccess && (
-              <AnimatedSuccessIcon onComplete={() => setShowSyncSuccess(false)} />
+              <AnimatedSuccessIcon
+                onComplete={() => setShowSyncSuccess(false)}
+              />
             )}
             {localWithIssues > 0 && (
               <span
@@ -409,9 +426,16 @@ export function UnifiedSkillList() {
               className="size-8"
               onClick={() => handleSync()}
               disabled={!platformFeaturesEnabled || syncMutation.isPending}
-              title={!platformFeaturesEnabled ? 'Enable platform to sync' : 'Refresh'}
+              title={
+                !platformFeaturesEnabled ? 'Enable platform to sync' : 'Refresh'
+              }
             >
-              <RefreshCw className={cn('size-4', syncMutation.isPending && 'animate-spin')} />
+              <RefreshCw
+                className={cn(
+                  'size-4',
+                  syncMutation.isPending && 'animate-spin'
+                )}
+              />
             </Button>
           </div>
         }
@@ -446,7 +470,9 @@ export function UnifiedSkillList() {
       {/* Tabs */}
       <Tabs
         value={activeTab}
-        onValueChange={(v) => setActiveTab(v as any)}
+        onValueChange={(v) =>
+          setActiveTab(v === 'registry' ? 'registry' : 'local')
+        }
         className="flex flex-col flex-1 min-h-0"
       >
         <TabsList className="mx-3 mt-2 w-fit">
@@ -652,9 +678,9 @@ function SkillsEmptyState({
         action={
           onSync
             ? {
-              label: 'Retry',
-              onClick: onSync
-            }
+                label: 'Retry',
+                onClick: onSync
+              }
             : undefined
         }
       />
@@ -691,9 +717,9 @@ function SkillsEmptyState({
         action={
           onEnablePlatform
             ? {
-              label: 'Connect Platform',
-              onClick: onEnablePlatform
-            }
+                label: 'Connect Platform',
+                onClick: onEnablePlatform
+              }
             : undefined
         }
       />
@@ -709,9 +735,9 @@ function SkillsEmptyState({
         action={
           onEnablePlatform
             ? {
-              label: 'Register Now',
-              onClick: onEnablePlatform
-            }
+                label: 'Register Now',
+                onClick: onEnablePlatform
+              }
             : undefined
         }
       />
@@ -726,9 +752,9 @@ function SkillsEmptyState({
       action={
         onSync
           ? {
-            label: isSyncing ? 'Syncing…' : 'Sync now',
-            onClick: onSync
-          }
+              label: isSyncing ? 'Syncing…' : 'Sync now',
+              onClick: onSync
+            }
           : undefined
       }
     />
