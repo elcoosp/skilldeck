@@ -1,22 +1,25 @@
 ---
+
 id: implement-mcp-sse-transport
 title: Implement MCP SSE transport
 labels:
-  - backend
-  - 'priority:should'
-  - 'type:feature'
-  - 'size:medium'
-assignees:
-  - elcoosp
-references:
-  - ../plans/v1.md#9-chunk-6-mcp-client--supervision
-state: closed
-createdAt: '2026-03-12T13:53:55.311Z'
-priority: should
-effort: 1d
-dependencies:
-  - Implement MCP types and JSON-RPC protocol
+- backend
+- 'priority:should'
+- 'type:feature'
+- 'size:medium'
+  assignees:
+- elcoosp
+  references:
+- ../plans/v1.md#9-chunk-6-mcp-client--supervision
+  state: closed
+  createdAt: '2026-03-12T13:53:55.311Z'
+  priority: should
+  effort: 1d
+  dependencies:
+- Implement MCP types and JSON-RPC protocol
+
 ---
+
 ## Context
 
 The SSE transport enables communication with remote MCP servers via HTTP POST requests and Server-Sent Events for responses.
