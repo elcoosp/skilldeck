@@ -26,6 +26,7 @@ function readCookie(name: string): string | null {
 
 function writeCookie(name: string, value: string, maxAge = 90 * 24 * 60 * 60) {
   if (typeof document === 'undefined') return
+  // biome-ignore lint/suspicious/noDocumentCookie: A/B test variant persistence
   document.cookie = `${name}=${value};path=/;max-age=${maxAge};SameSite=Lax`
 }
 
