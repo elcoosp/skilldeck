@@ -870,6 +870,7 @@ Shows filesystem access restrictions:
 - **`.claudeignore` status:** Active/inactive, pattern count
 - **Warning badge:** Shows sample of excluded sensitive patterns (`.env`, `*.key`, `target/`)
 - **[View all rules]** — Opens detailed modal:
+
   ```
   ┌─────────────────────────────────────────┐
   │ File Access Rules                        │
@@ -1020,6 +1021,7 @@ Combines simplicity (numbered pills) with power (side-by-side comparison).
 - **Active branch:** Filled circle with accent color (①)
 - **Other branches:** Outlined circles (② ③)
 - **Hover:** Shows preview tooltip:
+
   ```
   ┌──────────────────────────────┐
   │ Branch 2: Alternative approach│
@@ -1674,6 +1676,7 @@ No budget warnings, no interruptions. Users check costs when they want. All trac
 **Click "Connect":**
 
 - If needs config → opens form:
+
   ```
   ┌─────────────────────────────────────────┐
   │ Configure brave-search                   │
@@ -3460,6 +3463,7 @@ SkillDeck is designed to be usable by everyone, including people using assistive
 
 - All UI strings externalized (not hardcoded)
 - Translation keys in `en.json`:
+
   ```json
   {
     "conversation.new": "New Conversation",
