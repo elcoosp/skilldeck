@@ -112,6 +112,7 @@ pub struct RegisterResponse {
 
 // Feedback DTOs
 #[derive(Debug, Serialize, Type)]
+#[allow(dead_code)]
 pub struct CreateFeedbackRequest {
     pub source: String,
     pub source_id: Option<String>,
@@ -124,6 +125,7 @@ pub struct CreateFeedbackRequest {
 
 // Skills DTOs
 #[derive(Debug, Serialize, Deserialize, Clone, Type)]
+#[allow(dead_code)]
 pub struct SkillResponse {
     pub id: String,
     pub name: String,
@@ -145,6 +147,7 @@ pub struct SkillResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize, Type)]
+#[allow(dead_code)]
 pub struct ListSkillsParams {
     pub page: Option<u64>,
     pub per_page: Option<u64>,
@@ -154,11 +157,13 @@ pub struct ListSkillsParams {
 }
 
 #[derive(Debug, Serialize, Deserialize, Type)]
+#[allow(dead_code)]
 pub struct SyncSkillsParams {
     pub since: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Type)]
+#[allow(dead_code)]
 pub struct SyncSkillsResponse {
     pub skills: Vec<SkillResponse>,
     pub synced_at: String,
@@ -220,6 +225,7 @@ pub struct PlatformClient {
     pub enabled: bool,
 }
 
+#[allow(dead_code)]
 impl PlatformClient {
     pub fn new(base_url: String, enabled: bool) -> Self {
         Self {
@@ -291,10 +297,10 @@ impl PlatformClient {
         let mut delay = std::time::Duration::from_millis(100);
         for attempt in 0..3 {
             // Check cancellation before each attempt
-            if let Some(ref token) = cancel {
-                if token.is_cancelled() {
-                    return Err(PlatformError::Cancelled);
-                }
+            if let Some(ref token) = cancel
+                && token.is_cancelled()
+            {
+                return Err(PlatformError::Cancelled);
             }
             let future = f();
             let result = if let Some(ref token) = cancel {
@@ -337,10 +343,10 @@ impl PlatformClient {
     {
         let mut delay = std::time::Duration::from_millis(100);
         for attempt in 0..3 {
-            if let Some(ref token) = cancel {
-                if token.is_cancelled() {
-                    return Err(PlatformError::Cancelled);
-                }
+            if let Some(ref token) = cancel
+                && token.is_cancelled()
+            {
+                return Err(PlatformError::Cancelled);
             }
             let future = f();
             let result = if let Some(ref token) = cancel {
@@ -588,7 +594,7 @@ impl PlatformClient {
         };
         match self.retry(fut, cancel).await {
             Ok(v) => Ok(v),
-            Err(PlatformError::Http { status, .. }) if status == 204 => Ok(vec![]),
+            Err(PlatformError::Http { status: 204, .. }) => Ok(vec![]),
             Err(e) => Err(e),
         }
     }
@@ -630,10 +636,10 @@ impl PlatformClient {
         // Manual retry loop with cancellation
         let mut delay = std::time::Duration::from_millis(100);
         for attempt in 0..3 {
-            if let Some(ref token) = cancel {
-                if token.is_cancelled() {
-                    return Err(PlatformError::Cancelled);
-                }
+            if let Some(ref token) = cancel
+                && token.is_cancelled()
+            {
+                return Err(PlatformError::Cancelled);
             }
             let req = ActivityEventRequest {
                 event_type: event_type_str.clone(),
