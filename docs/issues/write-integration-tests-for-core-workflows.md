@@ -1,22 +1,25 @@
 ---
+
 id: write-integration-tests-for-core-workflows
 title: Write integration tests for core workflows
 labels:
-  - testing
-  - 'priority:must'
-  - 'type:test'
-  - 'size:large'
-assignees:
-  - elcoosp
-references:
-  - ../plans/v1.md#16-chunk-13-tests--unit--integration
-state: in-progress
-createdAt: '2026-03-12T13:59:50.862Z'
-priority: must
-effort: 3d
-dependencies:
-  - Write unit tests for Rust core modules
+- testing
+- 'priority:must'
+- 'type:test'
+- 'size:large'
+  assignees:
+- elcoosp
+  references:
+- ../plans/v1.md#16-chunk-13-tests--unit--integration
+  state: in-progress
+  createdAt: '2026-03-12T13:59:50.862Z'
+  priority: must
+  effort: 3d
+  dependencies:
+- Write unit tests for Rust core modules
+
 ---
+
 ## Context
 
 Integration tests verify that multiple modules work together correctly. We need tests for agent loop, skill resolution, MCP client, and workflow executor.
