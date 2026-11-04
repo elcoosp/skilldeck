@@ -1,22 +1,25 @@
 ---
+
 id: implement-context-builder-with-toon-encoding
 title: Implement context builder with TOON encoding
 labels:
-  - backend
-  - 'priority:should'
-  - 'type:feature'
-  - 'size:medium'
-assignees:
-  - elcoosp
-references:
-  - ../plans/v1.md#10-chunk-7-agent-loop--tool-dispatcher
-state: in-progress
-createdAt: '2026-03-12T13:56:20.457Z'
-priority: should
-effort: 1d
-dependencies:
-  - Implement skill resolver with priority ordering
+- backend
+- 'priority:should'
+- 'type:feature'
+- 'size:medium'
+  assignees:
+- elcoosp
+  references:
+- ../plans/v1.md#10-chunk-7-agent-loop--tool-dispatcher
+  state: in-progress
+  createdAt: '2026-03-12T13:56:20.457Z'
+  priority: should
+  effort: 1d
+  dependencies:
+- Implement skill resolver with priority ordering
+
 ---
+
 ## Context
 
 The context builder assembles the system prompt, conversation history, and active skills into a format optimized for the model. It may use TOON (Tree of Object Notation) encoding for token efficiency.
