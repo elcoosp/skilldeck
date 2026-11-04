@@ -1,22 +1,25 @@
 ---
+
 id: implement-filesystem-skill-loader
 title: Implement filesystem skill loader
 labels:
-  - backend
-  - 'priority:must'
-  - 'type:feature'
-  - 'size:medium'
-assignees:
-  - elcoosp
-references:
-  - ../plans/v1.md#8-chunk-5-skill-system
-state: closed
-createdAt: '2026-03-12T13:53:55.304Z'
-priority: must
-effort: 1d
-dependencies:
-  - Define plugin traits for dependency inversion
+- backend
+- 'priority:must'
+- 'type:feature'
+- 'size:medium'
+  assignees:
+- elcoosp
+  references:
+- ../plans/v1.md#8-chunk-5-skill-system
+  state: closed
+  createdAt: '2026-03-12T13:53:55.304Z'
+  priority: must
+  effort: 1d
+  dependencies:
+- Define plugin traits for dependency inversion
+
 ---
+
 ## Context
 
 The skill loader is responsible for parsing SKILL.md files with YAML frontmatter. It validates the skill format, extracts metadata, and computes content hashes for change detection.
@@ -48,11 +51,14 @@ We need to implement the FilesystemSkillLoader that parses SKILL.md files, valid
 **Skill format:**
 ```markdown
 ---
+
 name: skill-name
 description: Brief description
 triggers:
-  - optional-trigger-keywords
+- optional-trigger-keywords
+
 ---
+
 # Skill Title
 
 Skill content in Markdown format.
