@@ -1,5 +1,5 @@
-import { test, expect } from '../src/fixtures';
+import { expect, test } from '../src/fixtures'
 
 test('placeholder', async ({ appPage }) => {
-  expect(appPage).toBeDefined();
-});
+  expect(appPage).toBeDefined()
+})
