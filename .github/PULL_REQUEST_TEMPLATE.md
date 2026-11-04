@@ -35,9 +35,9 @@ Provide instructions so we can reproduce.
 - [ ] Manual Testing
 
 **Test Configuration:**
-* OS: <!--[e.g., macOS 14, Windows 11, Ubuntu 22.04]-->
-* Node Version: <!--[e.g., 20.10.0]-->
-* Rust Version: <!--[e.g., 1.75.0]-->
+- OS: <!--[e.g., macOS 14, Windows 11, Ubuntu 22.04]-->
+- Node Version: <!--[e.g., 20.10.0]-->
+- Rust Version: <!--[e.g., 1.75.0]-->
 
 **Test Steps:**
 1. <!--[Step 1]-->
@@ -62,8 +62,8 @@ Provide instructions so we can reproduce.
 
 <!-- Add screenshots here if applicable -->
 
-| Before | After |
-| ------ | ----- |
+| Before         | After          |
+| -------------- | -------------- |
 | <!--[Image]--> | <!--[Image]--> |
 
 ## Additional Notes
