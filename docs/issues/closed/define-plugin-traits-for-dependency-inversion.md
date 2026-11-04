@@ -1,22 +1,25 @@
 ---
+
 id: define-plugin-traits-for-dependency-inversion
 title: Define plugin traits for dependency inversion
 labels:
-  - backend
-  - 'priority:must'
-  - 'type:feature'
-  - 'size:medium'
-assignees:
-  - elcoosp
-references:
-  - ../plans/v1.md#6-chunk-3-plugin-traits-dip-interfaces
-state: closed
-createdAt: '2026-03-12T13:51:42.845Z'
-priority: must
-effort: 1d
-dependencies:
-  - Implement core error types and error taxonomy
+- backend
+- 'priority:must'
+- 'type:feature'
+- 'size:medium'
+  assignees:
+- elcoosp
+  references:
+- ../plans/v1.md#6-chunk-3-plugin-traits-dip-interfaces
+  state: closed
+  createdAt: '2026-03-12T13:51:42.845Z'
+  priority: must
+  effort: 1d
+  dependencies:
+- Implement core error types and error taxonomy
+
 ---
+
 ## Context
 
 Plugin traits enable dependency inversion, allowing the core library to be testable without external dependencies. These traits define the interfaces for model providers, MCP transports, skill loaders, and database access.
