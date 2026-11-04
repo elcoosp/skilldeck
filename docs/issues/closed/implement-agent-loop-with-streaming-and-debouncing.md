@@ -1,24 +1,27 @@
 ---
+
 id: implement-agent-loop-with-streaming-and-debouncing
 title: Implement agent loop with streaming and debouncing
 labels:
-  - backend
-  - 'priority:must'
-  - 'type:feature'
-  - 'size:large'
-assignees:
-  - elcoosp
-references:
-  - ../plans/v1.md#10-chunk-7-agent-loop--tool-dispatcher
-state: closed
-createdAt: '2026-03-12T13:56:20.456Z'
-priority: must
-effort: 2d
-dependencies:
-  - Implement Claude model provider
-  - Implement MCP registry for server management
-  - Implement MCP supervisor with exponential backoff
+- backend
+- 'priority:must'
+- 'type:feature'
+- 'size:large'
+  assignees:
+- elcoosp
+  references:
+- ../plans/v1.md#10-chunk-7-agent-loop--tool-dispatcher
+  state: closed
+  createdAt: '2026-03-12T13:56:20.456Z'
+  priority: must
+  effort: 2d
+  dependencies:
+- Implement Claude model provider
+- Implement MCP registry for server management
+- Implement MCP supervisor with exponential backoff
+
 ---
+
 ## Context
 
 The agent loop is the heart of the conversation engine. It receives user messages, builds context, calls the model provider, streams responses with debouncing, and handles tool calls.
