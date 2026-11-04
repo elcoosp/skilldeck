@@ -3,6 +3,7 @@ All notable changes to SkillDeck are documented in this file.
 ## [0.1.0] - 2025-01-15
 
 ### Added
+
 - Initial public release of SkillDeck
 - Multi-agent orchestration with streaming agent loop
 - Parallel subagent spawning with merge strategies (concat, summarize, vote)
