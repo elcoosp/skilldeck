@@ -1,20 +1,23 @@
 ---
+
 id: implement-workspace-detector-for-project-type-dete
 title: Implement workspace detector for project type detection
 labels:
-  - backend
-  - 'priority:must'
-  - 'type:feature'
-  - 'size:small'
-assignees:
-  - elcoosp
-references:
-  - ../plans/v1.md#12-chunk-9-workspace-detection
-state: closed
-createdAt: '2026-03-12T13:59:50.851Z'
-priority: must
-effort: 0.5d
+- backend
+- 'priority:must'
+- 'type:feature'
+- 'size:small'
+  assignees:
+- elcoosp
+  references:
+- ../plans/v1.md#12-chunk-9-workspace-detection
+  state: closed
+  createdAt: '2026-03-12T13:59:50.851Z'
+  priority: must
+  effort: 0.5d
+
 ---
+
 ## Context
 
 The workspace detector identifies project types (Rust, Node, Python, Go, Java, .NET, Generic) by looking for characteristic files. It also loads context files like CLAUDE.md and README.md.
