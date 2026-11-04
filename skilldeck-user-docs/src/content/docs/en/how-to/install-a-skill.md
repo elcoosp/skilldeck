@@ -1,8 +1,9 @@
 ---
+
 title: "How to Install a Skill from the Registry"
 description: Step-by-step instructions for finding and installing skills from the SkillDeck marketplace or directly from GitHub.
 sidebar:
-  order: 1
+order: 1
 ---
 
 import Nudge from '../../../../components/mdx/Nudge.astro';
