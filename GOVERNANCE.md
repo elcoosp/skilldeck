@@ -44,13 +44,13 @@ We strive to make decisions through open, consensus‑based discussion. The proc
 
 ### Types of Changes and Approval Paths
 
-| Change Type                               | Approval Path                                                                 |
-|-------------------------------------------|-------------------------------------------------------------------------------|
-| Bug fixes, minor improvements             | Any Core Contributor can review and merge (with passing CI).                  |
-| New features, significant refactors       | Should be discussed first; requires at least one Core Contributor approval.   |
-| Architecture decisions (ADRs)             | Must go through ADR process; requires Project Lead sign‑off.                  |
-| Vision or roadmap changes                 | Must be discussed with the community; final decision by Project Lead.         |
-| New Core Contributor                         | Nominated by existing Core Contributors or Project Lead; approved by Project Lead. |
+| Change Type                         | Approval Path                                                                      |
+| ----------------------------------- | ---------------------------------------------------------------------------------- |
+| Bug fixes, minor improvements       | Any Core Contributor can review and merge (with passing CI).                       |
+| New features, significant refactors | Should be discussed first; requires at least one Core Contributor approval.        |
+| Architecture decisions (ADRs)       | Must go through ADR process; requires Project Lead sign‑off.                       |
+| Vision or roadmap changes           | Must be discussed with the community; final decision by Project Lead.              |
+| New Core Contributor                | Nominated by existing Core Contributors or Project Lead; approved by Project Lead. |
 
 ## Release Management
 
