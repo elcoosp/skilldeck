@@ -292,7 +292,7 @@ pub async fn update_workflow_definition(
         .ok_or_else(|| format!("Workflow definition {} not found", id))?;
 
     // Clone fields we need before moving `existing`
-    let created_at = existing.created_at.clone();
+    let created_at = existing.created_at;
     let created_at_str = created_at.to_rfc3339();
 
     let now = chrono::Utc::now().fixed_offset();
