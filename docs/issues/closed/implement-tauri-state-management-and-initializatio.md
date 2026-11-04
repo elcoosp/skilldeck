@@ -1,24 +1,27 @@
 ---
+
 id: implement-tauri-state-management-and-initializatio
 title: Implement Tauri state management and initialization
 labels:
-  - backend
-  - 'priority:must'
-  - 'type:feature'
-  - 'size:medium'
-assignees:
-  - elcoosp
-references:
-  - ../plans/v1.md#13-chunk-10-tauri-shell--commands--events
-state: closed
-createdAt: '2026-03-12T13:59:50.854Z'
-priority: must
-effort: 1d
-dependencies:
-  - Implement database layer with SQLite and SeaORM
-  - Implement MCP registry for server management
-  - Implement skill resolver with priority ordering
+- backend
+- 'priority:must'
+- 'type:feature'
+- 'size:medium'
+  assignees:
+- elcoosp
+  references:
+- ../plans/v1.md#13-chunk-10-tauri-shell--commands--events
+  state: closed
+  createdAt: '2026-03-12T13:59:50.854Z'
+  priority: must
+  effort: 1d
+  dependencies:
+- Implement database layer with SQLite and SeaORM
+- Implement MCP registry for server management
+- Implement skill resolver with priority ordering
+
 ---
+
 ## Context
 
 The Tauri shell manages application state, registers commands, and bridges events between Rust and React. This is the thin OS integration layer.
