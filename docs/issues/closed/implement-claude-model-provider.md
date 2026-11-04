@@ -1,22 +1,25 @@
 ---
+
 id: implement-claude-model-provider
 title: Implement Claude model provider
 labels:
-  - backend
-  - 'priority:must'
-  - 'type:feature'
-  - 'size:medium'
-assignees:
-  - elcoosp
-references:
-  - ../plans/v1.md#7-chunk-4-model-providers
-state: closed
-createdAt: '2026-03-12T13:51:42.846Z'
-priority: must
-effort: 1d
-dependencies:
-  - Define plugin traits for dependency inversion
+- backend
+- 'priority:must'
+- 'type:feature'
+- 'size:medium'
+  assignees:
+- elcoosp
+  references:
+- ../plans/v1.md#7-chunk-4-model-providers
+  state: closed
+  createdAt: '2026-03-12T13:51:42.846Z'
+  priority: must
+  effort: 1d
+  dependencies:
+- Define plugin traits for dependency inversion
+
 ---
+
 ## Context
 
 The Claude provider is the primary model provider for SkillDeck. It implements the ModelProvider trait and handles streaming completions via Anthropic's API with proper error handling and retry logic.
