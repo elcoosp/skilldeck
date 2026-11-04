@@ -1,0 +1,74 @@
+// @vitest-environment happy-dom
+
+import { type EventCallback, listen } from '@tauri-apps/api/event'
+import { cleanup, renderHook, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { useToolApprovals } from '@/hooks/use-tool-approvals'
+import { useToolApprovalStore } from '@/store/tool-approvals'
+
+const initialStore = useToolApprovalStore.getState()
+
+afterEach(() => {
+  cleanup()
+  useToolApprovalStore.setState(initialStore, true)
+})
+
+beforeEach(() => {
+  vi.mocked(listen).mockClear()
+  useToolApprovalStore.setState({ pending: new Map() })
+})
+
+describe('useToolApprovals', () => {
+  it('adds pending approvals only for the active conversation', async () => {
+    const captures: Record<string, EventCallback<unknown>> = {}
+    const unlisten = vi.fn<() => void>()
+    vi.mocked(listen).mockImplementation((eventName, handler) => {
+      captures[eventName] = handler
+      return Promise.resolve(unlisten)
+    })
+    const { unmount } = renderHook(() => useToolApprovals('c1'))
+    await waitFor(() =>
+      expect(captures['tool-approval-requested']).toBeDefined()
+    )
+
+    const approvalHandler = captures['tool-approval-requested']
+    if (!approvalHandler) {
+      throw new Error('expected a tool-approval-requested listener')
+    }
+    approvalHandler({
+      event: 'tool-approval-requested',
+      id: 0,
+      payload: {
+        toolCallId: 't1',
+        toolName: 'shell',
+        arguments: { cmd: 'ls' },
+        conversationId: 'c1'
+      }
+    })
+    approvalHandler({
+      event: 'tool-approval-requested',
+      id: 1,
+      payload: {
+        toolCallId: 't2',
+        toolName: 'shell',
+        arguments: {},
+        conversationId: 'other'
+      }
+    })
+    expect(useToolApprovalStore.getState().pending.has('t1')).toBe(true)
+    expect(useToolApprovalStore.getState().pending.has('t2')).toBe(false)
+    expect(useToolApprovalStore.getState().pending.get('t1')).toEqual({
+      id: 't1',
+      name: 'shell',
+      arguments: { cmd: 'ls' }
+    })
+
+    unmount()
+    expect(unlisten).toHaveBeenCalled()
+  })
+
+  it('subscribes to nothing while the conversation is null', () => {
+    renderHook(() => useToolApprovals(null))
+    expect(listen).not.toHaveBeenCalled()
+  })
+})
