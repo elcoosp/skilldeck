@@ -1,22 +1,25 @@
 ---
+
 id: write-nfr-verification-tests-performance-security-
 title: 'Write NFR verification tests (performance, security, accessibility)'
 labels:
-  - testing
-  - 'priority:must'
-  - 'type:test'
-  - 'size:medium'
-assignees:
-  - elcoosp
-references:
-  - ../plans/v1.md#18-chunk-15-tests--nfr-verification
-state: open
-createdAt: '2026-03-12T13:59:50.863Z'
-priority: must
-effort: 2d
-dependencies:
-  - Write BDD scenario tests for critical user journeys
+- testing
+- 'priority:must'
+- 'type:test'
+- 'size:medium'
+  assignees:
+- elcoosp
+  references:
+- ../plans/v1.md#18-chunk-15-tests--nfr-verification
+  state: open
+  createdAt: '2026-03-12T13:59:50.863Z'
+  priority: must
+  effort: 2d
+  dependencies:
+- Write BDD scenario tests for critical user journeys
+
 ---
+
 ## Context
 
 NFR (Non-Functional Requirements) tests verify performance, security, and accessibility requirements. We need benchmarks and verification procedures.
