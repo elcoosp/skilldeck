@@ -72,6 +72,7 @@ export function Header() {
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
               <button
+                type="button"
                 className="md:hidden p-2 text-muted-foreground hover:text-foreground transition-colors"
                 aria-label={t`Toggle menu`}
               >
