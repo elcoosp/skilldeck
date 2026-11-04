@@ -1,20 +1,23 @@
 ---
+
 id: implement-workflow-types-and-graph-structure
 title: Implement workflow types and graph structure
 labels:
-  - backend
-  - 'priority:should'
-  - 'type:feature'
-  - 'size:medium'
-assignees:
-  - elcoosp
-references:
-  - ../plans/v1.md#11-chunk-8-workflow-engine
-state: closed
-createdAt: '2026-03-12T13:56:20.461Z'
-priority: should
-effort: 1d
+- backend
+- 'priority:should'
+- 'type:feature'
+- 'size:medium'
+  assignees:
+- elcoosp
+  references:
+- ../plans/v1.md#11-chunk-8-workflow-engine
+  state: closed
+  createdAt: '2026-03-12T13:56:20.461Z'
+  priority: should
+  effort: 1d
+
 ---
+
 ## Context
 
 Workflows are defined as directed acyclic graphs (DAGs) with steps and dependencies. We need to define the type system and graph structure for workflow execution.
