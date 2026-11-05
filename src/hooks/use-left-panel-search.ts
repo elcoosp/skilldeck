@@ -4,13 +4,17 @@ import { Route } from '@/routes/__root'
 
 export function useLeftPanelSearch() {
   const navigate = useNavigate()
-  const { leftSearch } = Route.useSearch()
+  const search = Route.useSearch()
+  const { leftSearch } = search
 
   const setLeftSearch = useCallback(
     (value: string) => {
       navigate({
-        search: (prev) => ({ ...prev, leftSearch: value || undefined })
-      })
+        search: (prev: ReturnType<typeof Route.useSearch>) => ({
+          ...prev,
+          leftSearch: value || undefined
+        })
+      } as never)
     },
     [navigate]
   )

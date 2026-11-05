@@ -4,7 +4,8 @@ import { Route } from '@/routes/__root'
 
 export function useExpandedDateGroups() {
   const navigate = useNavigate()
-  const { expandedDateGroups } = Route.useSearch()
+  const search = Route.useSearch()
+  const { expandedDateGroups } = search
 
   const groupKeys = useMemo(() => {
     return expandedDateGroups
@@ -15,15 +16,15 @@ export function useExpandedDateGroups() {
   const toggleDateGroup = useCallback(
     (key: string) => {
       const current = expandedDateGroups ? expandedDateGroups.split(',') : []
-      const next = current.includes(key)
+      const next: string[] = current.includes(key)
         ? current.filter((k) => k !== key)
         : [...current, key]
       navigate({
-        search: (prev) => ({
+        search: (prev: ReturnType<typeof Route.useSearch>) => ({
           ...prev,
           expandedDateGroups: next.length ? next.join(',') : undefined
         })
-      })
+      } as never)
     },
     [navigate, expandedDateGroups]
   )
