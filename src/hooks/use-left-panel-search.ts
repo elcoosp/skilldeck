@@ -1,8 +1,9 @@
 import { useCallback } from 'react'
+import { useNavigate } from '@tanstack/react-router'
 import { Route } from '@/routes/__root'
 
 export function useLeftPanelSearch() {
-  const navigate = Route.useNavigate()
+  const navigate = useNavigate()
   const { leftSearch } = Route.useSearch()
 
   const setLeftSearch = useCallback(
