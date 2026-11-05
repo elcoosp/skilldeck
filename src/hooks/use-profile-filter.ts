@@ -1,5 +1,5 @@
-import { useCallback } from 'react'
 import { useNavigate } from '@tanstack/react-router'
+import { useCallback } from 'react'
 import { Route } from '@/routes/__root'
 
 export function useProfileFilter() {
