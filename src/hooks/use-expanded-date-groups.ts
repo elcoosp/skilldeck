@@ -1,8 +1,9 @@
 import { useCallback, useMemo } from 'react'
+import { useNavigate } from '@tanstack/react-router'
 import { Route } from '@/routes/__root'
 
 export function useExpandedDateGroups() {
-  const navigate = Route.useNavigate()
+  const navigate = useNavigate()
   const { expandedDateGroups } = Route.useSearch()
 
   const groupKeys = useMemo(() => {
