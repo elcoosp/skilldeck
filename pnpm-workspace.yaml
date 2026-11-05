@@ -28,9 +28,12 @@ minimumReleaseAgeExclude:
   - "@next/swc-win32-x64-msvc@16.4.5"
   - "@tanstack/react-virtual@3.14.26"
   - "@tanstack/virtual-core@3.19.11"
-  - lucide-react@1.68.0
+  - lucide-react@1.68.0 || 1.69.0
   - next@16.4.5
-  - react-resizable-panels@4.18.0
+  - react-resizable-panels@4.18.0 || 4.18.1
+  - "@tanstack/query-core@5.106.1"
+  - "@tanstack/react-query@5.106.1"
+  - vite@8.3.6
 
 overrides:
   js-yaml: 4.1.0
