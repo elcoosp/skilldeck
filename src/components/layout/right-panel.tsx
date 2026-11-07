@@ -183,11 +183,11 @@ export function RightPanel() {
                     type="button"
                     onClick={() => setActiveTab(id)}
                     className={cn(
-                      'relative flex items-center justify-center w-7 h-7 rounded-full',
+                      'relative flex items-center justify-center w-7 h-7 rounded-md',
                       'transition-colors duration-150',
                       'hover:bg-muted/60',
                       activeTab === id
-                        ? 'text-primary bg-muted'
+                        ? 'text-primary bg-primary/10'
                         : 'text-muted-foreground hover:text-foreground'
                     )}
                     aria-label={label}
@@ -216,11 +216,11 @@ export function RightPanel() {
                     type="button"
                     onClick={() => setActiveTab(id)}
                     className={cn(
-                      'relative flex items-center justify-center w-7 h-7 rounded-full',
+                      'relative flex items-center justify-center w-7 h-7 rounded-md',
                       'transition-colors duration-150',
                       'hover:bg-muted/60',
                       activeTab === id
-                        ? 'text-primary bg-muted'
+                        ? 'text-primary bg-primary/10'
                         : 'text-muted-foreground hover:text-foreground'
                     )}
                     aria-label={label}
