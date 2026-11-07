@@ -201,17 +201,17 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
       <div className="grid gap-3 text-left">
         {[
           {
-            icon: <Shield size={16} className="text-emerald-500" />,
+            icon: <Shield size={16} className="text-[var(--tone-success)]" />,
             title: 'Your data stays local',
             desc: 'API keys live in your OS keychain; conversations never leave your device.'
           },
           {
-            icon: <Key size={16} className="text-blue-500" />,
+            icon: <Key size={16} className="text-[var(--tone-info)]" />,
             title: 'Skills are code',
             desc: 'Version‑controlled, shareable as Gists, and composable like any other dev tool.'
           },
           {
-            icon: <Rocket size={16} className="text-violet-500" />,
+            icon: <Rocket size={16} className="text-primary" />,
             title: 'From chat to intelligence',
             desc: 'Orchestrate multi‑agent workflows with parallel execution and evaluator‑optimizer patterns.'
           }
