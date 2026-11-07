@@ -1,20 +1,32 @@
 @import "tailwindcss";
 @import "shadcn/tailwind.css";
-@import "@fontsource/poppins";
+@import "@fontsource/hanken-grotesk/400.css";
+@import "@fontsource/hanken-grotesk/500.css";
+@import "@fontsource/hanken-grotesk/600.css";
+@import "@fontsource/hanken-grotesk/700.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
+@import "@fontsource/jetbrains-mono/600.css";
 @plugin "@tailwindcss/typography";
 @custom-variant dark (&:is(.dark *));
 
-/* This loads Poppins font */
+/* ------------------------------------------------------------------ */
+/*  SkillDeck — "Safety Card" design world                             */
+/*  Cool paper ground · card-stock surfaces · ink · safety orange      */
+/*  Orange owns decisions (actions, active path, approvals).           */
+/*  Amber / green / red / blue do state jobs only.                     */
+/*  Hanken Grotesk speaks; JetBrains Mono reports data.                */
+/* ------------------------------------------------------------------ */
 
 :root {
-  /* Font & base styles – now using Poppins as the primary brand font */
-  font-family: "Poppins", Inter, Avenir, Helvetica, Arial, sans-serif;
+  font-family:
+    "Hanken Grotesk", "Segoe UI", system-ui, -apple-system, sans-serif;
   font-size: 16px;
-  line-height: 24px;
+  line-height: 1.5;
   font-weight: 400;
 
-  color: #0f0f0f;
-  background-color: #f6f6f6;
+  color: #171a20;
+  background-color: #eef0f4;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -22,149 +34,176 @@
   -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;
 
-  /* Brand color palette – extracted from logo */
-  --brand-primary-light: #3b82f6;
-  --brand-primary-dark: #1e40af;
-  --brand-secondary-light: #1f2937;
-  --brand-secondary-dark: #111827;
-  --brand-accent: #ff8a4c;
-  --brand-neutral-100: #f9fafb;
-  --brand-neutral-300: #e2e8f0;
-  --brand-neutral-500: #94a3b8;
-  --brand-neutral-700: #334155;
-  --brand-neutral-900: #0f172a;
+  caret-color: #f4622a;
+
+  /* Brand palette — safety-card world */
+  --brand-primary-light: #f4622a;
+  /* safety orange */
+  --brand-primary-dark: #c2410c;
+  /* pressed / text-grade orange */
+  --brand-secondary-light: #232833;
+  /* ink slab */
+  --brand-secondary-dark: #14171c;
+  /* deep cabin ink */
+  --brand-accent: #b45309;
+  /* caution amber (warning channel) */
+  --brand-neutral-100: #f6f7f9;
+  --brand-neutral-300: #d4d9e0;
+  --brand-neutral-500: #8a93a1;
+  --brand-neutral-700: #3c434f;
+  --brand-neutral-900: #171a20;
+
+  /* Semantic channels */
+  --tone-success: #15803d;
+  --tone-warning: #b45309;
+  --tone-danger: #c11a10;
+  --tone-info: #35567e;
 
   /* shadcn semantic variables (light mode) */
-  --background: var(--brand-neutral-100);
-  --foreground: var(--brand-neutral-900);
+  --background: #eef0f4;
+  --foreground: #171a20;
   --card: #ffffff;
-  --card-foreground: var(--brand-neutral-900);
+  --card-foreground: #171a20;
   --popover: #ffffff;
-  --popover-foreground: var(--brand-neutral-900);
-  --primary: var(--brand-primary-light);
-  --primary-foreground: #ffffff;
-  --secondary: var(--brand-secondary-light);
-  --secondary-foreground: #ffffff;
-  --muted: var(--brand-neutral-300);
-  --muted-foreground: #64748b;
-  --accent: var(--brand-accent);
-  --accent-foreground: var(--brand-neutral-900);
-  --destructive: #dc2626;
-  --border: var(--brand-neutral-300);
-  --input: var(--brand-neutral-300);
-  --ring: var(--brand-primary-light);
-  --chart-1: var(--brand-primary-light);
-  --chart-2: var(--brand-primary-dark);
-  --chart-3: var(--brand-accent);
-  --chart-4: var(--brand-secondary-light);
-  --chart-5: var(--brand-secondary-dark);
-  --radius: 0.625rem;
-  --sidebar: #ffffff;
-  --sidebar-foreground: var(--brand-neutral-900);
-  --sidebar-primary: var(--brand-primary-light);
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: var(--brand-neutral-300);
-  --sidebar-accent-foreground: var(--brand-neutral-900);
-  --sidebar-border: var(--brand-neutral-300);
-  --sidebar-ring: var(--brand-primary-light);
-  --inline-code-hover-bg: rgba(59, 130, 246, 0.1);
-  --inline-code-hover-color: #1e40af;
+  --popover-foreground: #171a20;
+  --primary: #f4622a;
+  --primary-foreground: #171a20;
+  --secondary: #232833;
+  --secondary-foreground: #f6f7f9;
+  --muted: #e6e9ee;
+  --muted-foreground: #5a6472;
+  --accent: #e8ebf0;
+  --accent-foreground: #171a20;
+  --destructive: #c11a10;
+  --border: #d4d9e0;
+  --input: #c9cfd8;
+  --ring: #f4622a;
+  --chart-1: #f4622a;
+  --chart-2: #31415c;
+  --chart-3: #d97706;
+  --chart-4: #15803d;
+  --chart-5: #64748b;
+  --radius: 0.5rem;
+  --sidebar: #f6f7f9;
+  --sidebar-foreground: #171a20;
+  --sidebar-primary: #f4622a;
+  --sidebar-primary-foreground: #171a20;
+  --sidebar-accent: #e6e9ee;
+  --sidebar-accent-foreground: #171a20;
+  --sidebar-border: #d4d9e0;
+  --sidebar-ring: #f4622a;
+  --inline-code-hover-bg: rgba(244, 98, 42, 0.1);
+  --inline-code-hover-color: #c2410c;
+
   /* Sonner toast custom colors */
   --normal-bg: #ffffff;
-  --normal-border: #e2e8f0;
-  --normal-text: #0f172a;
-  --success-bg: #3b82f6;
-  /* brand primary blue */
+  --normal-border: #d4d9e0;
+  --normal-text: #171a20;
+  --success-bg: #15803d;
   --success-text: #ffffff;
-  --info-bg: #6c47ff;
-  /* brand secondary purple */
+  --info-bg: #35567e;
   --info-text: #ffffff;
-  --warning-bg: #ff8a4c;
-  /* brand accent orange */
-  --warning-text: #0f172a;
-  --error-bg: #dc2626;
-  /* destructive red */
+  --warning-bg: #b45309;
+  --warning-text: #ffffff;
+  --error-bg: #c11a10;
   --error-text: #ffffff;
 
   /* Queue pause indicator colors */
   --warning: #fef3c7;
-  /* amber-100 */
   --warning-foreground: #92400e;
-  /* amber-800 */
 
-  /* Highlight background for message bubbles (brand blue with low opacity) */
-  --highlight-bg: rgba(59, 130, 246, 0.1);
+  /* Highlight background for message bubbles */
+  --highlight-bg: rgba(244, 98, 42, 0.1);
 
-  /* NEW: Highlight color for search matches (solid blue with good contrast) */
-  --highlight-inline: rgba(245, 158, 11, 0.2);
-  --highlight-inline-user: rgba(255, 140, 0, 0.6);
+  /* Highlight color for search matches (solid, good contrast) */
+  --highlight-inline: rgba(245, 158, 11, 0.28);
+  --highlight-inline-user: rgba(244, 98, 42, 0.45);
 }
 
 .dark {
-  --background: var(--brand-neutral-900);
-  --foreground: var(--brand-neutral-100);
-  --card: #1e293b;
-  --card-foreground: var(--brand-neutral-100);
-  --popover: #1e293b;
-  --popover-foreground: var(--brand-neutral-100);
-  --primary: var(--brand-primary-light);
-  --primary-foreground: #ffffff;
-  --secondary: var(--brand-secondary-dark);
-  --secondary-foreground: #ffffff;
-  --muted: var(--brand-neutral-700);
-  --muted-foreground: #94a3b8;
-  --accent: var(--brand-accent);
-  --accent-foreground: var(--brand-neutral-100);
-  --destructive: #ef4444;
-  --border: var(--brand-neutral-700);
-  --input: var(--brand-neutral-700);
-  --ring: var(--brand-primary-light);
-  --chart-1: var(--brand-primary-light);
-  --chart-2: var(--brand-primary-dark);
-  --chart-3: var(--brand-accent);
-  --chart-4: var(--brand-secondary-light);
-  --chart-5: var(--brand-secondary-dark);
-  --sidebar: #1e293b;
-  --sidebar-foreground: var(--brand-neutral-100);
-  --sidebar-primary: var(--brand-primary-light);
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: var(--brand-neutral-700);
-  --sidebar-accent-foreground: var(--brand-neutral-100);
-  --sidebar-border: var(--brand-neutral-700);
-  --sidebar-ring: var(--brand-primary-light);
-  --inline-code-hover-bg: rgba(59, 130, 246, 0.2);
-  --inline-code-hover-color: #60a5fa;
+  color: #eceef2;
+  background-color: #14171c;
+
+  caret-color: #ff6a33;
+
+  --brand-primary-light: #ff6a33;
+  --brand-primary-dark: #ff8a5b;
+  --brand-secondary-light: #2a303b;
+  --brand-secondary-dark: #1d2128;
+  --brand-accent: #f0a13c;
+  --brand-neutral-100: #eceef2;
+  --brand-neutral-300: #3c434f;
+  --brand-neutral-500: #8a93a1;
+  --brand-neutral-700: #262b33;
+  --brand-neutral-900: #14171c;
+
+  --tone-success: #4ade80;
+  --tone-warning: #fbbf24;
+  --tone-danger: #f87171;
+  --tone-info: #7aa5d8;
+
+  --background: #14171c;
+  --foreground: #eceef2;
+  --card: #1d2128;
+  --card-foreground: #eceef2;
+  --popover: #21252d;
+  --popover-foreground: #eceef2;
+  --primary: #ff6a33;
+  --primary-foreground: #1a1208;
+  --secondary: #2a303b;
+  --secondary-foreground: #eceef2;
+  --muted: #262b33;
+  --muted-foreground: #98a1ad;
+  --accent: #2a2f38;
+  --accent-foreground: #eceef2;
+  --destructive: #e03d33;
+  --border: #2c323c;
+  --input: #333a45;
+  --ring: #ff6a33;
+  --chart-1: #ff6a33;
+  --chart-2: #7aa5d8;
+  --chart-3: #f0a13c;
+  --chart-4: #4ade80;
+  --chart-5: #8a93a1;
+  --sidebar: #191d24;
+  --sidebar-foreground: #eceef2;
+  --sidebar-primary: #ff6a33;
+  --sidebar-primary-foreground: #1a1208;
+  --sidebar-accent: #262b33;
+  --sidebar-accent-foreground: #eceef2;
+  --sidebar-border: #2c323c;
+  --sidebar-ring: #ff6a33;
+  --inline-code-hover-bg: rgba(255, 106, 51, 0.18);
+  --inline-code-hover-color: #ff8a5b;
+
   /* Sonner toast custom colors – dark mode */
-  --normal-bg: #1e293b;
-  --normal-border: #334155;
-  --normal-text: #f9fafb;
-  --success-bg: #3b82f6;
+  --normal-bg: #1d2128;
+  --normal-border: #2c323c;
+  --normal-text: #eceef2;
+  --success-bg: #15803d;
   --success-text: #ffffff;
-  --info-bg: #8f6eff;
-  /* lighter purple for dark mode */
+  --info-bg: #35567e;
   --info-text: #ffffff;
-  --warning-bg: #ff8a4c;
-  --warning-text: #0f172a;
-  --error-bg: #ef4444;
+  --warning-bg: #b45309;
+  --warning-text: #ffffff;
+  --error-bg: #c11a10;
   --error-text: #ffffff;
 
   /* Queue pause indicator colors – dark mode */
   --warning: #451a03;
-  /* amber-950 */
   --warning-foreground: #fbbf24;
-  /* amber-400 */
 
-  /* Highlight background for message bubbles (brand blue with slightly higher opacity) */
-  --highlight-bg: rgba(59, 130, 246, 0.2);
+  /* Highlight background for message bubbles */
+  --highlight-bg: rgba(255, 106, 51, 0.16);
 
-  /* NEW: Highlight color for search matches – brighter for dark mode */
-  --highlight-inline: rgba(251, 191, 36, 0.25);
-
-  --highlight-inline-user: rgba(255, 200, 0, 0.6);
+  /* Highlight color for search matches – brighter for dark mode */
+  --highlight-inline: rgba(251, 191, 36, 0.28);
+  --highlight-inline-user: rgba(255, 138, 91, 0.5);
 }
 
 @theme inline {
-  --font-sans: "Poppins", sans-serif;
+  --font-sans: "Hanken Grotesk", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -196,6 +235,9 @@
   --color-card: var(--card);
   --color-foreground: var(--foreground);
   --color-background: var(--background);
+  --color-success: var(--tone-success);
+  --color-warning: var(--tone-warning);
+  --color-info: var(--tone-info);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -265,6 +307,60 @@
   html {
     @apply font-sans;
   }
+
+  /* Browser surfaces carry the design: selection, caret, scrollbars */
+  ::selection {
+    background-color: rgba(244, 98, 42, 0.24);
+    color: var(--foreground);
+  }
+
+  .dark ::selection {
+    background-color: rgba(255, 106, 51, 0.32);
+    color: var(--foreground);
+  }
+
+  ::placeholder {
+    color: var(--muted-foreground);
+    opacity: 1;
+  }
+
+  /* Data speaks in mono; numerals align in tables */
+  pre,
+  code,
+  kbd,
+  samp {
+    font-family: var(--font-mono);
+  }
+}
+
+/* Global scrollbars — themed, quiet, 8px */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+*::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--muted-foreground);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 .thin-scrollbar {
@@ -296,7 +392,7 @@
 
 @keyframes highlight-flash {
   0% {
-    background-color: hsl(var(--primary) / 0.15);
+    background-color: rgba(244, 98, 42, 0.16);
   }
 
   100% {
@@ -326,7 +422,7 @@
 }
 
 .animate-slide-primary {
-  animation: slidePrimary 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation: slidePrimary 1.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 @keyframes slideSecondary {
@@ -350,7 +446,7 @@
 }
 
 .animate-slide-secondary {
-  animation: slideSecondary 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation: slideSecondary 1.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 @keyframes slideThird {
@@ -374,7 +470,7 @@
 }
 
 .animate-slide-third {
-  animation: slideThird 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation: slideThird 1.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 @keyframes sparkleFlash {
@@ -439,7 +535,7 @@
 
 /* Base pre styles */
 pre {
-  font-family: inherit;
+  font-family: var(--font-mono);
   tab-size: 2;
   line-height: 1.5;
   margin: 0;
@@ -522,7 +618,7 @@ code[data-inline-code]:hover {
   width: 2.8rem;
   text-align: right;
   color: var(--muted-foreground);
-  opacity: 0.4;
+  opacity: 0.5;
   font-size: 0.75rem;
   user-select: none;
   -webkit-user-select: none;
@@ -546,14 +642,13 @@ code[data-inline-code]:hover {
   counter-reset: none;
 }
 
-/* Highlighted line */
+/* Highlighted line — background only, no accent stripe */
 .highlighted-line {
   background: var(--highlight-inline);
-  border-left: 3px solid var(--primary);
 }
 
 .current-search-match {
-  background-color: rgba(255, 165, 0, 0.2);
+  background-color: rgba(245, 158, 11, 0.28);
   box-shadow: inset 2px 0 0 var(--color-accent);
 }
 
@@ -589,11 +684,11 @@ code[data-inline-code]:hover {
 
 @keyframes artifact-pulse {
   0% {
-    background-color: rgba(var(--primary), 0.1);
+    background-color: rgba(244, 98, 42, 0.08);
   }
 
   50% {
-    background-color: rgba(var(--primary), 0.2);
+    background-color: rgba(244, 98, 42, 0.18);
   }
 
   100% {

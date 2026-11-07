@@ -38,13 +38,14 @@ export interface ProseConfig {
 }
 
 export const DEFAULT_PROSE_CONFIG: ProseConfig = {
-  textFont: '400 14px Poppins, Inter, Avenir, Helvetica, Arial, sans-serif',
+  textFont:
+    '400 14px "Hanken Grotesk", "Segoe UI", system-ui, Helvetica, Arial, sans-serif',
   textLineHeight: 24,
   headingFont:
-    '600 17.5px Poppins, Inter, Avenir, Helvetica, Arial, sans-serif',
+    '600 17.5px "Hanken Grotesk", "Segoe UI", system-ui, Helvetica, Arial, sans-serif',
   headingLineHeight: 28,
   codeFont:
-    '400 13px ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace',
+    '400 13px "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace',
   codeLineHeight: 20,
   codeBlockHeaderHeight: 36,
   codeBlockPaddingTop: 12,
