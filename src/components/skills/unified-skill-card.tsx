@@ -34,12 +34,12 @@ const STATUS_LABEL: Record<UnifiedSkill['status'], string> = {
   update_available: 'Update'
 }
 
-// Status to left border color mapping for list variant
-const STATUS_BORDER_COLOR: Record<UnifiedSkill['status'], string> = {
-  installed: 'bg-teal-500',
-  local_only: 'bg-blue-500',
-  available: 'bg-amber-500',
-  update_available: 'bg-destructive'
+// Status dot color mapping for list variant — state colors only
+const STATUS_DOT_COLOR: Record<UnifiedSkill['status'], string> = {
+  installed: 'bg-[var(--tone-success)]',
+  local_only: 'bg-[var(--tone-info)]',
+  available: 'bg-muted-foreground/50',
+  update_available: 'bg-[var(--tone-warning)]'
 }
 
 export function UnifiedSkillCard({
@@ -98,7 +98,7 @@ export function UnifiedSkillCard({
           <Button
             size="xs"
             variant="outline"
-            className="border-amber-500/30 text-amber-600 hover:bg-amber-500/10"
+            className="border-[var(--tone-warning)]/40 text-[var(--tone-warning)] hover:bg-[var(--tone-warning)]/10"
             onClick={(e) => {
               e.stopPropagation()
               onUpdate(skill)
@@ -115,7 +115,7 @@ export function UnifiedSkillCard({
   // LIST VARIANT (1 column) – compact horizontal layout with left accent
   // ──────────────────────────────────────────────────────────────────────────
   if (isList) {
-    const borderColor = STATUS_BORDER_COLOR[skill.status]
+    const dotColor = STATUS_DOT_COLOR[skill.status]
     return (
       // biome-ignore lint/a11y/useSemanticElements: ok
       <div
@@ -124,18 +124,19 @@ export function UnifiedSkillCard({
         onClick={() => onClick(skill)}
         onKeyDown={handleKeyDown}
         className={cn(
-          'group relative w-full text-left rounded-lg cursor-pointer',
+          'group relative w-full text-left rounded-lg cursor-pointer border border-transparent',
           'transition-colors duration-200',
-          'hover:bg-muted/50',
-          'flex items-stretch overflow-hidden',
+          'hover:bg-muted/50 hover:border-border',
+          'flex items-center',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
-          isSelected && 'bg-muted'
+          isSelected && 'bg-muted border-border'
         )}
       >
-        {/* Left status accent bar */}
-        <div className={cn('w-1 shrink-0 rounded-l-lg', borderColor)} />
-
-        <div className="flex-1 min-w-0 flex items-center gap-2 py-2 px-3">
+        <div className="flex-1 min-w-0 flex items-center gap-2.5 py-2 px-3">
+          <span
+            className={cn('size-1.5 shrink-0 rounded-full', dotColor)}
+            aria-hidden
+          />
           <div className="flex-1 min-w-0">
             <h3 className="font-medium text-sm truncate">{skill.name}</h3>
             <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
@@ -178,8 +179,8 @@ export function UnifiedSkillCard({
         </h3>
         {skill.status === 'update_available' ? (
           <Badge
-            variant="destructive"
-            className="shrink-0 text-[10px] px-1.5 py-0 bg-amber-500/10 text-amber-600 border-amber-500/20 flex items-center gap-0.5"
+            variant="outline"
+            className="shrink-0 text-[10px] px-1.5 py-0 bg-[var(--tone-warning)]/10 text-[var(--tone-warning)] border-[var(--tone-warning)]/30 flex items-center gap-0.5"
           >
             <ArrowUp className="size-2.5" />
             Update
@@ -190,11 +191,11 @@ export function UnifiedSkillCard({
             className={cn(
               'shrink-0 text-[10px] px-1.5 py-0 rounded-full',
               skill.status === 'installed' &&
-                'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/30 dark:text-teal-400',
+                'bg-[var(--tone-success)]/10 text-[var(--tone-success)] border-[var(--tone-success)]/30',
               skill.status === 'local_only' &&
                 'bg-secondary text-secondary-foreground',
               skill.status === 'available' &&
-                'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400'
+                'bg-[var(--tone-info)]/10 text-[var(--tone-info)] border-[var(--tone-info)]/30'
             )}
           >
             {STATUS_LABEL[skill.status]}
@@ -225,7 +226,7 @@ export function UnifiedSkillCard({
           )}
           {warningCount > 0 && errorCount === 0 && (
             <span
-              className="text-amber-500 font-medium inline-flex items-center gap-0.5"
+              className="text-[var(--tone-warning)] font-medium inline-flex items-center gap-0.5"
               title={`${warningCount} warning${warningCount > 1 ? 's' : ''}`}
             >
               {warningCount} <AlertTriangle className="size-3" />

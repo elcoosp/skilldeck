@@ -37,7 +37,9 @@ import { SkillDetailPanel } from './skill-detail-panel'
 import { UnifiedSkillCard } from './unified-skill-card'
 
 const BREAKPOINTS = {
-  single: 260
+  // Below this width a single card column keeps titles and metadata legible;
+  // two columns only pay off once each card can breathe.
+  single: 360
 }
 
 function useColumnCount(ref: React.RefObject<HTMLElement | null>) {
