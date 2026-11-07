@@ -858,8 +858,9 @@ export function MessageInput({
       <div
         ref={containerRef}
         className={cn(
-          'relative rounded-xl border border-input bg-background shadow-sm',
-          'focus-within:ring-2 focus-within:ring-ring/50'
+          'relative rounded-xl border border-input bg-card shadow-[0_1px_3px_rgba(16,18,22,0.05),0_10px_28px_-16px_rgba(16,18,22,0.16)]',
+          'focus-within:ring-2 focus-within:ring-ring/40 focus-within:border-ring',
+          'dark:shadow-[0_1px_3px_rgba(0,0,0,0.4),0_10px_28px_-16px_rgba(0,0,0,0.5)]'
         )}
       >
         {triggerState?.type === 'skill' && (
@@ -1085,7 +1086,7 @@ export function MessageInput({
                       className={cn(
                         'rounded-full p-0.5 transition-colors',
                         hasAnyApproval
-                          ? 'text-green-500 hover:text-green-600 dark:hover:text-green-400'
+                          ? 'text-[var(--tone-success)] hover:text-[var(--tone-success)]/80'
                           : 'text-muted-foreground hover:text-foreground'
                       )}
                     >
@@ -1123,7 +1124,9 @@ export function MessageInput({
                     }}
                   >
                     <span
-                      className={toolApprovals[key] ? 'text-green-500' : ''}
+                      className={
+                        toolApprovals[key] ? 'text-[var(--tone-success)]' : ''
+                      }
                     >
                       {label}
                     </span>
