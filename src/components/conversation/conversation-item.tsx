@@ -240,10 +240,10 @@ export function ConversationItem({
       onClick={() => !isRenaming && !isDeleting && onClick()}
       onKeyDown={handleKeyDown}
       className={cn(
-        'group relative flex items-start gap-2 w-full px-2 py-2 rounded-md text-left transition-colors cursor-pointer',
+        'group relative flex items-start gap-2 w-full px-2 py-2 rounded-md text-left transition-colors cursor-pointer border',
         isActive
-          ? 'bg-primary/10 text-foreground'
-          : 'hover:bg-muted/70 text-muted-foreground hover:text-foreground',
+          ? 'bg-primary/10 border-primary/40 text-foreground'
+          : 'border-transparent hover:bg-muted/70 text-muted-foreground hover:text-foreground',
         isDeleting && 'pointer-events-none opacity-50',
         isDragTargetCombined && 'ring-2 ring-inset ring-primary',
         isDragTargetCombined && isActive && 'bg-primary/20',
