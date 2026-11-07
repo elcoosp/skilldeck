@@ -659,7 +659,7 @@ function MessageBubbleInner({
       <Bot className="size-3.5" />
     )
     const avatarClass = isSystem
-      ? 'bg-blue-500/20 text-blue-500'
+      ? 'bg-[var(--tone-info)]/15 text-[var(--tone-info)]'
       : 'bg-muted text-foreground'
     const roleLabel = isSystem
       ? message.content.startsWith(
@@ -763,7 +763,7 @@ function MessageBubbleInner({
             />
 
             {isQueued && (
-              <span className="text-xs bg-primary-foreground/10 text-primary-foreground rounded-full px-2 py-0.5 mb-1 flex items-center gap-1 self-start">
+              <span className="text-xs bg-amber-400/15 text-amber-700 dark:text-amber-400 rounded-full px-2 py-0.5 mb-1 flex items-center gap-1 self-start w-fit">
                 <Clock className="size-3" /> Queued
               </span>
             )}
@@ -903,13 +903,13 @@ function MessageBubbleInner({
 
         <div className="flex flex-col items-end min-w-0 max-w-[78%]">
           <div className="w-full">
-            <div className="relative px-3.5 py-2.5 rounded-xl rounded-tr-sm bg-primary text-primary-foreground block w-full">
+            <div className="relative px-3.5 py-2.5 rounded-xl rounded-tr-sm bg-primary/10 border border-primary/35 block w-full">
               <Textarea
                 ref={editTextareaRef}
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
                 onKeyDown={handleEditKeyDown}
-                className="min-h-[80px] w-full bg-primary-foreground/10 text-primary-foreground placeholder:text-primary-foreground/50 border-primary-foreground/20"
+                className="min-h-[80px] w-full bg-card/60 text-foreground placeholder:text-muted-foreground border-input"
                 placeholder="Edit your message..."
               />
               <div className="flex justify-end gap-2 mt-2">
@@ -917,19 +917,15 @@ function MessageBubbleInner({
                   size="sm"
                   variant="ghost"
                   onClick={handleCancelEdit}
-                  className="text-primary-foreground hover:bg-primary-foreground/20"
+                  className="text-muted-foreground hover:text-foreground"
                 >
                   Cancel
                 </Button>
-                <Button
-                  size="sm"
-                  onClick={handleSaveEdit}
-                  className="bg-primary-foreground text-primary hover:bg-primary-foreground/90"
-                >
+                <Button size="sm" onClick={handleSaveEdit}>
                   Save & Resend
                 </Button>
               </div>
-              <p className="text-xs text-primary-foreground/70 mt-2 text-right">
+              <p className="text-xs text-muted-foreground mt-2 text-right">
                 Press Escape to cancel, Ctrl+Enter to save
               </p>
             </div>
@@ -963,7 +959,7 @@ function MessageBubbleInner({
           isUser
             ? 'bg-primary text-primary-foreground mt-0.5'
             : isSystem
-              ? 'bg-blue-500/20 text-blue-500 mt-0.5'
+              ? 'bg-[var(--tone-info)]/15 text-[var(--tone-info)] mt-0.5'
               : 'bg-muted text-foreground mt-1.5'
         )}
         aria-hidden
@@ -989,10 +985,10 @@ function MessageBubbleInner({
             ref={contentRef}
             data-message-id={message.id}
             className={cn(
-              'relative px-3.5 py-2.5 rounded-xl text-sm leading-relaxed transition-colors duration-300',
+              'relative px-3.5 py-2.5 rounded-xl text-sm leading-relaxed transition-colors duration-300 border',
               isUser
-                ? 'bg-primary text-primary-foreground rounded-tr-sm block w-full'
-                : 'bg-muted/50 inline-block',
+                ? 'bg-primary/10 border-primary/35 rounded-tr-sm block w-full'
+                : 'bg-muted/50 border-transparent inline-block',
               isQueued && 'border-l-2 border-amber-400 pl-3'
             )}
           >
@@ -1008,7 +1004,7 @@ function MessageBubbleInner({
             />
 
             {isQueued && (
-              <span className="text-xs bg-primary-foreground/10 text-primary-foreground rounded-full px-2 py-0.5 mb-1 flex items-center gap-1 self-start">
+              <span className="text-xs bg-amber-400/15 text-amber-700 dark:text-amber-400 rounded-full px-2 py-0.5 mb-1 flex items-center gap-1 self-start w-fit">
                 <Clock className="size-3" /> Queued
               </span>
             )}
@@ -1050,7 +1046,7 @@ function MessageBubbleInner({
               <button
                 type="button"
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="mt-2 text-xs font-medium text-primary-foreground/80 hover:text-primary-foreground transition-colors"
+                className="mt-2 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
               >
                 {isExpanded ? 'Show less' : 'Show more'}
               </button>
