@@ -34,14 +34,14 @@ export function AnalyticsHeatmap({
   const messagesHeatmapData = formatForHeatmap(messagesData)
   const conversationsHeatmapData = formatForHeatmap(conversationsData)
 
-  // Explicit color thresholds – zero = neutral gray, positive counts = greens
+  // Explicit color thresholds – zero = neutral ground, positive counts = safety-orange ramp
   const panelColors = {
-    0: '#ebedf0', // no data
-    1: '#9be9a4', // 1–3
-    4: '#40c463', // 4–9
-    10: '#30a14e', // 10–24
-    25: '#216e39', // 25–49
-    50: '#0e4429' // 50+
+    0: 'var(--muted)', // no data
+    1: '#ffd9c4', // 1–3
+    4: '#ffab85', // 4–9
+    10: '#f4622a', // 10–24
+    25: '#d94c14', // 25–49
+    50: '#a13508' // 50+
   }
 
   // Compute width for each heatmap based on the date range (weeks)
