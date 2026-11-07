@@ -65,7 +65,7 @@ function SettingsLayout() {
         if (e.target === e.currentTarget) handleClose()
       }}
     >
-      <div className="relative w-full max-w-2xl h-[520px] rounded-xl border border-border bg-background shadow-2xl flex overflow-hidden">
+      <div className="relative w-full max-w-2xl h-[520px] rounded-xl border border-border bg-card shadow-2xl flex overflow-hidden">
         {/* Close button - absolutely positioned, takes no layout space */}
         <button
           type="button"
@@ -89,7 +89,7 @@ function SettingsLayout() {
               className={cn(
                 'flex items-center gap-2.5 w-full px-2.5 py-2 rounded-md text-sm text-left transition-colors',
                 activeTab === id
-                  ? 'bg-primary/10 text-foreground font-medium'
+                  ? 'bg-primary/10 text-primary font-medium'
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted'
               )}
             >
